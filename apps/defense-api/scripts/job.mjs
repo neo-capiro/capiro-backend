@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=64 helpExit=0 */
 /**
  * Phase 9 — governed one-shot defense-budget job runtime.
  *
@@ -73,8 +74,6 @@ function loadDomain() {
     return require(path.join(repoRoot, 'packages/defense-domain/dist/index.js'));
   }
 }
-const domain = loadDomain();
-
 const argv = process.argv.slice(2);
 const mode = argv[0] ?? '';
 const rest = argv.slice(1);
@@ -96,16 +95,65 @@ const MODES = Object.freeze([
   'egress-check',
 ]);
 
+// Validate before generated runtime modules load. The mode implementations
+// below keep their established parsing and configured defaults.
+const MODE_OPTIONS = {
+  inventory: { values: ['fiscal-years'], flags: ['json'] },
+  'backfill-plan': { values: ['fiscal-years', 'adapters'], flags: [] },
+  'backfill-run': {
+    values: ['fiscal-years', 'adapters', 'max-adapters', 'budget', 'lease-owner', 'run-key'],
+    flags: ['commit'],
+  },
+  'lifecycle-watch': {
+    values: [
+      'adapter',
+      'manifest',
+      'source-discovery',
+      'catalog-fiscal-years',
+      'expected-source-id',
+      'lease-owner',
+      'run-key',
+    ],
+    flags: ['commit'],
+  },
+  'schedule-tick': { values: ['budget', 'worker-id', 'tick-key'], flags: ['commit'] },
+  'db-check': { values: [], flags: [] },
+  'egress-check': { values: ['hosts', 'timeout-ms'], flags: [] },
+};
+
+function validOptions() {
+  const specific =
+    MODE_OPTIONS[mode] ?? (mode === '--list-adapters' ? { values: [], flags: [] } : null);
+  if (!specific) return false;
+  const values = new Set(['--now', ...specific.values.map((name) => `--${name}`)]);
+  const flags = new Set([
+    '--help',
+    '--list-adapters',
+    ...specific.flags.map((name) => `--${name}`),
+  ]);
+  for (let index = 0; index < rest.length; index += 1) {
+    const option = rest[index];
+    if (flags.has(option)) continue;
+    if (values.has(option) && rest[index + 1] && !rest[index + 1].startsWith('--')) {
+      index += 1;
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 function usage() {
   console.error(`usage: job.mjs <mode> [options]
 
 modes:
-  inventory        --fiscal-years 2024,2025,...   read-only, no DB, no network
-  backfill-plan    --fiscal-years 2024,...        read-only
+  inventory        --fiscal-years 2024,2025,... [--json]   read-only, no DB, no network
+  backfill-plan    --fiscal-years 2024,... [--adapters a,b] read-only
   backfill-run     --fiscal-years 2024,... [--commit] [--max-adapters N] [--adapters a,b]
+                   [--budget N] [--lease-owner ID] [--run-key KEY]
   lifecycle-watch  --adapter <id> [--commit] [--manifest <path>]
                    [--source-discovery manifest|catalog] [--catalog-fiscal-years 2024]
-                   [--expected-source-id <uuid>]
+                   [--expected-source-id <uuid>] [--lease-owner ID] [--run-key KEY]
                      manifest (default): network-free, requires --manifest or discovers nothing.
                      catalog: Phase 10B-5 bounded one-shot activation of
                        CatalogSourceDiscoveryAdapter for THIS invocation only -- reads the real
@@ -117,19 +165,43 @@ modes:
                        expected sources at once (e.g. dod-comptroller/FY2024 has 5 DW families).
                        Pass the exact expected-source UUID to narrow discovery to that single row;
                        omit it to keep prior (all-matching-rows) behavior unchanged.
-  schedule-tick    [--commit]
+  schedule-tick    [--commit] [--budget N] [--worker-id ID] [--tick-key KEY]
   db-check                                        read-only
-  egress-check     [--hosts a,b]                  read-only
+  egress-check     [--hosts a,b] [--timeout-ms N] read-only
 
 global:
   --now <iso>            override the clock (deterministic runs)
   --list-adapters        print the adapter registry and exit
+  --help                 print usage and exit
 `);
+}
+
+// Validate the public CLI before requiring generated runtime output. A bare
+// invocation has always been a usage error; it must stay inspectable in a
+// tracked-source checkout that has not built dist yet.
+if (mode === '--help' && rest.length === 0) {
+  usage();
+  process.exit(0);
+}
+if (!MODES.includes(mode) && mode !== '--list-adapters') {
+  console.error(`unknown or missing mode: "${mode}"`);
+  usage();
+  process.exit(64);
+}
+if (!validOptions()) {
+  console.error(`unsupported or incomplete option for mode "${mode}"`);
+  usage();
+  process.exit(64);
+}
+if (rest.includes('--help')) {
+  usage();
+  process.exit(0);
 }
 
 // ---------------------------------------------------------------------------
 // Registry + fail-closed GPU independence (shared by all modes).
 // ---------------------------------------------------------------------------
+const domain = loadDomain();
 const { SourceAdapterRegistry } = dist('source-adapter.registry.js');
 const registry = new SourceAdapterRegistry();
 

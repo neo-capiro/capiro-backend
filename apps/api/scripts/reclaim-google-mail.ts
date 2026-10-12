@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Retroactive Gmail RE-ASSOCIATION reclaim for a tenant's Google connection(s).
  *
@@ -46,9 +47,8 @@ import 'dotenv/config';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
-import { AppModule } from '../src/app.module.js';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-import { GoogleSyncService } from '../src/engagement/google/google-sync.service.js';
+import type { PrismaService } from '../src/prisma/prisma.service.js';
+import type { GoogleSyncService } from '../src/engagement/google/google-sync.service.js';
 
 function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
@@ -197,6 +197,11 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
+  // Load the application only after the CLI has accepted a tenant. Invalid
+  // invocations must not initialize the full application's dependency graph.
+  const { AppModule } = await import('../src/app.module.js');
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
+  const { GoogleSyncService } = await import('../src/engagement/google/google-sync.service.js');
   const logger = new Logger('reclaim-google-mail');
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {

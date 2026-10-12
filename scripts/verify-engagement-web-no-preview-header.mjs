@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 /**
  * Current-web no-preview-header guard.
  *
@@ -20,6 +21,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+console.error('Usage: node scripts/verify-engagement-web-no-preview-header.mjs (no arguments runs the existing verifier)');
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB_SRC = path.join(REPO_ROOT, 'apps', 'web', 'src');
 

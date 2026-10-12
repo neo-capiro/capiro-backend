@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * sam-opportunity-matcher.ts — PURE, deterministic SAM.gov opportunity -> program / PE
  * matcher (Step 3.1). No DB, no NestJS, no I/O: the sync script supplies the inputs
@@ -252,4 +253,15 @@ export function matchOpportunity(
   }
 
   return out;
+}
+
+if (require.main === module) {
+  const usage = 'Usage: sam-opportunity-matcher [--help] (library module; called by sync-sam-opportunities)';
+  const args = process.argv.slice(2);
+  if (args.length === 0 || (args.length === 1 && args[0] === '--help')) {
+    console.log(usage);
+  } else {
+    console.error(usage);
+    process.exitCode = 2;
+  }
 }

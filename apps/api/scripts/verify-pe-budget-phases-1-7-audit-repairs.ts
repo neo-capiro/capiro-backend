@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 /**
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  * Independent closeout runner for the 2026-08-09 Phase 1-7 audit repairs.
  *
  * This is intentionally stricter than any one phase's fast gate. It chains the
@@ -12,6 +13,23 @@
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
+const USAGE = 'Usage: tsx scripts/verify-pe-budget-phases-1-7-audit-repairs.ts --run';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--run' && arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (!argv.includes('--run')) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const API_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');
@@ -59,6 +77,7 @@ const steps: Step[] = [
     'exec',
     'tsx',
     'scripts/verify-pe-budget-phase-3-closeout.ts',
+    '--run',
     '--include-containers',
   ]),
 
@@ -68,6 +87,7 @@ const steps: Step[] = [
     'exec',
     'tsx',
     'scripts/verify-pe-budget-phase-4-closeout.ts',
+    '--run',
     '--include-containers',
   ]),
 
@@ -77,6 +97,7 @@ const steps: Step[] = [
     'exec',
     'tsx',
     'scripts/verify-pe-budget-phase-5-closeout.ts',
+    '--run',
     '--include-containers',
   ]),
 

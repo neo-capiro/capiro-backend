@@ -92,6 +92,10 @@ function hasFlag(name: string): boolean {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/seed-acq-program-map.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = hasFlag('commit');
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -181,7 +185,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error('[seed-acq-program-map] FAILED', err);
   process.exit(1);
 });
+}

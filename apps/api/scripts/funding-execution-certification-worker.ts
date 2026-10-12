@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /** Package 6 certification worker; all persistence is through the narrow store port. */
 import type { FundingExecutionFact } from '../src/program-element/funding-execution/funding-execution-read.service.js';
 import { FundingExecutionStore } from '../src/funding-execution/funding-execution.store.js';
@@ -112,11 +113,32 @@ function toCertifiedPublication(row: FundingExecutionFact): CertifiedFundingExec
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const usage = 'Usage: funding-execution-certification-worker [--commit] [--limit 1..5000] [--help] (requires DATABASE_URL)';
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    return;
+  }
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (option === '--commit') continue;
+    if (option === '--limit' && args[index + 1] && !args[index + 1]!.startsWith('--')) {
+      index += 1;
+      continue;
+    }
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
   const value = (name: string) => {
     const index = args.indexOf(`--${name}`);
     return index < 0 ? undefined : args[index + 1];
   };
   const limit = Number(value('limit') ?? 100);
+  if (!process.env.DATABASE_URL?.trim() || !Number.isInteger(limit) || limit < 1 || limit > MAX_BATCH) {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   await prisma.$connect();
   try {

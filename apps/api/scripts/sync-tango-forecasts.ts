@@ -294,6 +294,7 @@ function realUpsertForecast(prisma: PrismaClient): ForecastSyncDeps['upsertForec
 }
 
 async function main(): Promise<void> {
+
   const args = parseArgs(process.argv.slice(2));
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
 
@@ -363,6 +364,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-tango-forecasts.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error(

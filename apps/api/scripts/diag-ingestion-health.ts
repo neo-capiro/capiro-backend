@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only INGESTION HEALTH report. For each major synced table: total row
  * count + most-recent timestamp (so we can see staleness), plus the alert-gate
@@ -5,9 +6,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-async function maxDate(model: string, field: string): Promise<string | null> {
+async function maxDate(prisma: PrismaClient, model: string, field: string): Promise<string | null> {
   try {
     const rows = await prisma.$queryRawUnsafe<Array<{ m: Date | null }>>(
       `SELECT MAX("${field}") AS m FROM "${model}"`,
@@ -19,7 +18,7 @@ async function maxDate(model: string, field: string): Promise<string | null> {
   }
 }
 
-async function count(model: string): Promise<number | string> {
+async function count(prisma: PrismaClient, model: string): Promise<number | string> {
   try {
     const rows = await prisma.$queryRawUnsafe<Array<{ c: bigint }>>(
       `SELECT COUNT(*)::bigint AS c FROM "${model}"`,
@@ -76,7 +75,7 @@ interface StateSlaRow {
  * permanent SLA breaches; this is the marketed freshness number (parent plan
  * SC-1) instead.
  */
-async function stateIngestionSla(): Promise<StateSlaRow[]> {
+async function stateIngestionSla(prisma: PrismaClient): Promise<StateSlaRow[]> {
   try {
     const percentiles = await prisma.$queryRawUnsafe<
       Array<{ state: string; p50: number | null; p95: number | null; n: bigint }>
@@ -128,7 +127,7 @@ interface SamMatchCoverage {
 /** SAM.gov opportunity -> PE/program match coverage (separate from the generic
  * row-count table above since "how many opportunities have >=1 match" needs a
  * DISTINCT count, not a raw row count on sam_opportunity_match). */
-async function samMatchCoverage(): Promise<SamMatchCoverage> {
+async function samMatchCoverage(prisma: PrismaClient): Promise<SamMatchCoverage> {
   const q = async (sql: string): Promise<unknown> => {
     try {
       const r = (await prisma.$queryRawUnsafe(sql)) as Array<Record<string, unknown>>;
@@ -156,39 +155,56 @@ async function samMatchCoverage(): Promise<SamMatchCoverage> {
 }
 
 async function main(): Promise<void> {
-  const out: Record<
-    string,
-    { rows: number | string; latest: string | null; lastSynced: string | null }
-  > = {};
-  for (const [t, contentCol, syncCol] of TABLES) {
-    out[t] = {
-      rows: await count(t),
-      latest: await maxDate(t, contentCol),
-      lastSynced: await maxDate(t, syncCol),
-    };
+  const usage = 'Usage: apps/api/scripts/diag-ingestion-health.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
   }
-  const stateSla = await stateIngestionSla();
-  const samMatches = await samMatchCoverage();
-  console.log(
-    'INGEST_REPORT ' +
-      JSON.stringify(
-        {
-          generatedAt: new Date().toISOString(),
-          tables: out,
-          samOpportunityMatches: samMatches,
-          stateLegislationSla: stateSla,
-        },
-        null,
-        2,
-      ),
-  );
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const out: Record<
+      string,
+      { rows: number | string; latest: string | null; lastSynced: string | null }
+    > = {};
+    for (const [t, contentCol, syncCol] of TABLES) {
+      out[t] = {
+        rows: await count(prisma, t),
+        latest: await maxDate(prisma, t, contentCol),
+        lastSynced: await maxDate(prisma, t, syncCol),
+      };
+    }
+    const stateSla = await stateIngestionSla(prisma);
+    const samMatches = await samMatchCoverage(prisma);
+    console.log(
+      'INGEST_REPORT ' +
+        JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            tables: out,
+            samOpportunityMatches: samMatches,
+            stateLegislationSla: stateSla,
+          },
+          null,
+          2,
+        ),
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('INGEST_ERR', err instanceof Error ? err.message : String(err));
     process.exitCode = 1;
-  })
-  .finally(() => {
-    void prisma.$disconnect();
   });
+}

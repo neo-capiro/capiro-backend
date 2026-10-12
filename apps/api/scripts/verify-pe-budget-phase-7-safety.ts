@@ -1,4 +1,5 @@
 /**
+ * @cleanup-smoke noArgsExit=0 helpExit=0
  * Phase 7 Workstream O — permanent architecture and closeout safety scan.
  *
  * Runs the scoped gates from `phase7-closeout-gates-v1.ts` over the real tree,
@@ -20,6 +21,20 @@ import {
   type Phase7GateScopeV1,
 } from '../src/defense-budget/promotion/phase7-closeout-gates-v1.js';
 import { PE_EXACT_SHA_DOLLAR_LOADERS } from './lib/pe-exact-sha-loader-contract.js';
+
+const USAGE = 'Usage: tsx scripts/verify-pe-budget-phase-7-safety.ts [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+console.error(USAGE);
 
 const API_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');

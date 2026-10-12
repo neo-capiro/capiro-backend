@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,10 +21,21 @@ function resolveRepoRoot(start = process.cwd()) {
   return path.resolve(start);
 }
 
+const usage = 'Usage: node scripts/verify-phase8-session4.mjs [--enforce-replay] (no arguments runs the existing verifier)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.some((arg) => arg !== '--enforce-replay')) {
+  console.error(usage);
+  process.exit(2);
+}
+console.error(usage);
 const root = resolveRepoRoot();
 const failures = [];
 const notes = [];
-const enforceReplay = process.argv.includes('--enforce-replay');
+const enforceReplay = args.includes('--enforce-replay');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const exists = (relative) => fs.existsSync(path.join(root, relative));
 const fail = (message) => failures.push(message);

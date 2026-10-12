@@ -57,6 +57,10 @@ function requiredEnv(name: string): string {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/drain-defense-budget-ingestion-outbox-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const environment = argValue('--environment');
   if (!environment) usage('--environment is required');
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
@@ -191,7 +195,9 @@ async function main(): Promise<void> {
     await prisma.$disconnect();
   }
 }
+if (require.main === module) {
 void main().catch((error) => {
   console.error('drain-defense-budget-ingestion-outbox-v1 FAILED:', error);
   process.exit(1);
 });
+}

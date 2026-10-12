@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only diagnostic: per-state crosswalk coverage for the State Legislators
  * directory. Reports, per state, how many `state_legislator` rows exist (the
@@ -13,8 +14,6 @@
  */
 import { PrismaClient, Prisma } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -29,15 +28,31 @@ interface CoverageRow {
 }
 
 async function main() {
-  const statesCsv = arg('states');
-  const states = (statesCsv ?? '')
-    .split(',')
-    .map((s) => s.trim().toUpperCase())
-    .filter(Boolean);
+  const usage = 'Usage: apps/api/scripts/diag-state-crosswalk-coverage.ts [--states CSV] requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0 && (args.length !== 2 || args[0] !== '--states' || !args[1] || args[1].startsWith('--'))) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const statesCsv = arg('states');
+    const states = (statesCsv ?? '')
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
 
-  const where = states.length ? Prisma.sql`WHERE state = ANY(${states})` : Prisma.empty;
+    const where = states.length ? Prisma.sql`WHERE state = ANY(${states})` : Prisma.empty;
 
-  const rows = await prisma.$queryRaw<CoverageRow[]>`
+    const rows = await prisma.$queryRaw<CoverageRow[]>`
     SELECT
       state,
       COUNT(*)::int AS total,
@@ -50,36 +65,37 @@ async function main() {
     ORDER BY state
   `;
 
-  const totals = rows.reduce(
-    (acc, r) => {
-      acc.total += r.total;
-      acc.linked += r.linked;
-      acc.unlinked += r.unlinked;
-      return acc;
-    },
-    { total: 0, linked: 0, unlinked: 0 },
-  );
-
-  console.log(
-    JSON.stringify(
-      {
-        perState: rows,
-        totals: {
-          ...totals,
-          linked_pct: totals.total > 0 ? Math.round((1000 * totals.linked) / totals.total) / 10 : 0,
-        },
+    const totals = rows.reduce(
+      (acc, r) => {
+        acc.total += r.total;
+        acc.linked += r.linked;
+        acc.unlinked += r.unlinked;
+        return acc;
       },
-      null,
-      2,
-    ),
-  );
+      { total: 0, linked: 0, unlinked: 0 },
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          perState: rows,
+          totals: {
+            ...totals,
+            linked_pct: totals.total > 0 ? Math.round((1000 * totals.linked) / totals.total) / 10 : 0,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }

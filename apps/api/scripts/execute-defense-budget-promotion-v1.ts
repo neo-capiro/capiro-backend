@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * execute-defense-budget-promotion-v1 (Phase 7 Workstream N).
  *
@@ -95,6 +96,11 @@ function usage(message: string): never {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.PROMOTER_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/execute-defense-budget-promotion-v1.ts requires PROMOTER_DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
   const environment = argValue('--environment');
   const planId = argValue('--plan-id');
@@ -164,8 +170,13 @@ async function main(): Promise<void> {
         // A session-scoped advisory lock needs its own connection: Prisma's
         // pool would hand the unlock to a different session.
         const client = new PgClient({ connectionString: promoterUrl });
-        await client.connect();
-        return client;
+        try {
+          await client.connect();
+          return client;
+        } catch (error) {
+          await client.end().catch(() => undefined);
+          throw error;
+        }
       },
     );
     const audit = new PrismaPromotionAuditSinkV1(promoter.defenseBudgetPromotionAudit);
@@ -207,13 +218,15 @@ async function main(): Promise<void> {
       ),
     );
 
-    if (result.refusals.length > 0) process.exit(3);
+    if (result.refusals.length > 0) { process.exitCode = 3; return; }
   } finally {
     await promoter.$disconnect();
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('execute-defense-budget-promotion-v1 FAILED:', error);
   process.exit(1);
 });
+}

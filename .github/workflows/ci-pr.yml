@@ -159,8 +159,8 @@ jobs:
       # resolution failure in api spec files is resolved — `tsc --noEmit` is now
       # clean across the whole api project, spec files included — so the
       # exclusion is dropped and every PR type-gates apps/api directly, not just
-      # via the slower image build. (Follow-up: add an apps/api jest step; that
-      # needs a CI Postgres service since much of the api suite is DB-backed.)
+      # via the slower image build. (The direct full apps/api Jest step below supplies this source prerequisite;
+      # real database/native acceptance remains independently required.)
       - name: Typecheck (turbo)
         run: pnpm turbo run typecheck --concurrency=1
 
@@ -206,6 +206,28 @@ jobs:
       # code path leaked the key onto a different container.
       - name: Test infra-cdk
         run: pnpm --filter @capiro/infra-cdk test
+
+      # CleanUp1 §5.3.1 — the full apps/api jest suite now runs on every PR
+      # (previously typechecked only; the suite ran in one unrelated workflow).
+      # DB-backed specs follow the repo's disposable-Postgres contract
+      # (guarded specs self-skip; intel-api is unguarded and fails) and are
+      # tracked as baseline setup packets — not hidden or skipped here.
+      - name: Test apps/api
+        run: pnpm --filter @capiro/api test
+
+      # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer
+      # depend on one unrelated workflow.
+      - name: Test apps/web
+        run: pnpm --filter @capiro/web test
+
+      # CleanUp1 §5.3.3 — apps/defense-api uses `tsx --test` (node:test) and its
+      # CLI specs spawn scripts/job.mjs, which requires the package's own dist
+      # output. Build it first (turbo `test` dependsOn `^build` — dependencies,
+      # not the package's own build), then run the suite. No test is skipped.
+      - name: Test apps/defense-api
+        run: |
+          pnpm turbo run build --filter=@capiro/defense-api
+          pnpm --filter @capiro/defense-api test
 
       # Engagement API Phase 1 — local-runtime contract. Runs the DB-free
       # verifier (runtime policy, route coverage, timer containment, external

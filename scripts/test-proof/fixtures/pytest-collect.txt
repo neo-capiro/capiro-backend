@@ -1,0 +1,9 @@
+tests/test_cli.py::test_help
+tests/test_cli.py::test_main[case-a]
+tests/test_cli.py::test_main[case-b]
+tests/test_contracts.py::TestContracts::test_roundtrip
+tests/test_empty_module.py
+============================= test session starts =============================
+collected 4 items
+
+======== 4 tests collected in 0.02s ========

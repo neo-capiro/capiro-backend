@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Authoritative DB-free Phase 1 closeout.
  *
@@ -10,6 +11,16 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeSync } from 'node:fs';
 import * as path from 'node:path';
 import { runVerifierProcess } from './lib/engagement-verifier-process';
+
+const USAGE = 'Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const API_DIR = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_DIR, '../..');

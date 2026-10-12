@@ -358,24 +358,40 @@ function eventNameOf(message: unknown): string | null {
 const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.turn']);
 
 describe('MeriV3AssistantService', () => {
-
   test('pins pending proposal reads to the selected client and rejects attempted cross-client retargeting', () => {
     const service = Object.create(MeriV3AssistantService.prototype) as any;
-    const schema = { name: 'list_memory_proposals', input_schema: { properties: { clientId: { type: 'string' }, cursor: { type: 'string' } } } };
+    const schema = {
+      name: 'list_memory_proposals',
+      input_schema: { properties: { clientId: { type: 'string' }, cursor: { type: 'string' } } },
+    };
     const input = Object.freeze({ cursor: 'same-page' });
-    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({ input: { cursor: 'same-page', clientId: 'aster' } });
-    expect(service.augmentToolInput({ clientId: 'aster' }, { clientId: 'bluehaven' }, schema).scopeViolation).toContain('different client');
+    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({
+      input: { cursor: 'same-page', clientId: 'aster' },
+    });
+    expect(
+      service.augmentToolInput({ clientId: 'aster' }, { clientId: 'bluehaven' }, schema)
+        .scopeViolation,
+    ).toContain('different client');
     expect(service.augmentToolInput({}, input, schema)).toEqual({ input });
     expect(input).toEqual({ cursor: 'same-page' });
   });
 
   test('binds a memory save to the conversation client, never a model-chosen one', () => {
     const service = Object.create(MeriV3AssistantService.prototype) as any;
-    const schema = { name: 'save_memory', input_schema: { properties: { content: { type: 'string' }, scope: { type: 'string' } } } };
+    const schema = {
+      name: 'save_memory',
+      input_schema: { properties: { content: { type: 'string' }, scope: { type: 'string' } } },
+    };
     const input = { content: 'Briefs include the program office.', scope: 'client' };
-    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
-    expect(service.augmentToolInput({ clientId: 'aster' }, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
-    expect(service.augmentToolInput({}, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input });
+    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({
+      input: { ...input, clientId: 'aster' },
+    });
+    expect(
+      service.augmentToolInput({ clientId: 'aster' }, { ...input, clientId: 'bluehaven' }, schema),
+    ).toEqual({ input: { ...input, clientId: 'aster' } });
+    expect(service.augmentToolInput({}, { ...input, clientId: 'bluehaven' }, schema)).toEqual({
+      input,
+    });
   });
 
   test('re-targets a canonical native read to the authenticated governed client, refuses an explicit interface client, and preserves an omitted optional actor read', async () => {
@@ -446,7 +462,8 @@ describe('MeriV3AssistantService', () => {
       // A bound effect whose ORIGINAL conversation client is null is ALSO a
       // mismatch (no truthiness hole).
       expect(
-        service.augmentToolInput({}, { content: 'Remember this.' }, save, saveAuthority).scopeViolation,
+        service.augmentToolInput({}, { content: 'Remember this.' }, save, saveAuthority)
+          .scopeViolation,
       ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
 
       // A governed turn with no single authorized client never injects the
@@ -466,7 +483,8 @@ describe('MeriV3AssistantService', () => {
       await runWithGovernedMeriContext(portfolio, async () => {
         // A REQUIRED-client read (omit) is refused with the exact reason.
         expect(
-          service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority).scopeViolation,
+          service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority)
+            .scopeViolation,
         ).toBe(GOVERNED_NO_SINGLE_CLIENT_REFUSAL);
         // An explicit model client is never granted by a generic actor ACL.
         expect(
@@ -762,7 +780,10 @@ describe('MeriV3AssistantService', () => {
     const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) => ({
       results: [{ id: `memory-${String(input.query)}`, text: 'Kestrel note.' }],
     }));
-    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
     global.fetch = jest.fn(
       async () =>
         new Response(
@@ -3112,7 +3133,10 @@ describe('Durable research cancellation across API replicas', () => {
       records: [{ id: 'fact-a', content: 'first page' }],
     };
     const invoke = jest.fn(async () => ownerResult);
-    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
     const committed: Array<Record<string, unknown>> = [];
     const failures: Array<Record<string, unknown>> = [];
     let replayToolVersion = '';
@@ -3155,7 +3179,12 @@ describe('Durable research cancellation across API replicas', () => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         committed.push(body);
         return new Response(
-          JSON.stringify({ ...body, classifier: 'partial', sequence: 4, receiptId: 'receipt-partial' }),
+          JSON.stringify({
+            ...body,
+            classifier: 'partial',
+            sequence: 4,
+            receiptId: 'receipt-partial',
+          }),
           { status: 200 },
         );
       }
@@ -4792,16 +4821,17 @@ describe('Stage 2 orchestrator hardening', () => {
           conversationId: `repair-guard-${interfaceClientId}`,
           messages: [{ role: 'user' as const, text: 'Did H.R. 1 pass the House?' }],
         };
-        const invoke = jest.fn(
-          async (_name: string, input: Record<string, unknown>) => ({
-            tool: CLIENT_READ,
-            client: { id: String(input.clientId) },
-          }),
-        );
+        const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) => ({
+          tool: CLIENT_READ,
+          client: { id: String(input.clientId) },
+        }));
         const complete = jest
           .fn()
           .mockResolvedValue(response({ outputText: 'H.R. 1 passed the House.' }));
-        const assistant = build(registry([{ name: CLIENT_READ, readOnly: true }], invoke), complete);
+        const assistant = build(
+          registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+          complete,
+        );
         global.fetch = fetchWith([clientSchema]);
 
         const binding = {

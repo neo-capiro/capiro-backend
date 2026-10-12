@@ -474,6 +474,11 @@ export async function generateCandidates(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/generate-grant-opportunity-candidates.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const parsed = parseArgs(process.argv);
   // The `continue` fix (above) makes withBypass's per-client transaction do
   // real work for every active grant instead of bailing at #1; batching the

@@ -425,6 +425,10 @@ async function writeBillLinks(prisma: PrismaClient, plan: BillLinkPlan): Promise
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/match-pe-mentions.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = flag('commit');
 
   const limitArg = arg('limit');
@@ -566,7 +570,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((e) => {
   console.error('[match-pe-mentions] fatal', (e as Error)?.stack ?? e);
   process.exit(1);
 });
+}

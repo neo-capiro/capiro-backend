@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Report defense-budget verification cycle status V1.
  *

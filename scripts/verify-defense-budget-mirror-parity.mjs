@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * Verify exact content parity between the two defense-budget mirror directories.
  * Reports counts, missing/extra/mismatched files, exits non-zero on failure.
@@ -8,6 +9,17 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { exit } from 'node:process';
+
+const usage = 'Usage: node scripts/verify-defense-budget-mirror-parity.mjs (no arguments runs the existing verifier)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  exit(0);
+}
+if (args.length !== 0) {
+  console.error(usage);
+  exit(2);
+}
 
 const ROOT = process.cwd();
 const MIRROR_A = join(ROOT, 'apps/api/src/defense-budget');
@@ -36,6 +48,7 @@ async function walk(dir, base = dir) {
 }
 
 async function main() {
+  console.error(usage);
   console.log(`Mirror A: ${MIRROR_A}`);
   console.log(`Mirror B: ${MIRROR_B}`);
 

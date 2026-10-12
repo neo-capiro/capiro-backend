@@ -13,7 +13,8 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "seed": "tsx prisma/seed-workspace.ts"
+    "seed": "tsx prisma/seed-workspace.ts",
+    "test:coverage": "jest --detectOpenHandles --forceExit --coverage --coverageReporters=json-summary --coverageReporters=text --maxWorkers=4"
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",

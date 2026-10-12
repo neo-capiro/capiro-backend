@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * ingest-defense-budget-pdf — PE Watch PDF preflight, extraction and promotion.
  *
@@ -61,7 +62,32 @@ const ALLOW_VENDOR_PARSE = '--allow-vendor-parse';
 const PROVIDER = 'llamaparse';
 const CANONICAL_TRANSACTION_TIMEOUT_MS = 120_000;
 const CANONICAL_TRANSACTION_MAX_WAIT_MS = 10_000;
+const USAGE =
+  'Usage: ingest-defense-budget-pdf.ts --path <pdf|dir|s3://bucket/prefix> [--extract-only --allow-vendor-parse | --commit --approved-sha256 <sha> [--allow-vendor-parse]] [--mode pdf_fast|pdf_premium|pdf_ocr] [--fy 2027] [--only rdte,procurement,om] [--limit N]';
 type ParseMode = 'pdf_fast' | 'pdf_premium' | 'pdf_ocr';
+
+function checkCliSyntax(argv: string[]): boolean {
+  if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h')) {
+    console.log(USAGE);
+    return false;
+  }
+  const valueOptions = new Set(['--path', '--mode', '--fy', '--only', '--limit', '--approved-sha256']);
+  const flags = new Set(['--extract-only', '--dry-run', '--commit', ALLOW_VENDOR_PARSE]);
+  for (let index = 0; index < argv.length; index += 1) {
+    const option = argv[index];
+    if (option === undefined) break;
+    if (flags.has(option)) continue;
+    const next = argv[index + 1];
+    if (valueOptions.has(option) && next && !next.startsWith('--')) {
+      index += 1;
+      continue;
+    }
+    console.error(USAGE);
+    process.exitCode = 2;
+    return false;
+  }
+  return true;
+}
 
 // Legacy local development support only. Phase E replaces direct key loading
 // with runtime AWS Secrets Manager retrieval. This file is read only after an
@@ -963,8 +989,9 @@ async function runCommit(
   assertImmutableArchive(archive);
 
   const prisma = new PrismaClient();
-  await prisma.$connect();
+
   try {
+    await prisma.$connect();
     // deferSupersede: the prior live head must not be retired until this PDF is
     // actually promoted. Registration commits immediately (the parse needs the
     // document id), so superseding here would strand a valid head behind an
@@ -1116,6 +1143,7 @@ async function runCommit(
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
+  if (!checkCliSyntax(argv)) return;
   // Phase 7 safety scans for this exact call shape so direct invocation cannot
   // bypass the guarded generalized posture / legacy-write gate.
   const posture: DefenseBudgetIngestPosture = resolveDefenseBudgetIngestPosture(process.argv);
@@ -1144,9 +1172,7 @@ async function main(): Promise<void> {
 
   const target = arg('path');
   if (!target) {
-    throw new Error(
-      'Usage: ingest-defense-budget-pdf.ts --path <pdf|dir|s3://bucket/prefix> [--extract-only --allow-vendor-parse | --commit --approved-sha256 <sha> [--allow-vendor-parse]] [--mode pdf_fast|pdf_premium|pdf_ocr] [--fy 2027] [--only rdte,procurement,om] [--limit N]',
-    );
+    throw new Error(USAGE);
   }
 
   const mode = parseMode();
@@ -1159,6 +1185,10 @@ async function main(): Promise<void> {
   );
   const limit = positiveIntegerArg('limit', Number.MAX_SAFE_INTEGER);
 
+  if (posture === 'commit' && !process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/ingest-defense-budget-pdf.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
   const result =
     posture === 'preflight'
       ? runPreflight(target, fyFallback, only, limit)
@@ -1195,7 +1225,7 @@ async function main(): Promise<void> {
 if (require.main === module) {
   void main().catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[ingest-defense-budget] ${message}`);
+    console.error(message.startsWith('Usage:') ? message : `[ingest-defense-budget] ${message}`);
     process.exit(1);
   });
 }

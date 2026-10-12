@@ -8,14 +8,20 @@
  * Never touches a shared database or AWS.
  *
  * Modeled after scripts/run-meriv2-phase19-local.mjs.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { requireLocalRun } from './lib/engagement-local-cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const args = parse(process.argv.slice(2));
+const args = parse(requireLocalRun(
+  process.argv.slice(2),
+  'Usage: node scripts/run-engagement-phase0-local.mjs --run [--sha SHA] [--evidence-dir DIR]',
+  ['sha', 'evidence-dir', 'db-port'],
+));
 const sha =
   args.sha ?? process.env.ENGAGEMENT_PHASE0_SHA ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
 if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('Phase 0 requires an exact 40-character SHA.');
@@ -95,7 +101,7 @@ async function main() {
     await run(
       'Seed engagement Phase 0 fixtures',
       pnpm,
-      ['--filter', '@capiro/api', 'exec', 'tsx', 'scripts/seed-engagement-phase0-browser-fixtures.ts'],
+      ['--filter', '@capiro/api', 'exec', 'tsx', 'scripts/seed-engagement-phase0-browser-fixtures.ts', '--run'],
       { env },
     );
 

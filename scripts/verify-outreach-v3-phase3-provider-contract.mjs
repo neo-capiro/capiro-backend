@@ -1,7 +1,19 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const usage = 'Usage: node scripts/verify-outreach-v3-phase3-provider-contract.mjs';
+const args = process.argv.slice(2);
+if (args.length === 0) console.log(usage);
+else if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+  console.log(usage);
+  process.exit(0);
+} else {
+  console.error(usage);
+  process.exit(2);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const result = spawnSync(

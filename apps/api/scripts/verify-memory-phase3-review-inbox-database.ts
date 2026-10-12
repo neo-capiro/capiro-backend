@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -27,6 +28,11 @@ interface SeededIds {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.MEMORY_PHASE2_CLEAN_DATABASE_URL || !process.env.MEMORY_PHASE2_UPGRADE_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/verify-memory-phase3-review-inbox-database.ts requires MEMORY_PHASE2_CLEAN_DATABASE_URL and MEMORY_PHASE2_UPGRADE_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
   const cleanUrl = requireDisposableUrl('MEMORY_PHASE2_CLEAN_DATABASE_URL');
   const upgradeUrl = requireDisposableUrl('MEMORY_PHASE2_UPGRADE_DATABASE_URL');
   if (databaseIdentity(cleanUrl) === databaseIdentity(upgradeUrl)) {
@@ -565,9 +571,11 @@ function client(databaseUrl: string): PrismaClient {
   return new PrismaClient({ datasources: { db: { url: databaseUrl } } });
 }
 
+if (require.main === module) {
 void main().catch((error: unknown) => {
   process.stderr.write(
     `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
   );
   process.exitCode = 1;
 });
+}

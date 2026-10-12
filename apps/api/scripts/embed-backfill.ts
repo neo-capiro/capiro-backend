@@ -34,6 +34,11 @@ import {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
+async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/embed-backfill.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
 const embeddingProvider = getDefaultEmbeddingProvider();
 const MODEL = embeddingProvider.metadata.model;
 const DIMENSIONS = embeddingProvider.metadata.dimensions;
@@ -49,29 +54,10 @@ if (DIMENSIONS !== EMBEDDING_DIM) {
 const CONCURRENCY = Number(process.env.EMBED_CONCURRENCY ?? 8);
 const PAGE_SIZE = 500;
 
-// ─── Args ─────────────────────────────────────────────────────────────────────
-
-const { values: args } = parseArgs({
-  options: {
-    source: { type: 'string' },
-    tenant: { type: 'string' },
-    since: { type: 'string' },
-    limit: { type: 'string' },
-    dryRun: { type: 'boolean' },
-  },
-});
+// ─── Source kinds ─────────────────────────────────────────────────────────────
 
 type SourceKind = 'bills' | 'lda' | 'capabilities' | 'state_bills';
 const ALL_SOURCES: SourceKind[] = ['bills', 'lda', 'capabilities'];
-const sourceArg = args.source as SourceKind | 'all' | undefined;
-if (!sourceArg || ![...ALL_SOURCES, 'state_bills', 'all'].includes(sourceArg)) {
-  console.error(
-    'usage: embed-backfill --source <bills|lda|capabilities|state_bills|all> [--tenant <uuid>] [--since <YYYY-MM-DD>] [--limit N] [--dryRun]',
-  );
-  process.exit(2);
-}
-
-const prisma = new PrismaClient();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,7 +103,11 @@ interface UpsertArgs {
  * only replaces the provider call; pgvector persistence and authorization do
  * not move into a provider adapter.
  */
-async function upsertRow(args: UpsertArgs, bypassRls: boolean): Promise<'inserted' | 'updated'> {
+async function upsertRow(
+  prisma: PrismaClient,
+  args: UpsertArgs,
+  bypassRls: boolean,
+): Promise<'inserted' | 'updated'> {
   const tx = await prisma.$transaction(async (db) => {
     if (bypassRls) {
       await db.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
@@ -204,7 +194,7 @@ function countResults(results: readonly string[]): RunCounts {
 
 // ─── Drivers ──────────────────────────────────────────────────────────────────
 
-async function backfillBills(limit?: number): Promise<RunCounts> {
+async function backfillBills(prisma: PrismaClient, limit?: number): Promise<RunCounts> {
   const total = await prisma.congressBill.count();
   console.log(`[bills] ${total} rows in congress_bill`);
   const totals: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
@@ -236,6 +226,7 @@ async function backfillBills(limit?: number): Promise<RunCounts> {
       try {
         const embedding = await embed(text);
         return await upsertRow(
+          prisma,
           {
             tenantId: null,
             clientId: null,
@@ -267,7 +258,11 @@ async function backfillBills(limit?: number): Promise<RunCounts> {
   return totals;
 }
 
-async function backfillLda(since: string | undefined, limit?: number): Promise<RunCounts> {
+async function backfillLda(
+  prisma: PrismaClient,
+  since: string | undefined,
+  limit?: number,
+): Promise<RunCounts> {
   const where = since ? { dtPosted: { gte: new Date(since) } } : {};
   const total = await prisma.ldaFiling.count({ where });
   console.log(`[lda] ${total} filings matching since=${since ?? 'all'}`);
@@ -299,6 +294,7 @@ async function backfillLda(since: string | undefined, limit?: number): Promise<R
       try {
         const embedding = await embed(text);
         return await upsertRow(
+          prisma,
           {
             tenantId: null,
             clientId: null,
@@ -330,7 +326,11 @@ async function backfillLda(since: string | undefined, limit?: number): Promise<R
   return totals;
 }
 
-async function backfillStateBills(since: string | undefined, limit?: number): Promise<RunCounts> {
+async function backfillStateBills(
+  prisma: PrismaClient,
+  since: string | undefined,
+  limit?: number,
+): Promise<RunCounts> {
   const where = since ? { syncedAt: { gte: new Date(since) } } : {};
   const total = await prisma.stateBill.count({ where });
   console.log(`[state_bills] ${total} rows matching since=${since ?? 'all'}`);
@@ -364,6 +364,7 @@ async function backfillStateBills(since: string | undefined, limit?: number): Pr
       try {
         const embedding = await embed(text);
         return await upsertRow(
+          prisma,
           {
             tenantId: null,
             clientId: null,
@@ -396,6 +397,7 @@ async function backfillStateBills(since: string | undefined, limit?: number): Pr
 }
 
 async function backfillCapabilities(
+  prisma: PrismaClient,
   tenantFilter: string | undefined,
   limit?: number,
 ): Promise<RunCounts> {
@@ -427,6 +429,7 @@ async function backfillCapabilities(
       try {
         const embedding = await embed(text);
         return await upsertRow(
+          prisma,
           {
             tenantId: c.tenantId,
             clientId: c.clientId,
@@ -460,7 +463,7 @@ async function backfillCapabilities(
 
 // ─── SyncRun watermark + observability ────────────────────────────────────────
 
-async function lastSuccessfulSince(kind: SourceKind): Promise<Date | null> {
+async function lastSuccessfulSince(prisma: PrismaClient, kind: SourceKind): Promise<Date | null> {
   const run = await prisma.syncRun.findFirst({
     where: { source: embedSyncSource(kind), status: 'success' },
     orderBy: { startedAt: 'desc' },
@@ -469,7 +472,11 @@ async function lastSuccessfulSince(kind: SourceKind): Promise<Date | null> {
   return run?.startedAt ?? null;
 }
 
-async function withSyncRun(kind: SourceKind, fn: () => Promise<RunCounts>): Promise<RunCounts> {
+async function withSyncRun(
+  prisma: PrismaClient,
+  kind: SourceKind,
+  fn: () => Promise<RunCounts>,
+): Promise<RunCounts> {
   const run = await prisma.syncRun.create({
     data: { source: embedSyncSource(kind), startedAt: new Date(), status: 'running' },
     select: { id: true },
@@ -501,89 +508,123 @@ async function withSyncRun(kind: SourceKind, fn: () => Promise<RunCounts>): Prom
   }
 }
 
-async function resolveLdaSince(): Promise<string | undefined> {
-  const since = resolveSinceWindow(args.since, await lastSuccessfulSince('lda'));
-  if (!args.since && since) {
+async function resolveLdaSince(
+  prisma: PrismaClient,
+  sinceArg: string | undefined,
+): Promise<string | undefined> {
+  const since = resolveSinceWindow(sinceArg, await lastSuccessfulSince(prisma, 'lda'));
+  if (!sinceArg && since) {
     console.log(`[lda] no --since given; using SyncRun watermark since=${since}`);
-  } else if (!args.since) {
+  } else if (!sinceArg) {
     console.log('[lda] no --since and no prior successful run; full backfill');
   }
   return since;
 }
 
-async function resolveStateBillsSince(): Promise<string | undefined> {
-  const since = resolveSinceWindow(args.since, await lastSuccessfulSince('state_bills'));
-  if (!args.since && since) {
+async function resolveStateBillsSince(
+  prisma: PrismaClient,
+  sinceArg: string | undefined,
+): Promise<string | undefined> {
+  const since = resolveSinceWindow(sinceArg, await lastSuccessfulSince(prisma, 'state_bills'));
+  if (!sinceArg && since) {
     console.log(`[state_bills] no --since given; using SyncRun watermark since=${since}`);
-  } else if (!args.since) {
+  } else if (!sinceArg) {
     console.log('[state_bills] no --since and no prior successful run; full backfill');
   }
   return since;
 }
 
-async function runSource(kind: SourceKind, limit?: number): Promise<RunCounts> {
-  return withSyncRun(kind, async () => {
-    if (kind === 'bills') return backfillBills(limit);
-    if (kind === 'lda') return backfillLda(await resolveLdaSince(), limit);
-    if (kind === 'state_bills') return backfillStateBills(await resolveStateBillsSince(), limit);
-    return backfillCapabilities(args.tenant, limit);
+async function runSource(
+  prisma: PrismaClient,
+  kind: SourceKind,
+  since: string | undefined,
+  tenant: string | undefined,
+  limit?: number,
+): Promise<RunCounts> {
+  return withSyncRun(prisma, kind, async () => {
+    if (kind === 'bills') return backfillBills(prisma, limit);
+    if (kind === 'lda') return backfillLda(prisma, await resolveLdaSince(prisma, since), limit);
+    if (kind === 'state_bills') {
+      return backfillStateBills(prisma, await resolveStateBillsSince(prisma, since), limit);
+    }
+    return backfillCapabilities(prisma, tenant, limit);
   });
 }
 
-async function main(): Promise<void> {
-  const limit = args.limit ? Number(args.limit) : undefined;
-  const sources: SourceKind[] = sourceArg === 'all' ? ALL_SOURCES : [sourceArg as SourceKind];
-  console.log(
-    `embed-backfill sources=[${sources.join(', ')}] provider=${embeddingProvider.metadata.provider} ` +
-      `model=${MODEL} version=${embeddingProvider.metadata.modelVersion} dim=${DIMENSIONS} ` +
-      `concurrency=${CONCURRENCY} dryRun=${!!args.dryRun}`,
-  );
+  const { values: args } = parseArgs({
+    options: {
+      source: { type: 'string' },
+      tenant: { type: 'string' },
+      since: { type: 'string' },
+      limit: { type: 'string' },
+      dryRun: { type: 'boolean' },
+    },
+  });
 
-  if (args.dryRun) {
-    console.log('dryRun: counting source rows only, no embedding-provider calls');
-    for (const s of sources) {
-      if (s === 'bills') {
-        console.log(`bills total=${await prisma.congressBill.count()}`);
-      } else if (s === 'lda') {
-        const since = await resolveLdaSince();
-        const where = since ? { dtPosted: { gte: new Date(since) } } : {};
-        console.log(
-          `lda total=${await prisma.ldaFiling.count({ where })} (since=${since ?? 'all'})`,
-        );
-      } else if (s === 'state_bills') {
-        const since = await resolveStateBillsSince();
-        const where = since ? { syncedAt: { gte: new Date(since) } } : {};
-        console.log(
-          `state_bills total=${await prisma.stateBill.count({ where })} (since=${since ?? 'all'})`,
-        );
-      } else {
-        const where = args.tenant ? { tenantId: args.tenant } : {};
-        console.log(`capabilities total=${await prisma.clientCapability.count({ where })}`);
+  const sourceArg = args.source as SourceKind | 'all' | undefined;
+  if (!sourceArg || ![...ALL_SOURCES, 'state_bills', 'all'].includes(sourceArg)) {
+    console.error(
+      'usage: embed-backfill --source <bills|lda|capabilities|state_bills|all> [--tenant <uuid>] [--since <YYYY-MM-DD>] [--limit N] [--dryRun]',
+    );
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    const limit = args.limit ? Number(args.limit) : undefined;
+    const sources: SourceKind[] = sourceArg === 'all' ? ALL_SOURCES : [sourceArg as SourceKind];
+    console.log(
+      `embed-backfill sources=[${sources.join(', ')}] provider=${embeddingProvider.metadata.provider} ` +
+        `model=${MODEL} version=${embeddingProvider.metadata.modelVersion} dim=${DIMENSIONS} ` +
+        `concurrency=${CONCURRENCY} dryRun=${!!args.dryRun}`,
+    );
+
+    if (args.dryRun) {
+      console.log('dryRun: counting source rows only, no embedding-provider calls');
+      for (const s of sources) {
+        if (s === 'bills') {
+          console.log(`bills total=${await prisma.congressBill.count()}`);
+        } else if (s === 'lda') {
+          const since = await resolveLdaSince(prisma, args.since);
+          const where = since ? { dtPosted: { gte: new Date(since) } } : {};
+          console.log(
+            `lda total=${await prisma.ldaFiling.count({ where })} (since=${since ?? 'all'})`,
+          );
+        } else if (s === 'state_bills') {
+          const since = await resolveStateBillsSince(prisma, args.since);
+          const where = since ? { syncedAt: { gte: new Date(since) } } : {};
+          console.log(
+            `state_bills total=${await prisma.stateBill.count({ where })} (since=${since ?? 'all'})`,
+          );
+        } else {
+          const where = args.tenant ? { tenantId: args.tenant } : {};
+          console.log(`capabilities total=${await prisma.clientCapability.count({ where })}`);
+        }
       }
+      return;
     }
-    return;
-  }
 
-  const t0 = Date.now();
-  const totals: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
-  for (const s of sources) {
-    const counts = await runSource(s, limit);
-    totals.inserted += counts.inserted;
-    totals.updated += counts.updated;
-    totals.skipped += counts.skipped;
-    totals.errors += counts.errors;
+    const t0 = Date.now();
+    const totals: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+    for (const s of sources) {
+      const counts = await runSource(prisma, s, args.since, args.tenant, limit);
+      totals.inserted += counts.inserted;
+      totals.updated += counts.updated;
+      totals.skipped += counts.skipped;
+      totals.errors += counts.errors;
+    }
+    console.log(
+      `done in ${((Date.now() - t0) / 1000).toFixed(1)}s ` +
+        `inserted=${totals.inserted} updated=${totals.updated} skipped=${totals.skipped} errors=${totals.errors}`,
+    );
+  } finally {
+    await prisma.$disconnect();
   }
-  console.log(
-    `done in ${((Date.now() - t0) / 1000).toFixed(1)}s ` +
-      `inserted=${totals.inserted} updated=${totals.updated} skipped=${totals.skipped} errors=${totals.errors}`,
-  );
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });
+}

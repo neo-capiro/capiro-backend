@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only TENANT/CLIENT CONFIG EXPORT. Dumps everything a tenant (and its
  * clients) has configured — a record snapshot. Resolves the search term against
@@ -13,7 +14,6 @@
  */
 import { PrismaClient, Prisma } from '@prisma/client';
 
-const prisma = new PrismaClient();
 const num = (_k: string, v: unknown) => (typeof v === 'bigint' ? Number(v) : v);
 
 const CHILD_TABLES = [
@@ -97,19 +97,38 @@ async function run(tx: Prisma.TransactionClient): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  // tenants/clients are RLS-protected — mirror PrismaService.withSystem().
-  await prisma.$transaction(
-    async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-      await run(tx);
-    },
-    { timeout: 120_000 },
-  );
+  const usage = 'Usage: apps/api/scripts/diag-tenant-config.ts [search-term ...] requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.some((arg) => arg.startsWith('--'))) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    // tenants/clients are RLS-protected — mirror PrismaService.withSystem().
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        await run(tx);
+      },
+      { timeout: 120_000 },
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('TC_ERR', err instanceof Error ? err.message : String(err));
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

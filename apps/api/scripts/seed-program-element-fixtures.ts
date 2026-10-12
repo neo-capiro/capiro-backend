@@ -1,9 +1,8 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ProgramElementWriterService } from '../src/program-element/program-element-writer.service.js';
 import { type ProgramElementFixture, PROGRAM_ELEMENT_FIXTURES } from '../src/program-element/program-element-fixture-data.js';
-
-dotenvConfig();
 
 export interface ProgramElementWriterLike {
   upsertProgramElement(
@@ -105,6 +104,18 @@ async function main(): Promise<void> {
 }
 
 if (require.main === module) {
+  const usage = 'Usage: tsx scripts/seed-program-element-fixtures.ts --run';
+  const argv = process.argv.slice(2);
+  if ((argv.length === 1 && argv[0] === '--help') ||
+      (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')) {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (argv.length !== 1 || argv[0] !== '--run') {
+    console.error(usage);
+    process.exit(2);
+  }
+  dotenvConfig();
   main().catch((error) => {
     // eslint-disable-next-line no-console
     console.error(error);

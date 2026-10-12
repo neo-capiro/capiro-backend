@@ -36,6 +36,10 @@ function flag(name: string): boolean {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/move-ndaa-conference.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = flag('commit');
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -152,7 +156,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

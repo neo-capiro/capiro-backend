@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Seed the 20 global workspace templates into ws_template (scope GLOBAL,
  * tenantId null). Idempotent: upserts by deterministic id derived from the
@@ -7,12 +8,21 @@
  * Run: pnpm --filter @capiro/workspace seed
  * In Docker: invoked by the migrate verb after `prisma migrate deploy`.
  */
-import { PrismaClient } from '../generated/prisma-client/index.js';
-import { TEMPLATES } from '../src/templates/templates.data.js';
-
 // Deterministic UUIDv5-style id from the stable slug, so upserts are stable
 // across runs without needing a DB lookup. We use a fixed namespace prefix.
 import { createHash } from 'node:crypto';
+const usage = 'Usage: pnpm --filter @capiro/workspace seed --seed';
+const cliArgs = process.argv.slice(2);
+if ((cliArgs.length === 1 && cliArgs[0] === '--help') ||
+    (cliArgs.length === 2 && cliArgs[0] === '--seed' && cliArgs[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--seed') {
+  console.error(usage);
+  process.exit(2);
+}
+
 function stableUuid(slug: string): string {
   const h = createHash('sha1').update(`ws-template:${slug}`).digest('hex');
   // Format as a UUID (not a real v5 but deterministic + valid shape).
@@ -26,6 +36,10 @@ function stableUuid(slug: string): string {
 }
 
 async function main(): Promise<void> {
+  const [{ PrismaClient }, { TEMPLATES }] = await Promise.all([
+    import('../generated/prisma-client/index.js'),
+    import('../src/templates/templates.data.js'),
+  ]);
   const prisma = new PrismaClient();
   let upserted = 0;
   try {

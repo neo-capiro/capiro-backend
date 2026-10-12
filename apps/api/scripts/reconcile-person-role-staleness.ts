@@ -44,6 +44,10 @@ function numArg(name: string, def: number): number {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/reconcile-person-role-staleness.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = numArg('limit', 0);
   const thresholdDays = numArg('threshold', DEFAULT_ROLE_STALENESS_THRESHOLD_DAYS);
   // Capture the clock ONCE so the classifier and the stamped stale_at agree.

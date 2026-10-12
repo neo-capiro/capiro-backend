@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Generate the same Word report card served by the client-profile export.
  * Usage: tsx scripts/generate-report-card-docx.ts <clientId> <tenantId> [--period quarter|year]

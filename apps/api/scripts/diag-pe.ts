@@ -19,6 +19,7 @@ function arg(name: string): string | undefined {
 
 async function main(): Promise<void> {
   // PE codes are alphanumeric; sanitize hard since we interpolate into raw SQL.
+
   const pe = (arg('pe') ?? '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
   if (!pe) throw new Error('usage: diag-pe --pe=0604115A');
 
@@ -122,6 +123,11 @@ async function main(): Promise<void> {
 
 const isDirectRun = /diag-pe(\.[cm]?[tj]s)?$/.test((process.argv[1] ?? '').replace(/\\/g, '/'));
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/diag-pe.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((err) => {
     console.error('[diag-pe] FAILED', err);
     process.exit(1);

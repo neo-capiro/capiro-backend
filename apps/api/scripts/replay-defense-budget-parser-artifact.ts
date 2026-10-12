@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /** Read-only replay proof for a local parser artifact descriptor. */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -20,6 +21,7 @@ async function main(): Promise<void> {
   try {
     args = parseArgs(process.argv.slice(2));
   } catch (error) {
+    console.error('Usage: replay-defense-budget-parser-artifact --descriptor <metadata.json>');
     console.error((error as Error).message);
     process.exit(2);
   }

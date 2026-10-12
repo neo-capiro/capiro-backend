@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -30,6 +31,17 @@ function selectBash() {
   return gitBash;
 }
 
+const usage = 'Usage: run-pe-budget-phase7-migration-rehearsal (--run | --print-bash | --help)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 1 || !['--run', '--print-bash'].includes(args[0])) {
+  console.error(usage);
+  process.exit(2);
+}
+
 let bash;
 try {
   bash = selectBash();
@@ -38,7 +50,7 @@ try {
   process.exit(1);
 }
 
-if (process.argv.includes('--print-bash')) {
+if (args[0] === '--print-bash') {
   console.log(bash);
   process.exit(0);
 }

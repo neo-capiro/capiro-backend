@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * send-pe-alert-emails — PE Watch daily alert emails + client-watchlist
  * stamping (PE Watch auto-update plan, Phase 2).
@@ -69,6 +70,11 @@ function canaryTenants(): { all: boolean; ids: Set<string> } {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: send-pe-alert-emails [--hours <n>] [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const commit = flag('commit');
   const hours = Number(argVal('hours') ?? 25);
   const prisma = new PrismaService();

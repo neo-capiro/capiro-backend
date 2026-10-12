@@ -63,6 +63,10 @@ function parseArgs(): {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-district-nexus-alerts.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const { commit, since, tenantSlug } = parseArgs();
 
   const prisma = new PrismaClient();

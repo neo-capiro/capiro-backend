@@ -6,6 +6,7 @@
  * This stage creates a fresh database, starts both API processes and the
  * unchanged web application, reruns the hardened authenticated browser proof,
  * then replays its requests and proves real seeded-record parity.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { spawn } from 'node:child_process';
 import { appendFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
@@ -13,11 +14,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveSpawn } from './lib/resolve-tool.mjs';
+import { PHASE1_LOCAL_OPTIONS, requireLocalRun } from './lib/engagement-local-cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // rawArgs stays an array for forwarding to child scripts; parse() returns an object,
 // so spreading `args` into an argv list throws "args is not iterable".
-const rawArgs = process.argv.slice(2);
+const rawArgs = requireLocalRun(
+  process.argv.slice(2),
+  'Usage: node scripts/run-engagement-phase1-post-acceptance.mjs --run [--sha SHA] [--evidence-dir DIR] [--post-db-port PORT] [--post-main-port PORT] [--post-shadow-port PORT] [--post-web-port PORT]',
+  PHASE1_LOCAL_OPTIONS,
+);
 const args = parse(rawArgs);
 const SHA = args.sha ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const actualSha = (await capture('git', ['rev-parse', 'HEAD'])).trim();
@@ -199,6 +205,7 @@ try {
       'exec',
       'tsx',
       'scripts/seed-engagement-phase0-browser-fixtures.ts',
+      '--run',
     ],
     mainEnv,
   );
@@ -228,7 +235,7 @@ try {
       await run(
         'Post-acceptance Clerk Backend API JWT mint',
         process.execPath,
-        [path.join(ROOT, 'scripts/mint-engagement-phase1-jwt.mjs')],
+        [path.join(ROOT, 'scripts/mint-engagement-phase1-jwt.mjs'), '--mint'],
         commonEnv,
       );
       // Unmeasured claims stay null. Writing `true` here would let the M9 web-containment gate
@@ -256,7 +263,7 @@ try {
       await run(
         'Rerun hardened authenticated browser proof',
         process.execPath,
-        [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs')],
+        [path.join(ROOT, 'apps/web/scripts/engagement-phase1-browser-parity.mjs'), '--run'],
         browserEnv(commonEnv),
       );
     }

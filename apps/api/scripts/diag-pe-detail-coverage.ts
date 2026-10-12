@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only PE-detail data-coverage report. For one or more peCodes, counts the
  * rows behind every PE-detail panel so we can see — before building/wiring UI —
@@ -10,6 +11,20 @@
 import { PrismaClient } from '@prisma/client';
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/diag-pe-detail-coverage.ts [pe-code ...] requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.some((arg) => arg.startsWith('--'))) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const codes = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const targets = codes.length ? codes : ['8205G14510', '0602785A'];
   const prisma = new PrismaClient();
@@ -93,7 +108,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((e) => {
   console.error('PE_DETAIL_COVERAGE_ERR ' + (e instanceof Error ? e.message : String(e)));
   process.exit(1);
 });
+}

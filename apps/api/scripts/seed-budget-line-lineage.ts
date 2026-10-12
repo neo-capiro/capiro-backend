@@ -56,6 +56,10 @@ export function loadLineageFixture(path = resolve('scripts/__data__/lineage/dcgs
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/seed-budget-line-lineage.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const fixture = loadLineageFixture();
   const commit = process.argv.includes('--commit');
   console.log(JSON.stringify({ mode: commit ? 'commit' : 'dry-run', plannedUpserts: fixture.relationships }, null, 2));

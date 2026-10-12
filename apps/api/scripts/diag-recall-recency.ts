@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only MEASURED GATE for Phase 5 recall reranking (master plan Phase 5):
  * "stale-but-embedded facts demote below fresh ones (measured)".
@@ -21,8 +22,6 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { fuseRecallScore, type RecalledRow } from '../src/meri/memory-scoring.helpers.js';
-
-const prisma = new PrismaClient();
 
 interface SampleRow {
   tenant_id: string;
@@ -53,36 +52,52 @@ function parseVec(s: string): number[] {
 }
 
 async function main(): Promise<void> {
-  const opts = {
-    halfLifeDays: numEnv('MEMORY_RECALL_HALFLIFE_DAYS', 180),
-    weights: {
-      sim: numEnv('MEMORY_RECALL_W_SIM', 0.6),
-      rec: numEnv('MEMORY_RECALL_W_RECENCY', 0.25),
-      conf: numEnv('MEMORY_RECALL_W_CONFIDENCE', 0.15),
-    },
-    neutralConfidence: numEnv('MEMORY_RECALL_NEUTRAL_CONFIDENCE', 0.75),
-  };
+  const usage = 'Usage: apps/api/scripts/diag-recall-recency.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const opts = {
+      halfLifeDays: numEnv('MEMORY_RECALL_HALFLIFE_DAYS', 180),
+      weights: {
+        sim: numEnv('MEMORY_RECALL_W_SIM', 0.6),
+        rec: numEnv('MEMORY_RECALL_W_RECENCY', 0.25),
+        conf: numEnv('MEMORY_RECALL_W_CONFIDENCE', 0.15),
+      },
+      neutralConfidence: numEnv('MEMORY_RECALL_NEUTRAL_CONFIDENCE', 0.75),
+    };
 
-  const tenants = await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
-    return tx.$queryRawUnsafe<Array<{ tenant_id: string }>>(
-      `SELECT DISTINCT tenant_id FROM context_embeddings WHERE source_type='memory_item'`,
-    );
-  });
-
-  const perTenant: Array<{
-    tenantId: string;
-    sampled: number;
-    nearEqualPairs: number;
-    recencyInversions: number;
-    demotionsAfterRerank: number;
-  }> = [];
-
-  for (const { tenant_id } of tenants) {
-    const rows = await prisma.$transaction(async (tx) => {
+    const tenants = await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
-      return tx.$queryRawUnsafe<SampleRow[]>(
-        `SELECT mi.tenant_id,
+      return tx.$queryRawUnsafe<Array<{ tenant_id: string }>>(
+        `SELECT DISTINCT tenant_id FROM context_embeddings WHERE source_type='memory_item'`,
+      );
+    });
+
+    const perTenant: Array<{
+      tenantId: string;
+      sampled: number;
+      nearEqualPairs: number;
+      recencyInversions: number;
+      demotionsAfterRerank: number;
+    }> = [];
+
+    for (const { tenant_id } of tenants) {
+      const rows = await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
+        return tx.$queryRawUnsafe<SampleRow[]>(
+          `SELECT mi.tenant_id,
                 mi.id,
                 -- Match projectionRecall: recency from last_confirmed_at else
                 -- created_at (NOT updated_at, which re-projection bumps).
@@ -95,74 +110,77 @@ async function main(): Promise<void> {
           WHERE mi.tenant_id = $1::uuid AND mi.type='note' AND mi.status='active'
           ORDER BY mi.updated_at DESC
           LIMIT ${SAMPLE_PER_TENANT}`,
-        tenant_id,
-      );
-    });
-    if (rows.length < 2) continue;
+          tenant_id,
+        );
+      });
+      if (rows.length < 2) continue;
 
-    const vecs = rows.map((r) => parseVec(r.embedding));
-    let nearEqualPairs = 0;
-    let recencyInversions = 0;
-    let demotionsAfterRerank = 0;
+      const vecs = rows.map((r) => parseVec(r.embedding));
+      let nearEqualPairs = 0;
+      let recencyInversions = 0;
+      let demotionsAfterRerank = 0;
 
-    // Compare each row against a bounded window of peers (O(n·w)) to find
-    // near-equal-similarity pairs relative to the FIRST row as a probe query.
-    const probe = vecs[0]!;
-    const scored = rows.map((r, i) => ({
-      row: r,
-      sim: cosineFromText(vecs[i]!, probe),
-    }));
-    for (let i = 0; i < scored.length; i += 1) {
-      for (let j = i + 1; j < scored.length; j += 1) {
-        const a = scored[i]!;
-        const b = scored[j]!;
-        if (Math.abs(a.sim - b.sim) > SIM_NEAR) continue;
-        nearEqualPairs += 1;
-        const older = a.row.age_days >= b.row.age_days ? a : b;
-        const newer = a.row.age_days >= b.row.age_days ? b : a;
-        // pure-cosine inversion: the older row currently ranks >= the newer one
-        if (older.sim >= newer.sim) {
-          recencyInversions += 1;
-          const fusedOlder = fuseRecallScore(toRow(older), opts);
-          const fusedNewer = fuseRecallScore(toRow(newer), opts);
-          if (fusedNewer > fusedOlder) demotionsAfterRerank += 1;
+      // Compare each row against a bounded window of peers (O(n·w)) to find
+      // near-equal-similarity pairs relative to the FIRST row as a probe query.
+      const probe = vecs[0]!;
+      const scored = rows.map((r, i) => ({
+        row: r,
+        sim: cosineFromText(vecs[i]!, probe),
+      }));
+      for (let i = 0; i < scored.length; i += 1) {
+        for (let j = i + 1; j < scored.length; j += 1) {
+          const a = scored[i]!;
+          const b = scored[j]!;
+          if (Math.abs(a.sim - b.sim) > SIM_NEAR) continue;
+          nearEqualPairs += 1;
+          const older = a.row.age_days >= b.row.age_days ? a : b;
+          const newer = a.row.age_days >= b.row.age_days ? b : a;
+          // pure-cosine inversion: the older row currently ranks >= the newer one
+          if (older.sim >= newer.sim) {
+            recencyInversions += 1;
+            const fusedOlder = fuseRecallScore(toRow(older), opts);
+            const fusedNewer = fuseRecallScore(toRow(newer), opts);
+            if (fusedNewer > fusedOlder) demotionsAfterRerank += 1;
+          }
         }
       }
+
+      perTenant.push({
+        tenantId: tenant_id,
+        sampled: rows.length,
+        nearEqualPairs,
+        recencyInversions,
+        demotionsAfterRerank,
+      });
     }
 
-    perTenant.push({
-      tenantId: tenant_id,
-      sampled: rows.length,
-      nearEqualPairs,
-      recencyInversions,
-      demotionsAfterRerank,
-    });
+    const totals = perTenant.reduce(
+      (acc, t) => {
+        acc.recencyInversions += t.recencyInversions;
+        acc.demotionsAfterRerank += t.demotionsAfterRerank;
+        return acc;
+      },
+      { recencyInversions: 0, demotionsAfterRerank: 0 },
+    );
+
+    console.log(
+      'RECALL_RECENCY_REPORT ' +
+        JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            gate: 'demotionsAfterRerank > 0 proves stale rows demote below fresh ones under fusion',
+            weights: opts.weights,
+            halfLifeDays: opts.halfLifeDays,
+            totals,
+            perTenant,
+          },
+          null,
+          2,
+        ),
+    );
+  } finally {
+    await prisma.$disconnect();
   }
-
-  const totals = perTenant.reduce(
-    (acc, t) => {
-      acc.recencyInversions += t.recencyInversions;
-      acc.demotionsAfterRerank += t.demotionsAfterRerank;
-      return acc;
-    },
-    { recencyInversions: 0, demotionsAfterRerank: 0 },
-  );
-
-  console.log(
-    'RECALL_RECENCY_REPORT ' +
-      JSON.stringify(
-        {
-          generatedAt: new Date().toISOString(),
-          gate: 'demotionsAfterRerank > 0 proves stale rows demote below fresh ones under fusion',
-          weights: opts.weights,
-          halfLifeDays: opts.halfLifeDays,
-          totals,
-          perTenant,
-        },
-        null,
-        2,
-      ),
-  );
 }
 
 function toRow(s: { row: SampleRow; sim: number }): RecalledRow {
@@ -180,11 +198,9 @@ function numEnv(name: string, d: number): number {
   return Number.isFinite(v) && v > 0 ? v : d;
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('RECALL_RECENCY_ERR', err instanceof Error ? err.message : String(err));
     process.exitCode = 1;
-  })
-  .finally(() => {
-    void prisma.$disconnect();
   });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Refresh the institutional-memory knowledge graph for one or all tenants.
  *
@@ -44,6 +45,11 @@ const TENANT_ARG = arg('tenant');
 const SLEEP_MS = 250;
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: refresh-memory-graph --tenant=<slug-or-uuid> | --all-tenants (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   const tenantCtx = new TenantContextStore();
   const store = new MemoryStoreService(prisma, tenantCtx);

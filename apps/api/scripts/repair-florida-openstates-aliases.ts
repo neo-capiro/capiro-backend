@@ -46,6 +46,10 @@ async function fetchEvidence(url: string): Promise<Uint8Array> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/repair-florida-openstates-aliases.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = process.argv.slice(2);
   const reviews = await manifest(args);
   // Publisher proof runs before the database transaction. A slow/unavailable

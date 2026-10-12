@@ -1,6 +1,10 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ContextCompiler } from './compiler.js';
-import { MERI_FIXTURE_SEMANTIC_INSTANT, MERI_FIXTURE_SEMANTIC_ZONE, type MeriFixtureSemanticClock } from './server-readonly-capture.js';
+import {
+  MERI_FIXTURE_SEMANTIC_INSTANT,
+  MERI_FIXTURE_SEMANTIC_ZONE,
+  type MeriFixtureSemanticClock,
+} from './server-readonly-capture.js';
 import { applyContextSurfacePolicy, contextSurfacePolicy } from './surface-policy.js';
 import type {
   CompiledContextPacket,
@@ -13,20 +17,32 @@ import type {
 const human = (heading: string, body: string) => ({ owner: 'human', heading, body });
 
 describe('qualified semantic clock separation', () => {
-  const semanticClock: MeriFixtureSemanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
-    instant: MERI_FIXTURE_SEMANTIC_INSTANT, timeZone: MERI_FIXTURE_SEMANTIC_ZONE, caseId: '01',
-    captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64),
-    observedAt: Date.parse('2026-10-03T12:00:00.000Z') };
+  const semanticClock: MeriFixtureSemanticClock = {
+    version: 1,
+    kind: 'qualified_original_fixture_semantic_clock',
+    instant: MERI_FIXTURE_SEMANTIC_INSTANT,
+    timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+    caseId: '01',
+    captureRunId: '11111111-1111-4111-8111-111111111111',
+    currentVerifySha256: 'a'.repeat(64),
+    observedAt: Date.parse('2026-10-03T12:00:00.000Z'),
+  };
   it.each<['governed' | 'legacy', 'expiresAt' | 'validUntil']>([
-    ['governed', 'expiresAt'], ['governed', 'validUntil'],
-    ['legacy', 'expiresAt'], ['legacy', 'validUntil'],
+    ['governed', 'expiresAt'],
+    ['governed', 'validUntil'],
+    ['legacy', 'expiresAt'],
+    ['legacy', 'validUntil'],
   ])('checks real %s-store %s after the awaited load', async (loader, field) => {
     jest.useFakeTimers().setSystemTime(new Date(semanticClock.observedAt));
     try {
       const afterLoad = '2026-10-03T12:00:02.000Z';
-      const rows = [row({ id: 'current' }), row({
-        id: 'expires-during-load', [field]: '2026-10-03T12:00:01.000Z',
-      })];
+      const rows = [
+        row({ id: 'current' }),
+        row({
+          id: 'expires-during-load',
+          [field]: '2026-10-03T12:00:01.000Z',
+        }),
+      ];
       const load = async () => {
         await Promise.resolve();
         jest.setSystemTime(new Date(afterLoad));
@@ -36,37 +52,68 @@ describe('qualified semantic clock separation', () => {
       const compiler = new ContextCompiler({
         loadSteeringRows: load,
         ...(loader === 'governed' ? { loadGovernedSteeringRows: load } : {}),
-        persistPacket: async (packet) => { saved.push(structuredClone(packet)); },
+        persistPacket: async (packet) => {
+          saved.push(structuredClone(packet));
+        },
       });
-      const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+      const packet = await compiler.compileV2(
+        request({ now: new Date(semanticClock.instant), semanticClock }),
+      );
       expect(packet.items.map((item) => item.id)).toEqual(['current']);
-      expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expires-during-load',
-        reason: field === 'validUntil' ? 'invalid-until' : 'unavailable' }));
-      expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
-        eligibilityAt: afterLoad, scoring: 'used' });
+      expect(packet.exclusions).toContainEqual(
+        expect.objectContaining({
+          id: 'expires-during-load',
+          reason: field === 'validUntil' ? 'invalid-until' : 'unavailable',
+        }),
+      );
+      expect(packet.clockUse).toEqual({
+        instant: semanticClock.instant,
+        timeZone: semanticClock.timeZone,
+        eligibilityAt: afterLoad,
+        scoring: 'used',
+      });
       expect(saved[0]!.clockUse).toEqual(packet.clockUse);
       const atFixture = await compiler.compileV2(request({ now: new Date(semanticClock.instant) }));
-      expect(atFixture.items.find((item) => item.id === 'current')?.inclusionScore).toBe(packet.items[0]!.inclusionScore);
-    } finally { jest.useRealTimers(); }
+      expect(atFixture.items.find((item) => item.id === 'current')?.inclusionScore).toBe(
+        packet.items[0]!.inclusionScore,
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
   it('records the legacy compiler real eligibility check after its awaited load', async () => {
     jest.useFakeTimers().setSystemTime(new Date(semanticClock.observedAt));
     try {
-      const compiler = new ContextCompiler({ loadSteeringRows: async () => {
-        await Promise.resolve();
-        jest.setSystemTime(new Date('2026-10-03T12:00:02.000Z'));
-        return [row({ id: 'expired', expiresAt: '2026-10-03T12:00:01.000Z' })];
-      } });
-      const packet = await compiler.compileV1(request({ now: new Date(semanticClock.instant), semanticClock }));
+      const compiler = new ContextCompiler({
+        loadSteeringRows: async () => {
+          await Promise.resolve();
+          jest.setSystemTime(new Date('2026-10-03T12:00:02.000Z'));
+          return [row({ id: 'expired', expiresAt: '2026-10-03T12:00:01.000Z' })];
+        },
+      });
+      const packet = await compiler.compileV1(
+        request({ now: new Date(semanticClock.instant), semanticClock }),
+      );
       expect(packet.items).toEqual([]);
-      expect(packet.exclusions).toContainEqual(expect.objectContaining({ id: 'expired', reason: 'expired' }));
-      expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
-        eligibilityAt: '2026-10-03T12:00:02.000Z', scoring: 'not_run' });
-    } finally { jest.useRealTimers(); }
+      expect(packet.exclusions).toContainEqual(
+        expect.objectContaining({ id: 'expired', reason: 'expired' }),
+      );
+      expect(packet.clockUse).toEqual({
+        instant: semanticClock.instant,
+        timeZone: semanticClock.timeZone,
+        eligibilityAt: '2026-10-03T12:00:02.000Z',
+        scoring: 'not_run',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
   it('rejects a mismatched fixed clock before either store loader executes', async () => {
     const load = jest.fn<() => Promise<SteeringRow[]>>().mockResolvedValue([]);
-    const compiler = new ContextCompiler({ loadSteeringRows: load, loadGovernedSteeringRows: load });
+    const compiler = new ContextCompiler({
+      loadSteeringRows: load,
+      loadGovernedSteeringRows: load,
+    });
     const input = request({ now: new Date('2026-10-03T12:00:00.000Z'), semanticClock });
     await expect(compiler.compileV1(input)).rejects.toThrow('semantic_clock');
     await expect(compiler.compileV2(input)).rejects.toThrow('semantic_clock');
@@ -76,23 +123,47 @@ describe('qualified semantic clock separation', () => {
     jest.useFakeTimers().setSystemTime(new Date(semanticClock.observedAt));
     try {
       const saved: CompiledContextPacket[] = [];
-      const rows = [row({ id: 'current' }), row({ id: 'expired', expiresAt: '2026-10-01T00:00:00Z' })];
-      const compiler = new ContextCompiler({ loadSteeringRows: async () => rows, persistPacket: async (packet) => { saved.push(packet); } });
-      const packet = await compiler.compileV2(request({ now: new Date(semanticClock.instant), semanticClock }));
+      const rows = [
+        row({ id: 'current' }),
+        row({ id: 'expired', expiresAt: '2026-10-01T00:00:00Z' }),
+      ];
+      const compiler = new ContextCompiler({
+        loadSteeringRows: async () => rows,
+        persistPacket: async (packet) => {
+          saved.push(packet);
+        },
+      });
+      const packet = await compiler.compileV2(
+        request({ now: new Date(semanticClock.instant), semanticClock }),
+      );
       expect(packet.items.map((item) => item.id)).toEqual(['current']);
-      expect(packet.exclusions).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'expired', reason: 'unavailable' })]));
-      expect(packet.clockUse).toEqual({ instant: semanticClock.instant, timeZone: semanticClock.timeZone,
-        eligibilityAt: '2026-10-03T12:00:00.000Z', scoring: 'used' });
+      expect(packet.exclusions).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'expired', reason: 'unavailable' })]),
+      );
+      expect(packet.clockUse).toEqual({
+        instant: semanticClock.instant,
+        timeZone: semanticClock.timeZone,
+        eligibilityAt: '2026-10-03T12:00:00.000Z',
+        scoring: 'used',
+      });
       expect(saved[0]!.clockUse).toEqual(packet.clockUse);
       expect(packet.compiledAt).toBe('2026-10-03T12:00:00.000Z');
       const atFixture = await compiler.compileV2(request({ now: new Date(semanticClock.instant) }));
-      expect(atFixture.items.find((item) => item.id === 'current')?.inclusionScore).toBe(packet.items[0]!.inclusionScore);
+      expect(atFixture.items.find((item) => item.id === 'current')?.inclusionScore).toBe(
+        packet.items[0]!.inclusionScore,
+      );
       expect(atFixture.clockUse).toBeUndefined(); // Existing explicit test-clock defaults stay compatible.
-      const legacy = await compiler.compileV1(request({ now: new Date(semanticClock.instant), semanticClock }));
+      const legacy = await compiler.compileV1(
+        request({ now: new Date(semanticClock.instant), semanticClock }),
+      );
       expect(legacy.clockUse?.scoring).toBe('not_run');
       expect(legacy.items.map((item) => item.id)).not.toContain('expired');
-      await expect(compiler.compileV2(request({ now: new Date(), semanticClock }))).rejects.toThrow('semantic_clock');
-    } finally { jest.useRealTimers(); }
+      await expect(compiler.compileV2(request({ now: new Date(), semanticClock }))).rejects.toThrow(
+        'semantic_clock',
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

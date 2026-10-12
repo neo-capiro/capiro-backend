@@ -62,6 +62,11 @@ function sourceEvent(input: Omit<FundingSourceEventInput, 'sourceDocumentId' | '
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/qualify-package6-funding-execution.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   assertPackage6QualificationTarget({
     databaseUrl: process.env.DATABASE_URL,
     environmentOptIn: process.env.PACKAGE6_QUALIFICATION_ALLOW_WRITES,
@@ -69,8 +74,9 @@ async function main(): Promise<void> {
   });
 
   const prisma = new PrismaClient();
-  await prisma.$connect();
+
   try {
+    await prisma.$connect();
     await prisma.sourceDocument.upsert({
       where: { id: DOC },
       create: {
@@ -360,6 +366,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   if (error instanceof Package6QualificationSafetyError) console.error(error.message);
   else {
@@ -370,3 +377,4 @@ void main().catch((error) => {
   }
   process.exit(1);
 });
+}

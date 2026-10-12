@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Step 1.4 — recompute typed, materiality-scored budget deltas.
  *
@@ -32,9 +33,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: compute-budget-deltas [--commit] [--fy <year>] (requires DATABASE_URL)');
+    process.exit(2);
+  }
   const prisma = new PrismaService();
-  await prisma.onModuleInit();
   try {
+    await prisma.onModuleInit();
     const engine = new DeltaEngineService(prisma);
     const results = await engine.computeAll(fy, { commit });
     const totals = results.reduce(

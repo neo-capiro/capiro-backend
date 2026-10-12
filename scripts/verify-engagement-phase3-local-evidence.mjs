@@ -6,9 +6,26 @@
  * the complete exact-SHA bundle exists, contains every required terminal marker,
  * has no silent scenario omissions, records cleanup/invariance, and retains no
  * bearer/cookie/JWT material. It never reads the OS-temp token file.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+
+const USAGE = 'Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length) {
+  console.error(USAGE);
+  console.error(`[phase3-evidence] unknown argument: ${cliArgs.join(' ')}`);
+  process.exit(2);
+}
+if (['ENGAGEMENT_PHASE3_EVIDENCE_DIR', 'RELEASE_SHA'].some((name) => !process.env[name]?.trim())) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const EVIDENCE = path.resolve(required('ENGAGEMENT_PHASE3_EVIDENCE_DIR'));

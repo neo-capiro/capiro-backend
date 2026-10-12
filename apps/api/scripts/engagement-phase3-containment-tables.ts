@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /** Pure table-scope contract for the Phase 3 external-action denial sweep. */
 
 const BUSINESS_PREFIXES = [
@@ -49,3 +50,14 @@ export const PHASE3_REQUIRED_CONTAINMENT_TABLES = [
   'ai_usage_events',
   'meri_audit_ledger',
 ] as const;
+
+if (require.main === module) {
+  const usage = 'Usage: engagement-phase3-containment-tables [--help] (library module)';
+  const args = process.argv.slice(2);
+  if (args.length === 0 || (args.length === 1 && args[0] === '--help')) {
+    console.log(usage);
+  } else {
+    console.error(usage);
+    process.exitCode = 2;
+  }
+}

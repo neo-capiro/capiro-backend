@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /** One named REVIEW re-extraction. Preview is read-only; publication is never performed. */
 import { createHash } from 'node:crypto';
 import { readFileSync, statSync, type Stats } from 'node:fs';
@@ -213,6 +214,9 @@ export async function mainReextractionV1(argv = process.argv.slice(2)): Promise<
 
 if (require.main === module) {
   void mainReextractionV1().then(code => { process.exitCode = code; }).catch(error => {
+    if (error instanceof ReextractionUsageErrorV1) {
+      console.error('Usage: reextract-defense-budget-candidate-v1 --operation-id <uuid> --status | --operation-id <uuid> --outbox-row-id <uuid> --old-candidate-id <uuid> --expected-old-verification-run-id <uuid> --expected-source-sha256 <sha> --expected-old-extraction-artifact-sha256 <sha> --actor <id> --reason-file <path> --expected-release-revision <sha> --env <env> [--commit --confirm <env>]');
+    }
     console.error(JSON.stringify({
       outcome: 'failed', publication: 'not_performed',
       error: error instanceof Error ? error.message : String(error),

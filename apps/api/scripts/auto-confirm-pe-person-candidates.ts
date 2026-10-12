@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { inferRoleType } from '../src/acquisition-personnel/acquisition-personnel-read.service.js';
@@ -52,7 +53,6 @@ async function main(): Promise<void> {
   const note = arg('note', `auto-confirmed: score>=${minScore} (batch)`);
 
   const prisma = new PrismaService();
-  await prisma.onModuleInit();
 
   let scanned = 0;
   let linked = 0; // pe_primary newly set
@@ -61,6 +61,7 @@ async function main(): Promise<void> {
   let errors = 0;
 
   try {
+    await prisma.onModuleInit();
     const candidates = await prisma.programElementPersonCandidate.findMany({
       where: { status: 'open', score: { gte: minScore } },
       orderBy: [{ score: 'desc' }, { createdAt: 'asc' }],
@@ -168,6 +169,11 @@ const isDirectRun = /auto-confirm-pe-person-candidates(\.[cm]?[tj]s)?$/.test(
   (process.argv[1] ?? '').replace(/\\/g, '/'),
 );
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: auto-confirm-pe-person-candidates [--min-score=0.8] [--limit=0] [--note="..."] [--commit] (requires DATABASE_URL)');
+    process.exit(2);
+  }
   void main().catch((err) => {
     console.error('[auto-confirm] FAILED', err);
     process.exit(1);

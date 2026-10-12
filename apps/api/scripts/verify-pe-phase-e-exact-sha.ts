@@ -1,10 +1,31 @@
 /**
- * Phase E static verifier: every PE dollar loader must import the exact-SHA
- * contract and gate --commit on --approved-sha256. No DB or vendor calls.
+ * @cleanup-smoke noArgsExit=0 helpExit=0
+ * Phase E static verifier: commit-capable PE dollar loaders must gate --commit
+ * on exact SHA. The contained public-law facade is pinned inspect-only.
+ * No DB or vendor calls.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PE_EXACT_SHA_DOLLAR_LOADERS } from './lib/pe-exact-sha-loader-contract.js';
+import {
+  PE_EXACT_SHA_DOLLAR_LOADERS,
+  PE_INSPECT_ONLY_DOLLAR_LOADERS,
+  inspectOnlyDollarLoaderViolations,
+  isPeInspectOnlyDollarLoader,
+} from './lib/pe-exact-sha-loader-contract.js';
+
+const USAGE = 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+console.error(USAGE);
 
 function apiRoot(): string {
   const cwd = process.cwd().replace(/\\/g, '/');
@@ -21,8 +42,19 @@ function sourceOf(fileName: string): string {
 
 const failures: string[] = [];
 
+for (const fileName of PE_INSPECT_ONLY_DOLLAR_LOADERS) {
+  if (!(PE_EXACT_SHA_DOLLAR_LOADERS as readonly string[]).includes(fileName)) {
+    failures.push(`${fileName}: inspect-only facade is missing from Phase E/7 inventory`);
+  }
+}
+
 for (const fileName of PE_EXACT_SHA_DOLLAR_LOADERS) {
   const source = sourceOf(fileName);
+
+  if (isPeInspectOnlyDollarLoader(fileName)) {
+    failures.push(...inspectOnlyDollarLoaderViolations(fileName, source));
+    continue;
+  }
 
   if (fileName === 'ingest-defense-budget-pdf.ts') {
     // Generalized PDF path already uses Phase B helpers; it must keep fail-closed

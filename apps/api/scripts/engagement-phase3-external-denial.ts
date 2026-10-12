@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * Phase 3 external-action containment acceptance.
  *
@@ -16,6 +17,22 @@ import {
   PHASE3_REQUIRED_CONTAINMENT_TABLES,
   isPhase3ProtectedSideEffectTable,
 } from './engagement-phase3-containment-tables.js';
+
+const usage =
+  'Usage: tsx scripts/engagement-phase3-external-denial.ts (requires DATABASE_URL and Phase 3 acceptance variables)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length > 0) {
+  console.error(usage);
+  process.exit(2);
+}
+if (!process.env.DATABASE_URL) {
+  console.error(usage);
+  process.exit(1);
+}
 
 interface InventoryRequest {
   method: string;

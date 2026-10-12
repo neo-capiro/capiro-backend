@@ -806,6 +806,7 @@ export async function processLifecycle(
 }
 
 async function main(): Promise<void> {
+
   const commit = flag(process.argv, 'commit');
   const explicitTenant = value(process.argv, 'tenant');
   const prisma = new PrismaClient();
@@ -846,6 +847,11 @@ const direct = /process-funding-opportunity-lifecycle(\.[cm]?[tj]s)?$/.test(
   (process.argv[1] ?? '').replace(/\\/g, '/'),
 );
 if (direct) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/process-funding-opportunity-lifecycle.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error) => {
     console.error(`[${SOURCE}] FAILED`, error);
     process.exit(1);

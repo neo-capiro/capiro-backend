@@ -20,10 +20,9 @@ import { normalizeSector, SECTOR_TAGS } from '@capiro/shared';
 
 dotenvConfig();
 
-const prisma = new PrismaClient();
 const enumSet = new Set<string>(SECTOR_TAGS);
 
-async function backfillClients() {
+async function backfillClients(prisma: PrismaClient) {
   const clients = await prisma.client.findMany({
     where: { sectorTag: null },
     select: { id: true, name: true, intakeData: true },
@@ -60,7 +59,7 @@ async function backfillClients() {
   console.log(`Clients: ${updated} updated, ${skipped} skipped (no clean enum match)`);
 }
 
-async function backfillCapabilities() {
+async function backfillCapabilities(prisma: PrismaClient) {
   const caps = await prisma.clientCapability.findMany({
     where: { sector: { not: null } },
     select: { id: true, name: true, sector: true },
@@ -88,18 +87,27 @@ async function backfillCapabilities() {
 }
 
 async function main() {
-  console.log('=== Backfilling client.sectorTag ===');
-  await backfillClients();
-  console.log();
-  console.log('=== Normalizing client_capabilities.sector ===');
-  await backfillCapabilities();
-  console.log();
-  console.log('Done.');
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-sector-tags.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    console.log('=== Backfilling client.sectorTag ===');
+    await backfillClients(prisma);
+    console.log();
+    console.log('=== Normalizing client_capabilities.sector ===');
+    await backfillCapabilities(prisma);
+    console.log();
+    console.log('Done.');
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('Fatal error:', err);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

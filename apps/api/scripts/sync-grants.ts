@@ -278,6 +278,10 @@ export async function syncOpportunities(
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-grants.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const allStatuses = hasFlag('all-statuses');
   const fromPageArg = flagValue('from-page');
   const fromPage = fromPageArg != null && fromPageArg !== '' ? Number(fromPageArg) : 0;

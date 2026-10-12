@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 10B-35 -- record a SCOPED review decision over one verified R-2 PE
  * total (never the whole candidate).
@@ -86,6 +87,7 @@ function parseArgs(argv: string[]): Args {
     const arg = argv[i];
     if (arg === undefined) break;
     if (!KNOWN_FLAGS.has(arg)) {
+      console.error('Usage: review-defense-budget-scoped-fact-v1 --candidate-id <uuid> --run-id <uuid> --pe-code <code> --fiscal-year <year> --component <component> --decision approve|reject --reviewer-id <id> --rationale-file <path> --expected-source-sha256 <sha> --expected-artifact-sha256 <sha> --expected-manifest-sha256 <sha> [--commit]');
       console.error(`Unknown flag: ${arg}`);
       process.exit(EXIT_ERROR);
     }
@@ -99,6 +101,7 @@ function parseArgs(argv: string[]): Args {
   const need = (flag: string): string => {
     const v = raw[flag];
     if (typeof v !== 'string' || v.length === 0) {
+      console.error('Usage: review-defense-budget-scoped-fact-v1 --candidate-id <uuid> --run-id <uuid> --pe-code <code> --fiscal-year <year> --component <component> --decision approve|reject --reviewer-id <id> --rationale-file <path> --expected-source-sha256 <sha> --expected-artifact-sha256 <sha> --expected-manifest-sha256 <sha> [--commit]');
       console.error(`Missing ${flag}`);
       process.exit(EXIT_ERROR);
     }

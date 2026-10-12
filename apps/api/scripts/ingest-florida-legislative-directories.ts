@@ -846,6 +846,11 @@ async function loadInputs(): Promise<{
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/ingest-florida-legislative-directories.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const apply =
     process.argv.includes('--apply') || process.env.FLORIDA_DIRECTORY_PDF_APPLY === 'true';
   const database = validateDatabase(apply);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +64,7 @@ export function parityProblems() {
 }
 
 function main() {
+  console.error('Usage: node scripts/verify-outreach-v3-p1-route-parity.mjs (no arguments runs the existing verifier)');
   const problems = parityProblems();
   if (problems.length) {
     for (const problem of problems) console.error(`FAIL  ${problem}`);

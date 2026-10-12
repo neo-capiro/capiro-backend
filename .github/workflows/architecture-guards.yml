@@ -1,0 +1,62 @@
+# CleanUp1 §5.3.4 — wire the three architecture bypass guards that were never
+# run by any workflow. `check-context-plane-new-bypasses.mjs` already runs in
+# `context-plane-architecture-guard.yml`; the evaluation, learning-signal and
+# quality-telemetry guards existed in `scripts/` but were referenced by nothing,
+# so a new bypass of the governed-write / memory / steering-layer boundaries
+# could merge unguarded.
+#
+# This workflow runs those three guards exactly the way the context-plane guard
+# runs its own: same diff-scoped base comparison, same `pull_request` + manual
+# trigger style, no AWS credentials, no repository writes.
+name: architecture-guards
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**/*.ts'
+      - 'apps/**/*.tsx'
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - 'scripts/check-evaluation-new-bypasses.mjs'
+      - 'scripts/check-learning-signal-new-bypasses.mjs'
+      - 'scripts/check-quality-telemetry-new-bypasses.mjs'
+      - '.github/workflows/architecture-guards.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-new-architecture-bypasses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Guard evaluation governed-write boundary
+        shell: bash
+        run: |
+          base_ref="${{ github.base_ref }}"
+          if [ -z "$base_ref" ]; then base_ref="main"; fi
+          git fetch origin "$base_ref:refs/remotes/origin/$base_ref" --depth=1
+          node scripts/check-evaluation-new-bypasses.mjs "origin/$base_ref"
+
+      - name: Guard learning-signal governed-write boundary
+        shell: bash
+        run: |
+          base_ref="${{ github.base_ref }}"
+          if [ -z "$base_ref" ]; then base_ref="main"; fi
+          node scripts/check-learning-signal-new-bypasses.mjs "origin/$base_ref"
+
+      - name: Guard quality-telemetry governed-write boundary
+        shell: bash
+        run: |
+          base_ref="${{ github.base_ref }}"
+          if [ -z "$base_ref" ]; then base_ref="main"; fi
+          node scripts/check-quality-telemetry-new-bypasses.mjs "origin/$base_ref"

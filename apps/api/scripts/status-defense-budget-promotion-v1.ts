@@ -50,6 +50,11 @@ function gitSha(): string {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
   const environment = argValue('--environment');
   if (!environment) {
@@ -164,7 +169,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('status-defense-budget-promotion-v1 FAILED:', error);
   process.exit(1);
 });
+}

@@ -401,6 +401,7 @@ function realUpdateClientStatus(prisma: PrismaClient): SyncDeps['updateClientSta
 }
 
 async function main(): Promise<void> {
+
   let args: ParsedArgs;
   try {
     args = parseArgs(process.argv.slice(2));
@@ -490,6 +491,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-tango-entities.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error('TANGO_SYNC_ERR', redactWithKnownSecret(redact(message), process.env.TANGO_API_KEY ?? null));

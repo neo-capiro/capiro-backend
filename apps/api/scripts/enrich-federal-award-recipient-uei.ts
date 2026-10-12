@@ -20,8 +20,6 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 function arg(name: string): string | undefined {
   const p = `--${name}`;
   const eq = process.argv.find((a) => a.startsWith(`${p}=`));
@@ -41,66 +39,87 @@ async function fetchLiveUei(awardUniqueId: string): Promise<string | null> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/enrich-federal-award-recipient-uei.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const recipientPattern = arg('recipient') ?? 'L3HARRIS';
   const limit = Number(arg('limit') ?? '200');
   const commit = process.argv.includes('--commit');
 
-  const candidates = await prisma.federalAward.findMany({
-    where: {
-      recipientUei: null,
-      contractorName: { contains: recipientPattern, mode: 'insensitive' },
-    },
-    select: { id: true, awardUniqueId: true, piid: true, contractorName: true, popState: true, popCongressionalDistrict: true },
-    take: limit,
-  });
+  const prisma = new PrismaClient();
+  try {
+    const candidates = await prisma.federalAward.findMany({
+      where: {
+        recipientUei: null,
+        contractorName: { contains: recipientPattern, mode: 'insensitive' },
+      },
+      select: {
+        id: true,
+        awardUniqueId: true,
+        piid: true,
+        contractorName: true,
+        popState: true,
+        popCongressionalDistrict: true,
+      },
+      take: limit,
+    });
 
-  console.log(
-    `Found ${candidates.length} candidate row(s) matching contractor_name ILIKE '%${recipientPattern}%' AND recipient_uei IS NULL (limit ${limit}).`,
-  );
-
-  let verified = 0;
-  let sourceStillMissing = 0;
-  let updated = 0;
-  const sourceUeis = new Set<string>();
-
-  for (const row of candidates) {
-    const liveUei = await fetchLiveUei(row.awardUniqueId);
-    if (!liveUei) {
-      sourceStillMissing++;
-      console.log(`  SKIP  ${row.piid ?? row.awardUniqueId} (${row.contractorName}) — live source still has no UEI`);
-      continue;
-    }
-    verified++;
-    sourceUeis.add(liveUei);
     console.log(
-      `  ${commit ? 'ENRICH' : 'WOULD ENRICH'}  ${row.piid ?? row.awardUniqueId} (${row.contractorName}, ${row.popState ?? '?'}-${row.popCongressionalDistrict ?? '?'}) -> ${liveUei}`,
+      `Found ${candidates.length} candidate row(s) matching contractor_name ILIKE '%${recipientPattern}%' AND recipient_uei IS NULL (limit ${limit}).`,
     );
-    if (commit) {
-      // updateMany (not update) so the where clause can re-assert NULL at
-      // write time as a general filter, not just a unique-key lookup — never
-      // overwrite a value some concurrent process already set.
-      const result = await prisma.federalAward.updateMany({
-        where: { id: row.id, recipientUei: null },
-        data: { recipientUei: liveUei },
-      });
-      if (result.count === 1) updated++;
-      else console.log(`    WRITE_SKIPPED (row no longer null — set by something else concurrently)`);
-    }
-    // USASpending's per-IP rate limit is generous for the single-award detail
-    // endpoint, but stay polite on a loop of individually-verified requests.
-    await new Promise((r) => setTimeout(r, 150));
-  }
 
-  console.log(
-    `\n${commit ? 'COMMITTED' : 'DRY RUN — pass --commit to persist'}: candidates=${candidates.length} ` +
-      `verifiedAgainstLiveSource=${verified} sourceStillMissing=${sourceStillMissing} ` +
-      `${commit ? `actuallyUpdated=${updated}` : ''} distinctUeisSeen=${sourceUeis.size}`,
-  );
+    let verified = 0;
+    let sourceStillMissing = 0;
+    let updated = 0;
+    const sourceUeis = new Set<string>();
+
+    for (const row of candidates) {
+      const liveUei = await fetchLiveUei(row.awardUniqueId);
+      if (!liveUei) {
+        sourceStillMissing++;
+        console.log(
+          `  SKIP  ${row.piid ?? row.awardUniqueId} (${row.contractorName}) — live source still has no UEI`,
+        );
+        continue;
+      }
+      verified++;
+      sourceUeis.add(liveUei);
+      console.log(
+        `  ${commit ? 'ENRICH' : 'WOULD ENRICH'}  ${row.piid ?? row.awardUniqueId} (${row.contractorName}, ${row.popState ?? '?'}-${row.popCongressionalDistrict ?? '?'}) -> ${liveUei}`,
+      );
+      if (commit) {
+        // updateMany (not update) so the where clause can re-assert NULL at
+        // write time as a general filter, not just a unique-key lookup — never
+        // overwrite a value some concurrent process already set.
+        const result = await prisma.federalAward.updateMany({
+          where: { id: row.id, recipientUei: null },
+          data: { recipientUei: liveUei },
+        });
+        if (result.count === 1) updated++;
+        else
+          console.log(
+            `    WRITE_SKIPPED (row no longer null — set by something else concurrently)`,
+          );
+      }
+      // USASpending's per-IP rate limit is generous for the single-award detail
+      // endpoint, but stay polite on a loop of individually-verified requests.
+      await new Promise((r) => setTimeout(r, 150));
+    }
+
+    console.log(
+      `\n${commit ? 'COMMITTED' : 'DRY RUN — pass --commit to persist'}: candidates=${candidates.length} ` +
+        `verifiedAgainstLiveSource=${verified} sourceStillMissing=${sourceStillMissing} ` +
+        `${commit ? `actuallyUpdated=${updated}` : ''} distinctUeisSeen=${sourceUeis.size}`,
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error('FATAL', e);
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

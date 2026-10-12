@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=5 */
 /**
  * Local/read-only Phase 5 manifest preflight.
  *
@@ -102,6 +103,7 @@ function main(): void {
 try {
   main();
 } catch (error) {
+  console.error('Usage: inspect-defense-budget-non-rdte --manifest <path> [--family <family>]');
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = PHASE5_EXIT.operational;
 }

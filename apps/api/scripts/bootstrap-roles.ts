@@ -25,10 +25,22 @@
  * password contains only generated characters from the secret's
  * `excludePunctuation` set so the only required escape is single-quote
  * doubling, defensive in case CDK config changes.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { config as dotenvConfig } from 'dotenv';
 import { Client } from 'pg';
 
+const usage = 'Usage: tsx scripts/bootstrap-roles.ts --run';
+const argv = process.argv.slice(2);
+if ((argv.length === 1 && argv[0] === '--help') ||
+    (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv.length !== 1 || argv[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 dotenvConfig();
 
 function required(name: string): string {

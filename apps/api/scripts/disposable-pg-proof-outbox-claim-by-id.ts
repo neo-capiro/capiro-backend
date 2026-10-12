@@ -150,6 +150,11 @@ async function rowState(prisma, id) {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/disposable-pg-proof-outbox-claim-by-id.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   const url = new URL(process.env.DATABASE_URL);
   const allowedHosts = new Set(['localhost', '127.0.0.1', '::1']);
@@ -158,6 +163,7 @@ async function main() {
   }
 
   const prisma = new PrismaClient();
+  try {
   const prisma2 = new PrismaClient(); // second real connection for the concurrency race
   try {
     await prisma.$connect();
@@ -232,13 +238,20 @@ async function main() {
 
     console.log('\nALL PR#1327 claimRowById REAL-POSTGRES CONCURRENCY PROOFS PASSED.');
   } finally {
-    await cleanup(prisma).catch((e) => console.warn('cleanup warning:', e.message));
+    try {
+      await cleanup(prisma).catch((e) => console.warn('cleanup warning:', e.message));
+    } finally {
+      await prisma2.$disconnect();
+    }
+}
+  } finally {
     await prisma.$disconnect();
-    await prisma2.$disconnect();
   }
 }
 
+if (require.main === module) {
 main().catch((error) => {
   console.error('PROOF FAILED:', error);
   process.exit(1);
 });
+}

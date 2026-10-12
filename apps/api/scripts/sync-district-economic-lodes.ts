@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { readFile } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
 import type { PrismaClient } from '@prisma/client';
@@ -150,8 +151,13 @@ export async function main(): Promise<void> {
 if (
   /sync-district-economic-lodes(\.[cm]?[tj]s)?$/.test((process.argv[1] ?? '').replace(/\\/g, '/'))
 ) {
-  void main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: sync-district-economic-lodes (requires DATABASE_URL)');
+    process.exitCode = 2;
+  } else {
+    void main().catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+  }
 }

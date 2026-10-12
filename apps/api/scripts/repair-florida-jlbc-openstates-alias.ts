@@ -29,6 +29,10 @@ async function pdfText(bytes: Uint8Array): Promise<string> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/repair-florida-jlbc-openstates-alias.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = process.argv.slice(2);
   // Publisher proof is deliberately outside the database transaction: a slow
   // or unavailable official page fails without holding any database lock.

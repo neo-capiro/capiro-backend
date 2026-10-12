@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * Phase 6 Workstream N — operator entrypoint.
  *
@@ -49,12 +50,23 @@ function runStageExtraction(): void {
 }
 
 function main(): void {
+  const argv = process.argv.slice(2);
+  const usage = `Usage: phase6-stage-cycle --command <${PHASE6_OPERATOR_COMMAND_VALUES.join('|')}> [--input cycle-input.json | Phase 3 extraction flags]`;
+  if (argv.length === 1 && argv[0] === '--help') {
+    console.log(usage);
+    return;
+  }
+  if (argv.length === 0) {
+    console.error(usage);
+    process.exitCode = 1;
+    return;
+  }
   if (process.argv.includes('--commit') || process.argv.includes('--promote')) {
     throw new Error('Phase 6 stage-cycle commands do not support canonical commit or promotion');
   }
   const command = arg('command') as Phase6OperatorCommandV1 | undefined;
   if (command == null || !PHASE6_OPERATOR_COMMAND_VALUES.includes(command)) {
-    throw new Error(`--command must be one of ${PHASE6_OPERATOR_COMMAND_VALUES.join(', ')}`);
+    throw new Error(`${usage}\n--command must be one of ${PHASE6_OPERATOR_COMMAND_VALUES.join(', ')}`);
   }
 
   if (command === 'extract_stage_document') {
@@ -62,8 +74,16 @@ function main(): void {
     return;
   }
 
+  for (let index = 0; index < argv.length; index += 1) {
+    const option = argv[index];
+    if ((option === '--command' || option === '--input') && argv[index + 1] && !argv[index + 1]!.startsWith('--')) {
+      index += 1;
+      continue;
+    }
+    throw new Error(`Unsupported or incomplete argument: ${option}\n${usage}`);
+  }
   const inputPath = arg('input');
-  if (inputPath == null) throw new Error('--input <cycle-input.json> is required');
+  if (inputPath == null) throw new Error(`--input <cycle-input.json> is required\n${usage}`);
   const input = JSON.parse(fs.readFileSync(inputPath, 'utf8')) as unknown;
   console.log(JSON.stringify(buildPhase6OperatorPlanV1(command, input), null, 2));
 }

@@ -857,6 +857,10 @@ export async function runOpenstatesSync(
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-openstates.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   console.log('[openstates-sync] starting');
   console.log(

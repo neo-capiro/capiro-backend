@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only PHANTOM-IMPORT diagnosis.
  *
@@ -21,26 +22,9 @@
 import { PrismaClient } from '@prisma/client';
 import { parseArgs } from 'node:util';
 
-const prisma = new PrismaClient();
-
-const { values: args } = parseArgs({
-  options: {
-    tenant: { type: 'string' },
-    name: { type: 'string' },
-  },
-});
-
-// args.tenant is interpolated into raw SQL (with a ::uuid cast); reject anything
-// that is not a well-formed UUID so the value cannot escape the literal context.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-if (args.tenant && !UUID_RE.test(args.tenant)) {
-  console.error('[diag-phantom-imports] --tenant must be a valid UUID');
-  process.exit(1);
-}
-
 const num = (v: unknown) => (typeof v === 'bigint' ? Number(v) : v);
 
-async function withBypass<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
     return fn(tx as unknown as PrismaClient);
@@ -60,15 +44,47 @@ interface ClientRow {
 }
 
 async function main(): Promise<void> {
-  const report = await withBypass(async (tx) => {
-    const tenantFilter = args.tenant ? `AND c.tenant_id = '${args.tenant}'::uuid` : '';
-    const nameFilter = args.name
-      ? `AND c.name ILIKE '%' || ${`'${String(args.name).replace(/'/g, "''")}'`} || '%'`
-      : '';
+  const usage = 'Usage: apps/api/scripts/diag-phantom-imports.ts [--tenant UUID] [--name NAME] requires DATABASE_URL (database configuration is required)';
+  if (process.argv.length === 3 && process.argv[2] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  let args: { tenant?: string; name?: string };
+  try {
+    args = parseArgs({
+      options: {
+        tenant: { type: 'string' },
+        name: { type: 'string' },
+      },
+    }).values;
+  } catch {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
 
-    // Every client carrying an LDA id (i.e. imported/resolved) with its stored
-    // status fields + whether the Portfolio list (status != 'archived') hides it.
-    const rows = await tx.$queryRawUnsafe<ClientRow[]>(`
+  // args.tenant is interpolated into raw SQL (with a ::uuid cast); reject anything
+  // that is not a well-formed UUID so the value cannot escape the literal context.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (args.tenant && !UUID_RE.test(args.tenant)) {
+    console.error('[diag-phantom-imports] --tenant must be a valid UUID');
+    process.exit(1);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    const report = await withBypass(prisma, async (tx) => {
+      const tenantFilter = args.tenant ? `AND c.tenant_id = '${args.tenant}'::uuid` : '';
+      const nameFilter = args.name
+        ? `AND c.name ILIKE '%' || ${`'${String(args.name).replace(/'/g, "''")}'`} || '%'`
+        : '';
+
+      // Every client carrying an LDA id (i.e. imported/resolved) with its stored
+      // status fields + whether the Portfolio list (status != 'archived') hides it.
+      const rows = await tx.$queryRawUnsafe<ClientRow[]>(`
       SELECT c.id, c.tenant_id, c.name, c.status,
              c.profile_status, c.profile_type,
              c.lda_client_ids,
@@ -81,18 +97,18 @@ async function main(): Promise<void> {
       ORDER BY c.tenant_id, c.created_at DESC
     `);
 
-    // Per-tenant rollup: total clients, active+visible, and how many imported
-    // rows are hidden by the portfolio filter.
-    const rollup = await tx.$queryRawUnsafe<
-      Array<{
-        tenant_id: string;
-        slug: string | null;
-        total_clients: bigint;
-        active_visible: bigint;
-        with_lda_ids: bigint;
-        lda_hidden: bigint;
-      }>
-    >(`
+      // Per-tenant rollup: total clients, active+visible, and how many imported
+      // rows are hidden by the portfolio filter.
+      const rollup = await tx.$queryRawUnsafe<
+        Array<{
+          tenant_id: string;
+          slug: string | null;
+          total_clients: bigint;
+          active_visible: bigint;
+          with_lda_ids: bigint;
+          lda_hidden: bigint;
+        }>
+      >(`
       SELECT t.id AS tenant_id, t.slug,
              count(c.*) AS total_clients,
              count(*) FILTER (WHERE c.status <> 'archived') AS active_visible,
@@ -105,36 +121,39 @@ async function main(): Promise<void> {
       ORDER BY t.slug
     `);
 
-    return {
-      perTenant: rollup.map((r) => ({
-        tenantId: r.tenant_id,
-        slug: r.slug,
-        totalClients: num(r.total_clients),
-        activeVisible: num(r.active_visible),
-        withLdaIds: num(r.with_lda_ids),
-        ldaImportsHiddenByFilter: num(r.lda_hidden),
-      })),
-      ldaClients: rows.map((r) => ({
-        clientId: r.id,
-        tenantId: r.tenant_id,
-        name: r.name,
-        status: r.status,
-        profileStatus: r.profile_status,
-        profileType: r.profile_type,
-        ldaClientIds: r.lda_client_ids,
-        hiddenByPortfolioFilter: r.hidden_by_portfolio_filter,
-        createdAt: r.created_at,
-      })),
-    };
-  });
+      return {
+        perTenant: rollup.map((r) => ({
+          tenantId: r.tenant_id,
+          slug: r.slug,
+          totalClients: num(r.total_clients),
+          activeVisible: num(r.active_visible),
+          withLdaIds: num(r.with_lda_ids),
+          ldaImportsHiddenByFilter: num(r.lda_hidden),
+        })),
+        ldaClients: rows.map((r) => ({
+          clientId: r.id,
+          tenantId: r.tenant_id,
+          name: r.name,
+          status: r.status,
+          profileStatus: r.profile_status,
+          profileType: r.profile_type,
+          ldaClientIds: r.lda_client_ids,
+          hiddenByPortfolioFilter: r.hidden_by_portfolio_filter,
+          createdAt: r.created_at,
+        })),
+      };
+    });
 
-  // Single tagged JSON line so the log is easy to grep out of CloudWatch.
-  console.log('PHANTOM_IMPORTS ' + JSON.stringify(report));
+    // Single tagged JSON line so the log is easy to grep out of CloudWatch.
+    console.log('PHANTOM_IMPORTS ' + JSON.stringify(report));
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('[diag-phantom-imports] FAILED', err);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

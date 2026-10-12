@@ -36,7 +36,11 @@ function profileEvidence(tool: string) {
 
 describe('profile evidence classification', () => {
   it('never promotes pending proposal text to primary or authoritative memory facts in either classification', () => {
-    expect(profileEvidence('list_memory_proposals')).toMatchObject({ evidenceClass: 'capiro_system_of_record', primary: false, authoritative: false });
+    expect(profileEvidence('list_memory_proposals')).toMatchObject({
+      evidenceClass: 'capiro_system_of_record',
+      primary: false,
+      authoritative: false,
+    });
     expect(legacyEvidenceClassForTool('list_memory_proposals')).toBe('capiro_system_of_record');
     expect(legacyPrimaryTool('list_memory_proposals')).toBe(false);
     expect(legacyAuthoritativeTool('list_memory_proposals')).toBe(false);
@@ -161,7 +165,12 @@ describe('legacy evidence classification compatibility', () => {
   }
 
   // The new proposal-state reader has no legacy fact-classification contract.
-  const tools = [...Object.keys(TOOL_EVIDENCE_PROFILES).filter((name) => name !== 'list_memory_proposals'), 'unknown_tool', 'future_search', ''];
+  const tools = [
+    ...Object.keys(TOOL_EVIDENCE_PROFILES).filter((name) => name !== 'list_memory_proposals'),
+    'unknown_tool',
+    'future_search',
+    '',
+  ];
   it.each(tools)('%s exactly retains the pre-profile regex behavior', (tool) => {
     expect(legacyEvidenceClassForTool(tool)).toBe(oldEvidenceClass(tool));
     expect(legacyPrimaryTool(tool)).toBe(

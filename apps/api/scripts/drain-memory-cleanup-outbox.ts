@@ -27,6 +27,10 @@ function positiveInteger(raw: string | undefined, fallback: number, label: strin
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/drain-memory-cleanup-outbox.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = positiveInteger(process.argv[2], 200, 'batch size');
   const leaseSeconds = positiveInteger(process.argv[3], 300, 'lease seconds');
   const prisma = new PrismaClient();
@@ -56,8 +60,10 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((error: unknown) => {
   const errorName = error instanceof Error ? error.name : 'WorkerError';
   console.error(JSON.stringify({ event: 'memory_projection_worker.crashed', error_code: errorName }));
   process.exit(1);
 });
+}

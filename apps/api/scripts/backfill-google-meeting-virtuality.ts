@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Backfill meeting virtuality for EXISTING Google-synced meetings.
  *

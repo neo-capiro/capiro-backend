@@ -375,12 +375,27 @@ describe('PeProfileVNext canonical pathname and explicit legacy override', () =>
     sourcesFail = false;
     dossierMode='empty';dossierFailRefresh=false;
   });
-  test('a lowercase pathname is not claimed and does not request a profile', async () => {
+  test('an ASCII-lowercase pathname is claimed, requests the canonical uppercase id and keeps the original URL', async () => {
     mockEndpoints();
+    // The URL is lowercase; matchPeProfilePath normalizes ASCII lowercase to the
+    // canonical uppercase dossier id (PE_PROFILE_ID is /i + .toUpperCase()), so
+    // the route is claimed and the profile loads.
     renderProfile('/program-elements/0601102a');
-    expect(await screen.findByRole('alert')).toHaveTextContent('Missing Program Element code');
-    expect(apiGet).not.toHaveBeenCalledWith('/api/program-elements/0601102A');
+    expect(await screen.findByText('Defense Research Sciences')).toBeInTheDocument();
+    expect(apiGet).toHaveBeenCalledWith('/api/program-elements/0601102A');
+    expect(screen.getByText('0601102A')).toBeInTheDocument();
+    // The route is claimed and read, but the URL the user typed is never rewritten.
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/program-elements/0601102a');
   });
+  test.each(['reconciliation', 'whatever'] as const)(
+    'a static-segment or malformed pathname (%s) is not claimed as a line profile',
+    async (segment) => {
+      mockEndpoints();
+      renderProfile(`/program-elements/${segment}`);
+      expect(await screen.findByRole('alert')).toHaveTextContent('Missing Program Element code');
+      expect(apiGet).not.toHaveBeenCalledWith('/api/program-elements/0601102A');
+    },
+  );
   test('an explicit legacy lowercase code override retains core normalization without changing route ownership', async () => {
     mockEndpoints();
     renderProfile('/program-elements/0601102a', '0601102a');

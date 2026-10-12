@@ -51,6 +51,10 @@ interface SignalRow {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/reconcile-stale-pes.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = numArg('limit', 0);
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -130,7 +134,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error('[reconcile-stale-pes] FAILED', err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
+}

@@ -108,6 +108,10 @@ async function coverage(prisma: PrismaClient): Promise<Record<string, number>> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/enrich-award-pe.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = Number(arg('limit') ?? 2000);
   const minAmount = arg('min-amount') ? Number(arg('min-amount')) : null;
   const refresh = hasFlag('refresh');
@@ -265,7 +269,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error('[enrich-award-pe] FAILED', err);
   process.exit(1);
 });
+}

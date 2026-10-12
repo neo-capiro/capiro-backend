@@ -79,6 +79,7 @@ async function drainPhase4(limit: number) {
   }
 
   const prisma = new PrismaClient();
+  try {
   const prismaLike = mailboxKnowledgePrismaFromClient(prisma);
   const consumer = new MailboxKnowledgeConsumer(
     new MailboxKnowledgeFlagsService(),
@@ -89,7 +90,7 @@ async function drainPhase4(limit: number) {
     new KnowledgeEventService(new KnowledgeEventRepository(prismaLike)),
   );
 
-  try {
+
     return await consumer.drainOnce();
   } finally {
     await prisma.$disconnect();
@@ -124,6 +125,11 @@ async function drainPhase7() {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/drain-mailbox-knowledge.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const limit = positiveInteger(process.argv[2], 10, 'batch size');
   const phase4 = await drainPhase4(limit);
   console.log(JSON.stringify({ event: 'mailbox_knowledge_worker.drain', ...phase4 }));
@@ -137,6 +143,7 @@ async function main(): Promise<void> {
   if (phase4.failed > 0 || phase6.failed > 0 || phase7.failed > 0) process.exitCode = 1;
 }
 
+if (require.main === module) {
 main().catch((error: unknown) => {
   const errorName = error instanceof Error ? error.name : 'WorkerError';
   console.error(
@@ -144,3 +151,4 @@ main().catch((error: unknown) => {
   );
   process.exit(1);
 });
+}

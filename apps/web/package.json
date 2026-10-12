@@ -9,10 +9,11 @@
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --poolOptions.threads.singleThread --testTimeout=20000 --hookTimeout=20000",
+    "test": "vitest run --pool=threads --no-file-parallelism --testTimeout=20000 --hookTimeout=20000",
     "lighthouse:pe-watch": "node scripts/lighthouse-pe-watch.mjs",
     "visual:vnext:capture": "node scripts/vnext-visual-capture.mjs",
-    "parity": "vite --config vite.parity.config.ts"
+    "parity": "vite --config vite.parity.config.ts",
+    "test:coverage": "vitest run --pool=threads --no-file-parallelism --testTimeout=20000 --hookTimeout=20000 --coverage --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportOnFailure=true"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
@@ -59,6 +60,7 @@
     "typescript": "^5.5.4",
     "vite": "^5.4.8",
     "vitest": "^2.1.9",
-    "vitest-axe": "^0.1.0"
+    "vitest-axe": "^0.1.0",
+    "@vitest/coverage-v8": "^2.1.9"
   }
 }

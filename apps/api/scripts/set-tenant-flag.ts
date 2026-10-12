@@ -34,8 +34,6 @@ import {
   type FoundationMode,
 } from './set-tenant-flag-foundation.js';
 
-const prisma = new PrismaClient();
-
 function arg(name: string): string | undefined {
   const p = `--${name}`;
   const i = process.argv.indexOf(p);
@@ -44,7 +42,7 @@ function arg(name: string): string | undefined {
   return kv ? kv.slice(p.length + 1) : undefined;
 }
 
-async function runGeneric(): Promise<void> {
+function genericArguments() {
   const slug = arg('slug');
   const flag = arg('flag');
   const valueRaw = arg('value');
@@ -55,7 +53,13 @@ async function runGeneric(): Promise<void> {
     );
   }
   const value = valueRaw === 'true';
+  return { slug, flag, value, commit };
+}
 
+async function runGeneric(
+  prisma: PrismaClient,
+  { slug, flag, value, commit }: ReturnType<typeof genericArguments>,
+): Promise<void> {
   await prisma.$transaction(async (tx) => {
     // tenants is FORCE RLS-protected — see header comment. Scoped to this
     // transaction only (set_config's third arg = true), same as
@@ -130,7 +134,8 @@ function foundationArguments(): {
       throw new Error('Fixed foundation plan does not accept confirmation or expected state');
     }
   } else {
-    const required = mode === 'apply' ? FOUNDATION_APPLY_CONFIRMATION : FOUNDATION_ROLLBACK_CONFIRMATION;
+    const required =
+      mode === 'apply' ? FOUNDATION_APPLY_CONFIRMATION : FOUNDATION_ROLLBACK_CONFIRMATION;
     if (confirmation !== required) {
       throw new Error(`Fixed foundation ${mode} requires its exact confirmation`);
     }
@@ -141,10 +146,16 @@ function foundationArguments(): {
   return { mode, expectedState };
 }
 
-async function runFoundation(): Promise<void> {
-  const { mode, expectedState } = foundationArguments();
-  const states = mode === 'plan' ? undefined : decodeExpectedState(expectedState);
-  const receipt = await runFoundationFullchat(prisma as unknown as FoundationDatabase, mode, states);
+async function runFoundation(
+  prisma: PrismaClient,
+  mode: FoundationMode,
+  states: ReturnType<typeof decodeExpectedState> | undefined,
+): Promise<void> {
+  const receipt = await runFoundationFullchat(
+    prisma as unknown as FoundationDatabase,
+    mode,
+    states,
+  );
   // One bounded machine-readable line is the only foundation-mode output. It
   // contains tenant identity plus this flag's presence/value, never settings.
   // eslint-disable-next-line no-console
@@ -152,15 +163,31 @@ async function runFoundation(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  if (process.argv.includes('--foundation-fullchat')) {
-    await runFoundation();
-    return;
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/set-tenant-flag.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
   }
-  await runGeneric();
+  const options = process.argv.includes('--foundation-fullchat')
+    ? { kind: 'foundation' as const, ...foundationArguments() }
+    : { kind: 'generic' as const, ...genericArguments() };
+  const states =
+    options.kind === 'foundation' && options.mode !== 'plan'
+      ? decodeExpectedState(options.expectedState)
+      : undefined;
+  const prisma = new PrismaClient();
+  try {
+    if (options.kind === 'foundation') {
+      await runFoundation(prisma, options.mode, states);
+      return;
+    }
+    await runGeneric(prisma, options);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     // eslint-disable-next-line no-console
     console.error(
       process.argv.includes('--foundation-fullchat')
@@ -168,5 +195,5 @@ main()
         : err,
     );
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

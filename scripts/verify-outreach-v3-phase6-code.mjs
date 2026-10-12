@@ -1,9 +1,20 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { previewGateProblems } from './outreach-v3-preview-gate-contract.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runApprovedPreviewMaintenance } from './outreach-phase6-approved-preview-maintenance.mjs';
+
+const usage = 'Usage: node scripts/verify-outreach-v3-phase6-code.mjs (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const root = process.cwd();
 const phase5Base = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';

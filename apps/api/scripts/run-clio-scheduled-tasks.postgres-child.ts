@@ -1,10 +1,29 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { readFileSync } from 'node:fs';
 import { Pool, type PoolClient } from 'pg';
 import { runScheduledTasks } from './run-clio-scheduled-tasks.js';
 
-const CONFIG_PATH = 'C:/dev/cap-meri-foundation-evidence/private/local-postgres.json';
+const CONFIG_PATH = process.env.CAPIRO_SCHEDULER_TEST_POSTGRES_CONFIG;
 const schema = process.env.MERI_SCHEDULER_RUNNER_SCHEMA ?? '';
 const checkpointTarget = process.env.MERI_SCHEDULER_RUNNER_CHECKPOINT ?? '';
+
+const usage = 'Usage: run-clio-scheduled-tasks.postgres-child [--help] (requires owner-provided Postgres config and schema)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length > 0 || !CONFIG_PATH || !/^meri_scheduler_runner_[a-f0-9]{32}$/.test(schema)) {
+  console.error(usage);
+  process.exit(2);
+}
+
+if (!CONFIG_PATH) {
+  throw new Error(
+    'CAPIRO_SCHEDULER_TEST_POSTGRES_CONFIG is required: this child refuses to read a private user ' +
+      'config. The owning harness supplies the exact config path and passes it through unchanged.',
+  );
+}
 
 if (!/^meri_scheduler_runner_[a-f0-9]{32}$/.test(schema)) {
   throw new Error('invalid owned scheduler runner schema');

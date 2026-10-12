@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { ENTITY_RESOLUTION_GOLDEN_CORPUS } from '../src/knowledge/entities/entity-resolution-golden-corpus.js';
@@ -6,15 +7,15 @@ import {
   type EntityResolutionGoldenObservation,
 } from '../src/knowledge/entities/entity-resolution-evaluator.js';
 
-const { values } = parseArgs({
-  options: {
-    results: { type: 'string' },
-  },
-});
-
 async function main(): Promise<void> {
+  const { values } = parseArgs({
+    options: {
+      results: { type: 'string' },
+    },
+  });
   const path = values.results?.trim();
   if (!path) {
+    console.error('Usage: eval-canonical-entity-resolution --results <json-file>');
     throw new Error('--results <json-file> is required');
   }
 

@@ -66,6 +66,10 @@ function usage(message: string): never {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/run-defense-budget-cycle-family-readiness-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const environment = argValue('--environment');
   const fiscalYearRaw = argValue('--fiscal-year');
   const authorityTrack = argValue('--authority-track');
@@ -141,7 +145,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('run-defense-budget-cycle-family-readiness-v1 FAILED:', error);
   process.exit(1);
 });
+}

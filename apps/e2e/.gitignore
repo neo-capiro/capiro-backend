@@ -1,0 +1,20 @@
+# Generated / transient output — never committed.
+test-results/
+reports/
+playwright-report/
+blob-report/
+tsconfig.visual-typecheck.json
+.debug-shot.png
+.dbg.mjs
+# Baselines ARE committed (apps/e2e/baselines/<project>/<route>.png) once validated.
+
+# Owned diagnostics + capture staging — never committed (retained on disk).
+.hermes-diagnostics/
+.hermes-scratch/
+.capture-staging-*/
+.diagnostic-staging-*/
+.baselines-old-*/
+.baselines-old-*.receipt.json
+.baselines-failed-*/
+.baselines-next/
+.source-archive/

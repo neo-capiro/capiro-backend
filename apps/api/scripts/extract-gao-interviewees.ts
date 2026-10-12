@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Step 34B — extract DoD personnel named in recent GAO reports.
@@ -98,6 +99,11 @@ async function main(): Promise<void> {
   since.setMonth(since.getMonth() - months);
   const source = 'gao_interviewee';
 
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: extract-gao-interviewees [--months <n>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   await prisma.onModuleInit();
   const writer = new AcquisitionPersonnelWriterService(prisma, new MatchScorerService(prisma));

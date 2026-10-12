@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { topPeCandidates, PeText } from '../src/program-element/matching/pe-person-matcher.js';
@@ -30,6 +31,11 @@ function arg(name: string, def: string): string {
 
 async function main(): Promise<void> {
   dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: generate-pe-person-candidates [--threshold=<n>] [--limit=<n>] [--max-people=<n>] [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const commit = process.argv.includes('--commit');
   const threshold = Number(arg('threshold', '0.7'));
   const limit = Number(arg('limit', '3'));

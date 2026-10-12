@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -190,6 +191,16 @@ export function main(root = resolve(dirname(fileURLToPath(import.meta.url)), '..
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const usage = 'Usage: node scripts/verify-phase12-provider-inventory.mjs';
+  const args = process.argv.slice(2);
+  if (args.length === 0) console.log(usage);
+  else if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    console.log(usage);
+    process.exit(0);
+  } else {
+    console.error(usage);
+    process.exit(2);
+  }
   try {
     main();
   } catch (error) {

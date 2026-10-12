@@ -99,6 +99,10 @@ async function runChain(commit: boolean): Promise<RunCounts> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/run-pe-derive-chain.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
 
   if (!commit) {
@@ -118,7 +122,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((e) => {
   console.error('[run-pe-derive-chain] fatal', (e as Error)?.stack ?? e);
   process.exit(1);
 });
+}

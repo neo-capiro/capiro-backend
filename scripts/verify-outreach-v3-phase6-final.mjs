@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { previewGateProblems } from './outreach-v3-preview-gate-contract.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -6,6 +7,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runApprovedPreviewMaintenance } from './outreach-phase6-approved-preview-maintenance.mjs';
 
+const usage = 'Usage: node scripts/verify-outreach-v3-phase6-final.mjs --sha <exact-head>';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length !== 2 || cliArgs[0] !== '--sha' || !/^[0-9a-f]{40}$/i.test(cliArgs[1])) {
+  console.error(usage);
+  process.exit(2);
+}
+const requestedSha = cliArgs[1];
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE5_HEAD = '835cdef35cd8ecb23faf1b100ecfc743bcd31128';
 // Retain the original phase-only scope; all source/functional checks use this checkout.
@@ -43,12 +55,7 @@ function assert(condition, message) {
 }
 
 const exactHead = output('git', ['rev-parse', 'HEAD']);
-const shaIndex = process.argv.indexOf('--sha');
-if (shaIndex !== -1) {
-  const requested = process.argv[shaIndex + 1];
-  assert(Boolean(requested), 'MISSING_SHA_ARGUMENT');
-  assert(requested === exactHead, `HEAD_MISMATCH:${requested}:${exactHead}`);
-}
+assert(requestedSha === exactHead, `HEAD_MISMATCH:${requestedSha}:${exactHead}`);
 run('Phase 5 ancestry', 'git', ['merge-base', '--is-ancestor', PHASE5_HEAD, exactHead]);
 
 if (runApprovedPreviewMaintenance(ROOT, run, exactHead)) process.exit(0);

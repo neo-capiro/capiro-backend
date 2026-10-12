@@ -1,10 +1,26 @@
-/** Phase 6 Workstream O — permanent architecture and closeout safety scan. */
+/** Phase 6 Workstream O — permanent architecture and closeout safety scan.
+ * @cleanup-smoke noArgsExit=0 helpExit=0
+ */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   PHASE6_NEGATIVE_CONTROL_IDS,
   scanPhase6ArchitectureSourceV1,
 } from '../src/defense-budget/phase6/phase6-closeout-gates-v1.js';
+
+const USAGE = 'Usage: tsx scripts/verify-pe-budget-phase6-safety.ts [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+console.error(USAGE);
 
 const API_ROOT = path.resolve(process.cwd());
 const PRODUCTION_ROOTS = [

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import {
   existsSync,
   readFileSync,
@@ -7,15 +8,19 @@ import {
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import process from 'node:process';
-import {
-  REQUIRED_BENCHMARK_STRATA,
-  ROUTING_DECISIONS,
-  sha256Hex,
-} from '../apps/defense-parser-orchestrator/src/session5.mjs';
-import { evaluateProviderDecision } from '../apps/defense-parser-orchestrator/src/provider-decision.mjs';
-
+const usage = 'Usage: node scripts/verify-phase8-session5.mjs [--enforce-live-benchmark | --enforce-provider-decision] (no arguments runs the existing verifier)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.some((arg) => !['--enforce-live-benchmark', '--enforce-provider-decision'].includes(arg))) {
+  console.error(usage);
+  process.exit(2);
+}
+console.error(usage);
 const root = resolve(process.cwd());
-const flags = new Set(process.argv.slice(2));
+const flags = new Set(args);
 const enforceLive = flags.has('--enforce-live-benchmark');
 const enforceProviderDecision = flags.has('--enforce-provider-decision');
 
@@ -27,6 +32,13 @@ if (enforceLive && enforceProviderDecision) {
   );
   process.exit(2);
 }
+
+const {
+  REQUIRED_BENCHMARK_STRATA,
+  ROUTING_DECISIONS,
+  sha256Hex,
+} = await import('../apps/defense-parser-orchestrator/src/session5.mjs');
+const { evaluateProviderDecision } = await import('../apps/defense-parser-orchestrator/src/provider-decision.mjs');
 
 const PROVIDER_DECISION_PATH = [
   'docs',

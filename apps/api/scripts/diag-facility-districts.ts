@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only facility-district data audit (QA Bug 4 back-test).
  *
@@ -24,9 +25,7 @@ import {
   isValidDistrictForState,
 } from '../src/common/us-congressional-districts.js';
 
-const prisma = new PrismaClient();
-
-async function withBypass<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
     return fn(tx as unknown as PrismaClient);
@@ -45,70 +44,89 @@ interface FacilityRow {
 type Issue = 'unknown_state' | 'invalid_pair' | 'orphan_district';
 
 async function main(): Promise<void> {
-  const rows = await withBypass(async (tx) =>
-    tx.$queryRawUnsafe<FacilityRow[]>(`
+  const usage = 'Usage: apps/api/scripts/diag-facility-districts.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const rows = await withBypass(prisma, async (tx) =>
+      tx.$queryRawUnsafe<FacilityRow[]>(`
       SELECT f.id, f.tenant_id, f.client_id, f.name, f.state, f.congressional_district
       FROM client_facilities f
       WHERE f.state IS NOT NULL OR f.congressional_district IS NOT NULL
       ORDER BY f.tenant_id, f.client_id, f.name
     `),
-  );
+    );
 
-  const offending: Array<{
-    issue: Issue;
-    id: string;
-    tenantId: string;
-    clientId: string;
-    name: string;
-    state: string | null;
-    district: string | null;
-  }> = [];
-  let bareSingleDigit = 0;
+    const offending: Array<{
+      issue: Issue;
+      id: string;
+      tenantId: string;
+      clientId: string;
+      name: string;
+      state: string | null;
+      district: string | null;
+    }> = [];
+    let bareSingleDigit = 0;
 
-  for (const r of rows) {
-    const state = r.state?.trim() || null;
-    const district = r.congressional_district?.trim() || null;
+    for (const r of rows) {
+      const state = r.state?.trim() || null;
+      const district = r.congressional_district?.trim() || null;
 
-    // Informational: BARE single-digit districts now join via LTRIM normalization.
-    if (district && /^[1-9]$/.test(district)) bareSingleDigit++;
+      // Informational: BARE single-digit districts now join via LTRIM normalization.
+      if (district && /^[1-9]$/.test(district)) bareSingleDigit++;
 
-    let issue: Issue | null = null;
-    if (!state && district) issue = 'orphan_district';
-    else if (state && !US_STATE_CODES.includes(state.toUpperCase())) issue = 'unknown_state';
-    else if (state && district && !isValidDistrictForState(state, district)) {
-      issue = 'invalid_pair';
+      let issue: Issue | null = null;
+      if (!state && district) issue = 'orphan_district';
+      else if (state && !US_STATE_CODES.includes(state.toUpperCase())) issue = 'unknown_state';
+      else if (state && district && !isValidDistrictForState(state, district)) {
+        issue = 'invalid_pair';
+      }
+      if (!issue) continue;
+
+      offending.push({
+        issue,
+        id: r.id,
+        tenantId: r.tenant_id,
+        clientId: r.client_id,
+        name: r.name,
+        state: r.state,
+        district: r.congressional_district,
+      });
     }
-    if (!issue) continue;
 
-    offending.push({
-      issue,
-      id: r.id,
-      tenantId: r.tenant_id,
-      clientId: r.client_id,
-      name: r.name,
-      state: r.state,
-      district: r.congressional_district,
-    });
+    const count = (issue: Issue) => offending.filter((o) => o.issue === issue).length;
+    // One tagged summary line + one line per offending row, easy to grep out of CloudWatch.
+    console.log(
+      'FACILITY_DISTRICTS_SUMMARY ' +
+        JSON.stringify({
+          facilitiesWithLocation: rows.length,
+          unknownState: count('unknown_state'),
+          invalidPair: count('invalid_pair'),
+          orphanDistrict: count('orphan_district'),
+          bareSingleDigitDistricts: bareSingleDigit,
+        }),
+    );
+    for (const o of offending) console.log('FACILITY_DISTRICTS_ROW ' + JSON.stringify(o));
+  } finally {
+    await prisma.$disconnect();
   }
-
-  const count = (issue: Issue) => offending.filter((o) => o.issue === issue).length;
-  // One tagged summary line + one line per offending row, easy to grep out of CloudWatch.
-  console.log(
-    'FACILITY_DISTRICTS_SUMMARY ' +
-      JSON.stringify({
-        facilitiesWithLocation: rows.length,
-        unknownState: count('unknown_state'),
-        invalidPair: count('invalid_pair'),
-        orphanDistrict: count('orphan_district'),
-        bareSingleDigitDistricts: bareSingleDigit,
-      }),
-  );
-  for (const o of offending) console.log('FACILITY_DISTRICTS_ROW ' + JSON.stringify(o));
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('[diag-facility-districts] FAILED', err);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

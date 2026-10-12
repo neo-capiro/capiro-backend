@@ -39,6 +39,10 @@ const TABLES = [
 ];
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-bea.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   const t0 = Date.now();
   console.log('[bea-sync] starting');
@@ -85,4 +89,6 @@ async function main() {
   } finally { await prisma.$disconnect(); }
 }
 
+if (require.main === module) {
 main().catch((err) => { console.error('[bea-sync] FAILED', err); process.exit(1); });
+}

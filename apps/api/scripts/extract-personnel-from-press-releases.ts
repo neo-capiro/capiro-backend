@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Step 32 — extract DoD personnel from press releases (IntelArticle, source='dod').
@@ -75,6 +76,11 @@ async function main(): Promise<void> {
   const since = new Date(Date.now() - hours * 3600_000);
   const source = 'press_release_ner';
 
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: extract-personnel-from-press-releases [--hours <n> | --days <n>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   await prisma.onModuleInit();
   const writer = new AcquisitionPersonnelWriterService(prisma, new MatchScorerService(prisma));

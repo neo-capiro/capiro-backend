@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Backfill the client knowledge base index (assistant-parity F5).
  *

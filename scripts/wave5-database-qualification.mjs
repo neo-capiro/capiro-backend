@@ -4,9 +4,21 @@
  *
  * Runs against the dev Aurora cluster with real authenticated queries.
  * Tests AT-03, AT-04, AT-13, AT-18, and AT-22 scenarios.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
+
+const usage = 'Usage: node scripts/wave5-database-qualification.mjs --run (requires DATABASE_URL)';
+const argv = process.argv.slice(2);
+if (argv.length === 1 && argv[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv.length !== 1 || argv[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const require = createRequire(import.meta.url);
 const pgPath = resolve(process.cwd(), 'node_modules/.pnpm/pg@8.23.0/node_modules/pg');

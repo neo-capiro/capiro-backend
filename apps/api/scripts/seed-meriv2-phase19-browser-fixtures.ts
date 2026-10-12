@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { writeFile } from 'node:fs/promises';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
@@ -10,6 +11,18 @@ import { MemoryCandidateService } from '../src/memory/memory-candidate.service.j
 import { ImmutableMemoryVersionService } from '../src/memory/immutable-memory-version.service.js';
 import type { MemoryIngestService } from '../src/memory/memory-ingest.service.js';
 import type { TenantContextStore } from '../src/tenant/tenant-context.store.js';
+
+const usage = 'Usage: tsx scripts/seed-meriv2-phase19-browser-fixtures.ts --run';
+const argv = process.argv.slice(2);
+if ((argv.length === 1 && argv[0] === '--help') ||
+    (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv.length !== 1 || argv[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const TENANT_ID = '19190000-0000-4000-8000-000000000001';
 const PROPOSER_ID = '19190000-0000-4000-8000-000000000011';

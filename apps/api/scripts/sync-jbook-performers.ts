@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -119,6 +120,9 @@ async function main() {
     );
   }
   const commit = posture === 'commit';
+  if (!commit) {
+    console.error('Usage: sync-jbook-performers [--inspect] [--artifact <path>] | --commit --artifact <path> --approved-sha256 <sha> (commit requires legacy-write authorization and DATABASE_URL)');
+  }
   const artifacts = findArtifacts();
 
   const stats = {
@@ -141,9 +145,6 @@ async function main() {
     );
     return;
   }
-
-  const prisma = new PrismaService();
-  await prisma.onModuleInit();
 
   if (!commit) {
     const reports = [] as Record<string, unknown>[];
@@ -180,9 +181,11 @@ async function main() {
   }
 
   const touchedPes = new Set<string>();
+  const prisma = new PrismaService();
   const pendingSupersedes: Array<{ prev: string; next: string }> = [];
 
   try {
+    await prisma.onModuleInit();
     // Validate PEs against program_element once (known set).
     const known = new Set(
       (await prisma.programElement.findMany({ select: { peCode: true } })).map((p) =>

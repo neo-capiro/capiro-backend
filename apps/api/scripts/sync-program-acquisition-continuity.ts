@@ -438,6 +438,10 @@ export async function projectProgramAcquisitionContinuity(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-program-acquisition-continuity.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   try {
     await prisma.$connect();

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Governed Defense Budget Lifecycle Watcher run command.
  *
@@ -31,6 +32,29 @@ const repoRoot = path.resolve(appRoot, '../..');
 const dist = (relative) => require(path.join(appRoot, 'dist/budget-lifecycle', relative));
 
 const argv = process.argv.slice(2);
+const usage = 'Usage: node scripts/run-lifecycle-watcher.mjs (--run | --bootstrap [--fiscal-year FY] | --adapter ID [--manifest FILE] | --list-adapters) [--commit] [--now ISO] [--lease-owner ID] [--run-key KEY]';
+if (argv.length === 1 && argv[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+const valueOptions = new Set(['--fiscal-year', '--adapter', '--manifest', '--now', '--lease-owner', '--run-key']);
+if (argv.length === 0) {
+  console.error(usage);
+  process.exit(2);
+}
+const flagOptions = new Set(['--run', '--bootstrap', '--list-adapters', '--commit']);
+for (let index = 0; index < argv.length; index += 1) {
+  const option = argv[index];
+  if (flagOptions.has(option)) continue;
+  if (valueOptions.has(option)) {
+    if (argv[index + 1] && !argv[index + 1].startsWith('--')) index += 1;
+    continue;
+  }
+  console.error(`Unsupported argument: ${option}`);
+  console.error(usage);
+  process.exit(2);
+}
+
 const flag = (name) => argv.includes(`--${name}`);
 const value = (name, fallback = null) => {
   const index = argv.indexOf(`--${name}`);

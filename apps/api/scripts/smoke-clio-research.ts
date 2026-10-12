@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Smoke test: verify Meri Deep Research actually produces a REPORT, not just a
  * list of the sources it searched.
@@ -38,6 +39,20 @@ interface SseEvent {
   body?: string;
   message?: string;
   [k: string]: unknown;
+}
+
+const usage = 'Usage: smoke-clio-research [--help] (requires CLIO_SMOKE_BASE_URL and CLIO_SMOKE_TOKEN)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length > 0) {
+  console.error(usage);
+  process.exit(2);
+}
+if (!process.env.CLIO_SMOKE_BASE_URL || !process.env.CLIO_SMOKE_TOKEN) {
+  console.error(usage);
 }
 
 function requireEnv(name: string): string {

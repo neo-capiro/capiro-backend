@@ -652,6 +652,7 @@ function realHighWaterMark(prisma: PrismaClient): SbirSyncDeps['highWaterMark'] 
 }
 
 async function main(): Promise<void> {
+
   const args = parseArgs(process.argv.slice(2));
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
   const prisma = new PrismaClient();
@@ -705,6 +706,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-tango-sbir.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     // An envelope mismatch is the one failure this program most wants a human to

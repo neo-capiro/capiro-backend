@@ -84,6 +84,7 @@ function naResult(metric: string, target: number): MetricResult {
 }
 
 async function main(): Promise<void> {
+
   const asJson = flag('json');
   const goldenDir = arg('golden-dir') ?? DEFAULT_GOLDEN_DIR;
 
@@ -287,6 +288,11 @@ function printTable(metrics: readonly MetricResult[]): void {
 const invokedDirectly =
   typeof process.argv[1] === 'string' && /measure-accuracy(\.ts|\.js)?$/.test(process.argv[1]);
 if (invokedDirectly) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/measure-accuracy.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((e) => {
     console.error('[measure-accuracy] fatal', e?.stack || e);
     process.exit(1);

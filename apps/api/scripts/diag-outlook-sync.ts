@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only OUTLOOK / Microsoft Graph sync health report.
  *
@@ -11,9 +12,6 @@
  * SAFE: SELECT-only. No writes.
  */
 import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
-const filter = (process.argv[2] ?? '').toLowerCase();
 
 interface ConnRow {
   id: string;
@@ -49,10 +47,28 @@ function stats(s: unknown): string {
 }
 
 async function main(): Promise<void> {
-  await prisma.$transaction(
-    async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-      const conns = await tx.$queryRawUnsafe<ConnRow[]>(`
+  const usage = 'Usage: apps/api/scripts/diag-outlook-sync.ts [account-email-filter] requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 1 || args.some((arg) => arg.startsWith('--'))) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const filter = (process.argv[2] ?? '').toLowerCase();
+
+  const prisma = new PrismaClient();
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        const conns = await tx.$queryRawUnsafe<ConnRow[]>(`
         SELECT id, tenant_id, provider::text AS provider, account_email, display_name,
                status::text AS status, last_error, last_sync_at, next_sync_at,
                sync_state_jsonb AS sync_state, created_at, updated_at
@@ -60,36 +76,39 @@ async function main(): Promise<void> {
         ORDER BY updated_at DESC
       `);
 
-      console.log(`\n=== Outlook connections: ${conns.length} total${filter ? ` (filter="${filter}")` : ''} ===\n`);
-      let shown = 0;
-      for (const c of conns) {
-        if (filter && !(c.account_email ?? '').toLowerCase().includes(filter)) continue;
-        shown += 1;
-        const ss = (c.sync_state && typeof c.sync_state === 'object' ? c.sync_state : {}) as Record<string, any>;
-        const meetings = await countWhereConnection(tx, 'meetings', c.id);
-        const threads = await countWhereConnection(tx, 'mail_threads', c.id);
-        const messages = await countWhereConnection(tx, 'mail_messages', c.id);
+        console.log(`\n=== Outlook connections: ${conns.length} total${filter ? ` (filter="${filter}")` : ''} ===\n`);
+        let shown = 0;
+        for (const c of conns) {
+          if (filter && !(c.account_email ?? '').toLowerCase().includes(filter)) continue;
+          shown += 1;
+          const ss = (c.sync_state && typeof c.sync_state === 'object' ? c.sync_state : {}) as Record<string, any>;
+          const meetings = await countWhereConnection(tx, 'meetings', c.id);
+          const threads = await countWhereConnection(tx, 'mail_threads', c.id);
+          const messages = await countWhereConnection(tx, 'mail_messages', c.id);
 
-        console.log(`• ${c.account_email ?? '(no email)'}  [${c.provider}]  [tenant ${c.tenant_id}]`);
-        console.log(`    status=${c.status}  lastSyncAt=${c.last_sync_at?.toISOString() ?? 'never'}  connectedAt=${c.created_at.toISOString()}`);
-        console.log(`    lastError=${c.last_error ? JSON.stringify(c.last_error.slice(0, 220)) : 'null'}`);
-        console.log(`    calendar: ${stats(ss.calendar?.lastStats)}  (updated ${ss.calendar?.updatedAt ?? '-'})`);
-        console.log(`    mail:     ${stats(ss.mail?.lastStats)}  (updated ${ss.mail?.updatedAt ?? '-'})`);
-        const folders = ss.mail?.folders && typeof ss.mail.folders === 'object' ? Object.keys(ss.mail.folders) : [];
-        if (folders.length) console.log(`    mail folders: ${folders.join(', ')}`);
-        console.log(`    webhooks: configured=${ss.webhooks?.configured ?? false} subs=${ss.webhooks?.subscriptions?.length ?? 0}`);
-        console.log(`    rows: meetings=${meetings} mailThreads=${threads} mailMessages=${messages}`);
-        console.log('');
-      }
-      if (filter) console.log(`(${shown} matched the filter)\n`);
-    },
-    { timeout: 120000 },
-  );
+          console.log(`• ${c.account_email ?? '(no email)'}  [${c.provider}]  [tenant ${c.tenant_id}]`);
+          console.log(`    status=${c.status}  lastSyncAt=${c.last_sync_at?.toISOString() ?? 'never'}  connectedAt=${c.created_at.toISOString()}`);
+          console.log(`    lastError=${c.last_error ? JSON.stringify(c.last_error.slice(0, 220)) : 'null'}`);
+          console.log(`    calendar: ${stats(ss.calendar?.lastStats)}  (updated ${ss.calendar?.updatedAt ?? '-'})`);
+          console.log(`    mail:     ${stats(ss.mail?.lastStats)}  (updated ${ss.mail?.updatedAt ?? '-'})`);
+          const folders = ss.mail?.folders && typeof ss.mail.folders === 'object' ? Object.keys(ss.mail.folders) : [];
+          if (folders.length) console.log(`    mail folders: ${folders.join(', ')}`);
+          console.log(`    webhooks: configured=${ss.webhooks?.configured ?? false} subs=${ss.webhooks?.subscriptions?.length ?? 0}`);
+          console.log(`    rows: meetings=${meetings} mailThreads=${threads} mailMessages=${messages}`);
+          console.log('');
+        }
+        if (filter) console.log(`(${shown} matched the filter)\n`);
+      },
+      { timeout: 120000 },
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error('diag-outlook-sync failed:', e);
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

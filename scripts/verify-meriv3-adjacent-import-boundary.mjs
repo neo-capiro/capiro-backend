@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 */
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +59,7 @@ export function verifyAdjacentImports(root) {
   return { files, problems };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  console.error('Usage: node scripts/verify-meriv3-adjacent-import-boundary.mjs (no arguments runs the existing verifier)');
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const result = verifyAdjacentImports(root);
   if (result.problems.length) {

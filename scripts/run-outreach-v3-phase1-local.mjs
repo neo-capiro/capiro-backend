@@ -1,11 +1,21 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shaIndex = process.argv.indexOf('--sha');
-const requestedSha = shaIndex >= 0 ? process.argv[shaIndex + 1] : null;
+const usage = 'Usage: node scripts/run-outreach-v3-phase1-local.mjs --sha <exact-head>';
+const argv = process.argv.slice(2);
+if (argv.length === 1 && argv[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv.length !== 2 || argv[0] !== '--sha' || !/^[0-9a-f]{40}$/i.test(argv[1])) {
+  console.error(usage);
+  process.exit(2);
+}
+const requestedSha = argv[1];
 const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
 if (!requestedSha || requestedSha !== head) {
   console.error(`--sha must equal exact HEAD (${head})`);

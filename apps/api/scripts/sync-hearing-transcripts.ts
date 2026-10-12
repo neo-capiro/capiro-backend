@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Track B (H2): ingest OFFICIAL published hearing transcripts from GovInfo's
  * Congressional Hearings (CHRG) collection into `official_hearing_transcript`.
@@ -72,6 +73,11 @@ function yearOf(iso: string | null): number | null {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: sync-hearing-transcripts (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, GovInfoService, PrismaService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   const t0 = Date.now();

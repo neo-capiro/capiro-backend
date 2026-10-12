@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { isCanonicalDecimalString } from '../src/defense-budget/contracts/decimal-string.js';
@@ -40,6 +41,16 @@ const inputSchema = z.object({
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const usage = 'Usage: funding-execution-source-adapter --input <source-batch.json> [--commit]';
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    return;
+  }
+  if (args.length === 0) {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
   let inputPath: string | undefined;
   let commit = false;
   for (let index = 0; index < args.length; index += 1) {
@@ -47,11 +58,24 @@ async function main(): Promise<void> {
     if (arg === '--commit') commit = true;
     else if (arg === '--input') {
       inputPath = args[++index];
-      if (!inputPath || inputPath.startsWith('--')) throw new Error('--input <source-batch.json> is required');
+      if (!inputPath || inputPath.startsWith('--')) {
+        console.error(usage);
+        process.exitCode = 2;
+        return;
+      }
     } else if (arg.startsWith('--input=')) inputPath = arg.slice('--input='.length);
-    else throw new Error('usage: funding-execution-source-adapter --input <source-batch.json> [--commit]');
+    else {
+      console.error(`Unsupported argument: ${arg}`);
+      console.error(usage);
+      process.exitCode = 2;
+      return;
+    }
   }
-  if (!inputPath) throw new Error('--input <source-batch.json> is required');
+  if (!inputPath) {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
   const raw = inputSchema.parse(JSON.parse(await readFile(inputPath, 'utf8')));
   const reprogramming = raw.reprogramming.map(composeReprogrammingEventV1);
   const execution = raw.execution.map((row) => composeExecutionRecordV1(row.profile, row.record));

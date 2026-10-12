@@ -35,7 +35,6 @@ import { ChokepointService } from '../src/intelligence/chokepoint/chokepoint.ser
 import { RepresentationResolverService } from '../src/clients/representation-resolver.service.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
 const STATES = (process.env.BACKTEST_STATES ?? '')
   .split(',')
   .map((s) => s.trim().toUpperCase())
@@ -47,94 +46,101 @@ const ENACTED_LIKE = new Set(['enacted', 'veto_overridden']);
 const DEAD_LIKE = new Set(['vetoed', 'failed', 'dead_by_deadline']);
 
 async function main() {
-  const sessions = await prisma.stateSession.findMany({
-    where: { sineDie: { lt: new Date() }, ...(STATES.length ? { state: { in: STATES } } : {}) },
-    select: { state: true, sessionKey: true, sineDie: true },
-  });
-  console.log(`[backtest-deadline-physics] ${sessions.length} completed session(s) in scope`);
-
-  // ── M2-E: coded-status vs text-signal cross-check ────────────────────────
-  let e_checked = 0;
-  let e_flagged = 0;
-  for (const s of sessions) {
-    const bills = await prisma.stateBill.findMany({
-      where: { state: s.state, sessionKey: s.sessionKey },
-      select: { id: true, status: true, latestActionText: true },
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backtest-deadline-physics.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const sessions = await prisma.stateSession.findMany({
+      where: { sineDie: { lt: new Date() }, ...(STATES.length ? { state: { in: STATES } } : {}) },
+      select: { state: true, sessionKey: true, sineDie: true },
     });
-    for (const b of bills) {
-      e_checked++;
-      if (b.status !== 'enacted' && ENACTMENT_TEXT.test(b.latestActionText ?? '')) {
-        e_flagged++;
-        console.log(
-          `[backtest-deadline-physics] M2-E flag: ${b.id} status="${b.status}" but latestActionText="${b.latestActionText}"`,
-        );
+    console.log(`[backtest-deadline-physics] ${sessions.length} completed session(s) in scope`);
+
+    // ── M2-E: coded-status vs text-signal cross-check ────────────────────────
+    let e_checked = 0;
+    let e_flagged = 0;
+    for (const s of sessions) {
+      const bills = await prisma.stateBill.findMany({
+        where: { state: s.state, sessionKey: s.sessionKey },
+        select: { id: true, status: true, latestActionText: true },
+      });
+      for (const b of bills) {
+        e_checked++;
+        if (b.status !== 'enacted' && ENACTMENT_TEXT.test(b.latestActionText ?? '')) {
+          e_flagged++;
+          console.log(
+            `[backtest-deadline-physics] M2-E flag: ${b.id} status="${b.status}" but latestActionText="${b.latestActionText}"`,
+          );
+        }
       }
     }
-  }
-  const e_flagRate = e_checked ? (e_flagged / e_checked) * 100 : 0;
-  console.log(
-    `[backtest-deadline-physics] M2-E: ${e_checked} bills checked, ${e_flagged} flagged (${e_flagRate.toFixed(2)}%) — target: this stays near 0%, since any flag is a real coded-vs-text disagreement worth a human look`,
-  );
-
-  // ── M2-H: survival-band vs final outcome (documented limitation above) ──
-  const representation = new RepresentationResolverService(prisma as never);
-  const chokepoint = new ChokepointService(prisma as never, representation);
-  const byBand: Record<string, { enactedLike: number; deadLike: number; other: number }> = {
-    stalled: { enactedLike: 0, deadLike: 0, other: 0 },
-    'at-risk': { enactedLike: 0, deadLike: 0, other: 0 },
-    'likely-advances': { enactedLike: 0, deadLike: 0, other: 0 },
-  };
-  let h_scored = 0;
-  let h_errors = 0;
-  for (const s of sessions) {
-    const bills = await prisma.stateBill.findMany({
-      where: { state: s.state, sessionKey: s.sessionKey, status: { not: null } },
-      select: { id: true, status: true },
-      take: SAMPLE_CAP,
-    });
-    for (const b of bills) {
-      // A bill still 'introduced'/'committee' with no further movement at
-      // session end has no real chokepoint story to score (never reported,
-      // never crossed over) — skip rather than force a heuristic on a bill
-      // that simply never got a hearing.
-      if (stateBillStatusRank(b.status) < 1) continue;
-      try {
-        const result = await chokepoint.forBill(b.id);
-        if (!result.survivalBand) continue;
-        h_scored++;
-        const bucket = byBand[result.survivalBand];
-        if (ENACTED_LIKE.has(b.status ?? '')) bucket.enactedLike++;
-        else if (DEAD_LIKE.has(b.status ?? '')) bucket.deadLike++;
-        else bucket.other++;
-      } catch (err) {
-        h_errors++;
-        console.error(
-          `[backtest-deadline-physics] chokepoint failed for ${b.id}:`,
-          (err as Error).message,
-        );
-      }
-    }
-  }
-  console.log(`[backtest-deadline-physics] M2-H: ${h_scored} bill(s) scored, ${h_errors} error(s)`);
-  for (const [band, counts] of Object.entries(byBand)) {
-    const total = counts.enactedLike + counts.deadLike + counts.other;
-    if (!total) continue;
-    const enactedPct = ((counts.enactedLike / total) * 100).toFixed(1);
-    const deadPct = ((counts.deadLike / total) * 100).toFixed(1);
+    const e_flagRate = e_checked ? (e_flagged / e_checked) * 100 : 0;
     console.log(
-      `[backtest-deadline-physics] band=${band} n=${total} enacted-like=${enactedPct}% dead-like=${deadPct}% other=${counts.other}`,
+      `[backtest-deadline-physics] M2-E: ${e_checked} bills checked, ${e_flagged} flagged (${e_flagRate.toFixed(2)}%) — target: this stays near 0%, since any flag is a real coded-vs-text disagreement worth a human look`,
     );
+
+    // ── M2-H: survival-band vs final outcome (documented limitation above) ──
+    const representation = new RepresentationResolverService(prisma as never);
+    const chokepoint = new ChokepointService(prisma as never, representation);
+    const byBand: Record<string, { enactedLike: number; deadLike: number; other: number }> = {
+      stalled: { enactedLike: 0, deadLike: 0, other: 0 },
+      'at-risk': { enactedLike: 0, deadLike: 0, other: 0 },
+      'likely-advances': { enactedLike: 0, deadLike: 0, other: 0 },
+    };
+    let h_scored = 0;
+    let h_errors = 0;
+    for (const s of sessions) {
+      const bills = await prisma.stateBill.findMany({
+        where: { state: s.state, sessionKey: s.sessionKey, status: { not: null } },
+        select: { id: true, status: true },
+        take: SAMPLE_CAP,
+      });
+      for (const b of bills) {
+        // A bill still 'introduced'/'committee' with no further movement at
+        // session end has no real chokepoint story to score (never reported,
+        // never crossed over) — skip rather than force a heuristic on a bill
+        // that simply never got a hearing.
+        if (stateBillStatusRank(b.status) < 1) continue;
+        try {
+          const result = await chokepoint.forBill(b.id);
+          if (!result.survivalBand) continue;
+          h_scored++;
+          const bucket = byBand[result.survivalBand];
+          if (ENACTED_LIKE.has(b.status ?? '')) bucket.enactedLike++;
+          else if (DEAD_LIKE.has(b.status ?? '')) bucket.deadLike++;
+          else bucket.other++;
+        } catch (err) {
+          h_errors++;
+          console.error(
+            `[backtest-deadline-physics] chokepoint failed for ${b.id}:`,
+            (err as Error).message,
+          );
+        }
+      }
+    }
+    console.log(`[backtest-deadline-physics] M2-H: ${h_scored} bill(s) scored, ${h_errors} error(s)`);
+    for (const [band, counts] of Object.entries(byBand)) {
+      const total = counts.enactedLike + counts.deadLike + counts.other;
+      if (!total) continue;
+      const enactedPct = ((counts.enactedLike / total) * 100).toFixed(1);
+      const deadPct = ((counts.deadLike / total) * 100).toFixed(1);
+      console.log(
+        `[backtest-deadline-physics] band=${band} n=${total} enacted-like=${enactedPct}% dead-like=${deadPct}% other=${counts.other}`,
+      );
+    }
+    console.log(
+      '[backtest-deadline-physics] M2-H target (v1, to calibrate): of "stalled", >=70% dead-like; of "likely-advances", >=70% enacted-like. See doc comment for the near-final-data limitation before trusting these numbers as predictive accuracy.',
+    );
+  } finally {
+    await prisma.$disconnect();
   }
-  console.log(
-    '[backtest-deadline-physics] M2-H target (v1, to calibrate): of "stalled", >=70% dead-like; of "likely-advances", >=70% enacted-like. See doc comment for the near-final-data limitation before trusting these numbers as predictive accuracy.',
-  );
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }

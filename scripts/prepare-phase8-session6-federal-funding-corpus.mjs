@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -7,6 +8,16 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const usage = 'Usage: node scripts/prepare-phase8-session6-federal-funding-corpus.mjs --prepare';
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 1 || args[0] !== '--prepare') {
+  console.error(usage);
+  process.exit(2);
+}
 const corpusPath = path.join(root, 'docs/defense-budget/phase8-session6-federal-funding-corpus.json');
 const outDir = path.resolve(process.env.PHASE8_SESSION6_WORKDIR || path.join(root, '.session6-federal-funding'));
 const outputPath = path.join(outDir, 'prepared-corpus.json');

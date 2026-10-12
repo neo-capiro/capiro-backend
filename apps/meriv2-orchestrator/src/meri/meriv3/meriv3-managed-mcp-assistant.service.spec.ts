@@ -566,7 +566,10 @@ describe('MeriV3ManagedMcpAssistantService', () => {
         'an inherited source.clientId binding',
         {
           inheritedDocumentEvidence: [
-            { tool: 'read_client_documents', source: { kind: 'document', recordId: 'p', clientId: 'client-1' } },
+            {
+              tool: 'read_client_documents',
+              source: { kind: 'document', recordId: 'p', clientId: 'client-1' },
+            },
           ],
         },
       ],
@@ -587,7 +590,13 @@ describe('MeriV3ManagedMcpAssistantService', () => {
       ],
       [
         'a governed-artifact capture policy',
-        { governedArtifactCapturePolicy: { version: 1, dynamicMcpAllowed: false, clientId: 'client-1' } },
+        {
+          governedArtifactCapturePolicy: {
+            version: 1,
+            dynamicMcpAllowed: false,
+            clientId: 'client-1',
+          },
+        },
       ],
       ['a missing retrieval plan', { retrieval: undefined }],
       ['a plan without a subject scope', { retrieval: { plan: {} } }],
@@ -595,12 +604,15 @@ describe('MeriV3ManagedMcpAssistantService', () => {
 
     for (const [label, overrides] of cases) {
       await runWithGovernedMeriContext(
-        { ...(general() as unknown as Record<string, unknown>), ...overrides } as unknown as MeriGovernedTurnContext,
+        {
+          ...(general() as unknown as Record<string, unknown>),
+          ...overrides,
+        } as unknown as MeriGovernedTurnContext,
         async () => {
-          expect([label, seam.resolveCapabilityAuthority(HUBSPOT_SEARCH, HUBSPOT_READ_SCHEMA, {})]).toEqual([
+          expect([
             label,
-            null,
-          ]);
+            seam.resolveCapabilityAuthority(HUBSPOT_SEARCH, HUBSPOT_READ_SCHEMA, {}),
+          ]).toEqual([label, null]);
         },
       );
     }

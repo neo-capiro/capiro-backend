@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Tier-2 agentic worker (Phase 1 M5.1) — run-intel-workflows.
  *
@@ -376,9 +377,14 @@ export async function main(): Promise<void> {
 }
 
 if (require.main === module) {
-  main().catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('[run-intel-workflows] FAILED', err);
-    process.exit(1);
-  });
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: run-intel-workflows [--shadow] [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+  } else {
+    main().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[run-intel-workflows] FAILED', err);
+      process.exit(1);
+    });
+  }
 }

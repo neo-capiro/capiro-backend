@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * MeriV2 tool-injection eval — the orchestrator's counterpart to apps/api's
  * assistant-parity F6a (scripts/eval-clio-mcp-injection.ts).
@@ -28,6 +29,21 @@ import {
   TOOL_INJECTION_PROBES,
   type ToolInjectionProbe,
 } from '../src/meri/evals/tool-injection-fixtures.js';
+
+const cliArgs = process.argv.slice(2);
+const usage =
+  'Usage: pnpm --filter @capiro/meriv2-orchestrator eval:tool-injection --run (requires ANTHROPIC_API_KEY)';
+if (
+  (cliArgs.length === 1 && cliArgs[0] === '--help') ||
+  (cliArgs.length === 2 && cliArgs[0] === '--run' && cliArgs[1] === '--help')
+) {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const KEY = process.env.ANTHROPIC_API_KEY;

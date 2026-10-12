@@ -7,11 +7,14 @@
  * script reuses that token to close two false-green classes:
  *   1. a browser request that returned 401/403/404/5xx;
  *   2. read parity satisfied only because both services returned the same 404.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const USAGE = 'Usage: node apps/web/scripts/engagement-phase1-post-acceptance.mjs [--sha SHA] [--evidence-dir DIR] (requires ENGAGEMENT_PHASE1_EXPECTED_SHA or --sha, and ENGAGEMENT_PHASE1_TOKEN_FILE)';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const args = parse(process.argv.slice(2));
@@ -333,19 +336,30 @@ function requiredFixture(value, name) {
 
 function required(name, fallback) {
   const value = process.env[name]?.trim() || String(fallback ?? '').trim();
-  if (!value) throw new Error(`${name} is required`);
+  if (!value) usageError(`${name} is required`);
   return value;
+}
+
+function usageError(message) {
+  console.error(USAGE);
+  console.error(`[post-acceptance] ${message}`);
+  process.exit(2);
 }
 
 function parse(values) {
   const output = {};
   for (let index = 0; index < values.length; index += 1) {
     const arg = values[index];
-    if (!arg.startsWith('--')) throw new Error(`Unexpected argument: ${arg}`);
+    if (arg === '--help' || arg === '-h') {
+      console.log(USAGE);
+      process.exit(0);
+    }
+    if (!arg.startsWith('--')) usageError(`Unexpected argument: ${arg}`);
     const [raw, inline] = arg.slice(2).split('=', 2);
+    if (raw !== 'sha' && raw !== 'evidence-dir') usageError(`Unknown argument: ${arg}`);
     const key = raw.replace(/-([a-z])/g, (_match, character) => character.toUpperCase());
     const value = inline ?? values[++index];
-    if (!value || value.startsWith('--')) throw new Error(`Missing value for --${raw}`);
+    if (!value || value.startsWith('--')) usageError(`Missing value for --${raw}`);
     output[key] = value;
   }
   return output;

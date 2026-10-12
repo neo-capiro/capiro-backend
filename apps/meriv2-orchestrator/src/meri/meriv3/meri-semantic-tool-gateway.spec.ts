@@ -72,11 +72,21 @@ function plan(recipeTool: MeriRetrievalPlan['recipeTool'] = 'query_relationship_
 }
 
 describe('MeriSemanticToolGateway', () => {
-  test.each(['Does Aster prefer text alerts?', 'Show my pending Institutional Memory proposals.'])('exposes approved recall and the distinct pending reader for %s', (request) => {
-    const gateway = new MeriSemanticToolGateway(config({ MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true', MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: '*' }));
-    const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
-    expect(selected.decision.exposedNames).toEqual(expect.arrayContaining(['search_memory', 'list_memory_proposals']));
-  });
+  test.each(['Does Aster prefer text alerts?', 'Show my pending Institutional Memory proposals.'])(
+    'exposes approved recall and the distinct pending reader for %s',
+    (request) => {
+      const gateway = new MeriSemanticToolGateway(
+        config({
+          MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+          MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: '*',
+        }),
+      );
+      const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
+      expect(selected.decision.exposedNames).toEqual(
+        expect.arrayContaining(['search_memory', 'list_memory_proposals']),
+      );
+    },
+  );
   test('exposes canonical document generation for a PDF-only request', () => {
     const gateway = new MeriSemanticToolGateway(
       config({

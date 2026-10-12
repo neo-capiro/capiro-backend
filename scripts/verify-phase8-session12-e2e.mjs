@@ -28,6 +28,7 @@
  * Requires: ADMIN_DATABASE_URL (postgres superuser), SERVE_DATABASE_URL
  * (p8s12_serve_rehearsal), JOB_DATABASE_URL (p8s12_job_rehearsal) — all
  * pointing at the same already-migrated, already-seeded `capiro` database.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -36,6 +37,9 @@ import path from 'node:path';
 import process from 'node:process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { requirePhase8DbRun } from './lib/phase8-db-wrapper-cli.mjs';
+
+requirePhase8DbRun('verify-phase8-session12-e2e.mjs', process.argv.slice(2));
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -1,0 +1,232 @@
+{
+  "schema": "capiro.cleanup1.route-identity-ledger.v1",
+  "generatedFrom": "node scripts/run-playwright.mjs test --list",
+  "beforeCommit": "73f70b9cd",
+  "beforeTests": 357,
+  "beforeDistinct": 119,
+  "round5Commit": "8cfe84da6",
+  "round5Tests": 354,
+  "round5Distinct": 118,
+  "afterTests": 381,
+  "afterDistinct": 127,
+  "viewports": [
+    "desktop-1440",
+    "tablet-1024",
+    "mobile-390"
+  ],
+  "viewportMultiplicity": 3,
+  "categories": {
+    "reclassifiedPageToRedirect": {
+      "count": 11,
+      "scope": "page-baseline -> redirect-destination-assertion",
+      "items": [
+        {
+          "from": "route /intelligence/bills/hr-2027-1234",
+          "to": "redirect /intelligence/bills/hr-2027-1234",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /onboarding/subscribe",
+          "to": "redirect /onboarding/subscribe",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /portfolio",
+          "to": "redirect /portfolio",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /radar",
+          "to": "redirect /radar",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace",
+          "to": "redirect /workspace",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace/library",
+          "to": "redirect /workspace/library",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace/new",
+          "to": "redirect /workspace/new",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace/setup",
+          "to": "redirect /workspace/setup",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace/shares",
+          "to": "redirect /workspace/shares",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace/studio",
+          "to": "redirect /workspace/studio",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "route /workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+          "to": "redirect /workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+          "viewportMultiplicity": 3
+        }
+      ]
+    },
+    "restoredInventoryRedirects": {
+      "count": 9,
+      "scope": "declared redirect-recorded route; test identity present before, DROPPED at round-5, RESTORED now",
+      "items": [
+        {
+          "name": "redirect /admin",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /capiro-admin",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /directory",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /intelligence",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /intelligence/client/11111111-1111-4111-8111-111111111111",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /intelligence/client/11111111-1111-4111-8111-111111111111/graph",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /intelligence/hearing-watch",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /legiwatch/*",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "redirect /settings",
+          "viewportMultiplicity": 3
+        }
+      ]
+    },
+    "addedSafety": {
+      "count": 8,
+      "scope": "adverse assertion unit tests",
+      "items": [
+        {
+          "name": "safety: a correct data-backed render passes",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: fixture gap fails even with a seeded own endpoint",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: loading/empty/handled-error shell fails",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: missing expected heading fails",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: shared-shell-only fetch cannot qualify as a data sentinel",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: static route with no pinned content fails closed",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: unlisted redirect fails",
+          "viewportMultiplicity": 3
+        },
+        {
+          "name": "safety: wrong/absent route data (own endpoint not consumed) fails",
+          "viewportMultiplicity": 3
+        }
+      ]
+    },
+    "renamedSmoke": {
+      "count": 2,
+      "scope": "smoke title clarified; same surface",
+      "items": [
+        {
+          "from": "onboarding: subscribe surface resolves signed-in",
+          "to": "onboarding: subscribe entry resolves to the authenticated surface",
+          "viewportMultiplicity": 3
+        },
+        {
+          "from": "workspace: document library renders and links into the wizard",
+          "to": "workspace: document library renders real data-backed content",
+          "viewportMultiplicity": 3
+        }
+      ]
+    },
+    "addedVsRound5": {
+      "count": 9,
+      "items": [
+        "redirect /admin",
+        "redirect /capiro-admin",
+        "redirect /directory",
+        "redirect /intelligence",
+        "redirect /intelligence/client/11111111-1111-4111-8111-111111111111",
+        "redirect /intelligence/client/11111111-1111-4111-8111-111111111111/graph",
+        "redirect /intelligence/hearing-watch",
+        "redirect /legiwatch/*",
+        "redirect /settings"
+      ]
+    }
+  },
+  "netTestsVsBefore": 24,
+  "netTestsVsRound5": 27,
+  "finding": "The round-5 354 count was WRONG by -9: routes.spec.ts filtered redirect-recorded routes with `!sentinelRedirectPaths.has(path)`, but gen-route-sentinels copies EVERY redirect-recorded path into sentinels.redirects, so the filter was always false and all 9 declared redirects silently had no test identity. Corrected filter -> 381 (127/project x 3).",
+  "removed": [
+    "onboarding: subscribe surface resolves signed-in",
+    "route /intelligence/bills/hr-2027-1234",
+    "route /onboarding/subscribe",
+    "route /portfolio",
+    "route /radar",
+    "route /workspace",
+    "route /workspace/library",
+    "route /workspace/new",
+    "route /workspace/setup",
+    "route /workspace/shares",
+    "route /workspace/studio",
+    "route /workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+    "workspace: document library renders and links into the wizard"
+  ],
+  "added": [
+    "onboarding: subscribe entry resolves to the authenticated surface",
+    "redirect /intelligence/bills/hr-2027-1234",
+    "redirect /onboarding/subscribe",
+    "redirect /portfolio",
+    "redirect /radar",
+    "redirect /workspace",
+    "redirect /workspace/library",
+    "redirect /workspace/new",
+    "redirect /workspace/setup",
+    "redirect /workspace/shares",
+    "redirect /workspace/studio",
+    "redirect /workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+    "safety: a correct data-backed render passes",
+    "safety: fixture gap fails even with a seeded own endpoint",
+    "safety: loading/empty/handled-error shell fails",
+    "safety: missing expected heading fails",
+    "safety: shared-shell-only fetch cannot qualify as a data sentinel",
+    "safety: static route with no pinned content fails closed",
+    "safety: unlisted redirect fails",
+    "safety: wrong/absent route data (own endpoint not consumed) fails",
+    "workspace: document library renders real data-backed content"
+  ]
+}

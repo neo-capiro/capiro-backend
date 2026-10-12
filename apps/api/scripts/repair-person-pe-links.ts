@@ -35,6 +35,10 @@ function numArg(name: string, def: number): number {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/repair-person-pe-links.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = numArg('limit', 0);
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -142,6 +146,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(
     '[repair-person-pe-links] FAILED',
@@ -149,3 +154,4 @@ void main().catch((err) => {
   );
   process.exit(1);
 });
+}

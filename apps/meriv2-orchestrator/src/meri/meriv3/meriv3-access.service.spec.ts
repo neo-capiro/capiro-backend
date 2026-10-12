@@ -41,7 +41,10 @@ describe('MeriV3 two-key access (matches the API gate)', () => {
     const open = new MeriV3AccessService(prismaFor({ slug: 'brand-new', settings: {} }));
     await expect(open.isAllowed('t-new')).resolves.toBe(true);
     const closed = new MeriV3AccessService(
-      prismaFor({ slug: 'revere', settings: { clioFeatureFlags: { [MERIV3_TENANT_FLAG]: false } } }),
+      prismaFor({
+        slug: 'revere',
+        settings: { clioFeatureFlags: { [MERIV3_TENANT_FLAG]: false } },
+      }),
     );
     await expect(closed.isAllowed('t-revere')).resolves.toBe(false);
     delete process.env.MERIV3_CANARY_TENANT_SLUGS;

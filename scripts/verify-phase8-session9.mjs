@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * Phase 8 Session 9 — cross-domain provider runtime static gate.
  *
@@ -16,6 +17,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+const usage = 'Usage: node scripts/verify-phase8-session9.mjs';
+const args = process.argv.slice(2);
+if (args.length === 0) console.log(usage);
+else if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+  console.log(usage);
+  process.exit(0);
+} else {
+  console.error(usage);
+  process.exit(2);
+}
 
 function resolveRepoRoot(start = process.cwd()) {
   let current = start;

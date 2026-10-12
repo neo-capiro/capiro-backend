@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * SELECT-only Program Elements trust baseline.
  *
@@ -111,6 +112,11 @@ function ageSeconds(date: Date | null | undefined, now: Date): number | null {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL && !(process.env.DB_HOST && process.env.DB_PORT && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME)) {
+    console.error('Usage: apps/api/scripts/diag-program-element-trust-baseline.ts requires DATABASE_URL or all five DB_* values (database configuration is required)');
+    process.exit(2);
+  }
+
   buildDatabaseUrlFromParts();
   const prisma = new PrismaClient();
   const generatedAt = new Date();
@@ -612,9 +618,11 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error: unknown) => {
   const message = error instanceof Error ? error.stack ?? error.message : String(error);
   console.error(`[diag-pe-trust] FAILED
 ${message}`);
   process.exit(1);
 });
+}

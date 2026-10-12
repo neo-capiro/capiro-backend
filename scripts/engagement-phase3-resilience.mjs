@@ -7,12 +7,30 @@
  * not duplicate on retry, pauses the disposable database after boot and proves
  * both runtimes recover, and starts isolated shadow processes against an
  * unavailable database and unavailable Clerk issuer to prove both fail closed.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createPhase3FaultController } from './engagement-phase3-faults.mjs';
 import { createPhase3Proxy } from './engagement-phase3-local-proxy.mjs';
+
+const USAGE = 'Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length) {
+  console.error(USAGE);
+  console.error(`[phase3-resilience] unknown argument: ${cliArgs.join(' ')}`);
+  process.exit(2);
+}
+if (['ENGAGEMENT_PHASE3_EVIDENCE_DIR', 'ENGAGEMENT_PHASE3_FIXTURE_FILE', 'ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE', 'ENGAGEMENT_PHASE3_DB_CONTAINER']
+  .some((name) => !process.env[name]?.trim())) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const EVIDENCE = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
 const FIXTURE_FILE = required('ENGAGEMENT_PHASE3_FIXTURE_FILE');

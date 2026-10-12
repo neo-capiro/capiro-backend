@@ -207,6 +207,10 @@ async function runDryRun(flags: Flags): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/discover-hearings.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   if (process.argv.includes('--source=florida')) {
     await runFloridaCalendarDiscovery(process.argv.slice(2));
     return;

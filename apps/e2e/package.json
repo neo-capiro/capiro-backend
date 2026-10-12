@@ -1,0 +1,30 @@
+{
+  "name": "@capiro/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CleanUp1 offline Playwright visual-regression foundation (routes + smoke). Playwright is the shared external runtime (C:/dev/node_modules, pinned 1.63.0) — never a dependency of this package or any monorepo manifest.",
+  "scripts": {
+    "routes:inventory": "node scripts/build-route-inventory.mjs --write",
+    "routes:sentinels": "node scripts/gen-route-sentinels.mjs --write",
+    "routes:discover": "node scripts/discover-route-content.mjs --discover",
+    "routes:guard": "node scripts/guard-route-coverage.mjs",
+    "test": "node scripts/run-playwright.mjs test",
+    "test:list": "node scripts/run-playwright.mjs test --list",
+    "capture": "node scripts/capture-baselines.mjs --capture",
+    "source:archive": "node scripts/make-source-archive.mjs --write",
+    "visual:linux-capture": "bash linux/run-linux-capture.sh",
+    "compare": "node scripts/run-playwright.mjs test --grep \"^route \"",
+    "visual:repeat": "node scripts/repeat-zero-diff.mjs --repeat",
+    "guard": "node scripts/guard-route-coverage.mjs",
+    "typecheck": "node scripts/typecheck.mjs --check",
+    "visual": "node scripts/run-playwright.mjs test",
+    "smoke:onboard": "node scripts/run-playwright.mjs test --config smoke-onboard/playwright.onboard.config.ts",
+    "linux:lifecycle-controls": "bash linux/tests/lifecycle-controls.sh",
+    "linux:source-scope-controls": "node linux/tests/source-scope-controls.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.21",
+    "typescript": "^5.5.4"
+  }
+}

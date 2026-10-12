@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,4 +104,9 @@ function main() {
   console.log('ENGAGEMENT_RUNTIME_OWNERSHIP_VALID');
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  console.error('Usage: node scripts/engagement-runtime-ownership.mjs [fixture.json]');
+  const args = process.argv.slice(2);
+  if (args.length > 1 || args[0]?.startsWith('-')) process.exit(2);
+  main();
+}

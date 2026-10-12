@@ -42,11 +42,11 @@ case "${1:-serve}" in
     # Seed the global reference baseline (insert-if-empty; never clobbers
     # ops-verb edits) after migrating.
     echo "Seeding global reference baseline"
-    exec node dist/seed.js
+    exec node dist/seed.js --run
     ;;
   seed)
     echo "Seeding global reference baseline (api-strategy engine)"
-    exec node dist/seed.js
+    exec node dist/seed.js --run
     ;;
   update-strategy-reference)
     echo "Replacing global reference baseline from ops payload"

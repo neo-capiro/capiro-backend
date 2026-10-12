@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Idempotent historical repair for mail_threads whose snippet/lastMessageAt
  * predate the removed_at/removed_reason columns (remaining-items plan §3.d8).

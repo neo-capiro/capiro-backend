@@ -223,6 +223,11 @@ export function validateDatabaseUrl(apply: boolean, env: NodeJS.ProcessEnv = pro
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-florida-official-committees.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const apply = process.argv.includes('--apply');
   const snapshotPath = join(__dirname, '../data/florida-official-committee-inventory.json');
   const snapshot = JSON.parse(await readFile(snapshotPath, 'utf8')) as Snapshot;

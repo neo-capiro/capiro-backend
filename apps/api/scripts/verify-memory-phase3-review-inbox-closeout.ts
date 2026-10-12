@@ -1,9 +1,20 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   resolveMemoryPhase2Pnpm,
   runMemoryPhase2Command,
 } from './lib/memory-phase2-command-runner.js';
+
+const USAGE = 'Usage: tsx scripts/verify-memory-phase3-review-inbox-closeout.ts (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 function resolveApiRoot(): string {
   const cwd = process.cwd();

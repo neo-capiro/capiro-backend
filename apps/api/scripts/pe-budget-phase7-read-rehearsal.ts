@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 7 Workstream M — the snapshot read path against a real database.
  *
@@ -47,6 +48,13 @@ import {
   toBudgetPositionLikeV1,
 } from '../src/program-element/snapshot/pe-funding-position-projector-v1.js';
 
+async function main(): Promise<void> {
+  if (!process.env.ADMIN_DATABASE_URL || !process.env.APP_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/pe-budget-phase7-read-rehearsal.ts requires ADMIN_DATABASE_URL, APP_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
+  class RehearsalFailure extends Error {}
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const APP_URL = required('APP_DATABASE_URL');
 
@@ -64,7 +72,7 @@ function ok(message: string): void {
 }
 function fail(message: string): never {
   console.error(`[p7-read] FAILED: ${message}`);
-  process.exit(1);
+  throw new RehearsalFailure(message);
 }
 function check(condition: boolean, message: string): void {
   if (!condition) fail(message);
@@ -79,18 +87,21 @@ function required(name: string): string {
 async function expectRefused(client: PrismaClient, sql: string, message: string): Promise<void> {
   try {
     await client.$executeRawUnsafe(sql);
-  } catch {
+  } catch (rehearsalError) {
+    if (rehearsalError instanceof RehearsalFailure) throw rehearsalError;
     ok(`${message} — refused`);
     return;
   }
   fail(`${message} — the database ACCEPTED a statement it must refuse`);
 }
 
-async function main(): Promise<void> {
-  const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
-  const app = new PrismaClient({ datasources: { db: { url: APP_URL } } });
 
+  const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
   try {
+  const app = new PrismaClient({ datasources: { db: { url: APP_URL } } });
+  try {
+
+
     const port = createSnapshotReadPortPrismaV1(app as unknown as SnapshotReadPrismaLikeV1);
 
     /* =================================================================== */
@@ -295,6 +306,7 @@ async function main(): Promise<void> {
       try {
         assertOneSnapshotV1([target, foreign], active.snapshotId);
       } catch (error) {
+    if (error instanceof RehearsalFailure) throw error;
         refused = error instanceof SnapshotMixError;
       }
       check(refused, 'a row set straddling two real snapshots is refused, not served');
@@ -359,13 +371,20 @@ async function main(): Promise<void> {
     );
 
     console.log(`[p7-read] READ REHEARSAL PASSED — ${passed} checks`);
+
   } finally {
-    await admin.$disconnect().catch(() => undefined);
     await app.$disconnect().catch(() => undefined);
   }
-}
+  } finally {
+    await admin.$disconnect().catch(() => undefined);
+  }
 
+
+
+}
+if (require.main === module) {
 main().catch((error) => {
   console.error('[p7-read] FAILED:', error);
   process.exit(1);
 });
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=5 helpExit=0 */
 /** Durable RDT&E stage 2: invoke the shared verifier, optionally persisting audit rows. */
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -10,6 +11,17 @@ import * as fs from 'node:fs';
 
 function main(): void {
   const argv = process.argv.slice(2);
+  const usage = 'Usage: verify-defense-budget-rdte --manifest FILE --artifact-map FILE --verification-jobs FILE --out-dir DIR [--persist-audit]';
+  if (argv.length === 0) {
+    console.error('missing --manifest');
+    console.error(usage);
+    process.exitCode = 5;
+    return;
+  }
+  if (argv.length === 1 && argv[0] === '--help') {
+    process.stdout.write(`${usage}\n`);
+    return;
+  }
   refuseUnknownFlags(argv, ['--manifest', '--artifact-map', '--verification-jobs', '--out-dir', '--persist-audit']);
   const manifestPath = path.resolve(requireValue(argv, '--manifest'));
   const map = loadArtifactMap(path.resolve(requireValue(argv, '--artifact-map')));

@@ -30,8 +30,6 @@ import {
 } from '../src/intelligence/campaign-reco/campaign-cluster.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
-
 const STALE_CLIENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const PER_TENANT_TAKE = 5;
 // Client "position" memory (blueprint §3.2 stale-position detection). Judgment/
@@ -42,7 +40,7 @@ const POSITION_TYPES = ['client-soul', 'client-compass'];
 const CAMPAIGN_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 const CAMPAIGN_MIN_CLIENTS = 2;
 
-async function generateForTenant(tenantId: string): Promise<number> {
+async function generateForTenant(prisma: PrismaClient, tenantId: string): Promise<number> {
   let created = 0;
 
   // 1. Upcoming-meeting "prep needed" alerts — REMOVED (2026-07-14): meeting
@@ -190,7 +188,7 @@ async function generateForTenant(tenantId: string): Promise<number> {
  * default (CAMPAIGN_RECO_ENABLED), high-priority (clears the importance floor),
  * capped per tenant. Returns alerts created.
  */
-async function generateCampaignRecommendations(): Promise<number> {
+async function generateCampaignRecommendations(prisma: PrismaClient): Promise<number> {
   if (process.env.CAMPAIGN_RECO_ENABLED !== 'true') return 0;
   const since = new Date(Date.now() - CAMPAIGN_LOOKBACK_MS);
   const changes = await prisma.intelligenceChange.findMany({
@@ -293,42 +291,51 @@ async function generateCampaignRecommendations(): Promise<number> {
 }
 
 async function main(): Promise<void> {
-  const tenants = await prisma.tenant.findMany({
-    where: { status: 'active' },
-    select: { id: true, slug: true },
-  });
-  console.log(`[emit-clio-alerts] scanning ${tenants.length} active tenant(s)`);
-
-  let totalCreated = 0;
-  for (const tenant of tenants) {
-    try {
-      const n = await generateForTenant(tenant.id);
-      totalCreated += n;
-      if (n > 0) console.log(`[emit-clio-alerts] ${tenant.slug}: created ${n} alert(s)`);
-    } catch (err) {
-      // One tenant's failure must not abort the rest of the run.
-      console.error(`[emit-clio-alerts] ${tenant.slug}: FAILED: ${(err as Error).message}`);
-    }
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-clio-alerts.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
   }
-
-  // Cross-tenant campaign-recommendation pass (dark unless CAMPAIGN_RECO_ENABLED).
+  const prisma = new PrismaClient();
   try {
-    const campaignN = await generateCampaignRecommendations();
-    totalCreated += campaignN;
-    if (campaignN > 0)
-      console.log(`[emit-clio-alerts] campaign recommendations: created ${campaignN}`);
-  } catch (err) {
-    console.error(`[emit-clio-alerts] campaign-reco pass FAILED: ${(err as Error).message}`);
-  }
+    const tenants = await prisma.tenant.findMany({
+      where: { status: 'active' },
+      select: { id: true, slug: true },
+    });
+    console.log(`[emit-clio-alerts] scanning ${tenants.length} active tenant(s)`);
 
-  console.log(
-    `[emit-clio-alerts] done. Created ${totalCreated} new alert(s) across ${tenants.length} tenant(s).`,
-  );
+    let totalCreated = 0;
+    for (const tenant of tenants) {
+      try {
+        const n = await generateForTenant(prisma, tenant.id);
+        totalCreated += n;
+        if (n > 0) console.log(`[emit-clio-alerts] ${tenant.slug}: created ${n} alert(s)`);
+      } catch (err) {
+        // One tenant's failure must not abort the rest of the run.
+        console.error(`[emit-clio-alerts] ${tenant.slug}: FAILED: ${(err as Error).message}`);
+      }
+    }
+
+    // Cross-tenant campaign-recommendation pass (dark unless CAMPAIGN_RECO_ENABLED).
+    try {
+      const campaignN = await generateCampaignRecommendations(prisma);
+      totalCreated += campaignN;
+      if (campaignN > 0)
+        console.log(`[emit-clio-alerts] campaign recommendations: created ${campaignN}`);
+    } catch (err) {
+      console.error(`[emit-clio-alerts] campaign-reco pass FAILED: ${(err as Error).message}`);
+    }
+
+    console.log(
+      `[emit-clio-alerts] done. Created ${totalCreated} new alert(s) across ${tenants.length} tenant(s).`,
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

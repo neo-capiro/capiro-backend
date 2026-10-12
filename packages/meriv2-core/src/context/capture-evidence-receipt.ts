@@ -37,8 +37,12 @@ export interface MeriControlledReadAttempt {
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { canonicalJson } from '../repair/plan-remedy';
 import type { CompiledContextPacket } from './contract';
-import { validateMeriFixtureSemanticClock, type MeriServerReadonlyCapturePolicy,
-  type MeriFixtureSemanticClock, type MeriPromptClockUse } from './server-readonly-capture';
+import {
+  validateMeriFixtureSemanticClock,
+  type MeriServerReadonlyCapturePolicy,
+  type MeriFixtureSemanticClock,
+  type MeriPromptClockUse,
+} from './server-readonly-capture';
 
 export const MERI_CAPTURE_EVIDENCE_VERSION = 1 as const;
 export const MERI_CAPTURE_EVIDENCE_PURPOSE = 'server_capture_evidence' as const;
@@ -207,7 +211,12 @@ export interface MeriCaptureEvidenceReceipt {
   /** API-owned durable ledger; a primary-model usage estimate is not this proof. */
   providerBudget?: {
     version: 1;
-    boundary: 'case01_memory_turn' | 'case12_memory_turn' | 'case14_memory_turn' | 'case20_controlled_read_turn' | 'case72_controlled_read_turn';
+    boundary:
+      | 'case01_memory_turn'
+      | 'case12_memory_turn'
+      | 'case14_memory_turn'
+      | 'case20_controlled_read_turn'
+      | 'case72_controlled_read_turn';
     status: 'SETTLED' | 'UNSETTLED';
     admissionId: string;
     turnId: string;
@@ -253,20 +262,37 @@ export function meriCaptureClockExecutionBlockers(
   const failures = new Set<string>();
   const { binding, prompt, invocations } = clock;
   try {
-    validateMeriFixtureSemanticClock(binding, { caseId: receipt.caseId,
-      captureRunId: receipt.captureRunId, issuedAt: binding.observedAt });
-  } catch { failures.add('semantic_clock_binding_unproved'); }
-  if (prompt.status !== 'OBSERVED' || !prompt.value ||
-    prompt.value.instant !== binding.instant || prompt.value.timeZone !== binding.timeZone ||
-    prompt.value.date !== '2026-09-26' || !Number.isSafeInteger(prompt.value.renderedAt) ||
-    prompt.value.renderedAt < receipt.startedAt || prompt.value.renderedAt > receipt.completedAt ||
-    !/^[a-f0-9]{64}$/.test(prompt.value.groundingSha256))
+    validateMeriFixtureSemanticClock(binding, {
+      caseId: receipt.caseId,
+      captureRunId: receipt.captureRunId,
+      issuedAt: binding.observedAt,
+    });
+  } catch {
+    failures.add('semantic_clock_binding_unproved');
+  }
+  if (
+    prompt.status !== 'OBSERVED' ||
+    !prompt.value ||
+    prompt.value.instant !== binding.instant ||
+    prompt.value.timeZone !== binding.timeZone ||
+    prompt.value.date !== '2026-09-26' ||
+    !Number.isSafeInteger(prompt.value.renderedAt) ||
+    prompt.value.renderedAt < receipt.startedAt ||
+    prompt.value.renderedAt > receipt.completedAt ||
+    !/^[a-f0-9]{64}$/.test(prompt.value.groundingSha256)
+  )
     failures.add('semantic_clock_prompt_unproved');
   if (!Array.isArray(invocations)) return [...failures, 'semantic_clock_invocations_unproved'];
-  const allowed = receipt.caseId === '01' || receipt.caseId === '14' ? ['search_memory', 'list_memory_proposals']
-    : receipt.caseId === '12' ? ['search_memory']
-    : receipt.caseId === '20' ? ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline']
-    : receipt.caseId === '72' ? ['read_client_documents'] : [];
+  const allowed =
+    receipt.caseId === '01' || receipt.caseId === '14'
+      ? ['search_memory', 'list_memory_proposals']
+      : receipt.caseId === '12'
+        ? ['search_memory']
+        : receipt.caseId === '20'
+          ? ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline']
+          : receipt.caseId === '72'
+            ? ['read_client_documents']
+            : [];
   if (!allowed.length) failures.add('semantic_clock_case_not_admitted');
   const calls = new Map<string, MeriCaptureToolCallObservation>();
   for (const call of receipt.toolCalls) {
@@ -282,14 +308,26 @@ export function meriCaptureClockExecutionBlockers(
       continue;
     }
     const call = calls.get(attempt.callId);
-    const controlled = receipt.controlledReadAttempts?.filter(row => row.callId === attempt.callId) ?? [];
-    const expectedUnavailable = receipt.caseId === '72' && controlled.length === 1 &&
+    const controlled =
+      receipt.controlledReadAttempts?.filter((row) => row.callId === attempt.callId) ?? [];
+    const expectedUnavailable =
+      receipt.caseId === '72' &&
+      controlled.length === 1 &&
       controlled[0]!.logicalError === 'document unavailable';
-    if (!call || call.localDiscovery || seen.has(attempt.callId) || call.name !== attempt.tool ||
-      !allowed.includes(attempt.tool) || attempt.httpAttempts !== 1 || attempt.httpStatus !== 200 ||
+    if (
+      !call ||
+      call.localDiscovery ||
+      seen.has(attempt.callId) ||
+      call.name !== attempt.tool ||
+      !allowed.includes(attempt.tool) ||
+      attempt.httpAttempts !== 1 ||
+      attempt.httpStatus !== 200 ||
       !/^[a-f0-9]{64}$/.test(attempt.responseSha256 ?? '') ||
       (attempt.outcome !== 'returned' && !(expectedUnavailable && attempt.outcome === 'threw')) ||
-      !(expectedUnavailable ? ['failed', 'unavailable'] : ['complete', 'empty', 'partial']).includes(call.status))
+      !(
+        expectedUnavailable ? ['failed', 'unavailable'] : ['complete', 'empty', 'partial']
+      ).includes(call.status)
+    )
       failures.add('semantic_clock_invocation_join_unproved');
     seen.add(attempt.callId);
     if (attempt.tool !== 'list_memory_proposals' && attempt.proposalRead !== undefined)
@@ -331,35 +369,59 @@ export function meriCaptureClockExecutionBlockers(
         failures.add('semantic_clock_proposal_read_unproved');
     } else {
       const row = controlled[0];
-      if (attempt.packets?.length !== 0 || controlled.length !== 1 || !row ||
-        row.tool !== attempt.tool || row.httpStatus !== 200 || row.caseId !== receipt.caseId ||
-        row.requestId !== receipt.requestId || row.traceId !== receipt.traceId ||
-        row.turnId !== receipt.turnId || row.captureRunId !== receipt.captureRunId ||
-        row.responseSha256 !== attempt.responseSha256 || (row.logicalError && !expectedUnavailable))
+      if (
+        attempt.packets?.length !== 0 ||
+        controlled.length !== 1 ||
+        !row ||
+        row.tool !== attempt.tool ||
+        row.httpStatus !== 200 ||
+        row.caseId !== receipt.caseId ||
+        row.requestId !== receipt.requestId ||
+        row.traceId !== receipt.traceId ||
+        row.turnId !== receipt.turnId ||
+        row.captureRunId !== receipt.captureRunId ||
+        row.responseSha256 !== attempt.responseSha256 ||
+        (row.logicalError && !expectedUnavailable)
+      )
         failures.add('semantic_clock_controlled_read_join_unproved');
     }
   }
   for (const call of calls.values()) {
     if (call.localDiscovery) {
-      if (!['tool_search', 'tool_describe'].includes(call.name) || call.status !== 'complete' || seen.has(call.callId))
+      if (
+        !['tool_search', 'tool_describe'].includes(call.name) ||
+        call.status !== 'complete' ||
+        seen.has(call.callId)
+      )
         failures.add('semantic_clock_local_discovery_unproved');
     } else if (!seen.has(call.callId)) failures.add('semantic_clock_invocation_missing');
   }
-  if (receipt.controlledReadAttempts?.some(row => !seen.has(row.callId)))
+  if (receipt.controlledReadAttempts?.some((row) => !seen.has(row.callId)))
     failures.add('semantic_clock_controlled_read_extra');
   return [...failures];
 }
 
-function validClockPacket(packet: MeriCaptureCompilerPacket, binding: MeriFixtureSemanticClock,
-  receipt: Pick<MeriCaptureEvidenceReceipt, 'startedAt' | 'completedAt'>): boolean {
+function validClockPacket(
+  packet: MeriCaptureCompilerPacket,
+  binding: MeriFixtureSemanticClock,
+  receipt: Pick<MeriCaptureEvidenceReceipt, 'startedAt' | 'completedAt'>,
+): boolean {
   const use = packet?.clockUse;
-  return !!packet && typeof packet.packetId === 'string' &&
-    /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(packet.packetId) &&
-    packet.persisted === true && !!use &&
-    use.instant === binding.instant && use.timeZone === binding.timeZone &&
-    ['used', 'not_run'].includes(use.scoring) && Number.isFinite(Date.parse(use.eligibilityAt)) &&
+  return (
+    !!packet &&
+    typeof packet.packetId === 'string' &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(
+      packet.packetId,
+    ) &&
+    packet.persisted === true &&
+    !!use &&
+    use.instant === binding.instant &&
+    use.timeZone === binding.timeZone &&
+    ['used', 'not_run'].includes(use.scoring) &&
+    Number.isFinite(Date.parse(use.eligibilityAt)) &&
     Date.parse(use.eligibilityAt) >= binding.observedAt &&
-    Date.parse(use.eligibilityAt) <= receipt.completedAt;
+    Date.parse(use.eligibilityAt) <= receipt.completedAt
+  );
 }
 
 /** Case20's source is tenant-owned public evidence, not selected-client memory.
@@ -417,11 +479,19 @@ export function meriCaptureReceiptBlockers(
   if (receipt.semanticClock) {
     for (const blocker of meriCaptureClockExecutionBlockers(receipt)) blockers.add(blocker);
     const { binding, api, apiJoin, invocations } = receipt.semanticClock;
-    if (apiJoin !== 'VERIFIED' || !api || api.relativeToolWindows !== 'NOT_APPLICABLE' ||
+    if (
+      apiJoin !== 'VERIFIED' ||
+      !api ||
+      api.relativeToolWindows !== 'NOT_APPLICABLE' ||
       !validClockPacket(api.initial, binding, receipt) ||
-      !Array.isArray(api.tools) || !Array.isArray(invocations) ||
-      canonicalJson(api.tools) !== canonicalJson(invocations.flatMap(row => Array.isArray(row?.packets) ? row.packets : [])) ||
-      api.tools.some(row => !row || row.packetId === api.initial.packetId))
+      !Array.isArray(api.tools) ||
+      !Array.isArray(invocations) ||
+      canonicalJson(api.tools) !==
+        canonicalJson(
+          invocations.flatMap((row) => (Array.isArray(row?.packets) ? row.packets : [])),
+        ) ||
+      api.tools.some((row) => !row || row.packetId === api.initial.packetId)
+    )
       blockers.add('semantic_clock_api_tool_join_pending');
   }
   const requiredValues: Array<[string, MeriCaptureObservedValue<unknown>]> = [
@@ -439,17 +509,24 @@ export function meriCaptureReceiptBlockers(
     try {
       if (setup?.status !== 'OBSERVED') throw new Error('setup_unobserved');
       const binding = readMeriCase12SetupBinding(setup.value);
-      if (binding.setupRunId === receipt.captureRunId ||
-          receipt.fixture.resetReceiptId.status === 'OBSERVED' || receipt.fixture.resetReceiptId.value !== null ||
-          receipt.fixture.seedReceiptId.status === 'OBSERVED' || receipt.fixture.seedReceiptId.value !== null)
+      if (
+        binding.setupRunId === receipt.captureRunId ||
+        receipt.fixture.resetReceiptId.status === 'OBSERVED' ||
+        receipt.fixture.resetReceiptId.value !== null ||
+        receipt.fixture.seedReceiptId.status === 'OBSERVED' ||
+        receipt.fixture.seedReceiptId.value !== null
+      )
         throw new Error('setup_mixed_provenance');
     } catch {
       blockers.add('fixture_case12_setup_unproved');
     }
   } else {
-    requiredValues.push(['fixture_reset_receipt', receipt.fixture.resetReceiptId],
-      ['fixture_seed_receipt', receipt.fixture.seedReceiptId]);
-    if (Object.hasOwn(receipt.fixture, 'case12Setup')) blockers.add('fixture_case12_setup_foreign_case');
+    requiredValues.push(
+      ['fixture_reset_receipt', receipt.fixture.resetReceiptId],
+      ['fixture_seed_receipt', receipt.fixture.seedReceiptId],
+    );
+    if (Object.hasOwn(receipt.fixture, 'case12Setup'))
+      blockers.add('fixture_case12_setup_foreign_case');
   }
   if (!receipt.caseId) blockers.add('case_id_missing');
   if (!receipt.captureRunId) blockers.add('capture_run_id_missing');
@@ -599,7 +676,10 @@ export function verifyMeriCaptureEvidenceReceipt(
     throw new Error('meri_capture_evidence_authentication_failed');
   }
   if (policy.semanticClock) validateMeriFixtureSemanticClock(policy.semanticClock, policy);
-  if (canonicalJson(receipt.semanticClock?.binding ?? null) !== canonicalJson(policy.semanticClock ?? null))
+  if (
+    canonicalJson(receipt.semanticClock?.binding ?? null) !==
+    canonicalJson(policy.semanticClock ?? null)
+  )
     throw new Error('meri_capture_evidence_semantic_clock_mismatch');
   const blockers = meriCaptureReceiptBlockers(receipt);
   if (

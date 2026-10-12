@@ -13,6 +13,10 @@ function arg(name: string): string | undefined {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/drain-federal-evidence-outbox.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
   assertFederalEvidenceOutboxDrainEnabled({
     commit,
@@ -44,7 +48,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('[drain-federal-evidence-outbox] FAILED', error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
+}

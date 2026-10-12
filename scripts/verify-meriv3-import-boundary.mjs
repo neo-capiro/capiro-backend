@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -405,6 +406,7 @@ export function verifyRepository(repositoryRoot = REPOSITORY_ROOT) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === SCRIPT_PATH) {
+  console.error('Usage: node scripts/verify-meriv3-import-boundary.mjs (no arguments runs the existing verifier)');
   try {
     const { files, violations } = verifyRepository();
     if (violations.length > 0) {

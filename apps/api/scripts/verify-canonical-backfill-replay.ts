@@ -154,6 +154,10 @@ async function snapshot(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/verify-canonical-backfill-replay.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const { values } = parseArgs({
     options: {
       tenant: { type: 'string' },
@@ -245,6 +249,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((error: unknown) => {
   console.error(
     JSON.stringify({
@@ -254,3 +259,4 @@ main().catch((error: unknown) => {
   );
   process.exit(1);
 });
+}

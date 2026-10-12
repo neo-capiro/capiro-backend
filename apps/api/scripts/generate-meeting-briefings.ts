@@ -22,11 +22,14 @@ import {
 } from '../src/meri/meri-briefing-schedule.helpers.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
 const LOOKAHEAD_DAYS = Number(process.env.CLIO_BRIEFING_LOOKAHEAD_DAYS ?? '7');
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-async function generateForTenant(tenantId: string, now: Date): Promise<number> {
+async function generateForTenant(
+  prisma: PrismaClient,
+  tenantId: string,
+  now: Date,
+): Promise<number> {
   const horizon = new Date(now.getTime() + LOOKAHEAD_DAYS * DAY_MS);
   const meetings = await prisma.meeting.findMany({
     where: {
@@ -98,32 +101,41 @@ async function generateForTenant(tenantId: string, now: Date): Promise<number> {
 }
 
 async function main(): Promise<void> {
-  const now = new Date();
-  const tenants = await prisma.tenant.findMany({
-    where: { status: 'active' },
-    select: { id: true, slug: true },
-  });
-  console.log(`[generate-meeting-briefings] scanning ${tenants.length} active tenant(s)`);
-
-  let total = 0;
-  for (const tenant of tenants) {
-    try {
-      const n = await generateForTenant(tenant.id, now);
-      total += n;
-      if (n > 0)
-        console.log(`[generate-meeting-briefings] ${tenant.slug}: created ${n} briefing(s)`);
-    } catch (err) {
-      console.error(
-        `[generate-meeting-briefings] ${tenant.slug}: FAILED: ${(err as Error).message}`,
-      );
-    }
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/generate-meeting-briefings.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
   }
-  console.log(`[generate-meeting-briefings] done. Created ${total} briefing(s).`);
+  const prisma = new PrismaClient();
+  try {
+    const now = new Date();
+    const tenants = await prisma.tenant.findMany({
+      where: { status: 'active' },
+      select: { id: true, slug: true },
+    });
+    console.log(`[generate-meeting-briefings] scanning ${tenants.length} active tenant(s)`);
+
+    let total = 0;
+    for (const tenant of tenants) {
+      try {
+        const n = await generateForTenant(prisma, tenant.id, now);
+        total += n;
+        if (n > 0)
+          console.log(`[generate-meeting-briefings] ${tenant.slug}: created ${n} briefing(s)`);
+      } catch (err) {
+        console.error(
+          `[generate-meeting-briefings] ${tenant.slug}: FAILED: ${(err as Error).message}`,
+        );
+      }
+    }
+    console.log(`[generate-meeting-briefings] done. Created ${total} briefing(s).`);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

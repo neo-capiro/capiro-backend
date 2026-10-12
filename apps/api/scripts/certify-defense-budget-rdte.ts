@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=5 */
 /** Durable RDT&E stage 3: reload accepted artifacts and run the existing certifier/planner. */
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -53,4 +54,10 @@ function main(): void {
   process.stdout.write(`${JSON.stringify({ command: 'certify-defense-budget-rdte', certification: pipeline.certification, reason: pipeline.reason, canonicalWrites: false }, null, 2)}\n`);
   process.exitCode = pipeline.certification === 'CERTIFIED_RDTE_READY_FOR_PROJECTION' ? 0 : pipeline.certification === 'NEEDS_REVIEW' ? 2 : pipeline.certification === 'INCOMPLETE' ? 3 : 4;
 }
-try { main(); } catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 5; }
+try {
+  if (process.argv.length <= 2) console.error('Usage: certify-defense-budget-rdte --manifest <manifest.json> --artifact-map <map.json> --verification-results <results.json> --verification-refs <refs.json> --out-dir <directory>');
+  main();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 5;
+}

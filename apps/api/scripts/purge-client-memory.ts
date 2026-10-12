@@ -13,6 +13,7 @@
  * instantiated manually around PrismaService so the script cannot drift from the
  * live purge logic. Requires DATABASE_URL.
  */
+/** @cleanup-smoke noArgsExit=1 */
 import 'dotenv/config';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { MemoryPurgeService } from '../src/memory/memory-purge.service.js';
@@ -34,7 +35,7 @@ async function main(): Promise<void> {
   const reason = arg('reason');
   const execute = flag('execute');
   if (!tenantId || !clientId || !reason) {
-    console.error('PURGE_ERR usage: --tenant=<uuid> --client=<uuid> --reason="..." [--execute]');
+    console.error('Usage: purge-client-memory --tenant=<uuid> --client=<uuid> --reason="..." [--execute] (PURGE_ERR)');
     process.exitCode = 1;
     return;
   }

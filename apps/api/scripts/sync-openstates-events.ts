@@ -1077,6 +1077,10 @@ export async function syncFloridaOpenstatesEvents(
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-openstates-events.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const states = statesFromEnv(process.env.OPENSTATES_EVENTS_STATES);
   if (!states.includes('FL')) return;
   const window = dateWindow();

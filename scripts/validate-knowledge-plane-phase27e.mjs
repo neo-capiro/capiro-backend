@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Phase 27E release gate — Institutional Learning Quality Telemetry.
  *
@@ -14,7 +15,7 @@
  *    pass — jest never running must never read as green.
  *
  * Usage:
- *   node scripts/validate-knowledge-plane-phase27e.mjs [--base <ref>] [--skip-tests]
+ *   node scripts/validate-knowledge-plane-phase27e.mjs --run [--base <ref>] [--skip-tests]
  *
  * Prerequisites (not run here — same as phase26/phase27):
  *   pnpm install --frozen-lockfile
@@ -29,10 +30,44 @@ import { dirname, join, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
 
+const usage =
+  'Usage: node scripts/validate-knowledge-plane-phase27e.mjs --run [--base <ref>] [--skip-tests]';
 const argv = process.argv.slice(2);
-const baseIndex = argv.indexOf('--base');
-const base = baseIndex >= 0 ? argv[baseIndex + 1] : 'origin/main';
-const skipTests = argv.includes('--skip-tests');
+if (argv.length === 0) {
+  console.error(usage);
+  process.exit(2);
+}
+if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+let base = 'origin/main';
+let skipTests = false;
+let baseSeen = false;
+let runSeen = false;
+let invalid = false;
+for (let i = 0; i < argv.length; i += 1) {
+  if (argv[i] === '--base' && !baseSeen) {
+    const value = argv[++i];
+    if (!value || value.startsWith('-') || !/^[A-Za-z0-9._/@^~-]+$/.test(value)) {
+      invalid = true;
+      break;
+    }
+    base = value;
+    baseSeen = true;
+  } else if (argv[i] === '--skip-tests' && !skipTests) {
+    skipTests = true;
+  } else if (argv[i] === '--run' && !runSeen) {
+    runSeen = true;
+  } else {
+    invalid = true;
+    break;
+  }
+}
+if (invalid) {
+  console.error(usage);
+  process.exit(2);
+}
 
 const results = [];
 function record(name, ok, detail) {
@@ -62,7 +97,10 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
   const text = `${out.stdout ?? ''}${out.stderr ?? ''}`;
   if (out.status !== 0) console.error(text);
   else process.stdout.write(text);
-  record('quality-telemetry architecture guard (no-bypass, no-governed-write, no sixth layer)', out.status === 0);
+  record(
+    'quality-telemetry architecture guard (no-bypass, no-governed-write, no sixth layer)',
+    out.status === 0,
+  );
 }
 
 // ── 2. Quality-telemetry test surface (contract + capture + query + adapters
@@ -71,7 +109,11 @@ if (skipTests) {
   console.log('SKIP  test suites (--skip-tests)');
 } else {
   const SUITES = [
-    ['meriv2-core quality-telemetry contract suite', 'packages/meriv2-core', ['--testPathPattern', 'src/quality-telemetry']],
+    [
+      'meriv2-core quality-telemetry contract suite',
+      'packages/meriv2-core',
+      ['--testPathPattern', 'src/quality-telemetry'],
+    ],
     ['api quality-telemetry suite', 'apps/api', ['--testPathPattern', 'src/quality-telemetry']],
   ];
   for (const [name, dir, args] of SUITES) {
@@ -98,7 +140,11 @@ if (skipTests) {
         'client-profile-fill|meri-feedback-learning-signal-resilience|outreach-draft.service|outreach-v3-draft-approval|outreach-v3-drafts-architecture|meeting-artifact-lifecycle|governed-engagement.factory|governed-engagement.phase24|governed-meeting-ai.factory',
       ],
     ],
-    ['tenant-scope guard (new models auto-covered)', 'apps/api', ['--testPathPattern', 'tenant-scope-guard']],
+    [
+      'tenant-scope guard (new models auto-covered)',
+      'apps/api',
+      ['--testPathPattern', 'tenant-scope-guard'],
+    ],
   ];
   for (const [name, dir, args] of REGRESSION_SUITES) {
     const out = run(npx, ['jest', '--runInBand', '--forceExit', ...args], dir);
@@ -131,4 +177,6 @@ if (failed.length > 0) {
   process.exit(1);
 }
 console.log('Knowledge Plane Phase 27E (quality-telemetry) validation: all checks passed.');
-console.log('Reminder: also run `pnpm validate:knowledge-plane:phase26` and `:phase27` — neither is superseded by this script.');
+console.log(
+  'Reminder: also run `pnpm validate:knowledge-plane:phase26` and `:phase27` — neither is superseded by this script.',
+);

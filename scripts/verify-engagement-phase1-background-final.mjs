@@ -5,17 +5,23 @@
  * Starts a fresh disposable database and shadow runtime, removes the primary
  * success summary, and restores it only after JSON-encoded table digests remain
  * byte-identical across a full worker interval.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { spawn } from 'node:child_process';
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveSpawn } from './lib/resolve-tool.mjs';
+import { PHASE1_LOCAL_OPTIONS, requireLocalRun } from './lib/engagement-local-cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_ENV = { ...process.env };
 const NODE = process.execPath;
-const args = parse(process.argv.slice(2));
+const args = parse(requireLocalRun(
+  process.argv.slice(2),
+  'Usage: node scripts/verify-engagement-phase1-background-final.mjs --run [--sha SHA] [--evidence-dir DIR] [--strict-db-port PORT] [--background-observe-ms MS]',
+  PHASE1_LOCAL_OPTIONS,
+));
 const ACTUAL_SHA = (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const SHA = args.sha ?? ACTUAL_SHA;
 if (!/^[0-9a-f]{40}$/i.test(SHA) || SHA !== ACTUAL_SHA) {

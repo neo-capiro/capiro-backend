@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 
@@ -84,4 +85,15 @@ export async function checkPhase8Sources(prisma: PrismaClient, maxSources = 12) 
     results.push(result);
   }
   return { state: 'checked', checked: results.length, results };
+}
+
+if (require.main === module) {
+  const usage = 'Usage: check-legiwatch-phase8-sources [--help] (library module; called by sync-rss-intel)';
+  const args = process.argv.slice(2);
+  if (args.length === 0 || (args.length === 1 && args[0] === '--help')) {
+    console.log(usage);
+  } else {
+    console.error(usage);
+    process.exitCode = 2;
+  }
 }

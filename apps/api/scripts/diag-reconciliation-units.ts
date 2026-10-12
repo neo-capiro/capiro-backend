@@ -60,6 +60,10 @@ function classify(row: Row): { verdict: Verdict; ratio: number | null } {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/diag-reconciliation-units.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
   // Also resolve artifact_canonical_raw rows. Use ONLY after verifying the LIVE
   // program_element_year values are correct $M (so the snapshots are stale, not a
@@ -187,7 +191,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

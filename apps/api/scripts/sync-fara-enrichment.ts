@@ -75,6 +75,10 @@ async function fetchFeed(url: string): Promise<{ body: string; contentType: stri
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-fara-enrichment.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = hasFlag('commit');
   const force = hasFlag('force');
   const limit = flagValue('limit') ? parseInt(flagValue('limit')!, 10) : null;
@@ -170,7 +174,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('[fara-enrichment] FAILED', err);
   process.exit(1);
 });
+}

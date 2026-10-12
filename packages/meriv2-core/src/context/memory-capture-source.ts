@@ -113,7 +113,11 @@ export function memoryCaptureSourcePolicyEnabled(
   p: MeriServerReadonlyCapturePolicy | null | undefined,
 ): p is MeriServerReadonlyCapturePolicy {
   if (p?.caseId === '12') {
-    try { validateMeriCase12SetupPolicyBinding(p); } catch { return false; }
+    try {
+      validateMeriCase12SetupPolicyBinding(p);
+    } catch {
+      return false;
+    }
   }
   return (
     !!p?.semanticClock &&

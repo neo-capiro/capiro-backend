@@ -1,17 +1,36 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-import { MatchScorerService } from '../src/acquisition-personnel/matching/match-scorer.service.js';
-import { AcquisitionPersonnelWriterService } from '../src/acquisition-personnel/acquisition-personnel-writer.service.js';
-import { DowDirectorySectionSplitterService } from '../src/acquisition-personnel/parsers/dow-directory-section-splitter.service.js';
-import { DowDirectoryParserService } from '../src/acquisition-personnel/parsers/dow-directory-parser.service.js';
 
+const usage = 'Usage: tsx scripts/parse-dow-directory.ts --parse [path-to-directory.pdf] (or provide a path explicitly)';
+const args = process.argv.slice(2).filter((arg) => arg !== '--');
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+const inputArgs = args.filter((arg) => arg !== '--parse');
+if (
+  args.length === 0 ||
+  args.filter((arg) => arg === '--parse').length > 1 ||
+  inputArgs.length > 1 ||
+  inputArgs.some((arg) => arg.startsWith('-')) ||
+  (inputArgs.length === 0 && !args.includes('--parse'))
+) {
+  console.error(usage);
+  process.exit(2);
+}
+const inputPath = inputArgs[0];
 dotenvConfig();
 
 async function main() {
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
+  const { MatchScorerService } = await import('../src/acquisition-personnel/matching/match-scorer.service.js');
+  const { AcquisitionPersonnelWriterService } = await import('../src/acquisition-personnel/acquisition-personnel-writer.service.js');
+  const { DowDirectorySectionSplitterService } = await import('../src/acquisition-personnel/parsers/dow-directory-section-splitter.service.js');
+  const { DowDirectoryParserService } = await import('../src/acquisition-personnel/parsers/dow-directory-parser.service.js');
   const defaultPath = path.resolve('scripts/__fixtures__/2026_DoW_Directory_Update_4.pdf');
-  const cliPath = process.argv[2] ? path.resolve(process.argv[2]!) : defaultPath;
+  const cliPath = inputPath ? path.resolve(inputPath) : defaultPath;
 
   const pdfBuffer = await fs.readFile(cliPath);
 

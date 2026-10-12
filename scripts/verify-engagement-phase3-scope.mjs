@@ -1,10 +1,16 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /** Fail-closed Phase 3 scope/finding gate. */
 import { execFileSync } from 'node:child_process';
 import { resolvePhase3ScopeBase } from './engagement-phase3-scope-base.mjs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log('Usage: node scripts/verify-engagement-phase3-scope.mjs (no arguments runs the existing verifier)');
+  process.exit(0);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const END = process.env.ENGAGEMENT_PHASE3_SCOPE_END ?? 'HEAD';
@@ -68,6 +74,7 @@ export function scopeIssues({ changed, addedSource, counts, scoped = false }) {
 }
 
 function main() {
+  console.error('Usage: node scripts/verify-engagement-phase3-scope.mjs (no arguments runs the existing verifier)');
   git(['cat-file', '-e', `${BASE}^{commit}`]);
   git(['cat-file', '-e', `${END}^{commit}`]);
   const range = `${BASE}..${END}`;

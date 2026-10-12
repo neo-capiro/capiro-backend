@@ -25,7 +25,7 @@ import { parseBillDesignation, formatBillId } from '@capiro/shared';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 const RSS_URL = process.env.CBO_RSS_URL ?? 'https://www.cbo.gov/publications/all/rss.xml';
 
 function extractText(xml: string, tag: string): string | null {
@@ -97,7 +97,14 @@ export function parseCboRssItem(item: string): ParsedCboItem | null {
 }
 
 async function main() {
-  await runWithSyncRun(prisma as never, 'sync-cbo', async () => {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-cbo.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'sync-cbo', async () => {
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
@@ -159,13 +166,15 @@ async function main() {
 
     return { inserted, updated, skipped, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

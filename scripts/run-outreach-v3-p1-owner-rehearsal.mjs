@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -31,4 +32,8 @@ function main() {
   console.log('OUTREACH_V3_P1_OWNER_REHEARSAL_COMPLETE');
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  console.error('Usage: node scripts/run-outreach-v3-p1-owner-rehearsal.mjs (no arguments run the fixture check)');
+  if (process.argv.length > 2) process.exit(2);
+  main();
+}

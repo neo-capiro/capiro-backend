@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only diagnostic (plan W6.2 / D4): per-tenant usage of the LEGACY
  * EngagementCampaign surface (`/api/engagement/campaigns/*`), to decide whether it
@@ -19,62 +20,79 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 async function main(): Promise<void> {
-  const [campaigns, recipients, tenants] = await Promise.all([
-    prisma.engagementCampaign.groupBy({
-      by: ['tenantId', 'status'],
-      _count: { _all: true },
-      _max: { updatedAt: true },
-    }),
-    prisma.engagementCampaignRecipient.groupBy({
-      by: ['tenantId'],
-      _count: { _all: true },
-    }),
-    prisma.tenant.findMany({ select: { id: true, slug: true } }),
-  ]);
-
-  if (!campaigns.length) {
-    // eslint-disable-next-line no-console
-    console.log('No engagement_campaigns rows in ANY tenant — the legacy surface is unused.');
-    return;
+  const usage = 'Usage: apps/api/scripts/diag-engagement-campaigns.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
   }
-
-  const slugOf = new Map(tenants.map((t) => [t.id, t.slug]));
-  const recipientCount = new Map(recipients.map((r) => [r.tenantId, r._count._all]));
-
-  // Group campaign rows by tenant.
-  const byTenant = new Map<string, typeof campaigns>();
-  for (const r of campaigns) {
-    const list = byTenant.get(r.tenantId) ?? [];
-    list.push(r);
-    byTenant.set(r.tenantId, list);
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
   }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const [campaigns, recipients, tenants] = await Promise.all([
+      prisma.engagementCampaign.groupBy({
+        by: ['tenantId', 'status'],
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.engagementCampaignRecipient.groupBy({
+        by: ['tenantId'],
+        _count: { _all: true },
+      }),
+      prisma.tenant.findMany({ select: { id: true, slug: true } }),
+    ]);
 
-  // eslint-disable-next-line no-console
-  console.log('Legacy EngagementCampaign usage by tenant (D4 retirement check):\n');
-  for (const [tenantId, list] of byTenant) {
-    const total = list.reduce((n, r) => n + r._count._all, 0);
-    const newest = list
-      .map((r) => r._max.updatedAt)
-      .filter((d): d is Date => Boolean(d))
-      .sort((a, b) => b.getTime() - a.getTime())[0];
-    const statusBreakdown = list.map((r) => `${r.status}=${r._count._all}`).join(', ');
+    if (!campaigns.length) {
+      // eslint-disable-next-line no-console
+      console.log('No engagement_campaigns rows in ANY tenant — the legacy surface is unused.');
+      return;
+    }
+
+    const slugOf = new Map(tenants.map((t) => [t.id, t.slug]));
+    const recipientCount = new Map(recipients.map((r) => [r.tenantId, r._count._all]));
+
+    // Group campaign rows by tenant.
+    const byTenant = new Map<string, typeof campaigns>();
+    for (const r of campaigns) {
+      const list = byTenant.get(r.tenantId) ?? [];
+      list.push(r);
+      byTenant.set(r.tenantId, list);
+    }
+
     // eslint-disable-next-line no-console
-    console.log(
-      `■ ${slugOf.get(tenantId) ?? tenantId}\n` +
-        `   campaigns=${total} (${statusBreakdown})\n` +
-        `   recipients=${recipientCount.get(tenantId) ?? 0}\n` +
-        `   newestUpdatedAt=${newest ? newest.toISOString() : 'n/a'}`,
-    );
+    console.log('Legacy EngagementCampaign usage by tenant (D4 retirement check):\n');
+    for (const [tenantId, list] of byTenant) {
+      const total = list.reduce((n, r) => n + r._count._all, 0);
+      const newest = list
+        .map((r) => r._max.updatedAt)
+        .filter((d): d is Date => Boolean(d))
+        .sort((a, b) => b.getTime() - a.getTime())[0];
+      const statusBreakdown = list.map((r) => `${r.status}=${r._count._all}`).join(', ');
+      // eslint-disable-next-line no-console
+      console.log(
+        `■ ${slugOf.get(tenantId) ?? tenantId}\n` +
+          `   campaigns=${total} (${statusBreakdown})\n` +
+          `   recipients=${recipientCount.get(tenantId) ?? 0}\n` +
+          `   newestUpdatedAt=${newest ? newest.toISOString() : 'n/a'}`,
+      );
+    }
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

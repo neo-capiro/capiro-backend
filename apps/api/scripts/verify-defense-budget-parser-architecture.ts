@@ -1,6 +1,19 @@
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /** Permanent Phase 3 architecture and safety-contract gate. */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
+const USAGE = 'Usage: tsx scripts/verify-defense-budget-parser-architecture.ts (no arguments run the architecture gate)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length !== 0) {
+  console.error(USAGE);
+  process.exit(2);
+}
+console.error(USAGE);
 
 const API_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');

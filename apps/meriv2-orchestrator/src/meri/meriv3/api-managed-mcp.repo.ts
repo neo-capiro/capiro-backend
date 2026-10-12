@@ -104,7 +104,9 @@ export class ApiManagedMcpRepo {
       if (control?.signal?.aborted) throw error;
       // An expired deadline with an un-aborted signal is still a stopped turn.
       assertToolExecutionActive(control);
-      observer?.noteManaged({ outcome: error instanceof SyntaxError ? 'malformed' : 'unavailable' });
+      observer?.noteManaged({
+        outcome: error instanceof SyntaxError ? 'malformed' : 'unavailable',
+      });
       this.logger.warn(
         `Managed MCP schemas unavailable: ${error instanceof Error ? error.message : String(error)}`,
       );

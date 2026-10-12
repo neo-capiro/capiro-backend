@@ -8,8 +8,6 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
-const prisma = new PrismaClient();
-
 const MODEL = 'gpt-6-astra';
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
@@ -70,19 +68,21 @@ async function callOpenAi(prompt: string): Promise<string> {
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(prepareOpenAiResponsesRequest({
-      model: MODEL,
-      instructions: SYSTEM_PROMPT,
-      input: prompt,
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'daily_briefing',
-          strict: true,
-          schema: DAILY_BRIEFING_SCHEMA,
+    body: JSON.stringify(
+      prepareOpenAiResponsesRequest({
+        model: MODEL,
+        instructions: SYSTEM_PROMPT,
+        input: prompt,
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'daily_briefing',
+            strict: true,
+            schema: DAILY_BRIEFING_SCHEMA,
+          },
         },
-      },
-    })),
+      }),
+    ),
   });
   const json = (await res.json()) as Record<string, unknown>;
   if (!res.ok) throw new Error(`OpenAI error: ${JSON.stringify(json).slice(0, 200)}`);
@@ -102,6 +102,7 @@ async function callOpenAi(prompt: string): Promise<string> {
 }
 
 async function generateBriefingForClient(
+  prisma: PrismaClient,
   clientId: string,
   clientName: string,
   tenantId: string,
@@ -234,25 +235,31 @@ Return structured JSON with heroSummary, whatsNew, whatsComing, and suggestedAct
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/generate-briefings.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   if (!OPENAI_KEY) {
     console.error('[generate-briefings] OPENAI_API_KEY not set, aborting');
     process.exit(1);
   }
 
-  const startedAt = new Date();
-  console.log(`[generate-briefings] starting at ${startedAt.toISOString()}`);
+  const prisma = new PrismaClient();
+  try {
+    const startedAt = new Date();
+    console.log(`[generate-briefings] starting at ${startedAt.toISOString()}`);
 
-  const tenants = await prisma.$queryRaw<Array<{ id: string; slug: string }>>`
+    const tenants = await prisma.$queryRaw<Array<{ id: string; slug: string }>>`
     SELECT id, slug FROM tenants WHERE status = 'active'
   `;
-  console.log(`[generate-briefings] ${tenants.length} active tenants`);
+    console.log(`[generate-briefings] ${tenants.length} active tenants`);
 
-  let generated = 0;
-  let errors = 0;
+    let generated = 0;
+    let errors = 0;
 
-  for (const tenant of tenants) {
-    // Get active clients with at least one confirmed LDA mapping
-    const clients = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+    for (const tenant of tenants) {
+      // Get active clients with at least one confirmed LDA mapping
+      const clients = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
       SELECT DISTINCT c.id, c.name
       FROM clients c
       JOIN client_intel_mapping m ON m.client_id = c.id AND m.source = 'lda' AND m.confirmed = true
@@ -260,64 +267,67 @@ async function main() {
         AND c.profile_status = 'ACTIVE'
     `;
 
-    console.log(`[generate-briefings] tenant=${tenant.slug}, ${clients.length} clients to brief`);
+      console.log(`[generate-briefings] tenant=${tenant.slug}, ${clients.length} clients to brief`);
 
-    for (const client of clients) {
-      const t0 = Date.now();
-      try {
-        const text = await generateBriefingForClient(client.id, client.name, tenant.id);
-        if (!text) {
-          errors++;
-          continue;
-        }
-
-        let parsed: Record<string, unknown>;
+      for (const client of clients) {
+        const t0 = Date.now();
         try {
-          parsed = JSON.parse(text) as Record<string, unknown>;
-        } catch {
-          const match = text.match(/\{[\s\S]*\}/);
-          if (!match) {
+          const text = await generateBriefingForClient(prisma, client.id, client.name, tenant.id);
+          if (!text) {
             errors++;
             continue;
           }
-          parsed = JSON.parse(match[0]) as Record<string, unknown>;
+
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(text) as Record<string, unknown>;
+          } catch {
+            const match = text.match(/\{[\s\S]*\}/);
+            if (!match) {
+              errors++;
+              continue;
+            }
+            parsed = JSON.parse(match[0]) as Record<string, unknown>;
+          }
+
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+          await prisma.intelligenceInsight.create({
+            data: {
+              // GAI-01: a per-client briefing is tenant-derived — scope it to the
+              // tenant/client so it is never served cross-tenant. (Previously this
+              // row carried NO tenant marker at all, which is why the migration
+              // soft-expires historical 'briefing' rows rather than backfilling.)
+              tenantId: tenant.id,
+              clientId: client.id,
+              category: 'briefing',
+              title: `Daily briefing: ${client.name}`,
+              body: typeof parsed.heroSummary === 'string' ? parsed.heroSummary : '',
+              severity: 'info',
+              dataPoints: parsed as Record<string, unknown>,
+              expiresAt,
+            },
+          });
+
+          generated++;
+          console.log(`[generate-briefings] ${client.name}, done in ${Date.now() - t0}ms`);
+        } catch (err) {
+          errors++;
+          console.error(`[generate-briefings] ${client.name}, error:`, err);
         }
-
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-        await prisma.intelligenceInsight.create({
-          data: {
-            // GAI-01: a per-client briefing is tenant-derived — scope it to the
-            // tenant/client so it is never served cross-tenant. (Previously this
-            // row carried NO tenant marker at all, which is why the migration
-            // soft-expires historical 'briefing' rows rather than backfilling.)
-            tenantId: tenant.id,
-            clientId: client.id,
-            category: 'briefing',
-            title: `Daily briefing: ${client.name}`,
-            body: typeof parsed.heroSummary === 'string' ? parsed.heroSummary : '',
-            severity: 'info',
-            dataPoints: parsed as Record<string, unknown>,
-            expiresAt,
-          },
-        });
-
-        generated++;
-        console.log(`[generate-briefings] ${client.name}, done in ${Date.now() - t0}ms`);
-      } catch (err) {
-        errors++;
-        console.error(`[generate-briefings] ${client.name}, error:`, err);
       }
     }
-  }
 
-  console.log(
-    `[generate-briefings] done. Generated ${generated} briefings, ${errors} errors. Elapsed: ${Date.now() - startedAt.getTime()}ms`,
-  );
+    console.log(
+      `[generate-briefings] done. Generated ${generated} briefings, ${errors} errors. Elapsed: ${Date.now() - startedAt.getTime()}ms`,
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

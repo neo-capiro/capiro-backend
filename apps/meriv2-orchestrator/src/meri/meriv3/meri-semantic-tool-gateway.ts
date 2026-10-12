@@ -201,10 +201,18 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
   },
   {
     pattern: /\b(?:remember|memory|forget|forgot|correct what you remember|still right)\b/i,
-    tools: ['search_memory', 'list_memory_proposals', 'save_memory', 'confirm_memory', 'correct_memory', 'forget_memory'],
+    tools: [
+      'search_memory',
+      'list_memory_proposals',
+      'save_memory',
+      'confirm_memory',
+      'correct_memory',
+      'forget_memory',
+    ],
   },
   {
-    pattern: /\b(?:prefers?|preferences?|pending\s+(?:memory|proposal)|proposed\s+memor(?:y|ies))\b/i,
+    pattern:
+      /\b(?:prefers?|preferences?|pending\s+(?:memory|proposal)|proposed\s+memor(?:y|ies))\b/i,
     tools: ['search_memory', 'list_memory_proposals'],
   },
   {

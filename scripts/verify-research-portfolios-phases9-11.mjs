@@ -1,5 +1,9 @@
+/** @cleanup-smoke noArgsExit=0 */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+console.error('Usage: node scripts/verify-research-portfolios-phases9-11.mjs (no arguments run the verifier)');
+if (process.argv.length > 2) process.exit(2);
 
 const root = process.cwd();
 const failures = [];

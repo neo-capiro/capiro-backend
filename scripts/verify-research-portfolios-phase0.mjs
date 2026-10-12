@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+console.error('Usage: node scripts/verify-research-portfolios-phase0.mjs (no arguments runs the existing verifier)');
 const root = process.cwd();
 const artifactRoot = join(root, 'docs/defense-budget/research-portfolios/phase-0');
 

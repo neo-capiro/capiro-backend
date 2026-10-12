@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Reconcile MakeGov/Tango webhook alert subscriptions — Funding Opportunities P47.
  *
@@ -304,6 +305,9 @@ async function main(): Promise<void> {
   const gateway = new TangoGatewayService() as unknown as TangoGateway;
 
   const outcome = await reconcile(gateway, args);
+  if (!gateway.configured) {
+    console.error('Usage: reconcile-tango-webhook-alerts [--endpoint-id=<uuid>] [--commit --confirm-callback=<url>] (requires TANGO_API_KEY)');
+  }
   for (const line of outcome.lines) console.log(line);
   process.exitCode = outcome.exitCode;
 }

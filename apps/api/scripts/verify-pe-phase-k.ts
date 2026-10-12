@@ -1,4 +1,5 @@
 /**
+ * @cleanup-smoke noArgsExit=0 helpExit=0
  * Phase K permanent release gate (DB-free core).
  *
  * Chains static proofs that do not require a shared database:
@@ -25,6 +26,20 @@ import {
 } from '../src/intelligence/metrics/accuracy-metrics.js';
 import { PE_PRODUCTION_SCRIPTS } from './lib/pe-production-scripts.js';
 import { evaluatePeTrustDiagnostics } from './lib/pe-trust-diagnostics.js';
+
+const USAGE = 'Usage: tsx scripts/verify-pe-phase-k.ts [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+console.error(USAGE);
 
 function apiRoot(): string {
   const cwd = process.cwd().replace(/\\/g, '/');

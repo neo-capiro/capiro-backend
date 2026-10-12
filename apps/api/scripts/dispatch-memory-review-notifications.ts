@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Drain a bounded batch of Memory Review notification obligations into the
  * recipient-scoped in-app notification table.
@@ -48,6 +49,11 @@ async function loadNest(): Promise<{
 
 async function main(): Promise<void> {
   const limit = parseLimit();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: dispatch-memory-review-notifications [--limit <1-200>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, MemoryReviewNotificationDispatcherService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule as never, {
     logger: ['warn', 'error'],

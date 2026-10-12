@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname, relative, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -8,9 +9,26 @@ const object = (v: unknown) =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 /** Operator-reviewed public source manifest. Exact original bytes are retained
  * by API; dry run is the default. This does not promote any private tracking. */
-export async function importPhase8Manifest(prisma: PrismaClient, path: string, apply = false) {
+type Phase8Envelope = { file: string; manifest: Record<string, unknown> };
+type Phase8Execution =
+  | (Phase8Envelope & { kind: 'database_free'; apply: false })
+  | (Phase8Envelope & { kind: 'database_required'; apply: boolean; prisma: PrismaClient });
+
+async function preparePhase8Envelope(path: string): Promise<Phase8Envelope> {
   const file = resolve(path),
     manifest = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
+  return { file, manifest };
+}
+
+/** The caller retains ownership of the injected client. */
+export async function importPhase8Manifest(prisma: PrismaClient, path: string, apply = false) {
+  const envelope = await preparePhase8Envelope(path);
+  return executePhase8Manifest({ ...envelope, kind: 'database_required', prisma, apply });
+}
+
+async function executePhase8Manifest(execution: Phase8Execution) {
+  const { file, manifest, apply } = execution;
+
   if (manifest.schema !== 'legiwatch.phase8.sources.v1')
     throw Error('TYPED_PHASE8_MANIFEST_REQUIRED');
   const documents = Array.isArray(manifest.documents) ? manifest.documents.map(object) : [],
@@ -92,7 +110,9 @@ export async function importPhase8Manifest(prisma: PrismaClient, path: string, a
   // A name resemblance is not a crosswalk. A reviewed mapping must name an
   // existing Florida directory identity and its exact retained official URL.
   const personMappings = new Map<string, { id: string; url: string }>();
-  for (const person of people) {
+  if (execution.kind === 'database_required') {
+    const prisma = execution.prisma;
+for (const person of people) {
     if (!person.canonicalPersonId) continue;
     const member = await prisma.stateLegislator.findUnique({
         where: { id: String(person.canonicalPersonId) },
@@ -112,6 +132,7 @@ export async function importPhase8Manifest(prisma: PrismaClient, path: string, a
       id: member.id,
       url: '/directory/state-legislators/' + encodeURIComponent(member.id),
     });
+  }
   }
   const events = Array.isArray(manifest.events) ? manifest.events.map(object) : [];
   if (events.length > 10000) throw Error('EVENT_MANIFEST_LIMIT');
@@ -146,6 +167,8 @@ export async function importPhase8Manifest(prisma: PrismaClient, path: string, a
     publishers: coverage.length,
   };
   if (!apply) return { mode: 'dry_run', ...counts };
+  if (execution.kind !== 'database_required') throw Error('PHASE8_DATABASE_DEPENDENCY_REQUIRED');
+  const prisma = execution.prisma;
   await prisma.$transaction(
     async (tx) => {
       for (const r of receipts)
@@ -173,16 +196,39 @@ export async function importPhase8Manifest(prisma: PrismaClient, path: string, a
     { timeout: 120000 },
   );
   return { mode: 'applied', ...counts };
+
+}
+
+async function main(): Promise<void> {
+  const path = process.argv.find((a) => a.startsWith('--manifest='))?.slice(11);
+  if (!path) throw Error('Usage: --manifest=exact-source-manifest.json required');
+  if (process.argv.includes('--apply') && !process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-legiwatch-phase8.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+  const envelope = await preparePhase8Envelope(path);
+  const apply = process.argv.includes('--apply');
+  const people = Array.isArray(envelope.manifest.personnel) ? envelope.manifest.personnel.map(object) : [];
+  if (!apply && !people.some((person) => person.canonicalPersonId)) {
+    const result = await executePhase8Manifest({ ...envelope, kind: 'database_free', apply: false });
+    console.log(JSON.stringify(result));
+    return;
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-legiwatch-phase8.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const result = await executePhase8Manifest({ ...envelope, kind: 'database_required', prisma, apply });
+    console.log(JSON.stringify(result));
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 if (require.main === module) {
-  const path = process.argv.find((a) => a.startsWith('--manifest='))?.slice(11);
-  if (!path) throw Error('--manifest=exact-source-manifest.json required');
-  const prisma = new PrismaClient();
-  importPhase8Manifest(prisma, path, process.argv.includes('--apply'))
-    .then((result) => console.log(JSON.stringify(result)))
-    .catch((e) => {
-      console.error(e.message);
-      process.exitCode = 1;
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e.message);
+    process.exitCode = 1;
+  });
 }

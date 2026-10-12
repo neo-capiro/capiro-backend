@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Crawl service leadership/org-chart pages with Firecrawl and extract
  * candidate acquisition personnel records + headshot URLs (if available).
@@ -500,6 +501,7 @@ async function uploadMarkdownToS3(s3: S3Client, bucket: string, key: string, bod
 
 async function main() {
   if (!FIRECRAWL_API_KEY.trim()) {
+    console.error('Usage: sync-dod-orgcharts (requires FIRECRAWL_API_KEY)');
     throw new Error('FIRECRAWL_API_KEY env var is required');
   }
 

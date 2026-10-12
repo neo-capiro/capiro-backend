@@ -22,6 +22,10 @@ import { boolFlag, numFlag } from './lib/job-flags.js';
 dotenvConfig();
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/enrich-committee-hearings.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   const dryRun = boolFlag('dry-run');
   try {

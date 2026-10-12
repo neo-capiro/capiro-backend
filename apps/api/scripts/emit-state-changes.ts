@@ -22,7 +22,7 @@ import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 
 const MATERIAL_STATUSES = [
   'passed_chamber',
@@ -53,7 +53,7 @@ interface MaterialBill {
 }
 
 /** apps/api-side equivalent of withSystem for a plain PrismaClient script (sync-congress.ts precedent). */
-async function readIntelCrossTenant<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function readIntelCrossTenant<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
     return fn(tx as unknown as PrismaClient);
@@ -74,7 +74,14 @@ export const MATERIAL_BILLS_QUERY = `SELECT id, state, identifier, status, statu
           AND status = ANY($2::text[])`;
 
 async function main() {
-  await runWithSyncRun(prisma as never, 'emit-state-changes', async (ctx) => {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-state-changes.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'emit-state-changes', async (ctx) => {
     const since = ctx.since ?? new Date(0);
     let emitted = 0;
     let skipped = 0;
@@ -91,7 +98,7 @@ async function main() {
     }
 
     const billKeys = bills.map((b) => b.id);
-    const relatedByBill = await readIntelCrossTenant(async (tx) => {
+    const relatedByBill = await readIntelCrossTenant(prisma, async (tx) => {
       const tracked = await tx.$queryRawUnsafe<Array<{ bill_id: string; client_id: string }>>(
         `SELECT bill_id, client_id FROM intel_tracked_bill WHERE source = 'state' AND bill_id = ANY($1::text[])`,
         billKeys,
@@ -152,13 +159,15 @@ async function main() {
     );
     return { inserted: emitted, updated: 0, skipped, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

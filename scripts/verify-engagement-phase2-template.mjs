@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 2 template safety verifier.
  *
@@ -92,6 +93,7 @@ const WILDCARD_ALLOWLIST = [
 
 const files = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 if (files.length === 0) {
+  console.error('Usage: node scripts/verify-engagement-phase2-template.mjs <template.json> [...]');
   console.error('ERROR usage: verify-engagement-phase2-template.mjs <template.json> [...]');
   process.exit(1);
 }
@@ -142,7 +144,9 @@ for (const file of files) {
   for (const [id, resource] of entries) {
     if (!['AWS::ECR::Repository', 'AWS::Logs::LogGroup'].includes(resource.Type)) continue;
     if (resource.DeletionPolicy !== 'Retain') {
-      fail(`${resource.Type} (${id}) has DeletionPolicy ${resource.DeletionPolicy}, expected Retain`);
+      fail(
+        `${resource.Type} (${id}) has DeletionPolicy ${resource.DeletionPolicy}, expected Retain`,
+      );
     }
   }
 
@@ -208,9 +212,7 @@ for (const file of files) {
       if (/migrate|prisma|seed/i.test(command)) fail(`container ${name} runs a migration command`);
       if (container.EntryPoint) fail(`container ${name} overrides the image entrypoint`);
 
-      const env = Object.fromEntries(
-        (container.Environment ?? []).map((e) => [e.Name, e.Value]),
-      );
+      const env = Object.fromEntries((container.Environment ?? []).map((e) => [e.Name, e.Value]));
 
       for (const [key, expected] of Object.entries(EXACT_SHADOW_ENV)) {
         if (env[key] !== expected) {
@@ -281,8 +283,10 @@ for (const file of files) {
           if (/^s3:(Put|Delete|Abort|Restore)/.test(action)) fail(`IAM ${id} allows ${action}`);
           if (/^s3:\*$/.test(action)) fail(`IAM ${id} allows s3:*`);
           if (/^ses:/i.test(action)) fail(`IAM ${id} allows a send action ${action}`);
-          if (/^elasticloadbalancing:/i.test(action)) fail(`IAM ${id} allows routing mutation ${action}`);
-          if (/^ecs:(Update|Create|Delete|Register)/i.test(action)) fail(`IAM ${id} allows ${action}`);
+          if (/^elasticloadbalancing:/i.test(action))
+            fail(`IAM ${id} allows routing mutation ${action}`);
+          if (/^ecs:(Update|Create|Delete|Register)/i.test(action))
+            fail(`IAM ${id} allows ${action}`);
           if (/^iam:/i.test(action)) fail(`IAM ${id} allows ${action}`);
           if (/^secretsmanager:(Put|Update|Delete|Create)/i.test(action)) {
             fail(`IAM ${id} allows secret mutation ${action}`);

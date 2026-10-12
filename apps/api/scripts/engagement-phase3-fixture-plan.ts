@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * Engagement Phase 3 parity fixtures — the declarative plan.
  *
@@ -2724,4 +2725,15 @@ export function buildFixtureContract(plan: FixturePlan): Record<string, unknown>
       absentIds: plan.absentIds,
     },
   };
+}
+
+if (require.main === module) {
+  const usage = 'Usage: engagement-phase3-fixture-plan [--help] (library module)';
+  const args = process.argv.slice(2);
+  if (args.length === 0 || (args.length === 1 && args[0] === '--help')) {
+    console.log(usage);
+  } else {
+    console.error(usage);
+    process.exitCode = 2;
+  }
 }

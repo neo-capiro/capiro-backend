@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Entity resolution as a one-shot Fargate task (async, off the HTTP path).
  *   pnpm --filter @capiro/api sync:entity-resolution
@@ -47,11 +48,16 @@ async function loadNest(): Promise<{
   throw new Error('Could not load AppModule from dist or src');
 }
 
-const { values: args } = parseArgs({
-  options: { tenant: { type: 'string' } },
-});
-
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: sync-entity-resolution [--tenant <uuid>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
+  const { values: args } = parseArgs({
+    options: { tenant: { type: 'string' } },
+  });
+
   const logger = new Logger('sync-entity-resolution');
   const { AppModule, EntityResolutionService, PrismaService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, {

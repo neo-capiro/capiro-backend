@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * High-yield DoD personnel extraction from press/news archives using Firecrawl map+scrape.
  *
@@ -184,7 +185,10 @@ function scoreNewsUrl(url: string): number {
 }
 
 async function main() {
-  if (!FIRECRAWL_API_KEY.trim()) throw new Error('FIRECRAWL_API_KEY env var is required');
+  if (!FIRECRAWL_API_KEY.trim()) {
+    console.error('Usage: sync-dod-press-personnel (requires FIRECRAWL_API_KEY)');
+    throw new Error('FIRECRAWL_API_KEY env var is required');
+  }
 
   const client = new FirecrawlClient(FIRECRAWL_API_KEY, FIRECRAWL_BASE_URL);
   const s3 = new S3Client({ region: AWS_REGION });

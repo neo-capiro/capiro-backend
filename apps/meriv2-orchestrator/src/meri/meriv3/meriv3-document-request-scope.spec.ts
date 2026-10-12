@@ -1,7 +1,10 @@
 import { meriDocumentRequestFor } from './meriv3-assistant.service.js';
 
 const fileAsk = [
-  { role: 'user' as const, text: 'List every action item from the uploaded transcript in the client files.' },
+  {
+    role: 'user' as const,
+    text: 'List every action item from the uploaded transcript in the client files.',
+  },
 ];
 
 describe('client-file read coordination applies to ordinary chat turns only', () => {

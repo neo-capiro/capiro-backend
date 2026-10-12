@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Workstream N2 — Review defense-budget verification V1.
  *
@@ -99,6 +100,7 @@ function parseArgs(argv: string[]): ReviewArgs {
     const arg = argv[i];
     if (arg === undefined) break;
     if (!KNOWN_FLAGS.has(arg)) {
+      console.error('Usage: review-defense-budget-verification-v1 --candidate-id <uuid> --run-id <uuid> --reviewer-id <id> --decision accept|reject --notes-file <path> --expected-source-sha256 <sha> --expected-artifact-sha256 <sha> --expected-manifest-sha256 <sha> [--commit]');
       console.error(`Unknown flag: ${arg}`);
       process.exit(EXIT_ERROR);
     }
@@ -152,6 +154,7 @@ function parseArgs(argv: string[]): ReviewArgs {
 
   // Validate required args
   if (!args.candidateId) {
+    console.error('Usage: review-defense-budget-verification-v1 --candidate-id <uuid> --run-id <uuid> --reviewer-id <id> --decision accept|reject --notes-file <path> --expected-source-sha256 <sha> --expected-artifact-sha256 <sha> --expected-manifest-sha256 <sha> [--commit]');
     console.error('Missing --candidate-id');
     process.exit(EXIT_ERROR);
   }

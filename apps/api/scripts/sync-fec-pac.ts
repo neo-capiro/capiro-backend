@@ -12,6 +12,10 @@ import { syncPacCycle } from './fec-pac-sync.js';
 dotenvConfig();
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-fec-pac.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const key = process.env.FEC_API_KEY;
   if (!key) throw new Error('FEC_API_KEY env var is required');
   const prisma = new PrismaClient();
@@ -53,7 +57,9 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 main().catch((error) => {
   console.error('[fec-pac-sync] FAILED', error);
   process.exit(1);
 });
+}

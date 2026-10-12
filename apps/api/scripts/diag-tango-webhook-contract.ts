@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Verify P46's webhook assumptions against the provider's OWN sample delivery.
  *
@@ -178,6 +179,9 @@ async function main(): Promise<void> {
   const { TangoGatewayService } = await import('../src/external/tango/tango.client.js');
   const gateway = new TangoGatewayService() as unknown as TangoGateway;
   const result = await probe(gateway, args);
+  if (result.exitCode === EXIT_NOT_CONFIGURED) {
+    console.error('Usage: diag-tango-webhook-contract [--event-type=<type>] [--json] (requires TANGO_API_KEY)');
+  }
   for (const line of result.lines) console.log(line);
   process.exitCode = result.exitCode;
 }

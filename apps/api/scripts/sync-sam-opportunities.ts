@@ -1092,6 +1092,7 @@ export async function prepareOpportunity(
 }
 
 async function main(): Promise<void> {
+
   const parsed = parseSamSyncArgs(process.argv.slice(2));
   const { commit, backfill, matchOnly, scope, skipDescriptions } = parsed;
 
@@ -1350,6 +1351,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-sam-opportunities.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((err) => {
     console.error('[sam-opportunities] FAILED', err);
     process.exit(1);

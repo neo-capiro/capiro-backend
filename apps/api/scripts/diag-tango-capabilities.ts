@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Read-only Tango (MakeGov) CAPABILITY AND TIER PROBE (Funding Opportunities P17).
  *
@@ -138,6 +139,7 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2), process.env);
 
   if (!args.apiKey) {
+    console.error('Usage: diag-tango-capabilities [--uei=<uei>] [--vehicle-uuid=<uuid>] [--request-ceiling=<n>] (requires TANGO_API_KEY or --api-key)');
     console.error(
       'TANGO_PROBE_ERR No API key available. Set TANGO_API_KEY in the environment ' +
         '(the same variable Secrets Manager injects into the sync-job task) or pass --api-key=... ' +

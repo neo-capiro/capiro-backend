@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 7 Workstream E — end-to-end engine rehearsal against a real database.
  *
@@ -61,6 +62,13 @@ import { ProgramElementReadService } from '../src/program-element/program-elemen
 import { TenantContextStore } from '../src/tenant/tenant-context.store.js';
 import type { TenantContext } from '@capiro/shared';
 
+async function main(): Promise<void> {
+  if (!process.env.ADMIN_DATABASE_URL || !process.env.PROMOTER_DATABASE_URL || !process.env.APP_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/pe-budget-phase7-engine-rehearsal.ts requires ADMIN_DATABASE_URL, PROMOTER_DATABASE_URL, APP_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
+  class RehearsalFailure extends Error {}
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const PROMOTER_URL = required('PROMOTER_DATABASE_URL');
 const APP_URL = required('APP_DATABASE_URL');
@@ -89,7 +97,7 @@ function ok(message: string): void {
 }
 function fail(message: string): never {
   console.error(`[p7-engine] FAILED: ${message}`);
-  process.exit(1);
+  throw new RehearsalFailure(message);
 }
 function check(condition: boolean, message: string): void {
   if (!condition) fail(message);
@@ -294,10 +302,13 @@ function normalizeDecimal(value: string): string {
   return trimmed === '' || trimmed === '-' ? '0' : trimmed;
 }
 
-async function main(): Promise<void> {
+
   const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
+  try {
   const promoter = new PrismaClient({ datasources: { db: { url: PROMOTER_URL } } });
+  try {
   const app = new PrismaClient({ datasources: { db: { url: APP_URL } } });
+  try {
 
   const auditEntries: PromotionAuditEntryV1[] = [];
   const persistedAudit = new PrismaPromotionAuditSinkV1(promoter.defenseBudgetPromotionAudit);
@@ -308,7 +319,7 @@ async function main(): Promise<void> {
     },
   };
 
-  try {
+
     /* ---- Seed verified O&M projections and the promotion ledger ---- */
     // om_sag_year carries a foreign key to source_document; the projection is
     // proof-bound, so there is no way to seed a funding row without its source.
@@ -804,13 +815,23 @@ async function main(): Promise<void> {
       '[p7-engine] NOT_RUN: authenticated HTTP, deployed API restart, AWS/production DB rollback, real customer/source/notification activity, commercial activation',
     );
     console.log(`[p7-engine] ENGINE REHEARSAL PASSED — ${passed} checks`);
+
   } finally {
-    await admin.$disconnect().catch(() => undefined);
+    await app.$disconnect();
+  }
+  } finally {
     await promoter.$disconnect().catch(() => undefined);
   }
-}
+  } finally {
+    await admin.$disconnect().catch(() => undefined);
+  }
 
+
+
+}
+if (require.main === module) {
 main().catch((error) => {
   console.error('[p7-engine] FAILED:', error);
   process.exit(1);
 });
+}

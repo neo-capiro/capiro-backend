@@ -199,6 +199,7 @@ function realWriteStatus(prisma: PrismaClient): TextSyncDeps['writeStatus'] {
 }
 
 async function main(): Promise<void> {
+
   const args = parseArgs(process.argv.slice(2));
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -223,6 +224,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-tango-opportunity-text.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error: unknown) => {
     console.error('FO_TEXT_SYNC_ERR', error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

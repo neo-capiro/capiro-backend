@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * compare-defense-budget-canonical-reads-v1 (Phase 7 Workstream N) — read-only.
  *
@@ -66,6 +67,7 @@ function gitSha(): string {
 }
 
 function usage(message: string): never {
+  console.error('Usage: compare-defense-budget-canonical-reads-v1 --environment <environment> --pe-codes <comma-separated-codes>');
   console.error(`compare-defense-budget-canonical-reads-v1: ${message}`);
   process.exit(2);
 }

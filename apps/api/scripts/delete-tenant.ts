@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 */
 /**
  * Delete tenant(s) by slug/name match. DESTRUCTIVE: a tenant delete cascades
  * to all of that tenant's data via the ON DELETE CASCADE foreign keys.
@@ -15,7 +16,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 
 async function main() {
   const args = process.argv.slice(2);
@@ -23,11 +24,17 @@ async function main() {
   const terms = args.filter((a) => a !== '--commit').map((t) => t.trim().toLowerCase()).filter(Boolean);
 
   if (terms.length === 0) {
-    console.log('[delete-tenant] No search terms provided. Nothing to do.');
+    console.log('Usage: delete-tenant [--commit] <search term> [...terms]. No search terms provided. Nothing to do.');
     return;
   }
 
-  const all = await prisma.tenant.findMany({
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/delete-tenant.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const all = await prisma.tenant.findMany({
     select: { id: true, slug: true, name: true, clerkOrgId: true },
   });
   const matched = all.filter((t) =>
@@ -60,11 +67,15 @@ async function main() {
     }
   }
   console.log(`[delete-tenant] done. Deleted ${deleted}/${matched.length}.`);
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+    process.exitCode = 1;
+  });
+}

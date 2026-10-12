@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 10B-35 -- revoke an active scoped fact review decision.
  *
@@ -39,6 +40,7 @@ function parseArgs(argv: string[]) {
     const arg = argv[i];
     if (arg === undefined) break;
     if (!KNOWN_FLAGS.has(arg)) {
+      console.error('Usage: revoke-defense-budget-scoped-fact-v1 --id <uuid> --actor <id> --reason-file <path> [--commit]');
       console.error(`Unknown flag: ${arg}`);
       process.exit(EXIT_ERROR);
     }
@@ -48,6 +50,7 @@ function parseArgs(argv: string[]) {
   const need = (flag: string): string => {
     const v = raw[flag];
     if (typeof v !== 'string' || v.length === 0) {
+      console.error('Usage: revoke-defense-budget-scoped-fact-v1 --id <uuid> --actor <id> --reason-file <path> [--commit]');
       console.error(`Missing ${flag}`);
       process.exit(EXIT_ERROR);
     }

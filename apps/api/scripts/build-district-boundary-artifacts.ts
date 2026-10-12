@@ -340,6 +340,10 @@ function railRefusal(rail: RailResult, scopedToStates: boolean): string | null {
 
 async function main(): Promise<void> {
   dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/build-district-boundary-artifacts.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const options = parseArgs(process.argv);
 
   const bucket = process.env.DIRECTORY_S3_BUCKET ?? 'updated-directory-967807252336-us-east-1';

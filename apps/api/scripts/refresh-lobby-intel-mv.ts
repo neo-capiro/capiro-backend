@@ -13,6 +13,10 @@ import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/refresh-lobby-intel-mv.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   const t0 = Date.now();
   try {
@@ -30,7 +34,9 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('[refresh-lobby-intel] FAILED', err);
   process.exit(1);
 });
+}

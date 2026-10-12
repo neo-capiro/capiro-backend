@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { buildMeriRetrievalProductionReport } from '../src/meri/meri-retrieval-report.js';
@@ -23,6 +24,27 @@ function boundedInteger(name: string, fallback: number, min: number, max: number
 }
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/report-meri-retrieval-v2.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  for (let i = 0; i < args.length; i += 1) {
+    const option = args[i]!;
+    const equals = option.indexOf('=');
+    const flag = equals >= 0 ? option.slice(0, equals) : option;
+    if (!['--tenant-id', '--days', '--limit'].includes(flag) ||
+        (equals < 0 && (!args[i + 1] || args[i + 1]!.startsWith('--')))) {
+      console.error(usage);
+      process.exit(2);
+    }
+    if (equals < 0) i += 1;
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const tenantId = arg('tenant-id');
   if (!tenantId || !UUID_RE.test(tenantId)) {
     throw new Error('A valid --tenant-id UUID is required. This report never scans tenants globally.');
@@ -66,8 +88,10 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`Meri retrieval report failed: ${message}\n`);
   process.exitCode = 1;
 });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * SAM gov-id backfill as a one-shot Fargate task.
  *
@@ -50,26 +51,30 @@ async function loadNest(): Promise<{
   throw new Error('Could not load AppModule from dist or src');
 }
 
-const { values: args } = parseArgs({
-  options: {
-    tenant: { type: 'string' },
-    commit: { type: 'boolean', default: false },
-    delay: { type: 'string' },
-  },
-});
-
-// Guard --tenant to a well-formed UUID so an invalid value fails loudly instead
-// of silently resolving to "0 clients" (RLS would block a bad id, masking typos).
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-if (args.tenant && !UUID_RE.test(args.tenant)) {
-  console.error('[fill-govids-all] --tenant must be a valid UUID');
-  process.exit(1);
-}
-
 async function main(): Promise<void> {
+  const { values: args } = parseArgs({
+    options: {
+      tenant: { type: 'string' },
+      commit: { type: 'boolean', default: false },
+      delay: { type: 'string' },
+    },
+  });
+
+  // Guard --tenant to a well-formed UUID so an invalid value fails loudly instead
+  // of silently resolving to "0 clients" (RLS would block a bad id, masking typos).
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (args.tenant && !UUID_RE.test(args.tenant)) {
+    console.error('[fill-govids-all] --tenant must be a valid UUID');
+    process.exit(1);
+  }
   const logger = new Logger('fill-govids-all');
   const commit = args.commit === true;
   const delayMs = args.delay ? Number(args.delay) : 300;
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: fill-govids-all [--tenant <uuid>] [--commit] [--delay <ms>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, SamEntityEnrichmentService, PrismaService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],

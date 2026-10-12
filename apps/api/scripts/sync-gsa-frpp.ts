@@ -52,6 +52,10 @@ function sha256FileStreaming(filePath: string): Promise<string> {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-gsa-frpp.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const filePath = arg('file');
   const fy = Number(arg('fy'));
   const sourceUrl = arg('source-url') ?? null;
@@ -148,7 +152,9 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+}

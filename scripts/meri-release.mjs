@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /** Explicit, one-service production promotion. Importing this module never calls AWS. */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -512,6 +513,17 @@ export async function persistReceipt(file, value, io = { open, rename, rm }) {
 }
 
 async function cli() {
+  const usage = 'Usage: node scripts/meri-release.mjs --action inspect|prepare|promote|rollback --service api|workspace|orchestrator [required action options]';
+  const argv = process.argv.slice(2);
+  if (argv.length === 1 && argv[0] === '--help') {
+    console.log(usage);
+    return;
+  }
+  if (argv.length === 0) {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
   const args = parseArgs(process.argv.slice(2));
   const input =
     args.action === 'inspect'

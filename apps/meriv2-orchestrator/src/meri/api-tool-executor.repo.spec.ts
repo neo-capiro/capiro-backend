@@ -81,19 +81,29 @@ const CTX = {} as unknown as MeriContext;
 
 describe('ApiToolExecutorRepo — canonical mail read defaults', () => {
   const payload = {
-    totalMatches: 0, returned: 0, hasMore: false, messages: [],
+    totalMatches: 0,
+    returned: 0,
+    hasMore: false,
+    messages: [],
     searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
   };
   async function request(tool: string, input: Record<string, unknown>, status = 200) {
-    const fetchMock = jest.fn().mockImplementation(async () =>
-      new Response(JSON.stringify(status === 200 ? payload : { statusCode: status }), { status }),
-    );
+    const fetchMock = jest
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify(status === 200 ? payload : { statusCode: status }), {
+            status,
+          }),
+      );
     global.fetch = fetchMock;
     const deadlineAt = Date.now() + 30_000;
-    const repo = new ApiToolExecutorRepo(cfg({
-      MERIV2_API_BASE_URL: 'https://api.example.test/',
-      INTERNAL_SERVICE_SECRET: 'test-service-secret',
-    }));
+    const repo = new ApiToolExecutorRepo(
+      cfg({
+        MERIV2_API_BASE_URL: 'https://api.example.test/',
+        INTERNAL_SERVICE_SECRET: 'test-service-secret',
+      }),
+    );
     const call = RequestCredentialsStore.run({ bearerToken: 'test-user-bearer' }, () =>
       withTrustedCurrentTurnScope(currentTurn, () =>
         repo.execute(CTX, tool, input, { deadlineAt }),
@@ -108,53 +118,73 @@ describe('ApiToolExecutorRepo — canonical mail read defaults', () => {
     expect(init.headers).toMatchObject({
       authorization: 'Bearer test-user-bearer',
       'x-internal-service-secret': 'test-service-secret',
-      'content-type': 'application/json', accept: 'application/json',
+      'content-type': 'application/json',
+      accept: 'application/json',
       'x-meri-deadline-at': String(deadlineAt),
     });
     expect(init.signal).toBeInstanceOf(AbortSignal);
     return JSON.parse(init.body as string);
   }
 
-  test.each(['list_emails', 'search_emails'])('%s expands only omitted/null owner defaults', async (tool) => {
-    for (const input of [
-      { limit: 1 },
-      { limit: 1, folder: null, offset: null },
-      { limit: 1, folder: 'inbox' },
-      { limit: 1, offset: 2, asOf: '2026-09-07T12:00:00.000Z' },
-    ]) {
-      const original = structuredClone(input);
-      Object.freeze(input);
-      expect(await request(tool, input)).toEqual({
-        ...original, folder: original.folder ?? 'all', offset: original.offset ?? 0,
-      });
-      expect(input).toEqual(original);
-    }
-  });
+  test.each(['list_emails', 'search_emails'])(
+    '%s expands only omitted/null owner defaults',
+    async (tool) => {
+      for (const input of [
+        { limit: 1 },
+        { limit: 1, folder: null, offset: null },
+        { limit: 1, folder: 'inbox' },
+        { limit: 1, offset: 2, asOf: '2026-09-07T12:00:00.000Z' },
+      ]) {
+        const original = structuredClone(input);
+        Object.freeze(input);
+        expect(await request(tool, input)).toEqual({
+          ...original,
+          folder: original.folder ?? 'all',
+          offset: original.offset ?? 0,
+        });
+        expect(input).toEqual(original);
+      }
+    },
+  );
 
-  test.each(['list_emails', 'search_emails'])('%s preserves explicit values, literal text and client/date scope', async (tool) => {
-    for (const fields of [
-      { folder: 'sent', offset: 3 },
-      { folder: 'invalid-folder', offset: -1 },
-      { folder: false, offset: false },
-      { folder: '', offset: '0' },
-    ]) {
-      const input = Object.freeze({
-        ...fields, limit: 1, clientId: CLIENT, asOf: '2026-09-07T12:00:00.000Z',
-        withinDays: 365, query: 'SELECT * FROM notes LIMIT 1', from: 'null',
-        participant: 'literal_%\\text', unrelatedField: null,
-      });
-      expect(await request(tool, input)).toEqual(input);
-    }
-  });
+  test.each(['list_emails', 'search_emails'])(
+    '%s preserves explicit values, literal text and client/date scope',
+    async (tool) => {
+      for (const fields of [
+        { folder: 'sent', offset: 3 },
+        { folder: 'invalid-folder', offset: -1 },
+        { folder: false, offset: false },
+        { folder: '', offset: '0' },
+      ]) {
+        const input = Object.freeze({
+          ...fields,
+          limit: 1,
+          clientId: CLIENT,
+          asOf: '2026-09-07T12:00:00.000Z',
+          withinDays: 365,
+          query: 'SELECT * FROM notes LIMIT 1',
+          from: 'null',
+          participant: 'literal_%\\text',
+          unrelatedField: null,
+        });
+        expect(await request(tool, input)).toEqual(input);
+      }
+    },
+  );
 
-  test.each(['query_tasks', 'get_email_thread', 'save_note'])('%s retains its original payload', async (tool) => {
-    const input = Object.freeze({ limit: 1, folder: null, offset: null, clientId: CLIENT });
-    expect(await request(tool, input, 403)).toEqual(input);
-  });
+  test.each(['query_tasks', 'get_email_thread', 'save_note'])(
+    '%s retains its original payload',
+    async (tool) => {
+      const input = Object.freeze({ limit: 1, folder: null, offset: null, clientId: CLIENT });
+      expect(await request(tool, input, 403)).toEqual(input);
+    },
+  );
 
   it('preserves the single-attempt refusal path after expanding mail defaults', async () => {
     expect(await request('list_emails', Object.freeze({ limit: 1 }), 403)).toEqual({
-      limit: 1, folder: 'all', offset: 0,
+      limit: 1,
+      folder: 'all',
+      offset: 0,
     });
   });
 });

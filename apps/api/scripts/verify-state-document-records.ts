@@ -6,6 +6,11 @@ import type { PrismaService } from '../../intel-api/src/prisma/prisma.service.js
 // Disposable PostgreSQL acceptance for the actual repository query. All fixture
 // relations are temporary and disappear with this connection.
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/verify-state-document-records.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const url = new URL(process.env.DATABASE_URL ?? '');
   assert.equal(process.env.CAPIRO_DISPOSABLE_PG, '1');
   assert.ok(['localhost', '127.0.0.1'].includes(url.hostname));
@@ -60,4 +65,6 @@ async function main() {
     console.log('STATE_DOCUMENT_RECORDS_POSTGRES_PASS: analysis visibility, current revision, bill isolation, parameter binding, text deduplication, pagination');
   } finally { await db.$disconnect(); }
 }
+if (require.main === module) {
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Review ONE client profile enrichment candidate (Funding Opportunities P20).
  *
@@ -80,6 +81,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.mode === 'error') {
+    console.error('Usage: review-tango-enrichment-candidate --tenant=<uuid> (--list | --candidate=<uuid> (--accept | --reject) --reviewed-by=<id>)');
     console.error(`TANGO_REVIEW_ERR ${args.message}`);
     process.exitCode = 1;
     return;

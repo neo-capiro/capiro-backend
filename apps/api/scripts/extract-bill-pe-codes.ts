@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Step 21 — Bill text PE-code extraction.
  *
@@ -23,6 +24,11 @@ dotenvConfig();
 
 async function main(): Promise<void> {
   const fetchFullText = !process.argv.includes('--no-full-text');
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: extract-bill-pe-codes [--no-full-text] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   await prisma.$connect();
 

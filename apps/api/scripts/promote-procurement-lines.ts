@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * promote-procurement-lines — plan (and, when doubly authorized, apply)
  * canonical writes for PROCUREMENT budget line items with no Program Element

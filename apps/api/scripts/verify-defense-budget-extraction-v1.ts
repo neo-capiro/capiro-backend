@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=4 helpExit=0 */
 /**
  * Workstream N1 — Verify defense-budget extraction artifact V1.
  *
@@ -235,7 +236,18 @@ function loadReferenceDescriptors(referenceFile: string): ReferenceDescriptor[] 
 /* ------------------------------------------------------------------ */
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const usage = 'Usage: verify-defense-budget-extraction-v1 --manifest FILE --document KEY --artifact FILE --source-document-id UUID [--reference-file FILE] [--expected-source-sha256 SHA] [--expected-artifact-sha256 SHA] [--persist-audit]';
+  if (argv.length === 0) {
+    console.error('Missing --manifest');
+    console.error(usage);
+    process.exit(EXIT_ERROR);
+  }
+  if (argv.length === 1 && argv[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  const args = parseArgs(argv);
 
   // Verify files exist
   for (const [label, path] of [

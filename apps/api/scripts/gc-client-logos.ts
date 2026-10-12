@@ -364,6 +364,10 @@ export async function gcClientLogos(
 // ── Entrypoint ──────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/gc-client-logos.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const parsed = parseArgs(process.argv);
   const bucket = process.env.ASSETS_BUCKET?.trim();
   if (!bucket) {

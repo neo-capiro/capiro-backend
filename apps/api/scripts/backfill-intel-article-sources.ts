@@ -72,6 +72,10 @@ interface MislabelledRow {
 
 async function main() {
   dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-intel-article-sources.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
   const prisma = new PrismaClient();
   const slugByFeed = feedSlugMap();

@@ -26,7 +26,7 @@ import { deriveStateBillStatus, classifyStateVoteMotion, stateBillReplacement } 
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 
 const BATCH_SIZE = 5000;
 
@@ -281,7 +281,14 @@ export function buildStatusUpdateData(
 }
 
 async function main() {
-  await runWithSyncRun(prisma as never, 'derive-state-bill-status', async () => {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/derive-state-bill-status.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'derive-state-bill-status', async () => {
     let updated = 0;
     let skipped = 0;
     let errors = 0;
@@ -395,13 +402,15 @@ async function main() {
     );
     return { inserted: 0, updated, skipped, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

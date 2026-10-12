@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Read-only diagnostic for the client Intelligence tab (profile-v1 aggregate).
  *
@@ -43,14 +44,6 @@ async function loadNest(): Promise<{ AppModule: any; IntelligenceService: any; P
   throw new Error('Could not load AppModule from dist or src');
 }
 
-const { values: args } = parseArgs({
-  options: {
-    client: { type: 'string' },
-    tenant: { type: 'string' },
-    all: { type: 'boolean' }, // run every client in the tenant (latency sweep)
-  },
-});
-
 type SourceResult = { name: string; ms: number; ok: boolean; shape: string; error?: string };
 
 async function timeSource(
@@ -87,7 +80,19 @@ function describe(v: unknown): string {
 }
 
 async function main(): Promise<void> {
+  const { values: args } = parseArgs({
+    options: {
+      client: { type: 'string' },
+      tenant: { type: 'string' },
+      all: { type: 'boolean' }, // run every client in the tenant (latency sweep)
+    },
+  });
   const logger = new Logger('diag-profile-v1');
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: diag-profile-v1 [--client <uuid>] [--tenant <uuid>] [--all] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, IntelligenceService, PrismaService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn', 'log'] });
 

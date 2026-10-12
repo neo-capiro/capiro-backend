@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * LegiWatch Live Hearings — Phase 9 launch-readiness audit.
  *
@@ -16,8 +17,6 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module.js';
-import { LegiWatchPhase9ReadinessService } from '../src/live-hearings/phase9/legiwatch-phase9-readiness.service.js';
 import type {
   LegiWatchPhase9EvidenceSource,
   LegiWatchPhase9Mode,
@@ -33,6 +32,15 @@ async function main(): Promise<void> {
   const noFail = boolFlag('no-fail');
   const evidenceSource = evidenceSourceFlag();
   const mode = modeFlag();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: audit-hearing-coverage [--json] [--persist] [--no-fail] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
+  const [{ AppModule }, { LegiWatchPhase9ReadinessService }] = await Promise.all([
+    import('../src/app.module.js'),
+    import('../src/live-hearings/phase9/legiwatch-phase9-readiness.service.js'),
+  ]);
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });

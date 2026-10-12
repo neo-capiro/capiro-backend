@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 /**
  * Phase 8 Session 8 — live discovery domain gate.
  *
@@ -10,6 +11,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
+
+console.error('Usage: node scripts/test-phase8-session8-discovery-domain.mjs (no arguments run the domain gate)');
+if (process.argv.length > 2) process.exit(2);
 
 const require = createRequire(import.meta.url);
 const domain = require('../packages/defense-domain/dist/index.js');

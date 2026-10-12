@@ -172,11 +172,15 @@ export function describeMeriCase46ExportMismatch(
   const allowed = new Set(['title', 'format', 'sections', 'text', 'conversationId', 'clientId']);
   const reasons: string[] = [];
   const extra = Object.keys(input).filter((key) => !allowed.has(key));
-  if (extra.length) reasons.push(`remove fields the source does not have: ${extra.sort().join(', ')}`);
+  if (extra.length)
+    reasons.push(`remove fields the source does not have: ${extra.sort().join(', ')}`);
   if (input.title !== MERI_CASE46.title)
     reasons.push('title must be the source file name without its extension');
   if (input.format !== 'txt') reasons.push('format must be txt, the source file type');
-  if (input.sections !== undefined && !(Array.isArray(input.sections) && input.sections.length === 0))
+  if (
+    input.sections !== undefined &&
+    !(Array.isArray(input.sections) && input.sections.length === 0)
+  )
     reasons.push('sections must be an empty array for a txt export');
   if (input.conversationId !== p.conversationId || input.clientId !== MERI_CASE46.clientId)
     reasons.push('the export must stay in this conversation and client');

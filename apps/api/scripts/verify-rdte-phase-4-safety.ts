@@ -1,7 +1,23 @@
-/** Permanent Phase 4 architecture, command, and migration safety gate. */
+/** Permanent Phase 4 architecture, command, and migration safety gate.
+ * @cleanup-smoke noArgsExit=0 helpExit=0
+ */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { runRdtePhase4Gates } from '../src/defense-budget/rdte/gates/rdte-phase4-gates-v1.js';
+
+const USAGE = 'Usage: tsx scripts/verify-rdte-phase-4-safety.ts [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+console.error(USAGE);
 
 const API_ROOT = path.resolve(__dirname, '..');
 

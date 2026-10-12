@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -307,6 +308,7 @@ export function architectureProblems() {
 }
 
 function main() {
+  console.error('Usage: node scripts/verify-outreach-v3-p1-architecture.mjs (no arguments runs the existing verifier)');
   const problems = architectureProblems();
   if (problems.length > 0) {
     for (const problem of problems) console.error(`FAIL  ${problem}`);

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Step 34A — extract DoD officials who testified at defense-committee hearings.
  *
@@ -35,6 +36,11 @@ async function main(): Promise<void> {
   since.setMonth(since.getMonth() - months);
   const source = 'hearing_witness';
 
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: extract-hearing-witnesses [--months <n>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   await prisma.onModuleInit();
   const writer = new AcquisitionPersonnelWriterService(prisma, new MatchScorerService(prisma));

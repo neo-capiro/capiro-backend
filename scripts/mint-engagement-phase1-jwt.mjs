@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Mint a Clerk Backend API JWT for local Phase 1 acceptance.
  *
@@ -8,6 +9,16 @@
  */
 import { writeFile } from 'node:fs/promises';
 
+const usage = 'Usage: node scripts/mint-engagement-phase1-jwt.mjs --mint';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 1 || args[0] !== '--mint') {
+  console.error(usage);
+  process.exit(2);
+}
 const secret = process.env.CLERK_SECRET_KEY?.trim();
 const userId = (
   process.env.ENGAGEMENT_PHASE1_USER_CLERK_ID ||

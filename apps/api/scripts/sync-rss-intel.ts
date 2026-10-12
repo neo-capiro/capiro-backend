@@ -340,6 +340,10 @@ export function validateFeedXml(xml: string): string | null {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-rss-intel.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   const t0 = Date.now();
   console.log('[rss-sync] starting');

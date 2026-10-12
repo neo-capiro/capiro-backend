@@ -14,10 +14,17 @@ const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
   it('exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage', () => {
-    expect(FULL_CHAT_READ_TOOLS.find((tool) => tool.name === 'list_memory_proposals')).toMatchObject({ readOnly: true });
-    expect(IN_EDITOR_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(false);
+    expect(
+      FULL_CHAT_READ_TOOLS.find((tool) => tool.name === 'list_memory_proposals'),
+    ).toMatchObject({ readOnly: true });
+    expect(IN_EDITOR_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(
+      false,
+    );
     expect(WRITE_DELEGATED_TOOLS.some((tool) => tool.name === 'list_memory_proposals')).toBe(false);
-    expect(meriToolCoverageCatalogEntry('list_memory_proposals')).toMatchObject({ domains: ['memory'], exhaustive: false });
+    expect(meriToolCoverageCatalogEntry('list_memory_proposals')).toMatchObject({
+      domains: ['memory'],
+      exhaustive: false,
+    });
   });
   it('matches the intended full-chat read tool set', () => {
     const expected = [
@@ -127,7 +134,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(138);
+    expect(combined).toHaveLength(139);
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

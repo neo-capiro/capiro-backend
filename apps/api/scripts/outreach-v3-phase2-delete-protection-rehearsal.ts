@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -95,7 +96,15 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
-  process.exit(1);
-});
+const usage = 'Usage: outreach-v3-phase2-delete-protection-rehearsal --run (or --help; requires disposable DATABASE_URL)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+} else if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(usage);
+  process.exitCode = 2;
+} else {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+    process.exit(1);
+  });
+}

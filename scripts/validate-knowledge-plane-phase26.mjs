@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Consolidated Knowledge Plane Phase 26 release gate.
  *
@@ -18,7 +19,7 @@
  *    than a slower run.
  *
  * Usage:
- *   node scripts/validate-knowledge-plane-phase26.mjs [--base <ref>] [--skip-tests]
+ *   node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests]
  *
  * Prerequisites (not run here, because they mutate the workspace):
  *   pnpm install --frozen-lockfile
@@ -35,10 +36,41 @@ import { dirname, join, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
 
-const argv = process.argv.slice(2);
-const baseIndex = argv.indexOf('--base');
-const base = baseIndex >= 0 ? argv[baseIndex + 1] : 'origin/main';
-const skipTests = argv.includes('--skip-tests');
+const usage = 'Usage: node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests]';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
+const argv = cliArgs.slice(1);
+let base = 'origin/main';
+let skipTests = false;
+let baseSeen = false;
+let invalid = false;
+for (let i = 0; i < argv.length; i += 1) {
+  if (argv[i] === '--base' && !baseSeen) {
+    const value = argv[++i];
+    if (!value || value.startsWith('-') || !/^[A-Za-z0-9._/@^~-]+$/.test(value)) {
+      invalid = true;
+      break;
+    }
+    base = value;
+    baseSeen = true;
+  } else if (argv[i] === '--skip-tests' && !skipTests) {
+    skipTests = true;
+  } else {
+    invalid = true;
+    break;
+  }
+}
+if (invalid) {
+  console.error(usage);
+  process.exit(2);
+}
 
 const results = [];
 

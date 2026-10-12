@@ -24,7 +24,7 @@ import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 
 export const SOURCE = 'redistricting';
 
@@ -36,7 +36,7 @@ export const SOURCE = 'redistricting';
  * transaction precedent verbatim. intelligence_change and legislative_district
  * are both GLOBAL tables (no tenant_id column) and need no such bypass.
  */
-async function readCrossTenant<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function readCrossTenant<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
     return fn(tx as unknown as PrismaClient);
@@ -131,7 +131,14 @@ export function buildDedupeKey(
 }
 
 async function main(): Promise<void> {
-  await runWithSyncRun(
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-redistricting-alerts.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(
     // See the comment on sync-legistorm-districts.ts's identical call for
     // why this cast matches the dominant real precedent for a directly-passed
     // module-scope PrismaClient (as opposed to one threaded through a deps
@@ -210,7 +217,7 @@ async function main(): Promise<void> {
         ).values(),
       ).filter((p): p is { state: string; code: string } => p.code !== null);
 
-      const clientIdsByPair = await readCrossTenant(async (tx) => {
+      const clientIdsByPair = await readCrossTenant(prisma, async (tx) => {
         const map = new Map<string, string[]>();
         for (const { state, code } of distinctPairs) {
           const rows = await tx.$queryRawUnsafe<Array<{ client_id: string }>>(
@@ -318,13 +325,15 @@ async function main(): Promise<void> {
       return { inserted: emitted, updated: 0, skipped, errors };
     },
   );
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

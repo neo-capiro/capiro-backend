@@ -65,7 +65,7 @@ const pkceChallengeCjs = require.resolve('pkce-challenge', {
 
 module.exports = {
   rootDir: '.',
-  testEnvironment: 'node',
+  testEnvironment: path.join(__dirname, 'jest.native-runtime-environment.cjs'),
   testMatch: [
     '<rootDir>/src/**/*.spec.ts',
     '<rootDir>/scripts/**/*.spec.ts',
@@ -76,7 +76,9 @@ module.exports = {
   ],
   // Provisioned end-to-end specs run under jest.e2e.config.cjs.
   testPathIgnorePatterns: ['/node_modules/', '\\.e2e\\.spec\\.ts$'],
-  setupFiles: ['<rootDir>/jest.setup.ts'],
+  maxWorkers: 2,
+  workerIdleMemoryLimit: '1536MB',
+  setupFiles: ['<rootDir>/jest.worker-database.cjs', '<rootDir>/jest.setup.ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json', diagnostics: false }],
     /**
@@ -133,5 +135,7 @@ module.exports = {
     '^zod/v4-mini$': zodCjs('v4-mini/index.cjs'),
     '^zod/v4/mini$': zodCjs('v4/mini/index.cjs'),
     '^pkce-challenge$': pkceChallengeCjs,
+    '^sanitize-html$': path.join(__dirname, 'jest.native-sanitize-html.cjs'),
+    '^@makegov/tango-node$': path.join(__dirname, 'jest.native-tango.cjs'),
   },
 };

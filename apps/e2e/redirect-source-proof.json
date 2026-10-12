@@ -1,0 +1,135 @@
+{
+  "schema": "capiro.cleanup1.redirect-source-proof.v1",
+  "note": "Independent SOURCE proof for the 11 captured routes observed to redirect at runtime (round-6). Each destination is derived from the actual router/helper source, not from the observed landing. Paths here are the concrete captured paths; static inventory redirect-recorded routes are covered separately by the inventory derivation.",
+  "count": 11,
+  "redirects": [
+    {
+      "path": "/intelligence/bills/hr-2027-1234",
+      "destination": "/explorer?bill=hr-2027-1234&source=bills",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:453 (<Route path=\"/intelligence/bills/:bill\" element={<BillDetailRedirectRoute/>}>)",
+        "apps/web/src/App.tsx:633-637 (BillDetailRedirectRoute -> Navigate to={bill ? billTarget(bill) : '/explorer'})",
+        "apps/web/src/pages/bills/bill-target.ts:23-32 (flag OFF/unready -> `/explorer?bill=${encodeURIComponent(billId)}`)",
+        "apps/web/src/vnext/pages/explorer/DataExplorerVNext.tsx:51,79-83 (billParam -> source 'bills', reflected into ?source=bills)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/onboarding/subscribe",
+      "destination": "/",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:206-207 (<Route path=\"/onboarding/subscribe\" element={isSignedIn ? <SubscribePage/> : <Navigate to=\"/sign-in\"/>}>)",
+        "apps/web/src/pages/onboarding/SubscribePage.tsx:47-52 (shouldLeave = entitled || !billingEnabled ; navigate('/',{replace:true}))"
+      ],
+      "proven": true,
+      "note": "Offline fixture has billing dormant (billingEnabled false) -> leaves to '/'."
+    },
+    {
+      "path": "/portfolio",
+      "destination": "/clients",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:212 (<Route path=\"/portfolio\" element={<PortfolioIndexRedirect/>}>)",
+        "apps/web/src/App.tsx:651-655 (PortfolioIndexRedirect -> Navigate to={`/clients${search}`})"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/radar",
+      "destination": "/legiwatch",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:267 (<Route path=\"/radar\" element={<LegacyRadarRedirect/>}>)",
+        "apps/web/src/App.tsx:641-644 (LegacyRadarRedirect -> Navigate to={`/legiwatch${search}`})"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace/library",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace/new",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace/setup",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace/shares",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace/studio",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    },
+    {
+      "path": "/workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "destination": "/workspace/documents",
+      "kind": "observed",
+      "sources": [
+        "apps/web/src/App.tsx:235 (<Route path=\"/workspace/*\" element={<WorkspaceRoutes/>}>)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:252-253 (path==/workspace || isHiddenWorkspaceRoute -> Navigate to=\"/workspace/documents\")",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:109-120 (HIDDEN_ROUTES: /workspace/new,/shares,/studio,/library,/setup)",
+        "apps/web/src/vnext/pages/workspace/WorkspaceVNextRoutes.tsx:73 (STUDIO_EDITOR_ROUTE regex covers /workspace/studio/:id/:doc)"
+      ],
+      "proven": true
+    }
+  ],
+  "unproven": []
+}

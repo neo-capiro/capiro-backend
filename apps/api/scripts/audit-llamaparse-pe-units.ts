@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * SELECT-only audit for historical generalized LlamaParse PE money.
  *
@@ -149,6 +150,11 @@ function key(peCode: string, fy: number, fieldName: string): string {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL && !(process.env.DB_HOST && process.env.DB_PORT && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_NAME)) {
+    console.error('Usage: apps/api/scripts/audit-llamaparse-pe-units.ts requires DATABASE_URL or all five DB_* values (database configuration is required)');
+    process.exit(2);
+  }
+
   buildDatabaseUrlFromParts();
   const limit = sampleLimit();
   const prisma = new PrismaClient();
@@ -366,8 +372,10 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[audit-llamaparse-pe-units] ${message}`);
   process.exit(1);
 });
+}

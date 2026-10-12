@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Replay every unique browser-observed Engagement GET through main and the
  * shadow runtime against the same fixture database. This upgrades browser
@@ -123,6 +124,8 @@ async function main() {
 
 const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : '';
 if (import.meta.url === invokedPath) {
+  console.error('Usage: node scripts/engagement-phase3-api-replay.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR and ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE)');
+  if (process.argv.length > 2) process.exit(2);
   main().catch((error) => {
     console.error(error instanceof Error ? error.stack ?? error.message : String(error));
     process.exit(1);

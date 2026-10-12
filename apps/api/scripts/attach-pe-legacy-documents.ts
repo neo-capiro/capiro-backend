@@ -90,6 +90,10 @@ function artifactRelLabel(absPath: string): string {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/attach-pe-legacy-documents.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = flag('commit');
   const approvedRaw = arg('approved-count');
   const approvedCount = approvedRaw == null ? null : Number(approvedRaw);

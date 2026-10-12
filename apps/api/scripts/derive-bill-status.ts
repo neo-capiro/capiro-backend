@@ -20,7 +20,7 @@ import { deriveBillStatus, classifyVoteResult } from '@capiro/shared';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 const CONGRESSES = (process.env.BILL_STATUS_CONGRESSES ?? '117,118,119')
   .split(',')
   .map((c) => parseInt(c.trim(), 10))
@@ -126,7 +126,14 @@ function isPassageActionText(text: string): boolean {
 }
 
 async function main() {
-  await runWithSyncRun(prisma as never, 'derive-bill-status', async () => {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/derive-bill-status.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'derive-bill-status', async () => {
     let updated = 0;
     let skipped = 0;
     let errors = 0;
@@ -247,13 +254,15 @@ async function main() {
     );
     return { inserted: 0, updated, skipped, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

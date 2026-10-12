@@ -1,0 +1,2246 @@
+{
+  "generatedAt": "2026-10-08T08:30:04.004Z",
+  "strict": true,
+  "routes": {
+    "/": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /strategy-api/planner/queue",
+        "get /api/intelligence/portfolio-alerts",
+        "get /api/intelligence/changes",
+        "get /api/intelligence/coming-up",
+        "get /api/engagement/meetings",
+        "get /api/intelligence/news/dashboard",
+        "get /api/explorer/intel-article-facets",
+        "get /api/engagement/outreach",
+        "get /workspace-api/drafts",
+        "get /api/intelligence/x-feed/dashboard",
+        "get /api/intelligence/x-feed/subscriptions",
+        "get /api/intelligence/x-feed/defaults",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Good morning, Neo.",
+        "Today & Coming Up",
+        "Work Queue",
+        "The Wire"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Good morning, Neo. Wednesday, October 7, 2026 Refresh Customize NEEDS ATTENTION 0 open Nothing time-sensitive right now. Ne",
+      "bodyLen": 1060
+    },
+    "/actions": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/intelligence/actions",
+        "get /api/tenant-admin/team",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Actions"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Actions Refresh Generate Board List Board groups by workflow state; list keeps the evidence and recommendation visible. Dea",
+      "bodyLen": 546
+    },
+    "/admin/analyst-console": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements/admin/reconciliation-queue",
+        "get /api/capiro-admin/review-counts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Analyst Console",
+        "Reconciliation Review Queue"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Analyst Console One home for every review queue, with SLA counts across the pipeline. Refresh counts Reconciliation Program",
+      "bodyLen": 1084
+    },
+    "/admin/program-element/match-queue": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/programs/admin/match-queue",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Program Match Review Queue",
+        "Program Match Review Queue"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Program Match Review Queue Machine-proposed PE→Program links awaiting review. Program Match Review Queue Machine-proposed P",
+      "bodyLen": 747
+    },
+    "/admin/program-element/reconciliation": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements/admin/reconciliation-queue",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Reconciliation Review Queue",
+        "Reconciliation Review Queue"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Reconciliation Review Queue Cross-source budget conflicts awaiting an administrator decision. Reconciliation Review Queue C",
+      "bodyLen": 794
+    },
+    "/bills/hr-2027-1234": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse Bill 360 is not enabled for this workspace.",
+      "bodyLen": 377
+    },
+    "/clients": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements",
+        "get /intel-api/feature-flags",
+        "get /api/clients",
+        "get /api/client-account-owners",
+        "get /api/intelligence/portfolio-summary",
+        "get /strategy-api/strategies",
+        "get /api/engagement/meetings",
+        "get /api/intelligence/portfolio-rollup",
+        "get /api/intelligence/portfolio-pe-summary",
+        "get /api/intelligence/portfolio-engagement-trend",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Portfolio",
+        "Clients",
+        "Program elements"
+      ],
+      "bodyText": "PortfolioAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Clients Business Development Coalitions Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Portfolio Every client account, the work in flight, and the outside signals moving ",
+      "bodyLen": 1188
+    },
+    "/defense-budget-lifecycle": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/budget-lifecycle/cycles/2027/health",
+        "get /api/budget-lifecycle/schedule/tick-health",
+        "get /api/budget-lifecycle/cycles/2027/coverage-reconciliation",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Defense budget cycle health Official-source discovery and classification coverage — not funding amounts. An unpublished exp",
+      "bodyLen": 1944
+    },
+    "/defense-budget-lifecycle/review-queue": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/budget-lifecycle/cycles/2027/review-queue",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Review queue — FY2027 Sources the discovery classifier could not confidently place. Resolution runs through the governed ru",
+      "bodyLen": 832
+    },
+    "/defense-budget-lifecycle/reviewed-partial": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/defense-budget/reviewed-partial-pe-totals",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Reviewed partial budget records Individually reviewed source totals only. Each row was independently source-checked and app",
+      "bodyLen": 1019
+    },
+    "/directory/committee-staff": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/committees",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Committee Staff"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse DIRECTORY · COMMITTEE STAFF Commit",
+      "bodyLen": 731
+    },
+    "/directory/committees/visual-committee-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/committees/visual-committee-0001/contacts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "visual-committee-0001"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back to directory V visual-committee-0001 Contacts Members Staff All Current only Search No matching contacts",
+      "bodyLen": 388
+    },
+    "/directory/congressional-staff": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/contacts",
+        "get /api/directory/contacts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Congressional Staff"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse DIRECTORY · CONGRESSIONAL STAFF Co",
+      "bodyLen": 1066
+    },
+    "/directory/department-of-war": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/acquisition-personnel",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Department of War"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse DIRECTORY · DEPARTMENT OF WAR Depa",
+      "bodyLen": 905
+    },
+    "/directory/districts/VA/08": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/districts/VA/08",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "VA-08"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back Current map Enacted (future) map V VA-08 Virginia's 8th Congressional District Current map Synced 2026-10-06T12:00:0",
+      "bodyLen": 598
+    },
+    "/directory/members/visual-member-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/members/visual-member-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back Member profile unavailable This member could not be found in the current directory snapshot.",
+      "bodyLen": 376
+    },
+    "/directory/people/visual-member-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/members/visual-member-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back Member profile unavailable This member could not be found in the current directory snapshot.",
+      "bodyLen": 376
+    },
+    "/directory/staff/visual-staff-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/directory/staffers/visual-staff-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back Staff profile unavailable This staffer could not be found in the current directory snapshot.",
+      "bodyLen": 376
+    },
+    "/directory/state-committees": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/state-committees",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "State Committees"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse DIRECTORY · FLORIDA State Committe",
+      "bodyLen": 828
+    },
+    "/directory/state-committees/visual-state-committee-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/state-committees/visual-state-committee-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Florida Senate Committee on Appropriations"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back to state committees FA Flor",
+      "bodyLen": 1048
+    },
+    "/directory/state-legislators": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/explorer/state-legislator-facets",
+        "get /api/explorer/state-legislators",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "State Legislators"
+      ],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse DIRECTORY · STATE LEGISLATORS Stat",
+      "bodyLen": 842
+    },
+    "/directory/state-legislators/ocd-person%2Fvisual-staff-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/explorer/state-legislators/ocd-person%2Fvisual-staff-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back State legislator profile un",
+      "bodyLen": 445
+    },
+    "/directory/state-legislators/visual-id-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/explorer/state-legislators/visual-id-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "DirectoryAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Congressional Staff Committee Staff Department of War State Legislators State Committees Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Back State legislator profile un",
+      "bodyLen": 445
+    },
+    "/engagement/meetings": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/engagement/capabilities",
+        "get /api/engagement/meetings",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Engagement",
+        "Meetings",
+        "No meetings in this period",
+        "No meeting selected"
+      ],
+      "bodyText": "EngagementAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Meetings Meeting Library Outreach Reports Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Engagement Calendar-synced meetings with prep, notes, Meri join, and client cont",
+      "bodyLen": 862
+    },
+    "/engagement/outreach": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/engagement/outreach",
+        "get /api/engagement/integrations",
+        "get /api/engagement/capabilities",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Engagement"
+      ],
+      "bodyText": "EngagementAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Meetings Meeting Library Outreach Reports Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Engagement Your draft and sent campaigns. Open one to continue, or start a new c",
+      "bodyLen": 596
+    },
+    "/engagement/reports?period=current": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/engagement/reports/overview",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Engagement",
+        "Reports",
+        "Office Engagement Tracker"
+      ],
+      "bodyText": "EngagementAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Meetings Meeting Library Outreach Reports Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Engagement Auto-populated activity with explicit manual status overrides and CSV",
+      "bodyLen": 1062
+    },
+    "/explorer": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/explorer/intel-article-facets",
+        "get /api/explorer/intel-articles",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Intelligence Center"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse Intelligence Center Search and filter every federal data source Ca",
+      "bodyLen": 916
+    },
+    "/help": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/help/content",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Help center"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Help center How-to videos and guides for getting the most out of Capiro. Search help content No help content yet",
+      "bodyLen": 391
+    },
+    "/intelligence-center": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Intelligence Center"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse COMING SOON Intelligence Center What you’re seeing below are mock-ups of what’s coming — designed as actionable insights an",
+      "bodyLen": 568
+    },
+    "/intelligence/changes": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/intelligence/changes",
+        "get /api/intelligence/portfolio-alerts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Changes Inbox"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Changes Inbox Resolve All Clients Source All sources Bill movement Comment deadline Comment closed Competitor filing Contra",
+      "bodyLen": 494
+    },
+    "/intelligence/district-nexus": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/intelligence/district-nexus/boundaries",
+        "get /api/intelligence/district-nexus/map"
+      ],
+      "headings": [
+        "District Nexus"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse District Nexus Verified client footprint, public funding, and repr",
+      "bodyLen": 839
+    },
+    "/intelligence/federal-spending": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /api/federal-spending/market/contracts?page=1&pageSize=25",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Federal Spending"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Federal Spending Explore federal market activity without mixing historical spending, acquisition access, and future procure",
+      "bodyLen": 822
+    },
+    "/intelligence/graph": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /api/memory/graph",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Knowledge Graph"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Knowledge Graph 0 nodes · 0 connections · click a node to focus, double-click a client to drill in Full firm By client Path",
+      "bodyLen": 569
+    },
+    "/intelligence/hearing-watch/visual-id-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /intel-api/hearings/visual-id-0001",
+        "get /intel-api/hearings/visual-id-0001/transcript?offset=0&limit=500",
+        "get /api/clients",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse Hearing Watch is not enabled This workspace doesn’t have Hearing W",
+      "bodyLen": 420
+    },
+    "/intelligence/hearing-watch/visual-session-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /intel-api/hearings/visual-session-0001",
+        "get /intel-api/hearings/visual-session-0001/transcript?offset=0&limit=500",
+        "get /api/clients",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse Hearing Watch is not enabled This workspace doesn’t have Hearing W",
+      "bodyLen": 420
+    },
+    "/intelligence/issues/DEF": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/intelligence/issues/DEF/leaderboard",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Issue Leaderboard: DEF"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Issue Leaderboard: DEF Defense Total Filings (2y) 1 Registrants 1 New Entrants (90d) 0 Shared Lobbyist Overlap 1 # REGISTRA",
+      "bodyLen": 529
+    },
+    "/intelligence/opportunities": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/tenant-members"
+      ],
+      "headings": [
+        "Opportunities"
+      ],
+      "bodyText": "Funding Opportunities All clients Search opportunities, agencies, references… ⌘K NM Neo Martinez VP Government Affairs Dashboard Clients Engagement Workspace Planner Strategies Directory Intelligence Source health loading SOURCE HEALTH · LOADING Collapse Opportunities Funding Opportunities is not enabled for this workspace.",
+      "bodyLen": 326
+    },
+    "/intelligence/opportunities/sam_gov/visual-opportunity-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /api/tenant-members",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Opportunities"
+      ],
+      "bodyText": "Funding Opportunities All clients Search opportunities, agencies, references… ⌘K NM Neo Martinez VP Government Affairs Dashboard Clients Engagement Workspace Planner Strategies Directory Intelligence Source health loading SOURCE HEALTH · LOADING Collapse Opportunities Funding Opportunities is not enabled for this workspace.",
+      "bodyLen": 326
+    },
+    "/legiwatch": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/me",
+        "get /intel-api/clients/_all/feed?order=date&limit=25",
+        "get /intel-api/feature-flags",
+        "get /api/clients",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Updates",
+        "What changed across all clients",
+        "No watchlist matches in this feed"
+      ],
+      "bodyText": "IntelligenceAll clients Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse ALERT WORKLIST Updates Prioritized policy and funding movement, with the client impact and next action kept in",
+      "bodyLen": 1248
+    },
+    "/legiwatch?tab=committees&jurisdiction=FL": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/state-committees",
+        "get /intel-api/feature-flags",
+        "get /api/clients",
+        "get /intel-api/clients/_all/feed?order=date&limit=25",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Committees",
+        "No Florida committees match these filters"
+      ],
+      "bodyText": "IntelligenceAll clients Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse COMMITTEE DIRECTORY Committees Every current committee and subcommittee, with its roster, its published record",
+      "bodyLen": 858
+    },
+    "/legiwatch?tab=hearings": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/coverage",
+        "get /intel-api/hearings/history?limit=50",
+        "get /intel-api/feature-flags",
+        "get /api/legiwatch/live-hearings/calendar/coverage?from=2026-10-05&to=2026-10-11",
+        "get /api/legiwatch/live-hearings/calendar?from=2026-10-05&to=2026-10-11&pageSize=200&jurisdiction=ALL&page=1",
+        "get /api/clients",
+        "get /intel-api/clients/_all/feed?order=date&limit=25",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Hearings",
+        "Committee source health",
+        "Florida committee source coverage details"
+      ],
+      "bodyText": "IntelligenceAll clients Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse LEGISLATIVE INTELLIGENCE Hearings Official proceedings, published agendas, preparation and saved hearing work ",
+      "bodyLen": 1659
+    },
+    "/legiwatch/committees/FL/visual-state-committee-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/state-committees/visual-state-committee-0001",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/legiwatch/live-hearings/committees/state%3AFL%3Avisual-state-committee-0001/follow"
+      ],
+      "headings": [
+        "Florida Senate Committee on Appropriations",
+        "Proceedings",
+        "What has been published",
+        "Members",
+        "Agendas & published records",
+        "Current and recorded bill referrals",
+        "Source health & coverage"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse LEGIWATCH / FLORIDA COMMITTEES FL FLORIDA · SENATE STATE COMMITTEE",
+      "bodyLen": 1994
+    },
+    "/legiwatch/committees/house-hasc": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/committees/house-hasc/follow",
+        "get /api/legiwatch/live-hearings/committees/house-hasc",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "house-hasc",
+        "Proceedings",
+        "Leadership",
+        "Full roster",
+        "What has been published"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse LEGIWATCH / COMMITTEES COMMITTEE FULL COMMITTEE HOUSE-HASC house-h",
+      "bodyLen": 1977
+    },
+    "/legiwatch/hearings/visual-hearing-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/transcript?limit=500",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/intelligence",
+        "get /intel-api/feature-flags",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/follow-config",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/attendance",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/transcript?limit=500",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/intelligence",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/sessions",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/client-relevance",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/updates",
+        "get /api/legiwatch/live-hearings/events/visual-hearing-0001/sessions"
+      ],
+      "headings": [
+        "Visual Fixture Hearing — House Armed Services",
+        "Details",
+        "Saved hearing sessions",
+        "Live & Capture",
+        "Transcript",
+        "Intelligence",
+        "Client relevance",
+        "Sources & Documents"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse ← Back to LegiWatch PUBLIC Scheduled Visual Fixture Hearing — Hous",
+      "bodyLen": 1137
+    },
+    "/planner": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /strategy-api/planner/bootstrap",
+        "get /strategy-api/planner/resources",
+        "get /strategy-api/planner/time/timer",
+        "get /strategy-api/planner/tasks",
+        "get /strategy-api/planner/time/timer",
+        "get /strategy-api/planner/time/tree",
+        "get /strategy-api/planner/time/tree"
+      ],
+      "headings": [
+        "Make room for what matters.",
+        "My tasks",
+        "Recently assigned0",
+        "Today0"
+      ],
+      "bodyText": "PlannerAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PLANNER Make room for what matters. Plan your work, keep your team aligned, and move projects forward. New project My tasks P",
+      "bodyLen": 1248
+    },
+    "/planner/forms/visual-planner-token": {
+      "seeded": [
+        "get http://127.0.0.1:4191/strategy-api/planner/public/forms/visual-planner-token"
+      ],
+      "headings": [
+        "Planner intake form"
+      ],
+      "bodyText": "Capiro Planner Planner intake form Synthetic public form for offline route capture. What do you need? * Submit request",
+      "bodyLen": 121
+    },
+    "/program-elements": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements/summary",
+        "get /api/budget-lines/capabilities",
+        "get /api/program-elements",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Research search"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse DEFENSE BUDGET Explore Movement Congressional Actions Portfolio FY",
+      "bodyLen": 1321
+    },
+    "/program-elements?dest=actions": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/intelligence/actions",
+        "get /api/program-elements/summary",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse DEFENSE BUDGET Explore Movement Congressional Actions Portfolio FY",
+      "bodyLen": 911
+    },
+    "/program-elements?dest=congressional": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements",
+        "get /api/program-elements/summary",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse DEFENSE BUDGET Explore Movement Congressional Actions Portfolio FY",
+      "bodyLen": 1600
+    },
+    "/program-elements?dest=explore": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements/summary",
+        "get /api/budget-lines/capabilities",
+        "get /api/program-elements",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Research search"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse DEFENSE BUDGET Explore Movement Congressional Actions Portfolio FY",
+      "bodyLen": 1321
+    },
+    "/program-elements?dest=movement": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/budget-lines/movement",
+        "get /api/program-elements/summary",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse DEFENSE BUDGET Explore Movement Congressional Actions Portfolio FY",
+      "bodyLen": 900
+    },
+    "/program-elements?dest=portfolio": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements",
+        "get /api/intelligence/actions",
+        "get /api/program-elements/summary",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse DEFENSE BUDGET Explore Movement Congressional Actions Portfolio FY",
+      "bodyLen": 962
+    },
+    "/program-elements/0605053A": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements/0605053A",
+        "get /api/program-elements/0605053A/bills",
+        "get /api/program-elements/0605053A/actions",
+        "get /api/program-elements/0605053A/personnel",
+        "get /api/intelligence/program-elements/0605053A/client-relevance",
+        "get /api/intelligence/actions",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse Unable to load program element The detail request failed. Do not t",
+      "bodyLen": 481
+    },
+    "/program-elements/compare": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/defense-budget/saved-comparisons",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Cross-subject defense comparison",
+        "Subjects to compare (2–5)",
+        "Saved comparisons",
+        "Saved capture actions"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse INTELLIGENCE · COMPARE Cross-subject defense comparison Compare pr",
+      "bodyLen": 1122
+    },
+    "/program-elements/contacts": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/admin/program-elements/person-candidates",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse PROGRAM ELEMENTS › MONITORING TOOLS › CONTACT REVIEW QUEUE Contact",
+      "bodyLen": 803
+    },
+    "/program-elements/coverage": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/defense-budget/product-coverage",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Defense product coverage",
+        "Filters",
+        "Coverage"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse INTELLIGENCE · COVERAGE Defense product coverage Track known vs. u",
+      "bodyLen": 1076
+    },
+    "/program-elements/mark-up-monitor": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/program-elements",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse PROGRAM ELEMENTS › MONITORING TOOLS › MARK-UP MONITOR Mark-up moni",
+      "bodyLen": 683
+    },
+    "/program-elements/research": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/defense-budget/offices",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Defense relationships"
+      ],
+      "bodyText": "IntelligenceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Data Explorer LegiWatch Defense Budget District Nexus Connect mailbox Open integrations to connect email Settings Collapse INTELLIGENCE · RESEARCH Defense relationships Trace sourced office",
+      "bodyLen": 900
+    },
+    "/research-portfolios": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/research-portfolios",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Research Portfolios",
+        "FY27 Defense Portfolio"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO Research Portfolios Curate durable defense research collections without changing the underlying budget records. N",
+      "bodyLen": 564
+    },
+    "/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/research-portfolios/tour-state/research-portfolios-v1",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/fit",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/rules",
+        "get /api/research-portfolios/templates",
+        "get /api/research-portfolios/taxonomy",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/changes",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/subscriptions",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/analytics",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/snapshots",
+        "get /api/users/tenant-members",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/reviews",
+        "get /api/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/annual-review",
+        "get /api/clients",
+        "get /api/users/tenant-members"
+      ],
+      "headings": [
+        "FY27 Defense Portfolio",
+        "From governed membership to an inspectable output",
+        "Portfolio overview",
+        "Linked-client fit",
+        "Recent history",
+        "Members 1",
+        "Rules and taxonomy",
+        "Changes and watches"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse ← Research portfolios OWNER ACCESS · REVISION 1 FY27 Defense Portfolio Track FY27 defense program elements for the client. ",
+      "bodyLen": 1040
+    },
+    "/reviews": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/reviews",
+        "get /api/tenant-admin/team",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Review Queue"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Review Queue Held deliverables (grounding-flagged in enforce mode) awaiting an approve / reject decision. Refresh Pending A",
+      "bodyLen": 521
+    },
+    "/settings/ai-usage": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/ai-usage/summary",
+        "get /api/ai-usage/credential"
+      ],
+      "headings": [
+        "Settings",
+        "AI Usage & Spend",
+        "Estimated cost by day",
+        "By workflow",
+        "By model",
+        "AI provider key"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 950
+    },
+    "/settings/billing": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/billing/summary",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Billing"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 610
+    },
+    "/settings/branding": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/tenant-admin/branding",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Company name",
+        "Logo"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 539
+    },
+    "/settings/broadcasts": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/capiro-admin/tenants",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Broadcasts",
+        "Tenant"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 804
+    },
+    "/settings/clients": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 536
+    },
+    "/settings/contact": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/tenant-admin/contact-info",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Organization Contact",
+        "Mailing Address",
+        "Permanent Address"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 656
+    },
+    "/settings/customers": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/capiro-admin/billing/customers",
+        "get /onboard-api/admin/setup/managed-imports",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Capiro-managed client imports",
+        "Customers"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 950
+    },
+    "/settings/integrations": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clio/mcp-catalog",
+        "get /api/clio/mcp-servers",
+        "get /api/engagement/integrations",
+        "get /api/engagement/integrations/microsoft/capabilities",
+        "get /api/engagement/integrations/google/capabilities",
+        "get /intel-api/feature-flags",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Engagement Integrations"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 1606
+    },
+    "/settings/intelligence-mappings": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/intelligence/mappings",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Intelligence Mappings"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 1140
+    },
+    "/settings/memory": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/memory/review/inbox/summary",
+        "get /api/memory/governance",
+        "get /api/memory/catalog",
+        "get /api/memory/items/firm-soul/firm/sections",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Memory Files"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 861
+    },
+    "/settings/personal": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/me/email-signature",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Profile",
+        "Account",
+        "Email signature New",
+        "Watchlist / monitoring setup",
+        "Identity (Clerk)"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 1619
+    },
+    "/settings/skills": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clio/firm-skills",
+        "get /api/clio/tools",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Meri Skills"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 759
+    },
+    "/settings/team": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/tenant-admin/team",
+        "get /api/tenant-admin/team/invitations",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 570
+    },
+    "/settings/tenants": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/capiro-admin/tenants",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Settings",
+        "Capiro Admin",
+        "Tenants"
+      ],
+      "bodyText": "DashboardAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Settings Personal, workspace, and administration preferences. Personal Contact Info Memory Team Branding Clients Integratio",
+      "bodyLen": 605
+    },
+    "/strategies": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/strategies",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Strategies",
+        "Set the firm’s operating phases"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Live · refreshed just now STRATEGY OPER",
+      "bodyLen": 1038
+    },
+    "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /strategy-api/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/reference-calendars",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/monitoring"
+      ],
+      "headings": [
+        "FY27 Defense Appropriations Strategy",
+        "Strategy monitoring"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse CLIENT Client HORIZON FY27–FY29 Live · refreshed just now ‹ C",
+      "bodyLen": 2052
+    },
+    "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/export": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /strategy-api/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/reference-calendars",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /strategy-api/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/reports/preflight?format=docx&audience=client&useClientLogo=true&includeRoadmap=true&includeEvidenceAppendix=true&includeChangeLog=false&includeInternalNotes=false&includeAgentHistory=false&includeNarrative=true&includeMemberProfiles=true",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/monitoring"
+      ],
+      "headings": [
+        "FY27 Defense Appropriations Strategy",
+        "Strategy monitoring",
+        "Create a client-ready strategy report",
+        "FY27 Defense Appropriations Strategy"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse CLIENT Client HORIZON FY27–FY29 Live · refreshed just now ‹ C",
+      "bodyLen": 5172
+    },
+    "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/history": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /strategy-api/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/reference-calendars",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /strategy-api/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/versions",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/monitoring"
+      ],
+      "headings": [
+        "FY27 Defense Appropriations Strategy",
+        "Strategy monitoring",
+        "Version history"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse CLIENT Client HORIZON FY27–FY29 Live · refreshed just now ‹ C",
+      "bodyLen": 2303
+    },
+    "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/phases": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /strategy-api/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/reference-calendars",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /strategy-api/agents/watch/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/monitoring"
+      ],
+      "headings": [
+        "FY27 Defense Appropriations Strategy",
+        "Strategy monitoring",
+        "The firm's shared phase ladder"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse CLIENT Client HORIZON FY27–FY29 Live · refreshed just now ‹ C",
+      "bodyLen": 2913
+    },
+    "/strategies/agents/proposals": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/agents/change-sets?status=proposed",
+        "get /strategy-api/agents/change-sets?status=approved",
+        "get /strategy-api/agents/change-sets?status=applied",
+        "get /strategy-api/agents/runs/firm-review",
+        "get /strategy-api/strategies",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/agents/execution/runs",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Agent review queue",
+        "Firm-level checks",
+        "Awaiting review",
+        "Applied"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients No pending review ‹ STRATEGY OPERATING ",
+      "bodyLen": 1426
+    },
+    "/strategies/agents/runs": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/agents/execution/runs",
+        "get /strategy-api/strategies",
+        "get /api/clients",
+        "get /strategy-api/agents/change-sets?status=proposed",
+        "get /strategy-api/agents/change-sets?status=approved",
+        "get /strategy-api/agents/runs/firm-review",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Execution",
+        "What each status means",
+        "Staging and review"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients No pending review ‹ STRATEGY OPERATING ",
+      "bodyLen": 1916
+    },
+    "/strategies/context": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/context/documents?includeStale=true",
+        "get /strategy-api/context/facts?includeFirm=true",
+        "get /strategy-api/context/conflicts",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Context library",
+        "Bring the documents you already use"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Select a client to assess its context S",
+      "bodyLen": 2313
+    },
+    "/strategies/context/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/context/documents/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+        "get /strategy-api/context/documents/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d/sections",
+        "get /api/clients",
+        "get /strategy-api/context/documents?includeStale=true",
+        "get /strategy-api/context/facts?documentId=9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+        "get /strategy-api/context/facts?documentId=9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d&state=active",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /strategy-api/context/health?clientId=11111111-1111-4111-8111-111111111111"
+      ],
+      "headings": [
+        "FY27 Defense Appropriations — Strategy Brief",
+        "FY27 Defense Appropriations — Strategy Brief",
+        "Objective",
+        "Markup timeline",
+        "Document outline"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse CLIENT Client Assessed · no material conflicts Context librar",
+      "bodyLen": 1553
+    },
+    "/strategies/context/steward": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/context/facts?includeFirm=true",
+        "get /strategy-api/context/conflicts",
+        "get /api/clients",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Steward review",
+        "Conflicts",
+        "Facts"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Select a client to assess its context C",
+      "bodyLen": 1144
+    },
+    "/strategies/context/steward/visual-id-0001": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/context/facts?includeFirm=true",
+        "get /strategy-api/context/conflicts",
+        "get /api/clients",
+        "get /strategy-api/context/facts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Steward review",
+        "Conflicts",
+        "Facts",
+        "Resolve the conflict"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Select a client to assess its context C",
+      "bodyLen": 1414
+    },
+    "/strategies/context/upload": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/context/documents?includeStale=true",
+        "get /strategy-api/context/facts?includeFirm=true",
+        "get /strategy-api/context/conflicts",
+        "get /api/clients",
+        "get /strategy-api/strategies",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Context library",
+        "Bring the documents you already use",
+        "Add files to your context",
+        "Context overview",
+        "Strategy brief",
+        "Client constraints",
+        "Ask and options",
+        "Stakeholders and relationships"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Select a client to assess its context S",
+      "bodyLen": 3481
+    },
+    "/strategies/new": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/strategies",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Strategies",
+        "Set the firm’s operating phases",
+        "What are you trying to achieve?"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Live · refreshed just now STRATEGY OPER",
+      "bodyLen": 2031
+    },
+    "/strategies/phases": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /api/clients",
+        "get /strategy-api/strategies",
+        "get /api/clients",
+        "get /api/tenant-members",
+        "get /strategy-api/firm-phases",
+        "get /strategy-api/agents/watch/pending-counts",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Strategies",
+        "Set the firm’s operating phases",
+        "The firm's shared phase ladder"
+      ],
+      "bodyText": "StrategiesAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Strategy library Context library Agent review Execution runs Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse PORTFOLIO All clients Live · refreshed just now STRATEGY OPER",
+      "bodyLen": 1899
+    },
+    "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/versions",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/collaborators",
+        "get /api/tenant-members",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/lock",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "post /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/lock/acquire",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent/messages",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/context",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent/quality",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent/proposals",
+        "get /workspace-api/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/comments"
+      ],
+      "headings": [
+        "Defense Appropriations Hill Day packet",
+        "Defense Appropriations Hill Day packet",
+        "Overview",
+        "Asks"
+      ],
+      "bodyText": "WorkspaceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Defense Appropriations Hill Day packet HILL DAY SCHEDULE · CAPIRO INTERNAL BLUEPRINT · V1 SAVED Preview as client Deliver ✓",
+      "bodyLen": 1103
+    },
+    "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/run": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/versions",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/collaborators",
+        "get /api/tenant-members",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/lock",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "post /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/lock/acquire",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent/messages",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/context",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent/quality",
+        "get /workspace-api/drafts/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/agent/proposals",
+        "get /workspace-api/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/comments"
+      ],
+      "headings": [
+        "Defense Appropriations Hill Day packet",
+        "STANDARD reasoning"
+      ],
+      "bodyText": "WorkspaceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Defense Appropriations Hill Day packet HILL DAY SCHEDULE · CAPIRO INTERNAL BLUEPRINT · V1 SAVED Preview as client Deliver ✓",
+      "bodyLen": 1083
+    },
+    "/workspace/documents": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /workspace-api/hillday/documents",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "Documents",
+        "Recent documents"
+      ],
+      "bodyText": "WorkspaceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Documents Client-ready Hill Day schedules drafted from platform evidence and finished by you, pulling from the Directory, P",
+      "bodyLen": 604
+    },
+    "/workspace/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /workspace-api/hillday/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /workspace-api/hillday/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/quality"
+      ],
+      "headings": [
+        "Defense Appropriations Hill Day",
+        "Rep. Visual Fixture",
+        "Focus",
+        "Background"
+      ],
+      "bodyText": "WorkspaceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse Defense Appropriations Hill Day — House HASC HILL DAY SCHEDULE · VERSION 1 Saved Preview as client Deliver AS GENERATED · 1",
+      "bodyLen": 1637
+    },
+    "/workspace/documents/new": {
+      "seeded": [
+        "get /api/billing/state",
+        "get /api/me",
+        "get /workspace-api/notifications",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100",
+        "get /api/business-development/alerts",
+        "get /strategy-api/planner/notifications",
+        "get /workspace-api/hillday/blueprints",
+        "get /workspace-api/hillday/clients",
+        "get /intel-api/feature-flags",
+        "get /api/engagement/integrations",
+        "get /api/clients",
+        "get /api/me/broadcasts/pending",
+        "get /api/legiwatch/live-hearings/notifications?unreadOnly=true&page=1&pageSize=100"
+      ],
+      "headings": [
+        "What are you making?"
+      ],
+      "bodyText": "WorkspaceAll clients Search clients, issues, programs, people ⌘K Quick Note NM Neo Martinez VP Government Affairs NAVIGATION Dashboard Portfolio Engagement Workspace Planner Strategies Directory Intelligence Connect mailbox Open integrations to connect email Settings Collapse New document HILL DAY SCHEDULE · CHOOSE A SPONSOR 1 Template 2 Sponsor 3 Meetings 4 Resolution 5 Context 6 Generate What ar",
+      "bodyLen": 800
+    }
+  }
+}

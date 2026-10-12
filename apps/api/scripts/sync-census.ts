@@ -73,6 +73,10 @@ function pct(numerator: number | null, denominator: number | null): number | nul
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-census.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   const t0 = Date.now();
   console.log('[census-sync] starting');
@@ -166,7 +170,9 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('[census-sync] FAILED', err);
   process.exit(1);
 });
+}

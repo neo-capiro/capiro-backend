@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * sync-dow-headshots.ts
  *
@@ -207,6 +208,7 @@ async function main(): Promise<void> {
   const force = hasFlag('force');
 
   if (!FIRECRAWL_API_KEY) {
+    console.error('Usage: sync-dow-headshots [--limit <n>] [--commit] [--force] (requires FIRECRAWL_API_KEY)');
     throw new Error('FIRECRAWL_API_KEY is not set (apps/api/.env)');
   }
   if (commit && !ASSETS_BUCKET) {

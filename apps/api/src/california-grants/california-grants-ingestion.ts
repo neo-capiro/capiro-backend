@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 import { runWithSyncRun, type RunCounts } from '../ingestion/sync-run.helper.js';
 
 export const CALIFORNIA_GRANTS_SOURCE = 'sync-california-grants';
@@ -413,6 +413,7 @@ export function requireDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string
 
 export async function runCaliforniaGrantsCli(): Promise<RunCounts> {
   requireDatabaseUrl();
+  const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
   try {
     return await runWithSyncRun(
@@ -426,10 +427,20 @@ export async function runCaliforniaGrantsCli(): Promise<RunCounts> {
 }
 
 if (process.argv[1]?.replace(/\\/g, '/').endsWith('/california-grants-ingestion.ts')) {
-  runCaliforniaGrantsCli().catch((error: unknown) => {
-    console.error(`[${CALIFORNIA_GRANTS_SOURCE}] FAILED`, error);
-    process.exitCode = 1;
-  });
+  const usage = 'Usage: sync-california-grants [--help] (requires DATABASE_URL)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+  } else if (args.length > 0) {
+    console.error(usage);
+    process.exitCode = 2;
+  } else {
+    if (!process.env.DATABASE_URL?.trim()) console.error(usage);
+    runCaliforniaGrantsCli().catch((error: unknown) => {
+      console.error(`[${CALIFORNIA_GRANTS_SOURCE}] FAILED`, error);
+      process.exitCode = 1;
+    });
+  }
 }
 
 export type { RunCounts };

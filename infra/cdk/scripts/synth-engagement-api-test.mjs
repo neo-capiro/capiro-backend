@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Synthesize the engagement-api CDK app against the synthetic test fixture.
  *
@@ -8,15 +9,26 @@
  * setting the variable in Node's own child_process env option is portable
  * across every shell pnpm might pick.
  *
- * Usage: node scripts/synth-engagement-api-test.mjs [--quiet]
+ * Usage: node scripts/synth-engagement-api-test.mjs --run [CDK synth options]
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const usage = 'Usage: node scripts/synth-engagement-api-test.mjs --run [CDK synth options] | --help';
+const argv = process.argv.slice(2);
+if (argv.length === 1 && argv[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
+
 const CDK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_PATH = path.join(CDK_ROOT, 'fixtures', 'engagement-api.test.json');
-const extraArgs = process.argv.slice(2);
+const extraArgs = argv.slice(1);
 
 // A .cmd shim on Windows can only run through cmd.exe (shell: true), and
 // Node does not escape shell:true argv arrays for you — an unescaped array

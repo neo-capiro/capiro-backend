@@ -81,14 +81,22 @@ function jsonResponse(body: unknown, status = 200): Response {
  */
 function buildRetrieval(complete: jest.Mock) {
   const registryService = {
-    registry: { list: () => [], get: () => undefined, executionMetadata: () => undefined, invoke: jest.fn() },
+    registry: {
+      list: () => [],
+      get: () => undefined,
+      executionMetadata: () => undefined,
+      invoke: jest.fn(),
+    },
     llm: {
       completeJson: jest.fn(),
       completeWithSchema: jest.fn(async () => ({
         input: { refuted: false, confidence: 'high', reason: 'Supported.' },
         usage: { inputTokens: 10, outputTokens: 2 },
       })),
-      withProviderBudget(budget: { reserveModelAttempt: (phase: unknown) => void }, phase: unknown) {
+      withProviderBudget(
+        budget: { reserveModelAttempt: (phase: unknown) => void },
+        phase: unknown,
+      ) {
         return {
           completeJson: (...args: unknown[]) => {
             budget.reserveModelAttempt(phase);
@@ -102,7 +110,9 @@ function buildRetrieval(complete: jest.Mock) {
       },
     },
   };
-  const cfg = { get: jest.fn((key: string) => (key === 'MERIV2_API_BASE_URL' ? 'http://api.test' : undefined)) };
+  const cfg = {
+    get: jest.fn((key: string) => (key === 'MERIV2_API_BASE_URL' ? 'http://api.test' : undefined)),
+  };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
       callback({
@@ -127,10 +137,7 @@ function buildRetrieval(complete: jest.Mock) {
   );
 }
 
-function fetchRouter(routes: {
-  native?: () => Response;
-  managed?: () => Response;
-}): jest.Mock {
+function fetchRouter(routes: { native?: () => Response; managed?: () => Response }): jest.Mock {
   return jest.fn(async (input: string | URL | Request) => {
     const url = String(input);
     if (url.includes('/api/clio/v3/mcp-tool-schemas')) {
@@ -446,7 +453,9 @@ describe('MeriV3RetrievalAssistantService', () => {
 
   test('the real normal.run provider path releases the truthful catalog limitation through the retrieval wrapper', async () => {
     const originalFetch = global.fetch;
-    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'Here is the answer.' }));
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'Here is the answer.' }));
     const service = buildRetrieval(complete);
     global.fetch = fetchRouter({
       native: () => jsonResponse({ error: 'native down' }, 500),

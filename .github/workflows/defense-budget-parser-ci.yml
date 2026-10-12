@@ -1,0 +1,70 @@
+# CleanUp1 §7 — the Python parser had never run in CI despite holding ~98% of
+# the repo's Python duplication and a 283-function pytest suite. This workflow
+# makes it first-class: ruff (lint) + mypy (strict) + pytest with coverage,
+# against the FROZEN uv lock so CI cannot silently drift the dependency graph.
+#
+# Triggers match the repo house style (path-scoped pull_request + manual).
+# The lock is frozen; the declared `dev` test extra is installed so the full
+# 283/283 run happens (without it, 4 numpy-dependent tests fail at import —
+# that was environment setup, and numpy is now a declared, lock-pinned dev
+# dependency rather than an ad-hoc install).
+name: defense-budget-parser-ci
+
+on:
+  pull_request:
+    paths:
+      - 'apps/defense-budget-parser/**'
+      - '.github/workflows/defense-budget-parser-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # The metadata supports Python >=3.11,<3.13 — run the full supported range.
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
+    defaults:
+      run:
+        working-directory: apps/defense-budget-parser
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Sync (frozen lock + declared dev test extra)
+        run: uv sync --frozen --extra dev
+
+      - name: Ruff (lint)
+        run: uv run --frozen ruff check .
+
+      - name: Mypy (strict typecheck)
+        run: uv run --frozen mypy src
+
+      - name: Pytest (with coverage)
+        run: >-
+          uv run --frozen pytest
+          --cov=capiro_defense_budget_parser
+          --cov-branch
+          --cov-report=json
+          --cov-report=term
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-coverage-py${{ matrix.python-version }}
+          path: apps/defense-budget-parser/coverage.json
+          if-no-files-found: ignore
+          retention-days: 14

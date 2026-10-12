@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only diagnostic: why are only "comment" alerts showing on the dashboard
  * / inbox / client Intelligence tab?
@@ -14,69 +15,84 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 async function main(): Promise<void> {
-  const now = Date.now();
-  const since30 = new Date(now - 30 * 864e5);
-  const since90 = new Date(now - 90 * 864e5);
+  const usage = 'Usage: apps/api/scripts/diag-alert-coverage.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const now = Date.now();
+    const since30 = new Date(now - 30 * 864e5);
+    const since90 = new Date(now - 90 * 864e5);
 
-  const [
-    clients,
-    ldaConfirmed,
-    ldaCandidates,
-    contractingConfirmed,
-    contractingCandidates,
-    awards30d,
-    awardsTotal,
-    hearingsUpcoming,
-    ldaFilings90d,
-  ] = await Promise.all([
-    prisma.client.count({ where: { status: { not: 'archived' } } }),
-    prisma.clientIntelMapping.count({ where: { source: 'lda', confirmed: true } }),
-    prisma.clientIntelMapping.count({ where: { source: 'lda', confirmed: false } }),
-    prisma.clientIntelMapping.count({ where: { source: 'contracting', confirmed: true } }),
-    prisma.clientIntelMapping.count({ where: { source: 'contracting', confirmed: false } }),
-    prisma.federalAward.count({ where: { awardedAt: { gte: since30 } } }),
-    prisma.federalAward.count(),
-    prisma.committeeHearing.count({ where: { date: { gte: new Date() } } }),
-    prisma.ldaFiling.count({ where: { dtPosted: { gte: since90 } } }),
-  ]);
+    const [
+      clients,
+      ldaConfirmed,
+      ldaCandidates,
+      contractingConfirmed,
+      contractingCandidates,
+      awards30d,
+      awardsTotal,
+      hearingsUpcoming,
+      ldaFilings90d,
+    ] = await Promise.all([
+      prisma.client.count({ where: { status: { not: 'archived' } } }),
+      prisma.clientIntelMapping.count({ where: { source: 'lda', confirmed: true } }),
+      prisma.clientIntelMapping.count({ where: { source: 'lda', confirmed: false } }),
+      prisma.clientIntelMapping.count({ where: { source: 'contracting', confirmed: true } }),
+      prisma.clientIntelMapping.count({ where: { source: 'contracting', confirmed: false } }),
+      prisma.federalAward.count({ where: { awardedAt: { gte: since30 } } }),
+      prisma.federalAward.count(),
+      prisma.committeeHearing.count({ where: { date: { gte: new Date() } } }),
+      prisma.ldaFiling.count({ where: { dtPosted: { gte: since90 } } }),
+    ]);
 
-  // Distinct clients with at least one confirmed mapping of each source.
-  const confirmedLda = await prisma.clientIntelMapping.findMany({
-    where: { source: 'lda', confirmed: true },
-    select: { clientId: true },
-    distinct: ['clientId'],
-  });
-  const confirmedContracting = await prisma.clientIntelMapping.findMany({
-    where: { source: 'contracting', confirmed: true },
-    select: { clientId: true },
-    distinct: ['clientId'],
-  });
+    // Distinct clients with at least one confirmed mapping of each source.
+    const confirmedLda = await prisma.clientIntelMapping.findMany({
+      where: { source: 'lda', confirmed: true },
+      select: { clientId: true },
+      distinct: ['clientId'],
+    });
+    const confirmedContracting = await prisma.clientIntelMapping.findMany({
+      where: { source: 'contracting', confirmed: true },
+      select: { clientId: true },
+      distinct: ['clientId'],
+    });
 
-  const result = {
-    activeClients: clients,
-    // Competitor-filing gate
-    ldaMappings: { confirmed: ldaConfirmed, candidatesAwaitingConfirm: ldaCandidates },
-    clientsWithConfirmedLda: confirmedLda.length,
-    ldaFilings_last90d: ldaFilings90d,
-    // Contract-award gate
-    contractingMappings: { confirmed: contractingConfirmed, candidatesAwaitingConfirm: contractingCandidates },
-    clientsWithConfirmedContracting: confirmedContracting.length,
-    federalAwards: { last30d: awards30d, total: awardsTotal },
-    // Hearing/bill-movement gate
-    hearingsUpcoming,
-  };
+    const result = {
+      activeClients: clients,
+      // Competitor-filing gate
+      ldaMappings: { confirmed: ldaConfirmed, candidatesAwaitingConfirm: ldaCandidates },
+      clientsWithConfirmedLda: confirmedLda.length,
+      ldaFilings_last90d: ldaFilings90d,
+      // Contract-award gate
+      contractingMappings: { confirmed: contractingConfirmed, candidatesAwaitingConfirm: contractingCandidates },
+      clientsWithConfirmedContracting: confirmedContracting.length,
+      federalAwards: { last30d: awards30d, total: awardsTotal },
+      // Hearing/bill-movement gate
+      hearingsUpcoming,
+    };
 
-  console.log('DIAG_RESULT ' + JSON.stringify(result, null, 2));
+    console.log('DIAG_RESULT ' + JSON.stringify(result, null, 2));
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('DIAG_ERR', err instanceof Error ? err.message : String(err));
     process.exitCode = 1;
-  })
-  .finally(() => {
-    void prisma.$disconnect();
   });
+}

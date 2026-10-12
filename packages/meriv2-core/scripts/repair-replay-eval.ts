@@ -1,6 +1,13 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { parseEvalCli } from './lib/eval-cli';
+
+parseEvalCli({
+  usage: 'Usage: tsx scripts/repair-replay-eval.ts --run',
+  actionOptions: ['--run'],
+});
 
 interface Scenario {
   id: string;

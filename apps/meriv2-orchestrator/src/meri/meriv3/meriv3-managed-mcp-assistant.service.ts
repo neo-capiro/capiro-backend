@@ -138,7 +138,10 @@ interface ManagedSchemaMetadata {
 }
 
 function isManagedAppId(value: unknown): value is ManagedAppId {
-  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(MANAGED_SERVER_BY_APP_ID, value);
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(MANAGED_SERVER_BY_APP_ID, value)
+  );
 }
 
 /**
@@ -164,7 +167,10 @@ function readManagedSchemaMetadata(schema: unknown): ManagedSchemaMetadata | nul
   if (!isManagedAppId(candidate.appId)) return null;
   const server = MANAGED_SERVER_BY_APP_ID[candidate.appId];
   const expectedPrefix = `mcp__${server}__`;
-  if (!candidate.name.startsWith(expectedPrefix) || candidate.name.length <= expectedPrefix.length) {
+  if (
+    !candidate.name.startsWith(expectedPrefix) ||
+    candidate.name.length <= expectedPrefix.length
+  ) {
     return null;
   }
   const inputSchema = candidate.input_schema;
@@ -336,9 +342,7 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     return null;
   }
 
-  protected override async fetchToolSchemas(
-    control?: ToolExecutionControl,
-  ): Promise<ToolSchema[]> {
+  protected override async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
     // Entry guard on the ORIGINAL parent control: a stopped/expired request must
     // never begin native + managed discovery.
     assertToolExecutionActive(control);
@@ -351,9 +355,7 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     // ordinary non-governed turn and a valid personal governed `meri.chat`
     // /`general` turn still resolve null here and fetch as before. The existing
     // `toolPolicy === 'none'` path already performs no fetch at all.
-    const managedDiscoveryForbidden = this.governedManagedReadRefusal(
-      currentGovernedMeriContext(),
-    );
+    const managedDiscoveryForbidden = this.governedManagedReadRefusal(currentGovernedMeriContext());
     if (managedDiscoveryForbidden) {
       // Intentional pre-discovery skip of a policy-forbidden source: recorded as
       // a deliberate skip, never a fake outage and never a reconnect attempt.
@@ -567,8 +569,7 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       return result;
     } catch (error) {
       assertToolExecutionActive(args.control);
-      const detail =
-        error instanceof Error ? error.message.slice(0, 180) : 'Connected app failed';
+      const detail = error instanceof Error ? error.message.slice(0, 180) : 'Connected app failed';
       args.steps.push({ tool: args.name, label, status: 'error', detail });
       args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
       return { error: detail, connectedApp: true };
@@ -588,9 +589,7 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
   ): Promise<void> {
     // Entry guard on the ORIGINAL parent control.
     assertToolExecutionActive(control);
-    const current = (await this.managedMcp.schemas(control)).find(
-      (schema) => schema.name === name,
-    );
+    const current = (await this.managedMcp.schemas(control)).find((schema) => schema.name === name);
     // A revocation/omission look-up is only meaningful for a live parent: assert
     // after the await so a stopped/expired parent is never reported as a
     // "no longer available" tool.

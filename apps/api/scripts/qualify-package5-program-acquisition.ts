@@ -21,14 +21,20 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/qualify-package5-program-acquisition.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   assertPackage5QualificationTarget({
     databaseUrl: process.env.DATABASE_URL,
     environmentOptIn: process.env.PACKAGE5_QUALIFICATION_ALLOW_WRITES,
     args: process.argv.slice(2),
   });
   const prisma = new PrismaClient();
-  await prisma.$connect();
+
   try {
+    await prisma.$connect();
     await prisma.program.upsert({
       where: { id: PROGRAM_A },
       create: { id: PROGRAM_A, canonicalName: 'P5 Qualification Program Alpha', status: 'active' },
@@ -231,6 +237,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   if (error instanceof Package5QualificationSafetyError) {
     console.error(error.message);
@@ -241,3 +248,4 @@ void main().catch((error) => {
   }
   process.exit(1);
 });
+}

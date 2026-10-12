@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Run the isolated FY2027 HASC Package 3 qualification and emit portable
  * evidence. This command never registers a production manifest, opens a
@@ -6,7 +7,6 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, relative, resolve } from 'node:path';
-import { runHascFy2027QualificationV1 } from '../src/defense-budget/stages/hasc-fy2027-qualification-harness-v1.js';
 
 const repositoryRoot = resolve(__dirname, '../../..');
 const packetPath = resolve(
@@ -27,7 +27,33 @@ function outputPathFromArgs(argv: readonly string[]): string {
 }
 
 async function main(): Promise<void> {
-  const outputPath = outputPathFromArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const usage = 'Usage: qualify-package3-congressional-artifact --run [--out PATH] | --out PATH';
+  if (argv.length === 1 && argv[0] === '--help') {
+    console.log(usage);
+    return;
+  }
+  let explicitRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const option = argv[index];
+    if (option === '--run') {
+      explicitRun = true;
+    } else if (option === '--out' && argv[index + 1] && !argv[index + 1]!.startsWith('--')) {
+      explicitRun = true;
+      index += 1;
+    } else {
+      process.stderr.write(`Unsupported or incomplete argument: ${option}\n${usage}\n`);
+      process.exitCode = 2;
+      return;
+    }
+  }
+  if (!explicitRun) {
+    process.stderr.write(`${usage}\n`);
+    process.exitCode = 2;
+    return;
+  }
+  const outputPath = outputPathFromArgs(argv);
+  const { runHascFy2027QualificationV1 } = await import('../src/defense-budget/stages/hasc-fy2027-qualification-harness-v1.js');
   const packetBytes = await readFile(packetPath);
   const artifactRoot = await mkdtemp(resolve(tmpdir(), 'capiro-p3-hasc-qualification-'));
   try {

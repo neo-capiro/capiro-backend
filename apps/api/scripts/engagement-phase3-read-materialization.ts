@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * Pure request materializer for the Phase 3 full-read parity sweep.
  *
@@ -206,3 +207,14 @@ export function uniquePhase3Reads(
 }
 
 export const PHASE3_JOB_READ_ABSENCE_REASON = JOB_ABSENCE_REASON;
+
+if (require.main === module) {
+  const usage = 'Usage: engagement-phase3-read-materialization [--help] (library module)';
+  const args = process.argv.slice(2);
+  if (args.length === 0 || (args.length === 1 && args[0] === '--help')) {
+    console.log(usage);
+  } else {
+    console.error(usage);
+    process.exitCode = 2;
+  }
+}

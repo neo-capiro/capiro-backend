@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * report-pe-attribution-gaps.ts — C2.5 SELECT-only attribution gap analysis.
  *
@@ -17,6 +18,20 @@ import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/report-pe-attribution-gaps.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {

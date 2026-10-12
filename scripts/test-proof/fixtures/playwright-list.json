@@ -1,0 +1,25 @@
+{
+  "config": { "rootDir": "apps/e2e" },
+  "suites": [
+    {
+      "title": "routes.spec.ts",
+      "file": "C:/dev/main/cleanup-test-proof-20261007/apps/e2e/routes.spec.ts",
+      "specs": [
+        { "title": "home renders", "tests": [{ "status": "expected", "projectName": "desktop" }] },
+        { "title": "home renders", "tests": [{ "status": "expected", "projectName": "mobile" }] }
+      ],
+      "suites": [
+        {
+          "title": "nested group",
+          "specs": [{ "title": "inner renders", "tests": [{ "status": "skipped", "projectName": "desktop" }] }]
+        }
+      ]
+    },
+    {
+      "title": "auth.spec.ts",
+      "file": "C:/dev/OTHER-WORKTREE-abc/apps/e2e/auth.spec.ts",
+      "specs": [{ "title": "sign-in", "tests": [{ "status": "unexpected", "projectName": "desktop" }] }]
+    }
+  ],
+  "errors": []
+}

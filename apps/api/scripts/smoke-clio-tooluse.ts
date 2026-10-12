@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Smoke test: verify the Meri chat brain performs Anthropic-native tool use
  * over the streaming endpoint. It POSTs a tool-forcing prompt to
@@ -26,6 +27,20 @@ interface SseEvent {
   tool?: string;
   message?: string;
   [k: string]: unknown;
+}
+
+const usage = 'Usage: smoke-clio-tooluse [--help] (requires CLIO_SMOKE_BASE_URL, CLIO_SMOKE_TOKEN, and CLIO_SMOKE_CONVERSATION_ID)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length > 0) {
+  console.error(usage);
+  process.exit(2);
+}
+if (!process.env.CLIO_SMOKE_BASE_URL || !process.env.CLIO_SMOKE_TOKEN || !process.env.CLIO_SMOKE_CONVERSATION_ID) {
+  console.error(usage);
 }
 
 function requireEnv(name: string): string {

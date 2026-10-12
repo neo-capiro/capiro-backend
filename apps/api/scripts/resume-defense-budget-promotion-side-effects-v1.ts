@@ -53,6 +53,11 @@ function gitSha(): string {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/resume-defense-budget-promotion-side-effects-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
   const environment = argValue('--environment');
   const actor = argValue('--actor');
@@ -115,7 +120,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('resume-defense-budget-promotion-side-effects-v1 FAILED:', error);
   process.exit(1);
 });
+}

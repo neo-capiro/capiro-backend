@@ -9,8 +9,6 @@ import { createHash } from 'node:crypto';
 import { PrismaClient, Prisma } from '@prisma/client';
 dotenvConfig();
 
-const prisma = new PrismaClient();
-
 interface TableDef {
   source: string;
   label: string; // human-readable plural label
@@ -120,6 +118,7 @@ function severity(count: number): string {
 }
 
 async function queryNewRows(
+  prisma: PrismaClient,
   tbl: TableDef,
   since: Date,
 ): Promise<{ count: number; sampleIds: string[] }> {
@@ -138,91 +137,100 @@ async function queryNewRows(
 }
 
 async function main() {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const startedAt = new Date();
-  console.log(`[emit-changes] checking for new rows since ${since.toISOString()}`);
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-changes.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const startedAt = new Date();
+    console.log(`[emit-changes] checking for new rows since ${since.toISOString()}`);
 
-  const syncRun = await prisma.syncRun.create({
-    data: { source: 'emit-changes', startedAt },
-  });
+    const syncRun = await prisma.syncRun.create({
+      data: { source: 'emit-changes', startedAt },
+    });
 
-  let emitted = 0;
-  let errorCount = 0;
+    let emitted = 0;
+    let errorCount = 0;
 
-  for (const tbl of TABLES) {
-    try {
-      const { count, sampleIds } = await queryNewRows(tbl, since);
-      if (count === 0) continue;
-
-      // Idempotency (P1-T4): a same-window re-run must not double-emit. The key
-      // is source + UTC-day bucket + a signature of the sampled ids, so a
-      // genuinely different batch in the same window still emits, while a
-      // re-run over the same data collides. The @unique column is the hard
-      // guard (P2002 on a concurrent race); the findFirst is the cheap path.
-      const bucket = since.toISOString().slice(0, 10);
-      const sampleSig = createHash('sha1')
-        .update(sampleIds.slice().sort().join(','))
-        .digest('hex')
-        .slice(0, 12);
-      const dedupeKey = `${tbl.source}:${bucket}:${sampleSig}`;
-
-      const existing = await prisma.intelligenceChange.findFirst({
-        where: { dedupeKey },
-        select: { id: true },
-      });
-      if (existing) {
-        console.log(`[emit-changes] ${tbl.source}: duplicate for window ${bucket} — skipped`);
-        continue;
-      }
-
+    for (const tbl of TABLES) {
       try {
-        await prisma.intelligenceChange.create({
-          data: {
-            source: tbl.source,
-            changeType: 'new_data',
-            severity: severity(count),
-            title: `${count} new ${tbl.label} synced`,
-            description: `${count} new ${tbl.label} detected in the last 24 hours.`,
-            relatedClientIds: [],
-            relatedIssues: [],
-            data: { count, table: tbl.source, sample_ids: sampleIds },
-            dedupeKey,
-          },
+        const { count, sampleIds } = await queryNewRows(prisma, tbl, since);
+        if (count === 0) continue;
+
+        // Idempotency (P1-T4): a same-window re-run must not double-emit. The key
+        // is source + UTC-day bucket + a signature of the sampled ids, so a
+        // genuinely different batch in the same window still emits, while a
+        // re-run over the same data collides. The @unique column is the hard
+        // guard (P2002 on a concurrent race); the findFirst is the cheap path.
+        const bucket = since.toISOString().slice(0, 10);
+        const sampleSig = createHash('sha1')
+          .update(sampleIds.slice().sort().join(','))
+          .digest('hex')
+          .slice(0, 12);
+        const dedupeKey = `${tbl.source}:${bucket}:${sampleSig}`;
+
+        const existing = await prisma.intelligenceChange.findFirst({
+          where: { dedupeKey },
+          select: { id: true },
         });
-      } catch (err) {
-        // Unique-violation race with a concurrent run = the dup we wanted to skip.
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          console.log(`[emit-changes] ${tbl.source}: concurrent duplicate — skipped`);
+        if (existing) {
+          console.log(`[emit-changes] ${tbl.source}: duplicate for window ${bucket} — skipped`);
           continue;
         }
-        throw err;
+
+        try {
+          await prisma.intelligenceChange.create({
+            data: {
+              source: tbl.source,
+              changeType: 'new_data',
+              severity: severity(count),
+              title: `${count} new ${tbl.label} synced`,
+              description: `${count} new ${tbl.label} detected in the last 24 hours.`,
+              relatedClientIds: [],
+              relatedIssues: [],
+              data: { count, table: tbl.source, sample_ids: sampleIds },
+              dedupeKey,
+            },
+          });
+        } catch (err) {
+          // Unique-violation race with a concurrent run = the dup we wanted to skip.
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            console.log(`[emit-changes] ${tbl.source}: concurrent duplicate — skipped`);
+            continue;
+          }
+          throw err;
+        }
+        emitted++;
+        console.log(`[emit-changes] ${tbl.source}: ${count} new rows → ${severity(count)}`);
+      } catch (err) {
+        errorCount++;
+        console.error(`[emit-changes] ${tbl.source}: error -`, err);
       }
-      emitted++;
-      console.log(`[emit-changes] ${tbl.source}: ${count} new rows → ${severity(count)}`);
-    } catch (err) {
-      errorCount++;
-      console.error(`[emit-changes] ${tbl.source}: error -`, err);
     }
+
+    await prisma.syncRun.update({
+      where: { id: syncRun.id },
+      data: {
+        finishedAt: new Date(),
+        rowsInserted: emitted,
+        errorCount,
+        status: errorCount > 0 ? 'failed' : 'completed',
+      },
+    });
+
+    console.log(
+      `[emit-changes] done. Emitted ${emitted} change event${emitted !== 1 ? 's' : ''}, ${errorCount} errors.`,
+    );
+  } finally {
+    await prisma.$disconnect();
   }
-
-  await prisma.syncRun.update({
-    where: { id: syncRun.id },
-    data: {
-      finishedAt: new Date(),
-      rowsInserted: emitted,
-      errorCount,
-      status: errorCount > 0 ? 'failed' : 'completed',
-    },
-  });
-
-  console.log(
-    `[emit-changes] done. Emitted ${emitted} change event${emitted !== 1 ? 's' : ''}, ${errorCount} errors.`,
-  );
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Tracker change-detection worker.
  *
@@ -36,6 +37,11 @@ async function loadNest(): Promise<{ AppModule: any; TrackerChangeDetectorServic
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: detect-tracker-alerts (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, TrackerChangeDetectorService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {

@@ -19,9 +19,14 @@ function arg(name: string): string | undefined {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/qualify-package4-legislative-updates.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   const prisma = new PrismaClient();
-  await prisma.$connect();
+
   const run = randomUUID().slice(0, 8);
   const tenantId = randomUUID();
   const userId = randomUUID();
@@ -37,6 +42,7 @@ async function main(): Promise<void> {
     scenarios: {},
   };
   try {
+    await prisma.$connect();
     await prisma.tenant.create({ data: { id: tenantId, slug: `package4-${run}`, name: `Package 4 ${run}` } });
     await prisma.user.create({
       data: { id: userId, clerkUserId: `package4_${run}`, email: `package4-${run}@example.test` },
@@ -323,7 +329,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('[qualify-package4-legislative-updates] FAILED', error);
   process.exit(1);
 });
+}

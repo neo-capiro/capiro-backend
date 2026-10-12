@@ -52,6 +52,10 @@ async function snapshotStates(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/meriv2-phase18-backfill-rehearsal.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
@@ -148,6 +152,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((error) => {
   console.error(
     JSON.stringify({
@@ -157,3 +162,4 @@ main().catch((error) => {
   );
   process.exitCode = 1;
 });
+}

@@ -212,13 +212,35 @@ describe('MeriV3SemanticCompatibilityTools', () => {
   });
 
   test('text delegates exact content through the existing governed owner and pins client/conversation', async () => {
-    const tools = new MeriV3SemanticCompatibilityTools(config({ MERI_ARTIFACT_TOOL_V2_ENABLED: 'true', MERI_ARTIFACT_TOOL_V2_TENANTS: '*' }));
+    const tools = new MeriV3SemanticCompatibilityTools(
+      config({ MERI_ARTIFACT_TOOL_V2_ENABLED: 'true', MERI_ARTIFACT_TOOL_V2_TENANTS: '*' }),
+    );
     const invoke = jest.fn().mockResolvedValue({ format: 'txt' });
     const text = '\ufeffExact content\n';
-    await tools.execute('create_artifact', { type: 'text', clientId: 'client-1', conversationId: 'conversation-1', spec: { title: 'Brief', text, format: 'pdf' } }, invoke);
-    expect(invoke).toHaveBeenCalledWith('create_word', { title: 'Brief', text, format: 'txt', sections: [], clientId: 'client-1', conversationId: 'conversation-1' });
+    await tools.execute(
+      'create_artifact',
+      {
+        type: 'text',
+        clientId: 'client-1',
+        conversationId: 'conversation-1',
+        spec: { title: 'Brief', text, format: 'pdf' },
+      },
+      invoke,
+    );
+    expect(invoke).toHaveBeenCalledWith('create_word', {
+      title: 'Brief',
+      text,
+      format: 'txt',
+      sections: [],
+      clientId: 'client-1',
+      conversationId: 'conversation-1',
+    });
     invoke.mockClear();
-    await tools.execute('create_artifact', { type: 'text', clientId: 'client-1', spec: { title: 'Brief', text, clientId: 'client-2' } }, invoke);
+    await tools.execute(
+      'create_artifact',
+      { type: 'text', clientId: 'client-1', spec: { title: 'Brief', text, clientId: 'client-2' } },
+      invoke,
+    );
     expect(invoke).not.toHaveBeenCalled();
   });
 

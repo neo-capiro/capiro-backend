@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { readFileSync } from 'node:fs';
 import { pullHistoricalDatasets } from '../src/ingestion/legiscan-historical-research.js';
 
@@ -57,7 +58,7 @@ import {
 } from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
 const RAW_STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .split(',')
@@ -71,8 +72,7 @@ const SESSION_ALLOWLIST = selectedSessionIds(process.env.LEGISCAN_SESSION_IDS);
 
 const DRY_RUN = process.env.LEGISCAN_DATASET_DRY_RUN === 'true';
 
-if (SESSIONS_MODE === 'selected' && STATES.length !== 1)
-  throw Error('SELECTED_HISTORY_REQUIRES_ONE_STATE');
+
 
 /**
  * (2026-07-10 hot-fix) The cost to attribute to ONE session's cursor this
@@ -110,7 +110,7 @@ export function nextQueriesUsed(
     : queriesForThisCursor;
 }
 
-async function backfillState(
+async function backfillState(prisma: PrismaClient,
   state: string,
 ): Promise<{ bills: number; people: number; votes: number; errors: number; queries: number }> {
   let stateLevelQueries = 0;
@@ -347,6 +347,9 @@ function normalizeSessionKeyFor(session: {
 }
 
 async function main() {
+  if (SESSIONS_MODE === 'selected' && STATES.length !== 1)
+  throw Error('SELECTED_HISTORY_REQUIRES_ONE_STATE');
+
   if (DRY_RUN) {
     const file = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
 
@@ -388,7 +391,13 @@ async function main() {
     return;
   }
 
-  if (SESSIONS_MODE === 'selected') {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-legiscan-datasets.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    if (SESSIONS_MODE === 'selected') {
     const path = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
     if (!path) throw Error('REVIEWED_SESSION_INVENTORY_REQUIRED');
     console.log(
@@ -431,7 +440,7 @@ async function main() {
     let errors = 0;
 
     for (const state of STATES) {
-      const r = await backfillState(state);
+      const r = await backfillState(prisma, state);
       bills += r.bills;
       people += r.people;
       votes += r.votes;
@@ -446,13 +455,15 @@ async function main() {
     );
     return { inserted: bills + people + votes, updated: 0, skipped: 0, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

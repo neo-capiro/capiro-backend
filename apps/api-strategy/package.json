@@ -15,7 +15,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts --run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",

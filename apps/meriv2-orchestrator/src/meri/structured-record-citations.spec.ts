@@ -58,9 +58,7 @@ describe('structured Capiro records become citable sources', () => {
       },
       3,
     );
-    expect(citation).toEqual(
-      expect.objectContaining({ n: 3, id: 'pe:0603203F', url: null }),
-    );
+    expect(citation).toEqual(expect.objectContaining({ n: 3, id: 'pe:0603203F', url: null }));
     expect(citation!.snippet).toContain('$72.149M');
   });
 

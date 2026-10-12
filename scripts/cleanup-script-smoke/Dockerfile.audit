@@ -1,0 +1,18 @@
+# CleanUp1 §6.2 — Linux-only staging of the denied-syscall/attempt audit tool.
+#
+# The build context is THIS directory only (the smoke harness). Nothing from the
+# host is copied into the image: no credentials, no config directories, no repo
+# tree. `strace` is a Linux-only dependency for observing the entry point's
+# syscalls (see attempt-audit.mjs). `openssl` ships the REAL libssl3 that Prisma's
+# query/schema engines probe at runtime (without it @prisma/engines falls back to
+# openssl-1.1 and warns that OpenSSL is unavailable). The SAME image is used for
+# both the frozen install and the runtime/probe stages, so the engine ABI is
+# identical. The image is built without host mounts and run afterwards with
+# `--network none --read-only`, like every other smoke run.
+#
+# The base is parameterised so root can pin the EXACT digest it inspected:
+# pass `--build-arg NODE_IMAGE="<name>@sha256:<digest>"`; the resulting image's
+# immutable id is what the provision driver binds as runtime/install image id.
+ARG NODE_IMAGE=node:22-alpine
+FROM ${NODE_IMAGE}
+RUN apk add --no-cache strace openssl

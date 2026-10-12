@@ -1,5 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { validateMeriCase12SetupPolicyBinding, type MeriCase12SetupBinding } from './case12-setup-binding.js';
+import {
+  validateMeriCase12SetupPolicyBinding,
+  type MeriCase12SetupBinding,
+} from './case12-setup-binding.js';
 import {
   validateMeriSyntheticReadBudgetGuard,
   type MeriSyntheticReadBudgetBinding,
@@ -31,18 +34,34 @@ export interface MeriFixtureSemanticClock {
 }
 
 /** Shape/binding validation only. API issuance additionally requires the current canonical owner. */
-export function validateMeriFixtureSemanticClock(value: MeriFixtureSemanticClock, binding: {
-  caseId: string | null; captureRunId: string | null; issuedAt: number; syntheticReadBudget?: unknown;
-}): MeriFixtureSemanticClock {
-  if (!value || binding.syntheticReadBudget ||
-    Object.keys(value).sort().join('|') !== 'captureRunId|caseId|currentVerifySha256|instant|kind|observedAt|timeZone|version' ||
-    value.version !== 1 || value.kind !== 'qualified_original_fixture_semantic_clock' ||
-    value.instant !== MERI_FIXTURE_SEMANTIC_INSTANT || value.timeZone !== MERI_FIXTURE_SEMANTIC_ZONE ||
-    !['01', '12', '14', '20', '46', '72'].includes(value.caseId) || value.caseId !== binding.caseId ||
+export function validateMeriFixtureSemanticClock(
+  value: MeriFixtureSemanticClock,
+  binding: {
+    caseId: string | null;
+    captureRunId: string | null;
+    issuedAt: number;
+    syntheticReadBudget?: unknown;
+  },
+): MeriFixtureSemanticClock {
+  if (
+    !value ||
+    binding.syntheticReadBudget ||
+    Object.keys(value).sort().join('|') !==
+      'captureRunId|caseId|currentVerifySha256|instant|kind|observedAt|timeZone|version' ||
+    value.version !== 1 ||
+    value.kind !== 'qualified_original_fixture_semantic_clock' ||
+    value.instant !== MERI_FIXTURE_SEMANTIC_INSTANT ||
+    value.timeZone !== MERI_FIXTURE_SEMANTIC_ZONE ||
+    !['01', '12', '14', '20', '46', '72'].includes(value.caseId) ||
+    value.caseId !== binding.caseId ||
     value.captureRunId !== binding.captureRunId ||
-    !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.captureRunId) ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(
+      value.captureRunId,
+    ) ||
     !/^[a-f0-9]{64}$/.test(value.currentVerifySha256) ||
-    !Number.isSafeInteger(value.observedAt) || value.observedAt !== binding.issuedAt) {
+    !Number.isSafeInteger(value.observedAt) ||
+    value.observedAt !== binding.issuedAt
+  ) {
     throw new Error('meri_fixture_semantic_clock_invalid');
   }
   return value;

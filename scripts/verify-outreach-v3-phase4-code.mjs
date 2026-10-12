@@ -1,7 +1,18 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+const usage = 'Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const root = process.cwd();
 const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
@@ -132,7 +143,7 @@ assert(manifest.featureFlag === 'OUTREACH_V3_TARGETS_ENABLED', 'wrong-target-fla
 assert(manifest.disabledBehavior === 404, 'target-flag-not-fail-closed');
 assert(manifest.routes.length === 4, 'target-route-count');
 
-run('Phase 3 reasoning regression', 'node', ['scripts/verify-outreach-v3-phase3-code.mjs'], {
+run('Phase 3 reasoning regression', 'node', ['scripts/verify-outreach-v3-phase3-code.mjs', '--run'], {
   env: { ENGAGEMENT_PHASE3_SCOPE_END: phase3Base },
 });
 run('Phase 4 TypeScript project', 'pnpm', [

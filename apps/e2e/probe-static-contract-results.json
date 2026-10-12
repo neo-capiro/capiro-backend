@@ -1,0 +1,729 @@
+{
+  "probe": "apps/e2e/scripts/probe-static-contract.mjs",
+  "note": "Owned in-memory probe; nothing written to the repo, no repository module imported/transpiled/executed.",
+  "repoHead": "8cfe84da6664a827192698fbc2fefd8b612a2ff5",
+  "sourceSha256": {
+    "apps/e2e/lib/contract.mjs": "a2a34e6711d7f2953d3ec51d8a7ff98eb51c245714ec9d3bfd3ea0544f50fb39",
+    "apps/e2e/lib/ast-routes.mjs": "cf25e45ce8d6c51730ef86acf1fe76ec2b3c252a3b99a7b5fd0017c9414378d4"
+  },
+  "round4Reference": {
+    "contract.mjs": "074154f88addcd6c5ae9968b1d3bddfca65354d9db75c523021a17ff65f8002b"
+  },
+  "executionChecks": [
+    {
+      "name": "transpileModule",
+      "absent": true
+    },
+    {
+      "name": "transpile()",
+      "absent": true
+    },
+    {
+      "name": "new Function()",
+      "absent": true
+    },
+    {
+      "name": "eval()",
+      "absent": true
+    },
+    {
+      "name": "await import()",
+      "absent": true
+    },
+    {
+      "name": "dynamic import('...')",
+      "absent": true
+    },
+    {
+      "name": "child_process",
+      "absent": true
+    },
+    {
+      "name": "deriveContractSource exported",
+      "absent": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "root-1-reordered-encoded",
+      "ok": true,
+      "expected": "/route/B%20value/A%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/route/"
+              },
+              {
+                "t": "param",
+                "name": "second",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": "/"
+              },
+              {
+                "t": "param",
+                "name": "first",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "first",
+              "second"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/route/B%20value/A%2Fvalue"
+      },
+      "note": "applied=/route/B%20value/A%2Fvalue"
+    },
+    {
+      "id": "root-2-literal-span",
+      "ok": true,
+      "expected": "/route/fixed",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/route/fixed"
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/route/fixed"
+      },
+      "note": "applied=/route/fixed"
+    },
+    {
+      "id": "root-3-raw-segment",
+      "ok": true,
+      "expected": "/route/A/value",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/route/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": false,
+                "encoder": null
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/route/A/value"
+      },
+      "note": "applied=/route/A/value"
+    },
+    {
+      "id": "root-6-encodeURI",
+      "ok": true,
+      "expected": "/route/A/value?x=1",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/route/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURI"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/route/A/value?x=1"
+      },
+      "note": "applied=/route/A/value?x=1"
+    },
+    {
+      "id": "root-6-shadowed-local",
+      "ok": true,
+      "expected": "/route/inner",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/route/inner"
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/route/inner"
+      },
+      "note": "applied=/route/inner"
+    },
+    {
+      "id": "root-6-malformed-diagnostics",
+      "ok": true,
+      "derived": {
+        "ok": false,
+        "reason": "parse failure: malformed.ts: 1 parse diagnostic(s) — Expression expected.",
+        "exports": {},
+        "unresolvedExports": []
+      },
+      "applied": {
+        "reason": "root-6-malformed-diagnostics: not a statically resolvable route builder"
+      },
+      "note": "fail-closed: parse failure: malformed.ts: 1 parse diagnostic(s) — Expression expected."
+    },
+    {
+      "id": "reordered",
+      "ok": true,
+      "expected": "/x/C/A",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/x/"
+              },
+              {
+                "t": "param",
+                "name": "c",
+                "encoded": false,
+                "encoder": null
+              },
+              {
+                "t": "lit",
+                "text": "/"
+              },
+              {
+                "t": "param",
+                "name": "a",
+                "encoded": false,
+                "encoder": null
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "a",
+              "b",
+              "c"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/x/C/A"
+      },
+      "note": "applied=/x/C/A"
+    },
+    {
+      "id": "repeated-encoded",
+      "ok": true,
+      "expected": "/x/A%2Fvalue/A%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/x/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": "/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/x/A%2Fvalue/A%2Fvalue"
+      },
+      "note": "applied=/x/A%2Fvalue/A%2Fvalue"
+    },
+    {
+      "id": "unused-param",
+      "ok": true,
+      "expected": "/only/X",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/only/"
+              },
+              {
+                "t": "param",
+                "name": "a",
+                "encoded": false,
+                "encoder": null
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "a",
+              "b"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/only/X"
+      },
+      "note": "applied=/only/X"
+    },
+    {
+      "id": "mixed-raw-encoded",
+      "ok": true,
+      "expected": "/m/A/value/B%20value",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/m/"
+              },
+              {
+                "t": "param",
+                "name": "a",
+                "encoded": false,
+                "encoder": null
+              },
+              {
+                "t": "lit",
+                "text": "/"
+              },
+              {
+                "t": "param",
+                "name": "b",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "a",
+              "b"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/m/A/value/B%20value"
+      },
+      "note": "applied=/m/A/value/B%20value"
+    },
+    {
+      "id": "local-const",
+      "ok": true,
+      "expected": "/root/A%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": ""
+              },
+              {
+                "t": "lit",
+                "text": "/root"
+              },
+              {
+                "t": "lit",
+                "text": "/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/root/A%2Fvalue"
+      },
+      "note": "applied=/root/A%2Fvalue"
+    },
+    {
+      "id": "nested-template",
+      "ok": true,
+      "expected": "/a/bA%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/a"
+              },
+              {
+                "t": "lit",
+                "text": "/b"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/a/bA%2Fvalue"
+      },
+      "note": "applied=/a/bA%2Fvalue"
+    },
+    {
+      "id": "concatenation",
+      "ok": true,
+      "expected": "/c/A%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/c/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/c/A%2Fvalue"
+      },
+      "note": "applied=/c/A%2Fvalue"
+    },
+    {
+      "id": "function-declaration",
+      "ok": true,
+      "expected": "/fd/A%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/fd/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/fd/A%2Fvalue"
+      },
+      "note": "applied=/fd/A%2Fvalue"
+    },
+    {
+      "id": "imported-alias",
+      "ok": true,
+      "expected": "/imported-root/A%2Fvalue",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": ""
+              },
+              {
+                "t": "lit",
+                "text": "/imported-root"
+              },
+              {
+                "t": "lit",
+                "text": "/"
+              },
+              {
+                "t": "param",
+                "name": "id",
+                "encoded": true,
+                "encoder": "encodeURIComponent"
+              },
+              {
+                "t": "lit",
+                "text": ""
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/imported-root/A%2Fvalue"
+      },
+      "note": "applied=/imported-root/A%2Fvalue"
+    },
+    {
+      "id": "encoded-const-literal",
+      "ok": true,
+      "expected": "/lit/A%2FB",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "route": {
+            "kind": "fn",
+            "parts": [
+              {
+                "t": "lit",
+                "text": "/lit/A%2FB"
+              }
+            ],
+            "params": [
+              "id"
+            ]
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/lit/A%2FB"
+      },
+      "note": "applied=/lit/A%2FB"
+    },
+    {
+      "id": "concat-constants",
+      "ok": true,
+      "expected": "/x/y",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "R": {
+            "kind": "string",
+            "value": "/x/y"
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "reason": "concat-constants: not a statically resolvable route builder"
+      },
+      "note": "kind=string value=/x/y"
+    },
+    {
+      "id": "object-of-builders",
+      "ok": true,
+      "expected": "/directory/staff/a%20b",
+      "derived": {
+        "ok": true,
+        "exports": {
+          "P": {
+            "kind": "object",
+            "props": {
+              "staff": {
+                "kind": "fn",
+                "parts": [
+                  {
+                    "t": "lit",
+                    "text": "/directory/staff/"
+                  },
+                  {
+                    "t": "param",
+                    "name": "staffId",
+                    "encoded": true,
+                    "encoder": "encodeURIComponent"
+                  },
+                  {
+                    "t": "lit",
+                    "text": ""
+                  }
+                ],
+                "params": [
+                  "staffId"
+                ]
+              }
+            }
+          }
+        },
+        "unresolvedExports": []
+      },
+      "applied": {
+        "value": "/directory/staff/a%20b"
+      },
+      "note": "applied=/directory/staff/a%20b"
+    },
+    {
+      "id": "unsupported-expression",
+      "ok": true,
+      "expected": "(explicit obligation)",
+      "derived": {
+        "ok": true,
+        "exports": {},
+        "unresolvedExports": [
+          "route"
+        ]
+      },
+      "applied": null,
+      "note": "explicit obligation: unresolvedExports=[\"route\"]; applyFnTemplate reason present"
+    }
+  ],
+  "pass": 19,
+  "fail": 0
+}

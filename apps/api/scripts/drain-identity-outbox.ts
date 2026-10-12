@@ -42,6 +42,10 @@ import { IdentityOutboxService } from '../src/auth/identity-outbox.service.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/drain-identity-outbox.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limitArg = process.argv[2];
   const limit = limitArg ? Number.parseInt(limitArg, 10) : 50;
   if (!Number.isFinite(limit) || limit <= 0) {
@@ -94,7 +98,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((err: unknown) => {
   console.error('drain-identity-outbox failed:', err);
   process.exit(1);
 });
+}

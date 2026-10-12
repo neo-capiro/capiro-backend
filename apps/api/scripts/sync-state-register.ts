@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Sync state agency register notices into state_rule (Phase 1 M3.2, PD3
  * substrate). Per-state adapters — there is no 50-state API — registered in
@@ -36,7 +37,7 @@ import {
 } from '../src/external/state-register/fl-far.client.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 const MAX_PAGES = Number(process.env.STATE_REGISTER_MAX_PAGES ?? '40');
 const DELAY_MS = Number(process.env.STATE_REGISTER_DELAY_MS ?? '400');
 const REVISIT_DAYS = Number(process.env.STATE_REGISTER_REVISIT_DAYS ?? '30');
@@ -154,7 +155,13 @@ async function main() {
     return;
   }
 
-  await runWithSyncRun(prisma as never, 'sync-state-register', async () => {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-state-register.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'sync-state-register', async () => {
     let inserted = 0;
     let updated = 0;
     let skipped = 0;
@@ -231,13 +238,15 @@ async function main() {
     await prisma.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${id},'fl-far',${JSON.stringify(coverage.scope)}::jsonb,${JSON.stringify(coverage)}::jsonb,${coverage.complete})`;
     return { inserted, updated, skipped, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

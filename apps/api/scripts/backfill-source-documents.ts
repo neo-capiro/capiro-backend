@@ -174,6 +174,10 @@ async function linkYearSourceValues(prisma: PrismaClient, commit: boolean, docs:
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-source-documents.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -307,7 +311,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error('[backfill-source-documents] fatal', err?.stack || err);
   process.exit(1);
 });
+}

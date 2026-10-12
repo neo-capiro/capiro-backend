@@ -78,6 +78,10 @@ async function fetchPage(startDate: string, endDate: string, page: number): Prom
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-federal-award.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const backfill = hasFlag('backfill');
   const endDate = isoDaysAgo(0);
   const startDate = backfill ? (arg('since') ?? '2020-10-01') : isoDaysAgo(Number(arg('days') ?? 7));

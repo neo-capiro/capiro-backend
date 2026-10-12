@@ -298,6 +298,10 @@ export async function enrichCandidates(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/enrich-assistance-award-details.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = Number(arg('limit') ?? 500);
   const delayArg = arg('delay-ms');
   const delayMs = delayArg != null && delayArg !== '' ? Number(delayArg) : DEFAULT_DELAY_MS;

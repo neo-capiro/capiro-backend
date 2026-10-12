@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Emit `intelligence_change` rows for committee membership changes (WS-G,
  * LegiStorm gaps/enrichment plan — optional temporal enrichment).
@@ -214,6 +215,11 @@ async function readCrossTenant<T>(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: emit-committee-changes (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, DirectoryService, PrismaService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
 

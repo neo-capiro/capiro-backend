@@ -42,6 +42,10 @@ const SUPERSEDE_REASON =
   'old DoW-directory spreadsheet only (stanford_dow_*); absent from dow_directory_rev6_2026_06';
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/reconcile-personnel-supersede.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = numArg('limit', 0);
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -116,6 +120,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(
     '[reconcile-personnel-supersede] FAILED',
@@ -123,3 +128,4 @@ void main().catch((err) => {
   );
   process.exit(1);
 });
+}

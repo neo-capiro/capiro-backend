@@ -15,8 +15,6 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 const FEATURES = [
   'district_nexus_v2',
   'district_nexus_strategic_relevance',
@@ -25,60 +23,72 @@ const FEATURES = [
 ];
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/enable-district-nexus-for-all-tenants.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
 
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+  const prisma = new PrismaClient();
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
 
-    const tenants = await tx.$queryRawUnsafe<Array<{ id: string; slug: string; status: string }>>(
-      'SELECT id::text AS id, slug, status FROM tenants ORDER BY slug',
-    );
+      const tenants = await tx.$queryRawUnsafe<Array<{ id: string; slug: string; status: string }>>(
+        'SELECT id::text AS id, slug, status FROM tenants ORDER BY slug',
+      );
 
-    const existing = await tx.$queryRawUnsafe<
-      Array<{ feature: string; tenant_id: string; enabled: boolean }>
-    >(`SELECT feature, tenant_id, enabled FROM intel_feature_flag WHERE feature = ANY($1::text[])`, FEATURES);
-    const currentByKey = new Map(existing.map((r) => [`${r.tenant_id}:${r.feature}`, r.enabled]));
+      const existing = await tx.$queryRawUnsafe<
+        Array<{ feature: string; tenant_id: string; enabled: boolean }>
+      >(
+        `SELECT feature, tenant_id, enabled FROM intel_feature_flag WHERE feature = ANY($1::text[])`,
+        FEATURES,
+      );
+      const currentByKey = new Map(existing.map((r) => [`${r.tenant_id}:${r.feature}`, r.enabled]));
 
-    let changed = 0;
-    let alreadyOn = 0;
-    for (const t of tenants) {
-      for (const feature of FEATURES) {
-        const current = currentByKey.get(`${t.id}:${feature}`);
-        if (current === true) {
-          alreadyOn++;
-          continue;
-        }
-        changed++;
-        console.log(
-          `${t.slug} (${t.status}) | ${feature}: ${current === undefined ? 'no row' : current} -> true`,
-        );
-        if (commit) {
-          // FeatureFlag.id is `@default(cuid())` — a Prisma-client-side default,
-          // not a DB default — so a raw INSERT must supply its own id. The
-          // column is plain String (no cuid-format check), so gen_random_uuid()
-          // is a safe substitute; only uniqueness matters here.
-          await tx.$executeRawUnsafe(
-            `INSERT INTO intel_feature_flag (id, feature, tenant_id, enabled, created_at)
+      let changed = 0;
+      let alreadyOn = 0;
+      for (const t of tenants) {
+        for (const feature of FEATURES) {
+          const current = currentByKey.get(`${t.id}:${feature}`);
+          if (current === true) {
+            alreadyOn++;
+            continue;
+          }
+          changed++;
+          console.log(
+            `${t.slug} (${t.status}) | ${feature}: ${current === undefined ? 'no row' : current} -> true`,
+          );
+          if (commit) {
+            // FeatureFlag.id is `@default(cuid())` — a Prisma-client-side default,
+            // not a DB default — so a raw INSERT must supply its own id. The
+            // column is plain String (no cuid-format check), so gen_random_uuid()
+            // is a safe substitute; only uniqueness matters here.
+            await tx.$executeRawUnsafe(
+              `INSERT INTO intel_feature_flag (id, feature, tenant_id, enabled, created_at)
              VALUES (gen_random_uuid()::text, $1, $2, true, now())
              ON CONFLICT (feature, tenant_id) DO UPDATE SET enabled = true`,
-            feature,
-            t.id,
-          );
+              feature,
+              t.id,
+            );
+          }
         }
       }
-    }
 
-    console.log(
-      `\n${commit ? 'COMMITTED' : 'DRY RUN — pass --commit to persist'}: ` +
-        `${tenants.length} tenants x ${FEATURES.length} features. ` +
-        `${alreadyOn} already on, ${changed} ${commit ? 'set to' : 'would be set to'} true.`,
-    );
-  });
+      console.log(
+        `\n${commit ? 'COMMITTED' : 'DRY RUN — pass --commit to persist'}: ` +
+          `${tenants.length} tenants x ${FEATURES.length} features. ` +
+          `${alreadyOn} already on, ${changed} ${commit ? 'set to' : 'would be set to'} true.`,
+      );
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error('FATAL', e);
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

@@ -67,6 +67,7 @@ function prismaServiceFromClient(client: PrismaClient): PrismaService {
 }
 
 async function main(): Promise<void> {
+
   const args = parseArgs(process.argv.slice(2));
   const client = new PrismaClient();
   await client.$connect();
@@ -105,6 +106,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/diag-tango-health.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((err) => {
     console.error('TANGO_HEALTH_ERR', err instanceof Error ? err.message : String(err));
     process.exitCode = 1;

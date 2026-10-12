@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -103,6 +104,9 @@ async function main() {
     );
   }
   const commit = posture === 'commit';
+  if (!commit) {
+    console.error('Usage: sync-jbook-r2 [--inspect] [--artifact <path>] | --commit --artifact <path> --approved-sha256 <sha> (commit requires legacy-write authorization and DATABASE_URL)');
+  }
   const artifacts = findArtifacts();
 
   const stats = {
@@ -122,9 +126,6 @@ async function main() {
     console.log(JSON.stringify({ ...stats, note: 'no jbook_r2_*.json artifacts found' }, null, 2));
     return;
   }
-
-  const prisma = new PrismaService();
-  await prisma.onModuleInit();
 
   if (!commit) {
     const reports = [] as Record<string, unknown>[];
@@ -163,8 +164,10 @@ async function main() {
   }
 
 
+  const prisma = new PrismaService();
   const pendingSupersedes: Array<{ prev: string; next: string }> = [];
   try {
+    await prisma.onModuleInit();
     for (const file of artifacts) {
       const art = JSON.parse(fs.readFileSync(file, 'utf-8')) as R2Artifact;
       if (art.error) throw new Error(`artifact ${file} has error: ${art.error}`);

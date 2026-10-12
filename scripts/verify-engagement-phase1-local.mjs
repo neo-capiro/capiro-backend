@@ -6,14 +6,20 @@
  * A mandatory isolated runtime then proves successful browser responses and
  * real seeded-record parity. A final fresh process re-proves background
  * containment with JSON-encoded PostgreSQL digests.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PHASE1_LOCAL_OPTIONS, requireLocalRun } from './lib/engagement-local-cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const args = process.argv.slice(2);
+const args = requireLocalRun(
+  process.argv.slice(2),
+  'Usage: node scripts/verify-engagement-phase1-local.mjs --run [--sha SHA] [--evidence-dir DIR] [--db-port PORT] [--post-db-port PORT] [--strict-db-port PORT] [--background-observe-ms MS]',
+  PHASE1_LOCAL_OPTIONS,
+);
 const parsed = parse(args);
 const sha =
   parsed.sha ??
@@ -27,12 +33,14 @@ const postProofPath = path.join(evidence, 'post-acceptance-proof.json');
 
 await run('Phase 1 full local closeout', [
   path.join(ROOT, 'scripts', 'run-engagement-phase1-local.mjs'),
+  '--run',
   ...args,
 ]);
 
 try {
   await run('Phase 1 isolated successful-response and real-record closeout', [
     path.join(ROOT, 'scripts', 'run-engagement-phase1-post-acceptance.mjs'),
+    '--run',
     ...args,
   ]);
 
@@ -65,6 +73,7 @@ try {
 
   await run('Phase 1 strict background digest closeout', [
     path.join(ROOT, 'scripts', 'verify-engagement-phase1-background-final.mjs'),
+    '--run',
     ...args,
   ]);
 

@@ -120,6 +120,15 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
+function usage(message: string): never {
+  console.error(
+    'usage: backfill-assistance-awards-bulk --start YYYY-MM-DD --end YYYY-MM-DD ' +
+      '[--chunk-months N] [--min-amount N] [--commit]',
+  );
+  console.error(`[${SYNC_SOURCE}] ${message}`);
+  process.exit(2);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -600,9 +609,8 @@ export async function runBackfill(
 async function main(): Promise<void> {
   const start = arg('start');
   const end = arg('end');
-  if (!start || !end) {
-    throw new Error('--start YYYY-MM-DD and --end YYYY-MM-DD are both required');
-  }
+  if (!start) usage('--start YYYY-MM-DD is required');
+  if (!end) usage('--end YYYY-MM-DD is required');
   const chunkMonths = Number(arg('chunk-months') ?? 1);
   const minAmountArg = arg('min-amount');
   const minAmount = minAmountArg != null && minAmountArg !== '' ? Number(minAmountArg) : null;

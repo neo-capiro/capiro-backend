@@ -18,6 +18,10 @@ const COMMITTEE_TYPES = [...FEC_PAC_COMMITTEE_TYPES, 'H', 'S', 'P'];
 const fetchFec = createFecFetcher(FEC_KEY);
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-fec.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   console.log('[fec-sync] starting');
   if (!FEC_KEY) throw new Error('FEC_API_KEY env var is required');
@@ -154,7 +158,9 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('[fec-sync] FAILED', err);
   process.exit(1);
 });
+}

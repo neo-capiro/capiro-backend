@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /*
  * Capiro marketing site build.
  *
@@ -7,14 +8,25 @@
  * tags, and JSON-LD. Also (re)generates sitemap.xml from the same page list.
  *
  * Usage:
- *   node build.mjs                 # writes generated files into this directory (marketing/)
- *   OUT_DIR=/out node build.mjs    # writes them into /out (used by the Docker build stage)
+ *   node build.mjs --write                 # writes generated files into this directory (marketing/)
+ *   OUT_DIR=/out node build.mjs --write    # writes them into /out (used by the Docker build stage)
  *
  * No dependencies — Node built-ins only.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const USAGE = 'Usage: node marketing/build.mjs --write (writes generated pages and sitemap to OUT_DIR or marketing/)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--write') {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.OUT_DIR || HERE;

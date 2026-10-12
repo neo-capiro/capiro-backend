@@ -1,5 +1,30 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+
+const usage =
+  'Usage: tsx scripts/jev-shadow-report.ts --out <dir> [--events <jsonl>] [--labels <json>] [--include-fixtures] [--recordings <jsonl>]';
+
+function guardCli(): void {
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(usage);
+    process.exit(0);
+  }
+  const valued = new Set(['--out', '--events', '--labels', '--recordings']);
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === '--include-fixtures') continue;
+    if (!valued.has(args[index]!) || index + 1 >= args.length) {
+      console.error(usage);
+      process.exit(2);
+    }
+    index += 1;
+  }
+}
 import {
   buildClaimSupportQuestion,
   buildEvidenceEnvelope,
@@ -201,6 +226,7 @@ async function main(): Promise<void> {
   );
 }
 
+guardCli();
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);

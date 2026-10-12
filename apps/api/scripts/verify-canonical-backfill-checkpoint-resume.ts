@@ -25,17 +25,10 @@
  *
  * Usage:
  *   DATABASE_URL=postgresql://capiro:capiro@localhost:55440/capiro \
- *     pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts
+ *     pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts --verify
  */
-import { PrismaService } from '../src/prisma/prisma.service.js';
-import { CanonicalEntityRegistrationRepository } from '../src/knowledge/entities/canonical-entity-registration.repository.js';
-import { CanonicalEntityRegistrationService } from '../src/knowledge/entities/canonical-entity-registration.service.js';
-import { CanonicalEntityRepository } from '../src/knowledge/entities/canonical-entity.repository.js';
-import { CanonicalEntityBackfillCheckpointRepository } from '../src/knowledge/entities/canonical-entity-backfill-checkpoint.repository.js';
-import { CanonicalSourceAdapterService } from '../src/knowledge/entities/canonical-source-adapter.service.js';
-import { CanonicalSourceBackfillRepository } from '../src/knowledge/entities/canonical-source-backfill.repository.js';
-import { CanonicalSourceBackfillService } from '../src/knowledge/entities/canonical-source-backfill.service.js';
-import { UniversalEntityResolutionService } from '../src/knowledge/entities/universal-entity-resolution.service.js';
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
+import type { PrismaService } from '../src/prisma/prisma.service.js';
 
 const TENANT_CLEAN = 'cccccccc-1111-4111-8111-111111111111';
 const TENANT_RESUMED = 'dddddddd-2222-4222-8222-222222222222';
@@ -47,20 +40,6 @@ class AssertionFailure extends Error {}
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new AssertionFailure(message);
-}
-
-function newService(prisma: PrismaService): CanonicalSourceBackfillService {
-  const entityRepository = new CanonicalEntityRepository(prisma);
-  const resolver = new UniversalEntityResolutionService(entityRepository);
-  const registration = new CanonicalEntityRegistrationService(
-    new CanonicalEntityRegistrationRepository(prisma),
-  );
-  const adapter = new CanonicalSourceAdapterService(resolver, registration);
-  return new CanonicalSourceBackfillService(
-    new CanonicalSourceBackfillRepository(prisma),
-    adapter,
-    new CanonicalEntityBackfillCheckpointRepository(prisma),
-  );
 }
 
 async function seedTenantAndClients(prisma: PrismaService, tenantId: string, slug: string): Promise<void> {
@@ -142,6 +121,42 @@ async function cleanup(prisma: PrismaService): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  const usage = 'Usage: tsx scripts/verify-canonical-backfill-checkpoint-resume.ts --verify';
+  const args = process.argv.slice(2).filter((arg) => arg !== '--');
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    console.log(usage);
+    return;
+  }
+  if (args.length !== 1 || args[0] !== '--verify') {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
+
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
+  const { CanonicalEntityRegistrationRepository } = await import('../src/knowledge/entities/canonical-entity-registration.repository.js');
+  const { CanonicalEntityRegistrationService } = await import('../src/knowledge/entities/canonical-entity-registration.service.js');
+  const { CanonicalEntityRepository } = await import('../src/knowledge/entities/canonical-entity.repository.js');
+  const { CanonicalEntityBackfillCheckpointRepository } = await import('../src/knowledge/entities/canonical-entity-backfill-checkpoint.repository.js');
+  const { CanonicalSourceAdapterService } = await import('../src/knowledge/entities/canonical-source-adapter.service.js');
+  const { CanonicalSourceBackfillRepository } = await import('../src/knowledge/entities/canonical-source-backfill.repository.js');
+  const { CanonicalSourceBackfillService } = await import('../src/knowledge/entities/canonical-source-backfill.service.js');
+  const { UniversalEntityResolutionService } = await import('../src/knowledge/entities/universal-entity-resolution.service.js');
+
+  function newService(prisma: PrismaService): InstanceType<typeof CanonicalSourceBackfillService> {
+    const entityRepository = new CanonicalEntityRepository(prisma);
+    const resolver = new UniversalEntityResolutionService(entityRepository);
+    const registration = new CanonicalEntityRegistrationService(
+      new CanonicalEntityRegistrationRepository(prisma),
+    );
+    const adapter = new CanonicalSourceAdapterService(resolver, registration);
+    return new CanonicalSourceBackfillService(
+      new CanonicalSourceBackfillRepository(prisma),
+      adapter,
+      new CanonicalEntityBackfillCheckpointRepository(prisma),
+    );
+  }
+
   const prisma = new PrismaService();
   await prisma.$connect();
 

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { config as dotenvConfig } from 'dotenv';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -11,6 +12,11 @@ interface ActiveYearRow {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: recompute-conference-probability (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const prisma = new PrismaService();
   await prisma.onModuleInit();
 

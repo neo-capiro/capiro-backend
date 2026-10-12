@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /** Package E operator CLI. Preview is the default; writes require an explicit verb and environment confirmation. */
 import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
@@ -322,6 +323,9 @@ export async function mainIngestionManifestV1(argv = process.argv.slice(2)): Pro
   // conflicting/default region cannot direct even the immutable input read
   // outside the reviewed capiro-dev region.
   assertIngestionManifestRuntimeV1(options, null, process.env);
+  if (!process.env.DATABASE_URL) {
+    throw new IngestionManifestUsageErrorV1('Usage: run-defense-budget-ingestion-manifest-v1 requires DATABASE_URL');
+  }
   const manifest = options.mode === 'preview' || options.mode === 'start' || options.mode === 'resume'
     ? await loadIngestionManifestInputV1(options)
     : null;
@@ -409,6 +413,10 @@ export async function mainIngestionManifestV1(argv = process.argv.slice(2)): Pro
 }
 
 if (require.main === module) {
+  if (process.argv.length <= 2) {
+    console.error('Usage: run-defense-budget-ingestion-manifest-v1 --manifest <path> (preview), or --start|--resume --manifest-s3-uri <versioned-uri> --manifest-object-sha256 <sha256> [options]');
+    process.exit(2);
+  }
   void mainIngestionManifestV1().then(code => { process.exitCode = code; }).catch(error => {
     console.error(JSON.stringify({
       outcome: 'failed', approvals: 'not_performed', readiness: 'not_performed', canonicalPublication: 'not_performed',

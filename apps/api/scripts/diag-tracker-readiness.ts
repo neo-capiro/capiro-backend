@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Tracker alert readiness diagnostic (READ-ONLY — sends nothing, writes nothing).
  *
@@ -41,6 +42,11 @@ function parseBillArg(): string | null {
 async function main() {
   const logger = new Logger('diag-tracker-readiness');
   const billId = parseBillArg();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: diag-tracker-readiness [--bill <uuid>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, TrackerChangeDetectorService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {

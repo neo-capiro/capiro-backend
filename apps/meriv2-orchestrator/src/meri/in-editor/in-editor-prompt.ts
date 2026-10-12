@@ -35,7 +35,9 @@ export interface InEditorInput {
 export const MAX_EDITOR_INPUT_CHARS = 120_000;
 export class EditorInputTooLargeError extends Error {
   constructor() {
-    super('The document and linked context are too large to edit safely in one request. No changes were applied. Please use a smaller document or reduce the linked context.');
+    super(
+      'The document and linked context are too large to edit safely in one request. No changes were applied. Please use a smaller document or reduce the linked context.',
+    );
     this.name = 'EditorInputTooLargeError';
   }
 }

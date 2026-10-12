@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Read-only production smoke check for Google/Microsoft engagement
  * integrations. Prints per-connection health WITHOUT ever decrypting or

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Phase 27B — explicit, batch-triggered LearningSignal → candidate
  * generation worker.
@@ -51,6 +52,11 @@ function parseTenantArg(): string | null {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: run-learning-signal-candidate-generation [--tenant <id>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, LearningSignalCandidateService, PrismaService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {

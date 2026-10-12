@@ -1,17 +1,12 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-import { MemoryAuthorizationService } from '../src/memory/memory-authorization.service.js';
-import { MemoryTransitionAuditService } from '../src/memory/memory-transition-audit.service.js';
-import { ExactMemoryCleanupOutboxService, exactProjectionIdempotencyKey } from '../src/memory/exact-memory-cleanup-outbox.service.js';
-import { MemoryCandidateService } from '../src/memory/memory-candidate.service.js';
-import { ImmutableMemoryVersionService } from '../src/memory/immutable-memory-version.service.js';
-import { MemoryConflictService } from '../src/memory/memory-conflict.service.js';
-import { MemoryStoreService } from '../src/memory/memory-store.service.js';
-import { ExactMemoryProjectionWorkerService } from '../src/memory/exact-memory-projection-worker.service.js';
+import type { PrismaService } from '../src/prisma/prisma.service.js';
+import type { ExactMemoryCleanupOutboxService } from '../src/memory/exact-memory-cleanup-outbox.service.js';
+import type { MemoryCandidateService } from '../src/memory/memory-candidate.service.js';
 import type {
   StrictMemoryProjectorService,
   StrictProjectionExpectation,
@@ -19,7 +14,9 @@ import type {
 } from '../src/memory/strict-memory-projector.service.js';
 import type { MemoryIngestService } from '../src/memory/memory-ingest.service.js';
 import type { TenantContextStore } from '../src/tenant/tenant-context.store.js';
-import { ContextCompilerService } from '../src/context/context-compiler.service.js';
+
+let exactProjectionIdempotencyKey: typeof import('../src/memory/exact-memory-cleanup-outbox.service.js').exactProjectionIdempotencyKey;
+let ExactMemoryProjectionWorkerService: typeof import('../src/memory/exact-memory-projection-worker.service.js').ExactMemoryProjectionWorkerService;
 
 const TENANT_A = '18180000-0000-4000-8000-000000000001';
 const TENANT_B = '18180000-0000-4000-8000-000000000002';
@@ -56,8 +53,12 @@ function assertOneFulfilled<T>(settled: PromiseSettledResult<T>[]): T {
 
 async function seed(prisma: PrismaService): Promise<void> {
   await prisma.withSystem(async (tx) => {
-    await tx.$executeRawUnsafe(`DELETE FROM tenants WHERE id IN ('${TENANT_A}'::uuid, '${TENANT_B}'::uuid)`);
-    await tx.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${PROPOSER}'::uuid, '${REVIEWER_A}'::uuid, '${REVIEWER_B}'::uuid, '${OUTSIDER}'::uuid)`);
+    await tx.$executeRawUnsafe(
+      `DELETE FROM tenants WHERE id IN ('${TENANT_A}'::uuid, '${TENANT_B}'::uuid)`,
+    );
+    await tx.$executeRawUnsafe(
+      `DELETE FROM users WHERE id IN ('${PROPOSER}'::uuid, '${REVIEWER_A}'::uuid, '${REVIEWER_B}'::uuid, '${OUTSIDER}'::uuid)`,
+    );
     await tx.$executeRawUnsafe(`
       INSERT INTO users (id, clerk_user_id, email)
       VALUES
@@ -91,8 +92,12 @@ async function seed(prisma: PrismaService): Promise<void> {
 
 async function cleanup(prisma: PrismaService): Promise<void> {
   await prisma.withSystem(async (tx) => {
-    await tx.$executeRawUnsafe(`DELETE FROM tenants WHERE id IN ('${TENANT_A}'::uuid, '${TENANT_B}'::uuid)`);
-    await tx.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${PROPOSER}'::uuid, '${REVIEWER_A}'::uuid, '${REVIEWER_B}'::uuid, '${OUTSIDER}'::uuid)`);
+    await tx.$executeRawUnsafe(
+      `DELETE FROM tenants WHERE id IN ('${TENANT_A}'::uuid, '${TENANT_B}'::uuid)`,
+    );
+    await tx.$executeRawUnsafe(
+      `DELETE FROM users WHERE id IN ('${PROPOSER}'::uuid, '${REVIEWER_A}'::uuid, '${REVIEWER_B}'::uuid, '${OUTSIDER}'::uuid)`,
+    );
   });
 }
 
@@ -127,7 +132,9 @@ async function createApprovedFirmItem(
         type: type as never,
         slug,
         title: `Phase 18 ${suffix}`,
-        sections: [{ key: 'memory', heading: 'Memory', owner: 'human', body: `Phase 18 ${suffix} body` }],
+        sections: [
+          { key: 'memory', heading: 'Memory', owner: 'human', body: `Phase 18 ${suffix} body` },
+        ],
       },
     },
     false,
@@ -135,7 +142,10 @@ async function createApprovedFirmItem(
   );
   assert.equal(proposal.status, 'pending');
   await candidates.approve(TENANT_A, proposal.candidateId, REVIEWER_A, reviewerACtx);
-  return { candidateId: proposal.candidateId, itemId: await committedItemId(prisma, proposal.candidateId) };
+  return {
+    candidateId: proposal.candidateId,
+    itemId: await committedItemId(prisma, proposal.candidateId),
+  };
 }
 
 function successfulProjector(): StrictMemoryProjectorService {
@@ -212,7 +222,10 @@ async function jobStatus(prisma: PrismaService, id: string): Promise<string> {
   return rows[0]?.status ?? 'missing';
 }
 
-async function rehearseOutbox(prisma: PrismaService, cleanupOutbox: ExactMemoryCleanupOutboxService) {
+async function rehearseOutbox(
+  prisma: PrismaService,
+  cleanupOutbox: ExactMemoryCleanupOutboxService,
+) {
   const pendingBefore = await prisma.withSystem((tx) =>
     tx.$queryRawUnsafe<Array<{ count: bigint }>>(
       `SELECT count(*)::bigint AS count FROM memory_cleanup_outbox
@@ -220,7 +233,10 @@ async function rehearseOutbox(prisma: PrismaService, cleanupOutbox: ExactMemoryC
       TENANT_A,
     ),
   );
-  assert.ok(Number(pendingBefore[0]?.count ?? 0) > 0, 'failed request-time fast path must leave durable jobs');
+  assert.ok(
+    Number(pendingBefore[0]?.count ?? 0) > 0,
+    'failed request-time fast path must leave durable jobs',
+  );
 
   const exactSuccess = new ExactMemoryProjectionWorkerService(prisma, successfulProjector());
   const initial = await exactSuccess.drainPending(100, 30);
@@ -245,12 +261,20 @@ async function rehearseOutbox(prisma: PrismaService, cleanupOutbox: ExactMemoryC
   assert.equal(retried.succeeded, 1);
   assert.equal(await jobStatus(prisma, retryId), 'completed');
 
-  const staleId = await insertExactJob(prisma, { status: 'running', attempts: 1, leaseExpired: true });
+  const staleId = await insertExactJob(prisma, {
+    status: 'running',
+    attempts: 1,
+    leaseExpired: true,
+  });
   const stale = await exactSuccess.drainPending(1, 30);
   assert.equal(stale.succeeded, 1);
   assert.equal(await jobStatus(prisma, staleId), 'completed');
 
-  const deadId = await insertExactJob(prisma, { status: 'running', attempts: 8, leaseExpired: true });
+  const deadId = await insertExactJob(prisma, {
+    status: 'running',
+    attempts: 8,
+    leaseExpired: true,
+  });
   const dead = await exactSuccess.drainPending(1, 30);
   assert.ok(dead.deadLettered >= 1);
   assert.equal(await jobStatus(prisma, deadId), 'dead_letter');
@@ -293,6 +317,24 @@ async function rehearseOutbox(prisma: PrismaService, cleanupOutbox: ExactMemoryC
 }
 
 async function main(): Promise<void> {
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
+  const { MemoryAuthorizationService } =
+    await import('../src/memory/memory-authorization.service.js');
+  const { MemoryTransitionAuditService } =
+    await import('../src/memory/memory-transition-audit.service.js');
+  const outboxModule = await import('../src/memory/exact-memory-cleanup-outbox.service.js');
+  const { ExactMemoryCleanupOutboxService } = outboxModule;
+  exactProjectionIdempotencyKey = outboxModule.exactProjectionIdempotencyKey;
+  const { MemoryCandidateService } = await import('../src/memory/memory-candidate.service.js');
+  const { ImmutableMemoryVersionService } =
+    await import('../src/memory/immutable-memory-version.service.js');
+  const { MemoryConflictService } = await import('../src/memory/memory-conflict.service.js');
+  const { MemoryStoreService } = await import('../src/memory/memory-store.service.js');
+  ExactMemoryProjectionWorkerService = (
+    await import('../src/memory/exact-memory-projection-worker.service.js')
+  ).ExactMemoryProjectionWorkerService;
+  const { ContextCompilerService } = await import('../src/context/context-compiler.service.js');
+
   process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
   process.env.MEMORY_GOVERNANCE_ENFORCE = 'enforce';
   process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
@@ -308,7 +350,10 @@ async function main(): Promise<void> {
     projectClioMemoryStrict: async () => undefined,
   } as unknown as MemoryIngestService;
   const cleanupOutbox = new ExactMemoryCleanupOutboxService(prisma, ingest);
-  const config = { get: () => undefined } as unknown as ConfigService<Record<string, unknown>, true>;
+  const config = { get: () => undefined } as unknown as ConfigService<
+    Record<string, unknown>,
+    true
+  >;
   const candidates = new MemoryCandidateService(
     prisma,
     ingest,
@@ -355,7 +400,12 @@ async function main(): Promise<void> {
           slug: 'firm',
           title: 'Phase 18 Firm Soul',
           sections: [
-            { key: 'who', heading: 'Who', owner: 'human', body: 'We are a government affairs firm.' },
+            {
+              key: 'who',
+              heading: 'Who',
+              owner: 'human',
+              body: 'We are a government affairs firm.',
+            },
           ],
         },
       },
@@ -405,7 +455,14 @@ async function main(): Promise<void> {
           type: 'user-voice',
           slug: 'phase18-private',
           title: 'Phase 18 Private Memory',
-          sections: [{ key: 'voice', heading: 'Voice', owner: 'human', body: 'Private owner-only preference' }],
+          sections: [
+            {
+              key: 'voice',
+              heading: 'Voice',
+              owner: 'human',
+              body: 'Private owner-only preference',
+            },
+          ],
         },
       },
       false,
@@ -430,7 +487,14 @@ async function main(): Promise<void> {
           type: 'client-soul',
           slug: 'phase18-walled-client',
           title: 'Phase 18 Walled Client',
-          sections: [{ key: 'position', heading: 'Position', owner: 'human', body: 'Walled client steering memory' }],
+          sections: [
+            {
+              key: 'position',
+              heading: 'Position',
+              owner: 'human',
+              body: 'Walled client steering memory',
+            },
+          ],
         },
       },
       false,
@@ -484,7 +548,10 @@ async function main(): Promise<void> {
     );
     assert.equal(correction.status, 'pending_review');
     if (correction.status !== 'pending_review') throw new Error('expected correction candidate');
-    const correctionDecision = await versions.approveCandidate(reviewerACtx, correction.candidateId);
+    const correctionDecision = await versions.approveCandidate(
+      reviewerACtx,
+      correction.candidateId,
+    );
     assert.equal(correctionDecision.outcome, 'activated');
     const correctedItemId = correctionDecision.memoryItemId!;
 
@@ -494,8 +561,12 @@ async function main(): Promise<void> {
       'Contradictory institutional statement for Phase 18.',
     );
     assert.equal(contradiction.status, 'pending_review');
-    if (contradiction.status !== 'pending_review') throw new Error('expected contradiction candidate');
-    const conflictDecision = await versions.approveCandidate(reviewerACtx, contradiction.candidateId);
+    if (contradiction.status !== 'pending_review')
+      throw new Error('expected contradiction candidate');
+    const conflictDecision = await versions.approveCandidate(
+      reviewerACtx,
+      contradiction.candidateId,
+    );
     assert.equal(conflictDecision.outcome, 'conflict');
     const conflictService = new MemoryConflictService(prisma, authorization, transitions);
     const resolution = await conflictService.resolve(
@@ -526,7 +597,10 @@ async function main(): Promise<void> {
 
     const heldFixture = await createApprovedFirmItem(candidates, prisma, 'legal-hold');
     await prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe('UPDATE memory_items SET legal_hold = true WHERE id = $1::uuid', heldFixture.itemId),
+      tx.$executeRawUnsafe(
+        'UPDATE memory_items SET legal_hold = true WHERE id = $1::uuid',
+        heldFixture.itemId,
+      ),
     );
     currentCtx = reviewerACtx;
     const held = await store.forgetMemory(heldFixture.itemId, 'must not revoke');
@@ -604,12 +678,22 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error(
-    JSON.stringify({
-      marker: 'MERIV2_PHASE18_APPLICATION_REHEARSAL_FAILED',
-      error: error instanceof Error ? error.message.slice(0, 500) : 'unknown',
-    }),
-  );
-  process.exitCode = 1;
-});
+const usage =
+  'Usage: meriv2-phase18-application-rehearsal [--help] (requires dedicated DATABASE_URL)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+} else if (args.length > 0 || !process.env.DATABASE_URL?.trim()) {
+  console.error(usage);
+  process.exitCode = 2;
+} else {
+  main().catch((error) => {
+    console.error(
+      JSON.stringify({
+        marker: 'MERIV2_PHASE18_APPLICATION_REHEARSAL_FAILED',
+        error: error instanceof Error ? error.message.slice(0, 500) : 'unknown',
+      }),
+    );
+    process.exitCode = 1;
+  });
+}

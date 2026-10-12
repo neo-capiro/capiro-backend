@@ -38,6 +38,10 @@ export function peChangeOutboxPrismaFromClient(client: PrismaClient): PrismaServ
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/drain-pe-change-outbox.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = flag('commit');
   const limit = Math.max(1, Math.min(500, Number(arg('limit') ?? 50)));
   if (!Number.isSafeInteger(limit)) throw new Error('--limit must be an integer between 1 and 500');

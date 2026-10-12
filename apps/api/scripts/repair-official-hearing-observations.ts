@@ -175,19 +175,29 @@ export async function repairOfficialObservations(prisma: PrismaClient, expectedH
     { timeout: 120000, isolationLevel: 'Serializable' },
   );
 }
-if (require.main === module) {
-  const prisma = new PrismaClient();
-  const args = process.argv.slice(2),
+async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/repair-official-hearing-observations.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+const args = process.argv.slice(2),
     apply = args.includes('--apply'),
     i = args.indexOf('--plan-hash');
-  const expected = i >= 0 ? args[i + 1] : undefined;
-  if (apply && !/^[a-f0-9]{64}$/.test(expected ?? ''))
+const expected = i >= 0 ? args[i + 1] : undefined;
+if (apply && !/^[a-f0-9]{64}$/.test(expected ?? ''))
     throw new Error('Apply requires --plan-hash');
-  repairOfficialObservations(prisma, apply ? expected : undefined)
-    .then((result) => console.log(JSON.stringify(result, null, 2)))
-    .catch((error) => {
-      console.error(error.message);
-      process.exitCode = 1;
-    })
-    .finally(() => prisma.$disconnect());
+  const prisma = new PrismaClient();
+  try {
+    const result = await repairOfficialObservations(prisma, apply ? expected : undefined);
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+if (require.main === module) {
+  void main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
 }

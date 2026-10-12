@@ -20,11 +20,9 @@
  * The classifier is a pure function (`classifyFindings`) so the exact
  * hard/soft split is unit-tested without a database.
  */
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import { FUNDING_SCOPES, FUNDING_STAGES, BUDGET_VEHICLE_CLASSES } from '@capiro/shared';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-
-dotenvConfig();
 
 /** Sanity ceiling for a MILLIONS figure — $100T. Above this it is a units error. */
 const MAX_SANE_MILLIONS = 100_000_000;
@@ -208,15 +206,43 @@ export function classifyFindings(input: VerifyInput): Finding[] {
   return out;
 }
 
-function arg(name: string): string | undefined {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+function parseArgs(): { domain: string | undefined; fiscalYear: number | undefined } | null {
+  const usage = 'Usage: tsx scripts/verify-defense-budget-packages.ts --verify [--domain DOMAIN] [--fy YEAR] (filters may also be used alone)';
+  const args = process.argv.slice(2).filter((arg) => arg !== '--');
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    console.log(usage);
+    return null;
+  }
+  let verify = false;
+  let domain: string | undefined;
+  let fiscalYear: number | undefined;
+  let invalid = args.length === 0;
+  for (let i = 0; i < args.length && !invalid; i += 1) {
+    const arg = args[i];
+    if (arg === '--verify' && !verify) {
+      verify = true;
+    } else if (arg === '--domain' && domain === undefined && args[i + 1] && !args[i + 1]!.startsWith('-')) {
+      domain = args[++i];
+    } else if (arg === '--fy' && fiscalYear === undefined && /^\d{4}$/.test(args[i + 1] ?? '')) {
+      fiscalYear = Number(args[++i]);
+    } else {
+      invalid = true;
+    }
+  }
+  if (invalid || (!verify && domain === undefined && fiscalYear === undefined)) {
+    console.error(usage);
+    process.exitCode = 2;
+    return null;
+  }
+  return { domain, fiscalYear };
 }
 
 async function main(): Promise<void> {
-  const domain = arg('domain');
-  const fyArg = arg('fy');
-  const fiscalYear = fyArg ? Number(fyArg) : undefined;
+  const parsed = parseArgs();
+  if (!parsed) return;
+  const { domain, fiscalYear } = parsed;
+  dotenvConfig();
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
   const pkgWhere = {
     ...(domain ? { domain } : {}),
     ...(fiscalYear != null && Number.isFinite(fiscalYear) ? { fiscalYear } : {}),

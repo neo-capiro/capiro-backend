@@ -359,9 +359,7 @@ const CASE46_CURRENT_VERIFY_SHA256 = 'a'.repeat(64);
  */
 const CAPTURE_FIXTURE_SECRET = 'capture-fixture-secret';
 
-function governedArtifactCapturePolicy(
-  now = Date.now(),
-): MeriGovernedArtifactCapturePolicy {
+function governedArtifactCapturePolicy(now = Date.now()): MeriGovernedArtifactCapturePolicy {
   return {
     version: 1,
     kind: 'governed_artifact_acceptance_capture',
@@ -660,7 +658,10 @@ function buildManaged(
         input: { refuted: false, confidence: 'high', reason: 'Supported.' },
         usage: { inputTokens: 10, outputTokens: 2 },
       })),
-      withProviderBudget(budget: { reserveModelAttempt: (phase: unknown) => void }, phase: unknown) {
+      withProviderBudget(
+        budget: { reserveModelAttempt: (phase: unknown) => void },
+        phase: unknown,
+      ) {
         return {
           completeJson: (...args: unknown[]) => {
             budget.reserveModelAttempt(phase);
@@ -731,9 +732,7 @@ function fetchRouter(routes: {
 }
 
 function toolsOnCall(complete: jest.Mock, callIndex: number): string[] {
-  const tools = complete.mock.calls[callIndex]?.[0]?.tools as
-    | Array<{ name: string }>
-    | undefined;
+  const tools = complete.mock.calls[callIndex]?.[0]?.tools as Array<{ name: string }> | undefined;
   return (tools ?? []).map((tool) => tool.name);
 }
 
@@ -923,11 +922,14 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   });
 
   test('admits and runs an advertised managed read once, feeding the real owner wire into the next provider input', async () => {
-    const content = 'Untrusted external data from MCP server "meriv3-hubspot".\n[{"id":"1","properties":{"firstname":"Jane Finder"}}]';
+    const content =
+      'Untrusted external data from MCP server "meriv3-hubspot".\n[{"id":"1","properties":{"firstname":"Jane Finder"}}]';
     const call = functionCall('managed-call', MANAGED_READ, { query: 'Jane Finder' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValueOnce(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }))
       .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
     const { service } = buildManaged(complete, {
@@ -1009,11 +1011,13 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('native-call', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValueOnce(providerResult({ outputText: 'Kestrel commitment noted [1].' }))
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
-    const invoke = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => memoryOwnerPayload(),
+    const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) =>
+      memoryOwnerPayload(),
     );
     const { service } = buildManaged(complete, {
       registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
@@ -1060,7 +1064,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('unadvertised-call', UNADVERTISED_MANAGED, { query: 'delete' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValueOnce(providerResult({ outputText: 'I did not run that request.' }))
       .mockResolvedValue(providerResult({ outputText: 'I did not run that request.' }));
     const { service } = buildManaged(complete);
@@ -1090,7 +1096,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('missing-meta', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
 
@@ -1116,7 +1124,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('write-marker', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
 
@@ -1141,7 +1151,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('mismatch', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
 
@@ -1167,7 +1179,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('revoked', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValueOnce(providerResult({ outputText: 'Blocked.' }))
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
@@ -1199,7 +1213,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('changed-schema', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValueOnce(providerResult({ outputText: 'Blocked.' }))
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
@@ -1242,7 +1258,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('client-scope', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
 
@@ -1267,11 +1285,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   test('governed client/portfolio scope resolves no managed authority at the admission seam', async () => {
     const { service } = buildManaged(jest.fn());
     const seam = service as unknown as {
-      resolveCapabilityAuthority: (
-        name: string,
-        schema: unknown,
-        dto: unknown,
-      ) => unknown;
+      resolveCapabilityAuthority: (name: string, schema: unknown, dto: unknown) => unknown;
     };
 
     // Authenticated governed client.
@@ -1294,7 +1308,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('none-policy', MANAGED_READ, { query: 'Jane' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const { service } = buildManaged(complete);
 
@@ -1558,12 +1574,13 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   // ── Lane A1 typed NONCLIENT scope (governed personal admission) ──────────
 
   test('a valid governed personal meri.chat/general turn still admits one reviewed managed read and an opaque owner receipt', async () => {
-    const content =
-      'Untrusted external data from MCP server "meriv3-hubspot".\n[{"id":"1"}]';
+    const content = 'Untrusted external data from MCP server "meriv3-hubspot".\n[{"id":"1"}]';
     const call = functionCall('governed-personal', MANAGED_READ, { query: 'Jane Finder' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
     const { service } = buildManaged(complete);
 
@@ -1792,8 +1809,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       // real attest/verify pair on this fixture: the authority and the exact
       // request binding are checked, not assumed, before the real `.run`.
       const artifactPolicy = overrides.governedArtifactCapturePolicy as
-        | MeriGovernedArtifactCapturePolicy
-        | undefined;
+        MeriGovernedArtifactCapturePolicy | undefined;
       let effectiveGoverned: MeriGovernedTurnContext = governed;
       if (artifactPolicy) {
         expect(() =>
@@ -1830,11 +1846,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
           clientId: run.dto.clientId,
           messages: run.dto.messages,
         };
-        const attested = attestMeriGovernedContext(
-          governed,
-          binding,
-          CAPTURE_FIXTURE_SECRET,
-        );
+        const attested = attestMeriGovernedContext(governed, binding, CAPTURE_FIXTURE_SECRET);
         expect(() =>
           verifyMeriGovernedContext(attested, binding, run.actor, CAPTURE_FIXTURE_SECRET),
         ).not.toThrow();
@@ -1852,9 +1864,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       }
 
       await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
-        runWithGovernedMeriContext(effectiveGoverned, () =>
-          service.run(run.context, run.dto),
-        ),
+        runWithGovernedMeriContext(effectiveGoverned, () => service.run(run.context, run.dto)),
       );
 
       // Zero managed tools on the provider input, ZERO managed owner POST, and
@@ -1886,8 +1896,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         providerResult({ output: [call], outputText: '', functionCalls: [call] }),
       )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
-    const invoke = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => memoryOwnerPayload(),
+    const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) =>
+      memoryOwnerPayload(),
     );
     const { service } = buildManaged(complete, {
       registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
@@ -2077,14 +2087,11 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       const result: MeriV3ChatResult = await RequestCredentialsStore.run(
         { bearerToken: 'bearer' },
         () =>
-          service.run(
-            context,
-            {
-              conversationId: 'krisp-thread',
-              toolPolicy: 'read-only',
-              messages: [{ role: 'user', text: 'Search my Krisp meetings.' }],
-            },
-          ),
+          service.run(context, {
+            conversationId: 'krisp-thread',
+            toolPolicy: 'read-only',
+            messages: [{ role: 'user', text: 'Search my Krisp meetings.' }],
+          }),
       );
 
       expect(toolsOnCall(complete, 0)).toContain(name);
@@ -2181,7 +2188,11 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     conversationId: string;
     clientId?: string;
     messages: readonly { role?: unknown; text?: unknown }[];
-  }): { conversationId: string; clientId?: string; messages: readonly { role?: unknown; text?: unknown }[] } {
+  }): {
+    conversationId: string;
+    clientId?: string;
+    messages: readonly { role?: unknown; text?: unknown }[];
+  } {
     return {
       conversationId: dto.conversationId,
       ...(dto.clientId ? { clientId: dto.clientId } : {}),
@@ -2201,7 +2212,11 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
    */
   function attestGovernedTurn(
     governed: MeriGovernedTurnContext,
-    binding: { conversationId: string; clientId?: string; messages: readonly { role?: unknown; text?: unknown }[] },
+    binding: {
+      conversationId: string;
+      clientId?: string;
+      messages: readonly { role?: unknown; text?: unknown }[];
+    },
   ): MeriGovernedTurnContext {
     const withEvidence = {
       ...(governed as unknown as Record<string, unknown>),
@@ -2221,7 +2236,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     // Prove the exact request binding + bearer actor agree with the fixture
     // before the real `.run`, and that every tampered dimension the existing
     // verifier binds is rejected — so the check is not a mock success.
-    expect(() => verifyMeriGovernedContext(attested, binding, actor, GOVERNED_FIXTURE_SECRET)).not.toThrow();
+    expect(() =>
+      verifyMeriGovernedContext(attested, binding, actor, GOVERNED_FIXTURE_SECRET),
+    ).not.toThrow();
     // Wrong actor (different user or different tenant) is rejected.
     expect(() =>
       verifyMeriGovernedContext(
@@ -2293,7 +2310,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('governed-read', CLIENT_READ, {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Beta profile returned.' }));
     const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) =>
       getClientContextOwnerPayload(String(input.clientId)),
@@ -2302,7 +2321,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     const fetchMock = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -2329,7 +2349,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('governed-read-beta', CLIENT_READ, { clientId: AUTH_BETA });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Beta profile returned.' }));
     const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) =>
       getClientContextOwnerPayload(String(input.clientId)),
@@ -2338,7 +2360,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     global.fetch = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     }) as unknown as typeof fetch;
 
     await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
@@ -2360,14 +2383,17 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('governed-read-acme', CLIENT_READ, { clientId: UI_ACME });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'I did not run the cross-client request.' }));
     const invoke = jest.fn();
     const { service } = buildManaged(complete, {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     const fetchMock = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -2410,7 +2436,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
       });
       global.fetch = fetchRouter({
-        native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+        native: () =>
+          jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
       }) as unknown as typeof fetch;
 
       const result: MeriV3ChatResult = await RequestCredentialsStore.run(
@@ -2441,14 +2468,17 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('governed-read-missing', CLIENT_READ, {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const { service } = buildManaged(complete, {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     global.fetch = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     }) as unknown as typeof fetch;
 
     const result: MeriV3ChatResult = await RequestCredentialsStore.run(
@@ -2488,9 +2518,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         providerResult({ output: [omitted], outputText: '', functionCalls: [omitted] }),
       )
       .mockResolvedValue(providerResult({ outputText: 'Your inbox.' }));
-    const invoke = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => ({ messages: [] }),
-    );
+    const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) => ({
+      messages: [],
+    }));
     const { service } = buildManaged(complete, {
       registry: registry([{ name: 'list_emails', readOnly: true }], invoke),
     });
@@ -2522,9 +2552,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         providerResult({ output: [explicitBeta], outputText: '', functionCalls: [explicitBeta] }),
       )
       .mockResolvedValue(providerResult({ outputText: 'Client mail.' }));
-    const invokeBeta = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => ({ messages: [] }),
-    );
+    const invokeBeta = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) => ({
+      messages: [],
+    }));
     const { service: serviceBeta } = buildManaged(completeBeta, {
       registry: registry([{ name: 'list_emails', readOnly: true }], invokeBeta),
     });
@@ -2553,7 +2583,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const proposal = jest.fn();
@@ -2606,7 +2638,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('create-word', 'create_word', { title: 'Briefing' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const proposal = jest.fn();
@@ -2656,7 +2690,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('run-analysis', 'run_analysis', { purpose: 'Rank results' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const visual = {
@@ -2695,7 +2731,11 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     );
 
     expect(visual.execute).not.toHaveBeenCalled();
-    expect(fetchMock.mock.calls.map((entry) => String(entry[0])).some((url) => url.includes('visual-analysis'))).toBe(false);
+    expect(
+      fetchMock.mock.calls
+        .map((entry) => String(entry[0]))
+        .some((url) => url.includes('visual-analysis')),
+    ).toBe(false);
     expect(result.artifacts ?? []).toEqual([]);
     expect(result.steps).toEqual([
       expect.objectContaining({
@@ -2725,7 +2765,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('mac-governed-read', CLIENT_READ, {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Beta profile returned.' }));
     const invoke = jest.fn(async (...args: Parameters<ToolRegistry['invoke']>) =>
       getClientContextOwnerPayload(String((args[1] as Record<string, unknown>).clientId)),
@@ -2734,7 +2776,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     global.fetch = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     }) as unknown as typeof fetch;
 
     const governed = attestGovernedTurn(clientSubjectTurn(), governedRequestBinding(dto));
@@ -2745,9 +2788,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
-    expect((result.steps ?? []).some((step) => step.tool === CLIENT_READ && step.status === 'done')).toBe(
-      true,
-    );
+    expect(
+      (result.steps ?? []).some((step) => step.tool === CLIENT_READ && step.status === 'done'),
+    ).toBe(true);
   });
 
   test.each(['portfolio', 'external_entity', 'general'] as const)(
@@ -2762,17 +2805,23 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       const call = functionCall(`mac-nofallback-${subjectScope}`, CLIENT_READ, {});
       const complete = jest
         .fn()
-        .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
         .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
       const invoke = jest.fn();
       const { service } = buildManaged(complete, {
         registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
       });
       global.fetch = fetchRouter({
-        native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+        native: () =>
+          jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
       }) as unknown as typeof fetch;
 
-      const governed = attestGovernedTurn(governedTurn(subjectScope, null), governedRequestBinding(dto));
+      const governed = attestGovernedTurn(
+        governedTurn(subjectScope, null),
+        governedRequestBinding(dto),
+      );
       const result: MeriV3ChatResult = await RequestCredentialsStore.run(
         { bearerToken: 'bearer' },
         () => runWithGovernedMeriContext(governed, () => service.run(context, dto)),
@@ -2804,17 +2853,23 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       const call = functionCall(`mac-explicit-${subjectScope}`, CLIENT_READ, { clientId: UI_ACME });
       const complete = jest
         .fn()
-        .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
         .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
       const invoke = jest.fn();
       const { service } = buildManaged(complete, {
         registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
       });
       global.fetch = fetchRouter({
-        native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+        native: () =>
+          jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
       }) as unknown as typeof fetch;
 
-      const governed = attestGovernedTurn(governedTurn(subjectScope, null), governedRequestBinding(dto));
+      const governed = attestGovernedTurn(
+        governedTurn(subjectScope, null),
+        governedRequestBinding(dto),
+      );
       const result: MeriV3ChatResult = await RequestCredentialsStore.run(
         { bearerToken: 'bearer' },
         () => runWithGovernedMeriContext(governed, () => service.run(context, dto)),
@@ -2842,14 +2897,17 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('mac-explicit-beta-read', CLIENT_READ, { clientId: UI_ACME });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const { service } = buildManaged(complete, {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     global.fetch = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     }) as unknown as typeof fetch;
 
     const governed = attestGovernedTurn(clientSubjectTurn(), governedRequestBinding(dto));
@@ -2879,7 +2937,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('mac-explicit-beta-match', CLIENT_READ, { clientId: AUTH_BETA });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Beta profile.' }));
     const invoke = jest.fn(async (...args: Parameters<ToolRegistry['invoke']>) =>
       getClientContextOwnerPayload(String((args[1] as Record<string, unknown>).clientId)),
@@ -2888,7 +2948,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     global.fetch = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     }) as unknown as typeof fetch;
 
     const governed = attestGovernedTurn(clientSubjectTurn(), governedRequestBinding(dto));
@@ -2899,7 +2960,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
-    expect((result.steps ?? []).some((step) => step.tool === CLIENT_READ && step.status === 'done')).toBe(true);
+    expect(
+      (result.steps ?? []).some((step) => step.tool === CLIENT_READ && step.status === 'done'),
+    ).toBe(true);
   });
 
   test.each(['portfolio', 'general'] as const)(
@@ -2911,13 +2974,17 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         toolPolicy: 'read-only' as const,
         messages: [{ role: 'user' as const, text: 'What do we know about Kestrel?' }],
       };
-      const call = functionCall(`mac-optional-${subjectScope}`, 'search_memory', { query: 'Kestrel' });
+      const call = functionCall(`mac-optional-${subjectScope}`, 'search_memory', {
+        query: 'Kestrel',
+      });
       const complete = jest
         .fn()
-        .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
         .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted.' }));
-      const invoke = jest.fn(
-        async (..._args: Parameters<ToolRegistry['invoke']>) => memoryOwnerPayload(),
+      const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) =>
+        memoryOwnerPayload(),
       );
       const { service } = buildManaged(complete, {
         registry: registry([{ name: 'search_memory', readOnly: true }], invoke),
@@ -2926,7 +2993,10 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         native: () => jsonResponse({ schemas: [clientScopedNativeSchema('search_memory')] }),
       }) as unknown as typeof fetch;
 
-      const governed = attestGovernedTurn(governedTurn(subjectScope, null), governedRequestBinding(dto));
+      const governed = attestGovernedTurn(
+        governedTurn(subjectScope, null),
+        governedRequestBinding(dto),
+      );
       const result: MeriV3ChatResult = await RequestCredentialsStore.run(
         { bearerToken: 'bearer' },
         () => runWithGovernedMeriContext(governed, () => service.run(context, dto)),
@@ -2937,9 +3007,11 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       // The interface client (Acme) is NEVER injected into an optional actor
       // read: the model's omitted filter stays omitted.
       expect(invoke.mock.calls[0]?.[1]).toEqual({ query: 'Kestrel' });
-      expect((result.steps ?? []).some((step) => step.tool === 'search_memory' && step.status === 'done')).toBe(
-        true,
-      );
+      expect(
+        (result.steps ?? []).some(
+          (step) => step.tool === 'search_memory' && step.status === 'done',
+        ),
+      ).toBe(true);
     },
   );
 
@@ -2950,14 +3022,19 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       toolPolicy: 'read-only' as const,
       messages: [{ role: 'user' as const, text: 'My inbox the last two weeks.' }],
     };
-    const call = functionCall('mac-mail-omitted', 'list_emails', { withinDays: 14, folder: 'inbox' });
+    const call = functionCall('mac-mail-omitted', 'list_emails', {
+      withinDays: 14,
+      folder: 'inbox',
+    });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Your inbox.' }));
-    const invoke = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => ({ messages: [] }),
-    );
+    const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) => ({
+      messages: [],
+    }));
     const { service } = buildManaged(complete, {
       registry: registry([{ name: 'list_emails', readOnly: true }], invoke),
     });
@@ -2977,7 +3054,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   test('a MAC-bound governed Beta turn refuses save_memory when the ORIGINAL conversation client is null (no truthiness hole)', async () => {
     const dto = {
       conversationId: 'mac-null-client-save',
-      messages: [{ role: 'user' as const, text: 'Remember that briefs include the program office.' }],
+      messages: [
+        { role: 'user' as const, text: 'Remember that briefs include the program office.' },
+      ],
     };
     const call = functionCall('mac-null-save', 'save_memory', {
       content: 'Briefs include the program office.',
@@ -2985,7 +3064,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const proposal = jest.fn();
@@ -3036,7 +3117,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('mac-null-create-word', 'create_word', { title: 'Briefing' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
     const invoke = jest.fn();
     const proposal = jest.fn();
@@ -3080,7 +3163,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const dto = {
       clientId: AUTH_BETA,
       conversationId: 'mac-matching-save',
-      messages: [{ role: 'user' as const, text: 'Remember that briefs include the program office.' }],
+      messages: [
+        { role: 'user' as const, text: 'Remember that briefs include the program office.' },
+      ],
     };
     const call = functionCall('mac-matching-save', 'save_memory', {
       content: 'Briefs include the program office.',
@@ -3088,7 +3173,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Noted.' }));
     const invoke = jest.fn();
     const proposal = jest.fn(async () => ({
@@ -3135,7 +3222,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     expect(proposal).toHaveBeenCalledTimes(1);
     expect(result.pendingApprovals?.length).toBe(1);
     expect(
-      (result.steps ?? []).some((step) => step.tool === 'save_memory' && step.status === 'pending_approval'),
+      (result.steps ?? []).some(
+        (step) => step.tool === 'save_memory' && step.status === 'pending_approval',
+      ),
     ).toBe(true);
   });
 
@@ -3155,10 +3244,12 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     // The model emits NO function call: the auxiliary dispatcher here is the
     // SERVER-coordinated document preflight (`continueDocumentReads`), which
     // projects the ORIGINAL dto.clientId (Acme) into `read_client_documents`.
-    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'I reviewed the files.' }));
-    const invoke = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => ({ documents: [] }),
-    );
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'I reviewed the files.' }));
+    const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) => ({
+      documents: [],
+    }));
     const proposal = jest.fn();
     const { service } = buildManaged(complete, {
       registry: registry(
@@ -3195,9 +3286,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     // BOTH actual capabilities were advertised/admitted together, so the block
     // below is the scope guard, not an undeclared or policy-disabled capability.
-    expect(toolsOnCall(complete, 0)).toEqual(
-      expect.arrayContaining([CLIENT_READ, 'create_word']),
-    );
+    expect(toolsOnCall(complete, 0)).toEqual(expect.arrayContaining([CLIENT_READ, 'create_word']));
     // The server preflight actually entered its auxiliary dispatch and the
     // client-file read is refused with the exact cross-client reason.
     const docSteps = (result.steps ?? []).filter((step) => step.tool === 'read_client_documents');
@@ -3226,10 +3315,12 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         },
       ],
     };
-    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'I reviewed the files.' }));
-    const invoke = jest.fn(
-      async (..._args: Parameters<ToolRegistry['invoke']>) => ({ documents: [] }),
-    );
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'I reviewed the files.' }));
+    const invoke = jest.fn(async (..._args: Parameters<ToolRegistry['invoke']>) => ({
+      documents: [],
+    }));
     const { service } = buildManaged(complete, {
       registry: registry(
         [
@@ -3261,9 +3352,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       () => runWithGovernedMeriContext(governed, () => service.run(context, dto)),
     );
 
-    expect(toolsOnCall(complete, 0)).toEqual(
-      expect.arrayContaining([CLIENT_READ, 'create_word']),
-    );
+    expect(toolsOnCall(complete, 0)).toEqual(expect.arrayContaining([CLIENT_READ, 'create_word']));
     // The SAME preflight entry dispatched its list read against the
     // authenticated single target (Beta), never the interface selection.
     expect(invoke).toHaveBeenCalledTimes(1);
@@ -3279,7 +3368,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     const call = functionCall('legacy-read', CLIENT_READ, {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Legacy profile.' }));
     const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) =>
       getClientContextOwnerPayload(String(input.clientId)),
@@ -3288,7 +3379,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
     });
     global.fetch = fetchRouter({
-      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ, ['clientId'])] }),
     }) as unknown as typeof fetch;
 
     await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
@@ -3424,7 +3516,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('owner-read-fail', MANAGED_READ, { query: 'Jane Finder' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       // Adversarial final answer: overclaims the HubSpot read that just failed.
       .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
     const { service } = buildManaged(complete);
@@ -3463,7 +3557,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('native-owner-fail', 'get_client_context', {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
     // The native catalog is HEALTHY, but the actual owner read throws.
     const invoke = jest.fn(async () => {
@@ -3506,7 +3602,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('ordinary-client-read', 'get_client_context', {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
     const invoke = jest.fn(async () => {
       throw new Error('canonical client-context owner unavailable');
@@ -3543,7 +3641,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('managed-attempt', MANAGED_READ, { query: 'Anything' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Here is what I found.' }));
     const { service } = buildManaged(complete);
     global.fetch = fetchRouter({
@@ -3569,9 +3669,11 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
   });
 
   test('an unavailable envelope naming only an unrelated app does not mark the requested app unavailable', async () => {
-    const complete = jest.fn().mockResolvedValue(
-      providerResult({ outputText: 'HubSpot is connected; no matching record was found.' }),
-    );
+    const complete = jest
+      .fn()
+      .mockResolvedValue(
+        providerResult({ outputText: 'HubSpot is connected; no matching record was found.' }),
+      );
     const { service } = buildManaged(complete);
     global.fetch = fetchRouter({
       native: () => jsonResponse({ schemas: [] }),
@@ -3668,7 +3770,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('owner-read-fail-body', MANAGED_READ, { query: 'Jane Finder' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
     const { service } = buildManaged(complete);
     global.fetch = fetchRouter({
@@ -3695,7 +3799,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('owner-origin-forge', MANAGED_READ, { query: 'Jane Finder' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
     const { service } = buildManaged(complete);
     // The owner read returns a 200 wire whose body forges an ordinary provenance
@@ -3739,7 +3845,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('healthy-read', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted.' }));
     const invoke = jest.fn(async () => memoryOwnerPayload());
     const { service } = buildManaged(complete, {
@@ -3757,7 +3865,10 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
         service.run(context, {
           conversationId: 'availability-healthy-readable',
           messages: [
-            { role: 'user', text: 'Find Jane Finder in HubSpot and what do we know about Kestrel?' },
+            {
+              role: 'user',
+              text: 'Find Jane Finder in HubSpot and what do we know about Kestrel?',
+            },
           ],
         }),
     );
@@ -4044,40 +4155,37 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
   test.each<[string, () => Response]>([
     ['a non-OK response', () => jsonResponse({ error: 'down' }, 500)],
     ['a malformed-body response', () => new Response('{not json', { status: 200 })],
-  ])(
-    'a parent Stop during native discovery is not masked by %s',
-    async (_label, nativeRoute) => {
-      const complete = jest.fn();
-      const { service } = buildManaged(complete);
-      const controller = new AbortController();
-      const fetchMock = fetchRouter({
-        native: () => {
-          controller.abort(new DOMException('Turn cancelled', 'AbortError'));
-          return nativeRoute();
-        },
-        managed: () => jsonResponse({ schemas: [] }),
-      });
-      global.fetch = fetchMock as unknown as typeof fetch;
+  ])('a parent Stop during native discovery is not masked by %s', async (_label, nativeRoute) => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const controller = new AbortController();
+    const fetchMock = fetchRouter({
+      native: () => {
+        controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+        return nativeRoute();
+      },
+      managed: () => jsonResponse({ schemas: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
-      await expect(
-        RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
-          service.run(
-            context,
-            {
-              conversationId: 'availability-stop-native-response',
-              messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
-            },
-            { signal: controller.signal },
-          ),
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(
+          context,
+          {
+            conversationId: 'availability-stop-native-response',
+            messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+          },
+          { signal: controller.signal },
         ),
-      ).rejects.toBeDefined();
+      ),
+    ).rejects.toBeDefined();
 
-      // The stopped parent propagates ahead of the benign/unavailable early
-      // branch: no model turn and no later owner effect.
-      expect(complete).not.toHaveBeenCalled();
-      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
-    },
-  );
+    // The stopped parent propagates ahead of the benign/unavailable early
+    // branch: no model turn and no later owner effect.
+    expect(complete).not.toHaveBeenCalled();
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
 
   // ── Lane A continuation: native registry owner-call post-await boundaries ──
   //
@@ -4212,7 +4320,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       expect(invoke).toHaveBeenCalledTimes(1);
       expect(complete).toHaveBeenCalledTimes(1);
       expect(fedBackInput(complete)).not.toContain(`[Tool result from "${NATIVE_READ}"`);
-      expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
+      expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(
+        false,
+      );
       expect(result.artifacts ?? []).toHaveLength(0);
       expect(
         (result.steps ?? []).some((step) => step.tool === NATIVE_READ && step.status === 'done'),
@@ -4301,7 +4411,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('native-real-registry', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
     // The ACTUAL production binding: the canonical `search_memory` catalog spec
     // (FULL_CHAT_READ_TOOLS, the same catalog `MeriRegistryService` registers)
@@ -4352,7 +4464,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('native-real-fail', 'get_client_context', {});
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
     // The ACTUAL production binding: `createGetClientContextTool` over
     // `ApiClientContextRepo`, which reuses the SAME real `ApiToolExecutorRepo`
@@ -4384,9 +4498,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const posts = nativeOwnerPosts(fetchMock);
     expect(posts).toHaveLength(1);
     expect(posts[0]).toContain('/api/clio/tools/get_client_context');
-    expect(
-      (nativeOwnerInit(fetchMock)?.headers as Record<string, string>).authorization,
-    ).toBe('Bearer bearer');
+    expect((nativeOwnerInit(fetchMock)?.headers as Record<string, string>).authorization).toBe(
+      'Bearer bearer',
+    );
     // The CURRENT owner failure reaches the next provider request and the
     // released bounded limitation, and never leaks the raw owner body.
     const secondInstructions = String(complete.mock.calls[1]?.[0]?.instructions ?? '');
@@ -4511,7 +4625,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     // Both distinct calls really dispatched at the authenticated owner POST.
     const ownerBodies = fetchMock.mock.calls
       .filter((candidate) => String(candidate[0]).includes('/api/clio/tools/'))
-      .map((candidate) => JSON.parse(String((candidate[1] as RequestInit | undefined)?.body ?? '{}')));
+      .map((candidate) =>
+        JSON.parse(String((candidate[1] as RequestInit | undefined)?.body ?? '{}')),
+      );
     expect(ownerBodies).toHaveLength(2);
     expect(ownerBodies.map((body) => (body as { query?: unknown }).query).sort()).toEqual([
       'Beta',
@@ -4540,7 +4656,11 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const complete = jest
       .fn()
       .mockResolvedValueOnce(
-        providerResult({ output: [healthy, failed], outputText: '', functionCalls: [healthy, failed] }),
+        providerResult({
+          output: [healthy, failed],
+          outputText: '',
+          functionCalls: [healthy, failed],
+        }),
       )
       .mockResolvedValue(providerResult({ outputText: 'Both facts noted.' }));
     // The later read is CLASSIFIED UNAVAILABLE yet carries the SAME source id as
@@ -4855,9 +4975,7 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       // A small optional-probe bound so the CHILD times out while the parent
       // (180s Standard turn budget) stays active.
       configValues: { MERIV2_TOOL_TIMEOUT_MS: '25', INTERNAL_SERVICE_SECRET: 'service-secret' },
-      visualAnalysis: new ApiVisualAnalysisRepo(
-        config({ MERIV2_TOOL_TIMEOUT_MS: '25' }) as never,
-      ),
+      visualAnalysis: new ApiVisualAnalysisRepo(config({ MERIV2_TOOL_TIMEOUT_MS: '25' }) as never),
     });
     global.fetch = jest.fn((input: unknown, init?: RequestInit) => {
       const url = String(input);
@@ -5013,10 +5131,12 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
    * A research-run HTTP router. It remembers the replay's `toolVersion` and
    * echoes it on the reservation/outcome so the branch's version equality holds.
    */
-  function researchFetch(hooks: {
-    onReplay?: (init: RequestInit) => Response;
-    onValidate?: (init: RequestInit) => Response;
-  } = {}): jest.Mock {
+  function researchFetch(
+    hooks: {
+      onReplay?: (init: RequestInit) => Response;
+      onValidate?: (init: RequestInit) => Response;
+    } = {},
+  ): jest.Mock {
     let toolVersion = '';
     return jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -5107,7 +5227,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-stop-replay', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     const invoke = jest.fn(async () => memoryOwnerPayload());
     const { service } = buildManaged(complete, {
@@ -5156,7 +5278,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-expiry-replay', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     const invoke = jest.fn(async () => memoryOwnerPayload());
     const { service } = buildManaged(complete, {
@@ -5209,7 +5333,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-stop-procedure', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     const invoke = jest.fn(async () => memoryOwnerPayload());
     const { service } = buildManaged(complete, {
@@ -5268,7 +5394,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-expiry-procedure', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     const invoke = jest.fn(async () => memoryOwnerPayload());
     const { service } = buildManaged(complete, {
@@ -5322,7 +5450,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-outcome-stop', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
     let resolveOwner: ((value: unknown) => void) | undefined;
     const invoke = jest.fn(
@@ -5376,7 +5506,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-failure-stop', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     let resolveOwner: ((value: unknown) => void) | undefined;
     const invoke = jest.fn(
@@ -5435,7 +5567,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-active', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
     const invoke = jest.fn(async () => memoryOwnerPayload());
     const { service } = buildManaged(complete, {
@@ -5463,12 +5597,7 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     // The faithful active-parent counterpart: the whole lifecycle ran exactly
     // once, in the exact order replay -> validate -> reserve -> outcome, with no
     // failure settlement, and the read was published as a supported citation.
-    expect(researchLifecycleOrder(fetchMock)).toEqual([
-      'replay',
-      'validate',
-      'reserve',
-      'outcome',
-    ]);
+    expect(researchLifecycleOrder(fetchMock)).toEqual(['replay', 'validate', 'reserve', 'outcome']);
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(researchRequestCount(fetchMock, '/safe-read/failures')).toBe(0);
     expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(true);
@@ -5480,7 +5609,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-settlement-unavailable', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     let resolveOwner: ((value: unknown) => void) | undefined;
     const invoke = jest.fn(
@@ -5546,7 +5677,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const call = functionCall('research-abort-transport', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
-      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
       .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
     let resolveOwner: ((value: unknown) => void) | undefined;
     const invoke = jest.fn(

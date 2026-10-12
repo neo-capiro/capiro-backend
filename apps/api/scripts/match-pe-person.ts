@@ -28,7 +28,13 @@ const S2_MIN = Number(arg('s2-min') ?? 0.6);
 const S3_MIN = Number(arg('s3-min') ?? 0.6);
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/match-pe-person.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const prisma = new PrismaClient({ transactionOptions: { timeout: 120000, maxWait: 20000 } });
+  try {
   await prisma.$connect();
   const matcher = new PePersonMatcherService();
   const source = 'pe_person_matcher';
@@ -84,9 +90,13 @@ async function main(): Promise<void> {
   } catch (err) {
     await prisma.syncRun.update({ where: { id: run.id }, data: { finishedAt: new Date(), status: 'error', errorMessage: String(err) } });
     throw err;
+  }
+
   } finally {
     await prisma.$disconnect();
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => { console.error(err); process.exit(1); });
+}

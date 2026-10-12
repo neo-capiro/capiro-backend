@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 10B-40 follow-up -- practical baseline for the BA2/BA3
  * approval-replacement gap: bundles, in ONE CLI invocation, the two steps an
@@ -551,6 +552,7 @@ function parseArgs(argv: string[]): Args {
     const arg = argv[i];
     if (arg === undefined) break;
     if (!KNOWN_FLAGS.has(arg)) {
+      console.error('Usage: replace-defense-budget-candidate-approvals-v1 --old-candidate-id <uuid> --new-candidate-id <uuid> --reapproval-manifest <path> --actor <id> --reviewer-id <id> --correction-reason-file <path> [--commit]');
       console.error(`Unknown flag: ${arg}`);
       process.exit(EXIT_USAGE_OR_STEP1_ERROR);
     }
@@ -584,6 +586,7 @@ function parseArgs(argv: string[]): Args {
   const need = (flag: string): string => {
     const v = raw[flag];
     if (typeof v !== 'string' || v.length === 0) {
+      console.error('Usage: replace-defense-budget-candidate-approvals-v1 --old-candidate-id <uuid> --new-candidate-id <uuid> --reapproval-manifest <path> --actor <id> --reviewer-id <id> --correction-reason-file <path> [--commit]');
       console.error(`Missing ${flag}`);
       process.exit(EXIT_USAGE_OR_STEP1_ERROR);
     }

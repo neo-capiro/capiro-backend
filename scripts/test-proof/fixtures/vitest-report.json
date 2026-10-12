@@ -1,0 +1,14 @@
+{
+  "numTotalTests": 3,
+  "testResults": [
+    {
+      "name": "C:/dev/main/cleanup-test-proof-20261007/apps/web/src/Widget.test.tsx",
+      "status": "passed",
+      "assertionResults": [
+        { "ancestorTitles": ["Widget"], "fullName": "Widget adds", "title": "adds", "status": "passed" },
+        { "ancestorTitles": ["Widget"], "fullName": "Widget multiplies", "title": "multiplies", "status": "skipped" },
+        { "ancestorTitles": ["Widget"], "fullName": "Widget pending", "title": "pending", "status": "pending" }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * sync-report-provisions.ts — Step 2.4 follow-on — load committee-report LANGUAGE
  * provisions (narrative, not dollar tables) + link them to PEs / projects / programs.
@@ -36,8 +37,6 @@ import {
   type ProvisionLinkRow,
   type ProvisionLoaderPrisma,
 } from '../src/program-element/provisions/provision-loader.js';
-
-dotenvConfig();
 
 function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
@@ -172,13 +171,19 @@ export async function run(): Promise<{
   linksInsertedByBasis: Record<string, number>;
   linksConsideredByBasis: Record<string, number>;
 }> {
+  dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    throw new Error('Usage: sync-report-provisions requires DATABASE_URL');
+  }
+
   const commit = flag('commit');
   const dir = arg('dir') ?? DEFAULT_DIR;
   const artifacts = readArtifacts(dir);
 
   const prisma = new PrismaClient();
-  await prisma.$connect();
+
   try {
+    await prisma.$connect();
     // GLOBAL tables (no RLS), but the connection role still runs under RLS policies for the
     // tenant tables it touches indirectly; bypass so the raw upserts/inserts are unguarded.
     await prisma.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', false)");
@@ -198,6 +203,29 @@ export async function run(): Promise<{
 }
 
 async function main(): Promise<void> {
+  const argv = process.argv.slice(2);
+  const usage = 'Usage: tsx scripts/sync-report-provisions.ts [--dir <path>] [--commit]';
+  if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h')) {
+    console.log(usage);
+    return;
+  }
+  for (let index = 0; index < argv.length; index += 1) {
+    const option = argv[index];
+    if (option === '--commit') continue;
+    if (option === '--dir' && argv[index + 1] && !argv[index + 1].startsWith('--')) {
+      index += 1;
+      continue;
+    }
+    if (
+      option.startsWith('--dir=') &&
+      option.slice('--dir='.length) &&
+      !option.slice('--dir='.length).startsWith('--')
+    )
+      continue;
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
   const summary = await run();
   console.log(JSON.stringify(summary, null, 2));
 }
@@ -211,7 +239,9 @@ const invokedDirectly =
 
 if (invokedDirectly) {
   void main().catch((e) => {
-    console.error('[sync-report-provisions] fatal', (e as Error)?.stack || e);
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.startsWith('Usage:')) console.error(message);
+    else console.error('[sync-report-provisions] fatal', (e as Error)?.stack || e);
     process.exit(1);
   });
 }

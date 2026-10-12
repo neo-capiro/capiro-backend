@@ -5,7 +5,10 @@ import {
   resolveMeriDocumentRequest,
   stripAppendedAttachmentText,
 } from '@capiro/shared';
-import { classifyApiToolReadOutcome, type ApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
+import {
+  classifyApiToolReadOutcome,
+  type ApiToolReadOutcome,
+} from '@capiro/shared/meri-read-outcome';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -615,10 +618,7 @@ function boundedPartialReply(
  * result body, which any current owner payload could forge. These seeds ARE
  * current scoped evidence: a later catalog/read outage does not erase them.
  */
-function isSeedCatalogEvidence(
-  entry: LedgerEntry,
-  seedEntries: ReadonlySet<LedgerEntry>,
-): boolean {
+function isSeedCatalogEvidence(entry: LedgerEntry, seedEntries: ReadonlySet<LedgerEntry>): boolean {
   return seedEntries.has(entry);
 }
 
@@ -642,7 +642,10 @@ function catalogFindingIsSupported(
     if (record.blocked === true) return false;
   }
   const classification = classifyApiToolReadOutcome(entry.tool, result);
-  if (classification && (classification.kind === 'failed' || classification.kind === 'unavailable')) {
+  if (
+    classification &&
+    (classification.kind === 'failed' || classification.kind === 'unavailable')
+  ) {
     return false;
   }
   return true;
@@ -1620,14 +1623,14 @@ export class MeriV3AssistantService {
             const authority = this.resolveCapabilityAuthority(schema.name, schema, dto);
             if (!authority) return false;
             if (dto.toolPolicy === 'read-only' && authority.readOnly !== true) return false;
-            if (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) return false;
+            if (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name))
+              return false;
             return true;
           });
     // This tool reads a research snapshot, not client Files. Its session comes
     // from the authenticated research lease, never a guessed chat/client UUID.
     const leaseAuthorizedSchemas = toolSchemas.filter(
-      (schema) =>
-        schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
+      (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
     );
     const procedureSchemas = bindMeriProcedureSchemas({
       procedure,
@@ -1672,9 +1675,9 @@ export class MeriV3AssistantService {
                   const authority = this.resolveCapabilityAuthority(schema.name, schema, dto);
                   return Boolean(
                     authority &&
-                      (dto.toolPolicy !== 'read-only' || authority.readOnly === true) &&
-                      (!currentAdmitted || currentAdmitted.has(schema.name)) &&
-                      (schema.name !== 'get_research_evidence' || dto.researchRun),
+                    (dto.toolPolicy !== 'read-only' || authority.readOnly === true) &&
+                    (!currentAdmitted || currentAdmitted.has(schema.name)) &&
+                    (schema.name !== 'get_research_evidence' || dto.researchRun),
                   );
                 });
           const currentGoverned = currentGovernedMeriContext();
@@ -2954,10 +2957,7 @@ export class MeriV3AssistantService {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
     }
-    if (
-      matchLabelMode === 'shadow' &&
-      released.reply
-    ) {
+    if (matchLabelMode === 'shadow' && released.reply) {
       const reply = released.reply;
       const releasedCitations = released.citations;
       const started = Date.now();
@@ -3019,9 +3019,7 @@ export class MeriV3AssistantService {
     this.logStructured('log', 'meri.canary.turn', { ...canaryEvent });
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
-    if (
-      claimAssessmentMode !== 'off'
-    ) {
+    if (claimAssessmentMode !== 'off') {
       const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
@@ -3081,10 +3079,7 @@ export class MeriV3AssistantService {
       });
     }
     // Shadow starts only after text emission and is deliberately not awaited.
-    if (
-      statusProvenanceMode === 'shadow' &&
-      released.reply
-    ) {
+    if (statusProvenanceMode === 'shadow' && released.reply) {
       void runStatusProvenance({
         reply: released.reply,
         mode: 'shadow',
@@ -3653,8 +3648,8 @@ export class MeriV3AssistantService {
       String(
         [...(dto.messages ?? [])]
           .reverse()
-          .find((message) => message?.role === 'user' && typeof message.text === 'string')
-          ?.text ?? '',
+          .find((message) => message?.role === 'user' && typeof message.text === 'string')?.text ??
+          '',
       ),
     );
   }
@@ -4179,7 +4174,13 @@ export class MeriV3AssistantService {
     const label = toolLabel(args.name);
     args.emit({ type: 'tool_call', tool: args.name, label, providerCallId: args.providerCallId });
     args.steps.push({ tool: args.name, label, status: 'blocked', detail: args.detail });
-    args.emit({ type: 'tool_done', tool: args.name, label, status: 'blocked', detail: args.detail });
+    args.emit({
+      type: 'tool_done',
+      tool: args.name,
+      label,
+      status: 'blocked',
+      detail: args.detail,
+    });
     return { blocked: true, error: args.detail };
   }
 

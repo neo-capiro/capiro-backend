@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import { appendFile, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -298,6 +299,21 @@ async function rollback(prisma: PrismaClient, snapshotPath: string): Promise<num
 }
 
 async function main(): Promise<void> {
+  if (process.argv.length <= 2) {
+    console.error('Usage: backfill-federal-award-dates --limit N --report PATH [--commit --snapshot PATH]; use --help for all options');
+    process.exit(2);
+  }
+  const valueFlags = new Set(['--limit', '--ids', '--input-ids-file', '--since', '--rail', '--snapshot', '--rollback', '--report']);
+  for (let index = 2; index < process.argv.length; index++) {
+    const flag = process.argv[index]!;
+    if (['--commit', '--dry-run', '--help'].includes(flag)) continue;
+    if (valueFlags.has(flag) && process.argv[index + 1] && !process.argv[index + 1]!.startsWith('--')) {
+      index++;
+      continue;
+    }
+    console.error(`Usage: backfill-federal-award-dates --help; unknown option or missing value: ${flag}`);
+    process.exit(2);
+  }
   if (has('help')) {
     console.log(usage());
     return;
@@ -306,7 +322,11 @@ async function main(): Promise<void> {
   if (options.rail === 'bulk') throw new Error('--rail bulk is NOT IMPLEMENTED; use --rail detail');
 
   if (options.rollback) {
-    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for --rollback');
+    if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-federal-award-dates.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
     const prisma = new PrismaClient();
     try {
       const count = await rollback(prisma, options.rollback);
@@ -318,7 +338,11 @@ async function main(): Promise<void> {
   }
 
   const useDatabase = Boolean(process.env.DATABASE_URL);
-  if (options.commit && !useDatabase) throw new Error('DATABASE_URL is required with --commit');
+  if (options.commit && !useDatabase) {
+    console.error('Usage: apps/api/scripts/backfill-federal-award-dates.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
   const prisma = useDatabase ? new PrismaClient() : null;
   try {
     const selected = prisma ? await databaseAwards(prisma, options) : await noDatabaseAwards(options);
@@ -348,9 +372,11 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((error: unknown) => {
   const cause = (error as { cause?: { code?: string; message?: string } }).cause;
   const causeText = cause ? ` cause=${cause.code ?? cause.message ?? 'unknown'}` : '';
   console.error(`[award-date-backfill] ${(error as Error).message}${causeText}`);
   process.exitCode = 1;
 });
+}

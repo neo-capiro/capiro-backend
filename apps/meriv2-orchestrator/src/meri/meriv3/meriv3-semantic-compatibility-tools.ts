@@ -85,7 +85,15 @@ const CREATE_ARTIFACT_SCHEMA: MeriSemanticCompatibilitySchema = {
     properties: {
       type: {
         type: 'string',
-        enum: ['word', 'pdf', 'text', 'spreadsheet', 'presentation', 'meeting_brief', 'policy_memo'],
+        enum: [
+          'word',
+          'pdf',
+          'text',
+          'spreadsheet',
+          'presentation',
+          'meeting_brief',
+          'policy_memo',
+        ],
       },
       clientId: {
         type: 'string',
@@ -308,7 +316,10 @@ export class MeriV3SemanticCompatibilityTools {
     if (clientId && CLIENT_AWARE_ARTIFACT_TYPES.has(type)) spec.clientId = clientId;
     if (conversationId) spec.conversationId = conversationId;
     if (type === 'pdf') spec.format = 'pdf';
-    if (type === 'text') { spec.format = 'txt'; spec.sections = []; }
+    if (type === 'text') {
+      spec.format = 'txt';
+      spec.sections = [];
+    }
 
     return invoke(backingTool, spec);
   }

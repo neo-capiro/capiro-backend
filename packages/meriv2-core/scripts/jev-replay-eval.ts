@@ -1,30 +1,34 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import {
-  buildClaimSupportQuestion,
-  buildEvidenceEnvelope,
-  createReplayDecisionProvider,
-  createSkepticDecisionProvider,
-  jevClaimEvidenceFixtureSchema,
-  RecordedDecisionStore,
-  runPairedEvaluation,
-  type ClaimLedger,
-} from '../src';
+import { parseEvalCli } from './lib/eval-cli';
+import type { ClaimLedger } from '../src';
 
-function argument(name: string, fallback: string): string {
-  const index = process.argv.indexOf(name);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1]! : fallback;
-}
+const cli = parseEvalCli({
+  usage:
+    'Usage: tsx scripts/jev-replay-eval.ts --write [--store FILE] [--output DIR] [--live] (or provide --store/--output explicitly)',
+  valueOptions: ['--store', '--output'],
+  actionOptions: ['--write', '--live'],
+});
 
 async function main(): Promise<void> {
-  const live = process.argv.includes('--live');
+  const {
+    buildClaimSupportQuestion,
+    buildEvidenceEnvelope,
+    createReplayDecisionProvider,
+    createSkepticDecisionProvider,
+    jevClaimEvidenceFixtureSchema,
+    RecordedDecisionStore,
+    runPairedEvaluation,
+  } = await import('../src');
+  const live = cli.actions.has('--live');
   if (live && (!process.env.TYPESAFE_API_KEY || process.env.MERI_JEV_PROVIDER_MODE !== 'shadow')) {
     throw new Error('--live requires TYPESAFE_API_KEY and MERI_JEV_PROVIDER_MODE=shadow');
   }
   if (live)
     throw new Error('--live wiring is intentionally unavailable until an approved recording run');
-  const storePath = path.resolve(argument('--store', 'tmp/jev-recordings.jsonl'));
-  const outputDir = path.resolve(argument('--output', 'tmp/jev-replay-eval'));
+  const storePath = path.resolve(cli.values.get('--store') ?? 'tmp/jev-recordings.jsonl');
+  const outputDir = path.resolve(cli.values.get('--output') ?? 'tmp/jev-replay-eval');
   const fixturePath = path.resolve(
     __dirname,
     '../src/jev/__fixtures__/stage0-claim-evidence-v1.json',

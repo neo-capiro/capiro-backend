@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * export-master-lists.ts — regenerate the master program/people lists FROM PROD
  * (the old pe_lists_export CSVs were generated from stale local artifacts).
@@ -19,6 +20,20 @@ function csvCell(v: unknown): string {
 }
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/export-master-lists.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
@@ -95,7 +110,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

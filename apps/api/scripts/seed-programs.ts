@@ -66,6 +66,10 @@ interface AliasDraft {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/seed-programs.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = hasFlag('commit');
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -266,7 +270,9 @@ function collectAliases(
   return out;
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error('[seed-programs] FAILED', err);
   process.exit(1);
 });
+}

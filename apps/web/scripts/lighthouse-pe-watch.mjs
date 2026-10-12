@@ -18,9 +18,24 @@
  *
  * Requires Chrome/Chromium available to chrome-launcher. In CI, run after
  * `vite build` + `vite preview` (or against a deployed/staging URL).
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
-import lighthouse from 'lighthouse';
-import * as chromeLauncher from 'chrome-launcher';
+
+const USAGE = 'Usage: PE_WATCH_URL=<url> node apps/web/scripts/lighthouse-pe-watch.mjs --run';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--run') {
+  console.error(USAGE);
+  if (cliArgs.length) console.error(`[lighthouse-pe-watch] unknown argument: ${cliArgs.join(' ')}`);
+  process.exit(2);
+}
+if (!process.env.PE_WATCH_URL?.trim()) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const URL = process.env.PE_WATCH_URL;
 const FCP_BUDGET = Number(process.env.LH_FCP_BUDGET_MS ?? 2000);
@@ -28,14 +43,10 @@ const LCP_BUDGET = Number(process.env.LH_LCP_BUDGET_MS ?? 2500);
 const PERF_MIN = Number(process.env.LH_PERF_MIN ?? 0.8);
 const AUTH_COOKIE = process.env.LH_AUTH_COOKIE;
 
-if (!URL) {
-  console.error(
-    'PE_WATCH_URL is required, e.g. PE_WATCH_URL="https://app.capiro.ai/program-elements/0603270A"',
-  );
-  process.exit(2);
-}
-
 async function main() {
+  const [{ default: lighthouse }, chromeLauncher] = await Promise.all([
+    import('lighthouse'), import('chrome-launcher'),
+  ]);
   const chrome = await chromeLauncher.launch({
     chromeFlags: ['--headless=new', '--no-sandbox', '--disable-gpu'],
   });

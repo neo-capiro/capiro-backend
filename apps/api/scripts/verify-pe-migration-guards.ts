@@ -1,8 +1,10 @@
 /**
+ * @cleanup-smoke noArgsExit=0 helpExit=0
  * Executable migration guards for PE permanent release gate (K4).
  *
  * Offline (always):
- *  - entrypoints: no _prisma_migrations mutation, no migrate resolve
+ *  - automatic entrypoint paths: no _prisma_migrations mutation or migrate resolve
+ *  - exact-shape operator recovery arms are checked separately, never replayed
  *  - exactly one active migrate deploy path among entrypoint trio
  *  - package scripts expose prisma validate / generate
  *
@@ -18,11 +20,26 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  assertNoMigrationHistoryMutation,
+  assertNoAutomaticMigrationHistoryMutation,
   countMigrateDeployInvocations,
   interpretPrismaValidateGenerate,
   stripShellComments,
 } from './lib/pe-migration-guards.js';
+
+const USAGE =
+  'Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--validate-generate' && arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (argv.length === 0) console.error(USAGE);
 
 function apiRoot(): string {
   const cwd = process.cwd().replace(/\\/g, '/');
@@ -42,7 +59,7 @@ function main(): void {
     'scripts/entrypoint-dispatcher.inc',
   ].map((path) => ({ path, source: read(path) }));
 
-  const history = assertNoMigrationHistoryMutation(snaps);
+  const history = assertNoAutomaticMigrationHistoryMutation(snaps);
   assert.equal(
     history.ok,
     true,

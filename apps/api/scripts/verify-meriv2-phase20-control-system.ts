@@ -1,9 +1,22 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MERIV2_CONTROL_METRIC_NAMES, buildMeriV2ControlMetricEnvelope } from '@capiro/meriv2-core';
+
+const USAGE = 'Usage: tsx scripts/verify-meriv2-phase20-control-system.ts [--help]';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length !== 0) {
+  console.error(USAGE);
+  process.exit(2);
+}
+console.error(USAGE);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 

@@ -51,7 +51,9 @@ function discovery(
 
 describe('MeriProgressiveToolDiscovery', () => {
   test('discovers the canonical own-proposal read without inventing approval authority', async () => {
-    const capability = MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'list_memory_proposals')!;
+    const capability = MERI_CAPABILITY_REGISTRY.find(
+      (tool) => tool.name === 'list_memory_proposals',
+    )!;
     const pending = schema(capability.name, capability.description);
     const approved = schema('search_memory', 'Recall approved facts', ['query']);
     const subject = discovery({ authorized: [approved, pending], exposed: [approved] });

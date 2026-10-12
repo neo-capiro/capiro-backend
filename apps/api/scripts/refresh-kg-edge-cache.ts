@@ -19,6 +19,11 @@ import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/refresh-kg-edge-cache.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const prisma = new PrismaClient();
   try {
     await runWithSyncRun(
@@ -45,7 +50,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('[refresh-kg-edge-cache] FAILED', err);
   process.exit(1);
 });
+}

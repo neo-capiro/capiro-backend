@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * SELECT-only audit for PE years whose canonical `request` is 0 while another
  * observation records a non-zero request (PE 0603203F FY2027: $0.0M stored,
@@ -92,6 +93,21 @@ function databaseHost(): string {
 }
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/audit-pe-zero-request.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.some((arg) => !arg.startsWith('--limit='))) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+
   const limitArg = process.argv.find((arg) => arg.startsWith('--limit='));
   const limit = limitArg ? Math.max(1, Number(limitArg.slice('--limit='.length)) || 200) : 200;
   const prisma = new PrismaClient();

@@ -4,10 +4,28 @@
  * only the main API during Phase 1. Missing credentials, a sign-in redirect, an
  * unfinished application shell, or missing per-surface Engagement API traffic
  * are hard failures.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+
+const USAGE = 'Usage: node apps/web/scripts/engagement-phase1-browser-parity.mjs --run (requires ENGAGEMENT_PHASE1_EVIDENCE_DIR, ENGAGEMENT_PHASE1_TOKEN_FILE)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--run') {
+  console.error(USAGE);
+  if (cliArgs.length) console.error(`[phase1-browser-parity] unknown argument: ${cliArgs.join(' ')}`);
+  process.exit(2);
+}
+if (['ENGAGEMENT_PHASE1_EVIDENCE_DIR', 'ENGAGEMENT_PHASE1_TOKEN_FILE']
+  .some((name) => !process.env[name]?.trim())) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const require = createRequire(import.meta.url);
 const chromeLauncher = require('chrome-launcher');

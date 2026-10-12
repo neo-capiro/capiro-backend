@@ -71,6 +71,10 @@ interface DowProgram {
 // tunable via scripts/__tools__/eval_dow_org_gate.ts over the full string universe.
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/import-dow-orgs.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const people = JSON.parse(
     fs.readFileSync(path.join(DATA_DIR, 'dow_v6_people.json'), 'utf8'),
   ) as DowPerson[];
@@ -341,7 +345,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

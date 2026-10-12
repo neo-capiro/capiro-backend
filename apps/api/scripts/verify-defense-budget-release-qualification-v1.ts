@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * verify-defense-budget-release-qualification-v1.ts
  *
@@ -319,14 +320,30 @@ export function releaseGatePolicyForProfile(profile: string): ReleaseGatePolicy 
 }
 
 function main(): void {
-  const argPath = process.argv[2];
-  const profileName = process.argv[3] ?? 'default';
+  const usage = 'Usage: tsx scripts/verify-defense-budget-release-qualification-v1.ts <report.json|-> [default|ba4a-r3-repair] (or pipe JSON on stdin)';
+  const cliArgs = process.argv.slice(2);
+  if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (cliArgs.length > 2 || cliArgs.some((value) => value.startsWith('--'))) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const argPath = cliArgs[0];
+  const profileName = cliArgs[1] ?? 'default';
+  if (profileName !== 'default' && profileName !== 'ba4a-r3-repair') {
+    console.error(`usage error: unknown release-gate profile '${profileName}'`);
+    console.error(usage);
+    process.exit(2);
+  }
   let report: QualificationReport;
   try {
     const raw = argPath && argPath !== '-' ? readFileSync(argPath, 'utf8') : readFileSync(0, 'utf8');
     report = parseReportInput(raw);
   } catch (error) {
     console.error(`usage error: could not read/parse a QUALIFICATION_REPORT from input: ${(error as Error).message}`);
+    if (!argPath) console.error(usage);
     process.exit(2);
   }
 

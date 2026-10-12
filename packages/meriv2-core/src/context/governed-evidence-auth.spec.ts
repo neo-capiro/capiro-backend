@@ -214,31 +214,101 @@ describe('qualified fixture semantic clock transport', () => {
   const run = '11111111-1111-4111-8111-111111111111';
   function fixture(caseId: '01' | '12' | '14' | '20' | '72' = '01') {
     const c = context();
-    c.semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
-      instant, timeZone, caseId, captureRunId: run,
-      currentVerifySha256: 'a'.repeat(64), observedAt: now };
-    c.serverReadonlyCapturePolicy = { caseId, captureRunId: run,
-      fixtureVersion: 'meri-live-v1-2026-09-26.1', issuedAt: now, expiresAt: now + 60_000,
-      semanticClock: { ...c.semanticClock }, tenantId: actor.tenantId, actorUserId: actor.userId } as never;
-    (c.contextPacket as any).clockUse = { instant, timeZone, eligibilityAt: new Date(now).toISOString(), scoring: 'used' };
+    c.semanticClock = {
+      version: 1,
+      kind: 'qualified_original_fixture_semantic_clock',
+      instant,
+      timeZone,
+      caseId,
+      captureRunId: run,
+      currentVerifySha256: 'a'.repeat(64),
+      observedAt: now,
+    };
+    c.serverReadonlyCapturePolicy = {
+      caseId,
+      captureRunId: run,
+      fixtureVersion: 'meri-live-v1-2026-09-26.1',
+      issuedAt: now,
+      expiresAt: now + 60_000,
+      semanticClock: { ...c.semanticClock },
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+    } as never;
+    (c.contextPacket as any).clockUse = {
+      instant,
+      timeZone,
+      eligibilityAt: new Date(now).toISOString(),
+      scoring: 'used',
+    };
     return c;
   }
   const verify = (c: MeriGovernedTurnContext, time = now) =>
-    verifyMeriGovernedContext(attestMeriGovernedContext(c, binding, secret, now), binding, actor, secret, time);
+    verifyMeriGovernedContext(
+      attestMeriGovernedContext(c, binding, secret, now),
+      binding,
+      actor,
+      secret,
+      time,
+    );
   it('accepts the exact authenticated compiler/policy clock while auth uses real time', () => {
     expect(() => verify(fixture())).not.toThrow();
     expect(() => verify(fixture(), now + 60_001)).toThrow();
   });
-  it.each(['01', '14', '20', '72'] as const)('keeps case %s within existing readonly authority', (caseId) => {
-    expect(() => verify(fixture(caseId))).not.toThrow();
-  });
+  it.each(['01', '14', '20', '72'] as const)(
+    'keeps case %s within existing readonly authority',
+    (caseId) => {
+      expect(() => verify(fixture(caseId))).not.toThrow();
+    },
+  );
 
-  function case12(){ const c=fixture('12'),p=c.serverReadonlyCapturePolicy!;
-    p.resetReceiptId=null;p.seedReceiptId=null;
-    p.case12Setup={setupRunId:'22222222-2222-4222-8222-222222222222',fixtureInstanceId:'33333333-3333-4333-8333-333333333333',setupPlanSha256:'a'.repeat(64),setupClaimSha256:'b'.repeat(64),setupLedgerSha256:'c'.repeat(64)};return c; }
-  it('authenticates Case12 clock only with its own setup identity shape',()=>{expect(()=>verify(case12())).not.toThrow();const c=case12();delete c.serverReadonlyCapturePolicy!.case12Setup;expect(()=>verify(c)).toThrow('case12_setup_binding');});
-  it.each(['setupRunId','fixtureInstanceId','setupPlanSha256','setupClaimSha256','setupLedgerSha256'] as const)('rejects Case12 %s tampering after authentication',key=>{const c=case12(),signed=attestMeriGovernedContext(c,binding,secret,now);signed.serverReadonlyCapturePolicy!.case12Setup![key]=key==='setupRunId'||key==='fixtureInstanceId'?'99999999-9999-4999-8999-999999999999':'f'.repeat(64);expect(()=>verifyMeriGovernedContext(signed,binding,actor,secret,now)).toThrow('authentication_failed');});
-  it.each(['setupRunId','fixtureInstanceId','setupPlanSha256','setupClaimSha256','setupLedgerSha256'] as const)('rejects authenticated malformed Case12 %s',key=>{const c=case12();c.serverReadonlyCapturePolicy!.case12Setup![key]=['a'.repeat(64)] as never;expect(()=>verify(c)).toThrow('case12_setup_binding');});
+  function case12() {
+    const c = fixture('12'),
+      p = c.serverReadonlyCapturePolicy!;
+    p.resetReceiptId = null;
+    p.seedReceiptId = null;
+    p.case12Setup = {
+      setupRunId: '22222222-2222-4222-8222-222222222222',
+      fixtureInstanceId: '33333333-3333-4333-8333-333333333333',
+      setupPlanSha256: 'a'.repeat(64),
+      setupClaimSha256: 'b'.repeat(64),
+      setupLedgerSha256: 'c'.repeat(64),
+    };
+    return c;
+  }
+  it('authenticates Case12 clock only with its own setup identity shape', () => {
+    expect(() => verify(case12())).not.toThrow();
+    const c = case12();
+    delete c.serverReadonlyCapturePolicy!.case12Setup;
+    expect(() => verify(c)).toThrow('case12_setup_binding');
+  });
+  it.each([
+    'setupRunId',
+    'fixtureInstanceId',
+    'setupPlanSha256',
+    'setupClaimSha256',
+    'setupLedgerSha256',
+  ] as const)('rejects Case12 %s tampering after authentication', (key) => {
+    const c = case12(),
+      signed = attestMeriGovernedContext(c, binding, secret, now);
+    signed.serverReadonlyCapturePolicy!.case12Setup![key] =
+      key === 'setupRunId' || key === 'fixtureInstanceId'
+        ? '99999999-9999-4999-8999-999999999999'
+        : 'f'.repeat(64);
+    expect(() => verifyMeriGovernedContext(signed, binding, actor, secret, now)).toThrow(
+      'authentication_failed',
+    );
+  });
+  it.each([
+    'setupRunId',
+    'fixtureInstanceId',
+    'setupPlanSha256',
+    'setupClaimSha256',
+    'setupLedgerSha256',
+  ] as const)('rejects authenticated malformed Case12 %s', (key) => {
+    const c = case12();
+    c.serverReadonlyCapturePolicy!.case12Setup![key] = ['a'.repeat(64)] as never;
+    expect(() => verify(c)).toThrow('case12_setup_binding');
+  });
   it('keeps case46 on its separate governed artifact authority and current proof', () => {
     const c = fixture();
     delete c.serverReadonlyCapturePolicy;
@@ -246,22 +316,56 @@ describe('qualified fixture semantic clock transport', () => {
     c.evidence!.userId = MERI_CASE46.actorUserId;
     c.semanticClock!.caseId = '46';
     c.governedArtifactCapturePolicy = {
-      version: 1, kind: 'governed_artifact_acceptance_capture', caseId: '46',
-      fixtureNamespace: MERI_CASE46.namespace, tenantId: MERI_CASE46.tenantId,
-      tenantSlug: MERI_CASE46.tenantSlug, actorUserId: MERI_CASE46.actorUserId,
-      clientId: MERI_CASE46.clientId, conversationId: run, captureRunId: run,
-      policyId: run, requestId: 'request-1', traceId: 'trace-1', turnId: run,
-      source: { owner: 'engagement_attachment', logicalId: 'ARTIFACT-BRIEF-1', physicalId: run,
-        rowVersion: '1', ownershipSha256: 'a'.repeat(64), contentSha256: MERI_CASE46.sha256, byteLength: 28 },
-      currentVerifySha256: 'a'.repeat(64), qualificationSha256: 'a'.repeat(64),
-      issuedAt: now, expiresAt: now + 60_000, allowedTool: 'create_word',
-      approval: 'canonical_current_user_required', maximumProposals: 1, maximumArtifactEffects: 1,
-      dynamicMcpAllowed: false, incidentalWriters: 'suppressed',
-      expectedWrites: ['context_packet_and_evidence', 'conversation_user_message',
-        'conversation_assistant_message', 'provider_budget_ledger', 'canonical_action_proposal', 'approved_text_artifact'],
+      version: 1,
+      kind: 'governed_artifact_acceptance_capture',
+      caseId: '46',
+      fixtureNamespace: MERI_CASE46.namespace,
+      tenantId: MERI_CASE46.tenantId,
+      tenantSlug: MERI_CASE46.tenantSlug,
+      actorUserId: MERI_CASE46.actorUserId,
+      clientId: MERI_CASE46.clientId,
+      conversationId: run,
+      captureRunId: run,
+      policyId: run,
+      requestId: 'request-1',
+      traceId: 'trace-1',
+      turnId: run,
+      source: {
+        owner: 'engagement_attachment',
+        logicalId: 'ARTIFACT-BRIEF-1',
+        physicalId: run,
+        rowVersion: '1',
+        ownershipSha256: 'a'.repeat(64),
+        contentSha256: MERI_CASE46.sha256,
+        byteLength: 28,
+      },
+      currentVerifySha256: 'a'.repeat(64),
+      qualificationSha256: 'a'.repeat(64),
+      issuedAt: now,
+      expiresAt: now + 60_000,
+      allowedTool: 'create_word',
+      approval: 'canonical_current_user_required',
+      maximumProposals: 1,
+      maximumArtifactEffects: 1,
+      dynamicMcpAllowed: false,
+      incidentalWriters: 'suppressed',
+      expectedWrites: [
+        'context_packet_and_evidence',
+        'conversation_user_message',
+        'conversation_assistant_message',
+        'provider_budget_ledger',
+        'canonical_action_proposal',
+        'approved_text_artifact',
+      ],
     };
-    const check = () => verifyMeriGovernedContext(attestMeriGovernedContext(c, binding, secret, now),
-      binding, { tenantId: MERI_CASE46.tenantId, userId: MERI_CASE46.actorUserId }, secret, now);
+    const check = () =>
+      verifyMeriGovernedContext(
+        attestMeriGovernedContext(c, binding, secret, now),
+        binding,
+        { tenantId: MERI_CASE46.tenantId, userId: MERI_CASE46.actorUserId },
+        secret,
+        now,
+      );
     expect(check).not.toThrow();
     c.governedArtifactCapturePolicy.currentVerifySha256 = 'b'.repeat(64);
     expect(check).toThrow('clock_context_mismatch');
@@ -269,19 +373,29 @@ describe('qualified fixture semantic clock transport', () => {
     c.serverReadonlyCapturePolicy = fixture().serverReadonlyCapturePolicy;
     expect(check).toThrow('clock_context_mismatch');
   });
-  it.each(['unqualified', 'budget-only', 'missing', 'policy-missing', 'mismatch', 'compiler-missing', 'compiler-mismatch', 'arbitrary-date', 'closed-case'])(
-    'rejects an authenticated but %s clock', (change) => {
-      const c = fixture();
-      if (change === 'unqualified') delete c.serverReadonlyCapturePolicy;
-      if (change === 'budget-only') c.serverReadonlyCapturePolicy!.syntheticReadBudget = {} as never;
-      if (change === 'missing') delete c.semanticClock;
-      if (change === 'policy-missing') delete c.serverReadonlyCapturePolicy!.semanticClock;
-      if (change === 'mismatch') c.serverReadonlyCapturePolicy!.semanticClock!.currentVerifySha256 = 'b'.repeat(64);
-      if (change === 'compiler-missing') delete (c.contextPacket as any).clockUse;
-      if (change === 'compiler-mismatch') (c.contextPacket as any).clockUse.instant = '2026-09-27T16:00:00.000Z';
-      if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
-      if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '21';
-      expect(() => verify(c)).toThrow();
-    },
-  );
+  it.each([
+    'unqualified',
+    'budget-only',
+    'missing',
+    'policy-missing',
+    'mismatch',
+    'compiler-missing',
+    'compiler-mismatch',
+    'arbitrary-date',
+    'closed-case',
+  ])('rejects an authenticated but %s clock', (change) => {
+    const c = fixture();
+    if (change === 'unqualified') delete c.serverReadonlyCapturePolicy;
+    if (change === 'budget-only') c.serverReadonlyCapturePolicy!.syntheticReadBudget = {} as never;
+    if (change === 'missing') delete c.semanticClock;
+    if (change === 'policy-missing') delete c.serverReadonlyCapturePolicy!.semanticClock;
+    if (change === 'mismatch')
+      c.serverReadonlyCapturePolicy!.semanticClock!.currentVerifySha256 = 'b'.repeat(64);
+    if (change === 'compiler-missing') delete (c.contextPacket as any).clockUse;
+    if (change === 'compiler-mismatch')
+      (c.contextPacket as any).clockUse.instant = '2026-09-27T16:00:00.000Z';
+    if (change === 'arbitrary-date') (c.semanticClock as any).instant = '2020-01-01T00:00:00.000Z';
+    if (change === 'closed-case') c.serverReadonlyCapturePolicy!.caseId = '21';
+    expect(() => verify(c)).toThrow();
+  });
 });

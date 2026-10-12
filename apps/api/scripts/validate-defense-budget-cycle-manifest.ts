@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Local-only validator for defense_budget_cycle_manifest_v1 files.
  *

@@ -1,6 +1,29 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { bdTaskReviewFixtureSchema, evaluateBdTaskGate } from '../src';
+
+const usage = 'Usage: tsx scripts/jev-bd-gate-eval.ts --fixture <path> [--output <dir>]';
+
+function guardCli(): void {
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(usage);
+    process.exit(0);
+  }
+  const valued = new Set(['--fixture', '--output']);
+  for (let index = 0; index < args.length; index += 1) {
+    if (!valued.has(args[index]!) || index + 1 >= args.length) {
+      console.error(usage);
+      process.exit(2);
+    }
+    index += 1;
+  }
+}
 
 /**
  * Offline BD task canary-gate CLI. Reads a bd_task_review_fixture_v2 fixture
@@ -15,11 +38,12 @@ function argument(name: string, fallback: string): string {
 }
 
 function main(): void {
-  const fixturePath = path.resolve(argument('--fixture', ''));
-  if (!fixturePath) {
+  const fixtureInput = argument('--fixture', '');
+  if (!fixtureInput) {
     console.error('usage: tsx scripts/jev-bd-gate-eval.ts --fixture <path> [--output <dir>]');
     process.exit(2);
   }
+  const fixturePath = path.resolve(fixtureInput);
   const outputDir = path.resolve(argument('--output', 'tmp/jev-bd-gate'));
   const fixture = bdTaskReviewFixtureSchema.parse(JSON.parse(readFileSync(fixturePath, 'utf8')));
   const result = evaluateBdTaskGate(fixture);
@@ -111,4 +135,5 @@ function main(): void {
   }
 }
 
+guardCli();
 main();

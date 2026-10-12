@@ -1,10 +1,24 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import {
+
+const usage = 'Usage: node scripts/verify-phase8-session5-corpus.mjs (no arguments verify the review ledger)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 0) {
+  console.error(usage);
+  process.exit(2);
+}
+console.error(usage);
+
+const {
   loadCorpusReviewLedger,
   validateCorpusReviewLedger,
-} from '../apps/defense-parser-orchestrator/src/corpus-review.mjs';
+} = await import('../apps/defense-parser-orchestrator/src/corpus-review.mjs');
 
 const LEDGER_PATH =
   'docs/defense-budget/phase8-session5-corpus-review-ledger.json';

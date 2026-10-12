@@ -42,10 +42,7 @@ export type MeriCatalogSourceOutcome =
 export type MeriCatalogAvailabilityState = 'ok' | 'partial' | 'unavailable' | 'no_eligible';
 
 export type MeriCatalogFailureReason =
-  | 'unavailable'
-  | 'needs_reauth'
-  | 'malformed'
-  | 'registry_unavailable';
+  'unavailable' | 'needs_reauth' | 'malformed' | 'registry_unavailable';
 
 export type MeriCatalogAppId = 'hubspot' | 'airtable' | 'monday' | 'google-drive' | 'krisp';
 
@@ -128,10 +125,7 @@ export interface MeriCatalogAvailabilityObserver {
    * a success. Non-read effects (run_analysis/artifacts/save_memory) are never
    * recorded here.
    */
-  noteNativeReadFailure(
-    capability: string,
-    reason?: MeriCatalogNativeReadFailureReason,
-  ): void;
+  noteNativeReadFailure(capability: string, reason?: MeriCatalogNativeReadFailureReason): void;
   snapshot(): MeriCatalogAvailabilitySnapshot;
 }
 
@@ -189,7 +183,11 @@ function normalizeFailure(entry: unknown): MeriCatalogAppFailure | null {
   if (typeof reason !== 'string' || !FAILURE_REASONS.has(reason)) return null;
   const typedAppId = appId as MeriCatalogAppId;
   // Derive the display name from the allowlist; never trust a raw `name`/body.
-  return { appId: typedAppId, name: APP_NAMES[typedAppId], reason: reason as MeriCatalogFailureReason };
+  return {
+    appId: typedAppId,
+    name: APP_NAMES[typedAppId],
+    reason: reason as MeriCatalogFailureReason,
+  };
 }
 
 /**
@@ -244,7 +242,9 @@ function availabilityCombinationValid(
  * missing or non-array `failures` is malformed. Duplicate app entries are
  * collapsed to one bounded entry per allowlisted app.
  */
-export function parseManagedCatalogAvailability(value: unknown): MeriCatalogManagedAvailability | null {
+export function parseManagedCatalogAvailability(
+  value: unknown,
+): MeriCatalogManagedAvailability | null {
   if (!isRecord(value)) return null;
   const state = value.state;
   if (typeof state !== 'string' || !AVAILABILITY_STATES.has(state)) return null;
@@ -504,7 +504,8 @@ export function relevantUnavailableManagedApps(
     ? availability.registryUnavailable === true
     : Boolean(managed && MANAGED_HARD_FAILURES.has(managed.outcome));
   const failureById = new Map<MeriCatalogAppId, MeriCatalogFailureReason>();
-  for (const failure of availability?.failures ?? []) failureById.set(failure.appId, failure.reason);
+  for (const failure of availability?.failures ?? [])
+    failureById.set(failure.appId, failure.reason);
   const dispatchFailures = snapshot.managedDispatchFailures ?? [];
   // CURRENT dispatch failures are per-app and named even when the source-level
   // catalog looked healthy at discovery.

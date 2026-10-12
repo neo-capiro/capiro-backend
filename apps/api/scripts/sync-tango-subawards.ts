@@ -541,6 +541,7 @@ function upsertSubaward(prisma: PrismaClient): SubawardSyncDeps['upsert'] {
 }
 
 async function main(): Promise<void> {
+
   const prisma = new PrismaClient();
   const commit = process.argv.includes('--commit');
   try {
@@ -592,6 +593,11 @@ const isDirectRun = /sync-tango-subawards(\.[cm]?[jt]s)?$/.test(
   (process.argv[1] ?? '').replace(/\\/g, '/'),
 );
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-tango-subawards.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error: unknown) => {
     const secret = process.env.TANGO_API_KEY ?? '';
     const message = (error instanceof Error ? error.message : String(error)).replace(

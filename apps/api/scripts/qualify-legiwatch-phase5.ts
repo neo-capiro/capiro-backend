@@ -23,6 +23,11 @@ import { persistDocumentEvidence } from '../src/ingestion/legiscan-document-evid
 import { GovInfoService } from '../src/external/govinfo/govinfo.service.js';
 import { persistOfficialTranscript } from '../src/ingestion/govinfo-hearing-records.js';
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/qualify-legiwatch-phase5.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   if (
     process.env.LEGIWATCH_PHASE5_TEST_DATABASE !== 'disposable' ||
     !['localhost', '127.0.0.1'].includes(new URL(process.env.DATABASE_URL ?? '').hostname)
@@ -186,8 +191,11 @@ async function main() {
     }
   } finally {
     globalThis.fetch = originalFetch;
-    await artifact('qualification-results', results);
-    await p.$disconnect();
+    try {
+      await artifact('qualification-results', results);
+    } finally {
+      await p.$disconnect();
+    }
   }
   console.log(
     JSON.stringify({
@@ -198,7 +206,9 @@ async function main() {
     }),
   );
 }
+if (require.main === module) {
 main().catch(() => {
   console.error('QUALIFICATION_ABORTED_CHECK_LOCAL_PREREQUISITES');
   process.exitCode = 1;
 });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * diag-blin-coverage.ts — read-only coverage matrix for program-line network links,
  * broken down by appropriation type (RDT&E / PROC / OM). Answers "how many lines of
@@ -13,6 +14,20 @@ import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/diag-blin-coverage.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   const rows = async (sql: string): Promise<Array<Record<string, unknown>>> => {
@@ -91,7 +106,9 @@ async function main(): Promise<void> {
   await prisma.$disconnect();
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('BLIN_COVERAGE_ERR', err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
+}

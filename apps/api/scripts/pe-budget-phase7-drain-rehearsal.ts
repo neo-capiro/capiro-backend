@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 7 Workstream L — the outbox drainer against a real database.
  *
@@ -51,6 +52,13 @@ import {
   resumeDrainV1,
 } from '../src/defense-budget/promotion/side-effect-drain-pause-prisma-v1.js';
 
+async function main(): Promise<void> {
+  if (!process.env.ADMIN_DATABASE_URL || !process.env.PROMOTER_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/pe-budget-phase7-drain-rehearsal.ts requires ADMIN_DATABASE_URL, PROMOTER_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
+  class RehearsalFailure extends Error {}
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const PROMOTER_URL = required('PROMOTER_DATABASE_URL');
 
@@ -72,7 +80,7 @@ function ok(message: string): void {
 }
 function fail(message: string): never {
   console.error(`[p7-drain] FAILED: ${message}`);
-  process.exit(1);
+  throw new RehearsalFailure(message);
 }
 function check(condition: boolean, message: string): void {
   if (!condition) fail(message);
@@ -91,11 +99,13 @@ const failHandler = (message: string) => ({
   },
 });
 
-async function main(): Promise<void> {
-  const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
-  const promoter = new PrismaClient({ datasources: { db: { url: PROMOTER_URL } } });
 
+  const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
   try {
+  const promoter = new PrismaClient({ datasources: { db: { url: PROMOTER_URL } } });
+  try {
+
+
     const prisma = promoter as unknown as OutboxDrainPrismaLikeV1;
     const repository = createOutboxDrainRepositoryPrismaV1(prisma, { processingLeaseMs: LEASE_MS });
     const deltaHandler = createCanonicalDeltaHandlerV1(
@@ -500,11 +510,14 @@ async function main(): Promise<void> {
     );
 
     console.log(`[p7-drain] DRAIN REHEARSAL PASSED — ${passed} checks`);
+
   } finally {
-    await admin.$disconnect().catch(() => undefined);
     await promoter.$disconnect().catch(() => undefined);
   }
-}
+  } finally {
+    await admin.$disconnect().catch(() => undefined);
+  }
+
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -578,7 +591,8 @@ function sha(seed: string): string {
 async function expectRefused(client: PrismaClient, sql: string, message: string): Promise<void> {
   try {
     await client.$executeRawUnsafe(sql);
-  } catch {
+  } catch (rehearsalError) {
+    if (rehearsalError instanceof RehearsalFailure) throw rehearsalError;
     ok(`${message} — refused`);
     return;
   }
@@ -688,7 +702,11 @@ async function assertSqlMatchesPolicy(
   }
 }
 
+
+}
+if (require.main === module) {
 main().catch((error) => {
   console.error('[p7-drain] FAILED:', error);
   process.exit(1);
 });
+}

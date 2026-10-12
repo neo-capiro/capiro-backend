@@ -43,6 +43,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-bill-sponsors.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   if (!CONGRESS_API_KEY) throw new Error('CONGRESS_API_KEY not set');
 
   const congressArg = argValue('--congress');
@@ -119,7 +123,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

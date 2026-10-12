@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only MEMORY RECALL PARITY report — the measurement gate for the Phase 1
  * canonical-store consolidation ("clio_memory becomes a derived view of
@@ -29,8 +30,6 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 interface TenantRow {
   tenant_id: string;
   /** Live (non-expired) clio_memory rows. */
@@ -46,10 +45,26 @@ interface TenantRow {
 }
 
 async function main(): Promise<void> {
-  const rows = await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
-    return tx.$queryRawUnsafe<TenantRow[]>(
-      `WITH live AS (
+  const usage = 'Usage: apps/api/scripts/diag-memory-recall-parity.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    const rows = await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
+      return tx.$queryRawUnsafe<TenantRow[]>(
+        `WITH live AS (
          SELECT
            cm.tenant_id,
            (cm.embedding IS NOT NULL) AS clio_recallable,
@@ -83,66 +98,67 @@ async function main(): Promise<void> {
        FROM live
        GROUP BY tenant_id
        ORDER BY would_drop_on_collapse DESC, live DESC`,
+      );
+    });
+
+    const perTenant = rows.map((r) => ({
+      tenantId: r.tenant_id,
+      live: Number(r.live),
+      recallableToday: Number(r.recallable_today),
+      projectionMissing: Number(r.projection_missing),
+      projectionUnembedded: Number(r.projection_unembedded),
+      wouldDropOnCollapse: Number(r.would_drop_on_collapse),
+    }));
+
+    const totals = perTenant.reduce(
+      (acc, t) => {
+        acc.live += t.live;
+        acc.recallableToday += t.recallableToday;
+        acc.projectionMissing += t.projectionMissing;
+        acc.projectionUnembedded += t.projectionUnembedded;
+        acc.wouldDropOnCollapse += t.wouldDropOnCollapse;
+        return acc;
+      },
+      {
+        live: 0,
+        recallableToday: 0,
+        projectionMissing: 0,
+        projectionUnembedded: 0,
+        wouldDropOnCollapse: 0,
+      },
     );
-  });
 
-  const perTenant = rows.map((r) => ({
-    tenantId: r.tenant_id,
-    live: Number(r.live),
-    recallableToday: Number(r.recallable_today),
-    projectionMissing: Number(r.projection_missing),
-    projectionUnembedded: Number(r.projection_unembedded),
-    wouldDropOnCollapse: Number(r.would_drop_on_collapse),
-  }));
+    // The gate: parityReady means recall can be re-pointed off clio_memory
+    // without any live row silently dropping out of recall.
+    const parityReady = totals.wouldDropOnCollapse === 0;
 
-  const totals = perTenant.reduce(
-    (acc, t) => {
-      acc.live += t.live;
-      acc.recallableToday += t.recallableToday;
-      acc.projectionMissing += t.projectionMissing;
-      acc.projectionUnembedded += t.projectionUnembedded;
-      acc.wouldDropOnCollapse += t.wouldDropOnCollapse;
-      return acc;
-    },
-    {
-      live: 0,
-      recallableToday: 0,
-      projectionMissing: 0,
-      projectionUnembedded: 0,
-      wouldDropOnCollapse: 0,
-    },
-  );
+    console.log(
+      'MEMORY_RECALL_PARITY_REPORT ' +
+        JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            parityReady,
+            gate: 'wouldDropOnCollapse must be 0 for every tenant before re-pointing recall',
+            tenants: perTenant.length,
+            totals,
+            perTenant,
+          },
+          null,
+          2,
+        ),
+    );
 
-  // The gate: parityReady means recall can be re-pointed off clio_memory
-  // without any live row silently dropping out of recall.
-  const parityReady = totals.wouldDropOnCollapse === 0;
-
-  console.log(
-    'MEMORY_RECALL_PARITY_REPORT ' +
-      JSON.stringify(
-        {
-          generatedAt: new Date().toISOString(),
-          parityReady,
-          gate: 'wouldDropOnCollapse must be 0 for every tenant before re-pointing recall',
-          tenants: perTenant.length,
-          totals,
-          perTenant,
-        },
-        null,
-        2,
-      ),
-  );
-
-  // Non-zero gate => a loud, non-fatal signal (exit 2) so an operator or a
-  // scheduled canary can distinguish "measured, not ready" from a crash.
-  if (!parityReady) process.exitCode = 2;
+    // Non-zero gate => a loud, non-fatal signal (exit 2) so an operator or a
+    // scheduled canary can distinguish "measured, not ready" from a crash.
+    if (!parityReady) process.exitCode = 2;
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('MEMORY_RECALL_PARITY_ERR', err instanceof Error ? err.message : String(err));
     process.exitCode = 1;
-  })
-  .finally(() => {
-    void prisma.$disconnect();
   });
+}

@@ -90,7 +90,19 @@ function normalizeSource(value: string | undefined): CanonicalBackfillSource {
   return normalized as CanonicalBackfillSource;
 }
 
+function usage(message: string): never {
+  console.error(
+    'usage: backfill-canonical-entities --tenant <uuid> --source <source> ' +
+      '[--limit N] [--after <uuid>] [--actor <id>] [--dry-run] [--resume] [--max-pages N]',
+  );
+  console.error(`backfill-canonical-entities: ${message}`);
+  process.exit(2);
+}
+
 async function main(): Promise<void> {
+  if (process.argv.length <= 2) {
+    usage('at least --tenant <uuid> and --source <source> are required');
+  }
   const { values } = parseArgs({
     options: {
       tenant: { type: 'string' },
@@ -104,7 +116,7 @@ async function main(): Promise<void> {
     },
   });
   const tenantId = stringArg(values.tenant)?.trim();
-  if (!tenantId) throw new Error('--tenant is required');
+  if (!tenantId) usage('--tenant is required');
 
   const prisma = new PrismaClient();
   const prismaLike = prismaServiceFromClient(prisma);

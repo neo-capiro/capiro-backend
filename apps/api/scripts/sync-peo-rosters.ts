@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -64,6 +65,11 @@ function cleanName(name: string): string {
 
 async function main(): Promise<void> {
   dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: sync-peo-rosters [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const commit = process.argv.includes('--commit');
   const dataDir = path.resolve('scripts/__data__');
   const files = fs

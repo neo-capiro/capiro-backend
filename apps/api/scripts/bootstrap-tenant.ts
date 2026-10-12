@@ -82,6 +82,10 @@ function parseArgs(): Args {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/bootstrap-tenant.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseArgs();
   const secretKey = process.env.CLERK_SECRET_KEY;
   if (!secretKey || secretKey.startsWith('sk_test_REPLACE') || secretKey === 'REPLACE_ME') {
@@ -189,8 +193,10 @@ async function main() {
   );
 }
 
+if (require.main === module) {
 main().catch((err) => {
   // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
 });
+}

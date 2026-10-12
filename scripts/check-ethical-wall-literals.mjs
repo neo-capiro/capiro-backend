@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 
 /**
  * MeriV2 Phase 17 ethical-wall literal gate.
@@ -18,6 +19,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { parseArgs, withUsage } from './cleanup-gates/lib/cli.mjs';
 
 const SEARCH_ROOTS = ['apps', 'packages'];
 const SOURCE_FILE = /\.(?:[cm]?ts|tsx)$/;
@@ -125,6 +127,15 @@ function main() {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const usage = 'Usage: node scripts/check-ethical-wall-literals.mjs [--help]';
+  withUsage(() => {
+    const args = parseArgs(process.argv.slice(2), {});
+    if (args.help) {
+      console.log(usage);
+      process.exit(0);
+    }
+  }, usage)();
+  console.error(usage);
   try {
     main();
   } catch (error) {

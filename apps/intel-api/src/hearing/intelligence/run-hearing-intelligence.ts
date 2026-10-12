@@ -1,7 +1,17 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { hostname } from 'node:os';
-import { PrismaService } from '../../prisma/prisma.service.js';
-import { HearingIntelligenceWorker } from './hearing-intelligence.worker.js';
-import { maintainHearingRecords } from '../hearing-record-maintenance.js';
+
+const cliArgs = process.argv.slice(2);
+const usage = 'Usage: run-hearing-intelligence --once|--loop|--drain|--backfill|--relevance-backfill [additional listed modes]';
+const allowed = new Set(['--once', '--loop', '--drain', '--backfill', '--relevance-backfill']);
+if (cliArgs.includes('--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length === 0 || cliArgs.some((arg) => !allowed.has(arg))) {
+  console.error(usage);
+  process.exit(2);
+}
 
 function integer(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -9,6 +19,12 @@ function integer(value: string | undefined, fallback: number): number {
 }
 
 async function main(): Promise<void> {
+  const [{ PrismaService }, { HearingIntelligenceWorker }, { maintainHearingRecords }] =
+    await Promise.all([
+      import('../../prisma/prisma.service.js'),
+      import('./hearing-intelligence.worker.js'),
+      import('../hearing-record-maintenance.js'),
+    ]);
   const prisma = new PrismaService();
   const workerId =
     process.env.HEARING_INTELLIGENCE_WORKER_ID ?? `phase8:${hostname()}:${process.pid}`;

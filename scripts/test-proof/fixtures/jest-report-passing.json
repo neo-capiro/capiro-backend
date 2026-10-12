@@ -1,0 +1,17 @@
+{
+  "numTotalTests": 3,
+  "numPassedTests": 3,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "testResults": [
+    {
+      "name": "C:/dev/OTHER-WORKTREE/apps/api/src/ok.spec.ts",
+      "status": "passed",
+      "assertionResults": [
+        { "ancestorTitles": ["Ok"], "fullName": "Ok runs", "title": "runs", "status": "passed" },
+        { "ancestorTitles": ["Ok"], "fullName": "Ok also runs", "title": "also runs", "status": "passed" },
+        { "ancestorTitles": ["Ok"], "fullName": "Ok third", "title": "third", "status": "passed" }
+      ]
+    }
+  ]
+}

@@ -61,19 +61,34 @@ describe('InEditorAssistantService.run', () => {
     jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
       bodies.push(JSON.parse(String(init?.body)));
       if (bodies.length < 3) return anthropic([], 'pause_turn') as unknown as Response;
-      return anthropic([{ type: 'tool_use', id: 'final', name: 'propose_document_edits', input: {
-        reply: 'Done.', edits: [{ op: 'replace_section', section: 'Summary', content: '<p>Edited.</p>' }],
-      } }], 'tool_use') as unknown as Response;
+      return anthropic(
+        [
+          {
+            type: 'tool_use',
+            id: 'final',
+            name: 'propose_document_edits',
+            input: {
+              reply: 'Done.',
+              edits: [{ op: 'replace_section', section: 'Summary', content: '<p>Edited.</p>' }],
+            },
+          },
+        ],
+        'tool_use',
+      ) as unknown as Response;
     });
-    const out = await makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo)
-      .run(ctx, { messages: [{ role: 'user', text: 'Tighten this paragraph.' }] });
+    const out = await makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo).run(
+      ctx,
+      { messages: [{ role: 'user', text: 'Tighten this paragraph.' }] },
+    );
     expect(out.edits).toHaveLength(1);
     expect(bodies).toHaveLength(3);
     expect(bodies[0]!.output_config).toMatchObject({ effort: 'low' });
     expect(bodies[0]!.thinking).toEqual({ type: 'adaptive' });
     expect(bodies[2]!.thinking).toEqual({ type: 'disabled' });
     expect(bodies[2]!.tool_choice).toEqual({ type: 'tool', name: 'propose_document_edits' });
-    expect(bodies[2]!.tools.map((tool: { name: string }) => tool.name)).toEqual(['propose_document_edits']);
+    expect(bodies[2]!.tools.map((tool: { name: string }) => tool.name)).toEqual([
+      'propose_document_edits',
+    ]);
   });
 
   it('runs a tool round through the registry, then returns the proposed reply + edits', async () => {

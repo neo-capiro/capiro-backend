@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Tracker digest flusher.
  *
@@ -37,6 +38,11 @@ async function loadNest(): Promise<{ AppModule: any; TrackerAlertService: any }>
 
 async function main() {
   const cadence = parseCadence();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: flush-tracker-digests [--cadence daily|weekly] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const { AppModule, TrackerAlertService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {

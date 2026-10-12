@@ -223,6 +223,11 @@ const direct = /backfill-funding-mapping-review(\.[cm]?[tj]s)?$/.test(
   (process.argv[1] ?? '').replace(/\\/g, '/'),
 );
 if (direct) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-funding-mapping-review.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error) => {
     console.error(`[${SOURCE}] FAILED`, error);
     process.exit(1);

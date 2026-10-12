@@ -1,7 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { MeriGovernedTurnContext, MeriPromptClockUse } from '@capiro/meriv2-core';
 
-const runtime = new AsyncLocalStorage<{ context: MeriGovernedTurnContext; promptClockUse?: MeriPromptClockUse }>();
+const runtime = new AsyncLocalStorage<{
+  context: MeriGovernedTurnContext;
+  promptClockUse?: MeriPromptClockUse;
+}>();
 
 export function currentGovernedMeriContext(): MeriGovernedTurnContext | null {
   return runtime.getStore()?.context ?? null;

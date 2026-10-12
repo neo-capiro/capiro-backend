@@ -41,6 +41,10 @@ const num = (v: Prisma.Decimal | number | null): number | null =>
   v === null || v === undefined ? null : Number(v);
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/rebuild-program-element-years.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = flag('commit');
   const sampleLimit = Number(arg('limit') ?? 20);
   const prisma = new PrismaClient();
@@ -185,7 +189,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error('[rebuild-program-element-years] FAILED', err);
   process.exit(1);
 });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Step 3.2 — generate materiality-gated, client-specific ActionRecommendation cards.
  *
@@ -65,6 +66,11 @@ export async function run(): Promise<{ mode: string; tenant: string; since: stri
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: generate-actions [--tenant=<uuid>] [--since=<days>] [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const summary = await run();
   console.log(JSON.stringify(summary, null, 2));
 }

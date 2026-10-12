@@ -182,6 +182,10 @@ export async function collectPackage0Snapshot(client: QueryClient): Promise<Reco
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/snapshot-defense-budget-package0-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const unknownArgs = process.argv.slice(2).filter((arg) => arg !== '--pretty');
   if (unknownArgs.length > 0) throw new Error(`Unknown arguments: ${unknownArgs.join(', ')}`);
 

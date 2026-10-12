@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * engagement-phase0-side-effect-verify.ts - Static verifier for side-effect registry.
  */
@@ -114,4 +115,15 @@ function main() {
   console.log(`  Unregistered: ${unregistered.length}`);
 }
 
+const usage = 'Usage: tsx scripts/engagement-phase0-side-effect-verify.ts [--help]';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length > 0) {
+  console.error(usage);
+  process.exit(2);
+}
+console.error(usage);
 main();

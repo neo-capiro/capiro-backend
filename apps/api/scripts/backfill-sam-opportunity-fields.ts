@@ -244,6 +244,11 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-sam-opportunity-fields.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((err) => {
     console.error('[sam-backfill] FAILED', err);
     process.exit(1);

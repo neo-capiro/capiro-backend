@@ -1,0 +1,95 @@
+{
+  "routes": {
+    "/intelligence-center": {
+      "ownEndpoints": [],
+      "staticOnly": true,
+      "headingRe": "Intelligence Center",
+      "textRe": "Intelligence Center",
+      "minBodyChars": 200
+    },
+    "/settings/billing": {
+      "ownEndpoints": [],
+      "staticOnly": true,
+      "headingRe": "Billing",
+      "textRe": "Billing",
+      "minBodyChars": 200
+    },
+    "/settings/personal": {
+      "ownEndpoints": [],
+      "staticOnly": true,
+      "headingRe": "Email signature",
+      "textRe": "Watchlist",
+      "minBodyChars": 400
+    },
+    "/clients": {
+      "ownEndpoints": [
+        "/api/intelligence/portfolio-summary",
+        "/api/intelligence/portfolio-rollup",
+        "/api/intelligence/portfolio-pe-summary",
+        "/api/intelligence/portfolio-engagement-trend",
+        "/api/client-account-owners"
+      ],
+      "staticOnly": false,
+      "headingRe": "Portfolio",
+      "textRe": "Every client account, the work in flight",
+      "minBodyChars": 200
+    },
+    "/settings/clients": {
+      "ownEndpoints": [],
+      "staticOnly": true,
+      "headingRe": "Settings",
+      "textRe": "PRIMARY CONTACT",
+      "minBodyChars": 300
+    },
+    "/bills/hr-2027-1234": {
+      "ownEndpoints": [],
+      "staticOnly": true,
+      "textRe": "Bill 360 is not enabled for this workspace",
+      "minBodyChars": 20
+    },
+    "/directory/committees/visual-committee-0001": {
+      "headingRe": "House Armed Services Committee"
+    },
+    "/program-elements/0605053A": {
+      "ownEndpoints": [
+        "/api/program-elements/0605053A",
+        "/api/program-elements/0605053A/bills",
+        "/api/program-elements/0605053A/actions",
+        "/api/program-elements/0605053A/personnel",
+        "/api/intelligence/program-elements/0605053A/client-relevance",
+        "/api/intelligence/actions",
+        "/api/defense-budget/dossiers/program_element/0605053A"
+      ],
+      "staticOnly": false,
+      "textRe": "Dossier coverage: partial",
+      "minBodyChars": 400
+    },
+    "/engagement/reports?period=current": {
+      "queryDefaults": { "period": "current" }
+    },
+    "/planner/forms/visual-planner-token": {
+      "ownEndpoints": [
+        "http://127.0.0.1:4190/strategy-api/planner/public/forms/visual-planner-token"
+      ],
+      "staticOnly": false,
+      "shellFree": true,
+      "headingRe": "Planner intake form",
+      "textRe": "Synthetic public form",
+      "minBodyChars": 40
+    },
+    "/explorer?bill=hr-2027-1234": {
+      "ownEndpoints": [
+        "/api/explorer/bill-facets",
+        "/api/explorer/congress-bills",
+        "/api/explorer/congress-bills/hr-2027-1234"
+      ],
+      "staticOnly": false,
+      "headingRe": "Congress Bills · hr-2027-1234",
+      "textRe": "RECENT ACTIONS[\\s\\S]*Referred to the Committee on Appropriations\\.",
+      "minBodyChars": 40
+    }
+  },
+  "redirects": {
+    "/intelligence/bills/hr-2027-1234": "/explorer?bill=hr-2027-1234"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "numTotalTests": 6,
+  "numPassedTests": 4,
+  "numFailedTests": 1,
+  "numPendingTests": 1,
+  "testResults": [
+    {
+      "name": "C:/dev/main/cleanup-test-proof-20261007/apps/api/src/alpha.spec.ts",
+      "status": "passed",
+      "assertionResults": [
+        { "ancestorTitles": ["Alpha"], "fullName": "Alpha renders", "title": "renders", "status": "passed" },
+        { "ancestorTitles": ["Alpha", "nested"], "fullName": "Alpha nested deep", "title": "deep", "status": "pending" },
+        { "ancestorTitles": [], "fullName": "duplicate name", "title": "duplicate name", "status": "passed" },
+        { "ancestorTitles": [], "fullName": "duplicate name", "title": "duplicate name", "status": "passed" },
+        { "ancestorTitles": [], "fullName": "todo case", "title": "todo case", "status": "todo" }
+      ]
+    },
+    {
+      "name": "C:/dev/OTHER-WORKTREE-abc/apps/api/src/beta.spec.ts",
+      "status": "failed",
+      "assertionResults": [
+        { "ancestorTitles": ["Alpha"], "fullName": "Alpha renders", "title": "renders", "status": "failed" }
+      ]
+    }
+  ]
+}

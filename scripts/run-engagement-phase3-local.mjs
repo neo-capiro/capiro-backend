@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Authoritative local Phase 3 dual-mode acceptance runner.
  *
@@ -17,7 +18,26 @@ import { fileURLToPath } from 'node:url';
 import { createPhase3Proxy } from './engagement-phase3-local-proxy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const args = parseArgs(process.argv.slice(2));
+const USAGE = 'Usage: node scripts/run-engagement-phase3-local.mjs (--run | --sha <exact-head>) [--evidence-dir DIR] [--db-port N] [--main-port N] [--engagement-port N] [--proxy-port N] [--web-port N]';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length === 0) {
+  console.error(USAGE);
+  process.exit(2);
+}
+let args;
+try {
+  args = parseArgs(cliArgs);
+  const allowed = new Set(['run', 'sha', 'evidenceDir', 'dbPort', 'mainPort', 'engagementPort', 'proxyPort', 'webPort']);
+  if (Object.keys(args).some((key) => !allowed.has(key))) throw new Error('Unknown option');
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  console.error(USAGE);
+  process.exit(2);
+}
 const ACTUAL_SHA = (await capture('git', ['rev-parse', 'HEAD'])).trim();
 const SHA = args.sha ?? ACTUAL_SHA;
 if (!/^[0-9a-f]{40}$/i.test(SHA)) throw new Error('Phase 3 requires an exact 40-character SHA');
@@ -116,6 +136,10 @@ function parseArgs(argv) {
   const result = {};
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === '--run') {
+      result.run = true;
+      continue;
+    }
     if (!arg.startsWith('--')) throw new Error(`Unknown argument ${arg}`);
     const [name, inline] = arg.slice(2).split('=', 2);
     const value = inline ?? argv[++index];

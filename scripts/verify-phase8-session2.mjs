@@ -1,10 +1,24 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const root = process.cwd();
+const usage =
+  'Usage: node scripts/verify-phase8-session2.mjs (no arguments runs the existing verifier)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 0) {
+  console.error(usage);
+  process.exit(2);
+}
+console.error(usage);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const failures = [];
 const file = (relative) => path.join(root, relative);
 const read = (relative) => {
@@ -102,7 +116,8 @@ const entrypoint = read('apps/defense-api/scripts/entrypoint.sh');
 for (const refused of ['migrate', 'promote', 'activate', 'parse', 'benchmark']) {
   if (!entrypoint.includes(refused)) failures.push(`entrypoint does not refuse ${refused}`);
 }
-if (!entrypoint.includes('dist/config/validate-cli.js')) failures.push('entrypoint validate-config does not use canonical validation');
+if (!entrypoint.includes('dist/config/validate-cli.js'))
+  failures.push('entrypoint validate-config does not use canonical validation');
 if (!/case "\$mode"/.test(entrypoint)) failures.push('entrypoint has no bounded mode switch');
 
 const dockerfile = read('apps/defense-api/Dockerfile');
@@ -140,9 +155,7 @@ for (const role of ['capiro_defense_serve', 'capiro_defense_job']) {
   if (!definition.includes('NOLOGIN') || !definition.includes('NOBYPASSRLS')) {
     failures.push(`${role} is not explicitly NOLOGIN and NOBYPASSRLS`);
   }
-  const withoutNoForms = definition
-    .replaceAll('NOLOGIN', '')
-    .replaceAll('NOBYPASSRLS', '');
+  const withoutNoForms = definition.replaceAll('NOLOGIN', '').replaceAll('NOBYPASSRLS', '');
   if (/\sLOGIN\b/i.test(withoutNoForms) || /\sBYPASSRLS\b/i.test(withoutNoForms)) {
     failures.push(`${role} contains a positive LOGIN/BYPASSRLS grant`);
   }
@@ -194,8 +207,16 @@ const DEFENSE_API_ROOT = file('apps/defense-api');
 const FORBIDDEN_ANYWHERE = [
   { pattern: /app\.bypass_rls/, label: 'app.bypass_rls (generic RLS bypass GUC)' },
   { pattern: /\bwithSystem\b/, label: 'withSystem (generic system-query escape hatch)' },
-  { pattern: /capiro_pe_promoter/, label: 'capiro_pe_promoter (promoter credential)', safeIfLineContains: ['pg_has_role'] },
-  { pattern: /DEFENSE_PROMOTER_/, label: 'DEFENSE_PROMOTER_ (promoter credential env)', safeIfFileContains: ['FORBIDDEN_SERVE_ENV_PATTERNS'] },
+  {
+    pattern: /capiro_pe_promoter/,
+    label: 'capiro_pe_promoter (promoter credential)',
+    safeIfLineContains: ['pg_has_role'],
+  },
+  {
+    pattern: /DEFENSE_PROMOTER_/,
+    label: 'DEFENSE_PROMOTER_ (promoter credential env)',
+    safeIfFileContains: ['FORBIDDEN_SERVE_ENV_PATTERNS'],
+  },
   { pattern: /\bactivateSnapshot\b/i, label: 'activateSnapshot (snapshot-activation code)' },
   { pattern: /\bpromoteSnapshot\b/i, label: 'promoteSnapshot (snapshot-activation code)' },
   {
@@ -279,7 +300,10 @@ if (fs.existsSync(file(MIRROR_DIR))) {
     for (const absolutePath of walkTextFiles(srcRoot)) {
       const relative = path.relative(root, absolutePath).replaceAll('\\', '/');
       const contents = stripComments(fs.readFileSync(absolutePath, 'utf8'));
-      if (/from\s+['"][^'"]*runtime-source\//.test(contents) || /require\(\s*['"][^'"]*runtime-source\//.test(contents)) {
+      if (
+        /from\s+['"][^'"]*runtime-source\//.test(contents) ||
+        /require\(\s*['"][^'"]*runtime-source\//.test(contents)
+      ) {
         failures.push(
           `${relative} imports from ${MIRROR_DIR}; the trusted-source mirror must stay unreachable from executable code`,
         );
@@ -292,13 +316,13 @@ if (fs.existsSync(file(MIRROR_DIR))) {
   const runtimeStageStart = dockerfile.indexOf(' AS runtime');
   const runtimeStage = runtimeStageStart >= 0 ? dockerfile.slice(runtimeStageStart) : dockerfile;
   if (runtimeStage.includes('runtime-source')) {
-    failures.push(`the final defense-api image copies ${MIRROR_DIR}; the trusted-source mirror must never ship`);
+    failures.push(
+      `the final defense-api image copies ${MIRROR_DIR}; the trusted-source mirror must never ship`,
+    );
   }
 }
 
-const ownership = JSON.parse(
-  read('docs/defense-budget/phase-8-session-2-ownership.json'),
-);
+const ownership = JSON.parse(read('docs/defense-budget/phase-8-session-2-ownership.json'));
 assert.equal(ownership.session, 2);
 assert.equal(ownership.deploymentPosture, 'dark');
 assert.equal(ownership.mutations.aws, false);

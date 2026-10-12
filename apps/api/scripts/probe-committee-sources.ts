@@ -53,6 +53,10 @@ export function buildProbeAdapters(congress: number): ProbeAdapterMap {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/probe-committee-sources.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   const congress = numFlag('congress', currentCongress());
   try {

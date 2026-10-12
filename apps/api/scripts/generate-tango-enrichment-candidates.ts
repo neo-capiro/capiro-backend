@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Client profile enrichment candidate generator (Funding Opportunities P20).
  *
@@ -146,10 +147,15 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
-  void main().catch((err) => {
-    console.error('TANGO_ENRICHMENT_ERR', err instanceof Error ? err.message : String(err));
-    process.exitCode = 1;
-  });
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: generate-tango-enrichment-candidates [--limit=<n>] (requires DATABASE_URL)');
+    process.exitCode = 2;
+  } else {
+    void main().catch((err) => {
+      console.error('TANGO_ENRICHMENT_ERR', err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    });
+  }
 }
 
 export { main };

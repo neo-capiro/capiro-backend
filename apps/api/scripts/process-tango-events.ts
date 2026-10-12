@@ -548,6 +548,10 @@ function buildPort(prisma: PrismaClient, commit: boolean): EventProcessorPort {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/process-tango-events.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseArgs(process.argv.slice(2));
   const prisma = new PrismaClient();
   try {

@@ -14,7 +14,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
 
 const STALE_JSLC00_URL = 'https://cha.house.gov/jointcommittees/joint-committee-library';
 const AUTHORITATIVE_JSLC00_URL = 'https://cha.house.gov/joint-committee-on-library';
@@ -35,6 +35,13 @@ function paddingThomasId(i: number): string {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-committees-precedence-proof.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
   console.log('=== SETUP: seed pre-existing congress_gov-verified rows ===');
   await prisma.congressCommittee.upsert({
     where: { systemCode: 'jslc00' },
@@ -217,11 +224,15 @@ async function main() {
   const allPass = Object.values(proofs).every(Boolean);
   console.log(allPass ? 'ALL_PROOFS_PASSED' : 'PROOF_FAILED');
   if (!allPass) process.exitCode = 1;
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

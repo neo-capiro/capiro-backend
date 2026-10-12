@@ -48,7 +48,7 @@ import {
 } from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
 const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .split(',')
@@ -58,7 +58,7 @@ const DRAIN_CAP = Number(process.env.LEGISCAN_DRAIN_CAP ?? '400');
 const MONTHLY_BUDGET = Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? '28000');
 
 /** Add `delta` to a cursor's month-to-date query counter, rolling over on a calendar-month change. */
-async function bumpCursorQueries(cursorId: string, delta: number): Promise<void> {
+async function bumpCursorQueries(prisma: PrismaClient, cursorId: string, delta: number): Promise<void> {
   const month = currentQuotaMonth();
   const cursor = await prisma.stateSyncCursor.findUnique({
     where: { id: cursorId },
@@ -79,9 +79,17 @@ async function bumpCursorQueries(cursorId: string, delta: number): Promise<void>
 
 /** Exported for the getRollCall-failure regression spec (mocks prisma + the legiscan/normalize modules). */
 export async function main() {
-  if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
+if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
+  const prisma = new PrismaClient();
+  try {
+    await run(prisma);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
 
-  await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
+async function run(prisma: PrismaClient): Promise<void> {
+await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
     const month = currentQuotaMonth();
     const allCursors = await prisma.stateSyncCursor.findMany({
       select: { queriesUsed: true, quotaMonth: true },
@@ -201,7 +209,7 @@ export async function main() {
               where: { id: cursorId },
               data: { pendingBills: { set: queue.ids } },
             });
-            await bumpCursorQueries(cursorId, queriesForBill);
+            await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
           }
 
@@ -222,7 +230,7 @@ export async function main() {
               where: { id: cursorId },
               data: { pendingBills: { set: queue.ids } },
             });
-            await bumpCursorQueries(cursorId, queriesForBill);
+            await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
           }
 
@@ -401,7 +409,7 @@ export async function main() {
               where: { id: cursorId },
               data: { pendingBills: { set: queue.ids } },
             });
-            await bumpCursorQueries(cursorId, queriesForBill);
+            await bumpCursorQueries(prisma, cursorId, queriesForBill);
             continue;
           }
           const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
@@ -421,7 +429,7 @@ export async function main() {
             where: { id: cursorId },
             data: { billHashes, pendingBills: { set: queue.ids } },
           });
-          await bumpCursorQueries(cursorId, queriesForBill);
+          await bumpCursorQueries(prisma, cursorId, queriesForBill);
         } catch (err) {
           errors++;
           await prisma.stateBill.updateMany({
@@ -436,7 +444,7 @@ export async function main() {
             where: { id: cursorId },
             data: { pendingBills: { set: queue.ids } },
           });
-          await bumpCursorQueries(cursorId, queriesForBill);
+          await bumpCursorQueries(prisma, cursorId, queriesForBill);
         }
       }
       if (!madeProgress) break;
@@ -460,10 +468,13 @@ export async function main() {
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-legiscan-bills.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

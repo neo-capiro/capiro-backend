@@ -10,7 +10,8 @@
  * No AWS resource, no production database, no production schedule and no GPU is
  * touched. Prepare the corpus first:
  *
- *   node scripts/prepare-phase8-session7-lifecycle-corpus.mjs
+ *   node scripts/prepare-phase8-session7-lifecycle-corpus.mjs --prepare
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -21,6 +22,29 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const usage = 'Usage: node scripts/phase8-session7-lifecycle-replay.mjs --run [--out FILE] (or --out FILE)';
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+let runRequested = false;
+let outArg = null;
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--run') {
+    runRequested = true;
+  } else if (args[i] === '--out' && args[i + 1] && !args[i + 1].startsWith('--')) {
+    outArg = args[++i];
+  } else {
+    console.error(usage);
+    process.exit(2);
+  }
+}
+if (!runRequested && !outArg) {
+  console.error(usage);
+  process.exit(2);
+}
+const outPath = outArg ? path.resolve(outArg) : null;
 const api = (relative) => require(path.join(root, 'apps/defense-api/dist/budget-lifecycle', relative));
 
 const { AnnualDefenseBudgetCycleController } = api('annual-cycle-controller.service.js');
@@ -34,9 +58,6 @@ const corpusPath = path.resolve(
   process.env.PHASE8_SESSION7_PREPARED_CORPUS ||
     path.join(root, '.session7-lifecycle/prepared-corpus.json'),
 );
-const outArg = process.argv.indexOf('--out');
-const outPath = outArg >= 0 && process.argv[outArg + 1] ? path.resolve(process.argv[outArg + 1]) : null;
-
 let prepared;
 try {
   prepared = JSON.parse(await fs.readFile(corpusPath, 'utf8'));

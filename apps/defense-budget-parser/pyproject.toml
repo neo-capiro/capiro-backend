@@ -40,6 +40,17 @@ dev = [
     "pytest-cov>=4.0,<6",
     "ruff>=0.5,<1",
     "mypy>=1.10,<1.16",
+    # numpy is a genuine test-time dependency: tests/test_paddleocr_engine.py
+    # imports it to build a numpy-convertible page stand-in for the (mocked)
+    # PaddleOCR engine. Without it those 4 tests fail at import (279 passed);
+    # declaring it here makes `uv sync --frozen --extra dev` install it.
+    #
+    # Capped below 2.5 because numpy 2.5.0+ ships .pyi stubs that use the PEP
+    # 695 `type` alias statement, which mypy 1.15 rejects while the project's
+    # mypy target is python_version = "3.11" ("Type statement is only
+    # supported in Python 3.12 and greater", numpy/__init__.pyi). numpy 2.4.x
+    # stubs are 3.11-parseable and satisfy the same >=2 runtime intent.
+    "numpy>=2,<2.5",
 ]
 
 [project.scripts]

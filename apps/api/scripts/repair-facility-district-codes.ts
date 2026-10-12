@@ -193,6 +193,7 @@ export async function repairFacilityDistrictCodes(
 }
 
 async function main(): Promise<void> {
+
   const args = parseRepairFacilityDistrictArgs(process.argv);
   const prisma = new PrismaClient();
   try {
@@ -227,6 +228,11 @@ const direct = /repair-facility-district-codes(\.[cm]?[tj]s)?$/.test(
   (process.argv[1] ?? '').replace(/\\/g, '/'),
 );
 if (direct) {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/repair-facility-district-codes.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   void main().catch((error) => {
     console.error(`[${SOURCE}] FAILED`, error);
     process.exit(1);

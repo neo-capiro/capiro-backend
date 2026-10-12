@@ -1,26 +1,24 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import {
-  JEV_TASK_REGISTRY,
-  jevTaskEvaluationFixtureSchema,
-  runJevTaskPairedEvaluation,
-  type JevChoiceTaskDecision,
-  type JevTaskEvaluationCase,
-} from '../src';
+import { parseEvalCli } from './lib/eval-cli';
+import type { JevChoiceTaskDecision, JevTaskEvaluationCase } from '../src';
 
-function argument(name: string, fallback: string): string {
-  const index = process.argv.indexOf(name);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1]! : fallback;
-}
+const cli = parseEvalCli({
+  usage:
+    'Usage: tsx scripts/jev-package2-eval.ts --write [--fixture FILE] [--output DIR] (or provide --fixture/--output explicitly)',
+  valueOptions: ['--fixture', '--output'],
+  actionOptions: ['--write'],
+});
 
 async function main(): Promise<void> {
+  const { JEV_TASK_REGISTRY, jevTaskEvaluationFixtureSchema, runJevTaskPairedEvaluation } =
+    await import('../src');
   const fixturePath = path.resolve(
-    argument(
-      '--fixture',
+    cli.values.get('--fixture') ??
       path.join(__dirname, '../src/jev/__fixtures__/package2-task-evaluation-v1.json'),
-    ),
   );
-  const outputDir = path.resolve(argument('--output', 'tmp/jev-package2-eval'));
+  const outputDir = path.resolve(cli.values.get('--output') ?? 'tmp/jev-package2-eval');
   const fixture = jevTaskEvaluationFixtureSchema.parse(
     JSON.parse(readFileSync(fixturePath, 'utf8')),
   );

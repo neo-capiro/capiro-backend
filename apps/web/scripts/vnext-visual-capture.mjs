@@ -23,11 +23,25 @@
  *
  * Start Vite first, then run:
  *   VNEXT_VISUAL_BASE_URL=http://127.0.0.1:4173 pnpm --filter @capiro/web visual:vnext:capture
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import * as chromeLauncher from 'chrome-launcher';
+
+const USAGE = 'Usage: node apps/web/scripts/vnext-visual-capture.mjs --capture (writes PNGs and manifest.json to VNEXT_VISUAL_OUTPUT_DIR or ./artifacts/vnext-visual)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--capture') {
+  console.error(USAGE);
+  if (cliArgs.length) console.error(`[vnext-visual-capture] unknown argument: ${cliArgs.join(' ')}`);
+  process.exit(2);
+}
+
+const chromeLauncher = await import('chrome-launcher');
 
 const baseUrl = (process.env.VNEXT_VISUAL_BASE_URL ?? 'http://127.0.0.1:4173').replace(/\/$/, '');
 const outputDir = path.resolve(process.env.VNEXT_VISUAL_OUTPUT_DIR ?? 'artifacts/vnext-visual');

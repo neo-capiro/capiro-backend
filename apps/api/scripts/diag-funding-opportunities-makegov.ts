@@ -364,6 +364,10 @@ export async function buildReport(prisma: PrismaClient, args: ParsedArgs): Promi
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/diag-funding-opportunities-makegov.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseArgs(process.argv.slice(2));
   const prisma = new PrismaClient();
   try {

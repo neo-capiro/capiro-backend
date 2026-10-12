@@ -1,7 +1,26 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /** One-command Phase 4 release-candidate validation matrix. */
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
+const USAGE =
+  'Usage: tsx scripts/verify-pe-budget-phase-4-closeout.ts --run [--include-containers]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => !['--run', '--include-containers', '--help'].includes(arg));
+if (unknown.length > 0) {
+  console.error(`unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (!argv.includes('--run')) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const API_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');
@@ -77,6 +96,7 @@ const phase3Args = [
   'exec',
   'tsx',
   'scripts/verify-pe-budget-phase-3-closeout.ts',
+  '--run',
   ...(includeContainers ? ['--include-containers'] : []),
 ];
 
@@ -120,6 +140,7 @@ const steps: Step[] = [
     'exec',
     'tsx',
     'scripts/verify-pe-budget-phase-4-negative-controls.ts',
+    '--run',
   ]),
   {
     name: 'Disposable PostgreSQL 16 fresh and ordered-upgrade rehearsal',

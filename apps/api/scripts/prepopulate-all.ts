@@ -18,13 +18,24 @@
  *
  * Boots a Nest application context (no HTTP server) to reuse the real service +
  * its RLS-aware PrismaService wiring. Mirrors sync-entity-resolution.ts.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { parseArgs } from 'node:util';
 
-dotenvConfig();
+const usage = 'Usage: tsx scripts/prepopulate-all.ts --run [--tenant UUID]';
+const cli = process.argv.slice(2);
+if ((cli.length === 1 && cli[0] === '--help') ||
+    (cli.length === 2 && cli[0] === '--run' && cli[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (cli[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 // Load the Nest graph from the COMPILED dist (tsc-emitted decorator metadata);
 // tsx re-transpiles with esbuild which does NOT emit reliable decorator metadata
@@ -51,9 +62,18 @@ async function loadNest(): Promise<{
   throw new Error('Could not load AppModule from dist or src');
 }
 
-const { values: args } = parseArgs({
-  options: { tenant: { type: 'string' } },
-});
+let args: { tenant?: string };
+try {
+  const parsed = parseArgs({
+    args: cli.slice(1),
+    options: { tenant: { type: 'string' } },
+  });
+  args = parsed.values;
+} catch {
+  console.error(usage);
+  process.exit(2);
+}
+dotenvConfig();
 
 async function main(): Promise<void> {
   const logger = new Logger('prepopulate-all');

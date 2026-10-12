@@ -1,0 +1,270 @@
+# CleanUp1 §9 — the acceptance gate, wired into CI on pull requests.
+#
+# `pnpm gate:cleanup1` is the exact command CleanUp2/CleanUp3 must keep green
+# (docs/plans/CleanUp1.md §9). It is implemented as a cross-platform Node driver
+# (scripts/cleanup-gates/gate.mjs) that dynamically discovers every workspace
+# package/runner (no hand-maintained allowlist), runs the full turbo typecheck
+# and test graph, the structural mirror verifier, the reviewed five-runner
+# test-proof fixtures, all four architecture guards, the Python gate and the
+# Playwright e2e package.
+#
+# TRIGGER SCOPE (CleanUp1 §5.3 hygiene): the job must run for every relevant
+# workspace change — any production/test source, any package manifest, and any
+# package ADDITION/RENAME — not only for the foundation's own files. The path
+# filter therefore follows the workspace globs (apps/**, packages/**, infra/**)
+# plus the root manifests and the gate scripts. It never hard-codes a package
+# list, so a newly added suite cannot silently bypass the gate. Existing
+# `pull_request` trigger style and `workflow_dispatch` are preserved.
+name: cleanup1-gate
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    # PINNED, not `ubuntu-latest`: the visual baseline must be regenerated and
+    # compared against a reproducible OS/font/browser environment (independent
+    # review round 3, item 5). Bump this image only together with the visual
+    # owner and a regenerated golden baseline.
+    runs-on: ubuntu-22.04
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+      # Deterministic locale/timezone for font shaping and any date-sensitive
+      # rendering; matches the visual worker's pinned contract.
+      TZ: UTC
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      # Disposable-Postgres contract consumed by the api/workspace/intel-api
+      # DB-backed specs and by scripts/ci/bootstrap-disposable-postgres-roles.sh.
+      # api + intel deliberately share `capiro` (intel recording specs require
+      # the full API+Intel chains); workspace uses its OWN database/ledger.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/capiro
+      CI: 'true'
+      CI_DISPOSABLE_POSTGRES: '1'
+      # Current guarded-spec contracts (independent review round 2). Without
+      # these the DB-backed specs SKIP on a fresh checkout (a silent hole):
+      #   - api bill-impact/hearing-discovery/live-hearings specs gate on
+      #     CAPIRO_DISPOSABLE_PG=1 (or ALLOW_DISPOSABLE_PG=1);
+      #   - intel-api / api hearing-recording specs REQUIRE
+      #     LEGIWATCH_RECORDING_TEST_DATABASE=disposable (and throw otherwise);
+      #   - workspace engine-api.int-spec gates on WS_TEST_DATABASE_URL, which
+      #     points at its SEPARATE disposable database (own migration ledger).
+      CAPIRO_DISPOSABLE_PG: '1'
+      ALLOW_DISPOSABLE_PG: '1'
+      LEGIWATCH_RECORDING_TEST_DATABASE: disposable
+      WS_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/capiro_workspace
+      # Explicit API per-worker DB binding (CleanUp1 api643). The committed
+      # default Jest pool runs maxWorkers=2; apps/api/jest.worker-database.cjs
+      # (a setupFiles entry) binds each real fork's inherited DATABASE_URL to its
+      # matching capiro worker clone — created fresh from the fully migrated
+      # shared template by scripts/ci/bootstrap-disposable-databases.sh. The flag
+      # is opt-in, so DB-free/local runs are unaffected; the token is the
+      # dedicated test-only binding token the helper requires.
+      CLEANUP_API_WORKER_DB: '1'
+      CLEANUP_API_WORKER_DB_TOKEN: 'cleanup-api-worker-db-v1'
+      CLEANUP_API_WORKER_DB_MAP: '{"1":"capiro_worker_1","2":"capiro_worker_2"}'
+      # External pinned Playwright tool runtime (never a monorepo dependency).
+      PLAYWRIGHT_VERSION: '1.63.0'
+      # PINNED rendering image (review round 8): the visual baseline identity
+      # must come from the SAME image for local capture and CI comparison. A
+      # bare-runner font/browser set is NOT this identity. Exact amd64 digest,
+      # Playwright 1.63.0 / Ubuntu 24.04 (noble); bump only with the visual
+      # owner + a regenerated golden baseline.
+      CAPIRO_VISUAL_IMAGE: mcr.microsoft.com/playwright@sha256:bc6ab0d6d44ff4826e4cb8c1e6d801e185bfc42bb0753f8e2a30efc70db054c7
+      CAPIRO_VISUAL_IMAGE_DIGEST: sha256:bc6ab0d6d44ff4826e4cb8c1e6d801e185bfc42bb0753f8e2a30efc70db054c7
+    # A disposable pgvector Postgres so a FRESH checkout can run the DB-backed
+    # suites the way the gate expects, instead of silently skipping them. The
+    # migrations themselves create uuid-ossp/citext/pg_trgm/vector/pgcrypto;
+    # the pgvector image supplies the `vector` extension the chain requires.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    # The full turbo typecheck + test graph plus the Python gate is large; keep
+    # a generous budget so a slow-but-passing run is never cut off mid-way.
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The diff-scoped architecture guards compare against the PR base.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # psql client for the disposable-Postgres prerequisite bootstrap.
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # NOTE (review round 8): the visual baseline identity comes from the
+      # PINNED Playwright container image, NOT from runner apt fonts. A bare
+      # runner font/browser set is not the visual environment identity, so it is
+      # deliberately NOT installed or recorded as such.
+
+      - run: pnpm install --frozen-lockfile
+
+      # External pinned Playwright 1.63.0 TOOL package (JS only). Deliberately
+      # OUTSIDE the monorepo: Playwright is never a workspace dependency. The
+      # BROWSER is NOT installed on the bare runner (review round 9): the
+      # renderer-dependent stages must run in the pinned image via the visual
+      # lane's portable Linux runner, so a host `playwright install` is removed.
+      - name: Provision external pinned Playwright 1.63.0 runtime (JS package)
+        run: |
+          set -euo pipefail
+          PREFIX="$RUNNER_TEMP/pw-${PLAYWRIGHT_VERSION}"
+          npm install --prefix "$PREFIX" "@playwright/test@${PLAYWRIGHT_VERSION}"
+          echo "PLAYWRIGHT_CLI=$PREFIX/node_modules/@playwright/test/cli.js" >> "$GITHUB_ENV"
+          # The pinned portable visual lane mounts this EXTERNAL prefix read-only
+          # at /external inside the pinned image (CAPIRO_PW_EXTERNAL).
+          echo "CAPIRO_PW_EXTERNAL=$PREFIX" >> "$GITHUB_ENV"
+          echo "$PREFIX/node_modules/.bin" >> "$GITHUB_PATH"
+
+      # Record the exact, reproducible rendering environment INSIDE the pinned
+      # image (review rounds 6-9). scripts/ci/record-visual-environment.mjs uses
+      # argv execFile only (no shell), LAUNCHES the browser and records the ACTUAL
+      # launched headless-shell (sha256 + version), all fc-list font files and the
+      # requested pinned image digest; it FAILS CLOSED (nonzero) when any required
+      # identity is missing. The visual comparison is WIRED to the same pinned
+      # image by the "Pinned portable visual regression lane" step below (the
+      # visual lane's portable pinned Linux runner); this identity record remains
+      # necessary corroborating evidence of the renderer environment.
+      - name: Record pinned visual environment identity (inside pinned image)
+        env:
+          PW_RUNTIME: ${{ runner.temp }}/pw-${{ env.PLAYWRIGHT_VERSION }}
+        run: |
+          set -euo pipefail
+          # This receipt changes on every run. Keep it outside the clean source
+          # checkout so the gate's untracked-input precondition remains meaningful.
+          VISUAL_ENV_DIR="$RUNNER_TEMP/cleanup1-visual-env"
+          mkdir -p "$VISUAL_ENV_DIR"
+          # Verified parent Docker-inspect receipt bound to the actual image
+          # (review round 11): the recorder requires it and matches RepoDigests by
+          # EXACT equality — a bare env string is diagnostic-only.
+          docker pull "${CAPIRO_VISUAL_IMAGE}"
+          IMG_INSPECT="$(docker image inspect "${CAPIRO_VISUAL_IMAGE}" --format '{{json .}}')"
+          docker run --rm \
+            --name cleanup1-visual-env \
+            --label cleanup1.visual.env=cleanup1-visual-env \
+            --network none \
+            --read-only \
+            --tmpfs /tmp:rw,size=256m \
+            -e TZ=UTC \
+            -e LANG=C.UTF-8 \
+            -e LC_ALL=C.UTF-8 \
+            -e XDG_CACHE_HOME=/tmp/cache \
+            -e CAPIRO_VISUAL_IMAGE="${CAPIRO_VISUAL_IMAGE}" \
+            -e CAPIRO_VISUAL_IMAGE_DIGEST="${CAPIRO_VISUAL_IMAGE_DIGEST}" \
+            -e CAPIRO_VISUAL_IMAGE_INSPECT_JSON="${IMG_INSPECT}" \
+            -e PLAYWRIGHT_RUNTIME_DIR=/external \
+            -e VISUAL_ENV_OUT=/out/cleanup1-visual-environment.json \
+            -v "${PW_RUNTIME}:/external:ro" \
+            -v "$VISUAL_ENV_DIR:/out" \
+            -v "${GITHUB_WORKSPACE}/scripts/ci/record-visual-environment.mjs:/recorder.mjs:ro" \
+            "${CAPIRO_VISUAL_IMAGE}" \
+            node /recorder.mjs
+
+      - name: Retain pinned visual environment identity
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cleanup1-visual-environment
+          path: ${{ runner.temp }}/cleanup1-visual-env/cleanup1-visual-environment.json
+          if-no-files-found: error
+
+      # Disposable-Postgres prerequisites the checked-in migration chain expects
+      # but a clean service lacks: the capiro_worker role + the append-only
+      # function fixture. Safety-gated on CI_DISPOSABLE_POSTGRES=1.
+      - name: Bootstrap disposable Postgres roles + prerequisites
+        run: bash scripts/ci/bootstrap-disposable-postgres-roles.sh
+
+      # Create the disposable databases and apply each Prisma migration chain to
+      # the correct database/ledger. api+intel share `capiro` because the intel
+      # specs require both chains; the real Workspace chain is ALSO applied to
+      # that shared database (aggregate Intel runtime specs exercise ws_* tables
+      # through the same connection) while the separate Workspace database keeps
+      # its own ledger via WS_TEST_DATABASE_URL. Two fresh CLOSED API worker
+      # clones of the fully migrated shared template are then created for the
+      # maxWorkers=2 Jests pool (fail closed if either already exists).
+      - name: Bootstrap disposable databases + independent migration chains
+        run: bash scripts/ci/bootstrap-disposable-databases.sh
+
+      # api/workspace typecheck+tests import generated Prisma clients.
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      # Fast, dependency-free: proves the gate's own config cannot drift (guards
+      # present, discovery finds every test-bearing package, no unregistered
+      # bespoke runner) and the reviewed five-runner adapters stay consistent.
+      - name: Gate config + test-proof fixture validation
+        run: |
+          pnpm gate:cleanup1:test
+          node scripts/test-proof/run-fixtures.mjs
+
+      # The pinned portable VISUAL REGRESSION lane is owned BY THE GATE
+      # (`pnpm gate:cleanup1` below), NOT by a competing duplicate step here
+      # (review round 60). In the e2e/core/all phases the gate builds a FRESH
+      # immutable source archive and runs the portable pinned Linux runner
+      # (apps/e2e/linux/run-linux-capture.sh regression) through the shell-safe
+      # positional argv bridge — NEVER on this bare runner — then re-validates
+      # apps/e2e/reports/regression-evidence.json against a context built from the
+      # ACTUAL files (current source, verified archive, baseline manifest + every
+      # PNG byte before/after, raw --list/run reports for the route AND onboarding
+      # stages, host-observed route guard). A missing archive/goldens/runtime/
+      # Docker fails the gate (fail closed); the pinned image identity comes from
+      # CAPIRO_VISUAL_IMAGE / CAPIRO_VISUAL_IMAGE_DIGEST and the external tool
+      # runtime from CAPIRO_PW_EXTERNAL, both set above.
+
+      # Pure controls over the pinned-visual validator and the shell-safe
+      # portable-runner argv builder. They import the REAL production helpers and
+      # do NOT mock Playwright/Docker results as native acceptance.
+      - name: Pinned-visual pure controls
+        run: node apps/e2e/linux/tests/regression-controls.mjs
+
+      # The CleanUp1 gate owns the fresh archive + pinned portable regression for
+      # all/e2e/core (core excludes ONLY @capiro/e2e from `turbo run test` and runs
+      # that package's entire suite through the pinned owner). A bare-host pnpm
+      # visual execution is NEVER mapped to the e2e requirement.
+      - name: CleanUp1 gate
+        run: pnpm gate:cleanup1

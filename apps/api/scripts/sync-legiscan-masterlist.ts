@@ -40,7 +40,7 @@ import {
 } from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
+
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY ?? '';
 const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .split(',')
@@ -93,7 +93,7 @@ export function diffMasterlist(
 }
 
 /** Refresh the session list at most weekly (freshness read off state_session.lastSyncedAt). Returns [sessions, queriesSpent]. */
-async function activeSessions(
+async function activeSessions(prisma: PrismaClient,
   state: string,
 ): Promise<[Awaited<ReturnType<typeof prisma.stateSession.findMany>>, number]> {
   const existing = await prisma.stateSession.findMany({ where: { state, prior: false } });
@@ -110,9 +110,16 @@ async function activeSessions(
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-legiscan-masterlist.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
 
-  await runWithSyncRun(prisma as never, SYNC_RUN_SOURCE, async () => {
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, SYNC_RUN_SOURCE, async () => {
     // 2026-07-10 hot-fix (W0.5): gate on the TRUE hard cap, not sync-legiscan-bills'
     // conservative soft budget — this diff is cheap (1-3 queries/state) and
     // must keep running even when the drain has backed off; only the real
@@ -135,7 +142,7 @@ async function main() {
 
     for (const state of STATES) {
       try {
-        const [sessions, sessionListQueries] = await activeSessions(state);
+        const [sessions, sessionListQueries] = await activeSessions(prisma, state);
         totalQueries += sessionListQueries;
         // Attribute the (rare, weekly) getSessionList call to the first
         // session's cursor row — an approximation; the monthly budget
@@ -205,13 +212,15 @@ async function main() {
     );
     return { inserted: queued, updated: 0, skipped: 0, errors };
   });
+
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });
 }

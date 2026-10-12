@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,9 +8,15 @@ import {
   runMemoryPhase2Command,
 } from './lib/memory-phase2-command-runner.js';
 
+async function main(): Promise<void> {
+  if (!process.env.MEMORY_PHASE2_CLEAN_DATABASE_URL || !process.env.MEMORY_PHASE2_UPGRADE_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/verify-memory-phase2-notification-closeout.ts requires MEMORY_PHASE2_CLEAN_DATABASE_URL and MEMORY_PHASE2_UPGRADE_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(scriptDirectory, '..');
-const pnpm = resolveMemoryPhase2Pnpm();
+
 const RLS_TEST_ROLE = 'capiro_memory_phase2_rls_test';
 
 interface FixtureIds {
@@ -37,12 +44,13 @@ interface DatabaseRoleRow {
   inherited_memberships: number;
 }
 
-async function main(): Promise<void> {
+
   const cleanUrl = requireDisposableUrl('MEMORY_PHASE2_CLEAN_DATABASE_URL');
   const upgradeUrl = requireDisposableUrl('MEMORY_PHASE2_UPGRADE_DATABASE_URL');
   if (databaseIdentity(cleanUrl) === databaseIdentity(upgradeUrl)) {
     throw new Error('Clean and upgrade database URLs must identify different databases.');
   }
+  const pnpm = resolveMemoryPhase2Pnpm();
 
   runPnpm(['exec', 'tsx', 'scripts/verify-memory-phase2-persistence-closeout.ts']);
   runPnpm(['exec', 'prisma', 'migrate', 'deploy', '--schema', 'prisma/schema.prisma'], {
@@ -53,7 +61,7 @@ async function main(): Promise<void> {
   await runNotificationAcceptance(upgradeUrl, fixtureIds('upgrade'));
 
   process.stdout.write('MEMORY_PHASE2_NOTIFICATION_CLOSEOUT_COMPLETE\n');
-}
+
 
 function runPnpm(args: string[], env: Record<string, string> = {}): void {
   const result = runMemoryPhase2Command({
@@ -550,7 +558,11 @@ function client(databaseUrl: string): PrismaClient {
   return new PrismaClient({ datasources: { db: { url: databaseUrl } } });
 }
 
+
+}
+if (require.main === module) {
 void main().catch((error: unknown) => {
   process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
   process.exitCode = 1;
 });
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Runs the node:test-style CDK construct specs under Node's own test runner.
  *
@@ -34,10 +35,25 @@
  */
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { PACKAGE_ROOT, classifySpecs } = require('./cdk-spec-runners.cjs');
+const USAGE =
+  'Usage: node scripts/run-construct-tests.cjs --run [spec-substring ...] | --list [spec-substring ...]';
 
 function main() {
   const argv = process.argv.slice(2);
+  if (argv.length === 1 && argv[0] === '--help') {
+    console.log(USAGE);
+    return 0;
+  }
+  if (
+    argv.length === 0 ||
+    (argv.includes('--run') && argv.includes('--list')) ||
+    argv.some((arg) => arg.startsWith('--') && arg !== '--list' && arg !== '--run')
+  ) {
+    console.error(USAGE);
+    return 2;
+  }
+
+  const { PACKAGE_ROOT, classifySpecs } = require('./cdk-spec-runners.cjs');
   const listOnly = argv.includes('--list');
   /** Optional substring filters for focused construct tests. */
   const filters = argv.filter((a) => !a.startsWith('--'));

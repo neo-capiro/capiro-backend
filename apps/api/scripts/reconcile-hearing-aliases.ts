@@ -12,6 +12,10 @@ import type { AliasReview } from '../src/hearing-discovery/hearing-alias-review.
 import { reconcileReviewedAliases } from '../src/hearing-discovery/hearing-alias-reconciliation.js';
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/reconcile-hearing-aliases.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = process.argv.slice(2);
   const value = (flag: string): string | undefined => {
     const index = args.indexOf(flag);

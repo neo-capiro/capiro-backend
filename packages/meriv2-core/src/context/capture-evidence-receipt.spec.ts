@@ -16,7 +16,9 @@ describe('Case12 native setup receipt provenance', () => {
   const setup = () => ({
     setupRunId: '11111111-1111-4111-8111-111111111111',
     fixtureInstanceId: '22222222-2222-4222-8222-222222222222',
-    setupPlanSha256: 'a'.repeat(64), setupClaimSha256: 'b'.repeat(64), setupLedgerSha256: 'c'.repeat(64),
+    setupPlanSha256: 'a'.repeat(64),
+    setupClaimSha256: 'b'.repeat(64),
+    setupLedgerSha256: 'c'.repeat(64),
   });
   function current() {
     const value = receipt();
@@ -28,29 +30,38 @@ describe('Case12 native setup receipt provenance', () => {
     return value;
   }
   const fixtureBlockers = (value: MeriCaptureEvidenceReceipt) =>
-    completeMeriCaptureEvidenceReceipt(value).blockers.filter(b => b.startsWith('fixture_'));
+    completeMeriCaptureEvidenceReceipt(value).blockers.filter((b) => b.startsWith('fixture_'));
   it('requires actual setup provenance instead of inventing reset or seed receipts', () => {
     expect(fixtureBlockers(current())).toEqual([]);
-    const missing = current(); delete missing.fixture.case12Setup;
+    const missing = current();
+    delete missing.fixture.case12Setup;
     expect(fixtureBlockers(missing)).toContain('fixture_case12_setup_unproved');
   });
-  it.each(['resetReceiptId', 'seedReceiptId'] as const)('rejects mixed %s provenance', key => {
-    const value = current(); value.fixture[key] = observed('borrowed-receipt');
+  it.each(['resetReceiptId', 'seedReceiptId'] as const)('rejects mixed %s provenance', (key) => {
+    const value = current();
+    value.fixture[key] = observed('borrowed-receipt');
     expect(fixtureBlockers(value)).toContain('fixture_case12_setup_unproved');
   });
   it('keeps setup and capture run identities separate', () => {
-    const value = current(); value.captureRunId = setup().setupRunId;
+    const value = current();
+    value.captureRunId = setup().setupRunId;
     expect(fixtureBlockers(value)).toContain('fixture_case12_setup_unproved');
   });
   it('rejects a malformed ledger hash even when marked observed', () => {
-    const value = current(); value.fixture.case12Setup = observed({...setup(), setupLedgerSha256: ''});
+    const value = current();
+    value.fixture.case12Setup = observed({ ...setup(), setupLedgerSha256: '' });
     expect(fixtureBlockers(value)).toContain('fixture_case12_setup_unproved');
   });
   it('preserves reset and seed requirements for existing cases', () => {
-    const value = current(); value.caseId = '14';
-    expect(fixtureBlockers(value)).toEqual(expect.arrayContaining([
-      'fixture_reset_receipt_unproved', 'fixture_seed_receipt_unproved', 'fixture_case12_setup_foreign_case',
-    ]));
+    const value = current();
+    value.caseId = '14';
+    expect(fixtureBlockers(value)).toEqual(
+      expect.arrayContaining([
+        'fixture_reset_receipt_unproved',
+        'fixture_seed_receipt_unproved',
+        'fixture_case12_setup_foreign_case',
+      ]),
+    );
   });
 });
 
@@ -829,14 +840,63 @@ describe('JSONB-compatible capture authentication', () => {
   });
 });
 
-
-describe('Case12 semantic clock own-tool/packet/cost boundaries',()=>{
- function c12(){const r=clockReceipt();r.caseId='12';r.semanticClock!.binding.caseId='12';r.providerBudget!.boundary='case12_memory_turn';r.fixture.resetReceiptId=unknown('no_reset');r.fixture.seedReceiptId=unknown('native_setup');r.fixture.case12Setup=observed({setupRunId:'99999999-9999-4999-8999-999999999999',fixtureInstanceId:'88888888-8888-4888-8888-888888888888',setupPlanSha256:'a'.repeat(64),setupClaimSha256:'b'.repeat(64),setupLedgerSha256:'c'.repeat(64)});return r;}
- test('search_memory complete clock joins use Case12 distinct provider boundary',()=>{expect(completeMeriCaptureEvidenceReceipt(c12()).blockers).toEqual([]);});
- test.each(['case01_memory_turn','case14_memory_turn','case20_controlled_read_turn'])('borrowed %s is denied',boundary=>{const r=c12();r.providerBudget!.boundary=boundary as never;expect(completeMeriCaptureEvidenceReceipt(r).blockers).toContain('provider_budget_malformed');});
- test('proposal read is not inherited as Case12 approved-memory capability',()=>{const r=c12();r.toolCalls[0]!.name='list_memory_proposals';r.semanticClock!.invocations![0]!.tool='list_memory_proposals';expect(completeMeriCaptureEvidenceReceipt(r).blockers).toContain('semantic_clock_invocation_join_unproved');});
- test.each(['missingPacket','wrongClock','preObservation','duplicateCall','httpRetry','httpFailure','missingInvocation'])('rejects Case12 %s',fault=>{const r=c12();const inv=r.semanticClock!.invocations![0]!;
- if(fault==='missingPacket')inv.packets=[];if(fault==='wrongClock')inv.packets[0]!.clockUse.instant='2026-09-25T16:00:00.000Z';if(fault==='preObservation')inv.packets[0]!.clockUse.eligibilityAt=new Date(r.semanticClock!.binding.observedAt-1).toISOString();if(fault==='duplicateCall')r.toolCalls.push({...r.toolCalls[0]!});if(fault==='httpRetry')inv.httpAttempts=2;if(fault==='httpFailure')inv.httpStatus=503;if(fault==='missingInvocation')r.semanticClock!.invocations=[];
- expect(completeMeriCaptureEvidenceReceipt(r).blockers.length).toBeGreaterThan(0);
- });
+describe('Case12 semantic clock own-tool/packet/cost boundaries', () => {
+  function c12() {
+    const r = clockReceipt();
+    r.caseId = '12';
+    r.semanticClock!.binding.caseId = '12';
+    r.providerBudget!.boundary = 'case12_memory_turn';
+    r.fixture.resetReceiptId = unknown('no_reset');
+    r.fixture.seedReceiptId = unknown('native_setup');
+    r.fixture.case12Setup = observed({
+      setupRunId: '99999999-9999-4999-8999-999999999999',
+      fixtureInstanceId: '88888888-8888-4888-8888-888888888888',
+      setupPlanSha256: 'a'.repeat(64),
+      setupClaimSha256: 'b'.repeat(64),
+      setupLedgerSha256: 'c'.repeat(64),
+    });
+    return r;
+  }
+  test('search_memory complete clock joins use Case12 distinct provider boundary', () => {
+    expect(completeMeriCaptureEvidenceReceipt(c12()).blockers).toEqual([]);
+  });
+  test.each(['case01_memory_turn', 'case14_memory_turn', 'case20_controlled_read_turn'])(
+    'borrowed %s is denied',
+    (boundary) => {
+      const r = c12();
+      r.providerBudget!.boundary = boundary as never;
+      expect(completeMeriCaptureEvidenceReceipt(r).blockers).toContain('provider_budget_malformed');
+    },
+  );
+  test('proposal read is not inherited as Case12 approved-memory capability', () => {
+    const r = c12();
+    r.toolCalls[0]!.name = 'list_memory_proposals';
+    r.semanticClock!.invocations![0]!.tool = 'list_memory_proposals';
+    expect(completeMeriCaptureEvidenceReceipt(r).blockers).toContain(
+      'semantic_clock_invocation_join_unproved',
+    );
+  });
+  test.each([
+    'missingPacket',
+    'wrongClock',
+    'preObservation',
+    'duplicateCall',
+    'httpRetry',
+    'httpFailure',
+    'missingInvocation',
+  ])('rejects Case12 %s', (fault) => {
+    const r = c12();
+    const inv = r.semanticClock!.invocations![0]!;
+    if (fault === 'missingPacket') inv.packets = [];
+    if (fault === 'wrongClock') inv.packets[0]!.clockUse.instant = '2026-09-25T16:00:00.000Z';
+    if (fault === 'preObservation')
+      inv.packets[0]!.clockUse.eligibilityAt = new Date(
+        r.semanticClock!.binding.observedAt - 1,
+      ).toISOString();
+    if (fault === 'duplicateCall') r.toolCalls.push({ ...r.toolCalls[0]! });
+    if (fault === 'httpRetry') inv.httpAttempts = 2;
+    if (fault === 'httpFailure') inv.httpStatus = 503;
+    if (fault === 'missingInvocation') r.semanticClock!.invocations = [];
+    expect(completeMeriCaptureEvidenceReceipt(r).blockers.length).toBeGreaterThan(0);
+  });
 });

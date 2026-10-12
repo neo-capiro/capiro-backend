@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=5 */
 /**
  * Build a deterministic, read-only future-canonical projection plan from an
  * already certified Phase 5 family. No Prisma client is instantiated and
@@ -188,6 +189,7 @@ function main(): void {
 try {
   main();
 } catch (error) {
+  console.error('Usage: plan-defense-budget-non-rdte-projection --manifest <path> --bundle <path> --family-report <path> --artifact-map <path> --verification-results <path> --family <family> --out <path>');
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = PHASE5_EXIT.operational;
 }

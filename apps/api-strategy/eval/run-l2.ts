@@ -1,12 +1,15 @@
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * Stage B — Step B3: Layer 2 LLM-judge eval. Manual/scheduled, NOT CI (unlike
  * L1) — this makes real network calls: a live draft-from-goal round-trip
  * against the orchestrator (global key, dogfood tenant) for every golden,
  * then a live Claude judge call scoring the result. Both cost real inference
- * spend and require live infrastructure. run-l2.spec.ts imports and tests only
- * the network-free exports below (loadConfig/toVerifierNodes/renderMarkdown);
- * the network-calling functions (requestDraft/judgeDraft/runOne/main) are
- * never invoked by any test and this file is not otherwise wired into CI.
+ * spend and require live infrastructure. run-l2.spec.ts (picked up by the
+ * app's Jest eval-directory spec glob) imports and tests only the network-free
+ * exports below — loadConfig, toVerifierNodes, renderMarkdown and the CLI
+ * argument boundary (parseL2Args/dispatchL2Args/L2_USAGE); the network-calling
+ * functions (requestDraft/judgeDraft/runOne) and the evaluation entry point
+ * are never invoked by any test.
  *
  * WHY it calls the orchestrator directly (not api-strategy's /strategies/draft
  * endpoint): api-strategy's MeriService.draft() computes fiscal/reference
@@ -307,7 +310,72 @@ export function renderMarkdown(results: L2Result[], dateStamp: string): string {
   return lines.join('\n');
 }
 
+// ---- CLI argument boundary (help / invalid args, config-free) ----------------
+
+/** Single source of the usage line, shared by --help/-h, invalid arguments and
+ *  the missing-configuration refusal so the documented invocation never drifts. */
+export const L2_USAGE = [
+  'usage: eval:l2 [--help | -h]',
+  '',
+  'With no arguments, eval:l2 runs the live Layer 2 LLM-judge eval — one live',
+  'orchestrator draft and one live Claude judge call per golden. It requires all',
+  'four env vars below and spends real inference credits.',
+].join('\n');
+
+export type L2CliInvocation =
+  | { kind: 'help' }
+  | { kind: 'invalid'; arg: string }
+  | { kind: 'run' };
+
+/** Pure argv parsing for the eval:l2 entry point. Empty argv is the supported
+ *  no-argument evaluation run (unchanged); the first token must then be -h/--help
+ *  or it is an unsupported argument. No config, network or filesystem access. */
+export function parseL2Args(argv: readonly string[]): L2CliInvocation {
+  if (argv.length === 0) return { kind: 'run' };
+  const first = argv[0] as string;
+  if (first === '--help' || first === '-h') return { kind: 'help' };
+  return { kind: 'invalid', arg: first };
+}
+
+export interface L2CliOutcome {
+  /** Exit code to use, or null when the caller should run the evaluation. */
+  exitCode: number | null;
+  /** Lines to emit for the user (empty when exitCode is null). */
+  lines: string[];
+  /** Stream the lines belong on. */
+  stream: 'stdout' | 'stderr';
+}
+
+/** Early, config-free dispatch. help (exit 0, stdout) and invalid arguments
+ *  (exit 2, stderr) are fully handled here and NEVER invoke `onRun`; only empty
+ *  argv reaches `onRun`, which is where loadConfig/loadGoldens/fetch/judge/report
+ *  begin. Returning `exitCode !== null` short-circuits before any of that. */
+export function dispatchL2Args(argv: readonly string[], onRun: () => void): L2CliOutcome {
+  const invocation = parseL2Args(argv);
+  if (invocation.kind === 'help') {
+    return { exitCode: 0, lines: [L2_USAGE], stream: 'stdout' };
+  }
+  if (invocation.kind === 'invalid') {
+    return { exitCode: 2, lines: [`eval:l2: unknown argument "${invocation.arg}"`, L2_USAGE], stream: 'stderr' };
+  }
+  onRun();
+  return { exitCode: null, lines: [], stream: 'stdout' };
+}
+
 async function main(): Promise<void> {
+  let shouldRun = false;
+  const outcome = dispatchL2Args(process.argv.slice(2), () => {
+    shouldRun = true;
+  });
+  if (outcome.exitCode !== null) {
+    for (const line of outcome.lines) {
+      if (outcome.stream === 'stderr') console.error(line);
+      else console.log(line);
+    }
+    process.exit(outcome.exitCode);
+  }
+  if (!shouldRun) return;
+
   const config = loadConfig();
   if ('missing' in config) {
     console.error('eval:l2 is not configured — missing env var(s): ' + config.missing.join(', '));
@@ -319,6 +387,8 @@ async function main(): Promise<void> {
     console.error('  ANTHROPIC_API_KEY        global key for the judge call');
     console.error('');
     console.error('This makes REAL live Claude calls (one draft + one judge call per golden) and will spend real inference credits.');
+    console.error('');
+    console.error(L2_USAGE);
     process.exit(1);
   }
 

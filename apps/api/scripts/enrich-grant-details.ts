@@ -351,6 +351,10 @@ export async function enrichGrantCandidates(
 async function main(): Promise<void> {
   // Validated BEFORE the SyncRun row is opened, so an invalid limit fails loudly
   // rather than recording a run that fetched nothing.
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/enrich-grant-details.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const limit = parseEnrichmentLimit(arg('limit'));
   const prisma = new PrismaClient();
   await prisma.$connect();

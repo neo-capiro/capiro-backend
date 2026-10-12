@@ -404,6 +404,10 @@ async function sendAlertEmail(newDocs: DetectedDoc[], revised: RevisedDoc[]): Pr
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/watch-budget-docs.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = flag('commit');
   const baseline = flag('baseline');
   const skipEmail = flag('skip-email');
@@ -488,7 +492,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((e) => {
   console.error('[watch-budget-docs] fatal', (e as Error)?.stack ?? e);
   process.exit(1);
 });
+}

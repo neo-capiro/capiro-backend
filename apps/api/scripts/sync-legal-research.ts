@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 import {
   legalResearchManifest,
   type LegalResearchManifest,
@@ -272,8 +273,16 @@ export async function runLegalResearch(prisma: PrismaClient, input: LegalResearc
 }
 
 if (require.main === module) {
+  if (process.env.LEGIWATCH_RESEARCH_APPLY === 'true' && !process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-legal-research.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const file = process.env.LEGIWATCH_RESEARCH_MANIFEST;
-  if (!file) throw Error('LEGIWATCH_RESEARCH_MANIFEST_REQUIRED');
+  if (!file) {
+    console.error('Usage: sync-legal-research requires LEGIWATCH_RESEARCH_MANIFEST');
+    process.exit(2);
+  }
   const manifest = legalResearchManifest(JSON.parse(readFileSync(file, 'utf8')));
   if (process.env.LEGIWATCH_RESEARCH_APPLY !== 'true') {
     console.log(JSON.stringify({ mode: 'dry_run', manifest, sideEffects: false }));

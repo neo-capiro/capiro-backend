@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Step 33 — SAM.gov solicitation personnel sync.
  *
@@ -80,7 +81,10 @@ async function fetchPage(
 }
 
 async function main(): Promise<void> {
-  if (!SAM_API_KEY) throw new Error('SAM_GOV_API_KEY not configured');
+  if (!SAM_API_KEY) {
+    console.error('Usage: sync-sam-personnel [--days <n>] [--since <date>] [--posted-to <date>] [--backfill] (requires SAM_GOV_API_KEY)');
+    throw new Error('SAM_GOV_API_KEY not configured');
+  }
   // Window: --since / --posted-to bound an explicit backfill window; else the last
   // --days (default 30). SAM caps a search's span at ~1yr, so a multi-year personnel
   // backfill walks <=1yr (ideally quarterly) windows. Mirrors sync-sam-opportunities.

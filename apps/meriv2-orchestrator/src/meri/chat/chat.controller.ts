@@ -53,9 +53,8 @@ export class ChatController {
         skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
       };
       const run = async () => this.chat.run(meriCtx, effectiveDto);
-      const result = await withTrustedCurrentTurnScope(
-        trustedCurrentTurnScope(meriCtx, dto),
-        () => runWithGovernedMeriContext(governed, run),
+      const result = await withTrustedCurrentTurnScope(trustedCurrentTurnScope(meriCtx, dto), () =>
+        runWithGovernedMeriContext(governed, run),
       );
       return {
         ...result,
@@ -177,10 +176,7 @@ function authenticateGovernedContext(
   }
 }
 
-function trustedCurrentTurnScope(
-  identity: { tenantId: string; userId: string },
-  dto: ChatInput,
-) {
+function trustedCurrentTurnScope(identity: { tenantId: string; userId: string }, dto: ChatInput) {
   return {
     tenantId: identity.tenantId,
     userId: identity.userId,

@@ -1,11 +1,16 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
+
+console.error('Usage: node scripts/test-phase8-session6-federal-funding-domain.mjs (no arguments run the domain gate)');
+if (process.argv.length > 2) process.exit(2);
+
+const {
   assertAuthoritativeFederalFundingAllocation,
   canContributeToKnownFederalFundingTotal,
   selectFederalFundingMappingCandidate,
-} from '../packages/defense-domain/dist/federal-funding/index.js';
+} = await import('../packages/defense-domain/dist/federal-funding/index.js');
 
 const SHA = 'a'.repeat(64);
 function allocation(extra = {}) {

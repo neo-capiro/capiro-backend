@@ -23,17 +23,11 @@
 
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
 const API_KEY = process.env.REGULATIONS_GOV_API_KEY;
 const BASE_URL = 'https://api.regulations.gov/v4';
 const PAGE_SIZE = 250;
 const DELAY_MS = 400; // stay well under 1K/hr
 const MAX_PAGES_PER_QUERY = 20; // Regulations.gov hard cap: page[number] <= 20 (=> 5,000 docs)
-
-if (!API_KEY) {
-  console.error('[reg-sync] REGULATIONS_GOV_API_KEY not set');
-  process.exit(1);
-}
 
 interface RegDocument {
   id: string;
@@ -97,7 +91,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function upsertDocket(doc: RegDocument): Promise<void> {
+async function upsertDocket(prisma: PrismaClient, doc: RegDocument): Promise<void> {
   const attrs = doc.attributes;
   await prisma.$executeRawUnsafe(
     `INSERT INTO regulatory_docket (
@@ -136,6 +130,7 @@ async function upsertDocket(doc: RegDocument): Promise<void> {
  * means the window matched > ~5,000 docs and the tail was NOT fetched).
  */
 async function ingestRange(
+  prisma: PrismaClient,
   postedAfter: string,
   postedBefore?: string,
   maxPages: number = Number.MAX_SAFE_INTEGER,
@@ -150,7 +145,7 @@ async function ingestRange(
     const docs = result.data;
 
     for (const doc of docs) {
-      await upsertDocket(doc);
+      await upsertDocket(prisma, doc);
       count++;
     }
 
@@ -175,7 +170,7 @@ function ymd(d: Date): string {
  * Windowed historical backfill: walk fixed date windows from `from` to today,
  * each bounded by ge+le so no single query exceeds the API's ~5,000-result cap.
  */
-async function runBackfill(from: string, windowDays: number): Promise<void> {
+async function runBackfill(prisma: PrismaClient, from: string, windowDays: number): Promise<void> {
   const today = new Date();
   let winStart = new Date(`${from}T00:00:00Z`);
   let grandTotal = 0;
@@ -191,6 +186,7 @@ async function runBackfill(from: string, windowDays: number): Promise<void> {
     const endStr = ymd(winEnd.getTime() < today.getTime() ? winEnd : today);
 
     const { count, truncated: wasTruncated } = await ingestRange(
+      prisma,
       startStr,
       endStr,
       MAX_PAGES_PER_QUERY,
@@ -205,7 +201,9 @@ async function runBackfill(from: string, windowDays: number): Promise<void> {
           `(>${MAX_PAGES_PER_QUERY * PAGE_SIZE} docs). Re-run with a smaller REG_BACKFILL_WINDOW_DAYS to cover it fully.`,
       );
     }
-    console.log(`[reg-backfill] window ${startStr}..${endStr}: ${count} docs (grand total ${grandTotal})`);
+    console.log(
+      `[reg-backfill] window ${startStr}..${endStr}: ${count} docs (grand total ${grandTotal})`,
+    );
 
     winStart = new Date(winStart);
     winStart.setUTCDate(winStart.getUTCDate() + windowDays);
@@ -229,72 +227,88 @@ async function runBackfill(from: string, windowDays: number): Promise<void> {
 }
 
 async function main() {
-  const start = Date.now();
-  console.log('[reg-sync] Starting Regulations.gov sync...');
-
-  // Windowed historical backfill mode (env REG_BACKFILL_FROM or --backfill-from <date>).
-  // Takes precedence over the daily/incremental path.
-  const backfillFrom = (() => {
-    const i = process.argv.indexOf('--backfill-from');
-    return i >= 0 ? process.argv[i + 1] : process.env.REG_BACKFILL_FROM;
-  })();
-  if (backfillFrom) {
-    const windowDays = Math.max(1, parseInt(process.env.REG_BACKFILL_WINDOW_DAYS || '30', 10) || 30);
-    await runBackfill(backfillFrom.slice(0, 10), windowDays);
-    return;
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-regulations.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  if (!API_KEY) {
+    console.error('[reg-sync] REGULATIONS_GOV_API_KEY not set');
+    process.exit(1);
   }
 
-  // Incremental: max(posted_at) in DB becomes the floor. The full-history
-  // pull from 2021 is the default for the first run; afterward, daily syncs
-  // only fetch newly posted dockets. --incremental flag or env override.
-  const incremental =
-    process.argv.includes('--incremental') ||
-    process.env.REG_SYNC_INCREMENTAL === '1';
-  const sinceOverride = (() => {
-    const i = process.argv.indexOf('--since');
-    return i >= 0 ? process.argv[i + 1] : process.env.REG_SYNC_SINCE;
-  })();
-  let postedAfter = '2021-01-01';
-  if (sinceOverride) {
-    postedAfter = sinceOverride.slice(0, 10);
-  } else if (incremental) {
-    // Use the latest *non-future* postedDate as the incremental floor.
-    // Regulations.gov occasionally returns dockets with a postedDate in the
-    // future; taking a raw MAX(posted_date) lets one such row poison the
-    // watermark and stall every subsequent sync (observed 2026-06: floor stuck
-    // at 2026-12-13, fetching 1 doc/run). Ignoring future-dated rows keeps the
-    // floor sane, and a 2-day overlap re-captures late edits near the boundary.
-    const latest = await prisma.regulatoryDocket.findFirst({
-      where: { postedDate: { lte: new Date() } },
-      orderBy: { postedDate: 'desc' },
-      select: { postedDate: true },
-    });
-    if (latest?.postedDate) {
-      const floor = new Date(latest.postedDate);
-      floor.setUTCDate(floor.getUTCDate() - 2);
-      postedAfter = floor.toISOString().slice(0, 10);
+  const prisma = new PrismaClient();
+  try {
+    const start = Date.now();
+    console.log('[reg-sync] Starting Regulations.gov sync...');
+
+    // Windowed historical backfill mode (env REG_BACKFILL_FROM or --backfill-from <date>).
+    // Takes precedence over the daily/incremental path.
+    const backfillFrom = (() => {
+      const i = process.argv.indexOf('--backfill-from');
+      return i >= 0 ? process.argv[i + 1] : process.env.REG_BACKFILL_FROM;
+    })();
+    if (backfillFrom) {
+      const windowDays = Math.max(
+        1,
+        parseInt(process.env.REG_BACKFILL_WINDOW_DAYS || '30', 10) || 30,
+      );
+      await runBackfill(prisma, backfillFrom.slice(0, 10), windowDays);
+      return;
     }
+
+    // Incremental: max(posted_at) in DB becomes the floor. The full-history
+    // pull from 2021 is the default for the first run; afterward, daily syncs
+    // only fetch newly posted dockets. --incremental flag or env override.
+    const incremental =
+      process.argv.includes('--incremental') || process.env.REG_SYNC_INCREMENTAL === '1';
+    const sinceOverride = (() => {
+      const i = process.argv.indexOf('--since');
+      return i >= 0 ? process.argv[i + 1] : process.env.REG_SYNC_SINCE;
+    })();
+    let postedAfter = '2021-01-01';
+    if (sinceOverride) {
+      postedAfter = sinceOverride.slice(0, 10);
+    } else if (incremental) {
+      // Use the latest *non-future* postedDate as the incremental floor.
+      // Regulations.gov occasionally returns dockets with a postedDate in the
+      // future; taking a raw MAX(posted_date) lets one such row poison the
+      // watermark and stall every subsequent sync (observed 2026-06: floor stuck
+      // at 2026-12-13, fetching 1 doc/run). Ignoring future-dated rows keeps the
+      // floor sane, and a 2-day overlap re-captures late edits near the boundary.
+      const latest = await prisma.regulatoryDocket.findFirst({
+        where: { postedDate: { lte: new Date() } },
+        orderBy: { postedDate: 'desc' },
+        select: { postedDate: true },
+      });
+      if (latest?.postedDate) {
+        const floor = new Date(latest.postedDate);
+        floor.setUTCDate(floor.getUTCDate() - 2);
+        postedAfter = floor.toISOString().slice(0, 10);
+      }
+    }
+    console.log(`[reg-sync] postedAfter=${postedAfter} (incremental=${incremental})`);
+
+    const { count } = await ingestRange(prisma, postedAfter);
+
+    const elapsed = ((Date.now() - start) / 60_000).toFixed(1);
+    console.log(`[reg-sync] DONE in ${elapsed}m, ${count} documents synced`);
+    console.log(
+      `INGESTION_METRIC ${JSON.stringify({
+        source: 'sync-regulations',
+        rows_inserted: count,
+        rows_updated: 0,
+        error_count: 0,
+        duration_seconds: Math.round((Date.now() - start) / 1000),
+      })}`,
+    );
+  } finally {
+    await prisma.$disconnect();
   }
-  console.log(`[reg-sync] postedAfter=${postedAfter} (incremental=${incremental})`);
-
-  const { count } = await ingestRange(postedAfter);
-
-  const elapsed = ((Date.now() - start) / 60_000).toFixed(1);
-  console.log(`[reg-sync] DONE in ${elapsed}m, ${count} documents synced`);
-  console.log(
-    `INGESTION_METRIC ${JSON.stringify({
-      source: 'sync-regulations',
-      rows_inserted: count,
-      rows_updated: 0,
-      error_count: 0,
-      duration_seconds: Math.round((Date.now() - start) / 1000),
-    })}`,
-  );
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error('[reg-sync]', err);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

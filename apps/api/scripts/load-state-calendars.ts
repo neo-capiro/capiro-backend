@@ -26,7 +26,6 @@ import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
 const DATA_DIR = join(__dirname, '__data__');
 
 interface StateCalendarSeed {
@@ -57,84 +56,93 @@ function sameDate(a: Date | null, b: Date | null): boolean {
 }
 
 async function main() {
-  await runWithSyncRun(prisma as never, 'load-state-calendars', async () => {
-    const wanted = (process.env.STATE_CALENDAR_FILES ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const files = (
-      wanted.length
-        ? wanted
-        : readdirSync(DATA_DIR).filter((f) => /^state-session-calendars\..*\.json$/.test(f))
-    ).sort();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/load-state-calendars.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'load-state-calendars', async () => {
+      const wanted = (process.env.STATE_CALENDAR_FILES ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const files = (
+        wanted.length
+          ? wanted
+          : readdirSync(DATA_DIR).filter((f) => /^state-session-calendars\..*\.json$/.test(f))
+      ).sort();
 
-    let updated = 0;
-    let unchanged = 0;
-    let skippedNoSession = 0;
-    let errors = 0;
+      let updated = 0;
+      let unchanged = 0;
+      let skippedNoSession = 0;
+      let errors = 0;
 
-    for (const file of files) {
-      try {
-        const seed = JSON.parse(readFileSync(join(DATA_DIR, file), 'utf8')) as StateCalendarSeed;
-        const session = await prisma.stateSession.findFirst({
-          where: { state: seed.state, yearStart: seed.yearStart },
-          orderBy: { prior: 'asc' }, // prefer the non-prior row if both exist
-        });
-        if (!session) {
-          skippedNoSession++;
+      for (const file of files) {
+        try {
+          const seed = JSON.parse(readFileSync(join(DATA_DIR, file), 'utf8')) as StateCalendarSeed;
+          const session = await prisma.stateSession.findFirst({
+            where: { state: seed.state, yearStart: seed.yearStart },
+            orderBy: { prior: 'asc' }, // prefer the non-prior row if both exist
+          });
+          if (!session) {
+            skippedNoSession++;
+            console.log(
+              `[load-state-calendars] ${file}: no state_session row for (${seed.state}, yearStart=${seed.yearStart}) — skipped, not fabricated`,
+            );
+            continue;
+          }
+
+          const next = {
+            convene: parseDateOnly(seed.convene),
+            crossoverDate: parseDateOnly(seed.crossoverDate),
+            committeeCutoffDate: parseDateOnly(seed.committeeCutoffDate),
+            secondCommitteeCutoffDate: parseDateOnly(seed.secondCommitteeCutoffDate),
+          };
+          const changed =
+            !sameDate(next.convene, session.convene) ||
+            !sameDate(next.crossoverDate, session.crossoverDate) ||
+            !sameDate(next.committeeCutoffDate, session.committeeCutoffDate) ||
+            !sameDate(next.secondCommitteeCutoffDate, session.secondCommitteeCutoffDate) ||
+            session.calendarSource !== seed.calendarSource ||
+            session.calendarConfidence !== seed.calendarConfidence;
+
+          if (!changed) {
+            unchanged++;
+            continue;
+          }
+
+          await prisma.stateSession.update({
+            where: { id: session.id },
+            data: {
+              ...next,
+              calendarSource: seed.calendarSource,
+              calendarConfidence: seed.calendarConfidence,
+            },
+          });
+          updated++;
           console.log(
-            `[load-state-calendars] ${file}: no state_session row for (${seed.state}, yearStart=${seed.yearStart}) — skipped, not fabricated`,
+            `[load-state-calendars] ${file}: updated ${seed.state} session ${session.id}`,
           );
-          continue;
+        } catch (err) {
+          errors++;
+          console.error(`[load-state-calendars] ${file} failed:`, err);
         }
-
-        const next = {
-          convene: parseDateOnly(seed.convene),
-          crossoverDate: parseDateOnly(seed.crossoverDate),
-          committeeCutoffDate: parseDateOnly(seed.committeeCutoffDate),
-          secondCommitteeCutoffDate: parseDateOnly(seed.secondCommitteeCutoffDate),
-        };
-        const changed =
-          !sameDate(next.convene, session.convene) ||
-          !sameDate(next.crossoverDate, session.crossoverDate) ||
-          !sameDate(next.committeeCutoffDate, session.committeeCutoffDate) ||
-          !sameDate(next.secondCommitteeCutoffDate, session.secondCommitteeCutoffDate) ||
-          session.calendarSource !== seed.calendarSource ||
-          session.calendarConfidence !== seed.calendarConfidence;
-
-        if (!changed) {
-          unchanged++;
-          continue;
-        }
-
-        await prisma.stateSession.update({
-          where: { id: session.id },
-          data: {
-            ...next,
-            calendarSource: seed.calendarSource,
-            calendarConfidence: seed.calendarConfidence,
-          },
-        });
-        updated++;
-        console.log(`[load-state-calendars] ${file}: updated ${seed.state} session ${session.id}`);
-      } catch (err) {
-        errors++;
-        console.error(`[load-state-calendars] ${file} failed:`, err);
       }
-    }
 
-    console.log(
-      `[load-state-calendars] ${files.length} seed file(s): ${updated} updated, ${unchanged} unchanged, ${skippedNoSession} skipped (no matching session), ${errors} errors`,
-    );
-    return { updated, unchanged, skippedNoSession, errors };
-  });
+      console.log(
+        `[load-state-calendars] ${files.length} seed file(s): ${updated} updated, ${unchanged} unchanged, ${skippedNoSession} skipped (no matching session), ${errors} errors`,
+      );
+      return { updated, unchanged, skippedNoSession, errors };
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }

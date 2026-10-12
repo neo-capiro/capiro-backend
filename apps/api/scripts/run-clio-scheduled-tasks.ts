@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Meri scheduled-task runner (W3 → W4: real read-only research).
@@ -760,9 +761,21 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
 }
 
 if (require.main === module) {
-  void runScheduledTasks().catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('[run-meri-scheduled-tasks] FAILED', err);
-    process.exit(1);
-  });
+  const usage = 'Usage: run-clio-scheduled-tasks [--commit | --dry-run] [--help] (requires DATABASE_URL)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+  } else if (args.length > 1 || (args.length === 1 && !['--commit', '--dry-run'].includes(args[0]!))) {
+    console.error(usage);
+    process.exitCode = 2;
+  } else if (!process.env.DATABASE_URL?.trim()) {
+    console.error(usage);
+    process.exitCode = 2;
+  } else {
+    void runScheduledTasks().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('[run-meri-scheduled-tasks] FAILED', err);
+      process.exit(1);
+    });
+  }
 }

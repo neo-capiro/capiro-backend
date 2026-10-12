@@ -154,7 +154,9 @@ describe('separate case46 governed capability', () => {
       clientId: p.clientId,
     };
     expect(describeMeriCase46ExportMismatch(p, input)).toEqual([]);
-    expect(describeMeriCase46ExportMismatch(p, { ...input, text: MERI_CASE46.text.trimEnd() })).toEqual([
+    expect(
+      describeMeriCase46ExportMismatch(p, { ...input, text: MERI_CASE46.text.trimEnd() }),
+    ).toEqual([
       'text differs from the source only in trailing whitespace: the source text ends with "\\n" and yours ends with ""; keep every other character unchanged',
     ]);
     expect(describeMeriCase46ExportMismatch(p, { ...input, text: 'Aster briefing' })).toEqual([

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Business Development Phase 5 — REAL PostgreSQL/Prisma integration rehearsal
  * for Discover candidate-search service/exclusion filtering, against the
@@ -592,9 +593,14 @@ async function rehearse(
 // ── Driver ────────────────────────────────────────────────────────────────
 
 async function orchestrate(): Promise<void> {
+  if (!process.env.BIZDEV_DISCOVER_REHEARSAL_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/ops/rehearse-bizdev-discover-filters.ts requires BIZDEV_DISCOVER_REHEARSAL_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
   const url = requireRehearsalUrl(); // BEFORE PrismaClient construction
-  const prisma = new PrismaClient({ datasources: { db: { url } } });
   const f = makePlan();
+  const prisma = new PrismaClient({ datasources: { db: { url } } });
   try {
     const database = await prisma.$queryRaw<Array<{ name: string }>>`SELECT current_database() AS name`;
     assert(
@@ -706,6 +712,7 @@ async function orchestrate(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void orchestrate().then(
   () => {
     process.exitCode = 0;
@@ -715,3 +722,4 @@ void orchestrate().then(
     process.exitCode = 1;
   },
 );
+}

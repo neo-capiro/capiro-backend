@@ -1,9 +1,25 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveApprovedPreviewScope } from './outreach-phase6-approved-preview-maintenance.mjs';
+
+const usage =
+  'Usage: node scripts/verify-outreach-v3-phase4-6-combined.mjs (--run | --sha <head> | --help)';
+const argv = process.argv.slice(2);
+if (argv.length === 1 && argv[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+const runMode = argv.length === 1 && argv[0] === '--run';
+const shaMode = argv.length === 2 && argv[0] === '--sha' &&
+  argv[1].length > 0 && !argv[1].startsWith('--');
+if (!runMode && !shaMode) {
+  console.error(usage);
+  process.exit(2);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE3_BASE = 'b043a995928314f7085b7f9df94bdba02cee9640';
@@ -43,9 +59,7 @@ function assert(condition, message) {
 const exactHead = output('git', ['rev-parse', 'HEAD']);
 const previewMaintenanceBase = resolveApprovedPreviewScope(ROOT, exactHead)?.base;
 const repositoryWhitespaceBase = previewMaintenanceBase ?? 'origin/main';
-const requestedHead = process.argv.includes('--sha')
-  ? process.argv[process.argv.indexOf('--sha') + 1]
-  : null;
+const requestedHead = shaMode ? argv[1] : null;
 if (requestedHead)
   assert(exactHead === requestedHead, `HEAD_MISMATCH:${exactHead}:${requestedHead}`);
 
@@ -86,7 +100,7 @@ run('Phase 4 code verifier', 'pnpm', ['verify:outreach-v3-phase-4'], {
 run('Phase 5 code verifier', 'pnpm', ['verify:outreach-v3-phase-5'], {
   env: { OUTREACH_V3_PHASE5_SCOPE_END: PHASE5_HEAD },
 });
-run('Phase 6 code verifier', 'node', ['scripts/verify-outreach-v3-phase6-code.mjs'], {
+run('Phase 6 code verifier', 'node', ['scripts/verify-outreach-v3-phase6-code.mjs', '--run'], {
   env: { OUTREACH_V3_PHASE6_SCOPE_BASE: 'origin/main' },
 });
 run('API build', 'pnpm', ['--filter', '@capiro/api', 'build']);

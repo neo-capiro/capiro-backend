@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Read-only PE mark-coverage report (the "did we extract everything?" answer).
  *
@@ -55,11 +56,19 @@ const CHAMBER_MARKS: CoverageMark[] = [
 
 function buildDatabaseUrl(): void {
   if (process.env.DATABASE_URL) return;
+  if (!process.env.DB_USER || !process.env.DB_HOST || !process.env.DB_PORT || !process.env.DB_NAME) {
+    throw new Error('Database configuration requires DATABASE_URL or DB_USER, DB_HOST, DB_PORT and DB_NAME');
+  }
   const enc = encodeURIComponent(process.env.DB_PASSWORD ?? '');
   process.env.DATABASE_URL = `postgresql://${process.env.DB_USER}:${enc}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?schema=public&sslmode=require`;
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL && !(process.env.DB_HOST && process.env.DB_PORT && process.env.DB_USER && process.env.DB_NAME)) {
+    console.error('Usage: apps/api/scripts/report-pe-coverage.ts requires DATABASE_URL or DB_USER, DB_HOST, DB_PORT and DB_NAME (database configuration is required)');
+    process.exit(2);
+  }
+
   buildDatabaseUrl();
   const fyFilter = arg('fy') ? Number(arg('fy')) : null;
   const asJson = process.argv.includes('--json');
@@ -170,7 +179,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

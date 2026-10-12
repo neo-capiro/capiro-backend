@@ -54,7 +54,11 @@ describe('meriv3-catalog-availability (Lane A / A1 bounded helper)', () => {
 
     test('rejects a non-boolean complete/registryUnavailable', () => {
       expect(
-        parseManagedCatalogAvailability({ state: 'ok', complete: 'yes', registryUnavailable: false }),
+        parseManagedCatalogAvailability({
+          state: 'ok',
+          complete: 'yes',
+          registryUnavailable: false,
+        }),
       ).toBeNull();
       expect(
         parseManagedCatalogAvailability({ state: 'ok', complete: true, registryUnavailable: 1 }),
@@ -281,14 +285,16 @@ describe('meriv3-catalog-availability (Lane A / A1 bounded helper)', () => {
         requestedApps: ['hubspot'],
         nativeRequested: false,
       });
-      expect(deriveCatalogAvailabilityRelevance('Compare Airtable and monday.com rows').requestedApps)
-        .toEqual(['airtable', 'monday']);
+      expect(
+        deriveCatalogAvailabilityRelevance('Compare Airtable and monday.com rows').requestedApps,
+      ).toEqual(['airtable', 'monday']);
       expect(deriveCatalogAvailabilityRelevance('What is the weather?').requestedApps).toEqual([]);
     });
 
     test('flags native record requests only on explicit phrasing', () => {
-      expect(deriveCatalogAvailabilityRelevance('Look up our Capiro client records').nativeRequested)
-        .toBe(true);
+      expect(
+        deriveCatalogAvailabilityRelevance('Look up our Capiro client records').nativeRequested,
+      ).toBe(true);
       expect(deriveCatalogAvailabilityRelevance('Say hello').nativeRequested).toBe(false);
     });
 
@@ -304,9 +310,9 @@ describe('meriv3-catalog-availability (Lane A / A1 bounded helper)', () => {
         nativeRequested: false,
       });
       // A real record request is still recognized.
-      expect(deriveCatalogAvailabilityRelevance('Summarize our client records').nativeRequested).toBe(
-        true,
-      );
+      expect(
+        deriveCatalogAvailabilityRelevance('Summarize our client records').nativeRequested,
+      ).toBe(true);
     });
 
     test('an ordinary client question is relevant through the real plan/intent/attempt signals', () => {
@@ -516,7 +522,9 @@ describe('meriv3-catalog-availability (Lane A / A1 bounded helper)', () => {
         managedDispatchFailures: [{ appId: 'hubspot', name: 'HubSpot', reason: 'unavailable' }],
       };
       expect(meriCatalogAvailabilityReleaseNote(snapshot, relevance)).toContain('HubSpot');
-      expect(meriCatalogAvailabilityReleaseNote(snapshot, relevance)).toContain('were not consulted');
+      expect(meriCatalogAvailabilityReleaseNote(snapshot, relevance)).toContain(
+        'were not consulted',
+      );
     });
 
     test('release note is a bounded truthful limitation for a requested unavailable source', () => {
@@ -539,9 +547,9 @@ describe('meriv3-catalog-availability (Lane A / A1 bounded helper)', () => {
     });
 
     test('alreadyDisclosesCatalogAvailability detects the release marker', () => {
-      expect(alreadyDisclosesCatalogAvailability('Source note: HubSpot could not be reached.')).toBe(
-        true,
-      );
+      expect(
+        alreadyDisclosesCatalogAvailability('Source note: HubSpot could not be reached.'),
+      ).toBe(true);
       expect(alreadyDisclosesCatalogAvailability('A normal answer.')).toBe(false);
     });
 

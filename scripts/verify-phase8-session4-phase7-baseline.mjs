@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 */
 // Phase 8 Session 4 — narrow deterministic baseline for `apps/api typecheck:phase7`.
 //
 // WHY THIS EXISTS, rather than a waiver.

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Read-only Federal Business Profile dump (Funding Opportunities P21).
  *
@@ -37,6 +38,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if ('error' in args) {
+    console.error('Usage: diag-federal-business-profile --tenant=<uuid> --client=<uuid>');
     console.error(`FBP_ERR ${args.error}`);
     process.exitCode = 1;
     return;

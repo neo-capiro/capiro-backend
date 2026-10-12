@@ -42,6 +42,10 @@ export function computeArticleEncodingFix(
 
 async function main(): Promise<void> {
   dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-intel-article-encoding.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const commit = process.argv.includes('--commit');
   const prisma = new PrismaClient();
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * Runtime-only auth binding for the deterministic Phase 3 parity fixtures.
  *
@@ -27,7 +28,6 @@
  * printed; only opaque Clerk ids are written to the disposable fixture rows.
  */
 
-import { PrismaService } from '../src/prisma/prisma.service.js';
 import { buildFixturePlan } from './engagement-phase3-fixture-plan.js';
 
 const REMOTE_DB_ACK = 'i-understand-this-is-not-a-disposable-database';
@@ -80,6 +80,7 @@ async function main(): Promise<void> {
   assertDisposableDatabase();
   required('ENGAGEMENT_PHASE3_ADMIN_CLERK_USER_ID');
 
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
   const plan = buildFixturePlan();
   const users = new Map(plan.users.map((row) => [row.key, row]));
   const tenants = new Map(plan.tenants.map((row) => [row.key, row]));
@@ -124,8 +125,20 @@ async function main(): Promise<void> {
 }
 
 if (require.main === module) {
-  void main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+  const usage = 'Usage: tsx scripts/bind-engagement-phase3-auth-fixtures.ts (requires DATABASE_URL and ENGAGEMENT_PHASE3_ADMIN_CLERK_USER_ID)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+  } else if (args.length > 0) {
+    console.error(usage);
+    process.exitCode = 2;
+  } else if (!process.env.DATABASE_URL) {
+    console.error(usage);
     process.exitCode = 1;
-  });
+  } else {
+    void main().catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
+  }
 }

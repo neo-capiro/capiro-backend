@@ -51,6 +51,10 @@ const PROVENANCE: Phase6ProjectionProvenanceV1 = {
 };
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/phase6-producer-rehearsal.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   try {
     const positionResult = buildStagePositionProjectionV1(
@@ -198,7 +202,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
   process.exit(1);
 });
+}

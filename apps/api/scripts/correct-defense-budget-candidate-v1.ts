@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 10B-35c -- record that a NEW (corrected) candidate corrects an OLD
  * (tainted) candidate, one explicit named pair at a time. Never a bulk sweep.
@@ -71,6 +72,7 @@ function parseArgs(argv: string[]) {
 }
 
 async function main(): Promise<void> {
+  if (process.argv.length <= 2) console.error('Usage: correct-defense-budget-candidate-v1 --old-candidate-id <uuid> --new-candidate-id <uuid> --actor <id> --reason-file <path> [--commit]');
   const args = parseArgs(process.argv.slice(2));
   if (!fs.existsSync(args.reasonFile)) {
     console.error(`reason file not found: ${args.reasonFile}`);

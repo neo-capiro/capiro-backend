@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Phase 8 Session 11 — disposable-database rehearsal corpus.
  *
@@ -30,6 +31,17 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const appRoot = path.join(repoRoot, 'apps/defense-api');
+
+const usage = 'Usage: node scripts/seed-phase8-session11-corpus.mjs [--help] (requires DATABASE_URL for seeding)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (process.argv.length !== 2 || !process.env.DATABASE_URL?.trim()) {
+  console.error(usage);
+  process.exit(2);
+}
+
 const { PrismaClient } = require(path.join(appRoot, 'generated/prisma-client/index.js'));
 
 const sha = (seed) => createHash('sha256').update(`phase8-session11-rehearsal:${seed}`).digest('hex');

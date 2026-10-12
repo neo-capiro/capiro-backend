@@ -58,6 +58,10 @@ function parseArgs(): Args {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/bootstrap-capiro-admin.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseArgs();
   const secretKey = process.env.CLERK_SECRET_KEY;
   if (!secretKey) throw new Error('CLERK_SECRET_KEY is not set');
@@ -147,8 +151,10 @@ async function main() {
   );
 }
 
+if (require.main === module) {
 main().catch((err) => {
   // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
 });
+}

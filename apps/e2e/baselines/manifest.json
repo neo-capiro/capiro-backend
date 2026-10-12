@@ -1,0 +1,4938 @@
+{
+  "schema": "capiro.cleanup1.visual-baseline.v4",
+  "purpose": "regression-not-parity",
+  "note": "Committed regression baselines. Assert \"renders the same as before\", NOT Figma parity. Published ATOMICALLY (verified rename swap) from a fully-green whole-suite run over a byte-identified clean source.",
+  "source": {
+    "gitPresent": false,
+    "provenance": "CAPIRO_SOURCE_PROVENANCE",
+    "committedHeadSha": "c180165f212298fedd0d3136fcb1690d9bfb6e5b",
+    "treeHash": "bec2262f87eb8f5cde5cc232df72ada206dc7edb",
+    "measuredDirty": [],
+    "worktreeCleanAtCapture": true,
+    "capturingSha": "c180165f212298fedd0d3136fcb1690d9bfb6e5b",
+    "sourceFingerprint": "c1bf8a80e6cb6f15a7e500718c9407e70aa2cf71969cc2a4af4f8bec59fc3840",
+    "sourceFileCount": 2459,
+    "note": "complete measured source clean at capture; sourceFingerprint binds the rendered bytes"
+  },
+  "comparison": {
+    "maxDiffPixelRatio": 0.002,
+    "threshold": 0.2
+  },
+  "runtime": {
+    "capturedAt": "2026-10-09T16:36:49.535Z",
+    "os": "linux x64",
+    "node": "v24.20.0",
+    "browserVersion": "153.0.8010.12",
+    "launchedBrowser": {
+      "path": "/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+      "sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e",
+      "via": "proc:headless-shell",
+      "isHeadlessShell": true
+    },
+    "image": {
+      "ref": "mcr.microsoft.com/playwright@sha256:bc6ab0d6d44ff4826e4cb8c1e6d801e185bfc42bb0753f8e2a30efc70db054c7",
+      "digest": "sha256:bc6ab0d6d44ff4826e4cb8c1e6d801e185bfc42bb0753f8e2a30efc70db054c7"
+    },
+    "fonts": {
+      "source": "fc-list",
+      "count": 48,
+      "listSha256": "c02f4d63a97d0cdc0983c9de2a4c2ec291eefb49a1ee370355bdf0c1bc923114",
+      "files": [
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0419bt_.pfb",
+          "sha256": "0e15626ca60d95e49ac15352f5c7f1837eb6dc9b6a353357012ce54a5b37015c"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0582bt_.pfb",
+          "sha256": "9ecc1d370c5ee96c8b58d144d92a9fbeb416e2a33746f4ef86ed4e7490389dc6"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0583bt_.pfb",
+          "sha256": "708bbc1a259fbdf4f8c0fde683dd604f1e0677a72078567d70328f9a428248b7"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0611bt_.pfb",
+          "sha256": "69dd50c4078f8b7c3d50dedc85dec8e4316c0b4f86df1737c3af9b9b8aa51eef"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0632bt_.pfb",
+          "sha256": "c50fd6e717599f306b8b3261d309c56849f4366771c1983c875eabf46bc2b956"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0633bt_.pfb",
+          "sha256": "3e0c9ed37732c1ebcbed4e582fd70f5673ca415161396276097eca1cda87104b"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0648bt_.pfb",
+          "sha256": "8ac5bad34cad9b59b087eebfaf9087c16901b0761f7f9cc538f2f65567fc3959"
+        },
+        {
+          "path": "/usr/share/fonts/X11/Type1/c0649bt_.pfb",
+          "sha256": "0c3e189c6a52401c62c9fcde32f453a4dc95836d8c6e03fe8908100d854f3a83"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+          "sha256": "503af4a8b84d1079b8e2e358dc7f7a7fb8cb7a1f212f35eaef6782dbfc75a55e"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
+          "sha256": "a63f6153841e56ec9df1b31a54d98d3f41d8aaa1c3d8df30a33502296f5b8068"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/tlwg/Loma-Bold.otf",
+          "sha256": "16f3cdd73f47abf8bde2aafd9569b36388f6ae388e98088a77c3312fbaa98b80"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/tlwg/Loma-BoldOblique.otf",
+          "sha256": "d7e3ba82a6605b3e6f126d4a77b78cbf0694f17a5a79fb8e9709936234b04700"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/tlwg/Loma-Oblique.otf",
+          "sha256": "133e6af2dcdfea629bc734f2bbbbd7d66cff2040ffb0b197571740c23d87e3c6"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/tlwg/Loma.otf",
+          "sha256": "e14126fe603116a6da8fb54822e8521589983d17d78cae489e98faed4b2f4cd2"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont.otf",
+          "sha256": "2498b80f9664fef91e6988d7e082146a2082a7e7bb4a2deb2fbf9a365aa2970c"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont_csur.otf",
+          "sha256": "065b75985f258df8573371bd9bda0a37a39ac85a38b0062a37f15654c2eb7341"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont_jp.otf",
+          "sha256": "218eb241082aa4f47399f7c2058e25abffa8d081b312542bc91740681f006597"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont_jp_sample.otf",
+          "sha256": "80668b601ceffe8030eef4215e9148b9ddc5c3802e3dba86a306c76fc1f7f9d4"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont_sample.otf",
+          "sha256": "5b73116f46a3fc4726e4b2f0a51f9c163526444d55b8db88c4ab8ec9453fcb20"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont_upper.otf",
+          "sha256": "f9a49517cb5a06e02692b403bc21f96ea767128db52f089d31261a8968d3ace8"
+        },
+        {
+          "path": "/usr/share/fonts/opentype/unifont/unifont_upper_sample.otf",
+          "sha256": "68dfc1d34d533c8dada07a8dd84294635afdc4790904fa956ea735ca1d20c127"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+          "sha256": "503af4a8b84d1079b8e2e358dc7f7a7fb8cb7a1f212f35eaef6782dbfc75a55e"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+          "sha256": "9691040d4d89266db211cd9da1094cf1991beaaf5e01cc752bc1dab84d483534"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf",
+          "sha256": "7a5ded6ffe5ba84c7c478de521ad0653efae4d2b92b251216bc390c6022e91ac"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeMonoBoldOblique.ttf",
+          "sha256": "04d540f1fe223d24a391f1c50f98eab6529b2a8fa670d628fad7e8443224967b"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeMonoOblique.ttf",
+          "sha256": "c350255406bf9dd314c8261d49118b2d44c38d7c2555884eba43dffea7bd7313"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+          "sha256": "350badd6ab6a58e7fd7a0ea2ae0c10174941a08e1cd06b3c6010e10b3d5ae319"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+          "sha256": "e0a07c1e9495262c430fde74e80daadd0b2a353eb444a47b265c62f5a5836af5"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSansBoldOblique.ttf",
+          "sha256": "f26d93f22f70bd97270a6b5506497a8c9e84c64399343cf1c08a50e4016cf967"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf",
+          "sha256": "31f2e994c6bb0f6c8a8f1d27ae25b4b754ef072154220bb4db2a69e8e3d1193f"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSerif.ttf",
+          "sha256": "c57bf5de095af4e070c2acb5bce634316409ed4203b5098f4fdadb691dc7b3d2"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf",
+          "sha256": "f078f2ac5d38addc71e2c123d86584341360b5bf27bc1cf238574ebe4f5a0f4d"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSerifBoldItalic.ttf",
+          "sha256": "c59455ea29607bbf62b0cfdffdc118ade887acd86a68c2c9873fb1187b021e58"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/freefont/FreeSerifItalic.ttf",
+          "sha256": "775b2ed7b9026f288b60f2479e07ee8e3147daa89d75848f11eb21faab662070"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+          "sha256": "626655e94dd82f3f42549daf995c921b0915fa8ab1f4b839559e8892ea41d240"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationMono-BoldItalic.ttf",
+          "sha256": "15eb161953e3ecc7fc05a3fec8a59e0f4e0a54a4e375736adf8e98d65981f813"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationMono-Italic.ttf",
+          "sha256": "a71b2c25c89da05cf0e7c4dbba8d473fdead0b181ae56165217747d2c1f39215"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+          "sha256": "395fa5ab8d40c8eba390ced528744ea75a7f69aabf3e68b6f925ca0e39a27370"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+          "sha256": "3973aa5054fb467dd5627245d3dc82e37bf16fe075756156a570455871351582"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf",
+          "sha256": "c80fa7f2ffa0e01d4d8dcd6a6d1e43eda665222d1b4db597dde1174c456006cf"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf",
+          "sha256": "830c5fa600505fb4c1a271b4271c53c44bae43f492b2a240d0e98a3a7a380121"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+          "sha256": "4659bc0c58c5028dd488ec928d41d9265db43d9b669fc14ca8b0832daca7b144"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
+          "sha256": "9e66c25e20868756bf12eb24a520a4552727c9cd108f577f7ae33e3c0110e39c"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf",
+          "sha256": "379010e87421a883f7bbfa7936d23dfe0257a54ce850819b74556e9f2c615a8a"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf",
+          "sha256": "eaeaf7f2b12544ecde64290c1fa7ec403ff70fd58b313637b265400b20249242"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+          "sha256": "705903ae1382f0150f115d6f10a30f5b2f3d6ade649c474afe6366c39174fb65"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+          "sha256": "93cdc4ee9aa40e2afceecc63da0ca05ec7aab4bec991ece51a6b52389f48a477"
+        },
+        {
+          "path": "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+          "sha256": "79c18ebe7b811951e8311bad7103ebeae8c337ed9988ea69e8a78a66cfe029b9"
+        }
+      ]
+    },
+    "colorScheme": "light",
+    "mediaType": "screen",
+    "viewports": [
+      {
+        "name": "desktop-1440",
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "name": "tablet-1024",
+        "width": 1024,
+        "height": 1000
+      },
+      {
+        "name": "mobile-390",
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "locale": "en-US",
+    "timezone": "America/New_York",
+    "deviceScaleFactor": 1,
+    "reducedMotion": true,
+    "fixedClock": "2026-10-07T12:00:00.000Z",
+    "onboarding": {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "colorScheme": "light",
+      "mediaType": "screen",
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "deviceScaleFactor": 1,
+      "reducedMotion": true,
+      "fixedClock": "2026-10-07T12:00:00.000Z"
+    },
+    "renderContextObservations": {
+      "path": "/work/apps/e2e/reports/render-observations-17-1791562832426.json",
+      "observedCount": 368,
+      "problems": []
+    }
+  },
+  "runtimeKnown": true,
+  "counts": {
+    "captures": 348,
+    "projects": 3,
+    "routes": 105,
+    "redirects": 9,
+    "conditional": 6
+  },
+  "captures": [
+    {
+      "project": "desktop-1440",
+      "route": "/",
+      "kind": "route",
+      "file": "baselines/desktop-1440/root.png",
+      "sha256": "806d9f25a412eddfda0ad13c43b690cbb37cc6c7add3a670561c382285045658",
+      "bytes": 152424,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/actions",
+      "kind": "route",
+      "file": "baselines/desktop-1440/actions.png",
+      "sha256": "1eb2e621960196191bb0251893c19d2a00a3a510312631880cf0cec877bb29e9",
+      "bytes": 137353,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/admin/analyst-console",
+      "kind": "route",
+      "file": "baselines/desktop-1440/admin_analyst_console.png",
+      "sha256": "d36ad14bf66c53138a4a9751a75cbe469a01ace4786757668141b46eefef6188",
+      "bytes": 123466,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/admin/program-element/match-queue",
+      "kind": "route",
+      "file": "baselines/desktop-1440/admin_program_element_match_queue.png",
+      "sha256": "139fb1fa9e2c06357902e1ef3ea1466e48cd0e9b16c9f4ad8722c82a7cbd1424",
+      "bytes": 104319,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/admin/program-element/reconciliation",
+      "kind": "route",
+      "file": "baselines/desktop-1440/admin_program_element_reconciliation.png",
+      "sha256": "00ed904695425838e8b85f806c88640b22da0e0c246589d019a82b4df9f45cd8",
+      "bytes": 104636,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/bills/hr-2027-1234",
+      "kind": "route",
+      "file": "baselines/desktop-1440/bills_hr_2027_1234.png",
+      "sha256": "7a82dbadd1b4a65f1aedbb9316f11f2e5274a1d1575f40c6b5f164c044e9b859",
+      "bytes": 67781,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/clients",
+      "kind": "route",
+      "file": "baselines/desktop-1440/clients.png",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6",
+      "bytes": 147447,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/defense-budget-lifecycle",
+      "kind": "route",
+      "file": "baselines/desktop-1440/defense_budget_lifecycle.png",
+      "sha256": "e6a36edb9fff9db3085f9a2f104f748759c17a5ba20b87ee6dfc57efafa977dd",
+      "bytes": 147403,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/defense-budget-lifecycle/review-queue",
+      "kind": "route",
+      "file": "baselines/desktop-1440/defense_budget_lifecycle_review_queue.png",
+      "sha256": "bd6db6f74185640c6552d848b5e06128bb58c0c1642bfa0deb9db5306eac7fae",
+      "bytes": 104334,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/defense-budget-lifecycle/reviewed-partial",
+      "kind": "route",
+      "file": "baselines/desktop-1440/defense_budget_lifecycle_reviewed_partial.png",
+      "sha256": "c530ddb51c711647b8d05e5938222602158247db8a9dca768e45ed26a1c2dcd8",
+      "bytes": 118551,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/committee-staff",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_committee_staff.png",
+      "sha256": "7a35a19e65eb4ba6c297bfc446b2d2f73bc43613d9068a6471a07de06531dce3",
+      "bytes": 103434,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/committees/visual-committee-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_committees_visual_committee_0001.png",
+      "sha256": "e8fd0f6adcfc6013e1df2870dbb21e264cba67a695a8c212efb1af4bf33a64c9",
+      "bytes": 93403,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/congressional-staff",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_congressional_staff.png",
+      "sha256": "f2bc077e8101580ca4f95d06ca4c35638a8cd5ea8f7d3a73f1299a453b8e2c2f",
+      "bytes": 131696,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/department-of-war",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_department_of_war.png",
+      "sha256": "aabcdaae04975c758d2712db88ef7167cb4ce992be791e651f84b88e6923b44a",
+      "bytes": 119213,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/districts/VA/08",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_districts_VA_08.png",
+      "sha256": "5d7625dcd8eefb6086b1a4e9123da789e4eec95860b351a417ea920e1e6cdeef",
+      "bytes": 89796,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/members/visual-member-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_members_visual_member_0001.png",
+      "sha256": "2c9615c1537a2fc5e9e30b2f5614fb12efc1457869104e893dbabc7726f19ef4",
+      "bytes": 66524,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/people/visual-member-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_people_visual_member_0001.png",
+      "sha256": "2c9615c1537a2fc5e9e30b2f5614fb12efc1457869104e893dbabc7726f19ef4",
+      "bytes": 66524,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/staff/visual-staff-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_staff_visual_staff_0001.png",
+      "sha256": "e71f76a44296902c57cd002583e2cb673eb19952a296acd6f0d4a6a475e9510c",
+      "bytes": 66374,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/state-committees",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_state_committees.png",
+      "sha256": "4a4f903f4010f2c4f2e3ffb4dbb3f053beb88657d4c641356f4662be1338e4a5",
+      "bytes": 98889,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/state-committees/visual-state-committee-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_state_committees_visual_state_committee_0001.png",
+      "sha256": "30e472ed53dbcfde69611e0501a69adbe8882d58caec7f26eca23f03b5637af0",
+      "bytes": 132955,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/state-legislators",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_state_legislators.png",
+      "sha256": "37ecd5ade1e393abc3fc5a5de7325175ad0c257bc9efd100a547c34fa6ae6f00",
+      "bytes": 114155,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/state-legislators/ocd-person%2Fvisual-staff-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_state_legislators_ocd_person_2Fvisual_staff_0001.png",
+      "sha256": "a6e13de76b2d3e97c8181767fd5907b2a646f940e74cddc193465c4e00f4d3ce",
+      "bytes": 74992,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory/state-legislators/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/directory_state_legislators_visual_id_0001.png",
+      "sha256": "a6e13de76b2d3e97c8181767fd5907b2a646f940e74cddc193465c4e00f4d3ce",
+      "bytes": 74992,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/engagement/meetings",
+      "kind": "route",
+      "file": "baselines/desktop-1440/engagement_meetings.png",
+      "sha256": "a35f5732ba52e94457eaca00f548519a027d976038a9b8fda4ddc22fce129d41",
+      "bytes": 112168,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/engagement/outreach",
+      "kind": "route",
+      "file": "baselines/desktop-1440/engagement_outreach.png",
+      "sha256": "ecec78db1a43db861957ac06ca1fd4f38d669ebda18330d7bc332e61b23417a1",
+      "bytes": 90532,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/engagement/reports?period=current",
+      "kind": "route",
+      "file": "baselines/desktop-1440/engagement_reports_period_current.png",
+      "sha256": "20e64d8b6f7f9103afc69dac515ebba1ea5dc5553f22848cbec5820602b9b198",
+      "bytes": 117632,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/explorer",
+      "kind": "route",
+      "file": "baselines/desktop-1440/explorer.png",
+      "sha256": "65e7bbba02b346ead099a3be7db4b339f9bc9ae4cb7fd13f9cf53b924bab401e",
+      "bytes": 113088,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/help",
+      "kind": "route",
+      "file": "baselines/desktop-1440/help.png",
+      "sha256": "928a4171b3da9041ca52d4379d4c2f1dda588f9d38dc3b12b5fe348014fdb411",
+      "bytes": 73675,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence-center",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_center.png",
+      "sha256": "db8d8b27e71ea919835137d534d5bd5dcee35f3b685df4446f421edc52c4396b",
+      "bytes": 235625,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/bills/hr-2027-1234",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/intelligence_bills_hr_2027_1234.png",
+      "sha256": "eb49a93fbc12f90acf7f17c4fe2ec2f61c7d311f6ae6a2bb4c2b5ab66da97289",
+      "bytes": 129597,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/explorer?bill=hr-2027-1234",
+      "sentinelKey": "/explorer?bill=hr-2027-1234"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/changes",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_changes.png",
+      "sha256": "249bed4ea0d7265899a3580fe307b3771c64406ae8e8ad00f3194adc4a6e16b8",
+      "bytes": 71376,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/district-nexus",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_district_nexus.png",
+      "sha256": "14a2124b858edf3310525ca77d9102491cd965dc230ce21bc79d0428796344ad",
+      "bytes": 105854,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/federal-spending",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_federal_spending.png",
+      "sha256": "b7c23d72aba92b2356ca6eb732e6320b106b7b998805a6c7695540350d8a5d10",
+      "bytes": 101959,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/graph",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_graph.png",
+      "sha256": "416046065c7708f4b9959b1104f12c661e19b4b02c0ccdab6d5d4403cb23d5a9",
+      "bytes": 81834,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/hearing-watch/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_hearing_watch_visual_id_0001.png",
+      "sha256": "088c89ca868be6ed4213935601d6b60a3d50666278cf6633ebbf6856e7556fa2",
+      "bytes": 73577,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/hearing-watch/visual-session-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_hearing_watch_visual_session_0001.png",
+      "sha256": "088c89ca868be6ed4213935601d6b60a3d50666278cf6633ebbf6856e7556fa2",
+      "bytes": 73577,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/issues/DEF",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_issues_DEF.png",
+      "sha256": "0488b5c3512d63a8020b3f6fb3582a58b2d83b764db20851789ddf9e4d311f2a",
+      "bytes": 79616,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/opportunities",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_opportunities.png",
+      "sha256": "3f94420803dc53bdebcc702781165c0ba9d791e7179df4979a342852e439e178",
+      "bytes": 62051,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/opportunities/sam_gov/visual-opportunity-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/intelligence_opportunities_sam_gov_visual_opportunity_0001.png",
+      "sha256": "3f94420803dc53bdebcc702781165c0ba9d791e7179df4979a342852e439e178",
+      "bytes": 62051,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch",
+      "kind": "route",
+      "file": "baselines/desktop-1440/legiwatch.png",
+      "sha256": "c4716acbf02cbf909bd6b44d9e8281917b0678fb755c059d891dc48dfdc2f5d1",
+      "bytes": 122388,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch?tab=committees&jurisdiction=FL",
+      "kind": "route",
+      "file": "baselines/desktop-1440/legiwatch_tab_committees_jurisdiction_FL.png",
+      "sha256": "91ee6c12aa02585e33d6879cabc037e4843bc62cd8421c58ca3ad98c5d3e4b21",
+      "bytes": 113372,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch?tab=hearings",
+      "kind": "route",
+      "file": "baselines/desktop-1440/legiwatch_tab_hearings.png",
+      "sha256": "0e14492522152a9a610a9803f3fdc92f0de4e87ab202b24f86304fcd91d1cb97",
+      "bytes": 146957,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch/committees/FL/visual-state-committee-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/legiwatch_committees_FL_visual_state_committee_0001.png",
+      "sha256": "ae55b0844ef42ca83b6c8d03287986138f0ee8d1d5fbfff0211afaec413bd970",
+      "bytes": 191041,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch/committees/house-hasc",
+      "kind": "route",
+      "file": "baselines/desktop-1440/legiwatch_committees_house_hasc.png",
+      "sha256": "f558b14d2c5952099ecff20e935471c09145852af07d4b79aea503664fae4421",
+      "bytes": 181442,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch/hearings/visual-hearing-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/legiwatch_hearings_visual_hearing_0001.png",
+      "sha256": "bf1e761602f4ee44bfa472d9d2bac0341b63deff988afd6cece48ed4fd45c0f3",
+      "bytes": 142721,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/onboarding/subscribe",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/onboarding_subscribe.png",
+      "sha256": "1155ee69a7506ca3c8fd3b41f1cfd8d90a4549aac5f00e97d62f38716dedfb55",
+      "bytes": 152429,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/",
+      "sentinelKey": "/"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/planner",
+      "kind": "route",
+      "file": "baselines/desktop-1440/planner.png",
+      "sha256": "249f2d54d020af0ed7891d2eaaf1530ee36eefa5a519dcfbbbb65df3962d2495",
+      "bytes": 143190,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/planner/forms/visual-planner-token",
+      "kind": "route",
+      "file": "baselines/desktop-1440/planner_forms_visual_planner_token.png",
+      "sha256": "9d081dfaa8112ae596d74c8c4289772acb0441ff565f16face7e19f49c5a7bf7",
+      "bytes": 21142,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/portfolio",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/portfolio.png",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6",
+      "bytes": 147447,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements.png",
+      "sha256": "34f465a46e7362d7215e162a7fd4d08d94d12efc6abf8c60e7671aa2c6fe257d",
+      "bytes": 136496,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements?dest=actions",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_dest_actions.png",
+      "sha256": "01cdbd73d9c1317e4134465783287f5fc0db94f8de44759d480ade842d7c5a01",
+      "bytes": 110496,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements?dest=congressional",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_dest_congressional.png",
+      "sha256": "d0e0791c02509cdaec7300f32bd5acf84891ae9d83a114032c4a37727af38f52",
+      "bytes": 137156,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements?dest=explore",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_dest_explore.png",
+      "sha256": "8d85eef9ba994bd29c4fc661146ba5053399eeeb2c65571933045f8aff528373",
+      "bytes": 136400,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements?dest=movement",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_dest_movement.png",
+      "sha256": "04dc192c59ce8562dcce7713414497231009481064311a16798d972052355a00",
+      "bytes": 105947,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements?dest=portfolio",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_dest_portfolio.png",
+      "sha256": "7f36b9d7403558b26c6d55863a309c09ca782e4988ed6a015cb0f00c214f1dd9",
+      "bytes": 107051,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements/0605053A",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_0605053A.png",
+      "sha256": "53c5e38810e90e69bd83fbaa2cf1bc9d45aa8abadc7e73e22fc2ff6fc243fb39",
+      "bytes": 186330,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements/compare",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_compare.png",
+      "sha256": "25b5322a5db5a346843b3b57be937799b47da9b39b4129203925546aeac7b5e9",
+      "bytes": 160505,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements/contacts",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_contacts.png",
+      "sha256": "a0dd28a2b866a166f474773f4d94a6057682d82b8737e4dff3a9565db2b7e688",
+      "bytes": 89126,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements/coverage",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_coverage.png",
+      "sha256": "9d5a946fab696e04ee118c7ff5b05c730250a338f6ebf5de7d01451716f39376",
+      "bytes": 140478,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements/mark-up-monitor",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_mark_up_monitor.png",
+      "sha256": "8492f7b6365d0fee037ec21ec63d5ad541e290f32a6d8806c0180e664a30142f",
+      "bytes": 92095,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/program-elements/research",
+      "kind": "route",
+      "file": "baselines/desktop-1440/program_elements_research.png",
+      "sha256": "d6a4cd6aecc58573d2bb51381f0f395fb29f73ce29bdcaed33f576cba65523f9",
+      "bytes": 113524,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/radar",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/radar.png",
+      "sha256": "c4716acbf02cbf909bd6b44d9e8281917b0678fb755c059d891dc48dfdc2f5d1",
+      "bytes": 122388,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/legiwatch",
+      "sentinelKey": "/legiwatch"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/research-portfolios",
+      "kind": "route",
+      "file": "baselines/desktop-1440/research_portfolios.png",
+      "sha256": "2bc450d9fc9cc435481290387dface24eeb3463548bb679212c984682df0d10a",
+      "bytes": 94054,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/desktop-1440/research_portfolios_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "1894765cbacb829f2a2d6764c5165330efd34c80b41bd4e78dcd186669315290",
+      "bytes": 159708,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/reviews",
+      "kind": "route",
+      "file": "baselines/desktop-1440/reviews.png",
+      "sha256": "96374750d19df2c7015cebc4258f7d78d1a140298193b8fb98cec2b29d3b1497",
+      "bytes": 83088,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/ai-usage",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_ai_usage.png",
+      "sha256": "466cccb3e095aa7d91fae0390b4b042b9b4f9485f80b9474b7accd856f5188bb",
+      "bytes": 119177,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/billing",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_billing.png",
+      "sha256": "f67a4adfc6da4ad161f011c8a32a5b2efc74bbd037932ebb20996d84162913c3",
+      "bytes": 85948,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/branding",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_branding.png",
+      "sha256": "61d0efeffc94c3bb4c35f2cf0bad9fa1b9d86365bd645a0e423345da4cbde347",
+      "bytes": 89162,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/broadcasts",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_broadcasts.png",
+      "sha256": "9e9e92313cbb7de033f2a82df0a36a68dd0e50f90a2225da5f2821c35c122ff3",
+      "bytes": 102962,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/clients",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_clients.png",
+      "sha256": "a8e2a1b48d9dcd0322ae24cc01f98cabd0ea5b12a2f80b9202bc18d9b7d760b2",
+      "bytes": 87047,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/contact",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_contact.png",
+      "sha256": "c1f54e44fedc6e560a9a8491cf100f0151ec3df8fef19d68b59c947c16c4aa65",
+      "bytes": 101018,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/customers",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_customers.png",
+      "sha256": "52283805afab7e39c474eb2a921d9564b319f02346ba3944baa68679c9bfabea",
+      "bytes": 113050,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/integrations",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_integrations.png",
+      "sha256": "54c63385048e4a702925536bcb372017909afdf8dbcdb7b1048be2b93afbfef4",
+      "bytes": 170831,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/intelligence-mappings",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_intelligence_mappings.png",
+      "sha256": "7e6814652912f272deb6cb3d9814649f8b45d68e4b70a2f97b2f21b2f2bf219c",
+      "bytes": 125535,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/memory",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_memory.png",
+      "sha256": "05c1f2582eac327fc8b4f053d7fb45095095b667d56d228c021a7a69968bf654",
+      "bytes": 111129,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/personal",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_personal.png",
+      "sha256": "d226c6769ed07e4db1ba16088e1144c0c0433fe2c0573e0ed440cedf0b8d10bd",
+      "bytes": 136326,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/skills",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_skills.png",
+      "sha256": "b4a9b7b8709050dfe67773fffd30a7e0084924093ce0b85c0415dec571388278",
+      "bytes": 98248,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/team",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_team.png",
+      "sha256": "ce0e99c6bf206a06d8e044f28f8e8c9d39f5534d606ef7e40f44057be330f8eb",
+      "bytes": 83520,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings/tenants",
+      "kind": "route",
+      "file": "baselines/desktop-1440/settings_tenants.png",
+      "sha256": "530b8f52a664c3ae544c897a11aa1f371cc22bfa66595659b85d86e24906a02c",
+      "bytes": 88979,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies.png",
+      "sha256": "ac7af85f16db69edf4de736e8aed573157f3ce91e533683a809fabe7cd7b6d42",
+      "bytes": 120143,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34.png",
+      "sha256": "5b7fb32e27c74fd5953f67e56bca527e5eb2f82d8a1f99578bffeca967db1b84",
+      "bytes": 161468,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/export",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_export.png",
+      "sha256": "f6ac561aa2b015a293d6d4ea9e2f8faac2025fd7c14edf53698f2bb2d94097bb",
+      "bytes": 196483,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/history",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_history.png",
+      "sha256": "31d231af5942e18e6d538492c3cee3d27b947dc4f081bcaf7b16de99016380b1",
+      "bytes": 145465,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/phases",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_phases.png",
+      "sha256": "fa9ac85fe4dfe2557eb0677fd059157a051c343e092521cc8cf3ff39625846df",
+      "bytes": 160587,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/agents/proposals",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_agents_proposals.png",
+      "sha256": "7c3d16e4a3f731cfa90943152837b784bdfd7adab14fc7762f2d86fb8b54b0ac",
+      "bytes": 131954,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/agents/runs",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_agents_runs.png",
+      "sha256": "a1f9214c72005debd3fd73227451b3a06bc1582519f78848c40c6b802022b01e",
+      "bytes": 171982,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/context",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_context.png",
+      "sha256": "3dca9ab7f20940c0788c2e471d2a2f8c32f553d85d049f7cfbdc7f745a895b36",
+      "bytes": 184168,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/context/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_context_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "sha256": "eed0bee6e2d4c7c73cdeb45bbb3469a6a185f585e72ff689b67c760f982b5347",
+      "bytes": 168751,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/context/steward",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_context_steward.png",
+      "sha256": "bc544944855726ea2605c8e75abc90b549f49a3adf0806f1b4a111864e82e506",
+      "bytes": 126742,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/context/steward/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_context_steward_visual_id_0001.png",
+      "sha256": "b89d5f1bc68eafadf3cc8f5f867c91bdfa2d08e6e07e32744859d2246f2f17e7",
+      "bytes": 120570,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/context/upload",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_context_upload.png",
+      "sha256": "a50c74a589d870c18906c83e1b6ecd3375962e57861f664aafc707a2c1ce964b",
+      "bytes": 158858,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/new",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_new.png",
+      "sha256": "56f40c98715d65cfc9f2b886c8f55bf8655b7633f861945533d7124a3f0ee74d",
+      "bytes": 143095,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/strategies/phases",
+      "kind": "route",
+      "file": "baselines/desktop-1440/strategies_phases.png",
+      "sha256": "33eaaa587fc135dcabf1b8a2061a842bad08a8c76af40149046b09fa146ad217",
+      "bytes": 136664,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/desktop-1440/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "faa4ff26a08a4b5c4a41b7bb58f007a37077374a76d7e4ff2c2eede284b9b4cb",
+      "bytes": 149325,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/run",
+      "kind": "route",
+      "file": "baselines/desktop-1440/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_run.png",
+      "sha256": "3ed567d9ee633a6c95736a673c1ebd6499423f87005e63664631cce7a62dac52",
+      "bytes": 143123,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/documents",
+      "kind": "route",
+      "file": "baselines/desktop-1440/workspace_documents.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/desktop-1440/workspace_documents_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "bbb2837ff78512146994153d0ca1d2ca9cdf213eb8569e6182c7ca2628a16d50",
+      "bytes": 149035,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/documents/new",
+      "kind": "route",
+      "file": "baselines/desktop-1440/workspace_documents_new.png",
+      "sha256": "8d91a64e70ae4696ff9a284492dc8c67a040a64d7495f608b3045751ce871177",
+      "bytes": 104511,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/library",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace_library.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/new",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace_new.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/setup",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace_setup.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/shares",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace_shares.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/studio",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace_studio.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "kind": "redirect",
+      "file": "baselines/desktop-1440/workspace_studio_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2",
+      "bytes": 98862,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/admin",
+      "kind": "redirect",
+      "redirectTo": "/settings/team",
+      "sentinelKey": "/settings/team",
+      "file": "baselines/desktop-1440/redirect_admin.png",
+      "sha256": "ce0e99c6bf206a06d8e044f28f8e8c9d39f5534d606ef7e40f44057be330f8eb",
+      "bytes": 83520,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/capiro-admin",
+      "kind": "redirect",
+      "redirectTo": "/settings/tenants",
+      "sentinelKey": "/settings/tenants",
+      "file": "baselines/desktop-1440/redirect_capiro_admin.png",
+      "sha256": "530b8f52a664c3ae544c897a11aa1f371cc22bfa66595659b85d86e24906a02c",
+      "bytes": 88979,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/directory",
+      "kind": "redirect",
+      "redirectTo": "/directory/congressional-staff",
+      "sentinelKey": "/directory/congressional-staff",
+      "file": "baselines/desktop-1440/redirect_directory.png",
+      "sha256": "f2bc077e8101580ca4f95d06ca4c35638a8cd5ea8f7d3a73f1299a453b8e2c2f",
+      "bytes": 131696,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence",
+      "kind": "redirect",
+      "redirectTo": "/explorer",
+      "sentinelKey": "/explorer",
+      "file": "baselines/desktop-1440/redirect_intelligence.png",
+      "sha256": "65e7bbba02b346ead099a3be7db4b339f9bc9ae4cb7fd13f9cf53b924bab401e",
+      "bytes": 113088,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/client/11111111-1111-4111-8111-111111111111",
+      "kind": "redirect",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients",
+      "file": "baselines/desktop-1440/redirect_intelligence_client_11111111_1111_4111_8111_111111111111.png",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6",
+      "bytes": 147447,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/client/11111111-1111-4111-8111-111111111111/graph",
+      "kind": "redirect",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients",
+      "file": "baselines/desktop-1440/redirect_intelligence_client_11111111_1111_4111_8111_111111111111_graph.png",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6",
+      "bytes": 147447,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/intelligence/hearing-watch",
+      "kind": "redirect",
+      "redirectTo": "/legiwatch?tab=hearings",
+      "sentinelKey": "/legiwatch?tab=hearings",
+      "file": "baselines/desktop-1440/redirect_intelligence_hearing_watch.png",
+      "sha256": "0e14492522152a9a610a9803f3fdc92f0de4e87ab202b24f86304fcd91d1cb97",
+      "bytes": 146957,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/legiwatch/*",
+      "kind": "redirect",
+      "redirectTo": "/legiwatch?tab=hearings",
+      "sentinelKey": "/legiwatch?tab=hearings",
+      "file": "baselines/desktop-1440/redirect_legiwatch.png",
+      "sha256": "0e14492522152a9a610a9803f3fdc92f0de4e87ab202b24f86304fcd91d1cb97",
+      "bytes": 146957,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": "/settings",
+      "kind": "redirect",
+      "redirectTo": "/settings/personal",
+      "sentinelKey": "/settings/personal",
+      "file": "baselines/desktop-1440/redirect_settings.png",
+      "sha256": "d226c6769ed07e4db1ba16088e1144c0c0433fe2c0573e0ed440cedf0b8d10bd",
+      "bytes": 136326,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": null,
+      "obligation": "conditional_onboarding_subscribe_billing_enabled",
+      "kind": "conditional",
+      "file": "baselines/desktop-1440/conditional_onboarding_subscribe_billing_enabled.png",
+      "sha256": "e4031b3764b1f6f1293661eddfc1a1c693899bc23da0233282d8fa4b9632113e",
+      "bytes": 58136,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "desktop-1440",
+      "route": null,
+      "obligation": "conditional_bills_bill360_enabled",
+      "kind": "conditional",
+      "file": "baselines/desktop-1440/conditional_bills_bill360_enabled.png",
+      "sha256": "edd598ba87e750a86ad2e9858c5ab08b8eeca65e134c09391e931d141f1bf8f2",
+      "bytes": 124838,
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/",
+      "kind": "route",
+      "file": "baselines/tablet-1024/root.png",
+      "sha256": "3c49ccbdb424ec37406ebf3458a49b44e40a8bc16a2b975e486a8d85dafb4a36",
+      "bytes": 94438,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/actions",
+      "kind": "route",
+      "file": "baselines/tablet-1024/actions.png",
+      "sha256": "3f720bee54255411dcd32b7effd24381d37551330562d99a29e4b6013fd8099d",
+      "bytes": 111401,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/admin/analyst-console",
+      "kind": "route",
+      "file": "baselines/tablet-1024/admin_analyst_console.png",
+      "sha256": "fb40ca82016cf20f6f9a25ed9f50fe6852b408623d493a11c230910cda569efa",
+      "bytes": 98180,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/admin/program-element/match-queue",
+      "kind": "route",
+      "file": "baselines/tablet-1024/admin_program_element_match_queue.png",
+      "sha256": "778262a3dd3fdcec58db3f35b21301ec6ee1b3a32f4737251937a77a7e89d7fe",
+      "bytes": 78558,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/admin/program-element/reconciliation",
+      "kind": "route",
+      "file": "baselines/tablet-1024/admin_program_element_reconciliation.png",
+      "sha256": "bf4de613227caa8d222e6a839fc01c2bb240c9c8fb47fe51cdbc05494438e36c",
+      "bytes": 78980,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/bills/hr-2027-1234",
+      "kind": "route",
+      "file": "baselines/tablet-1024/bills_hr_2027_1234.png",
+      "sha256": "dc9d56ecfb20fecf14feb5e1ce53f6cc5b6e8db207c009d1918840fe04168d90",
+      "bytes": 37663,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/clients",
+      "kind": "route",
+      "file": "baselines/tablet-1024/clients.png",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38",
+      "bytes": 105296,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/defense-budget-lifecycle",
+      "kind": "route",
+      "file": "baselines/tablet-1024/defense_budget_lifecycle.png",
+      "sha256": "8a2b4009dbf395caa2c6bde80a26783b17e8aba509561af9c436008f63a7f302",
+      "bytes": 101910,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/defense-budget-lifecycle/review-queue",
+      "kind": "route",
+      "file": "baselines/tablet-1024/defense_budget_lifecycle_review_queue.png",
+      "sha256": "22e9e2115a7ba9e40af14c7ddbfdb719655ea045fb1249318b0907d8695d828d",
+      "bytes": 78807,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/defense-budget-lifecycle/reviewed-partial",
+      "kind": "route",
+      "file": "baselines/tablet-1024/defense_budget_lifecycle_reviewed_partial.png",
+      "sha256": "25304e0f90f7f2d68af75f48054672a5bbe1ea6be229fd6907a6540344e8e301",
+      "bytes": 94902,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/committee-staff",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_committee_staff.png",
+      "sha256": "cacc986120363e0260f1bcf43782d9c3eef790967d8df5da102dc93d1b0a94dc",
+      "bytes": 68975,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/committees/visual-committee-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_committees_visual_committee_0001.png",
+      "sha256": "e1d80dd82b06b22dbe7c58290da320f142ea58c1bb78cfdb47c1cd3e1bc4772d",
+      "bytes": 67541,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/congressional-staff",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_congressional_staff.png",
+      "sha256": "7ce1e08d791913a4b096fcd903e0f17636fdf89d1608a6e8850a2894d7cb9280",
+      "bytes": 96252,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/department-of-war",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_department_of_war.png",
+      "sha256": "753c06516997d4de267ff1b1dcc46ad10d02ab9ba34dcbbdb9daf16d376397ab",
+      "bytes": 85000,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/districts/VA/08",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_districts_VA_08.png",
+      "sha256": "ed9c093ce9e336b9dc3035662c1f7b7ea57a18ddbedcfeca6990545ad68a8474",
+      "bytes": 64299,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/members/visual-member-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_members_visual_member_0001.png",
+      "sha256": "5dab491dd2bf63b52661578a7b1809c883de0a4d8311145bbe6089e96fa3d0a8",
+      "bytes": 41879,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/people/visual-member-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_people_visual_member_0001.png",
+      "sha256": "5dab491dd2bf63b52661578a7b1809c883de0a4d8311145bbe6089e96fa3d0a8",
+      "bytes": 41879,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/staff/visual-staff-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_staff_visual_staff_0001.png",
+      "sha256": "124bcf86c5c470f02d153135e5d8bf129770a9217ab73aa3f064ae458fd16180",
+      "bytes": 41781,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/state-committees",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_state_committees.png",
+      "sha256": "cf8bd28e5b4bb2ea0cb78131e14ef94a85b7e8bfe730e014088da47f4449d61f",
+      "bytes": 64032,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/state-committees/visual-state-committee-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_state_committees_visual_state_committee_0001.png",
+      "sha256": "7d1138766c1819756cfa1d7cf2451f1a17c1a73de9d27dfeeecb148ff8baf3bc",
+      "bytes": 98445,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/state-legislators",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_state_legislators.png",
+      "sha256": "535accbee4d75d03671bf0f9806362a49427a57b89f8f43f360f7b493bb5ae12",
+      "bytes": 79048,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/state-legislators/ocd-person%2Fvisual-staff-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_state_legislators_ocd_person_2Fvisual_staff_0001.png",
+      "sha256": "9e42e3b16ca96fdc8de0b47efc6909532ce998d61153b3f3b0ca233008e467d8",
+      "bytes": 40937,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory/state-legislators/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/directory_state_legislators_visual_id_0001.png",
+      "sha256": "9e42e3b16ca96fdc8de0b47efc6909532ce998d61153b3f3b0ca233008e467d8",
+      "bytes": 40937,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/engagement/meetings",
+      "kind": "route",
+      "file": "baselines/tablet-1024/engagement_meetings.png",
+      "sha256": "0e24268312d9bd44d02f57a18a240a20fda6750abfe48901ac4d6b5f77f68284",
+      "bytes": 83002,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/engagement/outreach",
+      "kind": "route",
+      "file": "baselines/tablet-1024/engagement_outreach.png",
+      "sha256": "8eaab57bfccf6c54571a1dcd3d42ebec36e569443dff2fe42b0d2b274fa84665",
+      "bytes": 60533,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/engagement/reports?period=current",
+      "kind": "route",
+      "file": "baselines/tablet-1024/engagement_reports_period_current.png",
+      "sha256": "27d21a130da055c85f058080584c3c87e7cc7ccde0edf322f99b71783469adde",
+      "bytes": 88680,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/explorer",
+      "kind": "route",
+      "file": "baselines/tablet-1024/explorer.png",
+      "sha256": "88cc50ac4f32d82a8dd7cfa323762bc8ff78e1a9314e7ac6d2da1135312e45be",
+      "bytes": 84335,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/help",
+      "kind": "route",
+      "file": "baselines/tablet-1024/help.png",
+      "sha256": "838b681fab26f24909ea4f91578f458f8e78e6ade7b14a8b3c1625367b7fd40a",
+      "bytes": 48953,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence-center",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_center.png",
+      "sha256": "322959ab96595274a74424c5f15abc0af1288f0e8a85ee5714befe27737799b5",
+      "bytes": 201660,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/bills/hr-2027-1234",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/intelligence_bills_hr_2027_1234.png",
+      "sha256": "0f67e7f5e5952c31ed3844652b5dac16457141ef1cd4d9bf796b3817788fda27",
+      "bytes": 95323,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/explorer?bill=hr-2027-1234",
+      "sentinelKey": "/explorer?bill=hr-2027-1234"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/changes",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_changes.png",
+      "sha256": "6c138eb679e611050f1e6bfa028b9b83e86b4cbe6454269471480d2eb5f2d532",
+      "bytes": 46860,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/district-nexus",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_district_nexus.png",
+      "sha256": "4b9c8de2f29a90d376d6c06e9d1895c3daf7c9690105c561b1483a12b1dc5308",
+      "bytes": 75562,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/federal-spending",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_federal_spending.png",
+      "sha256": "31b767309ea49b18a841176e5b0a1b33bdf917392fcc85a31c183ceb9fd497fa",
+      "bytes": 76385,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/graph",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_graph.png",
+      "sha256": "c8509cd95875e1c0eb75e22b47afbe926cd2e14bcf1c7be0146507a991433fed",
+      "bytes": 56283,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/hearing-watch/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_hearing_watch_visual_id_0001.png",
+      "sha256": "e1f3717da9c1d4707875deb2468bd239180bcfb694ac5986abf3cce9d8aafaa7",
+      "bytes": 43483,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/hearing-watch/visual-session-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_hearing_watch_visual_session_0001.png",
+      "sha256": "e1f3717da9c1d4707875deb2468bd239180bcfb694ac5986abf3cce9d8aafaa7",
+      "bytes": 43483,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/issues/DEF",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_issues_DEF.png",
+      "sha256": "54472e48d2c211d3130e0f5c23a4b1d72a8e21429af3435f7c6a3b0692a54ee3",
+      "bytes": 53530,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/opportunities",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_opportunities.png",
+      "sha256": "d52771370e95482b81224e12e0512f410191bffa59abaa71552c35e5f8cc6045",
+      "bytes": 50986,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/opportunities/sam_gov/visual-opportunity-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/intelligence_opportunities_sam_gov_visual_opportunity_0001.png",
+      "sha256": "d52771370e95482b81224e12e0512f410191bffa59abaa71552c35e5f8cc6045",
+      "bytes": 50986,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch",
+      "kind": "route",
+      "file": "baselines/tablet-1024/legiwatch.png",
+      "sha256": "d609ba428765dd15eebdddc91c71a34568ab26b5dd4ab13b7c864b49e6b1d8d8",
+      "bytes": 84975,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch?tab=committees&jurisdiction=FL",
+      "kind": "route",
+      "file": "baselines/tablet-1024/legiwatch_tab_committees_jurisdiction_FL.png",
+      "sha256": "fbef29eb06f63567dbdc9e5bec1ac65f0e5fa6297a863513247144d926e01e81",
+      "bytes": 83334,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch?tab=hearings",
+      "kind": "route",
+      "file": "baselines/tablet-1024/legiwatch_tab_hearings.png",
+      "sha256": "18496cfa3eff11334230267b6e83db1088a967e1ed342ca0897555d598c9700a",
+      "bytes": 107027,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch/committees/FL/visual-state-committee-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/legiwatch_committees_FL_visual_state_committee_0001.png",
+      "sha256": "0e566d3d7a403a98502ddfa3797836c4e7155930ae4e041f8d22991adb3144ab",
+      "bytes": 120162,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch/committees/house-hasc",
+      "kind": "route",
+      "file": "baselines/tablet-1024/legiwatch_committees_house_hasc.png",
+      "sha256": "3dbc708af7bf050df05da4a8758682fa319325f34330f05ed5caf0a954b377a2",
+      "bytes": 118263,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch/hearings/visual-hearing-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/legiwatch_hearings_visual_hearing_0001.png",
+      "sha256": "587c2f28185ec2ffa451dc5f01ed9d2a3be3ae459e8a5c23fa69bf947e30e001",
+      "bytes": 111494,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/onboarding/subscribe",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/onboarding_subscribe.png",
+      "sha256": "8edb97c8bfb890087f77fee6546ae3b6cd46a1b5e44aa2bb93fe7dee8d7eabf1",
+      "bytes": 94461,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/",
+      "sentinelKey": "/"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/planner",
+      "kind": "route",
+      "file": "baselines/tablet-1024/planner.png",
+      "sha256": "82eca938b4535085f7bd239813969cf653b572550d5d6998f5f765d295cd042e",
+      "bytes": 108434,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/planner/forms/visual-planner-token",
+      "kind": "route",
+      "file": "baselines/tablet-1024/planner_forms_visual_planner_token.png",
+      "sha256": "13a3bac47a6fcb007d43092e1d2b58685cc3d13bf9b689f59fe156cd9f74dd51",
+      "bytes": 19734,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/portfolio",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/portfolio.png",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38",
+      "bytes": 105296,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements.png",
+      "sha256": "c6d6e465a0b64cc4bbd979f803bdb68f30308feade87409de13cb4d43244792e",
+      "bytes": 103501,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements?dest=actions",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_dest_actions.png",
+      "sha256": "f293a48715d4e322048c56b7ec4ad4183cb5b57bab2422b81ffea922b09cd66a",
+      "bytes": 81407,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements?dest=congressional",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_dest_congressional.png",
+      "sha256": "536e169e6e13b07109b410843d04b3dcefea6402d128cc621b9d4a5ff08e8026",
+      "bytes": 103444,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements?dest=explore",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_dest_explore.png",
+      "sha256": "c6d6e465a0b64cc4bbd979f803bdb68f30308feade87409de13cb4d43244792e",
+      "bytes": 103501,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements?dest=movement",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_dest_movement.png",
+      "sha256": "2e9d45c905d12b4eb6bb879cea2b99a55dbf68fe8eb59db9704203b01076cae2",
+      "bytes": 75688,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements?dest=portfolio",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_dest_portfolio.png",
+      "sha256": "8e075f21f5fc3f665d030da6f336cfc566e50faf981b5538af2efa2d52eb9e8b",
+      "bytes": 77091,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements/0605053A",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_0605053A.png",
+      "sha256": "2236de4f3b3a0e87e779d806eae3008a6527de8af3cd292b2c3b150b6ffa3197",
+      "bytes": 137114,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements/compare",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_compare.png",
+      "sha256": "fb83f77384c644ba6bc863d1acf7b20a5a009bfa80d6e2dc79474040b88266c5",
+      "bytes": 130968,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements/contacts",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_contacts.png",
+      "sha256": "b5f8de5ae82d18a0bb3be19204bda63aecfccad3ded1077c8c4201fcf290df70",
+      "bytes": 58761,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements/coverage",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_coverage.png",
+      "sha256": "c10a05421202b1cfce6d7dde1379d81fb4ad8ed2be52e4164f768e1bf02f7ad7",
+      "bytes": 105786,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements/mark-up-monitor",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_mark_up_monitor.png",
+      "sha256": "e86fc1c49081c806808c3b2194e1b8cc847790ce2105c9f202539446ca557972",
+      "bytes": 60366,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/program-elements/research",
+      "kind": "route",
+      "file": "baselines/tablet-1024/program_elements_research.png",
+      "sha256": "46acf6a6cf4ab37a53d68d9643d379bf927504cb3d583e5fe8377a83c044fc8d",
+      "bytes": 82507,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/radar",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/radar.png",
+      "sha256": "d609ba428765dd15eebdddc91c71a34568ab26b5dd4ab13b7c864b49e6b1d8d8",
+      "bytes": 84975,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/legiwatch",
+      "sentinelKey": "/legiwatch"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/research-portfolios",
+      "kind": "route",
+      "file": "baselines/tablet-1024/research_portfolios.png",
+      "sha256": "5ff916c22a6b03768950a38f650a23fcfbe68329a0ca9d7277ff4985ae45ebe4",
+      "bytes": 68190,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/tablet-1024/research_portfolios_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "71fc0642e1cc55e5bc8c34df7337870deb7a9a034635cd32315eea6c0783d1b7",
+      "bytes": 129427,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/reviews",
+      "kind": "route",
+      "file": "baselines/tablet-1024/reviews.png",
+      "sha256": "f2fd8b8bc72bad809b1f82a17f6396e054e5276fae0fd5a64eaaf362e9455f31",
+      "bytes": 57447,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/ai-usage",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_ai_usage.png",
+      "sha256": "9e1455978b5527cb8db596c91d270ff27563fce92a3110e6e37c3747a2874728",
+      "bytes": 92719,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/billing",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_billing.png",
+      "sha256": "fd7f3982cf44de8af60a2ef683541cecf3cf891c68e710948fc247c7f497663b",
+      "bytes": 58578,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/branding",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_branding.png",
+      "sha256": "d26b4feaeeb3a724255b9db5811041971ab544389ed3be61f2dd31de67a0a88c",
+      "bytes": 62506,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/broadcasts",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_broadcasts.png",
+      "sha256": "71b7634b6d0a5f2cd14aab54257ed410f393ab5b21475da6e80b70feba162487",
+      "bytes": 76460,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/clients",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_clients.png",
+      "sha256": "c8aed18a66f4dfc6d3af378e675fcba1d162768a9a5ef99c37688ffc49c7266d",
+      "bytes": 59963,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/contact",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_contact.png",
+      "sha256": "018cff67f64db6195e090f9ee5769aa8dd632a63427cc2ea4b8998b808d0f35a",
+      "bytes": 71814,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/customers",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_customers.png",
+      "sha256": "597ce271b3090a8a4804274bccf2fe94387728d83072c06fb421916046c76dd7",
+      "bytes": 85738,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/integrations",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_integrations.png",
+      "sha256": "d6451ea11ffe7f25428742e9cfbc06662493df9b324284ecda73d07547cb2457",
+      "bytes": 126354,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/intelligence-mappings",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_intelligence_mappings.png",
+      "sha256": "a9f535411f309fddb742a86030c125b6f678ea03d994ff226ac11194a8a5c68e",
+      "bytes": 100836,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/memory",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_memory.png",
+      "sha256": "6ff8da14ee38b16d5df98136181633705b1db5d4ecc49852df296e5a04c24d13",
+      "bytes": 85075,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/personal",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_personal.png",
+      "sha256": "3939cffdb1b6c2428f48c195304ef922a7b2cd7801c790c880c503fc6b534bdf",
+      "bytes": 109463,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/skills",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_skills.png",
+      "sha256": "73ddaaf04d5de594a607134d0c31a4f2baed1d5cfb3597fb7b559d93f769b846",
+      "bytes": 71411,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/team",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_team.png",
+      "sha256": "1318a4b8887a81fa71674d55aedf188cb18124fe847657477bef899c87d9ff65",
+      "bytes": 56394,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings/tenants",
+      "kind": "route",
+      "file": "baselines/tablet-1024/settings_tenants.png",
+      "sha256": "2be2aaf6812836c83439070207e36097e984366c02d45d8cb6ebc11cb8cd9120",
+      "bytes": 60693,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies.png",
+      "sha256": "8a18ce885d1898008f10caea0272cd5939af3c8ded453026b466e2e6f3b33ee9",
+      "bytes": 88790,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34.png",
+      "sha256": "0a6fcd39ff348e7e753285406adc573baeb7745b0a082724a65c12535d0282a0",
+      "bytes": 119800,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/export",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_export.png",
+      "sha256": "679e7a4f507639eb189b23a6baa60d52163f333a1913c6bc901d2dc61ed71ea6",
+      "bytes": 137534,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/history",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_history.png",
+      "sha256": "1f5d4a37e1a619fb9111b7e5f18511ab6dfdd44b974c75cc031c6649300e2bba",
+      "bytes": 104157,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/phases",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_phases.png",
+      "sha256": "a3c868e2cbc4b79da4c14d3e649363add95c6b8a2937cab3b8d2da54dd6f0fb2",
+      "bytes": 105075,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/agents/proposals",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_agents_proposals.png",
+      "sha256": "4c99c99fc3a8b46d0ed08746491559922eb8cfaefe07677eb8e55997f246c4b6",
+      "bytes": 91512,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/agents/runs",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_agents_runs.png",
+      "sha256": "700d708866d080ac8f75ab3af2ace0281356a7371a815d9b281c1540603d562e",
+      "bytes": 110751,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/context",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_context.png",
+      "sha256": "b8858945db909a09cdfae6ba9fc75acd00c86556d7e3b562a394fa54643acb22",
+      "bytes": 112211,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/context/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_context_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "sha256": "8035175409e1d3a1a8dd7b9108c56be833a8973e9afbea368ff01357c4ee8ccc",
+      "bytes": 115318,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/context/steward",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_context_steward.png",
+      "sha256": "d22057dee1d35efdb055b960f878345d2e9c803ea5fe9c7038a095553e924897",
+      "bytes": 95444,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/context/steward/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_context_steward_visual_id_0001.png",
+      "sha256": "05cdb0f4b80b60fe8712ee3e76a6df3d46ff25f18428b538c012b51fd85b8320",
+      "bytes": 90593,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/context/upload",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_context_upload.png",
+      "sha256": "821c5f47a2d0b7a0bbed5f05e58f2b34dfe423c6b453c7b3da4e344d6bdd6379",
+      "bytes": 102271,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/new",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_new.png",
+      "sha256": "9cc545f0691ae93a0000e7af467466b6f782695f6ca33adab6749678b0a71d5b",
+      "bytes": 100174,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/strategies/phases",
+      "kind": "route",
+      "file": "baselines/tablet-1024/strategies_phases.png",
+      "sha256": "4f691bf9a060904f06907ee79c8962a0713302ec637927ffe1102ff288fec5dd",
+      "bytes": 95482,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/tablet-1024/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "eea8db695c41fa0bbcd66f055ba18e5c227587a608d41faf7318c804f38bca75",
+      "bytes": 90865,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/run",
+      "kind": "route",
+      "file": "baselines/tablet-1024/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_run.png",
+      "sha256": "eea8db695c41fa0bbcd66f055ba18e5c227587a608d41faf7318c804f38bca75",
+      "bytes": 90865,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/documents",
+      "kind": "route",
+      "file": "baselines/tablet-1024/workspace_documents.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/tablet-1024/workspace_documents_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "6b82897d923ff8c604279cd25454259c2e06c88642e95d37dfa1ebfcdc8acfb3",
+      "bytes": 104748,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/documents/new",
+      "kind": "route",
+      "file": "baselines/tablet-1024/workspace_documents_new.png",
+      "sha256": "c37c4215531949090517c5bceff727973c380138866da5610e8ec247825159c9",
+      "bytes": 70962,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/library",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace_library.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/new",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace_new.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/setup",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace_setup.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/shares",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace_shares.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/studio",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace_studio.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "kind": "redirect",
+      "file": "baselines/tablet-1024/workspace_studio_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4",
+      "bytes": 72216,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/admin",
+      "kind": "redirect",
+      "redirectTo": "/settings/team",
+      "sentinelKey": "/settings/team",
+      "file": "baselines/tablet-1024/redirect_admin.png",
+      "sha256": "1318a4b8887a81fa71674d55aedf188cb18124fe847657477bef899c87d9ff65",
+      "bytes": 56394,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/capiro-admin",
+      "kind": "redirect",
+      "redirectTo": "/settings/tenants",
+      "sentinelKey": "/settings/tenants",
+      "file": "baselines/tablet-1024/redirect_capiro_admin.png",
+      "sha256": "2be2aaf6812836c83439070207e36097e984366c02d45d8cb6ebc11cb8cd9120",
+      "bytes": 60693,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/directory",
+      "kind": "redirect",
+      "redirectTo": "/directory/congressional-staff",
+      "sentinelKey": "/directory/congressional-staff",
+      "file": "baselines/tablet-1024/redirect_directory.png",
+      "sha256": "7ce1e08d791913a4b096fcd903e0f17636fdf89d1608a6e8850a2894d7cb9280",
+      "bytes": 96252,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence",
+      "kind": "redirect",
+      "redirectTo": "/explorer",
+      "sentinelKey": "/explorer",
+      "file": "baselines/tablet-1024/redirect_intelligence.png",
+      "sha256": "15fa89823cb5990ec1a9988d4990c366101811a9f24430f695ace727b1b3b912",
+      "bytes": 84340,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/client/11111111-1111-4111-8111-111111111111",
+      "kind": "redirect",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients",
+      "file": "baselines/tablet-1024/redirect_intelligence_client_11111111_1111_4111_8111_111111111111.png",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38",
+      "bytes": 105296,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/client/11111111-1111-4111-8111-111111111111/graph",
+      "kind": "redirect",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients",
+      "file": "baselines/tablet-1024/redirect_intelligence_client_11111111_1111_4111_8111_111111111111_graph.png",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38",
+      "bytes": 105296,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/intelligence/hearing-watch",
+      "kind": "redirect",
+      "redirectTo": "/legiwatch?tab=hearings",
+      "sentinelKey": "/legiwatch?tab=hearings",
+      "file": "baselines/tablet-1024/redirect_intelligence_hearing_watch.png",
+      "sha256": "18496cfa3eff11334230267b6e83db1088a967e1ed342ca0897555d598c9700a",
+      "bytes": 107027,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/legiwatch/*",
+      "kind": "redirect",
+      "redirectTo": "/legiwatch?tab=hearings",
+      "sentinelKey": "/legiwatch?tab=hearings",
+      "file": "baselines/tablet-1024/redirect_legiwatch.png",
+      "sha256": "18496cfa3eff11334230267b6e83db1088a967e1ed342ca0897555d598c9700a",
+      "bytes": 107027,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": "/settings",
+      "kind": "redirect",
+      "redirectTo": "/settings/personal",
+      "sentinelKey": "/settings/personal",
+      "file": "baselines/tablet-1024/redirect_settings.png",
+      "sha256": "3939cffdb1b6c2428f48c195304ef922a7b2cd7801c790c880c503fc6b534bdf",
+      "bytes": 109463,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": null,
+      "obligation": "conditional_onboarding_subscribe_billing_enabled",
+      "kind": "conditional",
+      "file": "baselines/tablet-1024/conditional_onboarding_subscribe_billing_enabled.png",
+      "sha256": "abc80e354d6386437fe634bdc9dd32b4e1776851e99d8d25f4a52bc304d75c80",
+      "bytes": 55839,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "tablet-1024",
+      "route": null,
+      "obligation": "conditional_bills_bill360_enabled",
+      "kind": "conditional",
+      "file": "baselines/tablet-1024/conditional_bills_bill360_enabled.png",
+      "sha256": "dde4acb98b3195f2d288a1c7d2bd1e74524b653c9b4f7f5f5cafaf9f2538fa98",
+      "bytes": 95435,
+      "viewport": {
+        "width": 1024,
+        "height": 1000
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/",
+      "kind": "route",
+      "file": "baselines/mobile-390/root.png",
+      "sha256": "7c7bcddc45584c72794fb5a62553a0506a68f0a1ddba7a406ebf47b6206903e8",
+      "bytes": 55811,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/actions",
+      "kind": "route",
+      "file": "baselines/mobile-390/actions.png",
+      "sha256": "d7f265a1bc549f429abb840c35d04b240146f0af9c455a6e3df6c83fe58b857b",
+      "bytes": 74286,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/admin/analyst-console",
+      "kind": "route",
+      "file": "baselines/mobile-390/admin_analyst_console.png",
+      "sha256": "2d959c7882c185ec336bca686e88a392a120c4e880c5f2272f6fed57518abbd9",
+      "bytes": 70582,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/admin/program-element/match-queue",
+      "kind": "route",
+      "file": "baselines/mobile-390/admin_program_element_match_queue.png",
+      "sha256": "1d2fcbc010623a7b84aa7c86037c984a3e6e57df7682761eef0b279bc7114584",
+      "bytes": 57067,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/admin/program-element/reconciliation",
+      "kind": "route",
+      "file": "baselines/mobile-390/admin_program_element_reconciliation.png",
+      "sha256": "e3debb2820374e8a8dcef2b97388cb5244d3171b6bc8823908dde7b65add35ee",
+      "bytes": 56485,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/bills/hr-2027-1234",
+      "kind": "route",
+      "file": "baselines/mobile-390/bills_hr_2027_1234.png",
+      "sha256": "6af0acd0a0c5cd5a7f1043ba7966ee7023c9c819fc0079f47648e86dddbbc26e",
+      "bytes": 18867,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/clients",
+      "kind": "route",
+      "file": "baselines/mobile-390/clients.png",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750",
+      "bytes": 52300,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/defense-budget-lifecycle",
+      "kind": "route",
+      "file": "baselines/mobile-390/defense_budget_lifecycle.png",
+      "sha256": "b613a64df2a5a0ab5e610674fab3bdc685aef1f13514fb029f212a11480c1633",
+      "bytes": 49729,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/defense-budget-lifecycle/review-queue",
+      "kind": "route",
+      "file": "baselines/mobile-390/defense_budget_lifecycle_review_queue.png",
+      "sha256": "b07d95ef39a2db210970999902ffac9eee0a311b26ffa9730d6ee8845150a83f",
+      "bytes": 58475,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/defense-budget-lifecycle/reviewed-partial",
+      "kind": "route",
+      "file": "baselines/mobile-390/defense_budget_lifecycle_reviewed_partial.png",
+      "sha256": "83f6c6c44726fef8621776d2c0ec21e885188920788b634674e5aac3672c9c03",
+      "bytes": 63454,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/committee-staff",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_committee_staff.png",
+      "sha256": "db932526cfee742c1c780b4300eb755c5caf57ce0bd502e554c851a6199cf7c8",
+      "bytes": 48768,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/committees/visual-committee-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_committees_visual_committee_0001.png",
+      "sha256": "5505d836714c724e8850908f4e309b35ca1a53b60b578b1d4521a7dfb565c445",
+      "bytes": 49920,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/congressional-staff",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_congressional_staff.png",
+      "sha256": "fd4c186ea644d9a28d3740cf0001f2e6eb84e52b32d41e1bb92c265f683f702e",
+      "bytes": 60749,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/department-of-war",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_department_of_war.png",
+      "sha256": "52e10d2dd06694a4365a5000c8ca87b0680a072f7d7c3931ba8a47b45aa41493",
+      "bytes": 59307,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/districts/VA/08",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_districts_VA_08.png",
+      "sha256": "29281ab027ff642a78d35b9cd496c664777ef47a938c2008eac284fa50c6c9fb",
+      "bytes": 46171,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/members/visual-member-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_members_visual_member_0001.png",
+      "sha256": "13d0a3a2bbc64dc99833761a119ab8ceda7ed93f36d1321fca779984982e842f",
+      "bytes": 23650,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/people/visual-member-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_people_visual_member_0001.png",
+      "sha256": "13d0a3a2bbc64dc99833761a119ab8ceda7ed93f36d1321fca779984982e842f",
+      "bytes": 23650,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/staff/visual-staff-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_staff_visual_staff_0001.png",
+      "sha256": "bd5b59c2fd645879f58e0e45ebf4f78a65b6d9d3f1ed2b4cd994e5e044627a53",
+      "bytes": 23289,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/state-committees",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_state_committees.png",
+      "sha256": "77143997169af8708e681276e5e15741169718ac849cb5519567837d39302534",
+      "bytes": 42408,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/state-committees/visual-state-committee-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_state_committees_visual_state_committee_0001.png",
+      "sha256": "b6e876e050c7831ae73eb0c65a59a496c8f385c0410672c4d0c4f373603c1171",
+      "bytes": 53349,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/state-legislators",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_state_legislators.png",
+      "sha256": "766f06b82db55c2a70f0a25752ac555300415888d173461fea576fb990a26022",
+      "bytes": 55519,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/state-legislators/ocd-person%2Fvisual-staff-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_state_legislators_ocd_person_2Fvisual_staff_0001.png",
+      "sha256": "1eebc44f8087ca9ca68be90386b21da4ab2a95a6e4c79ad3585aee3da814fc68",
+      "bytes": 22331,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory/state-legislators/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/directory_state_legislators_visual_id_0001.png",
+      "sha256": "1eebc44f8087ca9ca68be90386b21da4ab2a95a6e4c79ad3585aee3da814fc68",
+      "bytes": 22331,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/engagement/meetings",
+      "kind": "route",
+      "file": "baselines/mobile-390/engagement_meetings.png",
+      "sha256": "f545dd8ded5f40a149ac025ab741e2467929da6e6021f8d0c2951b4a27e175ed",
+      "bytes": 54063,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/engagement/outreach",
+      "kind": "route",
+      "file": "baselines/mobile-390/engagement_outreach.png",
+      "sha256": "acefaaa6f8eee744cf8b93bb1cb987a97e81d49d148aa09fa9cc9f8e35a23f29",
+      "bytes": 42623,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/engagement/reports?period=current",
+      "kind": "route",
+      "file": "baselines/mobile-390/engagement_reports_period_current.png",
+      "sha256": "326fbbf304de4d0abd38507acadc8f4bcffa69f19663ff2c79968ebd3fc240fe",
+      "bytes": 52991,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/explorer",
+      "kind": "route",
+      "file": "baselines/mobile-390/explorer.png",
+      "sha256": "92036650686091889975d56aa67ee10e0819ba62b27c4d877361011f5ad24dec",
+      "bytes": 62399,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/help",
+      "kind": "route",
+      "file": "baselines/mobile-390/help.png",
+      "sha256": "8098e0b0e7aa6b431c5640a3c995355cb97bc979164d93c9300c4baddc2a54c8",
+      "bytes": 30082,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence-center",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_center.png",
+      "sha256": "82cd2ec385ed0767eadbf1005ab478625f06b11483d27ed8bf09f1422ae113a9",
+      "bytes": 118118,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/bills/hr-2027-1234",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/intelligence_bills_hr_2027_1234.png",
+      "sha256": "1e58a9c68886712ed5ea5efe620e782d4c44906b3bf83d7858ad3c1e5749a957",
+      "bytes": 57541,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/explorer?bill=hr-2027-1234",
+      "sentinelKey": "/explorer?bill=hr-2027-1234"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/changes",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_changes.png",
+      "sha256": "e7cbd2e845294aa8b5c51ce0eb6cb8c364277c150f2ad5bc6fd4f092a5356f17",
+      "bytes": 30863,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/district-nexus",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_district_nexus.png",
+      "sha256": "b54be2ef605f91f591f1ea6f07bed7997b698e709594ac8a5209b64af5d518c4",
+      "bytes": 41018,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/federal-spending",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_federal_spending.png",
+      "sha256": "0093c796611f6e2708b29dd20ecc1efff58dfe4fd4323bcbfbbfd916b7dc370e",
+      "bytes": 47304,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/graph",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_graph.png",
+      "sha256": "0ff7dc459ddafd6daa2aa299c57a186d8714a7fadf6cf6d3244bb462063b6533",
+      "bytes": 39022,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/hearing-watch/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_hearing_watch_visual_id_0001.png",
+      "sha256": "022309c05cb92dd56f59e3cdc9a5e1b412e4484b7816532ff937be89a61546cb",
+      "bytes": 23539,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/hearing-watch/visual-session-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_hearing_watch_visual_session_0001.png",
+      "sha256": "022309c05cb92dd56f59e3cdc9a5e1b412e4484b7816532ff937be89a61546cb",
+      "bytes": 23539,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/issues/DEF",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_issues_DEF.png",
+      "sha256": "f0630df31a71c9a880bdd1d7c0adf729560bad211b6a7c5e9a0869f3a73f060b",
+      "bytes": 35476,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/opportunities",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_opportunities.png",
+      "sha256": "2a3eb84f78e5b5855a5eef63327e94a9f262e9c912cd22fe64206a7d8acff472",
+      "bytes": 20191,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/opportunities/sam_gov/visual-opportunity-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/intelligence_opportunities_sam_gov_visual_opportunity_0001.png",
+      "sha256": "2a3eb84f78e5b5855a5eef63327e94a9f262e9c912cd22fe64206a7d8acff472",
+      "bytes": 20191,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch",
+      "kind": "route",
+      "file": "baselines/mobile-390/legiwatch.png",
+      "sha256": "d21dd6da3e40ddc55700b1cfa216ed809c65c912bb338ba5b117a368cc1093ba",
+      "bytes": 49744,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch?tab=committees&jurisdiction=FL",
+      "kind": "route",
+      "file": "baselines/mobile-390/legiwatch_tab_committees_jurisdiction_FL.png",
+      "sha256": "44b6fb6f08c9b40724b9812f9ed2132a25f17bf512bf07cad642c01b3f3942eb",
+      "bytes": 46975,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch?tab=hearings",
+      "kind": "route",
+      "file": "baselines/mobile-390/legiwatch_tab_hearings.png",
+      "sha256": "27e0e0005516ade3bd28219272c054f7bd99adfd090045f296c5849bd1991424",
+      "bytes": 46863,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch/committees/FL/visual-state-committee-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/legiwatch_committees_FL_visual_state_committee_0001.png",
+      "sha256": "5fdd0d50b588b4db0738716ff156302c431419dca07aef25839b99c8628fb92f",
+      "bytes": 46436,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch/committees/house-hasc",
+      "kind": "route",
+      "file": "baselines/mobile-390/legiwatch_committees_house_hasc.png",
+      "sha256": "aab06697ad9629eb87a4767eda5f6d891699f89b265dc799e0e278403ee4d868",
+      "bytes": 34250,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch/hearings/visual-hearing-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/legiwatch_hearings_visual_hearing_0001.png",
+      "sha256": "2be8c47393031e2b2114a084cc9cdc4b3203eb4d3c594d3525534905a4b9e620",
+      "bytes": 54365,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/onboarding/subscribe",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/onboarding_subscribe.png",
+      "sha256": "7c7bcddc45584c72794fb5a62553a0506a68f0a1ddba7a406ebf47b6206903e8",
+      "bytes": 55811,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/",
+      "sentinelKey": "/"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/planner",
+      "kind": "route",
+      "file": "baselines/mobile-390/planner.png",
+      "sha256": "2df659d158918c836d63a6cf0d48a402668a099cd148e36dfb9d5ae65b2508f9",
+      "bytes": 42191,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/planner/forms/visual-planner-token",
+      "kind": "route",
+      "file": "baselines/mobile-390/planner_forms_visual_planner_token.png",
+      "sha256": "968fca7b8fdf6768e1934b2ace92f30618beb9784350feaf81327fb8ed71f538",
+      "bytes": 16866,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/portfolio",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/portfolio.png",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750",
+      "bytes": 52300,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements.png",
+      "sha256": "73bee2bb0b809810765b6f0c7abf9c7d13670e7ed90d08514edd3892faa20c7e",
+      "bytes": 43200,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements?dest=actions",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_dest_actions.png",
+      "sha256": "15cb96a8a10b72228bd227c181a85262a6c7d8f23182ad5903f7a4b9a9e37f9c",
+      "bytes": 40047,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements?dest=congressional",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_dest_congressional.png",
+      "sha256": "aae29c23b761021eb08ffec46b6f989e3008daedd3a4c192e0896d4a904d51dd",
+      "bytes": 42508,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements?dest=explore",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_dest_explore.png",
+      "sha256": "73bee2bb0b809810765b6f0c7abf9c7d13670e7ed90d08514edd3892faa20c7e",
+      "bytes": 43200,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements?dest=movement",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_dest_movement.png",
+      "sha256": "88396ca75a0dba5345d37558eefd195bad63cec997c60ddcdc80e621420e0aff",
+      "bytes": 39131,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements?dest=portfolio",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_dest_portfolio.png",
+      "sha256": "41cb9ec3fc98ec92ef42decd115a2791b349f6b9dde9ba1607bd457d5b9bed64",
+      "bytes": 38664,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements/0605053A",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_0605053A.png",
+      "sha256": "4bda4e9320b29f2dca1499b5ead43334751f97fef43427e330a733381b77ff91",
+      "bytes": 61517,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements/compare",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_compare.png",
+      "sha256": "ba0b49790c6bb6cb18dc52bf19421e366c8e932b2b6814103f6cf0c295a24356",
+      "bytes": 80708,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements/contacts",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_contacts.png",
+      "sha256": "0512a52a4fc9c4e75f303bdbe4659718421d9a3f50817bf00a14b04ff3b40a53",
+      "bytes": 40031,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements/coverage",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_coverage.png",
+      "sha256": "9f56470b3de79c32a60ce63eb2f35324b653e6e590c0bcd3361673791610bbaa",
+      "bytes": 52889,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements/mark-up-monitor",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_mark_up_monitor.png",
+      "sha256": "20bd1f8cc77d06a78cb0044970b53e818c53e9f045ae31f38e17c64992937a0e",
+      "bytes": 41682,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/program-elements/research",
+      "kind": "route",
+      "file": "baselines/mobile-390/program_elements_research.png",
+      "sha256": "2abe3d1814d339c67e87434037e378603c512f4a0c0febf83d4bca96f9d15f25",
+      "bytes": 50620,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/radar",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/radar.png",
+      "sha256": "d21dd6da3e40ddc55700b1cfa216ed809c65c912bb338ba5b117a368cc1093ba",
+      "bytes": 49744,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/legiwatch",
+      "sentinelKey": "/legiwatch"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/research-portfolios",
+      "kind": "route",
+      "file": "baselines/mobile-390/research_portfolios.png",
+      "sha256": "b29f00c8f07669713b2474d64c99795cb4787df1bf6734b22416cc63847912fa",
+      "bytes": 50942,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/research-portfolios/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/mobile-390/research_portfolios_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "d4ec5b9dbcb3eaf4dac0e5f6dc797da933320a6e952937e27bf481f8a566afe8",
+      "bytes": 57890,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/reviews",
+      "kind": "route",
+      "file": "baselines/mobile-390/reviews.png",
+      "sha256": "bde793e0aaf8403808bcfa60c70dfeeb5b37de411d495acd7f67234b73e47103",
+      "bytes": 39834,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/ai-usage",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_ai_usage.png",
+      "sha256": "c53ff0f6763c7e6610538bfe6bcd30183c3ca4df91f400b3078fdceb441a88d2",
+      "bytes": 44136,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/billing",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_billing.png",
+      "sha256": "ed256b2237128987ac52f0d75c3d78f22791c3679dc145ef5427659ea0cce8e5",
+      "bytes": 36145,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/branding",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_branding.png",
+      "sha256": "fc2e6e3c808978e742b2ac978e6fdc31ee54157070945bf0d325d10f9c8330aa",
+      "bytes": 39115,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/broadcasts",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_broadcasts.png",
+      "sha256": "96518ea717fba99e797e193013b492c9edfec417ef69aa7b9745103c83269c31",
+      "bytes": 52357,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/clients",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_clients.png",
+      "sha256": "4244ff2396983403bc9d5821138286e35921644fdd55538f611f37a65f1e2cdf",
+      "bytes": 35596,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/contact",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_contact.png",
+      "sha256": "8c00b748723f6cb3bd4ba8225f05ed60225d6fab41c18155c86fdfa97183ace5",
+      "bytes": 40140,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/customers",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_customers.png",
+      "sha256": "ddd1753a4e3d2cad6eb41e2702b9e4e4426d8cef78fd8f48c3db2c979c89d75d",
+      "bytes": 50642,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/integrations",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_integrations.png",
+      "sha256": "d28ab4afbc3b7b1f202904f270412edf88190ccfad472a395993f20d59d2ad0c",
+      "bytes": 70262,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/intelligence-mappings",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_intelligence_mappings.png",
+      "sha256": "cd9d8bf5fe8f3c3c7564d0977439ff7bfd2a51e1a9ce8f74c9ce721a4c253dae",
+      "bytes": 49308,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/memory",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_memory.png",
+      "sha256": "389394a6c9b78c0ba8c2277e8b7e376a4c1e6c6f9eb5bacb08a23ff3cc52528b",
+      "bytes": 60150,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/personal",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_personal.png",
+      "sha256": "ef4b2270534152b0b31320853e99763ea34b2ed117c254fa45f1e24055775111",
+      "bytes": 44012,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/skills",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_skills.png",
+      "sha256": "a0fafc3f771a438d3f2af17144992b0f776690eec93b2e58bc1567532fc64529",
+      "bytes": 47400,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/team",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_team.png",
+      "sha256": "87855e1da4df289a068a01c1f182cce4af87b6426cc4e829af95440d05b1d556",
+      "bytes": 34884,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings/tenants",
+      "kind": "route",
+      "file": "baselines/mobile-390/settings_tenants.png",
+      "sha256": "7d64618212c417fb76b3225ca0f7a113ecdfc27978cd6a7d95560d81ca0ece13",
+      "bytes": 38161,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies.png",
+      "sha256": "eb7b246bcdac5353376bf99a9adc0aef9326cdbe8b1edfe972bf8f12bd34da9f",
+      "bytes": 53687,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34.png",
+      "sha256": "3314d5b75bef02ef248fded6d63e07732bb9556bf8e611115f5928cd02c100f6",
+      "bytes": 58337,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/export",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_export.png",
+      "sha256": "9ab455d06dc60f3eee918878d88287705f4afbd899867e00bab0f64c0ff0d8ea",
+      "bytes": 51678,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/history",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_history.png",
+      "sha256": "136de66a2a621b83ca4288b12ad46f1332a36cd5b4714e4d98657d217260508e",
+      "bytes": 29615,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34/phases",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_phases.png",
+      "sha256": "842d1c4ba33d812dbe9f38ea68409cbbde6cc6c1298d1523c2bd1b5acbbc2c5b",
+      "bytes": 50159,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/agents/proposals",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_agents_proposals.png",
+      "sha256": "aff2985f7ce9a5cf2fabdee8f06eb9ddea131bedc507e75af0be6d140d5ac4a8",
+      "bytes": 48818,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/agents/runs",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_agents_runs.png",
+      "sha256": "e320bf672ccf4d1f2a756f2e8d8aa965c92a53164d4a29b6c005ad8b83775fbe",
+      "bytes": 49630,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/context",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_context.png",
+      "sha256": "49765c9d94c8e96f3c95738ae6bf1790715102456b3e53a1d13162adccdf6ba4",
+      "bytes": 52800,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/context/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_context_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "sha256": "fb5cbdcecd6423bdd631a3bcea8ce5e9b96a9296f0b0b2dc3a58d1ba34518138",
+      "bytes": 53868,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/context/steward",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_context_steward.png",
+      "sha256": "40c9d79930849191004931b5f78d6f5de7e36735cc5b30cb551510e25bbc69b1",
+      "bytes": 46113,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/context/steward/visual-id-0001",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_context_steward_visual_id_0001.png",
+      "sha256": "534d40a763fc8127531c1a5a9fc5792e57bc2cc982704ce87c457a8fba06f945",
+      "bytes": 30525,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/context/upload",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_context_upload.png",
+      "sha256": "4bdf12b75db7b66f9731b7cdc9d74ad431cfa296e084ffd33ff3e231f08353dd",
+      "bytes": 52187,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/new",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_new.png",
+      "sha256": "87f1559ecf2ad6cf17142a95c17ea3c3041adf4b5697f68b27b92f2b08c31601",
+      "bytes": 48678,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/strategies/phases",
+      "kind": "route",
+      "file": "baselines/mobile-390/strategies_phases.png",
+      "sha256": "94bacd433ad3d31b7e790a1fd67858c992c33f8eac02a53ff18d0a8cd3829505",
+      "bytes": 48826,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/mobile-390/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "0560dcf88e7854ae7a179870faac381ac7d44be194fdc41515b6e4a1272f3ba2",
+      "bytes": 52813,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/run",
+      "kind": "route",
+      "file": "baselines/mobile-390/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_run.png",
+      "sha256": "0560dcf88e7854ae7a179870faac381ac7d44be194fdc41515b6e4a1272f3ba2",
+      "bytes": 52813,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/documents",
+      "kind": "route",
+      "file": "baselines/mobile-390/workspace_documents.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/documents/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40",
+      "kind": "route",
+      "file": "baselines/mobile-390/workspace_documents_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "sha256": "648ed9ee12898fcdff5985b3245c1d67f76e2cf9f28482ed44f7d90a75f7f20c",
+      "bytes": 51528,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/documents/new",
+      "kind": "route",
+      "file": "baselines/mobile-390/workspace_documents_new.png",
+      "sha256": "24d0b67b1f2e208f53122bc366ace421feccbf109d673f1bbbcb694c6a6e1254",
+      "bytes": 50635,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/library",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace_library.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/new",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace_new.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/setup",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace_setup.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/shares",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace_shares.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/studio",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace_studio.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/workspace/studio/d1e2f3a4-5b6c-4d1e-8f2a-9b0c1d2e3f40/9c8b7a60-1e2d-4c3b-8a5f-6d7e8a9b0c1d",
+      "kind": "redirect",
+      "file": "baselines/mobile-390/workspace_studio_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688",
+      "bytes": 45390,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity",
+      "redirectTo": "/workspace/documents",
+      "sentinelKey": "/workspace/documents"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/admin",
+      "kind": "redirect",
+      "redirectTo": "/settings/team",
+      "sentinelKey": "/settings/team",
+      "file": "baselines/mobile-390/redirect_admin.png",
+      "sha256": "87855e1da4df289a068a01c1f182cce4af87b6426cc4e829af95440d05b1d556",
+      "bytes": 34884,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/capiro-admin",
+      "kind": "redirect",
+      "redirectTo": "/settings/tenants",
+      "sentinelKey": "/settings/tenants",
+      "file": "baselines/mobile-390/redirect_capiro_admin.png",
+      "sha256": "7d64618212c417fb76b3225ca0f7a113ecdfc27978cd6a7d95560d81ca0ece13",
+      "bytes": 38161,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/directory",
+      "kind": "redirect",
+      "redirectTo": "/directory/congressional-staff",
+      "sentinelKey": "/directory/congressional-staff",
+      "file": "baselines/mobile-390/redirect_directory.png",
+      "sha256": "fd4c186ea644d9a28d3740cf0001f2e6eb84e52b32d41e1bb92c265f683f702e",
+      "bytes": 60749,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence",
+      "kind": "redirect",
+      "redirectTo": "/explorer",
+      "sentinelKey": "/explorer",
+      "file": "baselines/mobile-390/redirect_intelligence.png",
+      "sha256": "92036650686091889975d56aa67ee10e0819ba62b27c4d877361011f5ad24dec",
+      "bytes": 62399,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/client/11111111-1111-4111-8111-111111111111",
+      "kind": "redirect",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients",
+      "file": "baselines/mobile-390/redirect_intelligence_client_11111111_1111_4111_8111_111111111111.png",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750",
+      "bytes": 52300,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/client/11111111-1111-4111-8111-111111111111/graph",
+      "kind": "redirect",
+      "redirectTo": "/clients",
+      "sentinelKey": "/clients",
+      "file": "baselines/mobile-390/redirect_intelligence_client_11111111_1111_4111_8111_111111111111_graph.png",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750",
+      "bytes": 52300,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/intelligence/hearing-watch",
+      "kind": "redirect",
+      "redirectTo": "/legiwatch?tab=hearings",
+      "sentinelKey": "/legiwatch?tab=hearings",
+      "file": "baselines/mobile-390/redirect_intelligence_hearing_watch.png",
+      "sha256": "27e0e0005516ade3bd28219272c054f7bd99adfd090045f296c5849bd1991424",
+      "bytes": 46863,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/legiwatch/*",
+      "kind": "redirect",
+      "redirectTo": "/legiwatch?tab=hearings",
+      "sentinelKey": "/legiwatch?tab=hearings",
+      "file": "baselines/mobile-390/redirect_legiwatch.png",
+      "sha256": "27e0e0005516ade3bd28219272c054f7bd99adfd090045f296c5849bd1991424",
+      "bytes": 46863,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": "/settings",
+      "kind": "redirect",
+      "redirectTo": "/settings/personal",
+      "sentinelKey": "/settings/personal",
+      "file": "baselines/mobile-390/redirect_settings.png",
+      "sha256": "ef4b2270534152b0b31320853e99763ea34b2ed117c254fa45f1e24055775111",
+      "bytes": 44012,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": null,
+      "obligation": "conditional_onboarding_subscribe_billing_enabled",
+      "kind": "conditional",
+      "file": "baselines/mobile-390/conditional_onboarding_subscribe_billing_enabled.png",
+      "sha256": "df682826d81516feb28e7f92d227e6edcc2e4cbeafbd3af7b7acc0b0d3de4307",
+      "bytes": 50363,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    },
+    {
+      "project": "mobile-390",
+      "route": null,
+      "obligation": "conditional_bills_bill360_enabled",
+      "kind": "conditional",
+      "file": "baselines/mobile-390/conditional_bills_bill360_enabled.png",
+      "sha256": "7f0f5a1c15773ac9030bb22ca7e2e9322c778b5671e3f9f0cb60ab5aba701996",
+      "bytes": 57446,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "purpose": "regression-not-parity"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Package 4 federal legislative evidence worker.
  *
@@ -280,6 +281,11 @@ async function syncCollection(args: {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: sync-federal-legislative-evidence [--collection <name>] [--congress <n>] [--cap <n>] [--full] [--historical] [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+    return;
+  }
   const commit = process.argv.includes('--commit');
   const full = process.argv.includes('--full');
   const historical = process.argv.includes('--historical');

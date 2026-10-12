@@ -108,6 +108,11 @@ interface AuthorizationRowV1 {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/validate-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
   const environment = argValue('--environment');
   const planId = argValue('--plan-id');
@@ -167,7 +172,7 @@ async function main(): Promise<void> {
         ],
       };
       console.log(JSON.stringify(report, null, 2));
-      process.exit(3);
+      { process.exitCode = 3; return; }
     }
 
     record('plan_exists', 'blocking', true, `plan ${planId} loaded`);
@@ -371,13 +376,15 @@ async function main(): Promise<void> {
     };
 
     console.log(JSON.stringify(report, null, 2));
-    if (!valid) process.exit(3);
+    if (!valid) { process.exitCode = 3; return; }
   } finally {
     await prisma.$disconnect();
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('validate-defense-budget-promotion-v1 FAILED:', error);
   process.exit(1);
 });
+}

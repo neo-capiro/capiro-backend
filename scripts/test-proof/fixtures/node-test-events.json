@@ -1,0 +1,17 @@
+[
+  { "type": "test:start", "data": { "name": "suite", "nesting": 0 } },
+  { "type": "test:start", "data": { "name": "nested", "nesting": 1 } },
+  { "type": "test:start", "data": { "name": "deep one", "nesting": 2 } },
+  { "type": "test:pass", "data": { "name": "deep one", "nesting": 2, "testNumber": 1, "details": { "type": "test" } } },
+  { "type": "test:start", "data": { "name": "todo test", "nesting": 2 } },
+  { "type": "test:pass", "data": { "name": "todo test", "nesting": 2, "testNumber": 2, "todo": true, "details": { "type": "test" } } },
+  { "type": "test:pass", "data": { "name": "nested", "nesting": 1, "testNumber": 1, "details": { "type": "suite" } } },
+  { "type": "test:start", "data": { "name": "skipped one", "nesting": 1 } },
+  { "type": "test:pass", "data": { "name": "skipped one", "nesting": 1, "testNumber": 2, "skip": true, "details": { "type": "test" } } },
+  { "type": "test:start", "data": { "name": "duplicate name", "nesting": 1 } },
+  { "type": "test:pass", "data": { "name": "duplicate name", "nesting": 1, "testNumber": 3, "details": { "type": "test" } } },
+  { "type": "test:start", "data": { "name": "duplicate name", "nesting": 1 } },
+  { "type": "test:fail", "data": { "name": "duplicate name", "nesting": 1, "testNumber": 4, "details": { "type": "test" } } },
+  { "type": "test:pass", "data": { "name": "suite", "nesting": 0, "testNumber": 1, "details": { "type": "suite" } } },
+  { "type": "test:pass", "data": { "name": "some.spec.ts", "nesting": 0, "testNumber": 1, "details": { "type": "test" } } }
+]

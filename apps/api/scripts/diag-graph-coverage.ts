@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * diag-graph-coverage.ts — read-only baseline for the programs/people data-completion
  * plan: how much of the org/program/person graph is populated, by table + status.
@@ -9,6 +10,20 @@ import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/diag-graph-coverage.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exit(2);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   const q = async (sql: string): Promise<unknown> => {
@@ -129,7 +144,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((e) => {
   console.error('GRAPH_COVERAGE_ERR ' + (e instanceof Error ? e.message : String(e)));
   process.exit(1);
 });
+}

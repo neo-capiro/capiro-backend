@@ -5,11 +5,24 @@
  * populates the baseline when it is empty, so it never clobbers Capiro's
  * ops-verb edits (update-strategy-reference) or firm forks. Compiled to
  * dist/seed.js and invoked by the entrypoint `migrate` / `seed` verbs.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
-import { PrismaClient } from '../generated/prisma-client/index.js';
 import { buildBaselineEntries } from './reference/baseline.js';
 
+const usage = 'Usage: node dist/seed.js --run';
+const argv = process.argv.slice(2);
+if ((argv.length === 1 && argv[0] === '--help') ||
+    (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv.length !== 1 || argv[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
+
 async function main(): Promise<void> {
+  const { PrismaClient } = await import('../generated/prisma-client/index.js');
   const prisma = new PrismaClient();
   try {
     const existing = await prisma.spReferenceEntry.count();

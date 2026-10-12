@@ -12,8 +12,6 @@ dotenvConfig({ path: resolve(process.cwd(), '.env') });
 
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
 const POST_MEETING_MEMO_GUIDANCE = `Generate an internal post-meeting memo in Markdown. This is not a normal campaign email. Use context.metadata.campaignCurrentDateTimeDisplay as the Date / Time value. Use only the supplied client, recipient, meeting, debrief, email thread, and congressional directory context. If a requested fact is not present, omit that section. Do not leave bracket placeholders, variable tokens, or made-up details. Organize the memo in this order: Date/Time, Meeting Participants (with House/Senate subsections when applicable), Summary - Key Takeaways, Policy and Strategic Implications, House Staff Feedback, Senate Staff Feedback, Key Themes Identified, Risks / Concerns Raised, Opportunities Identified, Follow-Up Items and Next Steps, Strategic Assessment, Internal Notes. Only include sections supported by the source context.`;
 
 const SYSTEM_TEMPLATES = [
@@ -51,7 +49,8 @@ const SYSTEM_TEMPLATES = [
     name: 'Post-Meeting Memo',
     category: 'meeting',
     tone: 'formal',
-    description: 'Internal post-meeting memo built from client, meeting, debrief, and directory context.',
+    description:
+      'Internal post-meeting memo built from client, meeting, debrief, and directory context.',
     prompt: POST_MEETING_MEMO_GUIDANCE,
     samplePreview:
       '## Date / Time\n[Meeting date and time]\n\n# Meeting Participants\n### House\n[Participant names, titles, committees]...',
@@ -62,7 +61,7 @@ const SYSTEM_TEMPLATES = [
     tone: 'professional',
     description: 'Introductory outreach email connecting a client to a congressional office.',
     prompt:
-      'Write an introductory outreach email on behalf of a client to a congressional office. Briefly introduce who the client is and why they matter to the recipient\'s portfolio. Connect the client\'s work to the recipient\'s committee jurisdiction or district interests. End with a low-friction first ask, a 15-minute introductory call or brief meeting. Under 200 words.',
+      "Write an introductory outreach email on behalf of a client to a congressional office. Briefly introduce who the client is and why they matter to the recipient's portfolio. Connect the client's work to the recipient's committee jurisdiction or district interests. End with a low-friction first ask, a 15-minute introductory call or brief meeting. Under 200 words.",
     samplePreview:
       'Dear [Name], I am writing on behalf of [Client], a [description] that [value proposition]...',
   },
@@ -92,61 +91,70 @@ const SYSTEM_TEMPLATES = [
     tone: 'professional',
     description: 'Timely alert about a relevant policy development or bill movement.',
     prompt:
-      'Write a policy alert email informing the recipient of a relevant development. Open with the news (bill movement, funding change, regulatory action). Explain the impact on the recipient\'s jurisdiction or the client\'s program. Suggest a follow-up conversation if appropriate. Under 250 words.',
+      "Write a policy alert email informing the recipient of a relevant development. Open with the news (bill movement, funding change, regulatory action). Explain the impact on the recipient's jurisdiction or the client's program. Suggest a follow-up conversation if appropriate. Under 250 words.",
     samplePreview:
       'Dear [Name], I wanted to bring to your attention an important development: [news/event]...',
   },
 ];
 
 async function main() {
-  console.log('Seeding system outreach AI prompt templates...');
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/seed-outreach-ai-templates.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    console.log('Seeding system outreach AI prompt templates...');
 
-  const SYSTEM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+    const SYSTEM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 
-  for (const template of SYSTEM_TEMPLATES) {
-    const existing = await prisma.outreachAiTemplate.findFirst({
-      where: {
-        tenantId: SYSTEM_TENANT_ID,
-        userId: null,
-        name: template.name,
-      },
-    });
-
-    if (existing) {
-      await prisma.outreachAiTemplate.update({
-        where: { id: existing.id },
-        data: {
-          category: template.category,
-          tone: template.tone,
-          description: template.description,
-          prompt: template.prompt,
-          samplePreview: template.samplePreview,
-        },
-      });
-      console.log(`  Updated: ${template.name}`);
-    } else {
-      await prisma.outreachAiTemplate.create({
-        data: {
+    for (const template of SYSTEM_TEMPLATES) {
+      const existing = await prisma.outreachAiTemplate.findFirst({
+        where: {
           tenantId: SYSTEM_TENANT_ID,
           userId: null,
           name: template.name,
-          category: template.category,
-          tone: template.tone,
-          description: template.description,
-          prompt: template.prompt,
-          samplePreview: template.samplePreview,
         },
       });
-      console.log(`  Created: ${template.name}`);
-    }
-  }
 
-  console.log('Done.');
+      if (existing) {
+        await prisma.outreachAiTemplate.update({
+          where: { id: existing.id },
+          data: {
+            category: template.category,
+            tone: template.tone,
+            description: template.description,
+            prompt: template.prompt,
+            samplePreview: template.samplePreview,
+          },
+        });
+        console.log(`  Updated: ${template.name}`);
+      } else {
+        await prisma.outreachAiTemplate.create({
+          data: {
+            tenantId: SYSTEM_TENANT_ID,
+            userId: null,
+            name: template.name,
+            category: template.category,
+            tone: template.tone,
+            description: template.description,
+            prompt: template.prompt,
+            samplePreview: template.samplePreview,
+          },
+        });
+        console.log(`  Created: ${template.name}`);
+      }
+    }
+
+    console.log('Done.');
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((err) => {
+if (require.main === module) {
+  void main().catch((err) => {
     console.error(err);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

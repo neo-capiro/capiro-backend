@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 // Phase 8 Session 3 permanent verifier — Program Elements / Budget Lines /
 // Programs full-surface migration to apps/defense-api.
 //
@@ -20,6 +21,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+const usage = 'Usage: node scripts/verify-phase8-session3.mjs (no arguments runs the existing verifier)';
+const args = process.argv.slice(2);
+if (args.length === 1 && args[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 0) {
+  console.error(usage);
+  process.exit(2);
+}
+console.error(usage);
 const root = process.cwd();
 const failures = [];
 const file = (relative) => path.join(root, relative);

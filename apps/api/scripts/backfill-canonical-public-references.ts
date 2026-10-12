@@ -33,9 +33,23 @@ const { values } = parseArgs({
   },
 });
 
+function usage(message: string): never {
+  console.error(
+    'usage: backfill-canonical-public-references --source <source> ' +
+      '[--after <cursor>] [--limit N] [--execute] [--dry-run] [--resume] [--max-pages N]',
+  );
+  console.error(`backfill-canonical-public-references: ${message}`);
+  process.exit(2);
+}
+
 function parseSource(value: string | undefined): CanonicalPublicReferenceSource {
-  if (!value || !CANONICAL_PUBLIC_REFERENCE_SOURCES.includes(value as CanonicalPublicReferenceSource)) {
-    throw new Error(`--source is required and must be one of: ${CANONICAL_PUBLIC_REFERENCE_SOURCES.join(', ')}`);
+  if (!value) {
+    usage(`--source is required and must be one of: ${CANONICAL_PUBLIC_REFERENCE_SOURCES.join(', ')}`);
+  }
+  if (!CANONICAL_PUBLIC_REFERENCE_SOURCES.includes(value as CanonicalPublicReferenceSource)) {
+    throw new Error(
+      `--source is required and must be one of: ${CANONICAL_PUBLIC_REFERENCE_SOURCES.join(', ')}`,
+    );
   }
   return value as CanonicalPublicReferenceSource;
 }
@@ -59,6 +73,9 @@ function parseMaxPages(value: string | undefined): number {
 }
 
 async function main(): Promise<void> {
+  if (process.argv.length <= 2) {
+    usage('at least --source <source> is required');
+  }
   const source = parseSource(values.source);
   // AppModule validates web-only Clerk secrets. A database backfill CLI must not
   // require those unrelated application credentials just to read source rows.

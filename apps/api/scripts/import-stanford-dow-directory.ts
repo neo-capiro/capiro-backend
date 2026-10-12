@@ -1,14 +1,24 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import * as path from 'node:path';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-import { AcquisitionPersonnelWriterService } from '../src/acquisition-personnel/acquisition-personnel-writer.service.js';
-import { ProgramElementWriterService } from '../src/program-element/program-element-writer.service.js';
 
-import { importStanfordDowDirectory } from '../src/acquisition-personnel/importers/stanford-dow-importer.js';
-
+const usage = 'Usage: tsx scripts/import-stanford-dow-directory.ts --import';
+const args = process.argv.slice(2).filter((arg) => arg !== '--');
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (args.length !== 1 || args[0] !== '--import') {
+  console.error(usage);
+  process.exit(2);
+}
 dotenvConfig();
 
 async function main() {
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
+  const { AcquisitionPersonnelWriterService } = await import('../src/acquisition-personnel/acquisition-personnel-writer.service.js');
+  const { ProgramElementWriterService } = await import('../src/program-element/program-element-writer.service.js');
+  const { importStanfordDowDirectory } = await import('../src/acquisition-personnel/importers/stanford-dow-importer.js');
   const workbookPath = path.resolve('scripts/__fixtures__/dow_directory_full.xlsx');
 
   const prisma = new PrismaService();

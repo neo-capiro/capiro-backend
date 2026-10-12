@@ -24,9 +24,8 @@
     "test": "pnpm run test:jest && pnpm run test:constructs",
     "test:jest": "jest -c jest.jest-style.config.cjs",
     "test:constructs": "node scripts/run-construct-tests.cjs",
-
     "test:engagement-api": "node scripts/run-engagement-api-tests.mjs",
-    "synth:engagement-api:test": "node scripts/synth-engagement-api-test.mjs",
+    "synth:engagement-api:test": "node scripts/synth-engagement-api-test.mjs --run",
     "verify:engagement-api": "pnpm run typecheck && pnpm run test:engagement-api && pnpm run synth:engagement-api:test"
   },
   "dependencies": {

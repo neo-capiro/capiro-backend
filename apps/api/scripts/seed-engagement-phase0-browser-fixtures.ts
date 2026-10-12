@@ -24,10 +24,23 @@
  *   ENGAGEMENT_PHASE0_USER_CLERK_ID — Clerk user ID for the actor
  *   ENGAGEMENT_PHASE0_USER_EMAIL    — email of the actor
  *   ENGAGEMENT_PHASE0_FIXTURE_FILE  — path to write fixture IDs (JSON)
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 
 import { writeFile } from 'node:fs/promises';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+
+const usage = 'Usage: tsx scripts/seed-engagement-phase0-browser-fixtures.ts --run';
+const argv = process.argv.slice(2);
+if ((argv.length === 1 && argv[0] === '--help') ||
+    (argv.length === 2 && argv[0] === '--run' && argv[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (argv.length !== 1 || argv[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 // Fixed UUIDs for the fixture dataset
 const TENANT_ID = 'ea000000-0000-4000-8000-000000000001';

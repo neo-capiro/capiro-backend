@@ -225,6 +225,10 @@ function extractGovEntities(activities: LdaActivity[] | null | undefined): objec
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-lda.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const incremental = process.argv.includes('--incremental');
   const prisma = new PrismaClient();
   const t0 = Date.now();
@@ -783,7 +787,9 @@ async function main() {
   }
 }
 
+if (require.main === module) {
 main().catch((err) => {
   console.error('[lda-sync] FAILED', err);
   process.exit(1);
 });
+}

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 */
 /**
  * Funding Opportunities — offline producer for EXACT-IDENTIFIER federal
  * contractor mappings.
@@ -176,10 +177,15 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
-  void main().catch((err) => {
-    console.error('[contractor-identifiers] FAILED', err);
-    process.exit(1);
-  });
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: match-contractor-identifiers [--tenant=<uuid>] [--commit] (requires DATABASE_URL)');
+    process.exitCode = 2;
+  } else {
+    void main().catch((err) => {
+      console.error('[contractor-identifiers] FAILED', err);
+      process.exit(1);
+    });
+  }
 }
 
 export { main };

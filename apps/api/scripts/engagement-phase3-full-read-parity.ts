@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 /**
  * Phase 3 full UI-inventory read parity.
  *
@@ -30,9 +31,6 @@ const INVENTORY_FILE = path.join(
   ROOT,
   'apps/web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
 );
-const EVIDENCE = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
-const FIXTURE_FILE = required('ENGAGEMENT_PHASE3_FIXTURE_FILE');
-const TOKEN_FILE = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
 const MAIN_URL = process.env.ENGAGEMENT_PHASE3_MAIN_URL ?? 'http://127.0.0.1:4000';
 const SHADOW_URL = process.env.ENGAGEMENT_PHASE3_ENGAGEMENT_URL ?? 'http://127.0.0.1:4500';
 
@@ -89,6 +87,27 @@ async function requestOne(base: string, relative: string, token: string, shadow:
 }
 
 async function main(): Promise<void> {
+  const usage = 'Usage: engagement-phase3-full-read-parity [--help] (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    return;
+  }
+  if (args.length > 0) {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
+  if (!process.env.ENGAGEMENT_PHASE3_EVIDENCE_DIR?.trim() ||
+      !process.env.ENGAGEMENT_PHASE3_FIXTURE_FILE?.trim() ||
+      !process.env.ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE?.trim()) {
+    console.error(usage);
+    process.exitCode = 1;
+    return;
+  }
+  const EVIDENCE = required('ENGAGEMENT_PHASE3_EVIDENCE_DIR');
+  const FIXTURE_FILE = required('ENGAGEMENT_PHASE3_FIXTURE_FILE');
+  const TOKEN_FILE = required('ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE');
   const [inventoryRaw, fixturesRaw, tokenRaw] = await Promise.all([
     readFile(INVENTORY_FILE, 'utf8'),
     readFile(FIXTURE_FILE, 'utf8'),

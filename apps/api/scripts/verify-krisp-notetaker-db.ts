@@ -1,9 +1,21 @@
-import { PGlite } from '@electric-sql/pglite';
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 // Disposable embedded PostgreSQL only. Never reads application database credentials.
 async function main() {
+  const usage = 'Usage: tsx scripts/verify-krisp-notetaker-db.ts --verify';
+  const args = process.argv.slice(2).filter((arg) => arg !== '--');
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    console.log(usage);
+    return;
+  }
+  if (args.length !== 1 || args[0] !== '--verify') {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
+  const { PGlite } = await import('@electric-sql/pglite');
   const db = new PGlite();
   const tenant = '00000000-0000-4000-8000-000000000001';
   const c2 = '00000000-0000-4000-8000-000000000002';

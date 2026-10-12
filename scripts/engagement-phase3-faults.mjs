@@ -1,5 +1,8 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 */
 /** Pure deterministic fault catalog/controller for Phase 3 local resilience. */
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ACTIONS = new Set(['respond', 'malformed_json', 'partial_response', 'reset']);
 
@@ -100,4 +103,9 @@ export function phase3FaultJsonBody(fault) {
       message: `Phase 3 injected fault: ${fault.id}`,
     },
   );
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  console.error('Usage: node scripts/engagement-phase3-faults.mjs (no arguments loads the pure fault catalog)');
+  if (process.argv.length > 2) process.exit(2);
 }

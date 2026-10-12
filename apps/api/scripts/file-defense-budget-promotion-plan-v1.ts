@@ -93,6 +93,11 @@ function loadPlan(path: string): DefenseBudgetPromotionPlanV1 {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/file-defense-budget-promotion-plan-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const planPath = argValue('--plan-document');
   if (!planPath) usage('--plan-document <plan.json> is required');
   const commit = hasFlag('--commit');
@@ -141,7 +146,7 @@ async function main(): Promise<void> {
           2,
         ),
       );
-      process.exit(3);
+      { process.exitCode = 3; return; }
     }
 
     const replay = existing.length > 0;
@@ -163,7 +168,7 @@ async function main(): Promise<void> {
 
     if (!commit) {
       console.log(JSON.stringify(report, null, 2));
-      process.exit(0);
+      { process.exitCode = 0; return; }
     }
 
     if (!replay) {
@@ -194,13 +199,15 @@ async function main(): Promise<void> {
 
     report.filed = true;
     console.log(JSON.stringify(report, null, 2));
-    process.exit(0);
+    { process.exitCode = 0; return; }
   } finally {
     await prisma.$disconnect();
   }
 }
 
+if (require.main === module) {
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
+}

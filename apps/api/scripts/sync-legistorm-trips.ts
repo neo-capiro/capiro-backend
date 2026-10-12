@@ -306,6 +306,10 @@ function formatSummary(
 
 async function main(): Promise<void> {
   dotenvConfig();
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/sync-legistorm-trips.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const parsed = parseArgs(process.argv);
 
   const apiKey = (process.env.LEGISTORM_API_KEY ?? '').trim();

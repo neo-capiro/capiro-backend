@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 2 scope check — did a given commit range touch forbidden paths?
  *
@@ -35,6 +36,7 @@ export function filesInRange(base, head, cwd = process.cwd()) {
   const out = execFileSync('git', ['diff', '--name-only', `${base}`, `${head}`], {
     cwd,
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   });
   return out.split('\n').map((line) => line.trim()).filter(Boolean);
 }

@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 7 Gap 3 closeout — `authorize-defense-budget-promotion-v1` against a
  * real database (docs/defense-budget/PHASE-7-ARCHITECTURE-GAPS.md).
@@ -32,6 +33,13 @@ import {
 } from '../src/defense-budget/promotion/promotion-eligibility-v1.js';
 import { PrismaPromotionEligibilityPersistenceRepositoryV1 } from '../src/defense-budget/promotion/promotion-eligibility-authorization-repository-prisma-v1.js';
 
+async function main(): Promise<void> {
+  if (!process.env.ADMIN_DATABASE_URL || !process.env.APP_DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/pe-budget-phase7-gap3-authorize-rehearsal.ts requires ADMIN_DATABASE_URL, APP_DATABASE_URL (database configuration is required)');
+    process.exit(1);
+  }
+
+  class RehearsalFailure extends Error {}
 const ADMIN_URL = required('ADMIN_DATABASE_URL');
 const APP_URL = required('APP_DATABASE_URL');
 
@@ -50,7 +58,7 @@ function ok(message: string): void {
 }
 function fail(message: string): never {
   console.error(`[p7-gap3] FAILED: ${message}`);
-  process.exit(1);
+  throw new RehearsalFailure(message);
 }
 function check(condition: boolean, message: string): void {
   if (!condition) fail(message);
@@ -87,7 +95,8 @@ function runVerb(args: string[]): CliResultV1 {
   let report: Record<string, unknown>;
   try {
     report = JSON.parse(stdout) as Record<string, unknown>;
-  } catch {
+  } catch (rehearsalError) {
+    if (rehearsalError instanceof RehearsalFailure) throw rehearsalError;
     fail(`authorize stdout was not JSON: ${stdout.slice(0, 400)}`);
   }
   return { status: result.status ?? -1, report };
@@ -161,9 +170,10 @@ async function filePlan(
   return planHash;
 }
 
-async function main(): Promise<void> {
+
   const admin = new PrismaClient({ datasources: { db: { url: ADMIN_URL } } });
   try {
+
     await admin.$executeRawUnsafe(
       `INSERT INTO "defense_budget_canonical_snapshot"
          (id, snapshot_key, environment, cycle_id, fiscal_year, status,
@@ -179,7 +189,8 @@ async function main(): Promise<void> {
     let fkRefused = false;
     try {
       await filePlan(admin, 'plan-gap3-orphan', SHA('0'));
-    } catch {
+    } catch (rehearsalError) {
+    if (rehearsalError instanceof RehearsalFailure) throw rehearsalError;
       fkRefused = true;
     }
     check(
@@ -331,12 +342,17 @@ async function main(): Promise<void> {
     );
 
     console.log(`\n[p7-gap3] Gap 3 authorize rehearsal PASS (${passed} checks)`);
+
   } finally {
     await admin.$disconnect();
   }
-}
 
+
+
+}
+if (require.main === module) {
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
   process.exit(1);
 });
+}

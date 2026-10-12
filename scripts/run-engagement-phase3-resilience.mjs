@@ -2,11 +2,28 @@
 /**
  * Locate the Phase 3 disposable PostgreSQL container, run resilience, then
  * remove and verify the one retry-probe task before containment starts.
+ * @cleanup-smoke noArgsExit=2 helpExit=0
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const USAGE = 'Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cliArgs.length) {
+  console.error(USAGE);
+  console.error(`[phase3-resilience-runner] unknown argument: ${cliArgs.join(' ')}`);
+  process.exit(2);
+}
+if (['DATABASE_URL', 'ENGAGEMENT_PHASE3_EVIDENCE_DIR'].some((name) => !process.env[name]?.trim())) {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATABASE_URL = required('DATABASE_URL');

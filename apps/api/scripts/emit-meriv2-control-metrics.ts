@@ -33,6 +33,10 @@ interface BackfillRow {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-meriv2-control-metrics.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
@@ -137,4 +141,6 @@ function boundedErrorCode(error: unknown): string {
   return name.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_').slice(0, 80) || 'control_error';
 }
 
+if (require.main === module) {
 void main();
+}

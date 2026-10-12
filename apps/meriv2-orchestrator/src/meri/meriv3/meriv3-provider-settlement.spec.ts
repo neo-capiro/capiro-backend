@@ -42,7 +42,9 @@ describe('research provider settlement matches the API contract', () => {
       const body = { ...providerSettlementBody(reservation, outcome), leaseEpoch: 2 };
       expect(Object.keys(body).sort()).toEqual([...API_SETTLEMENT_KEYS].sort());
     }
-    expect([...PROVIDER_SETTLEMENT_KEYS, 'leaseEpoch'].sort()).toEqual([...API_SETTLEMENT_KEYS].sort());
+    expect([...PROVIDER_SETTLEMENT_KEYS, 'leaseEpoch'].sort()).toEqual(
+      [...API_SETTLEMENT_KEYS].sort(),
+    );
   });
 
   it('binds the settlement to the reserved operation and retry chain', () => {

@@ -30,6 +30,10 @@ const COMMIT = process.argv.includes('--commit');
 const RDTE = 'RDT&E';
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-appropriation-type.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
@@ -112,7 +116,9 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 void main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+}

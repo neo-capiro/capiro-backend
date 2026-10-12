@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=1 */
 import { execFileSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -186,4 +187,13 @@ function main() {
   console.log(`product_changed=${result.productChanged}`);
   console.log(`scope_base=${result.productChanged ? base : git(['rev-parse', 'HEAD']).trim()}`);
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  console.error('Usage: node scripts/outreach-v3-p1-change-scope.mjs --base <verified-ref>');
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    console.error('A verified PR base is required');
+    process.exit(1);
+  }
+  if (args.length !== 2 || args[0] !== '--base' || !args[1] || args[1].startsWith('-')) process.exit(2);
+  main();
+}

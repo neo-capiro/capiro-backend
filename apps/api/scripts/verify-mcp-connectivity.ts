@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Live connectivity check for the MCP connector path (connector-library v1).
  *
@@ -7,17 +8,13 @@
  * tools/list → bridge into Meri's namespaced tool surface → tools/call → wrap
  * result as untrusted data.
  *
- * Run:  pnpm --filter @capiro/api exec tsx scripts/verify-mcp-connectivity.ts
+ * Run:  pnpm --filter @capiro/api exec tsx scripts/verify-mcp-connectivity.ts --run
  * Override target: MCP_TEST_ENDPOINT=https://… (must be a no-auth public server)
  */
-import { createMcpClient } from '../src/meri/meri-mcp-transport.js';
-import {
-  bridgeMcpTool,
-  parseBridgedToolName,
-  wrapMcpResultForPrompt,
-} from '../src/meri/meri-mcp.helpers.js';
-
 async function main(): Promise<void> {
+  const { createMcpClient } = await import('../src/meri/meri-mcp-transport.js');
+  const { bridgeMcpTool, parseBridgedToolName, wrapMcpResultForPrompt } =
+    await import('../src/meri/meri-mcp.helpers.js');
   const endpoint = process.env.MCP_TEST_ENDPOINT ?? 'https://mcp.deepwiki.com/mcp';
   console.log(`[verify] connecting to public MCP server: ${endpoint}`);
 
@@ -61,7 +58,15 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error('[verify] FAILED:', err);
-  process.exit(1);
-});
+const usage = 'Usage: verify-mcp-connectivity (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+} else if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(usage);
+  process.exitCode = 2;
+} else {
+  main().catch((err) => {
+    console.error('[verify] FAILED:', err);
+    process.exit(1);
+  });
+}

@@ -1,9 +1,21 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveApprovedPreviewScope } from './outreach-phase6-approved-preview-maintenance.mjs';
 
+const usage = 'Usage: node scripts/verify-outreach-v3-phase4-6-final.mjs --sha <exact-head>';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length !== 2 || cliArgs[0] !== '--sha' || !/^[0-9a-f]{40}$/i.test(cliArgs[1])) {
+  console.error(usage);
+  process.exit(2);
+}
+const requestedSha = cliArgs[1];
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PHASE3_HEAD = 'b043a995928314f7085b7f9df94bdba02cee9640';
 const PHASE4_HEAD = '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
@@ -38,10 +50,9 @@ const previewMaintenanceBase = resolveApprovedPreviewScope(ROOT, head)?.base;
 // Same scope as the combined verifier: PHASE3_HEAD...HEAD carries thousands of
 // pre-existing whitespace errors from unrelated mainline work.
 const repositoryWhitespaceBase = previewMaintenanceBase ?? 'origin/main';
-const shaIndex = process.argv.indexOf('--sha');
-if (shaIndex !== -1 && process.argv[shaIndex + 1] !== head) {
+if (requestedSha !== head) {
   console.error(
-    `OUTREACH_V3_PHASE4_6_FINAL_FAILED:HEAD_MISMATCH:${process.argv[shaIndex + 1]}:${head}`,
+    `OUTREACH_V3_PHASE4_6_FINAL_FAILED:HEAD_MISMATCH:${requestedSha}:${head}`,
   );
   process.exit(1);
 }

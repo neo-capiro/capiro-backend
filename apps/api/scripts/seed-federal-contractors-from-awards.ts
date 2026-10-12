@@ -179,6 +179,10 @@ export async function seedFederalContractorsFromAwards(
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/seed-federal-contractors-from-awards.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseSeedArgs(process.argv.slice(2));
   const prisma = new PrismaClient();
   try {

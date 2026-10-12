@@ -62,6 +62,10 @@ function validateThisRun(): boolean {
 }
 
 async function main(): Promise<number> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/run-bizdev-watch.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const { values } = parseArgs({
     options: {
       'source-family': { type: 'string', multiple: true },
@@ -176,6 +180,7 @@ async function main(): Promise<number> {
 
 // main() resolves to the exit code; disconnect happens INSIDE main's
 // try/finally and process.exit runs only AFTER it completes.
+if (require.main === module) {
 void main().then(
   (code) => {
     process.exit(code);
@@ -185,3 +190,4 @@ void main().then(
     process.exit(1);
   },
 );
+}

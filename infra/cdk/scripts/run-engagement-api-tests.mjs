@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Runs every engagement-api-*.spec.ts file under infra/cdk/test/ through
  * ts-node, one at a time, and aggregates the result.
@@ -8,14 +9,25 @@
  * runner exists only to give `pnpm test:engagement-api` one command instead
  * of a fragile chain of `&&`-joined invocations in package.json.
  *
- * Usage: node scripts/run-engagement-api-tests.mjs
- * Exit: 0 every spec reported "# fail 0" · 1 at least one spec failed
+ * Usage: node scripts/run-engagement-api-tests.mjs --run
+ * Exit: 0 every spec reported "# fail 0" · 1 at least one spec failed · 2 unsupported arguments
  */
 import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const USAGE = 'Usage: node scripts/run-engagement-api-tests.mjs --run';
+const argv = process.argv.slice(2);
+if (argv.length === 1 && argv[0] === '--help') {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (argv.length !== 1 || argv[0] !== '--run') {
+  console.error(USAGE);
+  process.exit(2);
+}
 
 const CDK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEST_DIR = path.join(CDK_ROOT, 'test');

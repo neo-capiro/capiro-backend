@@ -66,6 +66,11 @@ function gitSha(): string {
 }
 
 function usage(message: string): never {
+  console.error(
+    'usage: authorize-defense-budget-promotion-v1 --plan-id <id> --reason <why> ' +
+      '--expires-at <ISO 8601> --authorizer-actor-id <id> --authorizer-roles <role[,role]> ' +
+      '[--authorization-id <id>] [--change-request-reference <ref>]',
+  );
   console.error(`authorize-defense-budget-promotion-v1: ${message}`);
   process.exit(2);
 }

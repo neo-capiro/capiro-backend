@@ -1,17 +1,31 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /** Execute the complete Phase 3 validation matrix outside GitHub Actions. */
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+const USAGE =
+  'Usage: tsx scripts/verify-pe-budget-phase-3-closeout.ts --run [--include-containers]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => !['--run', '--include-containers', '--help'].includes(arg));
+if (unknown.length > 0) {
+  console.error(`unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (!argv.includes('--run')) {
+  console.error(USAGE);
+  process.exit(2);
+}
+
 const API_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(API_ROOT, '..', '..');
 const PYTHON_ROOT = path.join(REPO_ROOT, 'apps', 'defense-budget-parser');
 const includeContainers = process.argv.includes('--include-containers');
-const unknown = process.argv.slice(2).filter((arg) => arg !== '--include-containers');
-if (unknown.length > 0) {
-  console.error(`unknown argument(s): ${unknown.join(', ')}`);
-  process.exit(2);
-}
 
 interface Command {
   name: string;
@@ -86,7 +100,7 @@ const commands: Command[] = [
   ),
   pnpmCommand(
     'Cross-language contract and hash gate',
-    ['exec', 'tsx', 'scripts/verify-defense-budget-parser-runtime.ts'],
+    ['exec', 'tsx', 'scripts/verify-defense-budget-parser-runtime.ts', '--run'],
     API_ROOT,
   ),
   {
@@ -121,7 +135,7 @@ const commands: Command[] = [
   },
   pnpmCommand(
     'Twenty mutate-fail-restore controls',
-    ['exec', 'tsx', 'scripts/verify-pe-budget-phase-3-negative-controls.ts'],
+    ['exec', 'tsx', 'scripts/verify-pe-budget-phase-3-negative-controls.ts', '--run'],
     API_ROOT,
   ),
   pnpmCommand(
@@ -249,7 +263,7 @@ for (const item of commands) {
 console.log('\nPhase 3 closeout validation passed');
 if (!includeContainers) {
   console.log(
-    'Container targets were not requested. Run again with --include-containers before final release approval.',
+    'Container targets were not requested. Run again with --run --include-containers before final release approval.',
   );
 }
 process.exit(0);

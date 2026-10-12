@@ -51,6 +51,10 @@ function tenantClause(tenantId: string | null, alias = ''): Prisma.Sql {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/diag-memory-governance-v2.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseArgs(process.argv.slice(2));
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -235,6 +239,7 @@ function jsonReplacer(_key: string, value: unknown): unknown {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
+if (require.main === module) {
 main().catch((error) => {
   console.error(
     JSON.stringify({
@@ -246,3 +251,4 @@ main().catch((error) => {
   );
   process.exitCode = 1;
 });
+}

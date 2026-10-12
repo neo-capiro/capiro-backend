@@ -1,9 +1,7 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { PrismaService } from '../src/prisma/prisma.service.js';
-import { MatchScorerService } from '../src/acquisition-personnel/matching/match-scorer.service.js';
-import { AcquisitionPersonnelWriterService } from '../src/acquisition-personnel/acquisition-personnel-writer.service.js';
 import { normalizeName } from '../src/acquisition-personnel/normalization/name-normalizer.js';
 
 /**
@@ -25,11 +23,9 @@ import { normalizeName } from '../src/acquisition-personnel/normalization/name-n
  *     quarantined (never created).
  *   - Every change records the article URL as the source citation (provenance).
  *
- * Dry-run by default. Pass --commit to write. Pass --threshold-create=0.95 to
- * override the create bar.
+ * Pass --dry-run for a read-only evaluation or --commit to write.
+ * Pass --threshold-create=0.95 to override the create bar.
  */
-
-dotenvConfig();
 
 interface Mention {
   source: string;
@@ -52,7 +48,22 @@ const TITLE_WORDS = new Set([
 const MIN_CONFIDENCE = 0.75;
 
 function parseFlags() {
-  const argv = process.argv.slice(2);
+  const usage = 'Usage: tsx scripts/load-press-personnel-mentions.ts [--dry-run|--commit] [--threshold-create=NUMBER] (at least one option)';
+  const argv = process.argv.slice(2).filter((arg) => arg !== '--');
+  if (argv.includes('--help') || argv.includes('-h')) {
+    console.log(usage);
+    process.exit(0);
+  }
+  if (
+    argv.length === 0 ||
+    argv.some((arg) =>
+      arg !== '--dry-run' && arg !== '--commit' && !/^--threshold-create=\d*\.?\d+$/.test(arg),
+    ) ||
+    (argv.includes('--dry-run') && argv.includes('--commit'))
+  ) {
+    console.error(usage);
+    process.exit(2);
+  }
   const commit = argv.includes('--commit');
   let createThreshold = 0.95;
   for (const a of argv) {
@@ -95,6 +106,10 @@ function serviceFromSource(source: string): string | null {
 
 async function main() {
   const { commit, createThreshold } = parseFlags();
+  dotenvConfig();
+  const { PrismaService } = await import('../src/prisma/prisma.service.js');
+  const { MatchScorerService } = await import('../src/acquisition-personnel/matching/match-scorer.service.js');
+  const { AcquisitionPersonnelWriterService } = await import('../src/acquisition-personnel/acquisition-personnel-writer.service.js');
   const filePath = path.resolve('tmp/press-personnel/press-personnel-mentions.json');
   const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { generatedAt?: string; mentions: Mention[] };
   const mentions = raw.mentions ?? [];

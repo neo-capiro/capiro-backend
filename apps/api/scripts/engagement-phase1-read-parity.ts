@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=1 helpExit=0 */
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -9,6 +10,22 @@ import {
   registryEntries,
   runtimePolicyForHandler,
 } from '../src/engagement/runtime/engagement-runtime-route-policy.js';
+
+const usage =
+  'Usage: tsx scripts/engagement-phase1-read-parity.ts (requires DATABASE_URL and ENGAGEMENT_PHASE1_* acceptance variables)';
+const cliArgs = process.argv.slice(2);
+if (cliArgs.length === 1 && cliArgs[0] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length > 0) {
+  console.error(usage);
+  process.exit(2);
+}
+if (!process.env.DATABASE_URL) {
+  console.error(usage);
+  process.exit(1);
+}
 
 interface RouteEntry {
   method: string;

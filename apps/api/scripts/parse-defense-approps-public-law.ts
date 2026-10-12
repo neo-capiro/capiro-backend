@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Phase 6 Workstream L — legacy public-law loader containment facade.
  *

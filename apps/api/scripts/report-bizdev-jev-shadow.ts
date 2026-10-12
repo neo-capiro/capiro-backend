@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Read-only Business Development Phase 3 Jev shadow report.
  *
@@ -10,8 +11,6 @@
  *     --slug capiro-internal --since 2026-09-25T00:00:00Z
  */
 import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 function arg(name: string): string | undefined {
   const prefix = `--${name}`;
@@ -47,11 +46,31 @@ type BreakdownRow = {
 };
 
 function json(value: unknown): string {
-  return JSON.stringify(value, (_key, item) =>
-    typeof item === 'bigint' ? Number(item) : item, 2);
+  return JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? Number(item) : item), 2);
 }
 
 async function main(): Promise<void> {
+  const usage = 'Usage: apps/api/scripts/report-bizdev-jev-shadow.ts requires DATABASE_URL (database configuration is required)';
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--help') {
+    console.log(usage);
+    process.exit(0);
+  }
+  for (let i = 0; i < args.length; i += 1) {
+    const option = args[i]!;
+    const equals = option.indexOf('=');
+    const flag = equals >= 0 ? option.slice(0, equals) : option;
+    if (!['--slug', '--since'].includes(flag) ||
+        (equals < 0 && (!args[i + 1] || args[i + 1]!.startsWith('--')))) {
+      console.error(usage);
+      process.exit(2);
+    }
+    if (equals < 0) i += 1;
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error(usage);
+    process.exit(2);
+  }
   const slug = arg('slug');
   const sinceRaw = arg('since');
   if (!slug || !sinceRaw) {
@@ -60,12 +79,17 @@ async function main(): Promise<void> {
   const since = new Date(sinceRaw);
   if (!Number.isFinite(since.getTime())) throw new Error(`Invalid --since timestamp: ${sinceRaw}`);
 
-  const report = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-    const tenant = await tx.tenant.findFirst({ where: { slug }, select: { id: true, slug: true } });
-    if (!tenant) throw new Error(`No tenant with slug "${slug}"`);
+  const prisma = new PrismaClient();
+  try {
+    const report = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+      const tenant = await tx.tenant.findFirst({
+        where: { slug },
+        select: { id: true, slug: true },
+      });
+      if (!tenant) throw new Error(`No tenant with slug "${slug}"`);
 
-    const summary = await tx.$queryRaw<SummaryRow[]>`
+      const summary = await tx.$queryRaw<SummaryRow[]>`
       SELECT
         task,
         mode,
@@ -101,7 +125,7 @@ async function main(): Promise<void> {
       ORDER BY task, mode
     `;
 
-    const breakdown = await tx.$queryRaw<BreakdownRow[]>`
+      const breakdown = await tx.$queryRaw<BreakdownRow[]>`
       SELECT task, 'status'::text AS category, status::text AS value, count(*)::bigint AS count
       FROM business_development_jev_decisions
       WHERE tenant_id = ${tenant.id}::uuid AND requested_at >= ${since}
@@ -119,28 +143,32 @@ async function main(): Promise<void> {
       ORDER BY task, category, value
     `;
 
-    return {
-      tenant: { id: tenant.id, slug: tenant.slug },
-      since: since.toISOString(),
-      generatedAt: new Date().toISOString(),
-      summary,
-      breakdown,
-      semantics: {
-        agreement: 'typed Jev outcome equals the stored Phase 2 deterministic outcome; not human accuracy',
-        reviewed: 'review_status is accepted, corrected, or rejected',
-      },
-    };
-  });
+      return {
+        tenant: { id: tenant.id, slug: tenant.slug },
+        since: since.toISOString(),
+        generatedAt: new Date().toISOString(),
+        summary,
+        breakdown,
+        semantics: {
+          agreement:
+            'typed Jev outcome equals the stored Phase 2 deterministic outcome; not human accuracy',
+          reviewed: 'review_status is accepted, corrected, or rejected',
+        },
+      };
+    });
 
-  // Aggregate operational data only; no source, subject or private tenant fields.
-  // eslint-disable-next-line no-console
-  console.log(json(report));
+    // Aggregate operational data only; no source, subject or private tenant fields.
+    // eslint-disable-next-line no-console
+    console.log(json(report));
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((error) => {
+if (require.main === module) {
+  void main().catch((error) => {
     // eslint-disable-next-line no-console
     console.error(error);
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

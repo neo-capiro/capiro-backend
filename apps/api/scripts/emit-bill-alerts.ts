@@ -18,8 +18,6 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 dotenvConfig();
 
-const prisma = new PrismaClient();
-
 interface Stage {
   changeType: string;
   label: string;
@@ -74,121 +72,130 @@ async function main() {
   // ~today, so this behaves like a normal "last N days" window; if the system
   // clock runs ahead of the latest available Congress.gov data, anchoring to
   // the data still surfaces the genuinely most-recent bill movements.
-  const lookbackDays = 7;
-  const maxAgg = await prisma.congressBill.aggregate({ _max: { latestActionDate: true } });
-  const anchorDate = maxAgg._max.latestActionDate ?? new Date();
-  const sinceDate = new Date(anchorDate);
-  sinceDate.setDate(sinceDate.getDate() - lookbackDays);
-  sinceDate.setHours(0, 0, 0, 0);
-  const dedupeSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-
-  console.log(
-    `[emit-bill-alerts] anchor=${anchorDate.toISOString().slice(0, 10)} ` +
-      `scanning bills with action since ${sinceDate.toISOString().slice(0, 10)}`,
-  );
-
-  const bills = await prisma.congressBill.findMany({
-    where: { latestActionDate: { gte: sinceDate } },
-    select: {
-      id: true,
-      billType: true,
-      billNumber: true,
-      title: true,
-      latestActionText: true,
-      latestActionDate: true,
-      peCodes: true,
-      subjects: true,
-      policyArea: true,
-      url: true,
-    },
-  });
-
-  // Load capabilities once for relevance matching (cross-tenant — the changes
-  // query re-filters per tenant, so populating relatedClientIds is enough).
-  const caps = await prisma.clientCapability.findMany({
-    select: { clientId: true, peNumber: true, issueCodes: true },
-  });
-  const capByPe = new Map<string, Set<string>>();
-  const capByIssue = new Map<string, Set<string>>();
-  for (const c of caps) {
-    if (c.peNumber) {
-      const set = capByPe.get(c.peNumber) ?? new Set<string>();
-      set.add(c.clientId);
-      capByPe.set(c.peNumber, set);
-    }
-    for (const code of asStringArray(c.issueCodes)) {
-      const set = capByIssue.get(code) ?? new Set<string>();
-      set.add(c.clientId);
-      capByIssue.set(code, set);
-    }
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/emit-bill-alerts.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
   }
+  const prisma = new PrismaClient();
+  try {
+    const lookbackDays = 7;
+    const maxAgg = await prisma.congressBill.aggregate({ _max: { latestActionDate: true } });
+    const anchorDate = maxAgg._max.latestActionDate ?? new Date();
+    const sinceDate = new Date(anchorDate);
+    sinceDate.setDate(sinceDate.getDate() - lookbackDays);
+    sinceDate.setHours(0, 0, 0, 0);
+    const dedupeSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-  let emitted = 0;
-  for (const bill of bills) {
-    const stage = classifyStage(bill.latestActionText);
-    if (!stage) continue;
+    console.log(
+      `[emit-bill-alerts] anchor=${anchorDate.toISOString().slice(0, 10)} ` +
+        `scanning bills with action since ${sinceDate.toISOString().slice(0, 10)}`,
+    );
 
-    // Relevance: clients whose capability PE numbers or issue codes intersect.
-    const clientIds = new Set<string>();
-    const matchedIssues = new Set<string>();
-    for (const pe of bill.peCodes) {
-      for (const cid of capByPe.get(pe) ?? []) clientIds.add(cid);
-    }
-    const billIssueTokens = [...bill.subjects, ...(bill.policyArea ? [bill.policyArea] : [])];
-    for (const tok of billIssueTokens) {
-      const hit = capByIssue.get(tok);
-      if (hit) {
-        for (const cid of hit) clientIds.add(cid);
-        matchedIssues.add(tok);
+    const bills = await prisma.congressBill.findMany({
+      where: { latestActionDate: { gte: sinceDate } },
+      select: {
+        id: true,
+        billType: true,
+        billNumber: true,
+        title: true,
+        latestActionText: true,
+        latestActionDate: true,
+        peCodes: true,
+        subjects: true,
+        policyArea: true,
+        url: true,
+      },
+    });
+
+    // Load capabilities once for relevance matching (cross-tenant — the changes
+    // query re-filters per tenant, so populating relatedClientIds is enough).
+    const caps = await prisma.clientCapability.findMany({
+      select: { clientId: true, peNumber: true, issueCodes: true },
+    });
+    const capByPe = new Map<string, Set<string>>();
+    const capByIssue = new Map<string, Set<string>>();
+    for (const c of caps) {
+      if (c.peNumber) {
+        const set = capByPe.get(c.peNumber) ?? new Set<string>();
+        set.add(c.clientId);
+        capByPe.set(c.peNumber, set);
+      }
+      for (const code of asStringArray(c.issueCodes)) {
+        const set = capByIssue.get(code) ?? new Set<string>();
+        set.add(c.clientId);
+        capByIssue.set(code, set);
       }
     }
 
-    // Dedupe per (bill, stage) within the window so re-runs don't spam.
-    const existing = await prisma.intelligenceChange.findFirst({
-      where: {
-        source: 'congress_bill',
-        changeType: stage.changeType,
-        detectedAt: { gte: dedupeSince },
-        data: { path: ['bill_id'], equals: bill.id },
-      },
-      select: { id: true },
-    });
-    if (existing) continue;
+    let emitted = 0;
+    for (const bill of bills) {
+      const stage = classifyStage(bill.latestActionText);
+      if (!stage) continue;
 
-    const label = billLabel(bill.billType, bill.billNumber);
-    await prisma.intelligenceChange.create({
-      data: {
-        source: 'congress_bill',
-        changeType: stage.changeType,
-        severity: stage.severity,
-        title: `${label}: ${stage.label}`,
-        description: bill.latestActionText ?? `${label} — ${bill.title}`,
-        relatedClientIds: [...clientIds],
-        relatedIssues: [...matchedIssues],
-        relatedPeCodes: bill.peCodes,
-        data: {
-          bill_id: bill.id,
-          stage: stage.label,
-          bill_title: bill.title,
-          action_date: bill.latestActionDate
-            ? bill.latestActionDate.toISOString().slice(0, 10)
-            : null,
-          url: bill.url ?? null,
+      // Relevance: clients whose capability PE numbers or issue codes intersect.
+      const clientIds = new Set<string>();
+      const matchedIssues = new Set<string>();
+      for (const pe of bill.peCodes) {
+        for (const cid of capByPe.get(pe) ?? []) clientIds.add(cid);
+      }
+      const billIssueTokens = [...bill.subjects, ...(bill.policyArea ? [bill.policyArea] : [])];
+      for (const tok of billIssueTokens) {
+        const hit = capByIssue.get(tok);
+        if (hit) {
+          for (const cid of hit) clientIds.add(cid);
+          matchedIssues.add(tok);
+        }
+      }
+
+      // Dedupe per (bill, stage) within the window so re-runs don't spam.
+      const existing = await prisma.intelligenceChange.findFirst({
+        where: {
+          source: 'congress_bill',
+          changeType: stage.changeType,
+          detectedAt: { gte: dedupeSince },
+          data: { path: ['bill_id'], equals: bill.id },
         },
-      },
-    });
-    emitted++;
-    console.log(`[emit-bill-alerts] ${label} → ${stage.label} (${clientIds.size} client match)`);
-  }
+        select: { id: true },
+      });
+      if (existing) continue;
 
-  console.log(
-    `[emit-bill-alerts] done. Emitted ${emitted} bill alert(s) from ${bills.length} recently-actioned bill(s).`,
-  );
+      const label = billLabel(bill.billType, bill.billNumber);
+      await prisma.intelligenceChange.create({
+        data: {
+          source: 'congress_bill',
+          changeType: stage.changeType,
+          severity: stage.severity,
+          title: `${label}: ${stage.label}`,
+          description: bill.latestActionText ?? `${label} — ${bill.title}`,
+          relatedClientIds: [...clientIds],
+          relatedIssues: [...matchedIssues],
+          relatedPeCodes: bill.peCodes,
+          data: {
+            bill_id: bill.id,
+            stage: stage.label,
+            bill_title: bill.title,
+            action_date: bill.latestActionDate
+              ? bill.latestActionDate.toISOString().slice(0, 10)
+              : null,
+            url: bill.url ?? null,
+          },
+        },
+      });
+      emitted++;
+      console.log(`[emit-bill-alerts] ${label} → ${stage.label} (${clientIds.size} client match)`);
+    }
+
+    console.log(
+      `[emit-bill-alerts] done. Emitted ${emitted} bill alert(s) from ${bills.length} recently-actioned bill(s).`,
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
+if (require.main === module) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

@@ -7,6 +7,11 @@ import type { Prisma } from '../../intel-api/generated/prisma-client/index.js';
 import { PublicHearingAudioStore } from '../../intel-api/src/hearing/capture/public-hearing-audio.store.js';
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/verify-public-audio-policy.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   assert.equal(process.env.CAPIRO_DISPOSABLE_PG, '1');
   assert.ok(['localhost', '127.0.0.1'].includes(new URL(process.env.DATABASE_URL ?? '').hostname));
   process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED = 'true';
@@ -155,7 +160,9 @@ async function main() {
     await db.$disconnect();
   }
 }
+if (require.main === module) {
 void main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+}

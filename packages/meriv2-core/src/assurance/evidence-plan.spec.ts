@@ -139,9 +139,7 @@ describe('response formatting and factual coverage requirements', () => {
     expect(plan(`${factual} Use no tools.`).requiredRequirementIds).toEqual(
       plan(factual).requiredRequirementIds,
     );
-    expect(inferClaimCategories(`${factual} Use no tools.`)).toEqual(
-      inferClaimCategories(factual),
-    );
+    expect(inferClaimCategories(`${factual} Use no tools.`)).toEqual(inferClaimCategories(factual));
   });
 });
 

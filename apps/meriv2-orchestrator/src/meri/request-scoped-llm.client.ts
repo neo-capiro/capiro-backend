@@ -1,4 +1,8 @@
-import { ANTHROPIC_TEXT_MODEL, prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import {
+  ANTHROPIC_TEXT_MODEL,
+  prepareAnthropicRequest,
+  upgradeTextModel,
+} from '@capiro/shared/ai-model-policy';
 import { Logger } from '@nestjs/common';
 import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
@@ -303,21 +307,20 @@ export class RequestScopedLlmClient implements LlmClient {
         const attemptId = providerBudget
           ? `${providerBudget.logicalOperationId}:${providerAttempt}`
           : null;
-        const reservation =
-          providerBudget
-            ? await providerBudget.budget.reserveProviderAttempt({
-                logicalOperationId: providerBudget.logicalOperationId,
-                attemptId: attemptId!,
-                retryOfAttemptId: previousAttemptId,
-                kind: cred.provider === 'openai' ? 'openai_responses' : 'anthropic_messages',
-                phase: providerBudget.phase,
-                provider: cred.provider,
-                model: cred.model,
-                maxInputTokens: providerBudget.maxInputTokens,
-                maxOutputTokens: providerBudget.maxOutputTokens,
-                retry: providerAttempt > 0,
-              })
-            : null;
+        const reservation = providerBudget
+          ? await providerBudget.budget.reserveProviderAttempt({
+              logicalOperationId: providerBudget.logicalOperationId,
+              attemptId: attemptId!,
+              retryOfAttemptId: previousAttemptId,
+              kind: cred.provider === 'openai' ? 'openai_responses' : 'anthropic_messages',
+              phase: providerBudget.phase,
+              provider: cred.provider,
+              model: cred.model,
+              maxInputTokens: providerBudget.maxInputTokens,
+              maxOutputTokens: providerBudget.maxOutputTokens,
+              retry: providerAttempt > 0,
+            })
+          : null;
         providerAttempt += 1;
         if (attemptId) previousAttemptId = attemptId;
         const providerControl = providerBudget?.budget.providerControl(reservation?.deadlineAt);
@@ -604,7 +607,8 @@ export class RequestScopedLlmClient implements LlmClient {
             model,
             max_tokens: params.maxTokens,
             ...(params.anthropicEffort && upgradeTextModel(model) === ANTHROPIC_TEXT_MODEL
-              ? { output_config: { effort: params.anthropicEffort } } : {}),
+              ? { output_config: { effort: params.anthropicEffort } }
+              : {}),
             system,
             tools,
             // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).

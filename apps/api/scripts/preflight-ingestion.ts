@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=1 */
 /**
  * Pre-flight check for the ingestion pipeline. Reports which external API keys
  * are present vs missing, classified by whether the dependent sync HARD-requires
@@ -27,6 +28,7 @@ import {
   type ControlTotals,
 } from '../src/program-element/reconciliation/budget-reconciliation.js';
 
+async function main(): Promise<void> {
 interface KeyCheck {
   env: string;
   level: 'required' | 'recommended';
@@ -174,7 +176,7 @@ async function runDataIntegrity(): Promise<DataIntegrity> {
   }
 }
 
-async function main(): Promise<void> {
+
   const results = KEYS.map((k) => ({ ...k, present: present(k.env) }));
   const missingRequired = results.filter((r) => r.level === 'required' && !r.present);
   const missingRecommended = results.filter((r) => r.level === 'recommended' && !r.present);
@@ -238,8 +240,13 @@ async function main(): Promise<void> {
 
   const hardFail = missingRequired.length > 0 || (data.ran && !data.ok);
   if (!values['warn-only'] && hardFail) {
+    console.error('Usage: preflight-ingestion [--json] [--warn-only] [--skip-data]; configure the required keys reported above');
     process.exit(1);
   }
-}
 
+
+
+}
+if (require.main === module) {
 void main();
+}

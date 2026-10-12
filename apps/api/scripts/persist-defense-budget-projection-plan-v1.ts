@@ -53,6 +53,10 @@ function flag(name: string): boolean {
 }
 
 async function main(): Promise<number> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/persist-defense-budget-projection-plan-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   if (flag('promote')) {
     throw new Error(
       'this command has no promote mode; it files read-only projection evidence, and canonical ' +
@@ -125,6 +129,7 @@ async function main(): Promise<number> {
   }
 }
 
+if (require.main === module) {
 main()
   .then((code) => {
     process.exitCode = code;
@@ -133,3 +138,4 @@ main()
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   });
+}

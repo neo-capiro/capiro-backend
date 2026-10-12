@@ -15,7 +15,10 @@ import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.help
 import { MERI_CLIENT_FILING_INSTRUCTIONS } from './client-filing-confirmation.js';
 import { resolveChatDateGrounding } from './chat-date-grounding.js';
 import { createHash } from 'node:crypto';
-import { currentGovernedMeriContext, recordMeriPromptClockUse } from '../meri-governed-context.runtime.js';
+import {
+  currentGovernedMeriContext,
+  recordMeriPromptClockUse,
+} from '../meri-governed-context.runtime.js';
 
 /**
  * Full Meri chat (Workstream C4) — pure prompt/label logic, kept dependency-light
@@ -441,10 +444,13 @@ export function composeChatSystemPrompt(
   const now = clock ? new Date(clock.instant) : new Date();
   const timeZone = clock?.timeZone ?? dto.timeZone;
   const dateGrounding = buildChatDateGrounding(timeZone, now);
-  if (clock) recordMeriPromptClockUse({
-    instant: now.toISOString(), ...resolveChatDateGrounding(timeZone, now),
-    renderedAt: Date.now(), groundingSha256: createHash('sha256').update(dateGrounding).digest('hex'),
-  });
+  if (clock)
+    recordMeriPromptClockUse({
+      instant: now.toISOString(),
+      ...resolveChatDateGrounding(timeZone, now),
+      renderedAt: Date.now(),
+      groundingSha256: createHash('sha256').update(dateGrounding).digest('hex'),
+    });
   const dynamic = [
     dateGrounding,
     dto.conversationId

@@ -1,4 +1,5 @@
 /**
+ * @cleanup-smoke noArgsExit=0 helpExit=0
  * Static lint for PE production scripts (Phase K / closeout Phase 8).
  *
  * Does not require ESLint binary path stability across platforms. Enforces:
@@ -19,9 +20,23 @@ import {
 } from './lib/pe-production-scripts.js';
 import { PE_EXACT_SHA_DOLLAR_LOADERS } from './lib/pe-exact-sha-loader-contract.js';
 import {
+  assertNoAutomaticMigrationHistoryMutation,
   assertNoMigrationHistoryMutation,
-  stripShellComments,
 } from './lib/pe-migration-guards.js';
+
+const USAGE = 'Usage: tsx scripts/lint-pe-scripts.ts [--help]';
+const argv = process.argv.slice(2);
+const unknown = argv.filter((arg) => arg !== '--help');
+if (unknown.length > 0) {
+  console.error(`Unknown argument(s): ${unknown.join(', ')}`);
+  console.error(USAGE);
+  process.exit(2);
+}
+if (argv.includes('--help')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+console.error(USAGE);
 
 function apiRoot(): string {
   const cwd = process.cwd().replace(/\\/g, '/');
@@ -89,8 +104,8 @@ function main(): void {
     'scripts/entrypoint.sh',
     'scripts/entrypoint-legacy.sh',
     'scripts/entrypoint-dispatcher.inc',
-  ].map((p) => ({ path: p, source: stripShellComments(read(p)) }));
-  const entryGuard = assertNoMigrationHistoryMutation(entrypoints);
+  ].map((p) => ({ path: p, source: read(p) }));
+  const entryGuard = assertNoAutomaticMigrationHistoryMutation(entrypoints);
   assert.equal(entryGuard.ok, true, entryGuard.findings.map((f) => f.message).join('; '));
 
   console.log('PE_LINT_SCRIPTS_OK');

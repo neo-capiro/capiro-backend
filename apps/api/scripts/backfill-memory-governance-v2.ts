@@ -29,6 +29,10 @@ import {
 dotenvConfig();
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/backfill-memory-governance-v2.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
   const args = parseMemoryGovernanceBackfillArgs(process.argv.slice(2));
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -47,6 +51,7 @@ async function main(): Promise<void> {
   }
 }
 
+if (require.main === module) {
 main().catch((error) => {
   console.error(
     JSON.stringify({
@@ -57,3 +62,4 @@ main().catch((error) => {
   );
   process.exitCode = 1;
 });
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/** @cleanup-smoke noArgsExit=5 helpExit=0 */
 /**
  * Delegates every Phase 5 artifact to the merged Phase 2 trusted verifier.
  * Default is read-only inspect; --persist-audit writes only Phase 2 audit rows.
@@ -155,6 +156,17 @@ function cycleRef(result: DefenseBudgetVerificationResultV1): NonRdteCycleVerifi
 
 function main(): void {
   const argv = process.argv.slice(2);
+  const usage = 'Usage: verify-defense-budget-non-rdte --manifest FILE --artifact-map FILE --verification-jobs FILE --out-dir DIR [--family FAMILY] [--persist-audit]';
+  if (argv.length === 0) {
+    console.error('missing --manifest');
+    console.error(usage);
+    process.exitCode = PHASE5_EXIT.operational;
+    return;
+  }
+  if (argv.length === 1 && argv[0] === '--help') {
+    process.stdout.write(`${usage}\n`);
+    return;
+  }
   refuseUnknownFlags(argv, [
     '--manifest',
     '--artifact-map',

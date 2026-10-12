@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 /**
  * Visual-analysis smoke test for the MeriV3 sandbox.
  *
@@ -8,6 +9,18 @@
  * image or CI's matching Python environment.
  */
 import { runSandboxed } from '../src/run.js';
+
+const cliArgs = process.argv.slice(2);
+const usage = 'Usage: pnpm --filter @capiro/clio-sandbox visual-smoke --run';
+if ((cliArgs.length === 1 && cliArgs[0] === '--help') ||
+    (cliArgs.length === 2 && cliArgs[0] === '--run' && cliArgs[1] === '--help')) {
+  console.log(usage);
+  process.exit(0);
+}
+if (cliArgs.length !== 1 || cliArgs[0] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const code = String.raw`
 import pandas as pd

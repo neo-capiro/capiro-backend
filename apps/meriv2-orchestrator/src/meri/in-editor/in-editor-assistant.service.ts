@@ -65,9 +65,13 @@ const VERIFICATION_RESERVE_MS = 10_000;
 
 function withinEditorBudget<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
-    const abort = () => reject(signal.reason ?? new DOMException('Editor deadline exceeded', 'TimeoutError'));
+    const abort = () =>
+      reject(signal.reason ?? new DOMException('Editor deadline exceeded', 'TimeoutError'));
     work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
-    if (signal.aborted) { abort(); return; }
+    if (signal.aborted) {
+      abort();
+      return;
+    }
     signal.addEventListener('abort', abort, { once: true });
   });
 }
@@ -116,14 +120,20 @@ export class InEditorAssistantService {
       if (error instanceof EditorInputTooLargeError) return { reply: error.message, edits: [] };
       if (!control.signal.aborted) throw error;
       this.logger.warn('in-editor total request deadline reached; edits withheld');
-      return { reply: 'I could not finish this edit in time. No changes were applied. Please try a smaller edit.', edits: [] };
+      return {
+        reply:
+          'I could not finish this edit in time. No changes were applied. Please try a smaller edit.',
+        edits: [],
+      };
     } finally {
       control.dispose();
     }
   }
 
   private async runWithinBudget(
-    ctx: MeriContext, dto: InEditorInput, control: ReturnType<typeof createMeriExecutionControl>,
+    ctx: MeriContext,
+    dto: InEditorInput,
+    control: ReturnType<typeof createMeriExecutionControl>,
   ): Promise<AssistantResult> {
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = (dto.messages ?? [])
       .filter(
@@ -157,25 +167,39 @@ export class InEditorAssistantService {
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       control.assertActive();
       const remaining = control.deadlineAt! - Date.now();
-      const finalRound = forceFinal || round === MAX_ROUNDS - 1 || remaining <= FINAL_EDIT_RESERVE_MS + VERIFICATION_RESERVE_MS;
-      const modelBudgetMs = Math.max(1, Math.min(this.callTimeoutMs, remaining - (finalRound ? VERIFICATION_RESERVE_MS : FINAL_EDIT_RESERVE_MS)));
+      const finalRound =
+        forceFinal ||
+        round === MAX_ROUNDS - 1 ||
+        remaining <= FINAL_EDIT_RESERVE_MS + VERIFICATION_RESERVE_MS;
+      const modelBudgetMs = Math.max(
+        1,
+        Math.min(
+          this.callTimeoutMs,
+          remaining - (finalRound ? VERIFICATION_RESERVE_MS : FINAL_EDIT_RESERVE_MS),
+        ),
+      );
       const modelControl = createMeriExecutionControl(control, modelBudgetMs);
       let content: ContentBlock[];
       let stopReason: string | null;
       let stopDetails: { category: string | null; explanation: string | null } | null = null;
       try {
-        const resp = await withinEditorBudget(this.llm.completeWithTools({
-          system: finalRound
-            ? `${system}\n\nFinish the requested edit now using only established evidence. Do not research further. Call propose_document_edits with concise edits, or an empty edits array explaining what evidence is missing. Do not invent facts to finish.`
-            : systemParts,
-          messages,
-          tools: (finalRound ? [PROPOSE_EDITS_TOOL] : toolSchemas) as AnthropicToolSchema[],
-          ...(finalRound ? { toolChoice: { type: 'tool' as const, name: 'propose_document_edits' } } : {}),
-          maxTokens: MAX_TOKENS,
-          anthropicEffort: 'low',
-          timeoutMs: modelBudgetMs,
-          signal: modelControl.signal,
-        }), modelControl.signal);
+        const resp = await withinEditorBudget(
+          this.llm.completeWithTools({
+            system: finalRound
+              ? `${system}\n\nFinish the requested edit now using only established evidence. Do not research further. Call propose_document_edits with concise edits, or an empty edits array explaining what evidence is missing. Do not invent facts to finish.`
+              : systemParts,
+            messages,
+            tools: (finalRound ? [PROPOSE_EDITS_TOOL] : toolSchemas) as AnthropicToolSchema[],
+            ...(finalRound
+              ? { toolChoice: { type: 'tool' as const, name: 'propose_document_edits' } }
+              : {}),
+            maxTokens: MAX_TOKENS,
+            anthropicEffort: 'low',
+            timeoutMs: modelBudgetMs,
+            signal: modelControl.signal,
+          }),
+          modelControl.signal,
+        );
         control.assertActive();
         void this.meterRound(ctx, resp);
         content = resp.content as ContentBlock[];
@@ -253,13 +277,10 @@ export class InEditorAssistantService {
         const subjectId = String(
           (dto.document as Record<string, unknown> | undefined)?.id ?? 'in-editor',
         );
-        const { confidence, structuralWarnings } = await withinEditorBudget(this.verifyEdits(
-          edits,
-          groundingBodies,
-          citedPeRecords,
-          subjectId,
-          control,
-        ), control.signal);
+        const { confidence, structuralWarnings } = await withinEditorBudget(
+          this.verifyEdits(edits, groundingBodies, citedPeRecords, subjectId, control),
+          control.signal,
+        );
         control.assertActive();
         const held = evaluateBeforeApply
           ? this.holdUnverifiedEdits(
@@ -287,7 +308,13 @@ export class InEditorAssistantService {
         return { reply: textOut || 'Done.', edits: [], steps };
       }
 
-      if (finalRound) return { reply: 'I could not complete a verified edit within this request. No changes were applied.', edits: [], steps };
+      if (finalRound)
+        return {
+          reply:
+            'I could not complete a verified edit within this request. No changes were applied.',
+          edits: [],
+          steps,
+        };
 
       messages.push({ role: 'assistant', content });
       const results = await Promise.all(
@@ -303,9 +330,15 @@ export class InEditorAssistantService {
             });
           } else {
             try {
-              const toolControl = createMeriExecutionControl(control, Math.max(1, control.deadlineAt! - Date.now() - FINAL_EDIT_RESERVE_MS));
+              const toolControl = createMeriExecutionControl(
+                control,
+                Math.max(1, control.deadlineAt! - Date.now() - FINAL_EDIT_RESERVE_MS),
+              );
               try {
-                result = await withinEditorBudget(this.registry.invoke(tu.name, tu.input ?? {}, ctx, toolControl), toolControl.signal);
+                result = await withinEditorBudget(
+                  this.registry.invoke(tu.name, tu.input ?? {}, ctx, toolControl),
+                  toolControl.signal,
+                );
               } finally {
                 toolControl.dispose();
               }
@@ -334,7 +367,11 @@ export class InEditorAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    return { reply: 'I could not complete a verified edit within this request. No changes were applied.', edits: [], steps };
+    return {
+      reply: 'I could not complete a verified edit within this request. No changes were applied.',
+      edits: [],
+      steps,
+    };
   }
 
   private holdUnverifiedEdits(
@@ -451,12 +488,17 @@ export class InEditorAssistantService {
     }
     try {
       const schemaControl = AbortSignal.any([signal, AbortSignal.timeout(5_000)]);
-      const res = await withinEditorBudget(fetch(`${this.apiBaseUrl}/api/clio/tool-schemas?surface=in-editor`, {
-        headers: { authorization: `Bearer ${bearer}`, accept: 'application/json' },
-        signal: schemaControl,
-      }), schemaControl);
+      const res = await withinEditorBudget(
+        fetch(`${this.apiBaseUrl}/api/clio/tool-schemas?surface=in-editor`, {
+          headers: { authorization: `Bearer ${bearer}`, accept: 'application/json' },
+          signal: schemaControl,
+        }),
+        schemaControl,
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await withinEditorBudget(res.json(), schemaControl)) as { schemas?: AnthropicToolSchema[] };
+      const body = (await withinEditorBudget(res.json(), schemaControl)) as {
+        schemas?: AnthropicToolSchema[];
+      };
       return selectMeriCapabilitySchemas(body.schemas ?? [], 'in_editor', this.registry.list());
     } catch (e) {
       this.logger.warn(`in-editor: tool-schema fetch failed (${(e as Error).message})`);
@@ -518,7 +560,13 @@ export class InEditorAssistantService {
       }
       const structuralWarnings = collectPeStructuralWarnings(pes, editText);
 
-      return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings, subjectId, control);
+      return await this.verifyEditsInner(
+        editText,
+        groundingBodies,
+        structuralWarnings,
+        subjectId,
+        control,
+      );
     } catch (e) {
       this.logger.warn(
         `in-editor verifyEdits failed (returning edits unannotated): ${(e as Error).message}`,
@@ -543,20 +591,35 @@ export class InEditorAssistantService {
         control?.assertActive();
         const response = await this.llm.completeWithTools({
           system: VERIFIER_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}` }],
+          messages: [
+            {
+              role: 'user',
+              content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}`,
+            },
+          ],
           tools: [],
           toolChoice: 'none',
           maxTokens: 1500,
           anthropicEffort: 'low',
-          timeoutMs: Math.max(1, Math.min(this.callTimeoutMs, (control?.deadlineAt ?? Date.now() + this.callTimeoutMs) - Date.now())),
+          timeoutMs: Math.max(
+            1,
+            Math.min(
+              this.callTimeoutMs,
+              (control?.deadlineAt ?? Date.now() + this.callTimeoutMs) - Date.now(),
+            ),
+          ),
           signal: control?.signal,
         });
         control?.assertActive();
         if (response.stopReason === 'max_tokens' || response.stopReason === 'refusal')
           throw new Error('Incomplete editor verification');
-        const text = response.content.map(block =>
-          block.type === 'text' && 'text' in block && typeof block.text === 'string' ? block.text : '',
-        ).join('\n');
+        const text = response.content
+          .map((block) =>
+            block.type === 'text' && 'text' in block && typeof block.text === 'string'
+              ? block.text
+              : '',
+          )
+          .join('\n');
         const claims = parseVerifierClaims(text);
         if (claims.length) {
           confidence = confidenceLevel(summarizeVerification(claims).unsupportedRatio);
