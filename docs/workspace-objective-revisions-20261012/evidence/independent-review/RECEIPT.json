@@ -1,0 +1,80 @@
+{
+  "source": "490076ab8a9a5db72eda97b0d576a81e87f81cbb",
+  "tree": "bfb8195babb0a25863a2ccde0e050b2ebc2a9c95",
+  "requiredBase": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+  "sourcePaths": [
+    {
+      "path": "apps/workspace/src/versions/dto/objective-destination.dto.ts",
+      "blob": "ec6994391b02175a0b6d4e536dc6a22396473c6c",
+      "sha256": "87bf408f0d759c3c0617c4e2c4c521570f7521b6935d4e83658b85c3ac3a743e"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "blob": "8cb4e78420216fe0045a7c0868c495623d0edfd0",
+      "sha256": "1ccb3a75ed2cf2809d161a5e9c290aa9b008b8f7b2b6660451c49fdbedd84260"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "blob": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1",
+      "sha256": "7a99f929d14d0fa13771d5436eeb1dd614fddf495938b5e334fc0d52d8686353"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "blob": "403fa2ab75555daad73a379a9ef7a7980ba7fe31",
+      "sha256": "bd7a9496a1f2099100f90e472fa75f8cad26eb3053fed9921bac8c21d77daafd"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "blob": "c9f3a056b94de58b5777f50bec1f9a2659954591",
+      "sha256": "54f5f522696eb619c974206ca12d91042b972355a790048a36ea9bb35c0a11f6"
+    }
+  ],
+  "publishedSeams": [
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "publishedHead": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+      "byteIdentical": true
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "publishedHead": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "blob": "c388618b7d618c0b3314fcb6bea77a2e0c205076",
+      "sha256": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8",
+      "byteIdentical": true
+    }
+  ],
+  "checks": [
+    {
+      "run": "independent initial",
+      "passed": 79,
+      "failed": 0,
+      "exitCode": 0,
+      "json": "independent-initial.json"
+    },
+    {
+      "run": "independent confirmed await entry",
+      "passed": 79,
+      "failed": 0,
+      "exitCode": 0,
+      "json": "independent-confirmed-gaps.json"
+    },
+    {
+      "run": "combined final",
+      "independentPassed": 82,
+      "authorPassed": 51,
+      "passed": 133,
+      "failed": 0,
+      "suites": 2,
+      "exitCode": 0,
+      "json": "combined-final.json"
+    }
+  ],
+  "qualification": "Source/synthetic isolated transpilation only. No native/database/migration/provider/permission operations or new full compile."
+}
