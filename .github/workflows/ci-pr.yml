@@ -213,6 +213,9 @@ jobs:
       # DB-backed specs follow the repo's disposable-Postgres contract
       # (guarded specs self-skip; intel-api is unguarded and fails) and are
       # tracked as baseline setup packets — not hidden or skipped here.
+      - name: Guard Strategy grounding time and retry adoption
+        run: pnpm gate:cleanup4:strategy-time
+
       - name: Test apps/api
         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: pnpm --filter @capiro/api test
