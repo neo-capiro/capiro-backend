@@ -1,0 +1,156 @@
+diff --git a/scripts/verify-engagement-phase2-code.sh b/scripts/verify-engagement-phase2-code.sh
+index e7cf3aa27..b5ae188d4 100755
+--- a/scripts/verify-engagement-phase2-code.sh
++++ b/scripts/verify-engagement-phase2-code.sh
+@@ -4,10 +4,89 @@
+ # Mutates nothing; every AWS/docker interaction is faked or synth-only.
+ set -uo pipefail
+ 
+-cd "$(dirname "$0")/.."
+-REPO_ROOT="$PWD"
++# PHASE2_MODE_PLAN_BEGIN
++# Keep mode selection and plan output free of filesystem/process operations so
++# callers can inspect the nested qualification contract without starting gates.
+ FAST=0
+ [ "${1:-}" = "--fast" ] && FAST=1
++REQUESTED_FAST=0
++BACKEND_ONLY=0
++FRONTEND_ONLY=0
++PRINT_PLAN=0
++for option in "$@"; do
++  case "$option" in
++    --fast) REQUESTED_FAST=1 ;;
++    --backend-only) BACKEND_ONLY=1 ;;
++    --frontend-only) FRONTEND_ONLY=1 ;;
++    --print-plan) PRINT_PLAN=1 ;;
++    *) : ;; # Preserve the legacy full verifier's ignored-argument policy.
++  esac
++done
++if [ "$BACKEND_ONLY" -eq 1 ] && [ "$FRONTEND_ONLY" -eq 1 ]; then
++  printf 'Choose either --backend-only or --frontend-only, not both.\n' >&2
++  exit 2
++fi
++
++PHASE2_SCOPE="full"
++PHASE1_COMMAND="verify:engagement-phase-1"
++PHASE1_COMPLETE_MARKER="ENGAGEMENT_PHASE1_DB_FREE_COMPLETE"
++PHASE1_FAILED_MARKER="ENGAGEMENT_PHASE1_DB_FREE_FAILED"
++PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_CODE_COMPLETE"
++PHASE2_SKIPS_MARKER="ENGAGEMENT_PHASE2_CODE_COMPLETE_WITH_SKIPS"
++PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_CODE_INCOMPLETE"
++FRONTEND_HEADER_GUARD=1
++if [ "$BACKEND_ONLY" -eq 1 ]; then
++  FAST="$REQUESTED_FAST"
++  PHASE2_SCOPE="backend"
++  PHASE1_COMMAND="verify:engagement-phase-1:backend"
++  PHASE1_COMPLETE_MARKER="[engagement-phase1] BACKEND COMPLETE"
++  PHASE1_FAILED_MARKER="[engagement-phase1] BACKEND FAILED"
++  PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_COMPLETE"
++  PHASE2_SKIPS_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_COMPLETE_WITH_SKIPS"
++  PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_INCOMPLETE"
++  FRONTEND_HEADER_GUARD=0
++fi
++if [ "$FRONTEND_ONLY" -eq 1 ]; then
++  PHASE2_SCOPE="frontend"
++  PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_FRONTEND_CODE_COMPLETE"
++  PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_FRONTEND_CODE_INCOMPLETE"
++fi
++if [ "$PRINT_PLAN" -eq 1 ]; then
++  if [ "$FRONTEND_ONLY" -eq 1 ]; then
++    printf '{"scope":"frontend","phase1Command":null,"frontendCommand":["node","scripts/verify-engagement-web-no-preview-header.mjs"],"frontendHeaderGuard":1,"completeMarker":"%s","failedMarker":"%s"}\n' \
++      "$PHASE2_COMPLETE_MARKER" "$PHASE2_FAILED_MARKER"
++    exit 0
++  fi
++  printf '{"scope":"%s","fast":%s,"phase1Command":["pnpm","%s"],"phase1CompleteMarker":"%s","phase1FailedMarker":"%s","frontendHeaderGuard":%s,"completeMarker":"%s","skipsMarker":"%s","failedMarker":"%s"}\n' \
++    "$PHASE2_SCOPE" "$FAST" "$PHASE1_COMMAND" "$PHASE1_COMPLETE_MARKER" \
++    "$PHASE1_FAILED_MARKER" "$FRONTEND_HEADER_GUARD" "$PHASE2_COMPLETE_MARKER" \
++    "$PHASE2_SKIPS_MARKER" "$PHASE2_FAILED_MARKER"
++  exit 0
++fi
++# PHASE2_MODE_PLAN_END
++
++# PHASE2_FRONTEND_COMMAND_BEGIN
++phase2_frontend_guard() {
++  node scripts/verify-engagement-web-no-preview-header.mjs
++}
++
++phase2_frontend_only() {
++  if phase2_frontend_guard; then
++    printf '%s\n' "$PHASE2_COMPLETE_MARKER"
++    return 0
++  else
++    printf '%s\n' "$PHASE2_FAILED_MARKER" >&2
++    return 1
++  fi
++}
++# PHASE2_FRONTEND_COMMAND_END
++
++cd "$(dirname "$0")/.."
++REPO_ROOT="$PWD"
++if [ "$FRONTEND_ONLY" -eq 1 ]; then
++  phase2_frontend_only
++  exit $?
++fi
+ 
+ PASSED=0
+ FAILED=0
+@@ -44,8 +123,8 @@ phase1_gate() {
+   statuses=("${PIPESTATUS[@]}")
+   # Output is evidence, never a substitute for the real process exit status.
+   [ "${statuses[0]}" -eq 0 ] && [ "${statuses[1]}" -eq 0 ] &&
+-    grep -q '^ENGAGEMENT_PHASE1_DB_FREE_COMPLETE$' "$log" &&
+-    ! grep -q 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' "$log"
++    grep -Fxq -- "$PHASE1_COMPLETE_MARKER" "$log" &&
++    ! grep -Fq -- "$PHASE1_FAILED_MARKER" "$log"
+ }
+ 
+ gate() {
+@@ -107,6 +186,7 @@ ts_test() {
+ 
+ bold "Phase 2 code verification — micro-sessions 2.0 to 2.12"
+ echo "repo:   $REPO_ROOT"
++echo "scope:  $PHASE2_SCOPE"
+ echo "branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+ echo "head:   $(git rev-parse HEAD 2>/dev/null || echo unknown)"
+ echo "base:   ${PHASE2_BASE} (Phase 2 base; scope checks compare against this)"
+@@ -128,7 +208,7 @@ else
+   # The complete 633-file web regression run and builds need a bounded 45-minute
+   # budget. A marker followed by failure, signal or timeout must remain red.
+   p1_log="${LOG_DIR}/Phase_1_DB-free_verifier.log"
+-  if phase1_gate "$p1_log" 2700 pnpm verify:engagement-phase-1; then
++  if phase1_gate "$p1_log" 2700 pnpm "$PHASE1_COMMAND"; then
+     pass "Phase 1 DB-free verifier  (exit 0; COMPLETE)"
+   else
+     fail "Phase 1 DB-free verifier  (see $p1_log)"
+@@ -306,8 +386,14 @@ else
+   pass "no database migration"
+ fi
+ 
+-gate "preview header remains confined to the reviewed web module" \
+-  node scripts/verify-engagement-web-no-preview-header.mjs
++# PHASE2_FRONTEND_HEADER_BEGIN
++if [ "$BACKEND_ONLY" -eq 1 ]; then
++  skip "preview header remains confined to the reviewed web module" "--backend-only"
++else
++  gate "preview header remains confined to the reviewed web module" \
++    phase2_frontend_guard
++fi
++# PHASE2_FRONTEND_HEADER_END
+ 
+ echo ""
+ bold "Summary"
+@@ -323,11 +409,11 @@ done
+ echo ""
+ 
+ if [ "$FAILED" -gt 0 ]; then
+-  echo "ENGAGEMENT_PHASE2_CODE_INCOMPLETE ($FAILED gate(s) failed)" >&2
++  echo "$PHASE2_FAILED_MARKER ($FAILED gate(s) failed)" >&2
+   exit 1
+ fi
+ if [ "$SKIPPED" -gt 0 ]; then
+-  echo "ENGAGEMENT_PHASE2_CODE_COMPLETE_WITH_SKIPS ($SKIPPED gate(s) not measured)"
++  echo "$PHASE2_SKIPS_MARKER ($SKIPPED gate(s) not measured)"
+   exit 0
+ fi
+-echo "ENGAGEMENT_PHASE2_CODE_COMPLETE"
++echo "$PHASE2_COMPLETE_MARKER"

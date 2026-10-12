@@ -277,3 +277,10 @@ for (const args of [
   assert.equal(result.status,2); assert.equal(result.stdout,'');
   assert.deepEqual(readdirSync(result.directory),[]);
 });
+
+for(const foreign of ['ENGAGEMENT_PHASE1_DB_FREE_COMPLETE','[engagement-phase1] FRONTEND COMPLETE','ENGAGEMENT_PHASE1_DB_FREE_FAILED','[engagement-phase1] FRONTEND FAILED'])test(`backend rejects mixed foreign Phase1 receipt ${foreign}`,t=>{
+  assert.equal(checkPhase1(t,{backend:true,output:'[engagement-phase1] BACKEND COMPLETE\n'+foreign}),1);
+});
+test('full original protocol remains unchanged for a mixed foreign receipt',t=>{
+  assert.equal(checkPhase1(t,{output:'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n[engagement-phase1] BACKEND FAILED'}),0);
+});

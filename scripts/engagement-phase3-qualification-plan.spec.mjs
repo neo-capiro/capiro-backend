@@ -16,7 +16,7 @@ const slice=(s,a,b)=>s.slice(s.indexOf(a),s.indexOf(b,s.indexOf(a)));
 const array=(s,name)=>slice(s,`const ${name} = [;`.replace('[;','['),'\n];')+'\n];';
 const oldArray=array(before,'steps'),newArray=array(current,'fullSteps');
 const context={PHASE3_SCOPE_END:'synthetic-head',PHASE3_WHITESPACE_BASE:'synthetic-base',scopedOptions:{env:{ENGAGEMENT_PHASE3_SCOPE_END:'synthetic-head'}}};
-const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\nsteps;',context,{timeout:1000}))); 
+const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\nsteps;',context,{timeout:1000})));
 const browserLabels=['Phase 3 web preview-header containment','Phase 3 focused web contracts','Phase 3 browser harness syntax','Phase 3 interaction harness syntax','Phase 3 scenario catalog syntax','Phase 3 bearer refresh syntax','Phase 3 browser+replay wrapper syntax','Web production typecheck','Web production build','Web complete regression suite'];
 test('actual full step array, whitespace resolver and scoped source context remain byte-exact',()=>{
   assert.equal(newArray.replace('const fullSteps','const steps'),oldArray);
