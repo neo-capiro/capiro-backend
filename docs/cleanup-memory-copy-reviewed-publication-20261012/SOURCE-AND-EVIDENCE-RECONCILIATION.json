@@ -1,0 +1,29 @@
+{
+  "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "source": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+  "author": "940f2c8a94556b8f0f5b7f3576d0123e5a142738",
+  "independent": "692b3902ec62c21047fd5f5ab2cacc3bdd5ff7dc",
+  "sourcePaths": [
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/memory-file-editor-shared.ts.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/pending-memory-review-shared.ts.txt",
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts"
+  ],
+  "priorIndexedEntries": 1295,
+  "unchangedPriorIndexedEntries": 1293,
+  "explicitSupersessions": {
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts": {
+      "before": "fe20d9a510d10b8f91310a3f32f1e24296e09e6b9c12aa6b8a41bde0b0fea215",
+      "after": "91b4fc5957a331302a0473bfd28a20cc03278f935f2babafbadfde6bd982643d"
+    },
+    "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md": {
+      "before": "3f2c8b6d29e7eedcb2c1a5b69c0b39ee8cc26755f5c022fb6c74a19d5809d1df",
+      "after": "a43a691a4a52bd1a1d7605d981c01433d1acbbc7523959724dcf7fc7c0c3a96c"
+    }
+  },
+  "oldSpecPhysicalCopy": "docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/memory-admin-self-approval-contract.spec.ts.original.txt",
+  "oldHandoffPhysicalCopy": "docs/cleanup-memory-copy-reviewed-publication-20261012/HANDOFF-PR2429.md",
+  "allPriorRawEvidencePreserved": true,
+  "sourceWhitespacePassed": true,
+  "fullRawWhitespaceFloor": "OPEN",
+  "nativeAcceptance": "separate reviewed publication"
+}

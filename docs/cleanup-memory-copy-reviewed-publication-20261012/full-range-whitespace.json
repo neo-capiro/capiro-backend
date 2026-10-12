@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "277053c8196dc1be4789c42ea304b0de0553fe00",
+    "HEAD"
+  ],
+  "exitCode": 0,
+  "stdoutBytes": 0,
+  "stderrBytes": 0,
+  "scope": "Full committed slice, preserving all raw evidence; source-only check separately passed",
+  "floor": "this slice passed; inherited complete floor OPEN"
+}
