@@ -1,0 +1,39 @@
+{
+  "sourceCommit": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "sourceTree": "060622781263a78b255cff9850d66a4b2d465bfd",
+  "originalFailedIndependentReviewSource": "fcbf671f585968144b30293c2b1a4fc146cd82ff",
+  "appSourceSha256": {
+    "apps/api/scripts/lib/pe-public-law-facade-containment.ts": "a5124c196aefce4b43b3e5882ef3cdc7a585f366934c53fd07ab2230628c728e",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts": "e8dad94d883bf2274e2bd2ddaf955407b304bbb0aaedf58d8a73f49ddd0bb072",
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts": "c2a1b4e8ac2af573039333a3f1504857f374572cbed4c8ad6abb067c1049c7ae"
+  },
+  "tests": {
+    "passed": 81,
+    "failed": 0,
+    "suites": 2,
+    "newContainment": 67,
+    "unchangedShaContract": 14,
+    "exitCode": 0
+  },
+  "targetedTypesExitCode": 0,
+  "newFilesFormatterExitCode": 0,
+  "canonicalVerifier": {
+    "loadersChecked": 13,
+    "exitCode": 0
+  },
+  "originalRedCasesIndependentlyReproduced": 7,
+  "repairRefusals": 7,
+  "preservedExactToOriginalSource": [
+    "apps/api/scripts/parse-defense-approps-public-law.ts",
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+    "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+    "apps/api/scripts/lib/defense-budget-commit.ts",
+    "apps/api/scripts/verify-pe-budget-phase-7-safety.ts",
+    "apps/api/src/defense-budget/stages/enacted/enactment-proof-v1.ts",
+    "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "independentAcceptance": "pending root reviewer discriminant audit",
+  "rootCliSmokeUpdate": "root-owned pending",
+  "nativeAcceptance": false
+}

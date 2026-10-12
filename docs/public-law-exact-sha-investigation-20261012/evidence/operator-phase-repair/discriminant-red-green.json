@@ -1,0 +1,67 @@
+{
+  "originalSource": "fcbf671f585968144b30293c2b1a4fc146cd82ff",
+  "compilerVersion": "5.9.3",
+  "originalHelperSha256": "62fac6bb7d0bb3d2c32e133de9991862a87c4aeb30125c7db649b9adf13bac22",
+  "repairedHelperSha256": "a5124c196aefce4b43b3e5882ef3cdc7a585f366934c53fd07ab2230628c728e",
+  "reproducedRedCases": 7,
+  "repairedRefusals": 7,
+  "results": [
+    {
+      "case": "array prefix +",
+      "sourceSha256": "074388480fdc7231f044de87f3ca648abdd639567f9ff2adf3143b665d8d0b59",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ]
+    },
+    {
+      "case": "array prefix -",
+      "sourceSha256": "629fe8df6871fef652c5ac2fecdbbd4d05ffc19d6b5faac1e46b5377b0faff27",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ]
+    },
+    {
+      "case": "array prefix ~",
+      "sourceSha256": "cef4c4015f3b0d6398c011d647150eed8cf11a76494c1202930faaf28b7f8f16",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ]
+    },
+    {
+      "case": "array prefix ++",
+      "sourceSha256": "0db6824492e83653a6c71eee3307f0a9fa544974e6976222600355a75c2ac01f",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ]
+    },
+    {
+      "case": "array prefix --",
+      "sourceSha256": "1553475fb00dc52668542d294b3209357a7182bea44e172bcfd8ff1949993d95",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ]
+    },
+    {
+      "case": "deferred filesystem import",
+      "sourceSha256": "5b2d61dbb9562d506fa85ce6ae57a53fa733c478f7739346da011da312840834",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates read-only filesystem import"
+      ]
+    },
+    {
+      "case": "deferred schema import",
+      "sourceSha256": "75d957c1c252868b2f96b01212b6f26e027a73a138ed1fe168cc463778ed17ac",
+      "originalFailures": [],
+      "repairedFailures": [
+        "public-law facade violates canonical proof and candidate schema imports"
+      ]
+    }
+  ],
+  "nativeAcceptance": false
+}

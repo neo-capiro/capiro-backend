@@ -1,0 +1,6 @@
+{
+  "classification": "patch context did not match already formatted spec; atomic patch rejected without edits",
+  "error": "apply_patch verification failed: Failed to find expected lines in pe-public-law-facade-containment.spec.ts: type-only schema import",
+  "sourceChangesFromFailedPatch": false,
+  "corrected": "helper and spec patched separately using current anchors"
+}

@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "node",
+    "--import",
+    "tsx",
+    "scripts/verify-pe-phase-e-exact-sha.ts"
+  ],
+  "exitCode": 0,
+  "seconds": 0.855,
+  "aggregate": {
+    "ok": true,
+    "loadersChecked": 13,
+    "loaders": [
+      "sync-comptroller-jbooks.ts",
+      "sync-jbook-r2.ts",
+      "sync-jbook-performers.ts",
+      "parse-pdoc-army.ts",
+      "load-pdoc-enrichment.ts",
+      "load-om.ts",
+      "load-om-op5.ts",
+      "parse-hasc-sasc-reports.ts",
+      "parse-defense-approps-reports.ts",
+      "parse-ndaa-conference.ts",
+      "parse-defense-approps-public-law.ts",
+      "ingest-defense-budget-pdf.ts",
+      "load-defense-budget-package.ts"
+    ]
+  },
+  "DATABASE_URL": "unset",
+  "sourceOnly": true,
+  "nativeAcceptance": false
+}

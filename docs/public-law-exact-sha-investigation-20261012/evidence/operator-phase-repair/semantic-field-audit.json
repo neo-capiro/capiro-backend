@@ -1,0 +1,62 @@
+{
+  "compilerVersion": "5.9.3",
+  "source": "unchanged Phase6 public-law facade",
+  "observedNonChildPrimitiveFields": {
+    "ImportClause": {
+      "isTypeOnly": false
+    },
+    "Identifier": {
+      "escapedText": "exitCode"
+    },
+    "StringLiteral": {
+      "hasExtendedUnicodeEscape": false
+    },
+    "ImportSpecifier": {
+      "isTypeOnly": false
+    },
+    "Block": {
+      "multiLine": true
+    },
+    "TemplateHead": {
+      "rawText": "--",
+      "templateFlags": 0
+    },
+    "LastTemplateToken": {
+      "rawText": "",
+      "templateFlags": 0
+    },
+    "FirstLiteralToken": {
+      "numericLiteralFlags": 0
+    },
+    "PrefixUnaryExpression": {
+      "operator": 54
+    },
+    "ObjectLiteralExpression": {
+      "multiLine": true
+    }
+  },
+  "handledDiscriminants": {
+    "Identifier.escapedText": "decoded identifier text retained",
+    "ImportClause.isTypeOnly": "serialized",
+    "ImportClause.phaseModifier": "serialized optional field; both defer mutations tested",
+    "ImportSpecifier.isTypeOnly": "serialized",
+    "PrefixUnaryExpression.operator": "serialized;five non-! prefix variants tested",
+    "PostfixUnaryExpression.operator": "serialized defensively;postfix argument mutations tested",
+    "VariableDeclarationList.flags": "serialized;let/await-using mutations tested",
+    "NumericLiteral.numericLiteralFlags": "serialized",
+    "TemplateLiteralToken.templateFlags": "serialized",
+    "LiteralLikeNode.isUnterminated": "serialized and parse diagnostics reject invalid source",
+    "OptionalChain.questionDotToken/flags": "serialized;optional proof/candidate mutations tested",
+    "TypeOperator.operator": "serialized defensively",
+    "BinaryExpression.operatorToken": "visited child kind includes operator",
+    "Modifiers/asterisk/rest/typeArguments/attributes": "visited AST children;shape diverges on additions"
+  },
+  "intentionallyIgnored": {
+    "Block/ObjectLiteral.multiLine": "formatting only",
+    "StringLiteral.hasExtendedUnicodeEscape": "decoded runtime string value already serialized",
+    "TemplateLiteralToken.rawText": "untagged template cooked value serialized;tagged template changes AST kind",
+    "SourceFile.text/ranges/bookkeeping": "only executable statements compared;fixed TS parse mode"
+  },
+  "limit": "audit pertains to node grammar permitted by this exact facade, not arbitrary TypeScript semantic equivalence",
+  "nativeAcceptance": false
+}
