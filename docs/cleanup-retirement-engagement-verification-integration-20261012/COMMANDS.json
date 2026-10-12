@@ -1,0 +1,101 @@
+{
+  "source": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+  "sourceTree": "42c692a5c9620c71d7ccbfdc7c979247f6253a00",
+  "sourceOnly": true,
+  "retainedInitialFreezerFailure": {
+    "program": "freeze-packet.cjs",
+    "exitCode": 1,
+    "rawCheck": "09-frozen-source-whitespace.log"
+  },
+  "controls": [
+    {
+      "log": "01-pure-plan-controls.log",
+      "exit": 1
+    },
+    {
+      "log": "02-pure-plan-controls-repaired.log",
+      "exit": 1
+    },
+    {
+      "log": "04-pure-plan-controls-final.log",
+      "exit": 0,
+      "tests": 78
+    },
+    {
+      "log": "05-pure-plan-early-guard-controls.log",
+      "exit": 0,
+      "tests": 100
+    },
+    {
+      "log": "10-whitespace-repaired-pure-controls.log",
+      "exit": 0,
+      "tests": 100
+    },
+    {
+      "log": "11-scoped-mixed-receipt-repaired-controls.log",
+      "exit": 0,
+      "tests": 105
+    }
+  ],
+  "focusedTypes": {
+    "originalTypedHead": "ec7261b0689bef2bcec1be3beb9af7754c12dc30",
+    "unchangedTypedFiles": [
+      "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "apps/api/scripts/lib/engagement-verifier-process.ts"
+    ],
+    "argv": "node /workspace/capirov2/node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --target ES2022 --module Node16 --moduleResolution Node16 --types node --typeRoots /workspace/capirov2/apps/api/node_modules/@types apps/api/scripts/verify-engagement-phase1-runtime.ts apps/api/scripts/engagement-phase1-qualification-plan.ts",
+    "executorSession": 83248,
+    "exitCode": 0,
+    "log": "03-focused-verifier-source-types.log"
+  },
+  "syntax": [
+    {
+      "argv": [
+        "node",
+        "--check",
+        "scripts/engagement-phase3-qualification-plan.mjs"
+      ],
+      "log": "13-final-phase3-helper-syntax.log",
+      "exitCode": 0
+    },
+    {
+      "argv": [
+        "node",
+        "--check",
+        "scripts/verify-engagement-phase3-code.mjs"
+      ],
+      "log": "14-final-phase3-wrapper-syntax.log",
+      "exitCode": 0
+    },
+    {
+      "argv": [
+        "bash",
+        "-n",
+        "scripts/verify-engagement-phase2-code.sh"
+      ],
+      "log": "15-final-phase2-shell-syntax.log",
+      "exitCode": 0
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "5470c6df029c9553dd49e531229c3c91b26275ef",
+        "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+        "--",
+        ".",
+        ":!docs"
+      ],
+      "log": "16-final-source-whitespace.log",
+      "exitCode": 0
+    }
+  ],
+  "actualVerifierRun": false,
+  "applicationBuildOrSuite": false,
+  "packageManagerOrInstall": false,
+  "nativeDatabaseProviderAWSOrCredentials": false,
+  "fullWindowsWeaknessRetained": true,
+  "nativeWindowsAcceptance": false
+}
