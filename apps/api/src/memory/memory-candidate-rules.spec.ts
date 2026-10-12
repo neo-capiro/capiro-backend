@@ -17,9 +17,9 @@ describe('evaluateMemoryCandidate — explicit human saves', () => {
   });
 
   // Closeout §2.2 / definition-of-done item 1. These four cases are the
-  // regression guard for the self-ratification hole: an administrator used to
+  // regression guard against automatic promotion: an administrator used to
   // get PASS on their own firm/client proposal, so the candidate never became
-  // pending and requireIndependentReviewer never ran.
+  // pending. Subsequent authorized administrator approval is a separate operation.
   it.each([
     ['firm', true],
     ['firm', false],
@@ -43,7 +43,7 @@ describe('evaluateMemoryCandidate — client scope', () => {
   });
 });
 
-describe('evaluateMemoryCandidate — segregation of duties is unconditional', () => {
+describe('evaluateMemoryCandidate — shared creation always remains pending', () => {
   it('exposes no rule that can PASS a shared scope', () => {
     // Brute-force the whole input space that reaches a shared scope, including
     // the fields an author might be tempted to make an escape hatch.

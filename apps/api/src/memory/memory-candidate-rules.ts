@@ -54,27 +54,26 @@ interface MemoryCandidateRule {
 }
 
 /**
- * Personal saves keep their immediate behavior. Everything shared requires an
- * independent reviewer, and machine extraction is pending for every scope.
+ * Personal saves keep their immediate behavior. Shared proposals always start
+ * pending; machine extraction is pending for every scope.
  *
- * **Segregation of duties (closeout §2.2).** `memory.firm.admin_auto_commit` and
- * `memory.client.admin_auto_commit` used to return PASS for `isAdmin`, which let
- * a single administrator turn their own proposal into firm- or client-wide
- * institutional truth in ONE request — the proposer and the approver were the
- * same person, and `requireIndependentReviewer` (memory-candidate.service.ts)
- * never ran because the candidate was never pending. Shared memory steers what
- * every other user in the tenant is later served as fact, so it now always lands
- * `pending` and a second authorized human has to approve it.
+ * `memory.firm.admin_auto_commit` and `memory.client.admin_auto_commit` used to
+ * return PASS for `isAdmin`, promoting a shared proposal in the same request.
+ * That automatic promotion remains prohibited. Proposal creation and approval
+ * are separate operations, including for administrators.
  *
- * `isAdmin` is deliberately no longer consulted anywhere in this list. An admin
- * is authorized to PROPOSE shared memory (and, being a different person from the
- * proposer, to REVIEW someone else's proposal) — never to ratify their own. The
- * field stays on the input type because callers still pass it and the review
- * queue records it; a rule that reads it again would reopen this hole.
+ * The existing approval policy allows authorized user_admin and capiro_admin
+ * reviewers to approve their own pending shared proposals. Other client-scope
+ * reviewers must differ from the proposer and satisfy current grant and
+ * assignment requirements; ordinary grants do not permit firm approval.
+ * Current tenant/client/wall authorization still applies. This description
+ * grants no authority and does not extend the exception to shared self-rejection
+ * or withdrawing another person's proposal.
  *
- * This is a deliberate behavior change with no feature flag: a flag defaulting
- * off would leave shared truth self-ratifiable in production, which is the exact
- * finding being closed. Rollback is a code revert, documented in
+ * `isAdmin` remains unused by these creation rules: it must not bypass pending
+ * creation. Canonical review authorization belongs to the existing review
+ * services, not this rule table. Automated candidates remain review-only.
+ * Rollback of creation behavior is documented in
  * docs/runbooks/meriv2-memory-context-assurance-rollback.md.
  */
 const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
@@ -109,20 +108,21 @@ const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
     id: 'memory.firm.requires_approval',
     outcome: 'WARN',
     reason:
-      'Firm-wide memory requires an authorized reviewer other than the proposer before it ' +
-      'becomes shared truth.',
+      'Firm-wide memory remains pending until an authorized administrator approves it. ' +
+      'An authorized administrator may approve their own proposal.',
     matches: (i) => i.scope === 'firm',
   },
   // G2 client scope: client strategic memory (approved positions, red lines) is
   // shared truth for everyone serving that client — the same trust posture as
   // firm scope (blueprint §4.6.2: "client lead or authorized team; reviewable"),
-  // so it takes the same independent-review path.
+  // so creation stays pending for authorized approval under the existing policy.
   {
     id: 'memory.client.requires_approval',
     outcome: 'WARN',
     reason:
-      'Client-scope memory requires an authorized reviewer other than the proposer before it ' +
-      'steers client work.',
+      'Client-scope memory remains pending until authorized approval. ' +
+      'An authorized administrator may approve their own proposal; other reviewers must be ' +
+      'different from the proposer and satisfy the existing grant and assignment requirements.',
     matches: (i) => i.scope === 'client',
   },
 ];

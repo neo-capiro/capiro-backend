@@ -1,0 +1,42 @@
+{
+  "focused-replay": {
+    "success": true,
+    "tests": 77,
+    "failedTests": 0,
+    "suites": 9,
+    "files": [
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-review-workflow.service.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-authorization.helpers.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/settings-aware-memory-candidate.service.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-candidate.client-review.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-candidate-rules.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-authorization.phase12.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-authorization.admin-capability.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/meri/meri-tools.memory-approval-wording.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-review-workflow.helpers.spec.ts"
+    ]
+  },
+  "disposition-routing-replay": {
+    "success": true,
+    "tests": 36,
+    "failedTests": 0,
+    "suites": 4,
+    "files": [
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/governed-memory-candidate.service.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory.controller.governance.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-review.controller.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-candidate-review.assignment.spec.ts"
+    ]
+  },
+  "readiness-automated-replay": {
+    "success": true,
+    "tests": 37,
+    "failedTests": 0,
+    "suites": 3,
+    "files": [
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/learning-signal-governance.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-settings-review-readiness.service.spec.ts",
+      "/workspace/capirov2-review-memory-wording/apps/api/src/memory/memory-candidate.approval.spec.ts"
+    ]
+  }
+}

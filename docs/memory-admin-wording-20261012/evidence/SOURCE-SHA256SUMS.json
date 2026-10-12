@@ -1,0 +1,6 @@
+{
+  "apps/api/src/memory/memory-candidate-rules.spec.ts": "43439d4f6935f0cc49f2fe074076baa3328f586b7d5a56c3ae259b57c7e0eb93",
+  "apps/api/src/memory/memory-candidate-rules.ts": "8d6905d7eec73a6a9ddc7e8967873b3bd4c4f06975140aa4385045f034cc7483",
+  "apps/api/src/meri/meri-tools.memory-approval-wording.spec.ts": "a3fa6193e6cf4a0f78ce0bf2a0d8eb9cb66bd575489dc7fcfb1bac6c6038d8ad",
+  "apps/api/src/meri/meri-tools.service.ts": "ffba9eac10be1154eb52e3537689ad23b8b89a85614b7b28c9737f079a06b328"
+}

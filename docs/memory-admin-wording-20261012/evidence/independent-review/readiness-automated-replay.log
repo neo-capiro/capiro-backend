@@ -1,0 +1,16 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-memory-wording/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/memory/learning-signal-governance.spec.ts
+[Nest] 11971  - 10/12/2026, 3:24:08 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+[Nest] 11971  - 10/12/2026, 3:24:08 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+[Nest] 11971  - 10/12/2026, 3:24:08 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+PASS src/memory/memory-settings-review-readiness.service.spec.ts
+PASS src/memory/memory-candidate.approval.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       37 passed, 37 total
+Snapshots:   0 total
+Time:        2.799 s
+Ran all test suites within paths "src/memory/learning-signal-governance.spec.ts", "src/memory/memory-settings-review-readiness.service.spec.ts", "src/memory/memory-candidate.approval.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/memory-wording/readiness-automated-replay.json

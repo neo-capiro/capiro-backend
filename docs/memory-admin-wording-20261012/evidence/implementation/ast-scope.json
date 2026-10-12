@@ -1,0 +1,19 @@
+{
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "sourceRef": "539f62e7f2a3f87d9f56f1281e6fff717aed0958",
+  "method": "Parse complete files, remove comments, replace only the two shared reason initializers and the pending memory message initializer, compare all remaining syntax.",
+  "results": [
+    {
+      "file": "apps/api/src/memory/memory-candidate-rules.ts",
+      "pass": true,
+      "replacements": 2,
+      "normalizedSha256": "2f4bd0e7fa37f466f86f8154dde573469d4b6abec44fae92cd832dd44771aae5"
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "pass": true,
+      "replacements": 1,
+      "normalizedSha256": "b8264bbd1b69328464d819351e398b6aba591561ba90173ed725d586f15e6111"
+    }
+  ]
+}
