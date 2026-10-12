@@ -1,0 +1,220 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "sourceHead": "e02e4fbc384b997eaf0e6f8ca6659e5599bd7c10",
+  "published": "d09429a509d5b3cc2501f3736e619723e4b2c4c0",
+  "originalPath": "apps/web/src/components/chat/meri-durable-research.ts",
+  "originalFullSource": {
+    "bytes": 16414,
+    "sha256": "fe527c6d0c90c61c0cf453af61e1b8d5509794e56a64f816b7a4fca88d20aa02",
+    "gitBlob": "5495b494011551ebbc1260f65c062491edd30934"
+  },
+  "frozenOracle": {
+    "bytes": 13817,
+    "sha256": "476ace880c73c1f52558d3b08a7396a43f0b96a3e1bf8916ccc9ddc52ee8e50c",
+    "bindings": [
+      {
+        "name": "MeriDurableRunStatus",
+        "kind": "TypeAliasDeclaration",
+        "declarationSha256": "40d0b8c37d4aeb92f397a79241303068513f902e19420a32880898e085ffe564"
+      },
+      {
+        "name": "MeriDurableResearchRun",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "66b362906267f44b3b5954d4fac4ec0d01dbaf00b4cad983e87724ab7a7ddee3"
+      },
+      {
+        "name": "MeriDurableStepOutcome",
+        "kind": "TypeAliasDeclaration",
+        "declarationSha256": "3f1e06c1b407daba131568e3326fadce608ce9fbe40bf22e567242520e7c86c9"
+      },
+      {
+        "name": "MeriDurableResearchStep",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "4657b30d6b9702dadde5ba3782abff30e171dea5dbb101fc2dae3630b9e2aafb"
+      },
+      {
+        "name": "MeriDurableResearchEvent",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "2c590976b175ab0326149d7746cb58b25679aeb516f5132ab32e4290d18c0be5"
+      },
+      {
+        "name": "MeriDurableResearchCoordinator",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "331be84cccfe7faebcf3bb9b0d6f2254c9fa5ad8e5b6096bb4d47c7ff6dc2d12"
+      },
+      {
+        "name": "MeriDurableResearchSnapshot",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "7d5e92ceed15090d97ad2dc64ccd1973e5211102a3ab8aad5785ffca42c1caeb"
+      },
+      {
+        "name": "MeriDurableSteeringReceipt",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "27909c09b6b280ba92626bd9a3ad7172e073782adef1640c8d18e23dcd1b5e98"
+      },
+      {
+        "name": "MeriDurableSteeringResponse",
+        "kind": "InterfaceDeclaration",
+        "declarationSha256": "e90384262f1a747ad9dee4cd06c353b4e6c210cb3383d5f498c1a815df2ab194"
+      },
+      {
+        "name": "MeriDurableResearchHttpError",
+        "kind": "ClassDeclaration",
+        "declarationSha256": "d7a0ccea35c3bd068eca2e18902d0e396cbec4458976d51f622109ff0399b42a"
+      },
+      {
+        "name": "EVENT_TYPES",
+        "kind": "FirstStatement",
+        "declarationSha256": "af5db046b416ccd79e6463d86b4e086ec3d45161e59d625d4884a82413ba567a"
+      },
+      {
+        "name": "MAX_EVENT_HISTORY",
+        "kind": "FirstStatement",
+        "declarationSha256": "cfa413909c1f29638ed3da3d1b6f4be045a76a687f3766e38774be27112c6b60"
+      },
+      {
+        "name": "RUN_STATUSES",
+        "kind": "FirstStatement",
+        "declarationSha256": "923dd2a75fceb6f5ff56943cb16b4713fc3824654fe6b0f399cdfa7164ec362b"
+      },
+      {
+        "name": "STEP_OUTCOMES",
+        "kind": "FirstStatement",
+        "declarationSha256": "8391f9e84fa3414d005bd251a9d9f0e3445496540f212e84ccfdf320d15c5680"
+      },
+      {
+        "name": "record",
+        "kind": "FirstStatement",
+        "declarationSha256": "7b826b682e5b2fe22eb1613c4bff32a230b08c9ae01e6782442143ea9c2bfda7"
+      },
+      {
+        "name": "stringArray",
+        "kind": "FirstStatement",
+        "declarationSha256": "dbfcfbbde179e17f072d293bd92a28b34450d8b70cebb347be9d7980c186151d"
+      },
+      {
+        "name": "nonNegativeInteger",
+        "kind": "FirstStatement",
+        "declarationSha256": "be72c81c71b4987e4ab15ed3145e9823aa161531f3cad565cc468247fe5857cf"
+      },
+      {
+        "name": "readRun",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "3b6c679d70650a3ae01b4254e0ca124e75e71ed64f65174ecd7604e4b33d0101"
+      },
+      {
+        "name": "readStep",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "4df822490fc73da2dfe41a115ea8d85ccd94eb3cedf72436fc05ffa5039cda55"
+      },
+      {
+        "name": "readEvent",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "52cf7137d360b929943b750134eb288b001c0c3b33e1ee00db1b4c627f6faaed"
+      },
+      {
+        "name": "readMeriDurableResearchSnapshot",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "35a4e2ef2141e9b76accdd991b7b4c71d091b7b9d21ea782ad3a452aebb2a021"
+      },
+      {
+        "name": "readCancellation",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "d8f8e291ee0ca3b7ef21dec5e8257dff4419c6ce7ddc31f93b7b12ff94554370"
+      },
+      {
+        "name": "bodyOrNull",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "7613ebb88c8f759f4596b02e5e085f8cb1247231b7595c57f09317a87dfc2c29"
+      },
+      {
+        "name": "checkedJson",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "5f32dafd49d124338a9e037c63cec7cb3b2481c5f9db30c28119cfaf9a8ccc1f"
+      },
+      {
+        "name": "fetchMeriDurableResearchSnapshot",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "ba9429c45c581d87c95097a7ac33ea7c31ada19b8f3357292519e21d15c19459"
+      },
+      {
+        "name": "steerMeriDurableResearch",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "3882737b77b8fdc9c077064f09b7f871674c5bdf99cddc0a03ed28938ba4dbe3"
+      },
+      {
+        "name": "cancelMeriDurableResearch",
+        "kind": "FunctionDeclaration",
+        "declarationSha256": "ee270b0057acaaac212be5747c8ddc24789dc5c0abc8fdc9f0d30fea29042d29"
+      }
+    ]
+  },
+  "reachedValues": [
+    "cancelMeriDurableResearch",
+    "record",
+    "checkedJson",
+    "bodyOrNull",
+    "MeriDurableResearchHttpError",
+    "readRun",
+    "nonNegativeInteger",
+    "RUN_STATUSES",
+    "fetchMeriDurableResearchSnapshot",
+    "readMeriDurableResearchSnapshot",
+    "stringArray",
+    "readCancellation",
+    "readStep",
+    "STEP_OUTCOMES",
+    "readEvent",
+    "EVENT_TYPES",
+    "MAX_EVENT_HISTORY",
+    "steerMeriDurableResearch"
+  ],
+  "exactRuntimeTextExceptEquivalentErrorTypeDeclaration": [
+    "cancelMeriDurableResearch",
+    "record",
+    "checkedJson",
+    "bodyOrNull",
+    "readRun",
+    "nonNegativeInteger",
+    "RUN_STATUSES",
+    "fetchMeriDurableResearchSnapshot",
+    "readMeriDurableResearchSnapshot",
+    "stringArray",
+    "readCancellation",
+    "readStep",
+    "STEP_OUTCOMES",
+    "readEvent",
+    "EVENT_TYPES",
+    "MAX_EVENT_HISTORY",
+    "steerMeriDurableResearch"
+  ],
+  "integrationImportOnlyInverse": true,
+  "originalNativeCases": [
+    "round-trips snapshot, /steer conflict, retained effects, cursor, and two-stage Stop"
+  ],
+  "originalNativeExpectCalls": [
+    "expect(initial.run)",
+    "expect(initial.coordinator.steps[0])",
+    "expect(accepted)",
+    "expect(\n      steerMeriDurableResearch({\n        apiBaseUrl: baseUrl,\n        researchId: 'session-1',\n        headers,\n        requestId: 'web-steer-stale',\n        expectedGoalRevision: 0,\n        message: 'Use the Senate version.',\n      }),\n    )",
+    "expect(revised.run)",
+    "expect(revised.coordinator.goalRevision)",
+    "expect(revised.events.every((event) => event.sequence > initial.nextSequence))",
+    "expect(revised.coordinator.steps[0]?.sourceRefs)",
+    "expect(fixture.getSession().metadata.retainedProviderReviewField)",
+    "expect(requested.run)",
+    "expect(observed.run)",
+    "expect(observed.coordinator.cancellation)",
+    "expect(observed.coordinator.steps[0]?.sourceRefs)"
+  ],
+  "sourceChanges": [
+    "apps/api/scripts/lib/meri-durable-research-contract-client.ts",
+    "apps/api/scripts/meri-durable-controls.http.integration.spec.ts",
+    "scripts/ci/meri-durable-http-client-contract.spec.mjs"
+  ],
+  "unrelatedRuntimeSourceChanged": false,
+  "clientImports": 0,
+  "publicOnlyThreeMethods": true,
+  "actualNativeIntegrationRun": false,
+  "claim": "Immutable original reachable closure bound to actual destination Web declarations; only three testclient transports, no authorization owner/echoID improvement/nativecase acceptance"
+}

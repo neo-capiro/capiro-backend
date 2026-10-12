@@ -1,0 +1,23 @@
+{
+  "exactSevenWebSourcesBlocked": [
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryFileEditor.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/PendingMemoryReviewPanel.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryReviewInbox.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryGovernanceCenterHost.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/pages/settings/MemorySettingsPage.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts"
+  ],
+  "refused": [],
+  "fixtureReads": [
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt"
+  ],
+  "guardScope": "Only owned test process readFileSync; no files deleted/changed or application policy changed"
+}

@@ -1,0 +1,77 @@
+{
+  "base": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "baseTree": "00ca67ae1f2cacc1ae0b51fff25cb33d58954f67",
+  "independentlyCapturedBeforeCandidate": true,
+  "identities": [
+    {
+      "path": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "snapshot": "baseline/01-memory-admin-self-approval-contract.spec.ts.txt",
+      "bytes": 5981,
+      "sha256": "fb1060e8aac1beba6ace106f82e94e8acc1f58690dfd5111a0b9c2e99a2ce385",
+      "gitBlob": "b506c9200c82f5278ae60e6add4885accbf22f55"
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "snapshot": "baseline/02-memory-phase3-review-inbox-contract.spec.ts.txt",
+      "bytes": 6046,
+      "sha256": "7b1aa2eb3bd137606bdf509fcfbe1d3be0f278bb5f02bef6265fc17e43cbe9ad",
+      "gitBlob": "c3aa3bf0defd1167fbcf4c1d4914a3b8776a7a50"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "snapshot": "baseline/03-opportunity-explanation.spec.ts.txt",
+      "bytes": 11571,
+      "sha256": "389eacaec254910a08a8b7c2e7c8d5b65ad56910f5d6d37161afe7940dbafc89",
+      "gitBlob": "4f780eeba0ded6d0530433b256dac59d6ebb34ff"
+    },
+    {
+      "path": "apps/web/src/components/MemoryFileEditor.tsx",
+      "snapshot": "baseline/04-MemoryFileEditor.tsx.txt",
+      "bytes": 6526,
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+      "gitBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65"
+    },
+    {
+      "path": "apps/web/src/components/PendingMemoryReviewPanel.tsx",
+      "snapshot": "baseline/05-PendingMemoryReviewPanel.tsx.txt",
+      "bytes": 6279,
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+      "gitBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439"
+    },
+    {
+      "path": "apps/web/src/components/MemoryReviewInbox.tsx",
+      "snapshot": "baseline/06-MemoryReviewInbox.tsx.txt",
+      "bytes": 28524,
+      "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85",
+      "gitBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8"
+    },
+    {
+      "path": "apps/web/src/components/MemoryGovernanceCenterHost.tsx",
+      "snapshot": "baseline/07-MemoryGovernanceCenterHost.tsx.txt",
+      "bytes": 1769,
+      "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb",
+      "gitBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69"
+    },
+    {
+      "path": "apps/web/src/pages/settings/MemorySettingsPage.tsx",
+      "snapshot": "baseline/08-MemorySettingsPage.tsx.txt",
+      "bytes": 2412,
+      "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3",
+      "gitBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda"
+    },
+    {
+      "path": "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx",
+      "snapshot": "baseline/09-FundingOpportunityV2ResultCard.tsx.txt",
+      "bytes": 25244,
+      "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101",
+      "gitBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a"
+    },
+    {
+      "path": "apps/web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts",
+      "snapshot": "baseline/10-funding-opportunities-domain.ts.txt",
+      "bytes": 6387,
+      "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c",
+      "gitBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b"
+    }
+  ]
+}

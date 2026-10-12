@@ -1,0 +1,222 @@
+{
+  "files": [
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+    "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+    "apps/api/src/funding-opportunities/opportunity-explanation.ts",
+    "apps/api/src/district-nexus/grant-opportunity-relevance.ts",
+    "packages/shared/src/index.ts",
+    "packages/shared/src/funding-opportunities-v2.ts",
+    "packages/shared/src/funding-opportunities-v2-detail.ts",
+    "packages/shared/src/funding-opportunities-v2-workflow.ts",
+    "packages/shared/src/meri-read-outcome.ts",
+    "packages/shared/src/defense-budget-line.ts",
+    "packages/shared/src/pe-source-coverage.ts",
+    "packages/shared/src/funding-priorities.ts",
+    "packages/shared/src/legislative-research.ts",
+    "packages/shared/src/research-portfolios.ts",
+    "packages/shared/src/defense-research.ts",
+    "packages/shared/src/legiwatch-query.ts",
+    "packages/shared/src/legiwatch-phase8.ts",
+    "packages/shared/src/us-states.ts",
+    "packages/shared/src/meri-document-request.ts",
+    "packages/shared/src/schedule/time-zone.ts",
+    "packages/shared/src/schedule/deadline.ts",
+    "packages/shared/src/schedule/validate.ts",
+    "packages/shared/src/schedule/synthesis.ts",
+    "packages/shared/src/tenant-feature.ts",
+    "packages/shared/src/client-memory-wall.ts",
+    "packages/shared/src/prospect-resource-scope.ts",
+    "packages/shared/src/workspace-saved-revision.ts",
+    "packages/shared/src/client-objective-destination.ts",
+    "packages/shared/src/time.ts",
+    "apps/api/src/funding-opportunities/opportunity-profile.types.ts"
+  ],
+  "external": [
+    "node:fs",
+    "node:path",
+    "@jest/globals"
+  ],
+  "edges": [
+    {
+      "file": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "spec": "node:fs"
+    },
+    {
+      "file": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "spec": "node:path"
+    },
+    {
+      "file": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "spec": "@jest/globals"
+    },
+    {
+      "file": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "spec": "node:fs"
+    },
+    {
+      "file": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "spec": "node:path"
+    },
+    {
+      "file": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "spec": "@jest/globals"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "spec": "@jest/globals"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "spec": "node:fs"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "spec": "node:path"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "spec": "./opportunity-explanation.js"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.ts",
+      "spec": "../district-nexus/grant-opportunity-relevance.js"
+    },
+    {
+      "file": "apps/api/src/district-nexus/grant-opportunity-relevance.ts",
+      "spec": "@capiro/shared"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./funding-opportunities-v2.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./funding-opportunities-v2-detail.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./funding-opportunities-v2-workflow.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./meri-read-outcome.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./defense-budget-line.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./pe-source-coverage.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./funding-priorities.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./legislative-research.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./research-portfolios.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./defense-research.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./legiwatch-query.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./legiwatch-phase8.js"
+    },
+    {
+      "file": "packages/shared/src/legiwatch-phase8.ts",
+      "spec": "./legiwatch-query.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./us-states.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./meri-document-request.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./schedule/time-zone"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./schedule/deadline"
+    },
+    {
+      "file": "packages/shared/src/schedule/deadline.ts",
+      "spec": "./time-zone"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./schedule/validate"
+    },
+    {
+      "file": "packages/shared/src/schedule/validate.ts",
+      "spec": "./time-zone"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./schedule/synthesis"
+    },
+    {
+      "file": "packages/shared/src/schedule/synthesis.ts",
+      "spec": "./validate"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./tenant-feature.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./client-memory-wall.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./prospect-resource-scope.js"
+    },
+    {
+      "file": "packages/shared/src/prospect-resource-scope.ts",
+      "spec": "./client-memory-wall.js"
+    },
+    {
+      "file": "packages/shared/src/prospect-resource-scope.ts",
+      "spec": "./tenant-feature.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./workspace-saved-revision.js"
+    },
+    {
+      "file": "packages/shared/src/workspace-saved-revision.ts",
+      "spec": "./client-memory-wall.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./client-objective-destination.js"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "spec": "./time.js"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "spec": "./opportunity-profile.types.js"
+    },
+    {
+      "file": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "spec": "../district-nexus/grant-opportunity-relevance.js"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "exactSevenWebSourcesBlocked": [
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryFileEditor.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/PendingMemoryReviewPanel.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryReviewInbox.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryGovernanceCenterHost.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/pages/settings/MemorySettingsPage.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts"
+  ],
+  "refused": [
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryFileEditor.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryGovernanceCenterHost.tsx"
+  ],
+  "fixtureReads": [],
+  "guardScope": "Only owned test process readFileSync; no files deleted/changed or application policy changed"
+}

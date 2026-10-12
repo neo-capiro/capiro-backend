@@ -1,0 +1,28 @@
+(node:481201) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ original: HTTP Error descriptor fields preserve original enumerable/writable values (80.136671ms)
+✔ original: all request getter throws reject asynchronously before transport (19.554672ms)
+✔ original: successful JSON getter rejection retains original null-body policy (15.129405ms)
+✔ original: response ok/status getter failures propagate exact rejection (10.377331ms)
+✔ original: sparse nested arrays fail full snapshot rather than dropping holes (7.507666ms)
+✔ original: unsafe response event integers fail while boundary-safe zero succeeds (24.336325ms)
+✔ original: request serialization getter failure happens before fetch with no retry (4.019614ms)
+✔ original: inherited enum coercion remains observable rather than strengthened (4.686916ms)
+✔ original: extra response receipt fields and mismatched echo remain raw aliases (5.596039ms)
+✔ candidate: HTTP Error descriptor fields preserve original enumerable/writable values (3.484846ms)
+✔ candidate: all request getter throws reject asynchronously before transport (11.539017ms)
+✔ candidate: successful JSON getter rejection retains original null-body policy (8.76405ms)
+✔ candidate: response ok/status getter failures propagate exact rejection (5.646732ms)
+✔ candidate: sparse nested arrays fail full snapshot rather than dropping holes (5.374513ms)
+✔ candidate: unsafe response event integers fail while boundary-safe zero succeeds (14.958246ms)
+✔ candidate: request serialization getter failure happens before fetch with no retry (3.587985ms)
+✔ candidate: inherited enum coercion remains observable rather than strengthened (2.842832ms)
+✔ candidate: extra response receipt fields and mismatched echo remain raw aliases (2.36879ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 322.807506

@@ -1,0 +1,10 @@
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
+const root=process.cwd(),packet=path.join(root,'docs/cleanup-memory-funding-fixtures-independent-review-20261012'),ev=path.join(packet,'evidence');
+const label=process.argv[2];if(!/^[0-9]{2}-[a-z-]+$/.test(label||''))throw new Error('unique label required');
+const log=path.join(ev,label+'.log'),output=path.join(ev,label+'.jest.json'),receipt=path.join(ev,label+'.json');
+for(const p of [log,output,receipt])if(fs.existsSync(p))throw new Error('immutable output exists '+p);
+const node='/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node';
+const args=['/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js','--config',path.join(packet,'jest.safe.cjs'),'--runInBand','--json','--outputFile',output];
+const env={PATH:path.dirname(node)+':/usr/bin:/bin',NODE_OPTIONS:'--max-old-space-size=4096',TMPDIR:'/tmp'};const fd=fs.openSync(log,'wx'),started=new Date().toISOString();
+const c=cp.spawn(node,args,{cwd:root,env,stdio:['ignore',fd,fd]});
+c.once('exit',(code,signal)=>{fs.closeSync(fd);const bytes=fs.readFileSync(log),results=fs.existsSync(output)?JSON.parse(fs.readFileSync(output,'utf8')):null;const summary=results?{suites:results.numTotalTestSuites,passedSuites:results.numPassedTestSuites,failedSuites:results.numFailedTestSuites,cases:results.numTotalTests,passed:results.numPassedTests,failed:results.numFailedTests}:null;fs.writeFileSync(receipt,JSON.stringify({sourceHead:cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),started,finished:new Date().toISOString(),node,args,env,cwd:root,exitCode:code,signal,summary,rawLog:{path:log,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')}},null,2)+'\n');console.log(JSON.stringify({label,exitCode:code,summary}));process.exitCode=code===0?0:1;});

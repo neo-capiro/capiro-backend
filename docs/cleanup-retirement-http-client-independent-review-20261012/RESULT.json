@@ -1,0 +1,50 @@
+{
+  "acceptedSource": "e02e4fbc384b997eaf0e6f8ca6659e5599bd7c10",
+  "acceptedTree": "4608895b796a9256257e967a60408d5e482abee3",
+  "reviewerSourceComposition": {
+    "head": "68c6c13e2aee90aea18fca12efd4f68f1f286c52",
+    "tree": "d55a7ada6a2ea805d1465fe70fab2b5405514316",
+    "sourcePaths": 13,
+    "reviewerOwnSourceEdits": 0
+  },
+  "commands": [
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --test scripts/ci/meri-durable-http-client-contract.spec.mjs",
+      "exitCode": 0,
+      "fakeTests": 48,
+      "skips": 0
+    },
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --test docs/cleanup-retirement-http-client-independent-review-20261012/evidence/independent-fake-adversaries.cjs",
+      "exitCode": 0,
+      "fakeTests": 18,
+      "skips": 0
+    },
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/node_modules/typescript/bin/tsc --project docs/cleanup-retirement-import-free-http-client-20261012/tsconfig.client.json",
+      "exitCode": 0,
+      "scope": "strict standalone ES2022/DOM, types empty, noEmit"
+    }
+  ],
+  "independentOracleDeclarations": 27,
+  "reachableRuntimeValues": 18,
+  "nativeIntegration": {
+    "cases": 1,
+    "expectCalls": 13,
+    "run": false,
+    "entireImportOnlyInverseExact": true
+  },
+  "correction": "21+21 are the original and candidate FAKE-fetch corpus, not native API cases. Frozen original author wording is historical; this independent count/source binding corrects the scope.",
+  "reviewHelperReds": [
+    "02 CJS wrapper exports-name collision",
+    "03 incorrect inherited21-native-case expectation; actual1it/13expect independently measured"
+  ],
+  "open": [
+    "native API integration/bootstrap",
+    "real transport/provider/database/RLS/migrations",
+    "broader prototype/closeout/scope/native/full floors"
+  ],
+  "realFetchCalls": 0,
+  "appOrFrontendSourceChange": false,
+  "acceptance": "bounded3path import-free testclient/source/body/behavior equivalence only"
+}
