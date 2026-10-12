@@ -1,0 +1,15 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-review/.artifacts/cleanup1-verify-fixtures/bad-4-empty-results.json",
+  "baselineFileSha256": "c728a195408a18cc55dcfcc9d9a69c8db89dfca443edf78fd56adf869e903a60",
+  "kind": "auto",
+  "head": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "results must be a non-empty array",
+    "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+  ],
+  "runSha": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+}

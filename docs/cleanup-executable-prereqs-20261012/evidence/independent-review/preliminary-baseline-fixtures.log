@@ -1,0 +1,17 @@
+{
+  "allPass": false,
+  "passed": 7,
+  "total": 10,
+  "checks": [
+    "FAIL complete-valid-baseline-accepted",
+    "PASS invented-scope-rejected",
+    "PASS nonzero-native-exit-rejected",
+    "PASS absent-report-rejected",
+    "PASS empty-results-rejected",
+    "PASS metrics-must-re-derive-from-raw-report",
+    "FAIL tampered-fingerprint-rejected",
+    "PASS fingerprint-re-derivable",
+    "FAIL measured-source-commit-is-ancestor-of-head",
+    "PASS evidence-paths-excluded-from-fingerprint"
+  ]
+}

@@ -1,0 +1,47 @@
+✔ jest adapter: keeps duplicate fullName occurrences and normalises suite paths across worktrees (2.779301ms)
+✔ vitest adapter: parses the jest-shaped vitest JSON reporter (0.520675ms)
+✔ pytest adapter: node ids are COLLECTED, not passed; headers/warnings ignored (2.925728ms)
+✔ playwright adapter: nested suites, project multiplicity, cross-worktree path (1.062467ms)
+✔ buildRun: @capiro/e2e runs its own launcher, never the raw external CLI (19.585582ms)
+✔ node:test adapter: nested describe reconstructed from the event stream; duplicates kept; suite container excluded (3.028405ms)
+✔ buildRun preserves each package command/config tier and adds only the report flags (2.041579ms)
+✔ parse failure surfaces as a thrown error (target later recorded as non-passing scope) (2.314722ms)
+✔ pytest parser: an empty listing yields zero tests, not a pass (3.170904ms)
+✔ no change and pure additions pass (5.237878ms)
+✔ a removed occurrence blocks (0.540596ms)
+✔ multiset: removing one of two identical fullName occurrences is still a removal (0.795991ms)
+✔ an explicit 1:1 twin excuses a removal when the survivor really exists (0.553432ms)
+✔ twin double-use guard: one survivor cannot excuse two removals without manyToOne (0.580949ms)
+✔ twin with a survivor that is absent from after blocks (1.761843ms)
+✔ twin referencing a removed suite not in before blocks (0.351261ms)
+✔ an explicit valid rename passes and is reported as changed (0.302229ms)
+✔ no fuzzy rename heuristic: a changed name without a map blocks (0.494229ms)
+✔ rename pointing at a missing after occurrence blocks (0.399531ms)
+✔ cross-package rename must be declared and the vacated target acknowledged (0.57678ms)
+✔ gained package is permitted; lost package blocks unless acknowledged (0.534641ms)
+✔ runner change for a package blocks unless acknowledged (19.42219ms)
+✔ per-package before/after counts are reported (3.085545ms)
+✔ finding 1: malformed / noncanonical input is rejected; a validated zero-scope snapshot is accepted (1.403188ms)
+✔ finding 2: a runner-failed / zero-tests after target blocks acceptance but keeps the name diff (2.269669ms)
+✔ finding 2: pytest COLLECTED-only targets are reported as collection-only, not executed success (0.950235ms)
+✔ finding 3: a preserved name regressed from passed to skipped/todo/cancelled blocks; pre-existing skips remain (0.904898ms)
+✔ finding 3: a multiset regression (one of two executed -> skipped) blocks (0.463258ms)
+✔ finding 4: a target/config tier change blocks unless acknowledged with a concrete reason (0.708315ms)
+✔ finding 4: a zero-occurrence target that disappears is still scope loss (0.6515ms)
+✔ finding 4: a compound script tier loss (same package+runner, one tier gone) is not preserved by package/runner alone (0.70419ms)
+✔ discovery: picks up every package at run time, including infra/python/playwright (6.150757ms)
+✔ discovery: unclassifiable command is explicit non-passing scope, never skipped (2.769427ms)
+✔ discovery: a newly added package is discovered (no checked-in list) (8.695544ms)
+✔ splitSegment/resolveSegment/classifyRunner behave for real command shapes (1.9884ms)
+✔ normalizeSuitePath: strips the package prefix, foreign roots, and separators (0.575985ms)
+✔ native adapter: infra/cdk constructs driver is classified as node:test, never waived (23.722941ms)
+✔ native adapter: @capiro/e2e Playwright launcher is classified as playwright, never waived (3.473409ms)
+✔ native adapter match is source-bound: wrong package/path/command cannot match (0.25067ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 226.888618

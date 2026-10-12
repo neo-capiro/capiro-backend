@@ -1,0 +1,18 @@
+✔ discovers a manifest-less app test/*.test.mjs suite and builds a node --test argv (6.917829ms)
+✔ a second standalone app added later is noticed by a fresh discovery run (0.981413ms)
+✔ a manifest-bearing app is left to the existing Turbo owner (not discovered, not a problem) (0.713827ms)
+✔ a test directory with no supported *.test.mjs yields no suite and an explicit problem, never zero-test success (0.926828ms)
+✔ a symlinked standalone test file is refused (must be a real regular file) (0.805038ms)
+✔ a standalone test whose real path escapes the owned root is refused (0.730763ms)
+✔ a missing apps root is reported as a problem, never an empty success (0.651246ms)
+✔ an apps root that is not a directory is refused as a problem (0.871801ms)
+✔ a linked (junction) standalone app directory is refused, not silently skipped (1.761042ms)
+✔ a linked (junction) test directory is refused, not silently followed (1.423269ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 190.794575

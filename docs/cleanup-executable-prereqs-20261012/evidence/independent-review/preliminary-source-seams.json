@@ -1,0 +1,26 @@
+{
+  "pythonDev": [
+    "pytest>=8.0,<9",
+    "pytest-cov>=4.0,<6",
+    "ruff>=0.5,<1",
+    "mypy>=1.10,<1.16"
+  ],
+  "pythonLockOwnDev": [
+    {
+      "name": "mypy"
+    },
+    {
+      "name": "pytest"
+    },
+    {
+      "name": "pytest-cov"
+    },
+    {
+      "name": "ruff"
+    }
+  ],
+  "pythonNumpyTestSource": "apps/defense-budget-parser/tests/test_paddleocr_engine.py:505",
+  "nativeExecution": false,
+  "baselineFixtureHardcodedSeed": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9",
+  "baselineFixtureSeedAncestor": false
+}

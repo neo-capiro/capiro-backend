@@ -1,0 +1,131 @@
+{
+  "preliminarySnapshot": true,
+  "exactPublishedCarrierFiles": 519,
+  "localImportEdges": 237,
+  "missingRelativeImports": [],
+  "bareImports": [
+    "node:assert/strict",
+    "node:child_process",
+    "node:crypto",
+    "node:fs",
+    "node:module",
+    "node:net",
+    "node:os",
+    "node:path",
+    "node:string_decoder",
+    "node:test",
+    "node:url",
+    "typescript"
+  ],
+  "allOldLockValuesPreserved": true,
+  "allNewLockEntriesExactPublished": true,
+  "additions": {
+    "packages": [
+      "@ampproject/remapping@2.3.0",
+      "istanbul-lib-source-maps@5.0.6",
+      "magicast@0.3.5",
+      "test-exclude@7.0.2",
+      "@vitest/coverage-v8@2.1.9"
+    ],
+    "snapshots": [
+      "@ampproject/remapping@2.3.0",
+      "istanbul-lib-source-maps@5.0.6",
+      "magicast@0.3.5",
+      "test-exclude@7.0.2",
+      "@vitest/coverage-v8@2.1.9(vitest@2.1.9(@types/node@26.6.3)(jsdom@29.1.1(@noble/hashes@1.8.0))(lightningcss@1.32.0)(terser@5.46.2))"
+    ]
+  },
+  "missingLockDependencies": [],
+  "oldCITriggersPermissionsJobsStepsPreserved": true,
+  "insertedCI": [
+    {
+      "job": "verify",
+      "step": {
+        "name": "Test apps/api",
+        "run": "pnpm --filter @capiro/api test"
+      }
+    },
+    {
+      "job": "verify",
+      "step": {
+        "name": "Test apps/web",
+        "run": "pnpm --filter @capiro/web test"
+      }
+    },
+    {
+      "job": "verify",
+      "step": {
+        "name": "Test apps/defense-api",
+        "run": "pnpm turbo run build --filter=@capiro/defense-api\npnpm --filter @capiro/defense-api test\n"
+      }
+    }
+  ],
+  "workflows": {
+    ".github/workflows/architecture-guards.yml": {
+      "on": {
+        "pull_request": {
+          "paths": [
+            "apps/**/*.ts",
+            "apps/**/*.tsx",
+            "packages/**/*.ts",
+            "packages/**/*.tsx",
+            "scripts/check-evaluation-new-bypasses.mjs",
+            "scripts/check-learning-signal-new-bypasses.mjs",
+            "scripts/check-quality-telemetry-new-bypasses.mjs",
+            ".github/workflows/architecture-guards.yml"
+          ]
+        },
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": [
+        "no-new-architecture-bypasses"
+      ]
+    },
+    ".github/workflows/cleanup1-gate.yml": {
+      "on": {
+        "pull_request": {
+          "paths": [
+            "apps/**",
+            "packages/**",
+            "infra/**",
+            "scripts/**",
+            "tests/**",
+            "package.json",
+            "pnpm-lock.yaml",
+            "pnpm-workspace.yaml",
+            "turbo.json",
+            ".github/workflows/**"
+          ]
+        },
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": [
+        "gate"
+      ]
+    },
+    ".github/workflows/defense-budget-parser-ci.yml": {
+      "on": {
+        "pull_request": {
+          "paths": [
+            "apps/defense-budget-parser/**",
+            ".github/workflows/defense-budget-parser-ci.yml"
+          ]
+        },
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": [
+        "python"
+      ]
+    }
+  },
+  "nativeOrFullGateExecuted": false
+}

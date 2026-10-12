@@ -1,0 +1,43 @@
+file:///workspace/capirov2-cleanup-prereqs-review/apps/e2e/lib/playwright-runtime.mjs:126
+  const err = new Error(
+              ^
+
+Error: No SHARED EXTERNAL @playwright/test runtime could be resolved.
+Set PLAYWRIGHT_CLI (path to @playwright/test/cli.js) or PLAYWRIGHT_RUNTIME_DIR
+(a prefix containing node_modules/@playwright/test).
+Considered:
+  - PLAYWRIGHT_CLI: unset
+  - PLAYWRIGHT_RUNTIME_DIR: unset
+  - implicit: Cannot find module '@playwright/test/package.json'
+Require stack:
+- /workspace/capirov2-cleanup-prereqs-review/package.json
+    at resolvePlaywrightRuntime (file:///workspace/capirov2-cleanup-prereqs-review/apps/e2e/lib/playwright-runtime.mjs:126:15)
+    at file:///workspace/capirov2-cleanup-prereqs-review/apps/e2e/lib/playwright-bridge.mjs:34:17
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  attempts: [
+    {
+      source: 'PLAYWRIGHT_CLI',
+      value: null,
+      ok: false,
+      reason: 'unset'
+    },
+    {
+      source: 'PLAYWRIGHT_RUNTIME_DIR',
+      value: null,
+      ok: false,
+      reason: 'unset'
+    },
+    {
+      source: 'implicit',
+      value: null,
+      ok: false,
+      reason: "Cannot find module '@playwright/test/package.json'\n" +
+        'Require stack:\n' +
+        '- /workspace/capirov2-cleanup-prereqs-review/package.json'
+    }
+  ]
+}
+
+Node.js v24.19.0

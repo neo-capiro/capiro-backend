@@ -1,0 +1,42 @@
+✔ onboarding diagnostics do not dirty the gate while adjacent source remains relevant (4.280478ms)
+✔ all four architecture guards exist and are exactly the four expected (0.449768ms)
+✔ the structural mirror verifier exists (0.131297ms)
+✔ the plan-command mapping covers every named CleanUp1 gate requirement (0.195435ms)
+✔ root package.json exposes the gate:cleanup1 scripts pointing at the driver (1.598911ms)
+✔ discovery finds packages and every test-bearing package has a classified runner (18.33011ms)
+✔ no unclassified runner segment is left unexplained (fail-closed registry) (2.326149ms)
+✔ each registered quirk references a live package whose script matches (0.18949ms)
+✔ e2e and python app paths are configured (presence validated at gate time, not hidden) (0.165658ms)
+✔ guardRef rejects a leading-dash ref and unsafe characters (0.874152ms)
+✔ required coverage scope resolves to exactly the five measured targets (1.434889ms)
+✔ validateMetrics rejects empty/partial metric blocks and accepts a complete one (3.088857ms)
+✔ script-smoke evidence validator (v4) rejects fabricated evidence and accepts the complete contract (60.991493ms)
+✔ isSafeRelPath rejects absolute/traversal/outside evidence paths (0.686759ms)
+✔ untracked source inside a NEW directory is detected (porcelain -z -uall) (0.162446ms)
+✔ worktree parsing separates tracked changes, untracked source and exclusions (0.217724ms)
+✔ classifyChild requires a definite integer 0 status (no null/signal success) (0.169512ms)
+✔ measured-source fingerprint covers production source, not just manifests (0.082166ms)
+✔ resultsHash is deterministic and content-sensitive (0.204396ms)
+✔ AST entrypoint classification: side-effecting declarations are entrypoints, pure declarations are helpers (12.471909ms)
+✔ documented CLI contract derivation is source-bound, reachability-aware and fails closed (50.006775ms)
+✔ command-aware resolver: option values, pnpm cwd, dispositions and mandatory-target refusal (30.73868ms)
+✔ gate bare invocation prints Usage, exits 2 and performs NO child process (354.7863ms)
+✔ gate --help prints Usage, exits 0 and performs NO child process (368.463748ms)
+✔ gate unknown flag prints Usage, exits 2 and performs NO child process (326.502437ms)
+✔ gate source derives a documented no-args usage exit and keeps explicit --phase defaults/aliases (65.130477ms)
+✔ the named missing-DATABASE_URL smoke context is immutable; generic stays conservative (7.238375ms)
+✔ the reviewed codemod inserts a main-owned guard and wraps an unconditional main behind a direct-invocation boundary (11.981691ms)
+✔ the codemod refuses a changed/ambiguous placement rather than guessing (1.115376ms)
+✔ the config-guard-codemod CLI is import-safe and bounded: noargs usage/2, --help/0, unknown/2 (920.044744ms)
+✔ the config-guard-codemod CLI is import-safe for a same-basename importer and rejects unknown+--help (607.357252ms)
+✔ the codemod refuses an unknown --subject and a malformed/duplicate manifest rather than a silent empty ledger (1366.482045ms)
+✔ the actual codemod CLI plans and applies a hash-bound source without executing it (1113.008087ms)
+✔ new config controls have a bounded standalone CLI and a same-basename import stays inert (2497.765803ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8330.102618

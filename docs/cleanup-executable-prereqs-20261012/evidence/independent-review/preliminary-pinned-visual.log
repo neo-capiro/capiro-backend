@@ -1,0 +1,54 @@
+ok   a complete pinned regression evidence object built from REAL fixture files validates
+ok   MISSING context is refused (fail closed)
+ok   an INCOMPLETE context (no reportDir) is refused
+ok   MISSING runtime is refused
+ok   an INCOMPLETE runtime (no fixedClock) is refused
+ok   MISSING baseline is refused
+ok   MISSING a required stage is refused (never silently skipped)
+ok   an ABSENT raw run report is refused
+ok   a MUTATED raw run report (bytes changed, declared hash kept) is refused — visual stage route-comparison raw run report BYTES do not match the declared reportSha256 (altered raw report); visual stage route-comparison identityDigest does not equal the ACTUAL raw run report identity multiset
+ok   an ALTERED raw --list report is refused — visual stage route-comparison raw run report identity multiset does not equal its own raw --list discovery (duplicate/missing cases); visual stage route-comparison expectedCount 12 != actual list length 6
+ok   a stage whose declared identityDigest does NOT match the actual raw report is refused
+ok   a ZERO identity set is refused
+ok   a SKIPPED case is refused
+ok   an INCOMPLETE identity set (count != expected) is refused
+ok   PIXEL DRIFT (unexpected != 0) is refused
+ok   an INCOMPLETE onboarding set is refused
+ok   MISSING onboarding identity is refused
+ok   a RENDERER MISMATCH against the baseline is refused
+ok   a MUTABLE baseline manifest (bytes changed) is refused
+ok   a MUTABLE baseline PNG digest is refused
+ok   a CHANGED PNG digest vs the gate observation is refused
+ok   a CHANGED source during the run is refused
+ok   a source NO LONGER BOUND to the current archive is refused
+ok   a DIFFERENT current commit is refused — visual source.head does not match the ACTUAL current commit; visual source.treeHash does not match the ACTUAL current tree
+ok   an UNCONFIGURED image digest is refused
+ok   MISSING sourceBefore context is refused
+ok   a MALFORMED sourceBefore fingerprint is refused
+ok   MISSING sourceAfter context is refused
+ok   MISSING current context is refused
+ok   a MALFORMED current treeHash is refused
+ok   MISSING archive context is refused
+ok   a MALFORMED archive head is refused
+ok   a FOREIGN archive fingerprint (valid shape, wrong value) is refused
+ok   a FOREIGN report name (path traversal) is refused
+ok   regression/agreement: an EMPTY results[] case is refused (never counted expected) — playwright stage: case "desktop-1440 :: route one" has NO raw results[] (unexecuted/absent result); playwright stage: 1 unexpected/failed/unexecuted/unknown case(s)
+ok   regression/agreement: an UNKNOWN result status (cancelled) is refused
+ok   regression/agreement: an UNKNOWN test classification is refused
+ok   strictrepeat: an interrupted raw result is a failure, not a pass
+ok   regression/agreement: a native stats mismatch is refused
+ok   regression/agreement: a MISSING top-level errors[] is refused
+ok   regression/agreement: a NON-EMPTY error list is refused
+ok   gate: a raw run report with an EMPTY results[] is refused by the validator — visual stage route-comparison raw run report has 1 unexpected/failed case(s)
+ok   gate: a raw run report with an UNKNOWN result status is refused by the validator — visual stage route-comparison raw run report has 1 unexpected/failed case(s)
+ok   a GUARD failure (gate observed after=false) is refused
+ok   a NON-ZERO stage status is refused
+ok   a NATIVE spawn error on a stage is refused
+ok   every adverse case yields at least one problem (a red run is never green) — adverse=true validProblems=0
+ok   same logical visual suite from two worktrees normalises equal — tests/routes.spec.ts vs tests/routes.spec.ts
+ok   Linux runner argv is bash + positional values (no -c interpolation) — ["/r/run-linux-capture.sh","regression","/arch","/gold","/out"]
+ok   Windows runner argv uses Git Bash with a fixed pwd -W bridge and disabled path conversion — C:/Program Files/Git/bin/bash.exe :: --noprofile --norc -lc cd "$(pwd -W 2>/dev/null || pwd)" && exec bash "$@" bash C:/repo/apps/e2e/linux/run-linux-capture.sh regression C:/arch C:/gold C:/out
+ok   rendererCanonical is order-stable and content-sensitive
+
+[pinned-visual-controls] 51/51 controls passed
+[pinned-visual-controls] ALL PASS

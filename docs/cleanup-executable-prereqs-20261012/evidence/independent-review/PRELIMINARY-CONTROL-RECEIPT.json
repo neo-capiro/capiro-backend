@@ -1,0 +1,91 @@
+{
+  "sourceSnapshot": "preliminary-copied-source-snapshot.json",
+  "frozenRootCommitPending": true,
+  "checks": [
+    {
+      "argv": [
+        "node",
+        "--test",
+        "scripts/cleanup-gates/guard-config.test.mjs"
+      ],
+      "log": "preliminary-guard-config.log",
+      "exitCode": 0,
+      "tests": 34,
+      "passed": 34
+    },
+    {
+      "argv": [
+        "node",
+        "--test",
+        "scripts/cleanup-gates/standalone-node.test.mjs"
+      ],
+      "log": "preliminary-standalone.log",
+      "exitCode": 0,
+      "tests": 10,
+      "passed": 10
+    },
+    {
+      "argv": [
+        "node",
+        "scripts/cleanup-gates/pinned-visual-controls.mjs"
+      ],
+      "log": "preliminary-pinned-visual.log",
+      "exitCode": 0,
+      "controls": 51,
+      "passed": 51
+    },
+    {
+      "argv": [
+        "node",
+        "apps/e2e/lib/render-context-controls.mjs"
+      ],
+      "log": "preliminary-render-context.log",
+      "exitCode": 0,
+      "controls": 19,
+      "passed": 19
+    },
+    {
+      "argv": [
+        "node",
+        "apps/e2e/linux/tests/regression-controls.mjs"
+      ],
+      "log": "preliminary-regression.log",
+      "exitCode": 1,
+      "controls": 14,
+      "passed": 11,
+      "failed": 3,
+      "failure": "required external Playwright JS resolver fires at import before the three refusal controls"
+    },
+    {
+      "argv": [
+        "node",
+        "scripts/cleanup-gates/verify-baseline.fixtures.mjs",
+        "--json",
+        "docs/cleanup-executable-prereqs-20261012/evidence/independent-review/preliminary-baseline-fixtures.json"
+      ],
+      "log": "preliminary-baseline-fixtures.log",
+      "exitCode": 1,
+      "controls": 10,
+      "passed": 7,
+      "failed": 3,
+      "failure": "hardcoded fixture source4e43 is not this candidate ancestor; strict production lineage check blocks before other fixture assertions"
+    },
+    {
+      "argv": [
+        "node",
+        "--test",
+        "scripts/test-proof/adapters.test.mjs",
+        "scripts/test-proof/diff.test.mjs",
+        "scripts/test-proof/discovery.test.mjs"
+      ],
+      "log": "preliminary-testproof-pure.log",
+      "exitCode": 0,
+      "tests": 39,
+      "passed": 39
+    }
+  ],
+  "knownPackageManagerDependentControlsNotExecuted": true,
+  "databaseProviderCloudNativeGateAcceptance": false,
+  "allLogsPreserved": true,
+  "countCorrection": "Initial incomplete baseline JSON skim inferred9/10; full authoritative receipt7/10 was sent promptly to parent."
+}

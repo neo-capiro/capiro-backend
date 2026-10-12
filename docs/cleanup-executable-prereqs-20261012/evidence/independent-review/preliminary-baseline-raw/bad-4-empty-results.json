@@ -1,0 +1,30 @@
+{
+  "schema": "capiro.cleanup1-coverage-baseline",
+  "schemaVersion": 2,
+  "kind": "historical-floor",
+  "runSha": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9",
+  "measuredSource": {
+    "sha": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9",
+    "fingerprintAlgorithm": "sha256-ls-tree-v2",
+    "fingerprint": "366afbd2ee4453ebae3a0c63e83705509ccea42007f94f1cb93c844225fa9375",
+    "paths": [
+      "apps",
+      "packages",
+      "infra",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "turbo.json",
+      "tsconfig.base.json",
+      "scripts/cleanup-gates",
+      "scripts/test-proof",
+      ".github/workflows"
+    ],
+    "entries": 10619
+  },
+  "generatedAt": "2026-10-12T12:18:31.343Z",
+  "enforcement": "none",
+  "green": true,
+  "resultsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "results": []
+}

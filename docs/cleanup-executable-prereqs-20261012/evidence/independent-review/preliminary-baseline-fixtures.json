@@ -1,0 +1,114 @@
+{
+  "generatedAt": "2026-10-12T12:18:33.101Z",
+  "verifier": "scripts/cleanup-gates/verify-baseline.mjs",
+  "scratch": ".artifacts/cleanup1-verify-fixtures",
+  "seedSha": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9",
+  "allPass": false,
+  "checks": [
+    {
+      "name": "complete-valid-baseline-accepted",
+      "pass": false,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "invented-scope-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "unexpected result package \"only-one-package\" — not part of the resolved required coverage scope",
+          "missing required coverage result for @capiro/api (apps/api) — the required scope is incomplete",
+          "missing required coverage result for @capiro/web (apps/web) — the required scope is incomplete",
+          "missing required coverage result for @capiro/workspace (apps/workspace) — the required scope is incomplete",
+          "missing required coverage result for @capiro/onboard-web (apps/onboard-web) — the required scope is incomplete",
+          "missing required coverage result for capiro-defense-budget-parser (apps/defense-budget-parser) — the required scope is incomplete",
+          "results[0] (only-one-package).metrics is missing the complete metric block",
+          "results[0] (only-one-package).reportPath is required — the raw report must be available",
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "nonzero-native-exit-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results[0] (@capiro/api).suiteExitCode must be the integer 0 (got 1) — a non-zero native exit is NOT green",
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "absent-report-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results[1] (@capiro/web) raw report not found at apps/web/definitely-absent-coverage-report.json — absent reports cannot be accepted",
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "empty-results-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results must be a non-empty array",
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "metrics-must-re-derive-from-raw-report",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results[2] (@capiro/workspace) recorded metrics do not match the raw report — the summary was not derived from this report",
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "tampered-fingerprint-rejected",
+      "pass": false,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "measuredSource.sha 4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9 is not an ancestor of HEAD f1e83a3f194a8ebd972e370ff6e5b5f559888b29 — the baseline is not from this lineage"
+        ]
+      }
+    },
+    {
+      "name": "fingerprint-re-derivable",
+      "pass": true,
+      "detail": {
+        "fingerprint": "366afbd2ee4453ebae3a0c63e83705509ccea42007f94f1cb93c844225fa9375",
+        "entries": 10619
+      }
+    },
+    {
+      "name": "measured-source-commit-is-ancestor-of-head",
+      "pass": false,
+      "detail": {
+        "seed": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9",
+        "head": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29"
+      }
+    },
+    {
+      "name": "evidence-paths-excluded-from-fingerprint",
+      "pass": true,
+      "detail": {
+        "evidencePathsInFingerprint": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+ok   regression policy matches projects.mjs COMPARISON (0.002 / 0.2) — {"maxDiffPixelRatio":0.002,"threshold":0.2}
+ok   route identity set is derived from the inventory (captured x projects) — captured=105 projects=3 => 315
+ok   a valid regression evidence object (real fixture files) validates
+ok   an INCOMPLETE identity set is refused
+ok   PIXEL DRIFT in the comparison is refused
+ok   a MUTABLE baseline (bytes changed) is refused
+ok   a CHANGED source during the run is refused
+ok   a MISSING stage (onboarding smoke) is refused
+FAIL the regression driver REFUSES --update-snapshots (no golden regeneration) — rc=1
+FAIL the regression driver REFUSES CAPIRO_UPDATE_SNAPSHOTS=1 — rc=1
+FAIL the regression driver REFUSES when provenance is missing (not a silent pass) — rc=1
+ok   portable runner argv passes dynamic values as positional argv (Linux)
+ok   portable runner argv uses a fixed pwd -W bridge (Windows), MSYS disabled
+ok   conditional-page obligations are a non-empty set (derived from projects.mjs) — conditional_onboarding_subscribe_billing_enabled,conditional_bills_bill360_enabled
+
+[regression-controls] 3 FAILED

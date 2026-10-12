@@ -1,0 +1,22 @@
+ok   a COMPLETE observation set aggregates to the complete render context
+ok   an EMPTY observation set is refused
+ok   a MISSING route project is refused
+ok   a MISSING onboarding context is refused
+ok   a MISSING/malformed observations array is refused
+ok   DISAGREEMENT between route projects (colour scheme) is refused
+ok   DISAGREEMENT between captures of the SAME project is refused
+ok   a MALFORMED profile (missing timezone) is refused
+ok   profileProblems flags a missing fixedClock
+ok   a clock that is NOT the applied fixed clock is refused
+ok   a malformed (non-ISO) clock is refused
+ok   canonicalViewports rejects an empty/malformed list
+ok   projectViewportProblems rejects a wrong observed dimension
+ok   appendRenderObservation REFUSES a malformed existing file (no silent reset)
+ok   appendRenderObservation REFUSES a wrong-schema existing file (no silent reset)
+ok   appendRenderObservation preserves earlier observations (read-modify-write)
+ok   readRenderObservations REFUSES malformed JSON
+ok   recordRenderObservation FAILS CLOSED when the page cannot be observed
+ok   recordRenderObservation is a no-op with no observation path
+
+[render-context-controls] 19/19 controls passed
+[render-context-controls] ALL PASS
