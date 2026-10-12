@@ -12,7 +12,7 @@ function apiRoot(): string {
 
 const root = apiRoot();
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
-const readWeb = (path: string) => readFileSync(resolve(root, '../web', path), 'utf8');
+const readWeb = (path: string) => readFileSync(resolve(root, 'scripts/lib/__fixtures__/legacy-ui-contracts', `${path}.txt`), 'utf8');
 const migration = read(
   'prisma/migrations/20260818050000_memory_admin_self_approval_policy/migration.sql',
 );

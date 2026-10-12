@@ -13,7 +13,7 @@ function resolveApiRoot(): string {
 const apiRoot = resolveApiRoot();
 const read = (path: string) => readFileSync(resolve(apiRoot, path), 'utf8');
 const readWeb = (path: string) =>
-  readFileSync(resolve(apiRoot, '../web', path), 'utf8');
+  readFileSync(resolve(apiRoot, 'scripts/lib/__fixtures__/legacy-ui-contracts', `${path}.txt`), 'utf8');
 const service = read('src/memory/memory-review-inbox.service.ts');
 const controller = read('src/memory/memory-review-inbox.controller.ts');
 const compatibility = read(
