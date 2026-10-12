@@ -1,0 +1,33 @@
+{
+  "publishedHead": "bcad60272fa300383f117f3a08a554e9e070e85b",
+  "publishedTree": "ffba314bf5fceda49e8178c4813bd69b3d97cd60",
+  "preservedPriorIndex": "docs/cleanup-four-runtime-composition-independent-review-20261012/SHA256.json",
+  "excludesItselfOnly": true,
+  "entries": [
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/PUBLICATION-CONTINUITY.md",
+      "bytes": 2164,
+      "sha256": "f31fb557bed63eb258482be28b12fcf63b8a7c2b0012c2cdf6aa3a2dc1050a51"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/PUBLICATION-CONTINUITY.json",
+      "bytes": 1461,
+      "sha256": "a0e76e9c9ac68483a8c9c856d0466cc7f49339a25b4e807982fb31237591aa35"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/publication-continuity-proof.py",
+      "bytes": 8279,
+      "sha256": "71e266819a8f957cef7ae9a6108b377826f1ba149b5d9b60fc24982de92bb122"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/publication-continuity-proof.json",
+      "bytes": 250718,
+      "sha256": "2118ccd6abede1684a7ed93bb261c1e35a8aa973782cf0a2e660d39871bd0bab"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/publication-continuity-proof.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

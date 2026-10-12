@@ -1,0 +1,29 @@
+{
+  "decision": "ACCEPT independent committed PR2422 publication/master continuity",
+  "publishedHead": "bcad60272fa300383f117f3a08a554e9e070e85b",
+  "publishedTree": "ffba314bf5fceda49e8178c4813bd69b3d97cd60",
+  "publishedDraft": "https://github.com/neo-capiro/capirov2/pull/2422",
+  "acceptedSource": "cb2af6234ba826e5ee8baa6722acaa16ca7ed40d",
+  "preservedIndependentAcceptance": "6b7e2e89f43258e08c63ed6164f0d54a840563a7",
+  "inertContinuityChecksPassed": 14,
+  "committedMasterEntriesVerified": 157,
+  "previousManifestsVerified": 16,
+  "previousIndexedEntriesVerified": 713,
+  "previousMasterCounts": [
+    126,
+    96,
+    103
+  ],
+  "masterIndex": "docs/cleanup-meri-runtime-controls-20261012/SHA256SUMS.json",
+  "masterIndexSha256": "595782b3655f74ff65919b4e41a1dd9bd0b8c1614242d7c6f8e5baefe99df191",
+  "acceptedSourceUnionPathsVerified": 27,
+  "nonDocumentSourceDeltaFromAcceptedCb2": 0,
+  "finalHandoffChange": "Only precise6b composition-review paragraph",
+  "finalSourceManifestChange": "Only six exact review metadata additions; all original fields unchanged",
+  "rootReceiptUnchanged": true,
+  "originalCompositionReviewFilesUnchanged": 32,
+  "sourceBlockers": [],
+  "applicationRechecks": false,
+  "publishedBranchesModified": false,
+  "qualification": "Published head is the exact parent-supplied PR pin. No remote API refresh, main update, native/provider/DB/migration/closeout execution, published branch mutation or new acceptance claim."
+}
