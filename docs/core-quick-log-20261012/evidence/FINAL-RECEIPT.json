@@ -1,0 +1,71 @@
+{
+  "observedAt": "2026-10-12T03:23:19.281032+00:00",
+  "refs": {
+    "source": "961cbe0204d762ddfcb96ec054a907665720380e",
+    "runtime": "2821bd4266b79d908fc131ba7fb738579b2b3407",
+    "base": "c5e41e320af4b4d841d4b3136777d712116916ed",
+    "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+  },
+  "sourceTree": "04749f1c520bc68ee5b68b1516b4256c2009cb27",
+  "tests": {
+    "authorCore": {
+      "passed": 128,
+      "suites": 10,
+      "receipt": "implementation/final-core.json"
+    },
+    "authorStrategy": {
+      "passed": 141,
+      "suites": 7,
+      "receipt": "implementation/final-strategy.json"
+    },
+    "independent": {
+      "passed": 284,
+      "suites": 15,
+      "receipt": "independent-review/FINAL-RECEIPT.json"
+    },
+    "note": "selections overlap; counts are not additive"
+  },
+  "checks": {
+    "finalCorePrimaryTsc": {
+      "exitCode": 0,
+      "receipt": "implementation/core-tsc-serialized.log"
+    },
+    "finalCoreNestBuild": {
+      "exitCode": 0,
+      "receipt": "implementation/core-build-serialized.log"
+    },
+    "strategyPrimaryTsc": {
+      "exitCode": 0,
+      "receipt": "implementation/strategy-tsc-pass.log"
+    },
+    "strategyNestBuild": {
+      "exitCode": 0,
+      "receipt": "implementation/strategy-build.log"
+    },
+    "prismaWasmSchemaAndNoEngineClient": {
+      "exitCode": 0,
+      "receipt": "implementation/schema-generation.log"
+    },
+    "apiLint": {
+      "exitCode": 1,
+      "reason": "repository eslint dependency/configuration missing",
+      "receipt": "tooling/api-lint.log"
+    }
+  },
+  "failuresRetained": [
+    "initial runner config failure",
+    "initial Strategy tuple index type error, corrected",
+    "six independent RED controls, repaired",
+    "concurrent compiler OS kills137, serialized author rerun passed"
+  ],
+  "notRun": [
+    "native Prisma/Postgres concurrency/RLS",
+    "migration execution including ephemeral DB",
+    "real provider network integration",
+    "deployment",
+    "frontend",
+    "full repository suite"
+  ],
+  "noDatabaseWrites": true,
+  "noRealMessages": true
+}

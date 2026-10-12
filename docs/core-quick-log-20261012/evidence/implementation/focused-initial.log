@@ -1,0 +1,13 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-quicklog/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/clients/activity-commands/activity-command.service.spec.ts (9.231 s)
+PASS src/clients/client-activity.service.spec.ts
+PASS src/clients/activity-commands/activity-command.input.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       63 passed, 63 total
+Snapshots:   0 total
+Time:        10.623 s
+Ran all test suites matching /src\/clients\/activity-commands|src\/clients\/client-activity.service.spec.ts/i.
+Test results written to: ../../../backend-qualification-20261012/quicklog/focused-initial.json

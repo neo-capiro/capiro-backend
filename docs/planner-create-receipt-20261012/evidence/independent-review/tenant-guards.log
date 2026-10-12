@@ -1,0 +1,9 @@
+PASS apps/api-strategy/src/prisma/apply-tenant-scope.spec.ts (5.991 s)
+PASS apps/api-strategy/src/prisma/tenant-scope-guard.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       11 passed, 11 total
+Snapshots:   0 total
+Time:        6.596 s
+Ran all test suites within paths "apps/api-strategy/src/prisma/apply-tenant-scope.spec.ts", "apps/api-strategy/src/prisma/tenant-scope-guard.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/planner/tenant-guards.json

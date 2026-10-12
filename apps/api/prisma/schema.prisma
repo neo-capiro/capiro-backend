@@ -246,6 +246,7 @@ model Tenant {
   clientSubmissionHistory            ClientSubmissionHistory[]
   clientPeople                       ClientPerson[]
   clientFacilities                   ClientFacility[]
+  clientActivityCommands             ClientActivityCommand[]
   clientActivity                     ClientActivity[]
   clientTargets                      ClientTarget[]
   clientTargetRecommendations        ClientTargetRecommendation[]
@@ -965,6 +966,7 @@ model Client {
   submissionHistory        ClientSubmissionHistory[]
   people                   ClientPerson[]
   facilities               ClientFacility[]
+  activityCommands         ClientActivityCommand[]
   activity                 ClientActivity[]
   targets                  ClientTarget[]
   targetRecommendations    ClientTargetRecommendation[]
@@ -16588,4 +16590,35 @@ model KrispMeetingImport {
   @@unique([tenantId, userId, documentId])
   @@index([tenantId, userId, status])
   @@map("krisp_meeting_imports")
+}
+
+/// Private durable activity intent and cross-service receipt. Historical scalar
+/// references survive activity/user deletion; only tenant/client deletion cascades.
+model ClientActivityCommand {
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenantId              String    @map("tenant_id") @db.Uuid
+  clientId              String    @map("client_id") @db.Uuid
+  actorUserId           String    @map("actor_user_id") @db.Uuid
+  actorClerkUserId       String    @map("actor_clerk_user_id") @db.VarChar(255)
+  requestId             String    @map("request_id") @db.Uuid
+  requestHash           String    @map("request_hash") @db.VarChar(64)
+  activityId            String    @map("activity_id") @db.Uuid
+  personId              String?   @map("person_id") @db.Uuid
+  assigneeUserId        String?   @map("assignee_user_id") @db.Uuid
+  assigneeClerkUserId   String?   @map("assignee_clerk_user_id") @db.VarChar(255)
+  plannerPayload        Json?     @map("planner_payload")
+  status                String    @db.VarChar(16)
+  version               Int       @default(0)
+  taskId                String?   @map("task_id") @db.Uuid
+  attemptToken          String?   @map("attempt_token") @db.Uuid
+  leaseUntil            DateTime? @map("lease_until") @db.Timestamptz(6)
+  errorCode             String?   @map("error_code") @db.VarChar(64)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, map: "client_activity_commands_client_fk")
+
+  @@unique([tenantId, actorUserId, clientId, requestId], map: "client_activity_commands_request_key")
+  @@map("client_activity_commands")
 }

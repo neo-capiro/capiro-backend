@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-quicklog/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/prisma/prisma-tenant-scope.spec.ts
+PASS src/clients/client-activity.wall.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       14 passed, 14 total
+Snapshots:   0 total
+Time:        5.702 s
+Ran all test suites within paths "src/clients/client-activity.wall.spec.ts", "src/prisma/prisma-tenant-scope.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/quicklog/canonical-wall-final.json

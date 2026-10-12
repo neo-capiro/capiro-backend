@@ -1,0 +1,10 @@
+{
+  "ref": "2821bd4266b79d908fc131ba7fb738579b2b3407",
+  "command": "./node_modules/.bin/tsc --noEmit --incremental false",
+  "cwd": "/workspace/capirov2-review-quicklog/apps/api",
+  "exitCode": 137,
+  "stderr": "/bin/bash: line 1: 10763 Killed ./node_modules/.bin/tsc --noEmit --incremental false",
+  "compilerLog": "core-primary-tsc.log",
+  "compilerLogBytes": 0,
+  "verdict": "not qualified; OS killed during concurrent compiler activity reported by author"
+}

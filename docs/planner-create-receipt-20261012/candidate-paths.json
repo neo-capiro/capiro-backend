@@ -1,0 +1,31 @@
+{
+  "source": "78b24af72e97f5e36202f8e036d7a96345006b57",
+  "sourceTree": "2420d50afaca542f6a88ee8232fed4aadeaa6e29",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "runtimeAndTestSha256": {
+    "apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts": "5119491b83419f80f228607437a61bf96d70e4342dcec4b594266e2bf992190c",
+    "apps/api-strategy/src/planner/planner-task-create-command.spec.ts": "26afa09477069efb0436c0f5fd37abb9f103db2e32295cbc7b83301cfc15c889",
+    "apps/api-strategy/src/planner/planner-task-create-command.ts": "d67c2be5b167ac99669f9d4288aadd7f76f13facc2bdc0445200f74abd72d200",
+    "apps/api-strategy/src/planner/planner.controller.ts": "7451fc6b5f2a34ecd649de43d31769b32e1090a35f1cdfb3caf196cc4ef7f4b3",
+    "apps/api-strategy/src/planner/planner.http.spec.ts": "75662d2570acb0aa927d9030b89d5d9d2f1281d3139800a551aaccffe5828ff9",
+    "apps/api-strategy/src/planner/planner.service.ts": "3136f4e7a3dda1f34dfc21753077ade2f5a597c9c1a601dd6206daa645810087"
+  },
+  "changedPathsAtSource": [
+    "apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts",
+    "apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+    "apps/api-strategy/src/planner/planner-task-create-command.ts",
+    "apps/api-strategy/src/planner/planner.controller.ts",
+    "apps/api-strategy/src/planner/planner.http.spec.ts",
+    "apps/api-strategy/src/planner/planner.service.ts",
+    "docs/planner-create-receipt-20261012/SCOPE.md"
+  ],
+  "intersections": {
+    "cleanup2392": [],
+    "facility2373": [],
+    "reply2364": [],
+    "attachment2381": [],
+    "stages2365": [],
+    "contacts2371": [],
+    "objectives2362": []
+  }
+}

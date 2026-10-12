@@ -1,0 +1,8 @@
+{
+  "from": "2821bd4266b79d908fc131ba7fb738579b2b3407",
+  "to": "961cbe0204d762ddfcb96ec054a907665720380e",
+  "runtimeDiffPaths": [],
+  "onlyGitDelta": "apps/api/src/clients/activity-commands/activity-command.additional-review.spec.ts",
+  "reviewerAdditionalTwoAstEqual": true,
+  "reviewerOriginalThirteenAstEqual": true
+}

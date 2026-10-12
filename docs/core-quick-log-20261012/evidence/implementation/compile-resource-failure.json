@@ -1,0 +1,6 @@
+{
+  "startedFromSourceRef": "2821bd4266b79d908fc131ba7fb738579b2b3407",
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --rootDir .",
+  "exitCode": 137,
+  "observation": "OS killed compiler during concurrent primary compilations. Not a pass. Subsequent serialized tsc/build at final source961cbe020 both exited0."
+}

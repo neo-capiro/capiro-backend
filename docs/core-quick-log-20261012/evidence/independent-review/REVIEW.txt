@@ -1,0 +1,134 @@
+Independent non-author source review: Core activity command + generic Planner follow-up
+Date: 2026-10-12
+Reviewer: /root/independent_backend_review
+
+Source reviewed
+Original: 027b5681349029086d4d9d836c5566130002b122
+Repair: 2821bd4266b79d908fc131ba7fb738579b2b3407
+Repair tree: f4bc83896ac3bb244e887f127004f061af6c1564
+Scope checkpoint: 2dbf27f55580c537bc35540475218d5097b641af
+Immutable PR2395 prerequisite: c5e41e320af4b4d841d4b3136777d712116916ed
+Main base: 4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace
+Final candidate: 961cbe0204d762ddfcb96ec054a907665720380e
+Final candidate tree: 04749f1c520bc68ee5b68b1516b4256c2009cb27
+Reviewer worktree: /workspace/capirov2-review-quicklog (detached final candidate).
+No production implementation edited by reviewer. Author copied 13 reviewer-owned
+regressions into repair, preserving assertions; final candidate also publishes the
+two additional reviewer tests. Runtime source is byte-identical to repair; the only
+final-candidate change adds those tests. TypeScript AST comparison confirms all 15
+reviewer cases preserve meaning after formatting (final-candidate-equivalence.json).
+
+Verdict
+Acceptable as bounded source preparation at the repair and equivalent final refs.
+Final exact primary typecheck remains unqualified as described below. No remaining blocking
+source finding identified. This is not native qualification, migration/deployment
+approval, or closure of the full Figma commitment workflow. The accepted generic
+Planner payload contains no rich Core content or protected client/person association.
+
+Resolved findings (original RED retained)
+1. P1: legacy canonical activity reads/mutations bypassed the client ethical wall.
+   New commands protected their own receipt but stored rich text in ClientActivity,
+   whose legacy list/create/update/remove allowed a same-tenant caller after the
+   client-wall grant was removed. Independent tests returned the private text and
+   successfully wrote/edited/deleted instead of rejecting. Repair reuses the existing
+   clientMemoryAllowed helper inside each canonical owner transaction, before the
+   read/mutation. Authorized deletion remains allowed and leaves the command tombstone.
+   Repair locations: apps/api/src/clients/client-activity.service.ts:100, :234,
+   :268, :315, :342. Independently reproduced after the author also reported it.
+2. P2: completed receipts retained a transient authorization error indefinitely.
+   Revoking assignee membership/wall during successful remote acceptance persisted
+   status=completed/taskId plus errorCode=assignee_unavailable. After restoration,
+   remote authorization succeeded and task ID returned, but the receipt still said
+   needs_attention. Both independent cases failed. Repair derives completed state
+   from current issue/current remote availability while preserving stored history.
+   Location: activity-commands/activity-command.service.ts:235. Reviewer and author
+   independently identified this before repair.
+
+Independent regression coverage
+- Original 13-case suite: 7 pass / 6 RED; expanded 15-case suite: 9 pass / 6 RED.
+- Repair: all 15 independent cases pass, including six original failures.
+- Additional controls: lost Core response after committed local transaction;
+  identical browser UUID under different clients gets distinct persisted remote
+  keys; expired attempt's late different task response cannot overwrite the newer
+  result; mismatched task IDs withheld; actor wall revoked during GET denies the
+  receipt; person association changed before POST prevents dispatch; authorized
+  legacy deletion preserves receipt and never recreates activity; inaccessible and
+  then deleted remote receipt after lost response keeps the original key; all HTTP
+  bridge reads/writes execute with zero open Core transactions.
+- Existing focused suites replayed: malformed/ambiguous receipts, explicit date/zone
+  and DST boundary inputs, foreign/revoked/remapped actor/assignee/client/person,
+  lost remote acceptance/local commit, stale versions, duplicate in-flight request,
+  payload conflict, generic task isolation, tombstones, scoped HTTP commands,
+  impersonation denial and tenant query predicates.
+
+Exact repair runtime receipts
+Core focused: 121/121, 9 suites (core-repair-replay.json).
+Canonical activity wall + tenant query hook: 14/14, 2 suites
+(canonical-wall-final.json).
+Strategy expected scope, HTTP routing, canonical Planner mutations and durable
+receipt: 149/149, 4 suites (strategy-repair-replay.json).
+Total: 284/284 unique tests, 15 suites. Synthetic providers and storage only.
+Core uses checked-in Jest configuration plus external isolatedModules transform
+for memory limits; this is not a primary typecheck. Strategy uses its checked-in
+Jest config with normal ts-jest diagnostics. No migration or database execution.
+
+Preserved failed checks
+Original product RED: adversarial-red*.json and .log.
+Reviewer invocation error: adversarial-runner-failure.log used a nonexistent root
+Jest executable; corrected to apps/api's installed binary without source changes.
+Reviewer path typo: canonical-wall-replay selected missing tenant-scope.spec.ts;
+5 actual wall tests passed but run failed at collection. Corrected path is
+prisma-tenant-scope.spec.ts; final 14/14 passed. Raw failure is retained.
+Earlier pre-source native/lint blockers remain explicit; no bypass attempted.
+
+Source security and lifecycle review
+Same bearer is narrowed by expected authenticated tenant/Clerk actor checks before
+both Planner command verbs; those optional headers never select context or grant
+access. Core rejects impersonation and uses only configured HTTPS origin with
+redirect refusal, timeout and bounded response; no bearer is persisted. Input
+schemas are strict/bounded before hashing. Remote keys are server-generated Core
+command UUIDs, independent of browser keys, and saved payload/mappings are fixed.
+Core actor authority/client walls and same-client person/assignee mapping are
+rechecked through attempts and reads. Current remote refusal withholds task ID.
+The activity + command use one caller-owned transaction; remote I/O is outside it.
+Attempt-token fencing survives stale worker completion. Missing or denied remote
+receipts retain ambiguity; identical-key replay relies on the reviewed PR2395
+receipt, including its deleted-task tombstone, rather than inventing replacement
+keys. ClientActivityService remains activity owner; PlannerService remains task owner.
+
+Migration source review (NEVER executed)
+20281012010000_client_activity_commands has tenant FORCE RLS, USING and WITH CHECK,
+composite tenant/client FK, tenant/actor/client/request uniqueness, positive version
+and status/follow-up/attempt consistency constraints. Historical activity/actor IDs
+have no deletion-blocking FK or receipt-destroying activity cascade; tenant/client
+cascade is deliberate. Prisma relation map matches authored composite FK name.
+Model auto-participates in the existing tenant query hook. Explicit application
+owner/client predicates remain essential; this review makes no claim about the
+current native DB role/RLS runtime state. No backfill or native migration executed.
+Migration SHA256: 4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892.
+
+Preserved-candidate intersections
+Independently recomputed both new delta against PR2395 and cumulative delta against
+main. Only PR2362 intersects, at apps/api/prisma/schema.prisma and
+apps/api/src/clients/clients.module.ts. Cleanup2392, facility2373, reply2364,
+attachments2381, stages2365, contacts2371, sender2393 repair and facility2394 have no
+changed-path intersection. Exact refs and merge bases are in intersections.json.
+No preserved branches edited or unrelated candidates combined.
+
+Remaining qualification and product boundaries
+Native PostgreSQL advisory-lock/MVCC/concurrent-writer behavior and RLS remain
+unqualified. Storage test fixture serializes synthetic transactions; it cannot
+prove native concurrency. Official engine download was previously rejected 403
+by environment proxy before TLS; no bypass or new download attempted by reviewer.
+No real provider calls, database writes, migration execution (even ephemeral),
+paid workload, deployment, IAM/security/network change, credentials or main merge.
+Full commitment direction/Directory party/date-only commitment/objective/strategy
+lineage and rich task visibility policies remain outside this bounded contract.
+Independent primary Core typecheck at repair used tsc --noEmit --incremental false
+and was OS-killed, exit137, with empty compiler output. The author reported concurrent
+Core and separate Memory compilers; no failed compiler run is counted as a pass.
+No independent retry was started, to permit serialized author qualification. Earlier
+author compiler/build passes precede repair and do not qualify this exact final source.
+Final exact primary compile remains pending a completed serialized pass. Strategy
+Jest diagnostics passed, but a separate primary Strategy build was not run by reviewer.
+Primary compiler receipts are recorded separately in FINAL-RECEIPT.json.

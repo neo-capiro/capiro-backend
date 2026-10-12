@@ -1,0 +1,186 @@
+{
+  "core-replay": {
+    "success": true,
+    "numPassedTests": 106,
+    "numFailedTests": 0,
+    "numTotalTestSuites": 7,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.service.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/prisma/tenant-scope-guard.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.planner.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/client-activity.service.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/memory/memory-wall.helpers.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.input.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.http.spec.ts"
+    ],
+    "failures": []
+  },
+  "strategy-replay": {
+    "success": true,
+    "numPassedTests": 149,
+    "numFailedTests": 0,
+    "numTotalTestSuites": 4,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner.http.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner-command-scope.spec.ts"
+    ],
+    "failures": []
+  },
+  "adversarial-red": {
+    "success": false,
+    "numPassedTests": 7,
+    "numFailedTests": 6,
+    "numTotalTestSuites": 1,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts"
+    ],
+    "failures": [
+      {
+        "test": "independent Quick log recovery and authorization review recovers completed visibility after temporary assigneeActive revocation during remote acceptance",
+        "messages": [
+          "Error: expect(received).toMatchObject(expected)\n\n- Expected  - 2\n+ Received  + 2\n\n  Object {\n    \"followUp\": Object {\n      \"state\": \"completed\",\n      \"taskId\": \"70000000-0000-4000-8000-000000000001\",\n    },\n-   \"reason\": null,\n-   \"status\": \"completed\",\n+   \"reason\": \"assignee_unavailable\",\n+   \"status\": \"needs_attention\",\n  }\n    at /workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:22:24"
+        ]
+      },
+      {
+        "test": "independent Quick log recovery and authorization review recovers completed visibility after temporary assigneeWall revocation during remote acceptance",
+        "messages": [
+          "Error: expect(received).toMatchObject(expected)\n\n- Expected  - 2\n+ Received  + 2\n\n  Object {\n    \"followUp\": Object {\n      \"state\": \"completed\",\n      \"taskId\": \"70000000-0000-4000-8000-000000000001\",\n    },\n-   \"reason\": null,\n-   \"status\": \"completed\",\n+   \"reason\": \"assignee_unavailable\",\n+   \"status\": \"needs_attention\",\n  }\n    at /workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:22:24"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy timeline access after the command creator loses the client wall",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: [{\"body\": \"Private content\", \"createdAt\": undefined, \"dueAt\": null, \"id\": \"80000000-0000-4000-8000-000000000001\", \"kind\": \"note\", \"occurredAt\": \"2026-10-12T03:09:32.994Z\", \"origin\": \"recorded\", \"personId\": \"40000000-0000-4000-8000-000000000001\", \"pinned\": false, \"settledAt\": null, \"sourceId\": \"fb9a5d28-8c05-48a2-8c08-154dad9b6b1a\", \"sourceType\": \"activity_command\", \"title\": \"Private title\"}]\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:141:11)"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy create after the client wall is revoked",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: {\"actorUserId\": \"20000000-0000-4000-8000-000000000001\", \"body\": null, \"clientId\": \"30000000-0000-4000-8000-000000000001\", \"createdByUserId\": \"20000000-0000-4000-8000-000000000001\", \"dueAt\": null, \"id\": \"80000000-0000-4000-8000-000000000001\", \"kind\": \"note\", \"occurredAt\": 2026-10-12T03:09:32.998Z, \"personId\": null, \"pinned\": false, \"sourceId\": null, \"sourceType\": null, \"tenantId\": \"10000000-0000-4000-8000-000000000001\", \"title\": \"Forbidden\"}\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:147:11)\n    at Promise.then.completed (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)\n    at _runTest (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)\n    at _runTestsForDescribeBlock (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)\n    at run (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy editing of protected activity after the client wall is revoked",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: {\"actorUserId\": \"20000000-0000-4000-8000-000000000001\", \"body\": \"Private content\", \"clientId\": \"30000000-0000-4000-8000-000000000001\", \"createdByUserId\": \"20000000-0000-4000-8000-000000000001\", \"dueAt\": null, \"id\": \"80000000-0000-4000-8000-000000000001\", \"kind\": \"note\", \"occurredAt\": 2026-10-12T03:09:33.000Z, \"personId\": \"40000000-0000-4000-8000-000000000001\", \"pinned\": false, \"sourceId\": \"748ee764-ebbc-4d76-91a9-260b86cecf55\", \"sourceType\": \"activity_command\", \"tenantId\": \"10000000-0000-4000-8000-000000000001\", \"title\": \"Changed without permission\"}\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:154:11)"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy deletion after the client wall is revoked",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: {\"ok\": true}\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:161:11)"
+        ]
+      }
+    ]
+  },
+  "adversarial-red-expanded": {
+    "success": false,
+    "numPassedTests": 9,
+    "numFailedTests": 6,
+    "numTotalTestSuites": 1,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts"
+    ],
+    "failures": [
+      {
+        "test": "independent Quick log recovery and authorization review recovers completed visibility after temporary assigneeActive revocation during remote acceptance",
+        "messages": [
+          "Error: expect(received).toMatchObject(expected)\n\n- Expected  - 2\n+ Received  + 2\n\n  Object {\n    \"followUp\": Object {\n      \"state\": \"completed\",\n      \"taskId\": \"70000000-0000-4000-8000-000000000001\",\n    },\n-   \"reason\": null,\n-   \"status\": \"completed\",\n+   \"reason\": \"assignee_unavailable\",\n+   \"status\": \"needs_attention\",\n  }\n    at /workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:22:24"
+        ]
+      },
+      {
+        "test": "independent Quick log recovery and authorization review recovers completed visibility after temporary assigneeWall revocation during remote acceptance",
+        "messages": [
+          "Error: expect(received).toMatchObject(expected)\n\n- Expected  - 2\n+ Received  + 2\n\n  Object {\n    \"followUp\": Object {\n      \"state\": \"completed\",\n      \"taskId\": \"70000000-0000-4000-8000-000000000001\",\n    },\n-   \"reason\": null,\n-   \"status\": \"completed\",\n+   \"reason\": \"assignee_unavailable\",\n+   \"status\": \"needs_attention\",\n  }\n    at /workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:22:24"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy timeline access after the command creator loses the client wall",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: [{\"body\": \"Private content\", \"createdAt\": undefined, \"dueAt\": null, \"id\": \"80000000-0000-4000-8000-000000000001\", \"kind\": \"note\", \"occurredAt\": \"2026-10-12T03:11:21.168Z\", \"origin\": \"recorded\", \"personId\": \"40000000-0000-4000-8000-000000000001\", \"pinned\": false, \"settledAt\": null, \"sourceId\": \"b6f84ce3-b2fe-4649-906e-01d1a508d81a\", \"sourceType\": \"activity_command\", \"title\": \"Private title\"}]\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:141:11)"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy create after the client wall is revoked",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: {\"actorUserId\": \"20000000-0000-4000-8000-000000000001\", \"body\": null, \"clientId\": \"30000000-0000-4000-8000-000000000001\", \"createdByUserId\": \"20000000-0000-4000-8000-000000000001\", \"dueAt\": null, \"id\": \"80000000-0000-4000-8000-000000000001\", \"kind\": \"note\", \"occurredAt\": 2026-10-12T03:11:21.172Z, \"personId\": null, \"pinned\": false, \"sourceId\": null, \"sourceType\": null, \"tenantId\": \"10000000-0000-4000-8000-000000000001\", \"title\": \"Forbidden\"}\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:147:11)\n    at Promise.then.completed (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)\n    at _runTest (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)\n    at _runTestsForDescribeBlock (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)\n    at run (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy editing of protected activity after the client wall is revoked",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: {\"actorUserId\": \"20000000-0000-4000-8000-000000000001\", \"body\": \"Private content\", \"clientId\": \"30000000-0000-4000-8000-000000000001\", \"createdByUserId\": \"20000000-0000-4000-8000-000000000001\", \"dueAt\": null, \"id\": \"80000000-0000-4000-8000-000000000001\", \"kind\": \"note\", \"occurredAt\": 2026-10-12T03:11:21.174Z, \"personId\": \"40000000-0000-4000-8000-000000000001\", \"pinned\": false, \"sourceId\": \"74e4312c-a5fc-4cab-ad49-00aaea9c9753\", \"sourceType\": \"activity_command\", \"tenantId\": \"10000000-0000-4000-8000-000000000001\", \"title\": \"Changed without permission\"}\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:154:11)"
+        ]
+      },
+      {
+        "test": "independent canonical activity ethical-wall review denies legacy deletion after the client wall is revoked",
+        "messages": [
+          "Error: expect(received).rejects.toThrow()\n\nReceived promise resolved instead of rejected\nResolved to value: {\"ok\": true}\n    at expect (/workspace/capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)\n    at Object.<anonymous> (/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts:161:11)"
+        ]
+      }
+    ]
+  },
+  "core-repair-replay": {
+    "success": true,
+    "numPassedTests": 121,
+    "numFailedTests": 0,
+    "numTotalTestSuites": 9,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.additional-review.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.service.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.http.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/client-activity.service.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.planner.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/prisma/tenant-scope-guard.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/activity-commands/activity-command.input.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/memory/memory-wall.helpers.spec.ts"
+    ],
+    "failures": []
+  },
+  "strategy-repair-replay": {
+    "success": true,
+    "numPassedTests": 149,
+    "numFailedTests": 0,
+    "numTotalTestSuites": 4,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner.http.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner-command-scope.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api-strategy/src/planner/planner.spec.ts"
+    ],
+    "failures": []
+  },
+  "canonical-wall-replay": {
+    "success": false,
+    "numPassedTests": 5,
+    "numFailedTests": 0,
+    "numTotalTestSuites": 2,
+    "numRuntimeErrorTestSuites": 1,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/client-activity.wall.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/prisma/tenant-scope.spec.ts"
+    ],
+    "failures": []
+  },
+  "canonical-wall-final": {
+    "success": true,
+    "numPassedTests": 14,
+    "numFailedTests": 0,
+    "numTotalTestSuites": 2,
+    "numRuntimeErrorTestSuites": 0,
+    "files": [
+      "/workspace/capirov2-review-quicklog/apps/api/src/prisma/prisma-tenant-scope.spec.ts",
+      "/workspace/capirov2-review-quicklog/apps/api/src/clients/client-activity.wall.spec.ts"
+    ],
+    "failures": []
+  }
+}

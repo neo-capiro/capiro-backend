@@ -1,3 +1,4 @@
+import { requirePlannerCommandScope } from './planner-command-scope.js';
 import {
   Body,
   Controller,
@@ -191,6 +192,22 @@ export class PlannerController {
   }
   @Get('tasks/:id') task(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
     return this.planner.task(ctx, id);
+  }
+  @Post('task-create-commands') createTaskCommand(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+    @Req() req: Request,
+  ) {
+    requirePlannerCommandScope(ctx, req.headers);
+    return this.planner.createTaskCommand(ctx, dto, req.headers.authorization);
+  }
+  @Get('task-create-commands/:requestId') taskCreateCommand(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('requestId') requestId: string,
+    @Req() req: Request,
+  ) {
+    requirePlannerCommandScope(ctx, req.headers);
+    return this.planner.taskCreateCommand(ctx, requestId, req.headers.authorization);
   }
   @Post('tasks/import') importTask(
     @CurrentTenant() ctx: AuthTenantContext,

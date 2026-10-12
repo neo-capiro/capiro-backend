@@ -1,0 +1,79 @@
+{
+  "reviewer": "/root/independent_backend_review",
+  "verdict": "acceptable bounded source; exact primary compile and native qualification remain outstanding",
+  "originalRef": "027b5681349029086d4d9d836c5566130002b122",
+  "repairRef": "2821bd4266b79d908fc131ba7fb738579b2b3407",
+  "repairTree": "f4bc83896ac3bb244e887f127004f061af6c1564",
+  "finalCandidateRef": "961cbe0204d762ddfcb96ec054a907665720380e",
+  "finalCandidateTree": "04749f1c520bc68ee5b68b1516b4256c2009cb27",
+  "prerequisiteRef": "c5e41e320af4b4d841d4b3136777d712116916ed",
+  "equivalence": "Only change repair-to-final is publication of reviewer additional 2 tests. No runtime diff. All15 independent tests AST-identical after formatting.",
+  "resolvedFindings": [
+    {
+      "priority": "P1",
+      "finding": "canonical activity routes bypassed client wall",
+      "originalFailingCases": 4
+    },
+    {
+      "priority": "P2",
+      "finding": "completed receipt retained obsolete assignee error",
+      "originalFailingCases": 2
+    }
+  ],
+  "finalTests": {
+    "coreFocused": {
+      "tests": 121,
+      "suites": 9,
+      "result": "passed",
+      "receipt": "core-repair-replay.json"
+    },
+    "canonicalWallAndTenantHook": {
+      "tests": 14,
+      "suites": 2,
+      "result": "passed",
+      "receipt": "canonical-wall-final.json"
+    },
+    "strategyFocused": {
+      "tests": 149,
+      "suites": 4,
+      "result": "passed",
+      "receipt": "strategy-repair-replay.json"
+    },
+    "totalTests": 284,
+    "totalSuites": 15,
+    "independentAdversarialCases": 15
+  },
+  "typecheck": {
+    "independentCore": {
+      "exitCode": 137,
+      "result": "OS killed; not passed",
+      "receipt": "core-primary-tsc.exit.json"
+    },
+    "independentStrategy": "not run as separate primary check; normal Jest diagnostics passed",
+    "authorSerializedFinal": "pending; do not infer pass"
+  },
+  "negativeAndRunnerFailures": [
+    "adversarial-red.json",
+    "adversarial-red-expanded.json",
+    "adversarial-runner-failure.log",
+    "canonical-wall-replay.json"
+  ],
+  "newMigrationExecuted": false,
+  "databaseWritesPerformed": false,
+  "nativeConcurrencyOrRlsQualified": false,
+  "providers": "synthetic only",
+  "intersections": "Only PR2362 schema.prisma and clients.module.ts; exact refs in intersections.json.",
+  "deliverables": [
+    "REVIEW.txt",
+    "independent-tests.patch",
+    "final-candidate-equivalence.json",
+    "run-summary.json",
+    "intersections.json"
+  ],
+  "limitations": [
+    "No real PostgreSQL/Prisma engine qualification; official native engine download previously blocked403; no bypass attempted.",
+    "No migration executed, including ephemeral DB.",
+    "Core Jest isolatedModules supplementary configuration; exact independent primary compiler attempt killed137.",
+    "Full Figma commitment, Directory party, objective/strategy lineage and rich task visibility remain outside scope."
+  ]
+}

@@ -1,0 +1,17 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-quicklog/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/clients/activity-commands/activity-command.service.spec.ts (9.603 s)
+PASS src/prisma/tenant-scope-guard.spec.ts
+PASS src/clients/activity-commands/activity-command.planner.spec.ts
+PASS src/clients/client-activity.service.spec.ts
+PASS src/memory/memory-wall.helpers.spec.ts
+PASS src/clients/activity-commands/activity-command.input.spec.ts
+PASS src/clients/activity-commands/activity-command.http.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       106 passed, 106 total
+Snapshots:   0 total
+Time:        13.142 s
+Ran all test suites within paths "src/clients/client-activity.service.spec.ts", "src/memory/memory-wall.helpers.spec.ts", "src/clients/activity-commands/activity-command.input.spec.ts", "src/clients/activity-commands/activity-command.http.spec.ts", "src/clients/activity-commands/activity-command.planner.spec.ts", "src/clients/activity-commands/activity-command.service.spec.ts", "src/prisma/tenant-scope-guard.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/quicklog/core-replay.json

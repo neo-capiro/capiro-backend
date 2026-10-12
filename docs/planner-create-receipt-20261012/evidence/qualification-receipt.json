@@ -1,0 +1,27 @@
+{
+  "source": "78b24af72e97f5e36202f8e036d7a96345006b57",
+  "primaryStrategyTypecheck": {
+    "exitCode": 0,
+    "command": "NODE_OPTIONS=--max-old-space-size=4096 node_modules/.bin/tsc --noEmit",
+    "cwd": "apps/api-strategy"
+  },
+  "strategyNestBuild": {
+    "exitCode": 0,
+    "command": "NODE_OPTIONS=--max-old-space-size=4096 node_modules/.bin/nest build",
+    "cwd": "apps/api-strategy"
+  },
+  "lint": {
+    "exitCode": 1,
+    "reason": "eslint: not found in frozen dependencies"
+  },
+  "tests": {
+    "numPassedTests": 183,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numPassedTestSuites": 7,
+    "success": true
+  },
+  "independentReview": "independent-review/FINAL-RECEIPT.json",
+  "nativeQualification": "BLOCKED/NOT RUN; official Prisma5.22 engine HTTP403, no bypass/live DB",
+  "formattingAndWhitespace": "PASS"
+}

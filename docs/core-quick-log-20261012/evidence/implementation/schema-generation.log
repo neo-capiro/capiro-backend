@@ -1,0 +1,1 @@
+PASS: Prisma 5.22.0 official WASM DMMF + client generator, noEngine:true; no native engine or database used. Output: /workspace/capirov2-quicklog/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client

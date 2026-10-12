@@ -1,0 +1,9 @@
+Error: Can't find a root directory while resolving a config file path.
+Provided path to resolve: /tmp/capiro-quicklog-jest.cjs
+cwd: /workspace/capirov2-quicklog/apps/api
+    at resolveConfigPath (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-config@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23___4fqcah5zwoosasyblutyurlffi/node_modules/jest-config/build/resolveConfigPath.js:123:11)
+    at readInitialOptions (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-config@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23___4fqcah5zwoosasyblutyurlffi/node_modules/jest-config/build/index.js:386:55)
+    at readConfig (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-config@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23___4fqcah5zwoosasyblutyurlffi/node_modules/jest-config/build/index.js:147:54)
+    at readConfigs (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-config@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23___4fqcah5zwoosasyblutyurlffi/node_modules/jest-config/build/index.js:424:32)
+    at runCLI (/workspace/capirov2-quicklog/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:152:29)
+    at Object.run (/workspace/capirov2-quicklog/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js:130:62)

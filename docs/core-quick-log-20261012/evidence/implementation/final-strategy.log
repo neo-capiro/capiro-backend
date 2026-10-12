@@ -1,0 +1,17 @@
+PASS src/planner/planner-date-rules.spec.ts (10.035 s)
+PASS src/prisma/tenant-scope-guard.spec.ts
+[Nest] 11068  - 10/12/2026, 3:16:17 AM   ERROR [PrismaOrgTenantResolver] resolveByTenantId(17b63099-bc0f-4ac5-b596-496161e9481e) failed: Timed out fetching a new connection from the connection pool.
+[Nest] 11068  - 10/12/2026, 3:16:17 AM   ERROR [PrismaOrgTenantResolver] resolveByClerkOrgId failed: Timed out fetching a new connection from the connection pool.
+PASS src/auth/org-tenant-resolver.provider.spec.ts
+[Nest] 11068  - 10/12/2026, 3:16:17 AM   DEBUG [PrismaOrgTenantResolver] resolveByTenantId(not-a-uuid): not a valid tenant id
+PASS src/planner/planner-task-create-command.spec.ts
+PASS src/planner/planner.http.spec.ts
+PASS src/planner/planner-command-scope.spec.ts
+PASS src/planner/planner-task-create-command.independent-review.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       141 passed, 141 total
+Snapshots:   0 total
+Time:        14.346 s
+Ran all test suites matching /src\/planner\/planner-command-scope.spec.ts|src\/planner\/planner.http.spec.ts|src\/planner\/planner-task-create-command.spec.ts|src\/planner\/planner-task-create-command.independent-review.spec.ts|src\/planner\/planner-date-rules.spec.ts|src\/auth\/org-tenant-resolver.provider.spec.ts|src\/prisma\/tenant-scope-guard.spec.ts/i.
+Test results written to: ../../../backend-qualification-20261012/quicklog/final-strategy.json

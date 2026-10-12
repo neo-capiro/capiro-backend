@@ -1,0 +1,16 @@
+{
+  "FINAL-RECEIPT.json": "8e52303a32ba769e546b2b7d06c94b030c2d5d6c43de041fad0c3681c2712062",
+  "final-replay.log": "c8e5a1a359e14c14b1b057efcf51622a3af29da3db9d1b71930e4122253fc221",
+  "adversarial-red.log": "81ebcac5e7549d05f6f2ebfd64bb886452b723de302ee959dfed8d7ab6500869",
+  "reviewer-source-before-author-copy.spec.ts": "7a8c289575717271c750d27a0c587525f119d3431879f4b812c837d0bd3556a5",
+  "independent-tests-corrected.spec.ts": "7a8c289575717271c750d27a0c587525f119d3431879f4b812c837d0bd3556a5",
+  "REVIEW.txt": "f6351cfe29398628a1ae16155c84b5a01a2d8dfe265da597c823ff251e5b68f3",
+  "adversarial-red-corrected.log": "8f73af8e037fb28b61dadf1a64c30674d8fdd712ef1f45993ade16b18ddecc77",
+  "initial-review-receipt.json": "1a8cb41db967924df5bf2b17c961324cec7079fce66602ecf4f9b562d0c1ced3",
+  "adversarial-red-corrected.json": "f52d25fa2c8f1385fb743728c7b59278a53d44c03dfb2e468282d519fa7d8d2c",
+  "tenant-guards.log": "5c99945c34cf6510b9211c1745c6178952a2660719ac41a105c4b5db6036f233",
+  "tenant-guards.json": "0425398793b3ac86c2696b0040440dd07165440a90a2972c1029f648846b50a3",
+  "adversarial-red.json": "e5ebd123d0e26b68798cbe6d9046cf27116eb261cf5f3da1bc826f5023190ad4",
+  "final-replay.json": "7aed78df5f4c80bdb4582c0f8641957f1badcf7f5dceefe92ea0d768f2aefaa4",
+  "independent-tests-original.spec.ts": "42b0ec7b35e08d7c6720ede5f8f5fbf31ab87605fc33a935929e39400929f9a7"
+}
