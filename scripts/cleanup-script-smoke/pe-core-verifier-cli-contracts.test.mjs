@@ -16,14 +16,19 @@ const cases = [
   },
   {
     file: 'verify-pe-migration-guards.ts',
-    failure: /PE_MIGRATION_GUARDS_FAILED: scripts\/entrypoint\.sh: contains prisma migrate resolve/u,
+    failure: /PE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts\/entrypoint\.sh: contains prisma migrate resolve/u,
     usage:
       'Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]\n',
   },
   {
     file: 'verify-pe-phase-e-exact-sha.ts',
     // The immutable candidate retains the parent strict refusal of this facade.
-    refusedFacade: 'parse-defense-approps-public-law.ts',
+    failuresExpected: [
+      'parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract',
+      'parse-defense-approps-public-law.ts: missing resolvePeDollarLoaderPosture',
+      'parse-defense-approps-public-law.ts: missing assertExactShaCommitAllowed',
+      'parse-defense-approps-public-law.ts: missing approved-sha256 wiring',
+    ],
     usage: 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]\n',
   },
 ];
@@ -99,8 +104,8 @@ for (const subject of cases) {
     } else {
       const refusal = JSON.parse(normal.stderr.slice(subject.usage.length));
       assert.equal(refusal.ok, false, 'exact-SHA verification remains refused');
-      assert.equal(refusal.failures.length, 4, 'all four existing facade violations remain');
-      assert.ok(refusal.failures.every(value => value.startsWith(subject.refusedFacade+':')));
+      assert.deepEqual(refusal.failures, subject.failuresExpected,
+        'all four distinct original facade violations remain in order');
     }
 
     const help = invoke(subject.file, ['--help'], 0);
