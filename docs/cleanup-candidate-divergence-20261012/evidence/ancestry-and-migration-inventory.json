@@ -1,0 +1,201 @@
+{
+  "candidateHead": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "candidateTree": "ce817706a72b7f096cf3e112f28ec355153e5653",
+  "reviewedHead": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "reviewedTree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "mergeBase": "11b02a5312ebac7fbbe83d1d2f6efec07c67dd45",
+  "candidateAncestorOfReviewed": false,
+  "reviewedAncestorOfCandidate": false,
+  "candidateOnlyMigrationCount": 14,
+  "candidateOnlyMigrations": [
+    {
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+      "bytes": 2048,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+      "bytes": 1421,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+      "bytes": 1289,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+      "bytes": 1656,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+      "bytes": 3625,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+      "bytes": 1050,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+      "bytes": 435,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+      "bytes": 235,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+      "bytes": 1135,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "8a132af2d73079082d089c611e450005d6a5e090",
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+      "bytes": 1536,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+      "bytes": 2074,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+      "bytes": 758,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+      "bytes": 1495,
+      "reviewedPresent": false
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+      "bytes": 139,
+      "reviewedPresent": false
+    }
+  ],
+  "callBehaviorSourceSnapshots": [
+    {
+      "head": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "path": "package.json",
+      "sha256": "903a6e6e46ff6a055a94d387b7209b8b2bc4d65de2febd731a91e2603bd678c4",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "d05a0f54f7c63e6113322c5d613ee398eed68f36"
+    },
+    {
+      "head": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "sha256": "63d9accf365b36ad8d3305afe8ef0a3e9af30e5d4bd3b80af6303ac3126707b3",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "27081415c5b0dba194018f257d2b41e1382be205"
+    },
+    {
+      "head": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "path": "scripts/run-engagement-phase1-local.mjs",
+      "sha256": "9098aa7e87c25603675596eedd1b0921500a9ede40ea4d894e55049d24fe1efb",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "c9c6f399238af7fd4d6ceebfd7febe438eb138d4"
+    },
+    {
+      "head": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+      "path": "package.json",
+      "sha256": "91d180ac38e42ab6168bcf1c8e6c55dc3ce6e04243ee5229a32cf845ee7692d2",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "994c9476414cd4f66b13cc52f16100a72a8cfddc"
+    },
+    {
+      "head": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "sha256": "516cdee5c9fb35bfdf35b04b03523e9eec827e860d1554c269858d8bc845bf0a",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "5783ca130796576e70d5292b2920af4f2803e984"
+    },
+    {
+      "head": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+      "path": "scripts/run-engagement-phase1-local.mjs",
+      "sha256": "994ed14d2ee976a1aace8ee1e799fe8f1a6b29f597a0b17203ccbacb19b27215",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "9979683f5af584c86989b08db890304a3279f3db"
+    },
+    {
+      "head": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+      "path": "scripts/cleanup-script-smoke/api-closeout-runner-cli-contracts.test.mjs",
+      "sha256": "edc095c03d7bdd48e0b011c8976b978c6832cb83ff346dbcc134032d5f506533",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "c87caa050a441f9cc89fc180a14663d37b5f9970"
+    }
+  ],
+  "deployedIdentityProven": false,
+  "sourceImportedOrExecuted": false,
+  "databaseOrMigrationExecuted": false,
+  "operatorPairReconciliation": "exact paths pending parent",
+  "adoptedIntoRebuild": false
+}

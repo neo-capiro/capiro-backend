@@ -1,0 +1,21 @@
+{
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "acceptedSourceHead": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "acceptedSourceTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "integratedEvidenceHead": "5a3ace1c08cd6b73534008750bc2177fac213a43",
+  "integratedEvidenceTree": "b16cf0ac04bc541d7453e3a087dc1a5ec178956f",
+  "genericReviewHead": "ed232c767a13dfd7aee355f76f68b32214b34149",
+  "dataWiringReviewHead": "662d6e171452e35787f41bd4bf91446dbd0c0826",
+  "authorControls": 78,
+  "independentVectors": 55,
+  "currentProfileFiles": 168,
+  "currentProfileRoles": 4,
+  "currentProfileServices": 3,
+  "profileStatementFingerprints": 2,
+  "applicationConversionsAccepted": false,
+  "nativeFullAcceptanceOpen": 11,
+  "deferredClockSamples": 123,
+  "pnpmLauncherAccepted": false,
+  "ciExecuted": false,
+  "allDeclaredProductionContentUnified": false
+}

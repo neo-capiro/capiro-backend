@@ -1,0 +1,39 @@
+✔ accepts the canonical declaration, alias-bound use and reviewed carrier (293.708693ms)
+✔ does not evaluate imported application source (6.264995ms)
+✔ carrier digest ignores comments and whitespace and preserves literal meaning (3.495111ms)
+✔ refuses missing owner (3.636333ms)
+✔ refuses duplicate local declaration (6.513539ms)
+✔ refuses nested local declaration (5.259376ms)
+✔ refuses class method with owned name (3.767812ms)
+✔ refuses owner renamed (2.867607ms)
+✔ refuses wrong declaration kind (3.816632ms)
+✔ refuses namespace import (2.002736ms)
+✔ refuses type-only import (1.442602ms)
+✔ refuses type-only imported member (1.005346ms)
+✔ refuses wrong import module (1.20388ms)
+✔ refuses missing consumer (1.35342ms)
+✔ refuses unused imported binding (2.444215ms)
+✔ refuses parameter shadow (4.661693ms)
+✔ refuses extra call (5.085634ms)
+✔ refuses carrier bypass (3.501152ms)
+✔ refuses changed argument order (1.849058ms)
+✔ refuses duplicate carrier (2.302559ms)
+✔ refuses syntax error (2.660417ms)
+✔ refuses empty profile list (0.476181ms)
+✔ refuses duplicate profile id (1.923556ms)
+✔ refuses owner path traversal (0.793457ms)
+✔ refuses root path traversal (0.958876ms)
+✔ refuses unscanned owner (3.065718ms)
+✔ refuses nonpositive reference count (1.454478ms)
+✔ refuses spoofed carrier fingerprint (4.634724ms)
+✔ canonical module cannot be redirected in profile while keeping source import (1.227798ms)
+✔ invalid sources fail as data (2.73205ms)
+✔ inert declaration aliases in unrelated scope do not satisfy a missing canonical use (2.22097ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 561.90265

@@ -1,0 +1,8 @@
+{
+  "errors": [
+    "strategy-existing-template-vocabulary: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES",
+    "strategy-existing-template-vocabulary: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/TEMPLATE_KEY_BY_TYPE"
+  ],
+  "profiles": 1,
+  "files": 168
+}

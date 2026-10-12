@@ -1,0 +1,48 @@
+{
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "source": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "sourceTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "nonDocPaths": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "sha256": "4ab5e5b3aa91b3466ceafa1cd84f882ede5a21aeb083e96ca409cef0363fa91e",
+      "currentMatchesReviewed": true
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "dd946b25b0ab2d5ae8cbb223e4586e02227adea1",
+      "sha256": "78d6a5775c0e97ca2b1760139a5d60dbf8a298fd62f0d58b232ad24bfc28ca38",
+      "currentMatchesReviewed": true
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "5e46f212702716896bd2e4e2a986180435ae6142",
+      "sha256": "1ee6be5fee4f958b29e57e7c9f77c1da9071b59aa8749b53553da75d1a024c35",
+      "currentMatchesReviewed": true
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "0d1699b9c75a44e2d5541db42ee4aeeaca50f2ce",
+      "sha256": "031bb5c6a8b3ffb3df1d1fa1e824d1183cd92d301add8b6de38e499bd2422e65",
+      "currentMatchesReviewed": true
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "mode": "100644",
+      "kind": "blob",
+      "blob": "7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "sha256": "f68cf0819176ebdd56f25ef3387b2a9fd3e014f40ade90ecb4dc7cca75699019",
+      "currentMatchesReviewed": true
+    }
+  ],
+  "applicationHttpDtoSchemaDelta": 0
+}

@@ -1,0 +1,16 @@
+{
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "checkedHead": "5a3ace1c08cd6b73534008750bc2177fac213a43",
+  "baselinePathsOutsideFiveExact": 21043,
+  "applicationPathsExact": 10506,
+  "baselineSchemasMigrationsExact": 603,
+  "baselineDocsExact": 9364,
+  "sourceDriftAfterReview": false,
+  "newSourcePaths": [
+    ".github/workflows/ci-pr.yml",
+    "package.json",
+    "scripts/check-registry-ownership.mjs",
+    "scripts/check-registry-ownership.test.mjs",
+    "scripts/registry-ownership.json"
+  ]
+}

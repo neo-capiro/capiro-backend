@@ -1,0 +1,18 @@
+{
+  "evidenceSource": "Parent-supplied read-only AWS image-config-label reconciliation; no AWS operation in this task",
+  "core": {
+    "declaredRevision": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "gitTree": "ce817706a72b7f096cf3e112f28ec355153e5653",
+    "runningImageDigest": "not supplied to this task"
+  },
+  "workspace": {
+    "declaredRevision": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+    "gitTree": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+    "runningImageDigest": "480b340234929d4b0dbf65c1849952e3a613c557f88d0635c15c18837a75dd4c"
+  },
+  "classification": "declared production-lineage content to preserve and deliberately reconcile",
+  "historicalBuildTreeAttestationAvailable": false,
+  "runtimeDataOrAppliedMigrationStateChecked": false,
+  "automaticallyRestored": false,
+  "olderUnknownProvenanceReceiptsRetained": true
+}
