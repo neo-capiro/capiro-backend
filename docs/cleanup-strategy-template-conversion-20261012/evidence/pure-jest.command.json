@@ -1,0 +1,6 @@
+{
+  "baseline": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "shellCommand": "node /workspace/capirov2/apps/api-strategy/node_modules/jest/bin/jest.js --config docs/cleanup-strategy-template-conversion-20261012/evidence/pure-metadata.jest.cjs --runInBand > docs/cleanup-strategy-template-conversion-20261012/evidence/pure-jest.log 2>&1",
+  "exitCode": 1,
+  "nativeGenerateOrProviderExecuted": false
+}

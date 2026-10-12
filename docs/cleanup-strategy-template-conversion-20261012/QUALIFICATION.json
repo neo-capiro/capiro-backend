@@ -1,0 +1,76 @@
+{
+  "sourceHead": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "sourceTree": "a143416a96a04d8626ba67cef9e69803586749e2",
+  "pureJest": {
+    "suites": 3,
+    "passed": 128,
+    "failed": 0,
+    "snapshots": 0
+  },
+  "goldenDifferentialCounts": {
+    "known": 17,
+    "unknown": 19,
+    "invalidSameRealm": 5,
+    "headings": 9,
+    "metadata": 8,
+    "freshness": 3,
+    "templates": 17
+  },
+  "sameErrorRealm": true,
+  "beforeGoldenRegeneratedFromCandidate": false,
+  "fullStrictStrategyTsc": "PASS with cached schema-identical engine-free declarations and original-package ambient type roots",
+  "exactPublicDeclarations": [
+    "frontmatter.d.ts",
+    "report-context.d.ts"
+  ],
+  "originalTestsStrictlyAdditive": true,
+  "unchangedNonMetadataFunctions": {
+    "front": [
+      "parseFrontmatter",
+      "parseScalar",
+      "isRealIsoDate",
+      "checkVocab",
+      "checkDateOrNull",
+      "validateFrontmatter"
+    ],
+    "report": [
+      "isClientSafeContextFrontmatter",
+      "includeContextDocument",
+      "contextMetadata",
+      "extractHighlights",
+      "includeHighlightHeading",
+      "headingFromSourceRef",
+      "formatTableRow",
+      "cleanValue",
+      "cleanInline",
+      "splitTableCells",
+      "sectionTitleForTemplate",
+      "pushUnique",
+      "pushHighlight",
+      "asRecord",
+      "stringValue",
+      "dateValue",
+      "isoDate",
+      "boundedConfidence"
+    ]
+  },
+  "frozenSourceScopePaths": 6,
+  "protectedBaselinePaths": 21377,
+  "failedEvidenceRetained": [
+    "pure-jest.log new test readonly-row typing",
+    "full-strategy-tsc-initial.log missing generated/ambient declarations",
+    "full-strategy-tsc-cached.log evidence-config ambient discovery",
+    "base-owner-guard-transient.log six old owner refusals"
+  ],
+  "cachedClientFilesCopied": 19,
+  "prismaClientVersion": "5.22.0",
+  "nativeGenerateOrDownloadOrEngineExecuted": false,
+  "packageManagerOrInstallExecuted": false,
+  "providersDatabaseServicesOrCloudExecuted": false,
+  "currentOldRootOwnerProfileAccepted": false,
+  "sameChangeRootGuardAdaptationRequired": true,
+  "independentApplicationReview": "PENDING external reviewer",
+  "publicHttpDtoSchemaContractDelta": false,
+  "deferredClock123Acceptance": false,
+  "allLiveProductionReconciliation": false
+}

@@ -1,0 +1,8 @@
+{
+  "source": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "sourceTree": "a143416a96a04d8626ba67cef9e69803586749e2",
+  "shellCommand": "node /workspace/capirov2/apps/api-strategy/node_modules/jest/bin/jest.js --config docs/cleanup-strategy-template-conversion-20261012/evidence/pure-metadata.jest.cjs --runInBand > docs/cleanup-strategy-template-conversion-20261012/evidence/pure-jest-corrected.log 2>&1",
+  "exitCode": 0,
+  "sourceBlobsEqualFrozenCommit": true,
+  "nativeGenerateOrProviderExecuted": false
+}

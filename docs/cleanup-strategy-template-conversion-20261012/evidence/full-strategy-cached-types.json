@@ -1,0 +1,17 @@
+{
+  "extends": "../../../apps/api-strategy/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../../..",
+    "paths": {
+      "@capiro/shared": [
+        "/workspace/capirov2-cleanup-clock-source/packages/shared/dist/index.d.ts"
+      ]
+    },
+    "noEmit": true,
+    "incremental": false,
+    "typeRoots": [
+      "../../../apps/api-strategy/node_modules/@types",
+      "../../../node_modules/@types"
+    ]
+  }
+}

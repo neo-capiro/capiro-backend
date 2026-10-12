@@ -1,0 +1,28 @@
+{
+  "originalSource": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "originalTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "counts": {
+    "known": 17,
+    "unknown": 19,
+    "invalidSameRealm": 5,
+    "headings": 9,
+    "metadata": 8,
+    "freshness": 3,
+    "templates": 17
+  },
+  "sameErrorRealm": true,
+  "goldenCapturedBeforeCandidateEdits": true,
+  "goldenRegeneratedFromCandidate": false,
+  "completeKnownUnknownMetadataFreshnessAssemblyOutputsEqual": true,
+  "publicFrontmatterExportNamesOrderDataDescriptorsAndReferencesEqual": true,
+  "bodyWhitespaceParserValidationAndTemplateBytesEqual": true,
+  "runtimeDependencies": [
+    "candidate pure template registry",
+    "original/candidate pure frontmatter only"
+  ],
+  "db": 0,
+  "providers": 0,
+  "network": 0,
+  "ambientClockSamples": 0,
+  "nativeAcceptance": false
+}
