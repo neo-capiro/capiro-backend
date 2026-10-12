@@ -1,0 +1,28 @@
+{
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "head": "539f62e7f2a3f87d9f56f1281e6fff717aed0958",
+  "policyReference": "fd8765ec01d292013758606204f2c9d886cd31c1",
+  "handoffSha256": "5e874b6b7960ba91aa6fa85d044a36e4f4cc3b9c90e60fe16e51091dbd55bf41",
+  "decisionsCompared": 540,
+  "intendedReasonChanges": 240,
+  "automatedPendingDecisions": 180,
+  "exactFourHandoffStrings": true,
+  "syntax": [
+    {
+      "file": "apps/api/src/memory/memory-candidate-rules.ts",
+      "replacements": 2,
+      "normalizedAstSha256": "98ba4b67351ec4227bece1985b50e303d5a931f5fd47ab74df7d1ccc3429a3a2",
+      "policyReferenceMatchesBase": true
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "replacements": 1,
+      "normalizedAstSha256": "8ed69c4011256fb12c244609911f6e4458f3f632c1ab84acbdfbb6a5ee7326b8",
+      "policyReferenceMatchesBase": true
+    }
+  ],
+  "changedRuntime": [
+    "apps/api/src/memory/memory-candidate-rules.ts",
+    "apps/api/src/meri/meri-tools.service.ts"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "asOf": "2026-10-12",
+  "candidate": "539f62e7f2a3f87d9f56f1281e6fff717aed0958",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "method": "git diff --name-only base...head; preserved dependency merge-base comparisons to main",
+  "changedPaths": [
+    "apps/api/src/memory/memory-candidate-rules.spec.ts",
+    "apps/api/src/memory/memory-candidate-rules.ts",
+    "apps/api/src/meri/meri-tools.memory-approval-wording.spec.ts",
+    "apps/api/src/meri/meri-tools.service.ts",
+    "docs/memory-admin-wording-20261012/SCOPE.md"
+  ],
+  "intersections": {
+    "cleanup2392": [],
+    "facility2373": [],
+    "reply2364": [],
+    "attachment2381": [],
+    "stages2365": [],
+    "contacts2371": [],
+    "objectives2362": [],
+    "sender2393": [],
+    "facility2394": [],
+    "planner2395": []
+  },
+  "refs": {
+    "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "cleanup2392": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "facility2373": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+    "reply2364": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+    "attachment2381": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+    "stages2365": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+    "contacts2371": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+    "objectives2362": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+    "sender2393": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+    "facility2394": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+    "planner2395": "c5e41e320af4b4d841d4b3136777d712116916ed"
+  }
+}

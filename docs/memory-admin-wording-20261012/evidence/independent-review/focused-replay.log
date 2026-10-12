@@ -1,0 +1,19 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-memory-wording/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/memory/memory-review-workflow.service.spec.ts (5.411 s)
+PASS src/memory/memory-authorization.helpers.spec.ts
+PASS src/memory/settings-aware-memory-candidate.service.spec.ts
+PASS src/memory/memory-candidate.client-review.spec.ts
+PASS src/memory/memory-candidate-rules.spec.ts
+PASS src/memory/memory-authorization.phase12.spec.ts
+PASS src/memory/memory-authorization.admin-capability.spec.ts
+PASS src/meri/meri-tools.memory-approval-wording.spec.ts (14.573 s)
+PASS src/memory/memory-review-workflow.helpers.spec.ts
+
+Test Suites: 9 passed, 9 total
+Tests:       77 passed, 77 total
+Snapshots:   0 total
+Time:        23.432 s
+Ran all test suites within paths "src/memory/memory-candidate-rules.spec.ts", "src/meri/meri-tools.memory-approval-wording.spec.ts", "src/memory/memory-authorization.helpers.spec.ts", "src/memory/memory-authorization.admin-capability.spec.ts", "src/memory/memory-authorization.phase12.spec.ts", "src/memory/memory-candidate.client-review.spec.ts", "src/memory/memory-review-workflow.service.spec.ts", "src/memory/memory-review-workflow.helpers.spec.ts", "src/memory/settings-aware-memory-candidate.service.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/memory-wording/focused-replay.json

@@ -1,0 +1,105 @@
+Independent non-author review: Institutional Memory wording alignment
+Date: 2026-10-12
+Reviewer: /root/independent_backend_review
+
+Verdict: ACCEPTABLE SOURCE. No blocking findings.
+Exact candidate: 539f62e7f2a3f87d9f56f1281e6fff717aed0958
+Tree: be46a1ef9c8166c7c44fe187a5b848dea4cad71c
+Base: 4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace
+Policy source reference: fd8765ec01d292013758606204f2c9d886cd31c1
+Isolated detached reviewer worktree: /workspace/capirov2-review-memory-wording.
+No production source/test files or original branches edited by reviewer.
+
+Authority and exact text
+Read the complete coordinator-supplied handoff identified as Meri PR12 at
+90b4dc8472da13cdee9f49cdc0b4c8306ecbdc73. Supplied source is preserved here in
+HANDOFF-FROM-COORDINATOR.md, SHA256
+5e874b6b7960ba91aa6fa85d044a36e4f4cc3b9c90e60fe16e51091dbd55bf41.
+The Meri commit was not available in the local Meri repository; no fetch or edit
+was needed after the coordinator supplied its complete text. This review verifies
+against that supplied primary handoff, not a claim of directly fetching Meri PR12.
+
+All four public replacement strings match the handoff exactly:
+- memory.firm.requires_approval reason at memory-candidate-rules.ts:110.
+- memory.client.requires_approval reason at memory-candidate-rules.ts:122.
+- scope-specific pending message at meri-tools.service.ts:2954.
+The contradictory comments now distinguish mandatory pending creation from later
+administrator self-approval. The retired automatic-administrator-commit paths are
+not restored. Exact roles remain user_admin and capiro_admin.
+
+Independent change characterization
+The reviewer-owned characterize.cjs script performs the following from exact Git
+refs, without importing live services or running providers:
+1. Confirms both targeted files were byte-identical between policy reference and
+   main base before this change.
+2. Evaluates base and candidate rule functions in a closed two-module VM sandbox
+   containing only the rule code and its confidence helper. No network, filesystem
+   or database capabilities are supplied to the evaluated modules.
+3. Compares 540 combinations of scope, administrator flag, sourceKind, confidence
+   and threshold. Every rule ID and outcome is identical. Exactly 240 decisions
+   carry the two intentionally changed shared reasons; all other complete decision
+   objects are unchanged. All 180 model_extraction/learning_signal combinations
+   remain WARN, including personal scope and maximum confidence.
+4. Derives expected strings from the supplied handoff rather than the author's
+   duplicated test constants. Checks both reasons and both messages verbatim.
+5. Fingerprints complete TypeScript ASTs, ignoring comments and replacing only
+   the two targeted reason initializers plus the single pending message property.
+   Every remaining syntax node matches base. The new message expression is itself
+   checked to be exactly a pendingLabel === 'client' conditional with the two
+   approved string literals; no calls or other side effects are added there.
+Results and raw script output: characterization.json and characterization.log.
+This independently establishes that canonical authorization, DB queries, grant
+checks, response fields, status/receipt shape and non-target behavior are unchanged.
+
+Independent runtime replay
+150/150 passing Jest tests across 16 distinct suites:
+- focused-replay.json: 77/77 across 9 suites.
+- disposition-routing-replay.json: 36/36 across 4 suites.
+- readiness-automated-replay.json: 37/37 across 3 suites.
+This includes all 123 cases selected by the author plus 27 additional existing
+routing/capability/compatibility controls selected by the reviewer. Tests use
+synthetic persistence and provider stubs. No database or provider operation occurs.
+
+Controls inspected and replayed
+- Ordinary/admin firm and client creation remains pending with WARN; pending wrapper
+  remains exactly { saved:false, scope, candidateId, message }. One proposal call
+  only; the personal alternative remains an offer, not another save operation.
+- Administrator own/other approval remains allowed by the existing canonical
+  evaluator and admin policy; assignment is not mandatory for administrators.
+- Ordinary firm approval remains denied; client approval retains current grant,
+  assignment and nonself conditions. Active, unexpired, reasoned grant filtering
+  remains unchanged. Client ethical walls and archived-client mutation refusals
+  still bind administrators.
+- Current tenant/client scoping, wrong-tenant selected client refusal, authorized
+  current reviewer readiness, denied proposal bodies and capability scoping remain
+  covered. No new cached permission or authority is derived from these strings.
+- Traced DI alias: MemoryCandidateService -> SettingsAwareMemoryCandidateService
+  -> GovernedMemoryCandidateService, which retains the shared self-rejection guard
+  and proposer-only withdrawal. A proposer must withdraw rather than reject their
+  own shared candidate, including an administrator. Another person's proposal
+  cannot be withdrawn. Walled proposal bodies remain redacted while withdrawal of
+  one's own proposal retains its existing lifecycle semantics.
+- Private-owner behavior and automated model_extraction/learning_signal review
+  remain unchanged. No new model calls or generation/activation paths enabled.
+
+Change ownership and intersections
+Only two runtime files change: memory-candidate-rules.ts and meri-tools.service.ts.
+The other three changed paths are two tests and the scope document. No schema,
+module/provider wiring, controller, evaluator, role, grant or migration changes.
+Exact changed-path comparisons against Cleanup2392, facility2373, reply2364,
+attachments2381, stages2365, contacts2371, objective2362, sender2393 repair,
+facility2394, Planner2395 and Quicklog961cbe020 are all empty. Full refs/merge bases
+and file lists are recorded in intersections.json. No frontend or Meri source edited.
+
+Qualification and limitations
+No regression failure found. The initial read-only local Meri Git lookup returned
+"bad object"; handoff verification proceeded against the supplied text above.
+Core Jest uses checked-in configuration plus external isolatedModules transformation
+for memory limits; those runs are not relabeled as primary compiler passes. The
+coordinator reported a successful primary Core tsc at the exact candidate, with log
+/workspace/backend-qualification-20261012/memory-wording/core-tsc.log. Reviewer did
+not repeat a heavy compiler while serialized Quicklog compilation was active.
+Native Prisma/PostgreSQL/RLS, deployment and browser qualification were not run.
+This is a source-text/behavior-preservation verdict, not release approval. No native
+engine generation, migration, database write, real provider message, paid model,
+credential/resource/IAM/network change, deployment or merge was performed.

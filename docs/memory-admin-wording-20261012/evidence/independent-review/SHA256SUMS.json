@@ -1,0 +1,17 @@
+{
+  "FINAL-RECEIPT.json": "e0adc4b6899de5d5cf7f60afecb95b6fa00dfd7b9dae29a1806d0d0fada15ca4",
+  "HANDOFF-FROM-COORDINATOR.md": "5e874b6b7960ba91aa6fa85d044a36e4f4cc3b9c90e60fe16e51091dbd55bf41",
+  "REVIEW.txt": "e13f37b6dd22788f574667ecc9920a8fa9d301a9c1526f09f9f805b625c78ef6",
+  "characterization.json": "ba9d231ef8ebcf4beb5aabde4c50f52407aa10321549c6d792852c901e1472c0",
+  "characterization.log": "ba9d231ef8ebcf4beb5aabde4c50f52407aa10321549c6d792852c901e1472c0",
+  "characterize.cjs": "54a0883520ed0511029c1c3b2f22cdb79654e4e3dbee34f9dc57202ac66b13f1",
+  "core-jest.cjs": "79ecbdb25c9799a5663ca36388cebfb0bd74e71a17b966a9e9e4435c962e2043",
+  "disposition-routing-replay.json": "57d26b939e7dc330b035806c2b7a838b2e7e76700290d1c114ffff141501371d",
+  "disposition-routing-replay.log": "d6b4f1bd1bc4bb40f62227f6185e32f5b7f6e4bd7a1f3a8352c61a8851ab91ec",
+  "focused-replay.json": "ad16e3ae5c71abaf0dc8a1d580079e90a0fa09e7ee81d2fdb3e0f7ebd8964709",
+  "focused-replay.log": "7abdfee27d6518526bfdb320aadccf8b649fa18651c126aaf5ad0f58cead4cf5",
+  "intersections.json": "5c5708ec66a6d8c0da6176d651d0b0cefbd4e50e6795d5a99edf02b877fa0d1d",
+  "readiness-automated-replay.json": "1b7362012e45397d2bb5953449c4b99f4b5d8e50b9fdc61b4964945463ece77a",
+  "readiness-automated-replay.log": "625dc899e4a0b3797849598f4d76dae468c3da8390f1d555deab2d06e41aa173",
+  "run-summary.json": "2182eb959d6dbd4e9e740b27a6c5031d78e83f95df771b1bff06b607e6adc0d7"
+}

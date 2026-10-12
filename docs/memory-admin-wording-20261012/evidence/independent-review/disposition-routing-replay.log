@@ -1,0 +1,14 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-memory-wording/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/memory/governed-memory-candidate.service.spec.ts
+PASS src/memory/memory.controller.governance.spec.ts
+PASS src/memory/memory-review.controller.spec.ts
+PASS src/memory/memory-candidate-review.assignment.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       36 passed, 36 total
+Snapshots:   0 total
+Time:        3.843 s
+Ran all test suites within paths "src/memory/governed-memory-candidate.service.spec.ts", "src/memory/memory.controller.governance.spec.ts", "src/memory/memory-review.controller.spec.ts", "src/memory/memory-candidate-review.assignment.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/memory-wording/disposition-routing-replay.json

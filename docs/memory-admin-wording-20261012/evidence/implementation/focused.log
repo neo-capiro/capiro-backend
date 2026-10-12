@@ -1,0 +1,22 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-memory-wording/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/memory/learning-signal-governance.spec.ts (5.893 s)
+[Nest] 10678  - 10/12/2026, 3:13:13 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+[Nest] 10678  - 10/12/2026, 3:13:13 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+[Nest] 10678  - 10/12/2026, 3:13:13 AM    WARN [ImmutableMemoryVersionService] immutable memory embed failed; projection recovery remains available: prisma.withSystem is not a function
+PASS apps/api/src/memory/governed-memory-candidate.service.spec.ts
+PASS apps/api/src/memory/memory-settings-review-readiness.service.spec.ts
+PASS apps/api/src/memory/memory-review-workflow.service.spec.ts
+PASS apps/api/src/memory/memory-authorization.helpers.spec.ts
+PASS apps/api/src/memory/memory-candidate-rules.spec.ts
+PASS apps/api/src/memory/memory-authorization.phase12.spec.ts
+PASS apps/api/src/memory/memory-candidate.approval.spec.ts
+PASS apps/api/src/meri/meri-tools.memory-approval-wording.spec.ts (13.293 s)
+
+Test Suites: 9 passed, 9 total
+Tests:       123 passed, 123 total
+Snapshots:   0 total
+Time:        21.542 s
+Ran all test suites matching /src\/meri\/meri-tools.memory-approval-wording.spec.ts|src\/memory\/memory-candidate-rules.spec.ts|src\/memory\/memory-candidate.approval.spec.ts|src\/memory\/memory-authorization.helpers.spec.ts|src\/memory\/memory-authorization.phase12.spec.ts|src\/memory\/memory-review-workflow.service.spec.ts|src\/memory\/governed-memory-candidate.service.spec.ts|src\/memory\/learning-signal-governance.spec.ts|src\/memory\/memory-settings-review-readiness.service.spec.ts/i.
+Test results written to: ../backend-qualification-20261012/memory-wording/focused.json

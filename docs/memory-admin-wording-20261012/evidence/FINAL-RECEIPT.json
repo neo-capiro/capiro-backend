@@ -1,0 +1,32 @@
+{
+  "observedAt": "2026-10-12T03:27:12.612324+00:00",
+  "sourceRef": "539f62e7f2a3f87d9f56f1281e6fff717aed0958",
+  "sourceTree": "be46a1ef9c8166c7c44fe187a5b848dea4cad71c",
+  "baseRef": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "handoffRef": "90b4dc8472da13cdee9f49cdc0b4c8306ecbdc73",
+  "handoffAccess": "complete coordinator-supplied text",
+  "authorTests": {
+    "passed": 123,
+    "suites": 9,
+    "receipt": "implementation/focused.json"
+  },
+  "independentTests": {
+    "passed": 150,
+    "suites": 16,
+    "receipt": "independent-review/FINAL-RECEIPT.json"
+  },
+  "independentRuleComparisons": 540,
+  "automatedComparisonsRemainWarn": 180,
+  "corePrimaryTsc": {
+    "exitCode": 0,
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --rootDir .",
+    "receipt": "implementation/core-tsc.log"
+  },
+  "runtimeScope": "two approved reasons, one pending message expression, comments only; all other AST syntax unchanged",
+  "failedAssertions": 0,
+  "intersections": "none",
+  "noDatabaseWrites": true,
+  "noPermissionChanges": true,
+  "noRealMessages": true,
+  "nativePrismaPostgresQualified": false
+}
