@@ -1,0 +1,33 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "proposal": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "originalVerifierSha256": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42",
+  "candidateVerifierSha256": "0e2d4bdfbb897ded35be2367c3bf85285040da381bd309693ae7eebfa6758b90",
+  "seamInverseExactOriginal": true,
+  "publishedVerifierDeltaOnlyPreservedSmokeAndUsage": true,
+  "designatedAdditions": [
+    "createHash import",
+    "published bounded marker/hash validator",
+    "two plan-presence operands replaced by contract operand",
+    "contract validation only for that operand"
+  ],
+  "contractSha256": "9170159292ae60b7539cd2a1a2067dc15e8d5dda4ca808ea598e1b8ef62e6d0d",
+  "publishedControlsSha256": "55ff75ef6c18daf88ea2f7a25e925910fc45ae55ae69c090546ab5938c840194",
+  "plans": [
+    {
+      "path": "docs/plans/outreach-v3/revised-phase-1-shared-foundations.md",
+      "sha256": "89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55",
+      "bytes": 2474,
+      "bodyExactCurrentAndOriginal": true,
+      "fileRemainsActive": true
+    },
+    {
+      "path": "docs/plans/outreach-v3/revised-phase-2-readiness.md",
+      "sha256": "9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716",
+      "bytes": 1215,
+      "bodyExactCurrentAndOriginal": true,
+      "fileRemainsActive": true
+    }
+  ],
+  "newDeniedReportReadOrCopied": false
+}
