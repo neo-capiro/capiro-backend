@@ -322,6 +322,320 @@
           "sha256": "fb8a370d65c1e3b016866b16686fbf1cbbff800dd03ef25a7e37be19ef8d6550"
         }
       ]
+    },
+    {
+      "id": "workspace-product-descriptors",
+      "status": "11 product descriptors and six independently ordered one-time mutable projections; no section rule or industry policy conversion",
+      "owner": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "roots": [
+        "apps/workspace/src"
+      ],
+      "symbols": [
+        {
+          "name": "WORKSPACE_PRODUCT_REGISTRY",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_METADATA",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_SECTIONS",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_PAGES",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_CANONICAL",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_UNIVERSAL",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_FUNDING",
+          "kind": "variable"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_REGISTRY",
+          "uses": 19
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_METADATA",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_SECTIONS",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_PAGES",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_CANONICAL",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_UNIVERSAL",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_FUNDING",
+          "uses": 1
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_REGISTRY",
+          "kind": "variable",
+          "sha256": "315fe73a890d69d0c7f59ee58acb7eb14bdc4e4faf95603a557e581332a58648"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_METADATA",
+          "kind": "variable",
+          "sha256": "035c585a1f07d752c1ea4cb50dfba70312bb1a551ccc63dcb3d2eb23f34ce3da"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_SECTIONS",
+          "kind": "variable",
+          "sha256": "2872e0e6e416a36c678dd9187f94cfdfa284ee8a8451627be85e45916aea3f6a"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_PAGES",
+          "kind": "variable",
+          "sha256": "c6a4838b47e5ed9b387447a81e2381d52a597c5120760dc39428426b5a7f1408"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_CANONICAL",
+          "kind": "variable",
+          "sha256": "344977b891c4252c12d7b4289be22cbb3ccd01138fea514d42ef786c0871c1db"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_UNIVERSAL",
+          "kind": "variable",
+          "sha256": "1c07d5d8c691d166ef9a1320413c1ec1f458881d1fad80ca4de735afb60c1a29"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_FUNDING",
+          "kind": "variable",
+          "sha256": "cf0a657a9107e0b7f1e54510e26df4f48b159bdfef3cd2587f14b37b9aa46778"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "workspaceProductsInOrder",
+          "kind": "function",
+          "sha256": "f50a815158e92fa97a12e29ed1b7fc37f3d01bbb1f7ce128621b8994fbd3b5c1"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WorkspaceProductProjection",
+          "kind": "type",
+          "sha256": "a222a3435364b8b77716b660ec876cba606a4a39e806ddb01ca33aff249a48a0"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WorkspaceProductKey",
+          "kind": "type",
+          "sha256": "5075fc2ef3415ecf567019428dfbbbf6dcaa8d6ecde1afad053107b299fd69cd"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WorkspaceProductDescriptor",
+          "kind": "interface",
+          "sha256": "96353f89622f136bf3f3f548aff8353396f9790f4c8e40e0fc3046658765bdc7"
+        }
+      ]
+    },
+    {
+      "id": "workspace-existing-product-facade",
+      "status": "existing public const aliases and unchanged WSC/sectionSpecFor owner; no new persistence or section-rule extraction",
+      "owner": "apps/workspace/src/cascade/cascade.config.ts",
+      "roots": [
+        "apps/workspace/src"
+      ],
+      "symbols": [
+        {
+          "name": "CASCADE",
+          "kind": "variable"
+        },
+        {
+          "name": "UNIVERSAL_PRODUCTS",
+          "kind": "variable"
+        },
+        {
+          "name": "CANONICAL_PRODUCTS",
+          "kind": "variable"
+        },
+        {
+          "name": "FUNDING_PRODUCTS",
+          "kind": "variable"
+        },
+        {
+          "name": "PRODUCT_META",
+          "kind": "variable"
+        },
+        {
+          "name": "SUGGESTED_SECTIONS",
+          "kind": "variable"
+        },
+        {
+          "name": "SUGGESTED_PAGES",
+          "kind": "variable"
+        },
+        {
+          "name": "INDUSTRY_DATA",
+          "kind": "variable"
+        },
+        {
+          "name": "SECTION_LIBRARY",
+          "kind": "variable"
+        },
+        {
+          "name": "WSC",
+          "kind": "variable"
+        },
+        {
+          "name": "sectionSpecFor",
+          "kind": "function"
+        },
+        {
+          "name": "ProductMeta",
+          "kind": "interface"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/workspace/src/cascade/cascade.service.ts",
+          "module": "./cascade.config.js",
+          "imported": "WSC",
+          "uses": 10
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.service.ts",
+          "module": "./cascade.config.js",
+          "imported": "SECTION_LIBRARY",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/checks/checks.service.ts",
+          "module": "../cascade/cascade.config.js",
+          "imported": "WSC",
+          "uses": 2
+        },
+        {
+          "file": "apps/workspace/src/generation/generation.service.ts",
+          "module": "../cascade/cascade.config.js",
+          "imported": "WSC",
+          "uses": 11
+        },
+        {
+          "file": "apps/workspace/src/drafts/drafts.service.ts",
+          "module": "../cascade/cascade.config.js",
+          "imported": "WSC",
+          "uses": 5
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "CASCADE",
+          "kind": "variable",
+          "sha256": "a106447af97f834dd99f6a6c93479c8e807edd44485f910ede3af7a414f100a5"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "UNIVERSAL_PRODUCTS",
+          "kind": "variable",
+          "sha256": "a380164a329d856c07db86da51ef3a00d4cc388300ece795100893de5d60a468"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "CANONICAL_PRODUCTS",
+          "kind": "variable",
+          "sha256": "b58acd69e042afa0931d4b5f5b0d3a144ce1173022114ca1e54410e852b23f8b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "FUNDING_PRODUCTS",
+          "kind": "variable",
+          "sha256": "be15fe655dda67d2ddba641255d0d0d176996166a113001542b17501aa70080e"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "PRODUCT_META",
+          "kind": "variable",
+          "sha256": "889f4d8087b4eeb42db244b2189ff7b4d6d8b70c5582284498aa99f8962d2001"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "SUGGESTED_SECTIONS",
+          "kind": "variable",
+          "sha256": "a54b70d44851aff4604fa5e23484c5d61523313a3a9222d06ce5301274f25cfe"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "SUGGESTED_PAGES",
+          "kind": "variable",
+          "sha256": "6bec4fcf1f49165f838c43223630e8da3191c22b4901d0e9168b6d85db606c1b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "INDUSTRY_DATA",
+          "kind": "variable",
+          "sha256": "4fe30c2864518e220dc2219faef44dd23584245ec41e9cb23e97906615d1d736"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "SECTION_LIBRARY",
+          "kind": "variable",
+          "sha256": "400e593544e495510eda97c2bdde38b1313727b514396f17a73a5a7a65f32d8b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "WSC",
+          "kind": "variable",
+          "sha256": "484b3546a7af961e0e0db059fd56483f7344dbbcac10d2301d75171a0867fa7b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "sectionSpecFor",
+          "kind": "function",
+          "sha256": "8de11067bad033b595522207d455096784968059f2a83b66f8706426b5de049a"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "ProductMeta",
+          "kind": "interface",
+          "sha256": "248ccbb50288ec41309dac7993235614732386718707597c24090966d59c2b78"
+        }
+      ]
     }
   ]
 }

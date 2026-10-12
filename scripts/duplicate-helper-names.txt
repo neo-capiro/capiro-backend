@@ -4,3 +4,4 @@ tango-rest-page-leaves	nextPageOf
 tango-rest-page-leaves	rateOf
 strategy-context-template-metadata	isOperationalReportTemplate
 strategy-context-template-metadata	reportFallbackSection
+workspace-existing-product-facade	sectionSpecFor
