@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capirov2/branches/main",
+    "--jq",
+    "{name,sha:.commit.sha}"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-source-composition-independent-review",
+  "exitCode": 0,
+  "readOnly": true
+}

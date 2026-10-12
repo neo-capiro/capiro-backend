@@ -1,0 +1,17 @@
+{
+  "ACCEPTANCE.json": "c305482470477b1748082d42514a95e76dede893b0c67c239501cb925fa00465",
+  "REVIEW.md": "90609c180b7624590c22f6db7a0047ce2aabc7b1674ac22239dc1991677f5f0d",
+  "evidence/composition-verification.command.json": "c864790b9c5627090412fe9495ed3ae00153ba80c0823435a7d41922618b0f7f",
+  "evidence/composition-verification.json": "82cbde8c43f70962fb3752afde2855dca3315a2c3e4d7ba8db0f987f57aaeb7f",
+  "evidence/composition-verification.log": "a5b9a965c6a310998e32ae0f0e9449d290faeb18d1988444f33bf167cbef0243",
+  "evidence/initial-read-cwd-failure.command.json": "42a18ded9e9fbc333be00c22142b5bb7ad32675f4e9b29c5926763794c82401b",
+  "evidence/initial-read-cwd-failure.log": "e4cb6f6c60c816b3ab0d8ad6397f034637d554ce31797c8f570faf737d6f0c30",
+  "evidence/initial-read-cwd-failure.raw.log": "67badf14b313d2d1bcbe1bd53024166c3dc72fc588b191b1c6bf50e732311673",
+  "evidence/remote-main.command.json": "d1d896cdcf1dddb701976fb2f164a17833ba12e9b792cb1a4cf44f45d1ac7cd1",
+  "evidence/remote-main.json": "5fa87d1ea65987e0cc44f77f3696064101c2c146ca6fe0ec11c5de5648cb3fd1",
+  "evidence/remote-pr2409.command.json": "a24e56da2616106e50623513fd52d124e6bb90ddeeff035a1a16c7e4f4a2dfbb",
+  "evidence/remote-pr2409.json": "9af00ce5777b603d32390ffd63565cb661f7b03a73a6c3c9240872bbb65a847e",
+  "evidence/remote-pr2410.command.json": "d7d9fdbf4a62643f13940d8ff3cf4069034dbc2b81df0b33bf9a0cf1b1709f6d",
+  "evidence/remote-pr2410.json": "301642672b74c549532e94ca82f18b1652fe80ccd63a7990497fb6dcbeac0c1a",
+  "evidence/verify-composition.py": "38ba9d6f59a7480754de65e1559d064da91610c58daa5ee47c88863d2bb8b5a8"
+}

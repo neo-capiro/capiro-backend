@@ -1,0 +1,393 @@
+{
+  "acceptedCompositionSource": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "tree": "825587efcaca9ef152eb90eb996c88b3e8b6a717",
+  "commonBase": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "parents": [
+    "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+    "acd663314fffcad32e64e20217da6f4b018e8599"
+  ],
+  "publishedSourcePaths": {
+    "publicLaw": 4,
+    "clockRng": 18,
+    "union": 22,
+    "overlap": []
+  },
+  "sourceUnionRecords": [
+    {
+      "path": "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+      "owner": "public-law",
+      "publishedHead": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+      "mode": "100644",
+      "gitBlob": "29e2f89defd7950d2bc29e7771f7dfe59f2e8f90",
+      "sha256": "e8dad94d883bf2274e2bd2ddaf955407b304bbb0aaedf58d8a73f49ddd0bb072",
+      "bytes": 14596
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-public-law-facade-containment.ts",
+      "owner": "public-law",
+      "publishedHead": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+      "mode": "100644",
+      "gitBlob": "00f152adefb259a17bb746adee2537589c99fb58",
+      "sha256": "a5124c196aefce4b43b3e5882ef3cdc7a585f366934c53fd07ab2230628c728e",
+      "bytes": 6458
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "owner": "public-law",
+      "publishedHead": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+      "mode": "100644",
+      "gitBlob": "5545291345f7603e2f700203a8828b765019a02f",
+      "sha256": "478024c4f23a72735107a1fe0b70edb90acdf3a2d663c21fc4c940160be9cf5f",
+      "bytes": 4319
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs",
+      "owner": "public-law",
+      "publishedHead": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+      "mode": "100644",
+      "gitBlob": "b288f8dd0952587d63d81f5d5f10eefad995d903",
+      "sha256": "10cfbc2f5c3c6348f7b2ad5524cb2bad6891d8ed064a2d7d06a84cfbb9b5fe1a",
+      "bytes": 5999
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "f9931af2d0f6d916131d69f1f13001842af139de",
+      "sha256": "7e85a280c3db09cb295b0125c51a2d2c977b05ec05600288746d33d0de996fbd",
+      "bytes": 15450
+    },
+    {
+      "path": "apps/api-strategy/src/fiscal/fiscal.spec.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "905f54bbea50fae41c3eea0a66380fb09fb6a8a0",
+      "sha256": "1fa81c9a24a1a70616aaeada8659a438552096243d7d3439fdee38398bcb63c7",
+      "bytes": 2567
+    },
+    {
+      "path": "apps/api-strategy/src/fiscal/fiscal.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "08ba8d786d31b96382fc1b43d4fa92831ad1d72e",
+      "sha256": "31bbedc196283335625110729e4296ad6eb72d9d900da8696f770f166213003c",
+      "bytes": 1703
+    },
+    {
+      "path": "apps/api-strategy/src/meri/context-load.spec.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "9e32c5df266483080066980fa14459422fb33c05",
+      "sha256": "598ef991b079ec233275df1f2c629730d5a166deb2f28d0cbed8d6cfa8027181",
+      "bytes": 7616
+    },
+    {
+      "path": "apps/api-strategy/src/meri/context-load.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "2fae41c88c7f3686eb81973e882bbe85f84ce2b4",
+      "sha256": "8a44d6eeaf5476aabfba62cb5c43c124aa1fd109563896e6aed9bf0cf0f8a0e6",
+      "bytes": 3731
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job.service.spec.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "4de4c602d3fe8ecf38fe5c65c620a79961246d25",
+      "sha256": "6855a39f2896c6a9eb39ae286090a75757439ed67b968beed6d4ea7e9e63c681",
+      "bytes": 10968
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job.service.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "ed7e9327e5e2f912d968d778b7041eba6d595751",
+      "sha256": "4e013d0f60b56f35c8469375fc40d133d539a0c34633321169221ef52cd5f6dc",
+      "bytes": 5185
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.module.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "f4d8cf791c041315e73384379ffa7f3c67587f7b",
+      "sha256": "1d4d25e208f07aca7d2fc89c9525cac1b97d1bff05417004ac6b126cf91dba4d",
+      "bytes": 2387
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.service.spec.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "5fb4144706d4a8ba90823e4899a51be3db3be365",
+      "sha256": "b7250a9f1d5f5090cec0aca0c953e2d37281d6df39c3d7f36de49e5cd1bc3583",
+      "bytes": 92531
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.service.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "7579ff15d9fb4ef0757485529eb2e75a7b1b5ca3",
+      "sha256": "487b88a3da52861aac30d2c3be42c98a0442e157ceb9154df302c7696a9c0189",
+      "bytes": 67645
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-time.providers.spec.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "cc37a19519b5067cc71ccd7026fc0b28ddfeb955",
+      "sha256": "a2cba034cceba25423f9b5bea881d9a1fdb16bef6b7c48975d2fa3113f3046d2",
+      "bytes": 4707
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "9be11ff6c17a14c49087b5e3112cdd8d6b32b055",
+      "sha256": "457d68075d1d3a3078694761b8443468c89af678651f9889e21546c7a76cd39a",
+      "bytes": 826
+    },
+    {
+      "path": "package.json",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "994c9476414cd4f66b13cc52f16100a72a8cfddc",
+      "sha256": "91d180ac38e42ab6168bcf1c8e6c55dc3ce6e04243ee5229a32cf845ee7692d2",
+      "bytes": 10304
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "39ed5db53cf9599b72f9ddf1885568441b873217",
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+      "bytes": 273692
+    },
+    {
+      "path": "packages/shared/src/time.ts",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "9224a10408f143c5192b34332f5de70b492af9c8",
+      "sha256": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854",
+      "bytes": 653
+    },
+    {
+      "path": "scripts/check-strategy-time-bypasses.mjs",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "383aa5737f1df694de972299fc07c7930ce4cae9",
+      "sha256": "d048004ece22ef06b1cd8106e0dd1ffb5177270eb9a5ce6ca2b72f6bc9b888c5",
+      "bytes": 29031
+    },
+    {
+      "path": "scripts/check-strategy-time-bypasses.test.mjs",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "b18dad0fd4aaa54bfe860bc1746eb2bbfe1148c2",
+      "sha256": "37aa6e2f391477e50cc31e43aec47dc304ec643925e2388ef224216340face60",
+      "bytes": 19347
+    },
+    {
+      "path": "scripts/strategy-time-boundaries.json",
+      "owner": "clock-rng",
+      "publishedHead": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "mode": "100644",
+      "gitBlob": "fe5371e38485e570ec53a93e54430d63b8e793e8",
+      "sha256": "fb7665bd53162ec74f6ca6ed9377e1987894da5a20389131de66067787eddf14",
+      "bytes": 40401
+    }
+  ],
+  "onlyNonDocDeltaIsExactUnion": true,
+  "outsideUnionBasePathsByteIdentical": 20458,
+  "allBaseDocumentationPathsUnchanged": 8799,
+  "schemaMigrationPathsUnchanged": 603,
+  "originalImmutablePacketPathsUnchanged": 790,
+  "publishedPublicLawDocumentationPreserved": 102,
+  "publishedClockDocumentationPreserved": 310,
+  "publishedNewDocOverlap": [],
+  "sourceManifestsVerified": [
+    {
+      "path": "docs/cleanup-public-law-containment-20261012/SOURCE-MANIFEST.json",
+      "entriesVerified": 4,
+      "owner": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+      "manifestBlob": "8036480e603d03b2362027c138ae580de5a6b4aa"
+    },
+    {
+      "path": "docs/cleanup-clock-injection-20261012/SOURCE-MANIFEST.json",
+      "entriesVerified": 18,
+      "owner": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "manifestBlob": "4a190366cadde1389ba8eb4572add1881641e6b8"
+    }
+  ],
+  "originalCandidateHistoryEvidence": [
+    {
+      "pr": 2362,
+      "head": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2364,
+      "head": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2365,
+      "head": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2371,
+      "head": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2373,
+      "head": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2381,
+      "head": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2392,
+      "head": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "inclusion": "exact selective guard blobs only",
+      "actualAncestor": false,
+      "historyPolicy": "Published selective carrier remains an immutable referenced source; no invented full merge ancestry."
+    },
+    {
+      "pr": 2393,
+      "head": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2394,
+      "head": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2395,
+      "head": "c5e41e320af4b4d841d4b3136777d712116916ed",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2396,
+      "head": "e2c2c110edd986e799d47d43b0db50b24fab0201",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2397,
+      "head": "4915f3fa5c938182b2624377375674654baa5337",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2398,
+      "head": "797e3a59158cff56b017ab7d01ee445bf624fced",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2399,
+      "head": "0783423aeaaa8b65f289d0927d605142816d8cfe",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2400,
+      "head": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2401,
+      "head": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2402,
+      "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2403,
+      "head": "39b4ae45db578d121b18db9f95029a8c3ec293a2",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2404,
+      "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    },
+    {
+      "pr": 2405,
+      "head": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e",
+      "inclusion": "full original history retained as an ancestor",
+      "actualAncestor": true
+    }
+  ],
+  "remotePublishedHeads": [
+    {
+      "base": "codex/rebuild-cleanup-executable-prereqs-20261012",
+      "base_sha": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+      "branch": "codex/cleanup-public-law-containment-20261012",
+      "draft": true,
+      "head": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2409",
+      "merged": false,
+      "number": 2409,
+      "state": "open"
+    },
+    {
+      "base": "codex/rebuild-cleanup-executable-prereqs-20261012",
+      "base_sha": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+      "branch": "codex/cleanup-clock-source-20261012",
+      "draft": true,
+      "head": "acd663314fffcad32e64e20217da6f4b018e8599",
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2410",
+      "merged": false,
+      "number": 2410,
+      "state": "open"
+    }
+  ],
+  "remoteMain": {
+    "name": "main",
+    "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+  },
+  "compositionReviewBranch": "codex/cleanup-source-composition-independent-review-20261012",
+  "runtimeChecksExecuted": false,
+  "unpublishedReportingAccessed": false,
+  "nativeAcceptance": false,
+  "wholeCleanupAcceptance": false
+}

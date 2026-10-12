@@ -1,0 +1,17 @@
+{
+  "acceptedCompositionSource": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "tree": "825587efcaca9ef152eb90eb996c88b3e8b6a717",
+  "publishedSourcePaths": {
+    "publicLaw": 4,
+    "clockRng": 18,
+    "union": 22,
+    "overlap": []
+  },
+  "outsideUnionBasePathsByteIdentical": 20458,
+  "allBaseDocumentationPathsUnchanged": 8799,
+  "schemaMigrationPathsUnchanged": 603,
+  "originalImmutablePacketPathsUnchanged": 790,
+  "publishedPublicLawDocumentationPreserved": 102,
+  "publishedClockDocumentationPreserved": 310,
+  "publishedNewDocOverlap": []
+}

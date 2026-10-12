@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capirov2/pulls/2410",
+    "--jq",
+    "{number,html_url,state,draft,merged,head:.head.sha,branch:.head.ref,base:.base.ref,base_sha:.base.sha}"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-source-composition-independent-review",
+  "exitCode": 0,
+  "readOnly": true
+}

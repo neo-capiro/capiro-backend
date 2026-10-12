@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "python3",
+    "docs/cleanup-source-composition-review-20261012/evidence/verify-composition.py"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-source-composition-independent-review",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "tree": "825587efcaca9ef152eb90eb996c88b3e8b6a717",
+  "exitCode": 0,
+  "readOnly": true,
+  "runtimeChecksExecuted": false,
+  "nativeAcceptance": false
+}

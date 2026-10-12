@@ -1,0 +1,6 @@
+{
+  "cmd": "rg --files -g AGENTS.md -g '!node_modules' -g '!**/node_modules/**' /workspace && git worktree list --porcelain",
+  "cwd": "/workspace",
+  "exitCode": 128,
+  "classification": "Read-only command invoked Git outside the repository; no mutation. Correct exact-pinned worktree used for all subsequent Git checks."
+}

@@ -1,0 +1,1 @@
+Read-only discovery found no capirov2 AGENTS.md. A following git worktree list command was accidentally invoked at /workspace and exited 128: fatal: not a git repository (or any of the parent directories): .git. No Git mutation occurred in that command. Review continued at the exact pinned capirov2 worktree.
