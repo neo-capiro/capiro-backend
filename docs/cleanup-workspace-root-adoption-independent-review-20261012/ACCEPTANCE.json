@@ -1,0 +1,77 @@
+{
+  "decision": "ACCEPT bounded Workspace data/profile/package/CI source wiring",
+  "source": "74d04937d4453813d15ec957a76337c73b712899",
+  "tree": "6ecdbf3af3c2c35df83a8a2bf28958fafe8c94f6",
+  "actualHistoryMerge": "b51e5b1e872d9dd9c83cf840b505e76b466e96a3",
+  "actualHistoryTree": "9368a215c450d878cf8c0e39e339eebb9d37afb0",
+  "preservedApplicationReview": "55414fc4f44c0d2e05897a3e9a8d6d32e4889109",
+  "applicationSource": "77e936d2a695203819b7d46277bf63ab6a659539",
+  "independentControls": {
+    "total": 102,
+    "valid": 27,
+    "requiredRefusals": 75,
+    "actualWorkspaceSourceFiles": 150
+  },
+  "rootUnitControls": {
+    "passed": 149,
+    "failed": 0
+  },
+  "realRegistry": {
+    "errors": [],
+    "profiles": 4,
+    "files": 2198
+  },
+  "realHelperInventory": {
+    "errors": [],
+    "helpers": 6,
+    "profiles": 4,
+    "files": 2198
+  },
+  "focused115": {
+    "passed": 115,
+    "failed": 0
+  },
+  "sourceMutation": 0,
+  "pnpmExecuted": false,
+  "ciRunnerExecuted": false,
+  "nativeLiveFullAcceptance": false,
+  "generic8fReviewSeparate": true,
+  "commands": [
+    {
+      "command": "node --test scripts/check-registry-ownership.test.mjs scripts/check-duplicate-helpers.test.mjs",
+      "exitCode": 0,
+      "log": "evidence/01-root-unit-controls.tap"
+    },
+    {
+      "command": "node scripts/check-registry-ownership.mjs",
+      "exitCode": 0,
+      "stdout": "evidence/02-actual-registry-profile.json",
+      "stderr": "evidence/02-actual-registry-profile.log"
+    },
+    {
+      "command": "node docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/workspace-profile-adversaries.mjs",
+      "exitCode": 0,
+      "stdout": "evidence/03-workspace-profile-adversaries.json",
+      "stderr": "evidence/03-workspace-profile-adversaries.log"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath test/product-registry-characterization.spec.ts --json --outputFile ../../docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/04-actual-workspace-alias-body.json",
+      "cwd": "apps/workspace",
+      "exitCode": 1,
+      "log": "evidence/04-actual-workspace-alias-body.log",
+      "classification": "review cache-resolution failure before tests; raw preserved"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath test/product-registry-characterization.spec.ts --json --outputFile ../../docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/05-actual-workspace-alias-body-repaired.json",
+      "cwd": "apps/workspace",
+      "exitCode": 0,
+      "log": "evidence/05-actual-workspace-alias-body-repaired.log"
+    },
+    {
+      "command": "node scripts/check-duplicate-helpers.mjs",
+      "exitCode": 0,
+      "stdout": "evidence/07-actual-duplicate-helpers.json",
+      "stderr": "evidence/07-actual-duplicate-helpers.log"
+    }
+  ]
+}

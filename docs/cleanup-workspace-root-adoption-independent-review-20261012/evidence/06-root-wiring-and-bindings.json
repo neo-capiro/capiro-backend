@@ -1,0 +1,65 @@
+{
+  "result": "PASS exact four same-change root hunks",
+  "source": "74d04937d4453813d15ec957a76337c73b712899",
+  "tree": "6ecdbf3af3c2c35df83a8a2bf28958fafe8c94f6",
+  "bindings": [
+    {
+      "path": "scripts/registry-ownership.json",
+      "gitBlob": "1ac3dcbb829e24a6c9e3952fc04c772cefc5d30d",
+      "sha256": "f2dcc0da283ca9599316af13eb75dd03556a3aea087ee0ad18d09d1e6056198b"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "gitBlob": "5403a7cebfa7b9ced561eb58030b24ad1969b846",
+      "sha256": "4cc9a091df48ec0abc30e6788051aecd64e7b5708190367521074bbb835ba936"
+    },
+    {
+      "path": "package.json",
+      "gitBlob": "3c6a3080ec904c6575aa146f2606bdfab6509fc8",
+      "sha256": "fd49ad6f0b2585d74b22551e68dddee0a9def8e473b0f4cad8aecdf3dbcf349a"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "gitBlob": "171e17f7cdf2f7458ffe3564ce9972045d8584c6",
+      "sha256": "3f9e5246053da066f1fc48272d80a3fc72046feb2b5b047b4785e119609dae5c"
+    }
+  ],
+  "applicationReview": "55414fc4f44c0d2e05897a3e9a8d6d32e4889109",
+  "applicationSource": "77e936d2a695203819b7d46277bf63ab6a659539",
+  "allFourApplicationBlobsUnchanged": true,
+  "alias": "pnpm --filter @capiro/workspace exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath test/product-registry-characterization.spec.ts",
+  "pmExecution": false,
+  "exactNodeJestBodyExecution": "recorded separately",
+  "ciStep": "      - name: Test reviewed Workspace product metadata\n        run: pnpm gate:cleanup4:workspace-product-metadata\n\n",
+  "unconditionalStep": true,
+  "isolatedJest": {
+    "rootDir": "/tmp/capirov2-cleanup-workspace-product-independent-review",
+    "setupHooks": 0,
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+  },
+  "sectionSpecInventory": {
+    "existingSinceActual802": true,
+    "inventoryCount": 1,
+    "newHelperExtractionClaim": false
+  },
+  "profiles": [
+    {
+      "id": "workspace-product-descriptors",
+      "status": "11 product descriptors and six independently ordered one-time mutable projections; no section rule or industry policy conversion",
+      "symbols": 7,
+      "edges": 7,
+      "carriers": 11,
+      "totalRefs": 25
+    },
+    {
+      "id": "workspace-existing-product-facade",
+      "status": "existing public const aliases and unchanged WSC/sectionSpecFor owner; no new persistence or section-rule extraction",
+      "symbols": 12,
+      "edges": 5,
+      "carriers": 12,
+      "totalRefs": 29
+    }
+  ]
+}
