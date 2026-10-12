@@ -1,0 +1,69 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "results": [
+    {
+      "name": "object canonical function",
+      "addition": "const reviewDup = { withContextRetry: () => 1 };",
+      "failures": [],
+      "unexpectedlyAccepted": true,
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewDup"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "computed canonical property",
+      "addition": "const reviewDup = { [\"withContextRetry\"]: () => 1 };",
+      "failures": [],
+      "unexpectedlyAccepted": true,
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewDup"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "class canonical property",
+      "addition": "class ReviewDup { withContextRetry = () => 1; }",
+      "failures": [],
+      "unexpectedlyAccepted": true,
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [],
+        "problems": []
+      }
+    },
+    {
+      "name": "canonical getter",
+      "addition": "class ReviewDup { get withContextRetry() { return () => 1; } }",
+      "failures": [],
+      "unexpectedlyAccepted": true,
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [],
+        "problems": []
+      }
+    }
+  ],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

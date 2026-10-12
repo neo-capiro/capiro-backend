@@ -1,0 +1,12 @@
+{
+  "compilerVersion": "5.9.3",
+  "requested": "./hidden.cjs",
+  "resolvedModule": {
+    "resolvedFileName": "/workspace/capirov2-clock-rng-independent-review/docs/clock-rng-independent-review-20261012/evidence/runtime-extension-fixture/src/hidden.cts",
+    "extension": ".cts",
+    "isExternalLibraryImport": false,
+    "resolvedUsingTsExtension": false
+  },
+  "moduleCodeExecuted": false,
+  "nativeAcceptance": false
+}

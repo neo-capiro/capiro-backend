@@ -29,5 +29,15 @@
   "evidence/runtime-inert-review.log": "c8240d8d74273b5a17f8e029923c097c4bbfb86e51498c677dd738c6885a65bb",
   "evidence/runtime-source-preservation.cjs": "0875b82ce274efeffe5dc88e52c3cce2c6fd15dbef1c465e5a2eb77e8e0a550a",
   "evidence/runtime-source-preservation.json": "c2bf7b5e5daa8267546079377fcc277ad3529cf8e904e34d25a410d038e875fa",
-  "evidence/runtime-source-preservation.log": "b1965932f13ac6e2d9bee2dcf7fbbc6bf142a5981fc1b65d6e7ca68d6af2728c"
+  "evidence/runtime-source-preservation.log": "b1965932f13ac6e2d9bee2dcf7fbbc6bf142a5981fc1b65d6e7ca68d6af2728c",
+  "SUPPLEMENT.md": "b91932e87546ab7b860104d8c2ad123a4148601e2b1d73e043601986a2bdc818",
+  "evidence/canonical-member-adversarial-red.json": "d88ccd7570c77d50a8052883a31912081d2bbde7a851d536baa12f0158c894cc",
+  "evidence/runtime-extension-fixture/scripts/check-strategy-time-bypasses.mjs": "e5a864085d5fc5b953ecc2ce1dd76f7e94ae86a5c6e9fddf15fd52c448f6f312",
+  "evidence/runtime-extension-fixture/scripts/strategy-time-boundaries.json": "61cf0f8fc9b471022da3592013e1e31f700f46f50581439b119999b28d0233fb",
+  "evidence/runtime-extension-fixture/src/hidden.cts": "3f82d5d56c2fd98523f2ac778963a808b032cc0960e107104b09384da2173014",
+  "evidence/runtime-extension-fixture/src/main.ts": "bc9370d9ad8217658937805ab403a3906fef42b8fd868799b3e6380012e4de71",
+  "evidence/runtime-extension-guard-red.json": "bc7e0923e5a265372658eae92d6fba98f20b6c3ebfc237cb59a707e7fd961726",
+  "evidence/runtime-extension-guard.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence/runtime-extension-guard.stdout.log": "beb5cfc1e61999bc1ad1a0aa4491b76022d9a761bb789c72df980313ae36d163",
+  "evidence/runtime-extension-module-resolution.json": "072fccaa48610362ab725510f2291a10ad3df57499369b634adae3f16d0aabc5"
 }
