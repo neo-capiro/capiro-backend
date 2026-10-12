@@ -216,8 +216,14 @@ jobs:
       - name: Guard Strategy grounding time and retry adoption
         run: pnpm gate:cleanup4:strategy-time
 
-      - name: Guard existing Strategy template vocabulary ownership
+      - name: Guard reviewed canonical registry and helper ownership
         run: pnpm gate:cleanup4:registry-ownership
+
+      - name: Guard reviewed duplicate helper inventory
+        run: pnpm gate:cleanup4:duplicate-helpers
+
+      - name: Test reviewed Tango REST page leaves
+        run: pnpm gate:cleanup4:tango-page-leaves
 
       - name: Test apps/api
         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}

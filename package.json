@@ -113,7 +113,9 @@
     "gate:cleanup1:test": "node --test scripts/cleanup-gates/guard-config.test.mjs",
     "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure",
     "gate:cleanup4:strategy-time": "node scripts/check-strategy-time-bypasses.mjs && node --test scripts/check-strategy-time-bypasses.test.mjs",
-    "gate:cleanup4:registry-ownership": "node scripts/check-registry-ownership.mjs && node --test scripts/check-registry-ownership.test.mjs"
+    "gate:cleanup4:registry-ownership": "node scripts/check-registry-ownership.mjs && node --test scripts/check-registry-ownership.test.mjs",
+    "gate:cleanup4:duplicate-helpers": "node scripts/check-duplicate-helpers.mjs && node --test scripts/check-duplicate-helpers.test.mjs",
+    "gate:cleanup4:tango-page-leaves": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/external/tango/tango-rest-page.spec.ts"
   },
   "devDependencies": {
     "prettier": "^3.9.9",

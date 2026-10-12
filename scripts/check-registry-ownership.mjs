@@ -221,6 +221,57 @@ export function inspectRegistryOwnership(files, config) {
     if (!scoped.some(([file]) => file === profile.owner))
       errors.push(`${profile.id}: missing owner`);
     const symbolNames = new Set();
+    for (const symbol of profile.symbols)
+      if (typeof symbol?.name === 'string') symbolNames.add(symbol.name);
+    const aliases = [];
+    const aliasKeys = new Set();
+    if (profile.aliases !== undefined && !Array.isArray(profile.aliases))
+      errors.push(`${profile.id}: invalid compatibility aliases`);
+    for (const alias of Array.isArray(profile.aliases) ? profile.aliases : []) {
+      const key = `${alias?.file}|${alias?.name}`;
+      const source = parsed.get(alias?.file);
+      const rows = source?.rows.filter((row) => row.name === alias.name) ?? [];
+      const row = rows[0];
+      const initializer = row?.node.initializer;
+      let binding;
+      let imported;
+      if (initializer && t.isIdentifier(initializer)) {
+        const checker = lexicalChecker(source.sf);
+        binding = checker.getSymbolAtLocation(initializer);
+        imported = binding?.declarations?.find((node) => t.isImportSpecifier(node));
+      }
+      const clause = imported?.parent.parent;
+      const statement = clause?.parent;
+      if (
+        !alias ||
+        !safePath(alias.file) ||
+        !inScope(alias.file) ||
+        alias.file === profile.owner ||
+        !symbolNames.has(alias.name) ||
+        !profile.symbols.some(
+          (symbol) => symbol.name === alias.name && symbol.kind === 'variable',
+        ) ||
+        aliasKeys.has(key) ||
+        rows.length !== 1 ||
+        row.kind !== 'variable' ||
+        !isNamedModuleExport(row.node, source?.sf) ||
+        !imported ||
+        imported.isTypeOnly ||
+        clause.isTypeOnly ||
+        (imported.propertyName ?? imported.name).text !== alias.name ||
+        !t.isImportDeclaration(statement) ||
+        canonicalModule(alias.file, statement.moduleSpecifier.text) !== profile.owner ||
+        !/^[0-9a-f]{64}$/.test(alias.sha256) ||
+        declarationDigest(files.get(alias.file), alias.name, 'variable', alias.file) !==
+          alias.sha256
+      ) {
+        errors.push(`${profile.id}: invalid compatibility alias: ${key}`);
+        continue;
+      }
+      aliasKeys.add(key);
+      aliases.push(alias);
+    }
+    symbolNames.clear();
     for (const symbol of profile.symbols) {
       if (
         !symbol ||
@@ -235,11 +286,17 @@ export function inspectRegistryOwnership(files, config) {
       const hits = scoped.flatMap(([file, { rows }]) =>
         rows.filter((row) => row.name === symbol.name).map((row) => ({ file, ...row })),
       );
+      const ownerHits = hits.filter((hit) => hit.file === profile.owner);
+      const namedAliases = aliases.filter((alias) => alias.name === symbol.name);
       if (
-        hits.length !== 1 ||
-        hits[0].file !== profile.owner ||
-        hits[0].kind !== symbol.kind ||
-        !isNamedModuleExport(hits[0].node, parsed.get(profile.owner)?.sf)
+        hits.length !== 1 + namedAliases.length ||
+        ownerHits.length !== 1 ||
+        ownerHits[0].kind !== symbol.kind ||
+        !isNamedModuleExport(ownerHits[0].node, parsed.get(profile.owner)?.sf) ||
+        hits.some(
+          (hit) =>
+            hit.file !== profile.owner && !namedAliases.some((alias) => alias.file === hit.file),
+        )
       )
         errors.push(
           `${profile.id}: ${symbol.name} must have one named module export (${symbol.kind}) in ${profile.owner}`,
@@ -266,7 +323,14 @@ export function inspectRegistryOwnership(files, config) {
       const key = `${edge.file}|${edge.imported}`;
       if (edgeKeys.has(key)) errors.push(`${profile.id}: duplicate consumer edge`);
       edgeKeys.add(key);
-      const failure = inspectEdge(parsed.get(edge.file).sf, edge.file, edge, profile.owner);
+      const endpoint = canonicalModule(edge.file, edge.module);
+      const alias = aliases.find((item) => item.file === endpoint && item.name === edge.imported);
+      const failure = inspectEdge(
+        parsed.get(edge.file).sf,
+        edge.file,
+        edge,
+        alias?.file ?? profile.owner,
+      );
       if (failure) errors.push(`${profile.id}: ${edge.file}/${edge.imported}: ${failure}`);
     }
     // Every named runtime import of an owned symbol has a data-owned edge.
@@ -276,10 +340,12 @@ export function inspectRegistryOwnership(files, config) {
       function visit(node) {
         if (t.isImportDeclaration(node)) {
           const clause = node.importClause;
-          const ownerModule = canonicalModule(file, node.moduleSpecifier.text) === profile.owner;
+          const endpoint = canonicalModule(file, node.moduleSpecifier.text);
+          const ownerModule = endpoint === profile.owner;
+          const aliasModule = aliases.some((alias) => alias.file === endpoint);
           if (!clause?.isTypeOnly) {
             if (
-              ownerModule &&
+              (ownerModule || aliasModule) &&
               (!clause ||
                 clause.name ||
                 (clause.namedBindings && !t.isNamedImports(clause.namedBindings)))
@@ -291,7 +357,10 @@ export function inspectRegistryOwnership(files, config) {
                 if (
                   !item.isTypeOnly &&
                   symbolNames.has(imported) &&
-                  (!ownerModule ||
+                  (!(
+                    ownerModule ||
+                    aliases.some((alias) => alias.file === endpoint && alias.name === imported)
+                  ) ||
                     !profile.edges.some(
                       (edge) =>
                         edge.file === file &&
@@ -309,7 +378,10 @@ export function inspectRegistryOwnership(files, config) {
           t.isExternalModuleReference(node.moduleReference) &&
           node.moduleReference.expression &&
           t.isStringLiteralLike(node.moduleReference.expression) &&
-          canonicalModule(file, node.moduleReference.expression.text) === profile.owner
+          (canonicalModule(file, node.moduleReference.expression.text) === profile.owner ||
+            aliases.some(
+              (alias) => alias.file === canonicalModule(file, node.moduleReference.expression.text),
+            ))
         )
           errors.push(`${profile.id}: unsupported import-equals owner reference in ${file}`);
         if (
@@ -317,7 +389,10 @@ export function inspectRegistryOwnership(files, config) {
           !node.isTypeOnly &&
           node.moduleSpecifier &&
           t.isStringLiteralLike(node.moduleSpecifier) &&
-          canonicalModule(file, node.moduleSpecifier.text) === profile.owner
+          (canonicalModule(file, node.moduleSpecifier.text) === profile.owner ||
+            aliases.some(
+              (alias) => alias.file === canonicalModule(file, node.moduleSpecifier.text),
+            ))
         )
           errors.push(`${profile.id}: unsupported owner re-export in ${file}`);
         if (
@@ -326,7 +401,8 @@ export function inspectRegistryOwnership(files, config) {
             (t.isIdentifier(node.expression) && node.expression.text === 'require')) &&
           node.arguments[0] &&
           t.isStringLiteralLike(node.arguments[0]) &&
-          canonicalModule(file, node.arguments[0].text) === profile.owner
+          (canonicalModule(file, node.arguments[0].text) === profile.owner ||
+            aliases.some((alias) => alias.file === canonicalModule(file, node.arguments[0].text)))
         )
           errors.push(`${profile.id}: unsupported dynamic owner import in ${file}`);
         t.forEachChild(node, visit);

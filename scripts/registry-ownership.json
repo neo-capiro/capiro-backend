@@ -56,6 +56,126 @@
           "sha256": "99f60cff678bd1e17647714fc67dac0ba0ef4535c6b17618a6a4b72eff75f004"
         }
       ]
+    },
+    {
+      "id": "tango-rest-page-leaves",
+      "status": "bounded REST count/page/rate leaf adoption; transport/security/retry remain canonical client owners",
+      "owner": "apps/api/src/external/tango/tango-rest-page.ts",
+      "roots": ["apps/api/src"],
+      "symbols": [
+        {
+          "name": "asCount",
+          "kind": "function"
+        },
+        {
+          "name": "nextPageOf",
+          "kind": "function"
+        },
+        {
+          "name": "rateOf",
+          "kind": "function"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "asCount",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "nextPageOf",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "rateOf",
+          "uses": 2
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "asCount",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "nextPageOf",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "rateOf",
+          "uses": 2
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "asCount",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "nextPageOf",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "rateOf",
+          "uses": 1
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "name": "TangoDibbsClient",
+          "kind": "class",
+          "sha256": "2d5973e556c0c495ad2ee57f935ce9562690674470299b4d4c41589b0a7c2e82"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "name": "TangoSbirClient",
+          "kind": "class",
+          "sha256": "29ef3e6e00f42a68c2d2b06075e68cfd1ce9460ea5ebc74531db458de969d72b"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "name": "TangoSubawardClient",
+          "kind": "class",
+          "sha256": "d192a570330a53e6571d37a7955b533b0a0eb0bfa3e3deaef36aac4b13e643e2"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "asCount",
+          "kind": "function",
+          "sha256": "17c2a6a3dc9e5a6804204cb6bb8fa4d0aa8d1d80270a2519eea80658b9e2fd06"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "nextPageOf",
+          "kind": "function",
+          "sha256": "6bf468c02300df75c6ee11c1a86494353794c33128a774bb33ede8bdd06c062e"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "rateOf",
+          "kind": "function",
+          "sha256": "3a765cd9416dc0b52fd1a6a1f6e35c5982f93873d265285b72f926a78c3bedf3"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "asRateInteger",
+          "kind": "function",
+          "sha256": "3f74fe0c0f862d8d8b99a81bbe61b090ad2f31e7914c4abcece14456f5b0f59d"
+        }
+      ]
     }
   ]
 }
