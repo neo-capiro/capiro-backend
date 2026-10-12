@@ -1,7 +1,7 @@
 # Sender qualification and review receipt
 
 Implementation source `2ed276a27954fa11c851ba950b53bf88b81ec8b1`; exact runtime/test
-hashes are in `candidate-paths.json`. Later commits add evidence/documents only.
+hashes are in `candidate-paths.json`. The independent-review repair below supersedes this initial source receipt.
 
 - **PASS:** 132/132 tests, 13 suites, zero skipped, on that source. Raw Jest results
   are tracked in `evidence/sender-tests.json`. The 30 new tests include exact B on
@@ -18,7 +18,7 @@ hashes are in `candidate-paths.json`. Later commits add evidence/documents only.
 - **BLOCKED TOOLING:** `pnpm run lint` exits1: `eslint: not found`. No config,
   dependencies or rule suppression was introduced to hide it.
 - **NOT RUN:** native Prisma/PostgreSQL/RLS contention, actual provider delivery,
-  browser/authenticated deployed acceptance, independent-author security approval.
+  browser/authenticated deployed acceptance. Independent source review is recorded below.
 
 The test configuration is the checked-in `apps/api/jest.config.cjs`, with `rootDir`
 made absolute and only `transform['^.+\\.ts$'][1].isolatedModules=true` in an external
@@ -68,3 +68,21 @@ error classification. It retained provider-sync dedup narrow updates, caller-own
 preflight and all attachment negative controls. This is implementer review, not an
 independent-author approval. The preserved prerequisite/facility source was reviewed
 independently of its original authors. Keep drafts pending responsible-owner review.
+
+## Independent review and repair
+
+Original candidate `8340ac22cdb5c9f4d03e1f36b7f96d30b2af4502` was independently
+reviewed by `independent_backend_review`, who did not author production changes.
+Two additional regressions demonstrated a same-mailbox/different-thread dedup
+collision returning an inconsistent success receipt. Repair source
+`14d66227c4898ad3aaa7e46ec054c5b2c325c5fe` checks both persisted connection and
+thread identity, retaining sync-owned fields and rolling back into the existing
+non-retryable receipt-unavailable outcome. The independent regression was retained.
+Two existing success fixtures gained their real threadId; assertions were unchanged.
+The initial fixture failures and original two RED cases remain in evidence.
+
+Independent re-review: **168/168 tests, 16 suites, zero skipped**, no blocking source
+findings. Implementer replay: **136/136, 14 suites** and primary API tsc passed on
+repair source. Native concurrency/provider/deployed acceptance remains unrun.
+See `evidence/independent-review/FINAL-RECEIPT.json` and `REVIEW.txt`; the qualification
+is source-only and does not qualify Cleanup's separate release gate.

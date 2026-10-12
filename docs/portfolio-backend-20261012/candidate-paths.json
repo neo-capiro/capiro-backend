@@ -1,5 +1,5 @@
 {
-  "candidateSource": "2ed276a27954fa11c851ba950b53bf88b81ec8b1",
+  "candidateSource": "14d66227c4898ad3aaa7e46ec054c5b2c325c5fe",
   "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
   "changedPaths": [
     "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
@@ -10,12 +10,19 @@
     "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
     "apps/api/src/engagement/engagement.controller.ts",
     "apps/api/src/engagement/engagement.service.ts",
+    "apps/api/src/engagement/independent-sender-review.spec.ts",
     "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
     "apps/api/src/engagement/mailbox-selection.spec.ts",
     "apps/api/src/engagement/mailbox-selection.ts",
     "docs/portfolio-backend-20261012/LEDGER.md",
+    "docs/portfolio-backend-20261012/QUALIFICATION.md",
     "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+    "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+    "docs/portfolio-backend-20261012/candidate-paths.json",
     "docs/portfolio-backend-20261012/dependency-paths.json",
+    "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+    "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+    "docs/portfolio-backend-20261012/evidence/sender-tests.json",
     "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
   ],
   "intersections": {
@@ -41,14 +48,15 @@
   "runtimeAndTestSha256": {
     "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json": "390f1f6819af5dc8e3059721ab961571be3815f48b75f69e6d46e51bcc0e1d74",
     "apps/api/src/engagement/attachments/attachment-viewer-access.ts": "9d7a45ad7ac5a1060c239459ae9a89e38fea0bca05b1143f8df267226b9fae15",
-    "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts": "1b17f5b836dff7e4105dfd71e696a7f9256109f7ba02661c6c10cf26b7e95c8f",
+    "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts": "fb960a8f5a749289182291f9a77edb99076c1c7abffd0a368f9a3681ee822a7e",
     "apps/api/src/engagement/attachments/outbound-attachment-access.ts": "806f61aca4e7e42d3f5579700493ba423df027e457ff9dfd5f49017530c67cd0",
     "apps/api/src/engagement/engagement-send-authorization.spec.ts": "f368a7755e1c0dc7d9d01ecde0d9406bd7039349308ea4b1e851f90ba666bf0a",
-    "apps/api/src/engagement/engagement-send-thread-key.spec.ts": "fd3b07cfb3d5f301c6035505f512284f76f088c323eaae03a20877b415f7297f",
+    "apps/api/src/engagement/engagement-send-thread-key.spec.ts": "bf861dded75acca68ee251e85fbaf3f8915712c93808237116258720f19ad97b",
     "apps/api/src/engagement/engagement.controller.ts": "42b8efd5934ca1092f469ff995b4b233da530312da0e03622adb6f32e7598b11",
-    "apps/api/src/engagement/engagement.service.ts": "d0b161d455a43380d176e1625e186e3e7ab6642f0bc670a3a182d01b834c0766",
+    "apps/api/src/engagement/engagement.service.ts": "2c43f79afd7e4cc14861589c3009c71a7dc7cf4482d448902a9158ea47d8a5c1",
     "apps/api/src/engagement/mailbox-selection.controller.spec.ts": "2a0ff0ee13db5744985950cc9f124fe2ecdc127102b57abd7d7a5567d4c1344f",
     "apps/api/src/engagement/mailbox-selection.spec.ts": "89e58365fe090ff179d71b5fea9c46001b22ba131a13ae1456249201a396f566",
-    "apps/api/src/engagement/mailbox-selection.ts": "632108ad973ed811f0ff5bce59a71bd5fa26f7ffe90441cd635b42828d8534ca"
+    "apps/api/src/engagement/mailbox-selection.ts": "632108ad973ed811f0ff5bce59a71bd5fa26f7ffe90441cd635b42828d8534ca",
+    "apps/api/src/engagement/independent-sender-review.spec.ts": "22e76df24c014c0b3bf392a16c0f53ddc8d30dddfad4b678cf16b51cbc6d9c50"
   }
 }

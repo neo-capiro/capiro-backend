@@ -54,7 +54,7 @@ Local From address/name and thread participants use the selected connection's
 account address/display name. A missing address fails before provider dispatch;
 the actor's profile address is never substituted. New local message metadata
 records selected connection and signature policy. On deduplication, provider-sync
-fields remain untouched; existing thread/message rows from another connection
+fields remain untouched; existing thread/message rows from another connection, or messages on a different local thread,
 cause a rollback and an unavailable-receipt response, not a false success.
 
 The existing sanitized signature belongs to the **actor**, not a mailbox. The
@@ -86,8 +86,9 @@ The implementation's own source review checked authorization-before-side-effect,
 exact-selection no-fallback, actor signature sanitization, connection agreement,
 non-disclosing preflight failures, post-send failure classification, and narrow
 provider-sync updates. Preserved candidate behavior was independently inspected;
-new sender code still requires a separate Engagement/security owner's review before
-integration/activation. No independent-author approval is claimed by the implementer.
+independent reviewer `independent_backend_review` accepted repair source
+`14d66227c4898ad3aaa7e46ec054c5b2c325c5fe` within source-only scope after fixing the
+dedup receipt inconsistency. Release/activation acceptance remains separate.
 
 Keep the selector bound to the current actor and reviewed mailbox list; pin its ID
 in the send input and validate the returned sender ID/address against that selection.

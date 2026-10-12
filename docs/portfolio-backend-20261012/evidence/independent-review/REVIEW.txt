@@ -1,0 +1,75 @@
+Independent backend review — 2026-10-12
+Reviewer: delegated independent_backend_review agent; not implementing author.
+
+Reviewed exact candidates:
+Sender PR2393 8340ac22cdb5c9f4d03e1f36b7f96d30b2af4502
+Facility PR2394 5d075af9b376cd3ed67256b5c38e4a2a2130a51d
+Original reply PR2364 4b3c672574ed3738e42b1c5e1f7483e32f358095
+Original attachment PR2381 171ec869ed3928c96172c8790a9aeb3b4de901ae
+Original facility PR2373 6e5774a14c73ea04f0a77650a5bbd33173bcc9b3
+Cleanup PR2392 03d85a40e390f8f52614aab20427a3a9433786bb
+
+Verdicts at these exact refs:
+Sender: CHANGES REQUESTED, one P2 receipt-consistency finding below.
+Facility: no blocking source findings; acceptable within source-only scope.
+Neither verdict qualifies deployment or native database/provider operation.
+
+P2: same-mailbox/different-thread dedup must not return a false success receipt.
+Location: apps/api/src/engagement/engagement.service.ts:9427
+The new collision check validates message.connectionId but not message.threadId.
+A provider-sync row can already occupy the message dedup key on another thread
+of the same mailbox. The reply path intentionally retains its original local
+thread while provider-native reply headers are unchanged. Both new and reply
+paths then return ok:true with threadId for one thread and messageId belonging
+to another, commit the unrelated thread touch, and can backlink attachments to
+the other thread's message. Independent tests reproduce both inconsistent receipts.
+The prior dedup path also carried the mismatch; completing this candidate's new
+explicit receipt/provenance contract requires addressing it at the new guard.
+Proposed minimal repair: require message.threadId === thread.id in the same guard,
+rollback the local transaction through MAIL_SEND_RECEIPT_UNAVAILABLE retryable:false,
+and retain sync-owned fields. Never resend the already-accepted provider message.
+
+Independent replay:
+- Sender original candidate: 132/132 tests in 13 suites.
+- Additional Graph send and Gmail MIME plus reviewer receipt tests: 34 passed,
+  2 failed in 3 suites. Both failures are the finding; all provider suites pass.
+- Facility: 96/96 tests in 4 suites (PGlite query adapter, synthetic providers).
+- Reviewer-owned facility lifecycle: 4/4 tests execute actual transpiled CLI source
+  with synthetic dependencies in a closed VM. Inert import, disconnect on init
+  failure, original-snapshot CAS stale skip with delay, and per-row error cleanup.
+- Actual CLI empty-directory/empty-env-except-PATH subprocess exits 2 on missing
+  DATABASE_URL. No Prisma client allocation, database target or geocoder request.
+- Exact patch IDs for original reply and attachment prerequisites equal their
+  sender cherry-picks. All 8 original facility source/document blobs equal the
+  reconciled head. Current Cleanup script equals the preserved lifecycle prerequisite.
+  Full identifiers are in preservation-receipt.json.
+
+Limitations and retained failures:
+The first facility replay omitted --experimental-vm-modules and failed with
+ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG. The failing log remains intact;
+rerun added only that documented runtime flag and passed all assertions.
+Jest config uses the repository configuration with absolute rootDir and isolated
+TS transpilation; assertions/discovery/resolvers are unchanged. No new native
+Prisma engine download, checksum workaround, database target, migration, provider
+call, customer mutation, credential/resource change, deployment or merge occurred.
+Official prior Prisma5.22 engine download evidence remains HTTP403 at
+https://binaries.prisma.sh/all_commits/605197351a3c8bdd595af2d2a9bc3025bca48ea2/debian-openssl-3.0.x/
+for schema-engine.gz.sha256 and libquery_engine.so.node.gz.sha256.
+Native Prisma/Postgres/RLS/multi-connection contention, authenticated HTTP/browser,
+and actual provider qualification remain unrun. Independent full monorepo build,
+lint and full typecheck were not rerun; implementing author's earlier receipts are
+separate evidence and are not relabeled as reviewer executions.
+
+Production source and original branches were not edited by this reviewer.
+Reviewer tests live in separate detached reviewer worktrees and are copied here.
+
+Final sender repair independent acceptance
+Exact repaired source: 14d66227c4898ad3aaa7e46ec054c5b2c325c5fe
+Independent final replay: 168/168 tests, 16 suites, zero skipped, PASS.
+The repaired guard checks both connection and persisted thread identity. It rolls
+back local work through the existing non-retryable unavailable-receipt outcome.
+The sole production delta is this guard. Two positive mocks now include the real
+threadId field; original byte-content/thread-key assertions remain unchanged.
+The independent regression was adopted with formatting only. Original 2 RED
+findings remain retained, and both are now GREEN. No additional blocking source
+findings. Sender verdict is acceptable within this exact source-only scope.

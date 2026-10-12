@@ -1,0 +1,23 @@
+{
+  "sender-replay.json": "e45487e2f4c35cddd552ecb3f57fc440a44e646cb2ef6be83960eea637fa4e56",
+  "FINAL-RECEIPT.json": "a159746ab918c6e71687657229dcd25308c144849b59c4acd10b8f94ff8224be",
+  "sender-original-review.spec.ts": "dd98e67496c0393b9cb9f394e93592051a4737ff36caf0baf876a92647cc64ee",
+  "sender-independent-review.spec.ts": "dd98e67496c0393b9cb9f394e93592051a4737ff36caf0baf876a92647cc64ee",
+  "facility-cli.json": "87163b47762482848c9402566172e3bc451ca56a86fd02bced3186a5593795f7",
+  "facility-replay-final.log": "af249da079454eaa2092f7b33c59c762f3d21198e924199680d05c5053f71bd1",
+  "facility-cli.log": "49a99c2adf029f1fb83161d899c35ca9c17bac753497274c7b41335abc01b1d4",
+  "sender-additional-red.json": "db5323ef72eed800fe2e374af0a292b7f8eb7c98117ead976d63c757573fd406",
+  "sender-additional-red.log": "c4f72074b6ffbe9f40941b913ddf3654264c0bddd7508cfa7f8be4124a831f1a",
+  "sender-jest.cjs": "72adda4ce71bc21ca1e424b271e230c9554112d2d02bcb13c069cdfe6bf47a19",
+  "sender-replay.log": "e13b4a1ba0383fc88affd8b6c11574d5017672d8f26bad5b5a098022fd5addba",
+  "facility-replay-final.json": "4e4267289cd0db5c0fa017af791b97e70bcdb64a86c048f690a8b372a0a8afdd",
+  "preservation-receipt.json": "18570cff22d8c560161b2014147a852b305c7c313e2d7d475c8fc3c64e4bc932",
+  "facility-replay.log": "7b07ad0e21ce8346e87a1f05d3ccc901449164741398cb7e6ff1a67d4922acaa",
+  "REVIEW.txt": "fb56367511729f839c4dfdadf5d4087b3a52af799c462514132d40a2bcd9f6ce",
+  "facility-independent-review.spec.ts": "8b4ad2fabb38a0131a806ca2743d07db937b3a896fee02ef503c5af37b8d9504",
+  "sender-repair-final.json": "06a65cc9faa04447867d37224e3833c36ca25866949336183c1a7d561753dc5c",
+  "facility-jest.cjs": "a00e6f21ce390874189da9aade88bf288154a669e5d331e964282d3d2cc5c1c0",
+  "facility-lifecycle.json": "5bbd88a1b20ed6d0230dfd106c3381ccc45244e2188ffa1f26cf283a042dc11c",
+  "facility-lifecycle.log": "5f8e82ced01a56ee60f18ec7e3dd6fb289a5ed28eb8fcaec48f06c109c61fd80",
+  "sender-repair-final.log": "6485148d0c4bb621ce48cfd55d5b5a1fd719766113c3c215e0c1306c45cfb593"
+}
