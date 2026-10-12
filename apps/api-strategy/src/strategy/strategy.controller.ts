@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -25,11 +26,9 @@ import { CreateStrategyDto } from './dto/create-strategy.dto.js';
 import { PatchStrategyDto } from './dto/patch-strategy.dto.js';
 import { CreateNodeDto, UpdateNodeDto } from './dto/node.dto.js';
 import { CreateArtifactDto } from './dto/artifact.dto.js';
-import {
-  ReportExportDto,
-  ReportPreflightDto,
-} from '../reports/dto/report-export.dto.js';
+import { ReportExportDto, ReportPreflightDto } from '../reports/dto/report-export.dto.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
+import { ObjectiveDestinationQueryDto } from './objective-destination.js';
 
 /**
  * /strategy-api/strategies — library read + manual create (G2), node CRUD +
@@ -52,10 +51,7 @@ export class StrategyController {
   }
 
   @Post()
-  create(
-    @CurrentTenant() ctx: AuthTenantContext,
-    @Body() dto: CreateStrategyDto,
-  ) {
+  create(@CurrentTenant() ctx: AuthTenantContext, @Body() dto: CreateStrategyDto) {
     return this.strategies.create(ctx.tenantId, ctx.clerkUserId, dto);
   }
 
@@ -129,6 +125,16 @@ export class StrategyController {
     return this.strategies.byId(ctx.tenantId, id);
   }
 
+  @Header('Cache-Control', 'private, no-store')
+  @Get(':id/objective-destination')
+  objectiveDestination(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.strategies.objectiveDestination(ctx, id, query);
+  }
+
   @Patch(':id')
   patch(
     @CurrentTenant() ctx: AuthTenantContext,
@@ -184,13 +190,7 @@ export class StrategyController {
     @Param('nodeId', new ParseUUIDPipe()) nodeId: string,
     @Body() dto: CreateArtifactDto,
   ) {
-    return this.nodes.linkArtifact(
-      ctx.tenantId,
-      ctx.clerkUserId,
-      id,
-      nodeId,
-      dto,
-    );
+    return this.nodes.linkArtifact(ctx.tenantId, ctx.clerkUserId, id, nodeId, dto);
   }
 
   // ---- version history ----
@@ -258,4 +258,3 @@ function bearerFrom(req: Request): string | undefined {
   const match = typeof header === 'string' ? /^Bearer\s+(.+)$/i.exec(header) : null;
   return match?.[1]?.trim() || undefined;
 }
-

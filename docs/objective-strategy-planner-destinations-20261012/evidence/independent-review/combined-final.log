@@ -1,0 +1,17 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../../docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts
+PASS ../api-strategy/src/strategy/objective-destination.service.spec.ts
+PASS src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS ../api-strategy/src/strategy/objective-destination.controller.spec.ts
+PASS src/clients/objectives/objective-destination.spec.ts
+PASS src/clients/objectives/objective-destination.shared.spec.ts
+PASS src/clients/objectives/objective-destination.privileges.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       109 passed, 109 total
+Snapshots:   0 total
+Time:        6.42 s
+Ran all test suites.
+Test results written to: ../../docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/combined-final.json

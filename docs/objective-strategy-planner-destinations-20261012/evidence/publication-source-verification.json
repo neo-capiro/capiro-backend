@@ -1,0 +1,26 @@
+{
+  "acceptedSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+  "acceptedTree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+  "checkedProductionAndContractPaths": 17,
+  "verifiedIndependentEvidenceFiles": 15,
+  "independentEvidenceAdoptedUnchanged": {
+    "acceptedSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+    "acceptedTree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+    "originalEvidenceCommit": "c42aa5a5ee9bf5f59d4ac15ff4c6f8223ef315ad",
+    "originalEvidenceTree": "5baa9f01441dfbd8410c29d7176114b00c68aa5d",
+    "unchangedCherryPick": "2635ff4408e21e20c614bbd77caf7f9e9a35a536",
+    "independentTestsPassed": 50,
+    "combinedTestsPassed": 109,
+    "combinedSuites": 7,
+    "evidenceHashesVerified": 15,
+    "acceptedSourceBlobsVerified": 17,
+    "result": "accepted source-only draft publication; native gates retained"
+  },
+  "publicationChangesAfterFrozenSource": "Only documentation/evidence. Untracked dependency links and generated/build artifacts are excluded.",
+  "mainRefReadOnly": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace\trefs/heads/main",
+  "helper": {
+    "path": "packages/shared/src/client-objective-destination.ts",
+    "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+    "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+  }
+}

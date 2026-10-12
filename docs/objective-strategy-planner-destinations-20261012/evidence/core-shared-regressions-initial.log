@@ -1,0 +1,14 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../../docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts (6.997 s)
+PASS src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS src/outreach-v3/api/outreach-objective-destination.controller.spec.ts
+PASS src/clients/objectives/objective-destination.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       76 passed, 76 total
+Snapshots:   0 total
+Time:        8.119 s
+Ran all test suites within paths "src/clients/objectives/objective-destination.spec.ts", "src/outreach-v3/services/outreach-objective-destination.spec.ts", "src/outreach-v3/api/outreach-objective-destination.controller.spec.ts", "../../docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts".
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

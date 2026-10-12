@@ -9,8 +9,8 @@
 #   3. runtime minimal node slim, non-root user, copies the pruned workspace
 #
 # Mirrors apps/workspace's Dockerfile (the closest separate-service precedent),
-# minus @capiro/shared and @capiro/meriv2-core (api-strategy depends only on
-# @capiro/auth at Phase-1 scope). openssl is installed so Prisma's binary engine
+# with the shared canonical Objective authority helper; @capiro/meriv2-core is
+# still outside this service. openssl is installed so Prisma's binary engine
 # resolves on bookworm's OpenSSL 3.
 
 ARG NODE_VERSION=20.16.0
@@ -31,12 +31,15 @@ RUN apt-get update \
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/api-strategy/package.json apps/api-strategy/package.json
 COPY packages/auth/package.json packages/auth/package.json
+COPY packages/shared/package.json packages/shared/package.json
 COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=@capiro/api-strategy... --filter=@capiro/auth... --filter=@capiro/strategy-verifier...
 
 COPY packages/auth/src packages/auth/src
 COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
+COPY packages/shared/src packages/shared/src
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/strategy-verifier/src packages/strategy-verifier/src
 COPY packages/strategy-verifier/tsconfig.json packages/strategy-verifier/tsconfig.json
 COPY apps/api-strategy/src apps/api-strategy/src
@@ -44,6 +47,7 @@ COPY apps/api-strategy/prisma apps/api-strategy/prisma
 COPY apps/api-strategy/tsconfig.json apps/api-strategy/tsconfig.build.json apps/api-strategy/nest-cli.json apps/api-strategy/
 
 RUN pnpm --filter @capiro/auth build
+RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/strategy-verifier build
 # Generate the Prisma client (outputs to apps/api-strategy/generated/prisma-client)
 # BEFORE the Nest build, since src imports the generated client.
@@ -83,6 +87,8 @@ COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_module
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 # @capiro/strategy-verifier (pure/zero-dep) — dist + manifest only, no node_modules needed.
 COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/dist /app/packages/strategy-verifier/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/package.json /app/packages/strategy-verifier/package.json

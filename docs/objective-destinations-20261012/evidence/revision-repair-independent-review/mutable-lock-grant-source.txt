@@ -1,0 +1,5 @@
+apps/api/prisma/migrations/20260822010000_pe_budget_phase7_canonical_promotion/migration.sql:14:-- additionally runs `GRANT ALL ON ALL TABLES IN SCHEMA public TO capiro_app`
+apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql:63:    GRANT SELECT, INSERT, UPDATE, DELETE ON client_objectives TO capiro_app;
+apps/api/prisma/migrations/20260502020000_capiro_app_role/migration.sql:32:GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO capiro_app;
+apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql:69:    GRANT SELECT, INSERT, UPDATE, DELETE ON "clients" TO capiro_app;
+apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql:61:    GRANT SELECT, INSERT, UPDATE, DELETE ON "client_memory_access" TO capiro_app;

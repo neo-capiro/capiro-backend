@@ -1,0 +1,85 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts
+  independent current Objective authority and resource owners
+    ✕ final shared scalar guards reject arrays/coercion objects for both UUIDs before SQL (38 ms)
+    ○ skipped strategy binds exact canonical resource and current revision without writes
+    ○ skipped planner binds exact canonical resource and current revision without writes
+    ○ skipped strategy rechecks current tenant, member, role, client, wall and Objective on each open
+    ○ skipped planner rechecks current tenant, member, role, client, wall and Objective on each open
+    ○ skipped strategy does not grant stale admin context an ethical-wall bypass
+    ○ skipped planner does not grant stale admin context an ethical-wall bypass
+    ○ skipped strategy rejects foreign actor tenant, wrong client, and foreign Objective scope
+    ○ skipped planner rejects foreign actor tenant, wrong client, and foreign Objective scope
+    ○ skipped strategy returns authorized stale conflict and never reads a historical revision
+    ○ skipped planner returns authorized stale conflict and never reads a historical revision
+    ○ skipped strategy supports current unwalled clients without requiring an invented grant
+    ○ skipped planner supports current unwalled clients without requiring an invented grant
+    ○ skipped strategy propagates every infrastructure phase failure without rewriting it as authority
+    ○ skipped planner propagates every infrastructure phase failure without rewriting it as authority
+    ○ skipped preserves exact Core UUID/Clerk agreement while resolving non-Core callers through current membership
+    ○ skipped uses the actual resolved UUID for a wall grant and never treats a Clerk subject as a UUID
+    ○ skipped keeps mutable parent/current locks while reading the immutable revision with original grants
+    ○ skipped Strategy rejects archival/client mismatch before loading resource content or Objective state
+    ○ skipped Strategy retains live node/artifact filtering and canonical mutation lock serialization
+    ○ skipped Planner acquires the same exact tenant advisory lock before any task/project authority read
+    ○ skipped Planner refuses absent/archived/foreign-tenant task without Objective reads
+    ○ skipped Planner requires explicit task client and never derives one from projects, meeting or parent
+    ○ skipped Planner current project grant is authoritative even for task owner/admin context
+    ○ skipped Planner preserves addressed assignee and collaborator reads and revocation
+    ○ skipped Planner does not expose unreadable project membership/fields or dependency references
+    ○ skipped strategy normalizes UUID case and rejects forged canonical revision/kind through scalar bounds
+    ○ skipped planner normalizes UUID case and rejects forged canonical revision/kind through scalar bounds
+    ○ skipped Strategy awaits resource authority and rechecks membership changed before its scope lock
+    ○ skipped Planner checks current project ACL after waiting for its task read
+    ○ skipped strategy refetches canonical revision/owner version on retry without a durable association
+    ○ skipped planner refetches canonical revision/owner version on retry without a durable association
+    ○ skipped Core delegates to this same canonical helper while preserving its exact actor UUID pin
+    ○ skipped Core preserves mapped invalid/stale/unavailable errors and untouched infrastructure failures
+  independent strict destination transport without a database or provider
+    ○ skipped supports exact required scalar query and marks both owner responses private/no-store
+    ○ skipped refuses absent clientId
+    ○ skipped refuses absent objectiveId
+    ○ skipped refuses absent objectiveVersion
+    ○ skipped refuses duplicate/nested scalar clientId
+    ○ skipped refuses duplicate/nested scalar objectiveId
+    ○ skipped refuses duplicate/nested scalar objectiveVersion
+    ○ skipped refuses browser-supplied kind claim
+    ○ skipped refuses browser-supplied url claim
+    ○ skipped refuses browser-supplied resourceId claim
+    ○ skipped refuses browser-supplied objectiveRevisionId claim
+    ○ skipped refuses browser-supplied tenantId claim
+    ○ skipped refuses browser-supplied userId claim
+    ○ skipped refuses browser-supplied clerkUserId claim
+    ○ skipped refuses browser-supplied snapshotHash claim
+    ○ skipped bounds numeric version and resource UUID independently before owner methods
+
+  ● independent current Objective authority and resource owners › final shared scalar guards reject arrays/coercion objects for both UUIDs before SQL
+
+    expect(received).toThrow(expected)
+
+    Expected substring: "OBJECTIVE_DESTINATION_INVALID"
+    Received message:   "input.clientId.toLowerCase is not a function"
+
+          47 |   }
+          48 |   return {
+        > 49 |     clientId: input.clientId.toLowerCase(),
+             |                              ^
+          50 |     objectiveId: input.objectiveId.toLowerCase(),
+          51 |     objectiveVersion: input.objectiveVersion,
+          52 |   };
+
+      at normalizeClientObjectiveDestination (docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/rejected-b5e-shared-helper.ts:49:30)
+      at docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts:218:55
+      at Object.<anonymous> (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/toThrowMatchers.js:74:11)
+      at Object.throwingMatcher [as toThrow] (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:320:21)
+      at Object.<anonymous> (docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts:218:94)
+      at Object.<anonymous> (docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts:218:94)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 49 skipped, 50 total
+Snapshots:   0 total
+Time:        4.672 s
+Ran all test suites with tests matching "final shared scalar guards".
+Test results written to: docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/b5e-scalar-red.json

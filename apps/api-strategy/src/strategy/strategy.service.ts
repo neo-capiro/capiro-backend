@@ -14,6 +14,12 @@ import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from './live-node.js';
 import { lockStrategyForMutation } from './mutation-lock.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
 import type { PatchStrategyDto } from './dto/patch-strategy.dto.js';
+import type { AuthTenantContext } from '../auth/tenant-context.js';
+import {
+  normalizeObjectiveDestination,
+  requireObjectiveDestinationRevision,
+  type ObjectiveDestinationQueryDto,
+} from './objective-destination.js';
 
 /**
  * Strategy read + manual-create + meta-patch. All access goes through
@@ -27,6 +33,30 @@ export class StrategyService {
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
   ) {}
+
+  async objectiveDestination(
+    ctx: AuthTenantContext,
+    id: string,
+    input: ObjectiveDestinationQueryDto,
+  ) {
+    const binding = normalizeObjectiveDestination(input);
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.clerkUserId, async (tx) => {
+      // Existing plan writers lock this same strategy row before editing nodes,
+      // restoring versions or archiving. Read only this exact same-client owner.
+      const rows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sp_strategy
+        WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid
+          AND client_id=${binding.clientId}::uuid AND archived_at IS NULL FOR SHARE
+      `;
+      if (!rows[0]) throw new NotFoundException('Objective destination not found');
+      const revision = await requireObjectiveDestinationRevision(tx, ctx, binding);
+      const strategy = await loadStrategyDetail(tx, id);
+      return {
+        destination: { kind: 'strategy' as const, resourceId: strategy.id, ...revision },
+        strategy,
+      };
+    });
+  }
 
   /** Library list projection: active (non-archived) strategies, newest-edited first. */
   async list(tenantId: string) {
@@ -65,9 +95,12 @@ export class StrategyService {
       nodeCount: r._count.nodes,
       summary: {
         assignedCount: r.nodes.filter((node) => Boolean(node.ownerUserId)).length,
-        unassignedCount: r.nodes.filter((node) => !node.ownerUserId && node.status !== 'completed').length,
+        unassignedCount: r.nodes.filter((node) => !node.ownerUserId && node.status !== 'completed')
+          .length,
         completedCount: r.nodes.filter((node) => node.status === 'completed').length,
-        reviewCount: r.nodes.filter((node) => ['draft', 'internal_review', 'suggested'].includes(node.status)).length,
+        reviewCount: r.nodes.filter((node) =>
+          ['draft', 'internal_review', 'suggested'].includes(node.status),
+        ).length,
       },
     }));
   }
@@ -87,7 +120,14 @@ export class StrategyService {
     if (!strategy) {
       throw new NotFoundException('Strategy not found');
     }
-    if (strategy.archivedAt) throw new GoneException({ statusCode: 410, message: 'This strategy is archived and is retained as history. Choose an active strategy or review its saved versions.', strategyId: strategy.id, title: strategy.title });
+    if (strategy.archivedAt)
+      throw new GoneException({
+        statusCode: 410,
+        message:
+          'This strategy is archived and is retained as history. Choose an active strategy or review its saved versions.',
+        strategyId: strategy.id,
+        title: strategy.title,
+      });
     return strategy;
   }
 
@@ -103,8 +143,10 @@ export class StrategyService {
     // withTenant (sets app.current_tenant) or the clients RLS filters every row
     // and the check false-negatives ("Unknown client") for a valid client. The
     // explicit tenant_id predicate is defense-in-depth alongside the RLS scope.
-    const clientRows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ ok: number }>>`
+    const clientRows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ ok: number }>>`
         SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
     );
     if (clientRows.length === 0) {

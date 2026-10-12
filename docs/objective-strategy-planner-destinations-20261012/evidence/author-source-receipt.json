@@ -1,0 +1,230 @@
+{
+  "sourceHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+  "sourceTree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+  "requiredBase": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+  "baseTree": "3e04cc68d00373632d4bc86c935d37e672b2d221",
+  "remoteMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "recordedAtUTC": "2026-10-12T08:23:02.560992+00:00",
+  "helper": {
+    "path": "packages/shared/src/client-objective-destination.ts",
+    "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+    "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+  },
+  "checks": [
+    {
+      "check": "Shared package build",
+      "logs": [
+        "shared-build-final.log"
+      ],
+      "result": "pass",
+      "scope": "local installed TypeScript build"
+    },
+    {
+      "check": "Strategy complete typecheck",
+      "logs": [
+        "strategy-tsc-initial.log",
+        "strategy-tsc-repaired.log"
+      ],
+      "result": "initial fixture position error; repaired source passed",
+      "scope": "pre-final scalar-only guard; public types unchanged"
+    },
+    {
+      "check": "Strategy frozen regression run",
+      "logs": [
+        "strategy-author-frozen.log",
+        "strategy-author-frozen.json"
+      ],
+      "result": "96 passed / 7 suites",
+      "sourceHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239"
+    },
+    {
+      "check": "Strategy frozen production Nest build",
+      "logs": [
+        "strategy-nest-build.log"
+      ],
+      "result": "pass",
+      "sourceHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239"
+    },
+    {
+      "check": "Core composed regression run",
+      "logs": [
+        "core-composed-tests-initial.log"
+      ],
+      "result": "128 passed / 11 suites",
+      "sourceHead": "2352d1b8c77b3e063861fc42b4fa41fb64f02bb2",
+      "scope": "before final scalar-only guard"
+    },
+    {
+      "check": "Final scalar and immutable privileges tests",
+      "logs": [
+        "final-scalar-privileges.log",
+        "final-scalar-privileges.json"
+      ],
+      "result": "9 passed / 2 suites",
+      "sourceHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239"
+    },
+    {
+      "check": "Core complete typecheck",
+      "logs": [
+        "core-tsc-frozen.log",
+        "core-tsc-dependency-retry.log"
+      ],
+      "result": "initial isolated nested dependency failure; existing read-only nested links repaired then passed",
+      "sourceHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+      "sourceChanges": "none"
+    },
+    {
+      "check": "Core frozen production Nest build",
+      "logs": [
+        "core-nest-build.log"
+      ],
+      "result": "pass",
+      "sourceHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239"
+    }
+  ],
+  "replayCommands": {
+    "strategyTests": {
+      "cwd": "apps/api-strategy",
+      "config": "docs/objective-strategy-planner-destinations-20261012/evidence/strategy.jest.cjs",
+      "testFiles": [
+        "src/planner/planner-scheduler.service.spec.ts",
+        "src/strategy/node.service.spec.ts",
+        "src/strategy/objective-destination.controller.spec.ts",
+        "src/strategy/objective-destination.service.spec.ts",
+        "src/strategy/strategy-summary.spec.ts",
+        "src/strategy/version.service.spec.ts",
+        "src/strategy/versioning.service.spec.ts"
+      ],
+      "commandKind": "installed Jest node entrypoint --runInBand --runTestsByPath, diagnostics disabled only for synthetic test transform; JSON/log retained"
+    },
+    "coreFinalTests": {
+      "cwd": "apps/api",
+      "config": "docs/objective-destinations-20261012/evidence/objective.jest.cjs",
+      "testFiles": [
+        "src/clients/objectives/objective-destination.shared.spec.ts",
+        "src/clients/objectives/objective-destination.privileges.spec.ts"
+      ],
+      "commandKind": "installed Jest node entrypoint --runInBand --runTestsByPath, JSON/log retained"
+    },
+    "types": "installed TypeScript --noEmit --pretty false in each app; full checks separate from ts-jest transform",
+    "builds": "installed Nest CLI build in each app; Core final uses Node max-old-space-size 6144; build only, no startup"
+  },
+  "failedEvidencePreserved": [
+    "owner-tests-initial.log",
+    "strategy-focused-initial.log",
+    "strategy-tsc-initial.log",
+    "core-tsc-frozen.log"
+  ],
+  "qualification": "source/synthetic/type/build only; no database/migration/native engine/container/provider execution or deployment",
+  "excludedArtifacts": [
+    "worktree-local node_modules and package nested dependency links",
+    "ignored generated clients, dist, incremental build caches"
+  ],
+  "evidenceFiles": {
+    "core-composed-tests-initial.log": {
+      "sizeBytes": 1946,
+      "sha256": "dd49a6d9ea84634c8f7a6ba2fc102d8b289a68dd69d760e3a77e30902f60bd55"
+    },
+    "core-nest-build.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "core-shared-regressions-initial.log": {
+      "sizeBytes": 1117,
+      "sha256": "3db8b78620acdf1d9c213b893c02bc06db537ff49baadde119a476c9ee245988"
+    },
+    "core-tsc-dependency-retry.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "core-tsc-frozen.log": {
+      "sizeBytes": 1117,
+      "sha256": "502cecbdf7ec8d12ea18fffd79544d308863773cababb77e60be97bfd6e620e0"
+    },
+    "final-scalar-privileges.json": {
+      "sizeBytes": 5328,
+      "sha256": "d267d5765508ba92d0978e09cd107d364aa0b85205c61eebb7d692b9a789633b"
+    },
+    "final-scalar-privileges.log": {
+      "sizeBytes": 884,
+      "sha256": "e3692d7ec02c42dcaf75856cfdf25df3d25d51d011130693d2c054321e0bac37"
+    },
+    "owner-tests-initial.log": {
+      "sizeBytes": 1642,
+      "sha256": "1d64bf7c674cfb95fa564c0e0df4658d58bc7d3575cfec61dc8400a021165c3e"
+    },
+    "owner-tests-retry.log": {
+      "sizeBytes": 1864,
+      "sha256": "6debba9f21dc38383149286313632fa45f75e13ed2c68bac1f8ea3cb135c7909"
+    },
+    "path-intersections.json": {
+      "sizeBytes": 206667,
+      "sha256": "0f4d8f020d45d24c3248596bac9141debe7714576b7d41ee121695095ab4864f"
+    },
+    "shared-build-final.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "shared-build-formatted.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "shared-build-initial.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "shared-build-privilege-repair.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "source-format.log": {
+      "sizeBytes": 701,
+      "sha256": "b3f556133745f5fa74cc5c751520c5b5fdab431949f8a7904b61b9d82b7ae8d2"
+    },
+    "strategy-author-frozen.json": {
+      "sizeBytes": 42485,
+      "sha256": "848d63f6284d4f3229d0576e1252ab21904a6540c256b7848d990cbe69a4f118"
+    },
+    "strategy-author-frozen.log": {
+      "sizeBytes": 2174,
+      "sha256": "df867c938642b94fc2a32ab2fe27b70a355108debec88e000ef738bf4928308a"
+    },
+    "strategy-focused-auth-retry.log": {
+      "sizeBytes": 813,
+      "sha256": "daadf4675c307d83fdd7404da97f9be3981dbfe3c3c4e4e938dceb14a693a503"
+    },
+    "strategy-focused-initial.log": {
+      "sizeBytes": 1857,
+      "sha256": "5869b8e1ecf6b2b10ab0862aac62365588d68526a9519f04759e1b4982b62186"
+    },
+    "strategy-nest-build.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "strategy-tsc-initial.log": {
+      "sizeBytes": 246,
+      "sha256": "59658695aaf7fb5546eb4adb3d942059f404ffaeffe7a2215d4dacc68636b40a"
+    },
+    "strategy-tsc-repaired.log": {
+      "sizeBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "strategy.jest.cjs": {
+      "sizeBytes": 442,
+      "sha256": "1064253e20e1aefcf9c4cede4de939bce3d41de8333ca2289f7ce20bd68693f4"
+    }
+  },
+  "independentReview": {
+    "acceptedSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+    "acceptedTree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+    "originalEvidenceCommit": "c42aa5a5ee9bf5f59d4ac15ff4c6f8223ef315ad",
+    "originalEvidenceTree": "5baa9f01441dfbd8410c29d7176114b00c68aa5d",
+    "unchangedCherryPick": "2635ff4408e21e20c614bbd77caf7f9e9a35a536",
+    "independentTestsPassed": 50,
+    "combinedTestsPassed": 109,
+    "combinedSuites": 7,
+    "evidenceHashesVerified": 15,
+    "acceptedSourceBlobsVerified": 17,
+    "result": "accepted source-only draft publication; native gates retained"
+  }
+}

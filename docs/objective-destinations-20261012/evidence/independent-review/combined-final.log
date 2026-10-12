@@ -1,0 +1,19 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/outreach-v3/outreach-v3-phase2-architecture.spec.ts
+PASS apps/api/src/clients/objectives/objectives.service.spec.ts
+PASS apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts
+PASS apps/api/src/clients/objectives/objectives.controller.spec.ts
+PASS apps/api/src/clients/objectives/objective-destination.spec.ts
+PASS apps/api/src/clients/objectives/objective-rules.spec.ts
+PASS apps/api/src/outreach-v3/api/outreach-v3-state.guard.spec.ts
+PASS docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts
+
+Test Suites: 9 passed, 9 total
+Tests:       119 passed, 119 total
+Snapshots:   0 total
+Time:        10.245 s
+Ran all test suites within paths "docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts", "apps/api/src/clients/objectives/objective-destination.spec.ts", "apps/api/src/clients/objectives/objective-rules.spec.ts", "apps/api/src/clients/objectives/objectives.service.spec.ts", "apps/api/src/clients/objectives/objectives.controller.spec.ts", "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts", "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts", "apps/api/src/outreach-v3/outreach-v3-phase2-architecture.spec.ts", "apps/api/src/outreach-v3/api/outreach-v3-state.guard.spec.ts".
+Test results written to: docs/objective-destinations-20261012/evidence/independent-review/combined-final.json

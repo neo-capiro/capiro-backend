@@ -9,6 +9,7 @@
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions", "handler": "createSession" },
     { "method": "GET", "path": "/api/engagement/outreach-v3/sessions", "handler": "listSessions" },
     { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId", "handler": "getSession" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/objective-destination", "handler": "getObjectiveDestination" },
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/archive", "handler": "archiveSession" },
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/commands", "handler": "applyCommands" },
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging", "handler": "stageNewsletter" },

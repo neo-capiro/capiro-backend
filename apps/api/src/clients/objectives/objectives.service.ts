@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type { ClientObjective, Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import {
+  requireClientObjectiveDestinationRevision,
+  ClientObjectiveDestinationError,
+  type TenantContext,
+} from '@capiro/shared';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -18,6 +22,11 @@ import {
   type ObjectiveFields,
   type ObjectiveTransition,
 } from './objective-rules.js';
+import {
+  normalizeObjectiveDestination,
+  type ObjectiveDestinationQueryDto,
+  type ObjectiveRevisionBinding,
+} from './objective-destination.js';
 
 function presentObjective(record: ClientObjective) {
   return {
@@ -43,6 +52,29 @@ function presentObjective(record: ClientObjective) {
 @Injectable()
 export class ClientObjectivesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Destination owners call this inside their own resource transaction. */
+  async requireDestinationRevisionWithinTx(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    input: ObjectiveDestinationQueryDto,
+  ): Promise<ObjectiveRevisionBinding> {
+    try {
+      return await requireClientObjectiveDestinationRevision(
+        tx,
+        ctx,
+        normalizeObjectiveDestination(input),
+      );
+    } catch (error) {
+      if (error instanceof ClientObjectiveDestinationError) {
+        if (error.code === 'OBJECTIVE_VERSION_CONFLICT') this.conflict();
+        if (error.code === 'OBJECTIVE_DESTINATION_INVALID')
+          throw new BadRequestException('Invalid Objective destination binding');
+        throw new NotFoundException('Objective destination not found');
+      }
+      throw error;
+    }
+  }
 
   async list(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {

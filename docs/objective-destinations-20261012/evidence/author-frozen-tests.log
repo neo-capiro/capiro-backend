@@ -1,0 +1,19 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-objective-destinations/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/outreach-v3/api/outreach-objective-destination.controller.spec.ts
+PASS src/clients/objectives/objectives.controller.spec.ts
+PASS src/outreach-v3/outreach-v3-phase2-architecture.spec.ts
+PASS src/clients/objectives/objectives.service.spec.ts
+PASS src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS src/clients/objectives/objective-rules.spec.ts
+PASS src/clients/objectives/objective-destination.spec.ts
+PASS src/outreach-v3/api/outreach-v3-state.guard.spec.ts
+
+Test Suites: 8 passed, 8 total
+Tests:       80 passed, 80 total
+Snapshots:   0 total
+Time:        5.262 s, estimated 11 s
+Ran all test suites matching /src\/clients\/objectives\/objective-destination.spec.ts|src\/clients\/objectives\/objective-rules.spec.ts|src\/clients\/objectives\/objectives.service.spec.ts|src\/clients\/objectives\/objectives.controller.spec.ts|src\/outreach-v3\/services\/outreach-objective-destination.spec.ts|src\/outreach-v3\/api\/outreach-objective-destination.controller.spec.ts|src\/outreach-v3\/outreach-v3-phase2-architecture.spec.ts|src\/outreach-v3\/api\/outreach-v3-state.guard.spec.ts/i.
+Test results written to: ../../docs/objective-destinations-20261012/evidence/author-frozen-tests.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

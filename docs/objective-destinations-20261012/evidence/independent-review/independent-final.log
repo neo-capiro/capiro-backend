@@ -1,0 +1,52 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts
+  Independent integrated Objective/Outreach destination boundary
+    ✓ normalizes UUIDs and returns only canonical owner identities without mutation (11 ms)
+    ✓ rechecks current tenantActive on identical replay (3 ms)
+    ✓ rechecks current memberActive on identical replay (3 ms)
+    ✓ rechecks current actorMapped on identical replay (2 ms)
+    ✓ rechecks current clientAvailable on identical replay (3 ms)
+    ✓ rechecks current grant on identical replay (2 ms)
+    ✓ rechecks current objective on identical replay (2 ms)
+    ✓ rechecks current revision on identical replay (1 ms)
+    ✓ rejects currently downgraded membership client_portal_user despite stale administrator context (1 ms)
+    ✓ rejects currently downgraded membership unknown_role despite stale administrator context (1 ms)
+    ✓ refuses changed request tenantId before Objective authority lookup (2 ms)
+    ✓ refuses changed request userId before Objective authority lookup (1 ms)
+    ✓ refuses the historical revision after a current Objective edit, without reading content (2 ms)
+    ✓ rejects a deleted Objective before reporting its stale version
+    ✓ waits for the owned session lock before starting any client/Objective lookup (2 ms)
+    ✓ waits for wall authorization before loading revision/content or returning a binding (3 ms)
+    ✓ rejects archived on replay before Objective lookup (2 ms)
+    ✓ rejects completed on replay before Objective lookup (2 ms)
+    ✓ rejects archival marker inconsistency (1 ms)
+    ✓ rechecks the exact newer state version and refuses sponsor transfer (2 ms)
+    ✓ does not derive authority from none text or client references (2 ms)
+    ✓ does not derive authority from firm text or client references (23 ms)
+    ✓ does not derive authority from multi_client text or client references (2 ms)
+    ✓ does not derive authority from coalition text or client references (2 ms)
+    ✓ rejects corrupt client sponsor references {"refs":[]} (1 ms)
+    ✓ rejects corrupt client sponsor references {"refs":[{"clientId":"ABCDEFAB-4444-4444-8444-444444444444"},{"clientId":"77777777-7777-4777-8777-777777777777"}]} (2 ms)
+    ✓ refuses corrupt stored shape null before metadata (1 ms)
+    ✓ refuses corrupt stored shape {} before metadata (1 ms)
+    ✓ refuses corrupt stored shape {"schemaVersion":"unknown"} before metadata (1 ms)
+    ✓ fails closed for a digest mismatch without returning an Objective binding (1 ms)
+  Independent duplicate/nested Objective destination HTTP parameters
+    ✓ rejects duplicated scalar clientId (37 ms)
+    ✓ rejects duplicated scalar objectiveId (6 ms)
+    ✓ rejects duplicated scalar objectiveVersion (4 ms)
+    ✓ rejects bracket-array clientId (4 ms)
+    ✓ rejects bracket-array objectiveId (5 ms)
+    ✓ rejects bracket-array objectiveVersion (4 ms)
+    ✓ rejects nested-object clientId (5 ms)
+    ✓ rejects nested-object objectiveId (3 ms)
+    ✓ rejects nested-object objectiveVersion (3 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       39 passed, 39 total
+Snapshots:   0 total
+Time:        2.493 s, estimated 11 s
+Ran all test suites.
+Test results written to: docs/objective-destinations-20261012/evidence/independent-review/independent-final.json

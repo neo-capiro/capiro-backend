@@ -76,6 +76,11 @@ import {
   type SpPlannerResource,
 } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  normalizeObjectiveDestination,
+  requireObjectiveDestinationRevision,
+  type ObjectiveDestinationQueryDto,
+} from '../strategy/objective-destination.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { PlannerLinksService } from './planner-links.service.js';
 import {
@@ -685,6 +690,41 @@ export class PlannerService {
       if (!row) throw missing();
       return this.taskView(tx, row, await this.projects(tx, ctx), ctx);
     });
+  }
+
+  async objectiveDestination(
+    ctx: AuthTenantContext,
+    id: string,
+    input: ObjectiveDestinationQueryDto,
+  ) {
+    uuid(id);
+    const binding = normalizeObjectiveDestination(input);
+    // Reuse the canonical tenant lock held by project-grant/task mutations;
+    // this prevents ACL/reparenting edits racing the exact destination read.
+    return this.scope(
+      ctx,
+      async (tx) => {
+        const row = await tx.spPlannerTask.findFirst({ where: { tenantId: ctx.tenantId, id } });
+        if (!row || row.archived) throw missing();
+        const projects = await this.projects(tx, ctx);
+        requireRole(plannerTaskAccess(row, projects, ctx.clerkUserId), 'viewer');
+        const clientId = taskData(row).clientId;
+        if (typeof clientId !== 'string' || clientId.toLowerCase() !== binding.clientId)
+          throw missing();
+        const revision = await requireObjectiveDestinationRevision(tx, ctx, binding);
+        const task = await this.taskView(tx, row, projects, ctx);
+        return {
+          destination: {
+            kind: 'planner_task' as const,
+            resourceId: row.id,
+            ...revision,
+            destinationVersion: row.version,
+          },
+          task,
+        };
+      },
+      true,
+    );
   }
   async queue(ctx: AuthTenantContext): Promise<PlannerTask[]> {
     return this.scope(ctx, async (tx) => {

@@ -1,0 +1,81 @@
+{
+  "source": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+  "tree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+  "files": [
+    {
+      "path": "RECEIPT.json",
+      "sha256": "a5442c8771e67fe0b789babccdcc9c5957399abfeeecf3221f77cd2bbfad7116",
+      "bytes": 5240
+    },
+    {
+      "path": "REVIEW.md",
+      "sha256": "6142c79ce33199ad891eafda4ff60972337fdbba97f97aef9b1496e2ccf5501b",
+      "bytes": 8634
+    },
+    {
+      "path": "b5e-scalar-red.json",
+      "sha256": "80e830f8936896d28b8443d6c5669ae6f7dfcd564c8758a99a6aad84f7a856f6",
+      "bytes": 28028
+    },
+    {
+      "path": "b5e-scalar-red.log",
+      "sha256": "198a261ce6d2315e8fef79817448c9e7822b7e724c4ab433df52dc6ed71a8057",
+      "bytes": 6601
+    },
+    {
+      "path": "combined-final.json",
+      "sha256": "32180897e0a683479a8ed5c0a8c310682446e671baa0e1fabca9ccc84a45f041",
+      "bytes": 52447
+    },
+    {
+      "path": "combined-final.log",
+      "sha256": "2ff2de40fe2fc070eb27ff965bdc38bf0c33791a66228e10158c9a55c27c1ce5",
+      "bytes": 1003
+    },
+    {
+      "path": "combined-wrong-cwd.json",
+      "sha256": "9b8145d2823e4aa06785b874dca0ba1ba1c8bbf7a307ebc15fd1440b39dbf1e5",
+      "bytes": 55644
+    },
+    {
+      "path": "combined-wrong-cwd.log",
+      "sha256": "69d7440204df7e16075b8c6562641f6cac5385b5f3e373522ac26e6adda6cf96",
+      "bytes": 2176
+    },
+    {
+      "path": "independent-final.json",
+      "sha256": "2b1efaf0eb9af030e9e6330d81cdc2b18dbfd8d28c67096b8fe2a99dcb97f910",
+      "bytes": 23880
+    },
+    {
+      "path": "independent-final.log",
+      "sha256": "7d606ae231b236f962affcfc2adb273a10419ede13a4b94b0abd88010f5f341e",
+      "bytes": 4990
+    },
+    {
+      "path": "independent-initial.json",
+      "sha256": "bb3c337925b362cf06324cc1622e9df874b80031d98935cfd065641d107b0eed",
+      "bytes": 20988
+    },
+    {
+      "path": "independent-initial.log",
+      "sha256": "bc4194166fc1c89c2dffdec5aa7e53539856388f0805904d6a339fd55d379ea9",
+      "bytes": 4387
+    },
+    {
+      "path": "independent.spec.ts",
+      "sha256": "e955ea9302548d76fe8a6918edec3ae0e6160297d3e246c4d4d32830f4bd7d18",
+      "bytes": 23989
+    },
+    {
+      "path": "jest.cjs",
+      "sha256": "ff558361d27d437b2fe6b887997d8e7f793a65e26a78ad41e16113a352c11fad",
+      "bytes": 1802
+    },
+    {
+      "path": "rejected-b5e-shared-helper.ts",
+      "sha256": "5dccf4e1b9501766aff18c2ea0bcd8a856860caeb8396f996722afe3e1ce3536",
+      "bytes": 4231
+    }
+  ]
+}

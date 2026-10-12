@@ -1,0 +1,13 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/objective-destinations-review/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts
+PASS apps/api/src/clients/objectives/objective-destination.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       37 passed, 37 total
+Snapshots:   0 total
+Time:        7.408 s
+Ran all test suites within paths "apps/api/src/clients/objectives/objective-destination.spec.ts", "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts", "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts".
+Test results written to: docs/objective-destinations-20261012/evidence/independent-review/author-baseline-corrected.json

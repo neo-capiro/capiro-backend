@@ -1,0 +1,46 @@
+{
+  "RECEIPT.json": {
+    "sha256": "cffca873c418457003af2ffbfd40482a12db66425ba9c587e4266ae9bc3210ef",
+    "bytes": 6000
+  },
+  "REVIEW.md": {
+    "sha256": "3cf9eacf3f8248c68fced6b6c8b16cb69a718d03e058e6f7b4cc42f1496afc69",
+    "bytes": 4836
+  },
+  "mutable-lock-grant-source.txt": {
+    "sha256": "08ba36de404d810279820fd1c14a2082099d92ec6425cf938ac052d7f5d37b4b",
+    "bytes": 800
+  },
+  "published-privilege-mismatch.txt": {
+    "sha256": "c906965136875bfac89f8374cbe84342bdd635c75eb22470fc1328cd2da54f8e",
+    "bytes": 178
+  },
+  "repair-combined-final.json": {
+    "sha256": "665e95f904be6eb186e6d5dd7801dfbe1f5e12625b7374e78c338ad65067db00",
+    "bytes": 56809
+  },
+  "repair-combined-final.log": {
+    "sha256": "e6d6c5517749f96b19649d150399e7b6cdaddcb361a76d0a24c976cc5f342634",
+    "bytes": 2057
+  },
+  "repair-independent-initial.json": {
+    "sha256": "083c939422bdc7665adc4ebf0efc45613a2cff49ae27a80e743c7c521d04e160",
+    "bytes": 5765
+  },
+  "repair-independent-initial.log": {
+    "sha256": "11678fddc31fff39e65af5725fe54492138bf50937c2f8df2822310c04aeb9dc",
+    "bytes": 893
+  },
+  "repair-source.diff": {
+    "sha256": "0d050848ae8c53ac7cecbf6bb90a2738062058f903de07bd79d7698b1dad9354",
+    "bytes": 5549
+  },
+  "revision-repair-independent.jest.cjs": {
+    "sha256": "8e8eb78e835c3b6901b8f4f38b828e91aaf3a2f8d9d3f66b787876d96a8b9488",
+    "bytes": 195
+  },
+  "revision-repair-independent.spec.ts": {
+    "sha256": "b0ebba5c9daf721d9454922452c3f852023dd58244fc7ce1b46f3986e4177276",
+    "bytes": 7456
+  }
+}

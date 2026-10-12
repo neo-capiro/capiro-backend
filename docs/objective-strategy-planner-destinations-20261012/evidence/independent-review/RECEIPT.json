@@ -1,0 +1,134 @@
+{
+  "acceptedSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+  "acceptedTree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+  "requiredPublishedBase": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+  "initialFrozenSource": "b5e61175eff7cebe28a70a79da41e12d8f584b28",
+  "initialFrozenTree": "9f1885726d8f2ac02a12a3ee096b63f6330888c7",
+  "checks": [
+    {
+      "kind": "independent initial",
+      "passed": 44,
+      "failed": 0,
+      "json": "independent-initial.json",
+      "exitCode": 0
+    },
+    {
+      "kind": "rejected b5e shared scalar source",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 49,
+      "json": "b5e-scalar-red.json",
+      "exitCode": 1
+    },
+    {
+      "kind": "independent final",
+      "passed": 50,
+      "failed": 0,
+      "json": "independent-final.json",
+      "exitCode": 0
+    },
+    {
+      "kind": "combined initial wrong cwd fixture",
+      "passed": 108,
+      "failed": 1,
+      "json": "combined-wrong-cwd.json",
+      "exitCode": 1
+    },
+    {
+      "kind": "combined final",
+      "passed": 109,
+      "failed": 0,
+      "suites": 7,
+      "json": "combined-final.json",
+      "exitCode": 0
+    }
+  ],
+  "sourcePaths": [
+    {
+      "path": "apps/api-strategy/Dockerfile",
+      "gitBlob": "317fdeb1d486b1b835d8205b4830f10948d622d2",
+      "sha256": "c84f0f0d0c3f2b3d122cade5ead25ccdfb4450978c8b56dc30dfa27f13766b90"
+    },
+    {
+      "path": "apps/api-strategy/package.json",
+      "gitBlob": "c6d489d2ef1f19dde1f9b7c4a10832f5bd97d297",
+      "sha256": "fe69ac2da5d8c871ad73b927934a6f74d0a094428e486e855b4a61229fb4393c"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "gitBlob": "f0217da17af573d0888dc1f975f9fad2e9694d65",
+      "sha256": "35a762e3fad9a10f276d9f3ccda5423242327bb277feb1f218264ae3ef332cec"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "gitBlob": "df8c3619a309fcecab529f825c83088759ae17cd",
+      "sha256": "0cae0b5a088274c7dfc85a0bc11fa62028b5b6720e799646d5cfb671899ed64e"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.controller.spec.ts",
+      "gitBlob": "e2945aa814577bb4ffcb9bee888035ff42803563",
+      "sha256": "751594554fb8c3e98d25a0cc30f4ac773179331595d3271b94dcfc9f8cc1f2e9"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.service.spec.ts",
+      "gitBlob": "d74e8210194dd9e4c3463fe63c000755f4f9d38d",
+      "sha256": "0109022eb8b9d2c35bed3a1775c14f8dab8def4aebde4662d0bde989da313823"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.ts",
+      "gitBlob": "c6c0e635a868aa862e4097f2d15d945b18b16b1b",
+      "sha256": "d8cfc6a767e6d79563b581e57c8fb0806c7a3472f2d28a9421234589f8bda981"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.controller.ts",
+      "gitBlob": "c2d99378e71830d2a9c46a098e4bea004690212a",
+      "sha256": "f4291ce94b3ef1288f16ccb48b1281f9a25690dc040898f27976836b3087e8df"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.service.ts",
+      "gitBlob": "2993392d376ca298780b6dedfb5fc48664c1faea",
+      "sha256": "74023c6cd31305078dcad0798c7098368f912a83f56ced3d23332b373eea42b1"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "gitBlob": "6451534513cf1283942b925cde02a700b50c5715",
+      "sha256": "cc18b485740195529a87366b916a8e029eb70bddbdc7658ee504f1c0e20bc142"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "gitBlob": "8fe1096621c7caa41bfc84284510e536b9957204",
+      "sha256": "98e7f4a62e0bf45fc2c5cb3a816bcde805d0140aa609910169d900db5f6bd2d0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.ts",
+      "gitBlob": "cffc4601583c5a0889b0900352a7609635167dea",
+      "sha256": "8603d31c16d9c3e4a2641b2be4d2f98f013ae69762b5703abcb572e4851f3a57"
+    },
+    {
+      "path": "docs/objective-strategy-planner-destinations-20261012/CONTRACT.md",
+      "gitBlob": "659a21b99650a73134ef0510556ebfe88b31ab4a",
+      "sha256": "3b0185a60974d60df64ded199805a54cf5406a08382ce8c7bb989aeaa04cc45f"
+    },
+    {
+      "path": "docs/objective-strategy-planner-destinations-20261012/evidence/strategy.jest.cjs",
+      "gitBlob": "f27076d81b08f39b0e59e57438013c48335b9ae3",
+      "sha256": "1064253e20e1aefcf9c4cede4de939bce3d41de8333ca2289f7ce20bd68693f4"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "gitBlob": "938191affd3e707608f7efb42db710c662f7c225",
+      "sha256": "15d90e88bfd2ae7b7a0920eb8b0c7b9b50defa4f2bad10844f393029aee6ae38"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitBlob": "b5310cb18658d7ddddafd2eb9bdfff2f6eab9aa5",
+      "sha256": "c771f1fc68de904c014aaa3d6edf49f1e1d03bad008a1d1973620554bdd38568"
+    }
+  ],
+  "qualification": "Synthetic/source only. No DB, migration, PGlite, native engine, provider, AWS, customer mutation, permissions/security/network changes. Full TSC left to author; isolated transpilation review."
+}

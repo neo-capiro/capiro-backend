@@ -3,7 +3,9 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -17,6 +19,7 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { PlannerService } from './planner.service.js';
+import { ObjectiveDestinationQueryDto } from '../strategy/objective-destination.js';
 import { PlannerContextGuard } from './planner-context.guard.js';
 import { PlannerFormUploadInterceptor } from './planner-form-upload.js';
 import type { PlannerFormUpload } from './planner-files.js';
@@ -208,6 +211,16 @@ export class PlannerController {
   ) {
     requirePlannerCommandScope(ctx, req.headers);
     return this.planner.taskCreateCommand(ctx, requestId, req.headers.authorization);
+  }
+
+  @Header('Cache-Control', 'private, no-store')
+  @Get('tasks/:id/objective-destination')
+  objectiveDestination(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.planner.objectiveDestination(ctx, id, query);
   }
   @Post('tasks/import') importTask(
     @CurrentTenant() ctx: AuthTenantContext,
