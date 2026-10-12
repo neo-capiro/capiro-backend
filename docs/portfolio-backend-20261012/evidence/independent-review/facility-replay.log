@@ -1,0 +1,18 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-facility/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/clients/client-facilities.service.spec.ts
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+TypeError: A dynamic import callback was invoked without --experimental-vm-modules
+    at importModuleDynamicallyCallback (node:internal/modules/esm/utils:277:11)
+    at Object.N_ (/workspace/capirov2-sender/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite-utils/src/utils.ts:86:30)
+    at _e.options (/workspace/capirov2-sender/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/src/pglite.ts:334:9)
+    at _e.create (/workspace/capirov2-sender/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/src/pglite.ts:267:5)
+    at Object.<anonymous> (/workspace/capirov2-review-facility/apps/api/src/clients/facility-geocode-candidate-cas.spec.ts:150:8) {
+  code: 'ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG'
+}
+
+Node.js v24.19.0

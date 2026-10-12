@@ -1,0 +1,16 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-facility/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/scripts/geocode-facilities.independent-review.spec.ts
+  independent facility CLI lifecycle and original snapshot
+    ✓ importing the module does not allocate or dispatch (121 ms)
+    ✓ disconnects its owned client when sync initialization fails (41 ms)
+    ✓ passes original snapshot through CAS, counts stale skip and retains delay/disconnect (27 ms)
+    ✓ retains per-row failure accounting, delay and disconnect (26 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        1.658 s
+Ran all test suites within paths "apps/api/scripts/geocode-facilities.independent-review.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/facility-lifecycle.json

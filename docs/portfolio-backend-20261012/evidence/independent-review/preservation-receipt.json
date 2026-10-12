@@ -1,0 +1,92 @@
+{
+  "refs": {
+    "sender": "8340ac22cdb5c9f4d03e1f36b7f96d30b2af4502",
+    "facility": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+    "reply": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+    "attachment": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+    "originalFacility": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+    "cleanup": "03d85a40e390f8f52614aab20427a3a9433786bb"
+  },
+  "prerequisitePatchPreservation": [
+    {
+      "original": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+      "copied": "7f67c7d54c4fe838f195f6308b7b7a979b98a658",
+      "originalPatchId": "d1fdb8df5e56bacacfc8c08fede6a7d840a1e8ef",
+      "copiedPatchId": "d1fdb8df5e56bacacfc8c08fede6a7d840a1e8ef",
+      "equal": true
+    },
+    {
+      "original": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+      "copied": "fbc0f423069c5511b18f1659ec368dccb310c0a5",
+      "originalPatchId": "e017b11050abac7937bade99b9bb42fb7d0398a9",
+      "copiedPatchId": "e017b11050abac7937bade99b9bb42fb7d0398a9",
+      "equal": true
+    }
+  ],
+  "blobPreservation": [
+    {
+      "path": "apps/api/scripts/geocode-facilities.ts",
+      "originalBlob": "d28a8cc5062596469b34218749c12f5ff005a701",
+      "reconciledBlob": "d28a8cc5062596469b34218749c12f5ff005a701",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.controller.ts",
+      "originalBlob": "e2766f659ed6fb7121b95239475850f168977f85",
+      "reconciledBlob": "e2766f659ed6fb7121b95239475850f168977f85",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.service.ts",
+      "originalBlob": "db96a02371ac4d55ca61639d96f77e6232613a7c",
+      "reconciledBlob": "db96a02371ac4d55ca61639d96f77e6232613a7c",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.service.spec.ts",
+      "originalBlob": "d3ccc19fa07adce4d9bc65b98d978e2242709a73",
+      "reconciledBlob": "d3ccc19fa07adce4d9bc65b98d978e2242709a73",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/clients/facility-geocode-candidate-cas.spec.ts",
+      "originalBlob": "97c2eeae0aa5cf84e0a820a16695e7766ca098ef",
+      "reconciledBlob": "97c2eeae0aa5cf84e0a820a16695e7766ca098ef",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/clients/facility-geocode-candidate-revision.ts",
+      "originalBlob": "0d70659f7f824596791901abfe1339584b55c40f",
+      "reconciledBlob": "0d70659f7f824596791901abfe1339584b55c40f",
+      "equal": true
+    },
+    {
+      "path": "docs/portfolio-geocode-cas/CONTRACT-CANDIDATE.md",
+      "originalBlob": "b3bee5a852f153a7523d1d116553664a22d8ac20",
+      "reconciledBlob": "b3bee5a852f153a7523d1d116553664a22d8ac20",
+      "equal": true
+    },
+    {
+      "path": "docs/portfolio-geocode-cas/revision-v1.fixture.json",
+      "originalBlob": "edb10ae8db4795e7293a70af2f3de134e679cf79",
+      "reconciledBlob": "edb10ae8db4795e7293a70af2f3de134e679cf79",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+      "originalBlob": "c54239b2816926b9ba50a059330867e1a044c246",
+      "senderBlob": "c54239b2816926b9ba50a059330867e1a044c246",
+      "equal": true
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+      "originalBlob": "2a0f173fe510f3273fffb5f0de133f3a984e65c8",
+      "senderBlob": "2a0f173fe510f3273fffb5f0de133f3a984e65c8",
+      "equal": true
+    }
+  ],
+  "cleanupLifecyclePrerequisiteBlobMatches": true,
+  "reviewerChanges": "tests only in separate detached worktrees",
+  "nativeQualification": "BLOCKED official Prisma5.22 binaries.prisma.sh HTTP403; not attempted by reviewer; no bypass",
+  "status": "Sender P2 inconsistent same-mailbox/different-thread receipt awaiting author repair; facility no blocking source findings"
+}
