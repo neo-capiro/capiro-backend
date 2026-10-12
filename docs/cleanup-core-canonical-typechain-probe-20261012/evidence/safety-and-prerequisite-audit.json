@@ -1,0 +1,119 @@
+{
+  "runtimeClosureSize": 7,
+  "runtimeImports": [
+    {
+      "owner": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "specifier": "node:assert"
+    },
+    {
+      "owner": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "specifier": "node:fs"
+    },
+    {
+      "owner": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "specifier": "node:path"
+    },
+    {
+      "owner": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "specifier": "./lib/defense-budget-ingest-mode.js"
+    },
+    {
+      "owner": "apps/api/scripts/lib/defense-budget-ingest-mode.ts",
+      "specifier": "./pe-exact-sha-loader-contract.js"
+    },
+    {
+      "owner": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "specifier": "node:path"
+    },
+    {
+      "owner": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "specifier": "./defense-budget-commit.js"
+    },
+    {
+      "owner": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "specifier": "../../src/defense-budget/promotion/legacy-budget-write-gate-v1.js"
+    },
+    {
+      "owner": "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+      "specifier": "./snapshot-read-mode-v1.js"
+    },
+    {
+      "owner": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "specifier": "../../src/defense-budget/promotion/snapshot-read-mode-v1.js"
+    },
+    {
+      "owner": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "specifier": "./lib/defense-budget-commit.js"
+    },
+    {
+      "owner": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "specifier": "./lib/pe-migration-guards.js"
+    },
+    {
+      "owner": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "specifier": "node:crypto"
+    }
+  ],
+  "typeOnlyImportsNotLoaded": [
+    {
+      "owner": "apps/api/scripts/lib/defense-budget-commit.ts",
+      "specifier": "../../src/defense-budget/assertion-mapper.js"
+    }
+  ],
+  "identities": [
+    {
+      "path": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "bytes": 16305,
+      "sha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22",
+      "gitBlob": "0f68c7ccd86f9ef052128081b9a900b95b0c022e"
+    },
+    {
+      "path": "apps/api/scripts/lib/defense-budget-ingest-mode.ts",
+      "bytes": 1961,
+      "sha256": "15355ad380348fc00968bcdb1728972070cc90217f02f66498235a1888612e0e",
+      "gitBlob": "16a7ada4b5caf0d20abf32eaaac46850acc554a1"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "bytes": 9702,
+      "sha256": "95424aff212423b61f05fd47a810c88242410ac514b9b40ce1a7e8b235876022",
+      "gitBlob": "fafd59c3945548fd3f34a1664193e6d8ef81ccf0"
+    },
+    {
+      "path": "apps/api/scripts/lib/defense-budget-commit.ts",
+      "bytes": 11249,
+      "sha256": "32c4431150a55badab4db64652d0b59bf68cc30b08204bd0493b1608a98b80ff",
+      "gitBlob": "d72b468df9ceb13e864a93f474a3e8fd683fad65"
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+      "bytes": 6726,
+      "sha256": "f9661fcb3536a83d053bd1f5489badd7c522f8e7307a1eeb2d63105eb7337f94",
+      "gitBlob": "e671c9ba5448f2f639744e60845a69c0a4bf763f"
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+      "bytes": 5773,
+      "sha256": "3ba75d85f335292f85fb4bedf1eb28235060ae23eff3407ebd9d1e0390f2ec04",
+      "gitBlob": "7e2997714b66842474fb89eff7087d33692f6565"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "bytes": 11419,
+      "sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc",
+      "gitBlob": "20affa081ef362cd6cb18fd4261b634404aedec8"
+    }
+  ],
+  "manualEffectAudit": "Seven source modules fully read: entry performs five sets of assertions, reads five repository files as UTF8 source and logs success; closure is constants/declarations/pure helpers plus Node hash/path. No app imports/bootstrap/client construction/provider/network/DB/SQL/native generation. Ingestion/audit/entrypoints are read-as-text, not evaluated.",
+  "prerequisiteSource": {
+    "root": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion",
+    "head": "13d3f92bd5d357997110cd1d4c09687d00dd9e64",
+    "currentPackageSourceDelta": []
+  },
+  "generatedSchema": {
+    "exactEqual": true,
+    "excludingClientGeneratorEqual": true,
+    "generatedClientLoaded": false
+  },
+  "scope": "Bounded inspected entry+runtime import closure, not arbitrary-script or native/runtime acceptance"
+}

@@ -1,0 +1,622 @@
+{
+  "baseHead": "681309d208f2c1c344892f8f446a7fa0b4db0a31",
+  "baseTree": "c82bd49d324f50631ae017ffdbac12504e9c7d1c",
+  "script": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+  "segments": [
+    {
+      "index": 1,
+      "command": "tsc --noEmit --rootDir ."
+    },
+    {
+      "index": 2,
+      "command": "tsc -p tsconfig.pe-phase-a.json --noEmit"
+    },
+    {
+      "index": 3,
+      "command": "tsc -p tsconfig.pe-phase-f.json --noEmit"
+    },
+    {
+      "index": 4,
+      "command": "tsc -p tsconfig.pe-phase-g.json --noEmit"
+    },
+    {
+      "index": 5,
+      "command": "tsc -p tsconfig.pe-scripts.json --noEmit"
+    },
+    {
+      "index": 6,
+      "command": "tsc -p tsconfig.pe-scripts-catalog.json --noEmit"
+    },
+    {
+      "index": 7,
+      "command": "tsc -p tsconfig.memory-governance-backfill.json --noEmit"
+    },
+    {
+      "index": 8,
+      "command": "tsc -p tsconfig.funding-opportunities.json --noEmit"
+    },
+    {
+      "index": 9,
+      "command": "tsc -p tsconfig.hearings.json --noEmit"
+    },
+    {
+      "index": 10,
+      "command": "tsc -p tsconfig.integration-smoke.json --noEmit"
+    },
+    {
+      "index": 11,
+      "command": "tsc -p tsconfig.budget-extraction-contract.json --noEmit"
+    },
+    {
+      "index": 12,
+      "command": "tsc -p tsconfig.budget-verification-v1.json --noEmit"
+    },
+    {
+      "index": 13,
+      "command": "tsc -p tsconfig.budget-parser-router.json --noEmit"
+    },
+    {
+      "index": 14,
+      "command": "tsc -p tsconfig.rdte-phase-4.json --noEmit"
+    },
+    {
+      "index": 15,
+      "command": "tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit"
+    },
+    {
+      "index": 16,
+      "command": "tsx scripts/verify-pe-phase-a-safety.ts"
+    },
+    {
+      "index": 17,
+      "command": "tsc -p tsconfig.legiwatch-phase7.json --noEmit"
+    }
+  ],
+  "sourceIdentities": [
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/package.json",
+      "bytes": 28581,
+      "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/tsconfig.base.json",
+      "bytes": 471,
+      "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.json",
+      "bytes": 624,
+      "sha256": "b88cdad4cb543156858c394422a89bd66b34b956d9a8e46c697d2c591a3bd220"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/prisma/schema.prisma",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "bytes": 16305,
+      "sha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/defense-budget-ingest-mode.ts",
+      "bytes": 1961,
+      "sha256": "15355ad380348fc00968bcdb1728972070cc90217f02f66498235a1888612e0e"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/defense-budget-commit.ts",
+      "bytes": 11249,
+      "sha256": "32c4431150a55badab4db64652d0b59bf68cc30b08204bd0493b1608a98b80ff"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "bytes": 9702,
+      "sha256": "95424aff212423b61f05fd47a810c88242410ac514b9b40ce1a7e8b235876022"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/lib/pe-migration-guards.ts",
+      "bytes": 11419,
+      "sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+      "bytes": 6726,
+      "sha256": "f9661fcb3536a83d053bd1f5489badd7c522f8e7307a1eeb2d63105eb7337f94"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+      "bytes": 5773,
+      "sha256": "3ba75d85f335292f85fb4bedf1eb28235060ae23eff3407ebd9d1e0390f2ec04"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.pe-phase-a.json",
+      "bytes": 1253,
+      "sha256": "ffce54bfe51f02ea394738f9dc5a581e30b8793a7c469dfafaa0cd37a1692574"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.pe-phase-f.json",
+      "bytes": 582,
+      "sha256": "ebd67735bda91701d0f5b92d9d1fbc04fcf47e38e3abb0fc5c38ac1772f00bb4"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.pe-phase-g.json",
+      "bytes": 696,
+      "sha256": "e3044b648bd366e16d156443ec5dc3f9a522d28b115dc3c05b0e70aa98762da2"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.pe-scripts.json",
+      "bytes": 1638,
+      "sha256": "efccab69c7d884771a3dd8da3ee63018d254820063c0cd659eb5970ddb6c0034"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.pe-scripts-catalog.json",
+      "bytes": 2274,
+      "sha256": "346bcddf7f6c25960b8860c49cc95bae1370cb725adc1ba971a3b0235a13b01e"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.memory-governance-backfill.json",
+      "bytes": 625,
+      "sha256": "960a67bf5a44e987fb122f06327ffcddf66d514f5937c1223bd460d4a339b342"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.funding-opportunities.json",
+      "bytes": 6531,
+      "sha256": "fec5a837986303e1534c24130d481ba9dad98a1c2c68f86c06ed863a54fb80a1"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.hearings.json",
+      "bytes": 2625,
+      "sha256": "ba7c152ace222a117098942b6924b2cd0f5ac735a7261b661664913e7a66abd2"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.integration-smoke.json",
+      "bytes": 634,
+      "sha256": "2a2a5870eaeb9c61a7fe08bc7f518ad4bd9181ded3f9dabdd74f33f8f3ba3ae8"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.budget-extraction-contract.json",
+      "bytes": 961,
+      "sha256": "10eda536efcbe47fb89ced98abae17f60063a2595eee1952c5fb72c326ac8145"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.budget-verification-v1.json",
+      "bytes": 5353,
+      "sha256": "14c29c1616b6113fd9fbceba5f00948492d0a995f750aac78c7ded23db983437"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.budget-parser-router.json",
+      "bytes": 1175,
+      "sha256": "7accc6a22639fa7aa950c5ff3dfc21a0b0ac2829961ab9af1bfb2c51e51d4af8"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.rdte-phase-4.json",
+      "bytes": 1125,
+      "sha256": "0e10f00b7ed342b8e1597401217a1286f018bf0dc191fbfe065417a88ac137cb"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.engagement-phase3-fixtures.json",
+      "bytes": 1360,
+      "sha256": "a39151a0349dcf760c66d0fb9cf220be52112dfa39f13d6ebf1052a22ed9d831"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/tsconfig.legiwatch-phase7.json",
+      "bytes": 519,
+      "sha256": "c5a691c0658806fdba7775c2b4daf602de8155103e6cc2f9d482495299df51e3"
+    }
+  ],
+  "externalIdentities": [
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/package.json",
+      "bytes": 2601,
+      "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24"
+    },
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/schema.prisma",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.d.ts",
+      "bytes": 54570016,
+      "sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/shared/dist/index.d.ts",
+      "bytes": 203549,
+      "sha256": "5f4e51a02cc5e7c599fad29b2795c9fef48a2acda769fc06ac81ee959157cddd"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/auth/dist/index.d.ts",
+      "bytes": 475,
+      "sha256": "de18bc982bbe1959cf53d52ec1ce32a8f7e512505433d57d40855208033832a3"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/meriv2-core/dist/index.d.ts",
+      "bytes": 3955,
+      "sha256": "ff240b07010be8fbb2d9392a3e6486264f35c286ff1f36d5b4ee7bb03f2e19fe"
+    }
+  ],
+  "links": [
+    {
+      "path": "apps/api/node_modules/.prisma",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@aws-sdk",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@aws-sdk",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@azure",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@azure",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@azure",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@clerk",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@clerk",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@clerk",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@electric-sql",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@electric-sql",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@electric-sql",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@jest",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@jest",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@jest",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@makegov",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@makegov",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@makegov",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@modelcontextprotocol",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@modelcontextprotocol",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@modelcontextprotocol",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@nestjs",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@nestjs",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@types",
+      "target": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@types",
+      "realpath": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@types",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/cheerio",
+      "target": "/workspace/capirov2/node_modules/.pnpm/cheerio@1.2.0/node_modules/cheerio",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/cheerio@1.2.0/node_modules/cheerio",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/class-transformer",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/class-validator",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/docx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/docx@9.7.2/node_modules/docx",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/docx@9.7.2/node_modules/docx",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/dotenv",
+      "target": "/workspace/capirov2/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/exceljs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/exceljs@4.4.0/node_modules/exceljs",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/exceljs@4.4.0/node_modules/exceljs",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/fast-xml-parser",
+      "target": "/workspace/capirov2/node_modules/.pnpm/fast-xml-parser@5.11.1/node_modules/fast-xml-parser",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/fast-xml-parser@5.11.1/node_modules/fast-xml-parser",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/ical.js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ical.js@2.2.1/node_modules/ical.js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/ical.js@2.2.1/node_modules/ical.js",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/jpeg-js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jpeg-js@0.4.4/node_modules/jpeg-js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/jpeg-js@0.4.4/node_modules/jpeg-js",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/jszip",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jszip@3.10.2/node_modules/jszip",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/jszip@3.10.2/node_modules/jszip",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/lru-cache",
+      "target": "/workspace/capirov2/node_modules/.pnpm/lru-cache@7.18.3/node_modules/lru-cache",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/lru-cache@7.18.3/node_modules/lru-cache",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/mammoth",
+      "target": "/workspace/capirov2/node_modules/.pnpm/mammoth@1.13.0/node_modules/mammoth",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/mammoth@1.13.0/node_modules/mammoth",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/pdf-lib",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pdf-lib@1.17.1/node_modules/pdf-lib",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/pdf-lib@1.17.1/node_modules/pdf-lib",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/pdf-parse",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pdf-parse@2.4.5/node_modules/pdf-parse",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/pdf-parse@2.4.5/node_modules/pdf-parse",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/pg",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/pptxgenjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pptxgenjs@3.12.0/node_modules/pptxgenjs",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/pptxgenjs@3.12.0/node_modules/pptxgenjs",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/prisma",
+      "target": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/reflect-metadata",
+      "target": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/rxjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/sanitize-html",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/shpjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/shpjs@6.2.0/node_modules/shpjs",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/shpjs@6.2.0/node_modules/shpjs",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/simple-statistics",
+      "target": "/workspace/capirov2/node_modules/.pnpm/simple-statistics@7.12.0/node_modules/simple-statistics",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/simple-statistics@7.12.0/node_modules/simple-statistics",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/stripe",
+      "target": "/workspace/capirov2/node_modules/.pnpm/stripe@17.7.0/node_modules/stripe",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/stripe@17.7.0/node_modules/stripe",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/supertest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/svix",
+      "target": "/workspace/capirov2/node_modules/.pnpm/svix@1.92.2/node_modules/svix",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/svix@1.92.2/node_modules/svix",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/ts-jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/ts-loader",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-loader@9.6.2_typescript@5.9.3_webpack@5.97.1_@swc+core@1.16.2_@swc+helpers@0.5.23__/node_modules/ts-loader",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/ts-loader@9.6.2_typescript@5.9.3_webpack@5.97.1_@swc+core@1.16.2_@swc+helpers@0.5.23__/node_modules/ts-loader",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/ts-node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/tsconfig-paths",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsconfig-paths@4.2.0/node_modules/tsconfig-paths",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/tsconfig-paths@4.2.0/node_modules/tsconfig-paths",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/tsx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/typescript",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/undici",
+      "target": "/workspace/capirov2/node_modules/.pnpm/undici@6.28.1/node_modules/undici",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/undici@6.28.1/node_modules/undici",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/unpdf",
+      "target": "/workspace/capirov2/node_modules/.pnpm/unpdf@1.8.1_@napi-rs+canvas@1.0.9/node_modules/unpdf",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/unpdf@1.8.1_@napi-rs+canvas@1.0.9/node_modules/unpdf",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/word-extractor",
+      "target": "/workspace/capirov2/node_modules/.pnpm/word-extractor@1.0.4/node_modules/word-extractor",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/word-extractor@1.0.4/node_modules/word-extractor",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/zod",
+      "target": "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/defense-contracts",
+      "target": "/workspace/capirov2-integrated-rc/packages/defense-contracts",
+      "realpath": "/workspace/capirov2-integrated-rc/packages/defense-contracts",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/defense-domain",
+      "target": "/workspace/capirov2-integrated-rc/packages/defense-domain",
+      "realpath": "/workspace/capirov2-integrated-rc/packages/defense-domain",
+      "exists": true
+    },
+    {
+      "path": "packages/shared/dist",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared/dist",
+      "realpath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared/dist",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/shared",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/shared",
+      "realpath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/shared",
+      "exists": true
+    },
+    {
+      "path": "packages/auth/dist",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth/dist",
+      "realpath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth/dist",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/auth",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/auth",
+      "realpath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/auth",
+      "exists": true
+    },
+    {
+      "path": "packages/meriv2-core/dist",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/dist",
+      "realpath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/dist",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/meriv2-core",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/meriv2-core",
+      "realpath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/meriv2-core",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/@prisma/client",
+      "target": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+      "realpath": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/.bin/node",
+      "target": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "realpath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/.bin/tsc",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc",
+      "exists": true
+    },
+    {
+      "path": "apps/api/node_modules/.bin/tsx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs",
+      "exists": true
+    }
+  ],
+  "node": "v24.19.0",
+  "typescript": "Version 5.9.3",
+  "safetyAudit": {
+    "runtimeClosure": [
+      "node:assert",
+      "node:fs",
+      "node:path",
+      "node:crypto",
+      "./lib/defense-budget-ingest-mode.js",
+      "./lib/defense-budget-commit.js",
+      "./lib/pe-migration-guards.js",
+      "./lib/pe-exact-sha-loader-contract.js",
+      "../src/defense-budget/promotion/legacy-budget-write-gate-v1.js",
+      "../src/defense-budget/promotion/snapshot-read-mode-v1.js"
+    ],
+    "typeOnlyAssertionMapperNotEvaluated": true,
+    "effectScope": "source readFileSync, synthetic assertions, pure helpers, console success; no shell, SQL, provider/client construction",
+    "readAsTextOnly": [
+      "scripts/entrypoint.sh",
+      "scripts/entrypoint-legacy.sh",
+      "scripts/entrypoint-dispatcher.inc",
+      "scripts/ingest-defense-budget-pdf.ts",
+      "scripts/audit-llamaparse-pe-units.ts"
+    ]
+  },
+  "nativeGeneratedClient": "read-only supplied declarations/package; no import, client creation, generation, native loading or connections",
+  "packageExecution": "actual existing Node/typescript/tsx via symlinks; no shim function/fake compiler/PM/install"
+}

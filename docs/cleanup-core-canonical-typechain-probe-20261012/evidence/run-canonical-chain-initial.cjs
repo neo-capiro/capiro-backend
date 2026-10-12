@@ -1,0 +1,25 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const cp=require('node:child_process');
+const crypto=require('node:crypto');
+const root=process.cwd();
+const evidence=path.join(root,'docs/cleanup-core-canonical-typechain-probe-20261012/evidence');
+const label=process.argv[2];
+if (!/^[0-9]{2}-[a-z-]+$/.test(label||'')) throw new Error('unique receipt label required');
+const script=JSON.parse(fs.readFileSync(path.join(root,'apps/api/package.json'),'utf8')).scripts.typecheck;
+const log=path.join(evidence,label+'.log');
+const receipt=path.join(evidence,label+'.json');
+if(fs.existsSync(log)||fs.existsSync(receipt))throw new Error('immutable output exists');
+const tmp=path.join(evidence,'local-tmp');fs.mkdirSync(tmp,{recursive:true});
+const environment={PATH:path.join(root,'apps/api/node_modules/.bin')+':/usr/bin:/bin',NODE_OPTIONS:'--max-old-space-size=8192',TMPDIR:tmp};
+const fd=fs.openSync(log,'wx');
+const started=new Date().toISOString();
+const child=cp.spawn('/bin/bash',['-x','-c',script],{cwd:path.join(root,'apps/api'),env:environment,stdio:['ignore',fd,fd]});
+child.once('error',e=>{fs.closeSync(fd);fs.writeFileSync(receipt,JSON.stringify({started,error:String(e),command:script,environment},null,2)+'\n');process.exitCode=1;});
+child.once('exit',(code,signal)=>{
+ fs.closeSync(fd); const bytes=fs.readFileSync(log);const raw=bytes.toString();
+ const executed=raw.split('\n').filter(l=>l.startsWith('+ ')).map(l=>l.slice(2));
+ const commands=script.split(' && ');
+ fs.writeFileSync(receipt,JSON.stringify({baseHead:cp.execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),started,finished:new Date().toISOString(),shell:'/bin/bash',shellArgs:['-x','-c',script],cwd:path.join(root,'apps/api'),environment,exitCode:code,signal,executed,unrun:commands.slice(executed.length),rawLog:{path:log,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')}},null,2)+'\n');
+ console.log(JSON.stringify({label,exitCode:code,signal,executed,unrunCount:commands.length-executed.length,logBytes:bytes.length}));process.exitCode=code===0?0:1;
+});

@@ -1,0 +1,116 @@
+{
+  "baseHead": "681309d208f2c1c344892f8f446a7fa0b4db0a31",
+  "baseTree": "c82bd49d324f50631ae017ffdbac12504e9c7d1c",
+  "canonicalChainExit": 0,
+  "totalSegments": 17,
+  "compilerInvocations": 16,
+  "safeActualScriptInvocations": 1,
+  "segments": [
+    {
+      "index": 1,
+      "command": "tsc --noEmit --rootDir .",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 2,
+      "command": "tsc -p tsconfig.pe-phase-a.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 3,
+      "command": "tsc -p tsconfig.pe-phase-f.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 4,
+      "command": "tsc -p tsconfig.pe-phase-g.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 5,
+      "command": "tsc -p tsconfig.pe-scripts.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 6,
+      "command": "tsc -p tsconfig.pe-scripts-catalog.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 7,
+      "command": "tsc -p tsconfig.memory-governance-backfill.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 8,
+      "command": "tsc -p tsconfig.funding-opportunities.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 9,
+      "command": "tsc -p tsconfig.hearings.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 10,
+      "command": "tsc -p tsconfig.integration-smoke.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 11,
+      "command": "tsc -p tsconfig.budget-extraction-contract.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 12,
+      "command": "tsc -p tsconfig.budget-verification-v1.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 13,
+      "command": "tsc -p tsconfig.budget-parser-router.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 14,
+      "command": "tsc -p tsconfig.rdte-phase-4.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 15,
+      "command": "tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit",
+      "firstAttempt": "PASS",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 16,
+      "command": "tsx scripts/verify-pe-phase-a-safety.ts",
+      "firstAttempt": "CLI_HOST_FAIL_ENTRY_UNRUN",
+      "correctedHostAttempt": "PASS"
+    },
+    {
+      "index": 17,
+      "command": "tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+      "firstAttempt": "UNRUN",
+      "correctedHostAttempt": "PASS"
+    }
+  ],
+  "originalFailureRetained": true,
+  "sourceDelta": [],
+  "hostChangeOnly": "owned TMPDIR shortened; no canonical flags or executable substitutions",
+  "qualification": "Canonical package script body run directly with cached real tools/current client declarations/compiled prerequisites; no pnpm lifecycle/install, clean-install/native Postgres/RLS/provider/app-bootstrap/runtime acceptance claim"
+}

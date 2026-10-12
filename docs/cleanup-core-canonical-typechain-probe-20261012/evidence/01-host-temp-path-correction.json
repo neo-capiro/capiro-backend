@@ -1,0 +1,33 @@
+{
+  "classification": "launcher host setup; safety entry not evaluated",
+  "originalChildExit": 1,
+  "successfulSegments": [
+    "tsc --noEmit --rootDir .",
+    "tsc -p tsconfig.pe-phase-a.json --noEmit",
+    "tsc -p tsconfig.pe-phase-f.json --noEmit",
+    "tsc -p tsconfig.pe-phase-g.json --noEmit",
+    "tsc -p tsconfig.pe-scripts.json --noEmit",
+    "tsc -p tsconfig.pe-scripts-catalog.json --noEmit",
+    "tsc -p tsconfig.memory-governance-backfill.json --noEmit",
+    "tsc -p tsconfig.funding-opportunities.json --noEmit",
+    "tsc -p tsconfig.hearings.json --noEmit",
+    "tsc -p tsconfig.integration-smoke.json --noEmit",
+    "tsc -p tsconfig.budget-extraction-contract.json --noEmit",
+    "tsc -p tsconfig.budget-verification-v1.json --noEmit",
+    "tsc -p tsconfig.budget-parser-router.json --noEmit",
+    "tsc -p tsconfig.rdte-phase-4.json --noEmit",
+    "tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit"
+  ],
+  "failedSegment": "tsx scripts/verify-pe-phase-a-safety.ts",
+  "unrun": [
+    "tsc -p tsconfig.legiwatch-phase7.json --noEmit"
+  ],
+  "error": "listen EINVAL on cached tsx CLI IPC socket",
+  "socketPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-core-canonical-typechain-probe-20261012/evidence/local-tmp/tsx-1000/465884.pipe",
+  "socketUtf8Bytes": 145,
+  "localUnixHeader": "/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */\n#ifndef _LINUX_UN_H\n#define _LINUX_UN_H\n\n#include <linux/socket.h>\n\n#define UNIX_PATH_MAX\t108\n\nstruct sockaddr_un {\n\t__kernel_sa_family_t sun_family; /* AF_UNIX */\n\tchar sun_path[UNIX_PATH_MAX];\t/* pathname */\n};\n\n#define SIOCUNIXFILE (SIOCPROTOPRIVATE + 0) /* open a socket file with O_PATH */\n\n#endif /* _LINUX_UN_H */\n",
+  "correctedTmpdir": "/tmp/capiro-core-typechain-20261012",
+  "correctedEquivalentPipeUtf8Bytes": 56,
+  "onlyRunnerChange": "shorter owned TMPDIR; canonical package script/cwd/CLI args/executable/source unchanged",
+  "nativeOrDependencyInstall": false
+}

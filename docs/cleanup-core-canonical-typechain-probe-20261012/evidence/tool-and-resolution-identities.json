@@ -1,0 +1,137 @@
+{
+  "identities": [
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "realpath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "bytes": 125989464,
+      "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc",
+      "bytes": 45,
+      "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/typescript/lib/_tsc.js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/_tsc.js",
+      "bytes": 6213092,
+      "sha256": "e8f349eabd48486bdb2bf9dc1a00c89d58297270c54b745838879e2859194419"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs",
+      "bytes": 124418,
+      "sha256": "8690135061bc49d187143493b82d26a09b7fb71d6dd817d2242cc9dc52506de9"
+    }
+  ],
+  "results": [
+    {
+      "specifier": "@prisma/client",
+      "resolved": {
+        "resolvedFileName": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@prisma/client/index.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "prisma-client-215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+          "subModuleName": "index.d.ts",
+          "version": "5.22.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    },
+    {
+      "specifier": "@capiro/shared",
+      "resolved": {
+        "resolvedFileName": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared/dist/index.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/shared/dist/index.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "@capiro/shared",
+          "subModuleName": "dist/index.d.ts",
+          "version": "0.0.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    },
+    {
+      "specifier": "@capiro/shared/newsletter",
+      "resolved": {
+        "resolvedFileName": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared/dist/newsletter.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/shared/dist/newsletter.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "@capiro/shared",
+          "subModuleName": "dist/newsletter.d.ts",
+          "version": "0.0.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    },
+    {
+      "specifier": "@capiro/auth",
+      "resolved": {
+        "resolvedFileName": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth/dist/index.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/auth/dist/index.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "@capiro/auth",
+          "subModuleName": "dist/index.d.ts",
+          "version": "0.0.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    },
+    {
+      "specifier": "@capiro/meriv2-core",
+      "resolved": {
+        "resolvedFileName": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/dist/index.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/meriv2-core/dist/index.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "@capiro/meriv2-core",
+          "subModuleName": "dist/index.d.ts",
+          "version": "0.0.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    },
+    {
+      "specifier": "@capiro/defense-contracts",
+      "resolved": {
+        "resolvedFileName": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/index.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/defense-contracts/dist/index.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "@capiro/defense-contracts",
+          "subModuleName": "dist/index.d.ts",
+          "version": "0.0.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    },
+    {
+      "specifier": "@capiro/defense-domain",
+      "resolved": {
+        "resolvedFileName": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/index.d.ts",
+        "originalPath": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/defense-domain/dist/index.d.ts",
+        "extension": ".d.ts",
+        "isExternalLibraryImport": true,
+        "packageId": {
+          "name": "@capiro/defense-domain",
+          "subModuleName": "dist/index.d.ts",
+          "version": "0.0.0"
+        },
+        "resolvedUsingTsExtension": false
+      }
+    }
+  ],
+  "configReadOnly": true,
+  "noAppOrClientImport": true
+}

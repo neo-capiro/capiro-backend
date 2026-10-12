@@ -1,0 +1,95 @@
+{
+  "scope": "Curated task packet only; excludes index itself, owned temp/IPC/tsx cache and dependency symlinks/generated outputs. Source/dependency/tool identities are separate receipts.",
+  "files": [
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/README.md",
+      "bytes": 3482,
+      "sha256": "8ce0508c8e401a3f9ab1236412a1e9973d34c4e14e5272c69e303d27f285f44d"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/01-host-temp-path-correction.json",
+      "bytes": 1993,
+      "sha256": "4696ee436a37336522f891700c3d7682646743bd5c4cd04dc5b656514266c0ca"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/01-supplied-prerequisites.json",
+      "bytes": 2695,
+      "sha256": "d9ef4f1ee001a518226c334647632400d8e14e81d6c92ec5608b94c25bd348d5"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/01-supplied-prerequisites.log",
+      "bytes": 1828,
+      "sha256": "771e629f6a3c12123258c7cc18232615778713ae5fa55deb2aaf807ab00e51aa"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/02-short-owned-temp.json",
+      "bytes": 2597,
+      "sha256": "1358b3853c0fb17bb5a8d7d0ff5922c876b3079bf2b5743e95b21dd99be4900a"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/02-short-owned-temp.log",
+      "bytes": 839,
+      "sha256": "beaf0154f906a683a197277474de5202dcfd7f43f5624544ab84db90d342a311"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/audit-safety.cjs",
+      "bytes": 3271,
+      "sha256": "c953e4a34ae3d42b71f2302299f386a3836698b1296ae535b9ceffbdc4ae5709"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/canonical-script.txt",
+      "bytes": 830,
+      "sha256": "74e957e61a68a46fde118d3b19815619347a4d62cd2f9b409c46b5eb6aca46de"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/defense-cache-lineage.json",
+      "bytes": 20845,
+      "sha256": "636867363c9bacf575f0461f259d71780571639ad63eafa7cc3508e7d0caf97b"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/finalize-packet.py",
+      "bytes": 6285,
+      "sha256": "a80293eb209ac02df54e7d0fc1f307b377d8ffed83f3b9f6e4e0efdc5460e131"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/host-audit.json",
+      "bytes": 27838,
+      "sha256": "52fc66d4e049691dd168abe0dbfb85652a13c70b7fc0200500cfe1c5960ab31a"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/prepare-host.py",
+      "bytes": 4670,
+      "sha256": "8f21aeea003d55cce696e2f963b7cf3c4533435aeb81e93a94fdf625336fb51a"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/result.json",
+      "bytes": 3471,
+      "sha256": "dd88d6886bdb81e97414c64d184f41f88ed532b4ae2e965ba1efac456df2a3d3"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/run-canonical-chain-initial.cjs",
+      "bytes": 2108,
+      "sha256": "35075abc009ba6c276c314b9d088c1d54c5a499769bbe7a068d00fede454f155"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/run-canonical-chain.cjs",
+      "bytes": 2114,
+      "sha256": "18096efc3de534ac97bb2bad2652df7c241acb745e5d3d7927f5f1d0fe3b21be"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/safety-and-prerequisite-audit.json",
+      "bytes": 4492,
+      "sha256": "7a83ade67cb15ea71d04fc19c817104be1cd54f37e1ed98eaa4dff1742569a8f"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/safety-audit.log",
+      "bytes": 175,
+      "sha256": "0eb2f6477da2871e260c6abd808549135dd6195518c20ef91bcbf48707d3650f"
+    },
+    {
+      "path": "docs/cleanup-core-canonical-typechain-probe-20261012/evidence/tool-and-resolution-identities.json",
+      "bytes": 5538,
+      "sha256": "9fbc60fbe9d956f126e0c0c06e1aa91a7f7e46c621292605e7eee6e34d02ce25"
+    }
+  ]
+}

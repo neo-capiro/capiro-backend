@@ -1,0 +1,36 @@
++ tsc --noEmit --rootDir .
++ tsc -p tsconfig.pe-phase-a.json --noEmit
++ tsc -p tsconfig.pe-phase-f.json --noEmit
++ tsc -p tsconfig.pe-phase-g.json --noEmit
++ tsc -p tsconfig.pe-scripts.json --noEmit
++ tsc -p tsconfig.pe-scripts-catalog.json --noEmit
++ tsc -p tsconfig.memory-governance-backfill.json --noEmit
++ tsc -p tsconfig.funding-opportunities.json --noEmit
++ tsc -p tsconfig.hearings.json --noEmit
++ tsc -p tsconfig.integration-smoke.json --noEmit
++ tsc -p tsconfig.budget-extraction-contract.json --noEmit
++ tsc -p tsconfig.budget-verification-v1.json --noEmit
++ tsc -p tsconfig.budget-parser-router.json --noEmit
++ tsc -p tsconfig.rdte-phase-4.json --noEmit
++ tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit
++ tsx scripts/verify-pe-phase-a-safety.ts
+node:net:2145
+      const error = new UVExceptionWithHostPort(rval, 'listen', address, port);
+                    ^
+
+Error: listen EINVAL: invalid argument /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-core-canonical-typechain-probe-20261012/evidence/local-tmp/tsx-1000/465884.pipe
+    at Server.setupListenHandle [as _listen2] (node:net:2145:21)
+    at listenInCluster (node:net:2224:12)
+    at Server.listen (node:net:2361:5)
+    at file:///workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs:53:32174
+    at new Promise (<anonymous>)
+    at createIpcServer (file:///workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs:53:32152)
+    at async file:///workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/cli.mjs:55:542 {
+  code: 'EINVAL',
+  errno: -22,
+  syscall: 'listen',
+  address: '/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-core-canonical-typechain-probe-20261012/evidence/local-tmp/tsx-1000/465884.pipe',
+  port: -1
+}
+
+Node.js v24.19.0

@@ -1,0 +1,428 @@
+{
+  "cacheRoot": "/workspace/capirov2-integrated-rc",
+  "cacheHead": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "base": "681309d208f2c1c344892f8f446a7fa0b4db0a31",
+  "packages": [
+    {
+      "package": "defense-contracts",
+      "sourceDelta": [],
+      "cachedSourceUncommittedDelta": "",
+      "resolverManifestFieldsEqual": {
+        "name": true,
+        "main": true,
+        "types": true,
+        "exports": true,
+        "typesVersions": true,
+        "dependencies": true
+      },
+      "cachedDeclarations": [
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/errors/index.d.ts",
+          "bytes": 1028,
+          "sha256": "f917e30b467e2b27a8b54e1e18bcf1a788320d0609f981f9e3a9eb575df35a9e"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/events/index.d.ts",
+          "bytes": 1643,
+          "sha256": "3c4bed623ff034d2154c37cd15ddb07c8327a7c22a555e34934cc49116000887"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/index.d.ts",
+          "bytes": 364,
+          "sha256": "24e7b9440f2ccb2d1c50bb358c71a3a48bf08329076c3ce6184e3af2ca02ce3c"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/internal/cross-domain.d.ts",
+          "bytes": 2457,
+          "sha256": "11b63003f69b2066c86193dc08182e4b3a73bf571d803cf16241f93a2b0fe8e1"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/internal/index.d.ts",
+          "bytes": 6417,
+          "sha256": "4b6c7b22691d7e773e77adc0ae8323349a6f69851ef428c200deaed9fce46c0b"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/parser/index.d.ts",
+          "bytes": 2642,
+          "sha256": "47f3d38cae6faa6c67933c2b9288324b9d4b43c8a10b32109f4af81630d4e09a"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/parser/nvidia-async.d.ts",
+          "bytes": 2288,
+          "sha256": "c1d8056ed9c19efc30a12d4a14da6ddee587312f42fbbee9a8a8dcfc826dc427"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/parser/nvidia-batch.d.ts",
+          "bytes": 6317,
+          "sha256": "ca55d6d089573d01a02c3a4aad983104aa1d04e2dedb980d1d36009a2beb8299"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/parser/nvidia-real-batch.d.ts",
+          "bytes": 3853,
+          "sha256": "bab3bace3413ca48b10d5bd952c5b30da5d7fd58a86c3699b0a405393aebcf8e"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/public/budget-lifecycle-product-routes.d.ts",
+          "bytes": 2386,
+          "sha256": "aa8c081e9fce252d6cf8d7dc2a80e6b5e219919f9966ea74644ac76c63e729bb"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/public/budget-lifecycle.d.ts",
+          "bytes": 9373,
+          "sha256": "7ef17b2d32ee1f6f18cd2c384ebf7595e1f7af6a2b3f3dacbb07fa144a22e23a"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/public/federal-funding.d.ts",
+          "bytes": 3908,
+          "sha256": "8893f8b41084d78bf52b09b18dbb8e0525cab95718f658fd17e869c49901dd48"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-contracts/dist/public/index.d.ts",
+          "bytes": 9775,
+          "sha256": "6e0c87ec61812109fcb802efc8aee2018b67c2030b21b2deaea43324b7f1e9f5"
+        }
+      ]
+    },
+    {
+      "package": "defense-domain",
+      "sourceDelta": [],
+      "cachedSourceUncommittedDelta": "",
+      "resolverManifestFieldsEqual": {
+        "name": true,
+        "main": true,
+        "types": true,
+        "exports": true,
+        "typesVersions": true,
+        "dependencies": true
+      },
+      "cachedDeclarations": [
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/bundle/bundle-completeness.d.ts",
+          "bytes": 3620,
+          "sha256": "790fb5b2752cb77c1561a863b235174613402b4f6d07e7dd91e16a7562172579"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/classifier.d.ts",
+          "bytes": 5200,
+          "sha256": "88b07216237e328a789c4d5c194f1e7b3b9764db906f5cb2f7486239eefb27ea"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/coverage-inventory.d.ts",
+          "bytes": 3383,
+          "sha256": "d2e846d8c102556eabd097bddbe4a67e7c7351633ac864b4c7de971fc92da268"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/coverage-inventory.spec.d.ts",
+          "bytes": 64,
+          "sha256": "770b535591addc07ccd9dffcbdc21b1b17edd1cdc1e11f7f1f4d8f22ea8b2dad"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/coverage-reconciliation.d.ts",
+          "bytes": 3116,
+          "sha256": "6ff047f68f8b972d3b759057e90869dceb8b48cc54ceccdd226a0bc790d8f82d"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/coverage-reconciliation.spec.d.ts",
+          "bytes": 69,
+          "sha256": "81ade2828c427e7d98e2dbaf29894bbf605d606234a9ac8df7f13baf30850d34"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/cycle.d.ts",
+          "bytes": 5816,
+          "sha256": "8c74df7b6e779631593cc1c2bb0dd54a8a2747c612790a633f9cfd9b7f21a09c"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/army-rdte-volume-catalog.d.ts",
+          "bytes": 4100,
+          "sha256": "d6629bb7467f5aabbb6058edb9e43ab11d26f942b5e5a23d92c02d186bdfe8a1"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/candidate-resolution.d.ts",
+          "bytes": 4959,
+          "sha256": "54c24cbb4f448e2fb88aa65037bb7fa7e9813258e6da51f87bc92548f4f27a35"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/crawl-cursor.d.ts",
+          "bytes": 12829,
+          "sha256": "d6709253b6a6c6bac2e656a08db1b3b902411fd2295a965b76a41fd0d3e27a53"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/expected-source-resolution.d.ts",
+          "bytes": 5725,
+          "sha256": "b964223be2b106089ed81625d1626884c40e4d9b4d333f103d135a96a9472842"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/govinfo-packages.d.ts",
+          "bytes": 4715,
+          "sha256": "93b1cdd89ee8702dba70048f2a788e3f9a2504c37607fc5d546be679495df637"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/index.d.ts",
+          "bytes": 718,
+          "sha256": "2a36a7f7914616ed77336ac1bdc7b058e1ad27b6c8fb21245eef0261651feddd"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/listing-extract.d.ts",
+          "bytes": 3104,
+          "sha256": "6cdf3862de64eb8074c81430e60b629043dfb988c8f91e6637e6a596ca0b80b7"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/publisher-native-kinds.d.ts",
+          "bytes": 3940,
+          "sha256": "aca5ddf9a72506415a57ffdaed41af8ec58293bf0ef76d1ecb933c8b1d9fb147"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/rate-limit.d.ts",
+          "bytes": 3821,
+          "sha256": "3b8f3d0042f9c6190f78f9755abe4b88277817c2c549436edf4aa276ff57c172"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/robots.d.ts",
+          "bytes": 5473,
+          "sha256": "1cac18ea3597f3df6338f0cb6c03a4ec189aa4202800fbb8cc71ff0e8c2a766c"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/discovery/sitemap.d.ts",
+          "bytes": 2673,
+          "sha256": "9e3759d5747239e77d0d44119348ac165e3ffa89225029c678e3a0011f7d06d4"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/health.d.ts",
+          "bytes": 3553,
+          "sha256": "e3c32f9a2ac3dde7a229c1f06f77bfec6312c81b4dfb5076a9948e711f3dc5d6"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/index.d.ts",
+          "bytes": 820,
+          "sha256": "cfc135a4b5af6673a89b60036913b7269ffffa2b0d42015722d37b9e7913be21"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/ingestion-bridge.d.ts",
+          "bytes": 5852,
+          "sha256": "cc68affdd0cb8e14f7dc6918a370be1e332907863cbe1ca36cd4df4b88be08c0"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/progression.d.ts",
+          "bytes": 3405,
+          "sha256": "6282c411e7bc20d00c89ced0bc47c36e9a1b39d88d94cef2fa88aa442c912330"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/schedule.d.ts",
+          "bytes": 6378,
+          "sha256": "7f69ec3f3f4a42b302cd7b04b737d4d30040c56a7cd508fee5c096108928bba1"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/signals.d.ts",
+          "bytes": 3304,
+          "sha256": "5a7f041ede3417d36375b7be62df949d4afe20911b3b887a3b01ec7bc2c8b51c"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/templates.d.ts",
+          "bytes": 2643,
+          "sha256": "b2eccec6e68b4896122e458c534d94a2ffa4e816ad08b2c8d93e6a9dcb68c0cc"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/types.d.ts",
+          "bytes": 4676,
+          "sha256": "6920094787694503f27b82a06ebc9358de684da0b094543361194f1288995b7a"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/budget-lifecycle/watcher.d.ts",
+          "bytes": 8334,
+          "sha256": "35c22e316f7b0696c54425ff32872e4f765d1761065e1325a6507a5bde5d1f8c"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/cross-domain/index.d.ts",
+          "bytes": 463,
+          "sha256": "aa34ca346b5548479026b1942616c501673f36f92695e9ae94dc68dc0e2c154b"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/cross-domain/provider-audit.d.ts",
+          "bytes": 3412,
+          "sha256": "2ad8a0a6cd6d76a5cb178e040e291be634f4dc0c1f04a9d487178df706013f98"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/cross-domain/provider-retry.d.ts",
+          "bytes": 5169,
+          "sha256": "4755f4d7777dfc441c2fd70d096945fab54faff79cfe77dd152072381aebe998"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/cross-domain/provider-selection.d.ts",
+          "bytes": 4336,
+          "sha256": "f04cda8711d0fa1a880361fc1b6aaba33684fbfa94f6db8b387b5927dba96261"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/extraction/index.d.ts",
+          "bytes": 1027,
+          "sha256": "7b21ffbff3134de323b2b1be4af11855c3cd0412d5a45c5a3d4fdc80f827f5e4"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/federal-funding/index.d.ts",
+          "bytes": 5014,
+          "sha256": "747da8ea0f0cf6c539cfca017c63428ad2f721111f1f2271848edeba93050900"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/funding/index.d.ts",
+          "bytes": 2943,
+          "sha256": "7408b186ceede60193eb6804b896d3fd1023003a3974371bb83da14472ce4355"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/identities/index.d.ts",
+          "bytes": 2311,
+          "sha256": "6379fb0a287396b4cfee955a071f38b27bc1027bdd2786ece0ba266eaf5d4aa0"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/index.d.ts",
+          "bytes": 474,
+          "sha256": "bc5b7f8fe8312a8f25d953ad2cb0b026cef60deef4facc2613711402d58f4d68"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/money/index.d.ts",
+          "bytes": 1342,
+          "sha256": "4c8cd9bddee72e98c9c7c12b8357be4d5c48c483ef3764d6a53edae05e2fb984"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/alias.d.ts",
+          "bytes": 1458,
+          "sha256": "1cb11d049517778a87ff861489f90b377ade15ed86ed275adfd7539c73a1712d"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/budget-line-taxonomy.d.ts",
+          "bytes": 1281,
+          "sha256": "c69fccdbff301b394201cb78fb8c6fcb43583b3af022853fca44aa750138e894"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/conference-prediction.d.ts",
+          "bytes": 984,
+          "sha256": "f0fc5373b866a7987408e7e95f448954de5b925ae98368893fd50916920a9a42"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/data-issue-fields.d.ts",
+          "bytes": 1667,
+          "sha256": "18f05ca916e5da7212d844816d0c2124fc392bfa9b423bd612d4554b684a6fda"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/funding-claim-read.d.ts",
+          "bytes": 2468,
+          "sha256": "ad50ed433bd7ac1d521ff0ac317220457dd3f7216aaa0474670db7c011104e90"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/funding-narrative.d.ts",
+          "bytes": 2251,
+          "sha256": "724da5cda9d0d8be75bee6ad2d17e263e4135f79ebe85920ee152681e112a737"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/incumbents.d.ts",
+          "bytes": 2883,
+          "sha256": "c86ff89d3d962640bc6a7d36bb293c20365d2f36fed9077793507b7f183fb261"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/index.d.ts",
+          "bytes": 570,
+          "sha256": "b37a7a281913140cbf0219882de96a7f47548132906b9a88afb7b4ec1e2618ee"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/acquisition-maturity.d.ts",
+          "bytes": 2111,
+          "sha256": "ffe5eb7bbc09bdebdaef647a0ad32466b982e2c6b58d4cfdaed2b30d23c840a5"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/bill-stage.d.ts",
+          "bytes": 502,
+          "sha256": "8d36450bc177623ca566a2235e448397514ea300780129a891a5f472eb81f50f"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/budget-anomaly.d.ts",
+          "bytes": 2262,
+          "sha256": "e837c7c013d99c263cf5d8b02a60e14c2da9f0ad403f353327d3ec5454a7a6bb"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/build-intelligence.d.ts",
+          "bytes": 1933,
+          "sha256": "39c445af272cbc5090a59280c38736b048caac1a9bdeda092b27e537d073b717"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/committee-posture.d.ts",
+          "bytes": 2641,
+          "sha256": "3b815498239c5c50963ac233e99cd8a704f1d4c8df5a9fcd9f05c16b42f8976f"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/index.d.ts",
+          "bytes": 1114,
+          "sha256": "86dba2d99d392618c29b4d5819bb211d5e153b8dbdddf8d4dd3aa23070baae3d"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/intelligence/procurement-runway.d.ts",
+          "bytes": 2132,
+          "sha256": "3e95757601b69629fa3c6d1dbcf5f0cc6850e9512eaab95cac6df1dca7e20543"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/pe-list-projection.d.ts",
+          "bytes": 1984,
+          "sha256": "e496fb75f2f93323a913dcf565c6ac2beb43d09ef1c57c8e911a780885a31d45"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/pe-timeline-projection.d.ts",
+          "bytes": 2344,
+          "sha256": "006e90948ec4ca6e575cd2e027d03a29d0772d8c01111ddad9c002397dabaa67"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/program-match.d.ts",
+          "bytes": 1801,
+          "sha256": "c5a43c2be16030e6d6afbbd1ff233b4e114a862e7c574f857eb8fbe860ee195f"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/proof-pack.d.ts",
+          "bytes": 600,
+          "sha256": "38e4e7cec4d204df21e1f8b537971c164071d4327fb77bf0b1bde59066ce9066"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/provisions.d.ts",
+          "bytes": 3308,
+          "sha256": "703a9c38a2e2532a54efd39781fcc6c768945d342d107467593f4722dbe5a07a"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/service-filter.d.ts",
+          "bytes": 224,
+          "sha256": "cb18f7b48edba2295086049169954800e2574765fd415b127a58bfdca79d6f5a"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/projections/index.d.ts",
+          "bytes": 71,
+          "sha256": "58259af70b32503694bedd17ddd788584368862e5c63054a87071df6aff5096a"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/projections/pb-comparison.d.ts",
+          "bytes": 3412,
+          "sha256": "8b93edf4a95eab6742904216861c19dd67e0df6006161cf3e6deab195ccb33de"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/qualification/index.d.ts",
+          "bytes": 67,
+          "sha256": "37ebcb5bf10dab1847ef3033bb4a5d8dece820c359874035b26f00e980ceb2be"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/qualification/scorecard.d.ts",
+          "bytes": 6305,
+          "sha256": "f73da5230e79db2cb3b74ccf09e6443addfb0dded3c02cbc0fa71ee04c801345"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/qualification/scorecard.spec.d.ts",
+          "bytes": 55,
+          "sha256": "5d740470a83c4479a808295b2e749a8a5020055446e09d876a43afb2c490ee6d"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/snapshots/index.d.ts",
+          "bytes": 771,
+          "sha256": "7ae918b2239ef046e814fe8fa700d2e60c3628374b30754f5fdb26af5fe5d140"
+        },
+        {
+          "path": "/workspace/capirov2-integrated-rc/packages/defense-domain/dist/verification/index.d.ts",
+          "bytes": 1295,
+          "sha256": "3e532b56822cf8c460d40bf7e00f37d68ddd429582f8ecd99a05bba8513cbaa3"
+        }
+      ]
+    }
+  ],
+  "correction": "Initial composition package-folder ls showed no dist there, but cached API symlink realpaths use integrated-rc Defense owners with existing declarations. This resolution is proven, so no missing-Defense-declaration RED occurred. Both src/tsconfig and resolver-relevant manifest fields are equal; domain scorecard alias/script differences are not evaluated by this chain. Cached dependency qualification, not clean-install or regenerated build acceptance."
+}

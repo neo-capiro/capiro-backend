@@ -1,0 +1,45 @@
+{
+  "baseHead": "681309d208f2c1c344892f8f446a7fa0b4db0a31",
+  "started": "2026-10-12T21:56:14.879Z",
+  "finished": "2026-10-12T22:01:47.182Z",
+  "shell": "/bin/bash",
+  "shellArgs": [
+    "-x",
+    "-c",
+    "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api",
+  "environment": {
+    "PATH": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/.bin:/usr/bin:/bin",
+    "NODE_OPTIONS": "--max-old-space-size=8192",
+    "TMPDIR": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-core-canonical-typechain-probe-20261012/evidence/local-tmp"
+  },
+  "exitCode": 1,
+  "signal": null,
+  "executed": [
+    "tsc --noEmit --rootDir .",
+    "tsc -p tsconfig.pe-phase-a.json --noEmit",
+    "tsc -p tsconfig.pe-phase-f.json --noEmit",
+    "tsc -p tsconfig.pe-phase-g.json --noEmit",
+    "tsc -p tsconfig.pe-scripts.json --noEmit",
+    "tsc -p tsconfig.pe-scripts-catalog.json --noEmit",
+    "tsc -p tsconfig.memory-governance-backfill.json --noEmit",
+    "tsc -p tsconfig.funding-opportunities.json --noEmit",
+    "tsc -p tsconfig.hearings.json --noEmit",
+    "tsc -p tsconfig.integration-smoke.json --noEmit",
+    "tsc -p tsconfig.budget-extraction-contract.json --noEmit",
+    "tsc -p tsconfig.budget-verification-v1.json --noEmit",
+    "tsc -p tsconfig.budget-parser-router.json --noEmit",
+    "tsc -p tsconfig.rdte-phase-4.json --noEmit",
+    "tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit",
+    "tsx scripts/verify-pe-phase-a-safety.ts"
+  ],
+  "unrun": [
+    "tsc -p tsconfig.legiwatch-phase7.json --noEmit"
+  ],
+  "rawLog": {
+    "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-core-canonical-typechain-probe-20261012/evidence/01-supplied-prerequisites.log",
+    "bytes": 1828,
+    "sha256": "771e629f6a3c12123258c7cc18232615778713ae5fa55deb2aaf807ab00e51aa"
+  }
+}
