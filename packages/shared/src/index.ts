@@ -1674,7 +1674,12 @@ export function stateBillReplacement(text: string | null | undefined): {
 } | null {
   const value = text ?? '';
   if (!/\blaid on (?:the )?table\b/i.test(value) || /under rule 7\.18/i.test(value)) return null;
-  if (!/companion bills?(?:\(s\))? passed|companion bill\(s\) passed|\brefer to\s+(?:CS\/)*(?:SB|HB)\s*\d/i.test(value)) return null;
+  if (
+    !/companion bills?(?:\(s\))? passed|companion bill\(s\) passed|\brefer to\s+(?:CS\/)*(?:SB|HB)\s*\d/i.test(
+      value,
+    )
+  )
+    return null;
   const vehicle = /\b(?:SB|HB)\s*0*(\d+)/i.exec(value);
   const chamber = vehicle ? /^(SB|HB)/i.exec(vehicle[0])?.[1]?.toUpperCase() : null;
   return {
@@ -2373,7 +2378,9 @@ export function renderPeFundingForModel(
       parts.push(
         `request on record ${fmtFundingMillions(0)} — UNVERIFIED: other sources for this year report a non-zero request (${conflicts
           .map((v) => fmtFundingMillions(v))
-          .join(', ')}); do NOT cite $0.0M as the request and do NOT describe any figure as above or below the request`,
+          .join(
+            ', ',
+          )}); do NOT cite $0.0M as the request and do NOT describe any figure as above or below the request`,
       );
     else if (req != null) parts.push(`request ${fmtFundingMillions(req)}`);
 
