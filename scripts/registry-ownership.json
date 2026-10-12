@@ -2,10 +2,12 @@
   "version": 1,
   "profiles": [
     {
-      "id": "strategy-existing-template-vocabulary",
-      "status": "existing canonical vocabulary only; report metadata conversion remains pending",
-      "owner": "apps/api-strategy/src/context/frontmatter.ts",
-      "roots": ["apps/api-strategy/src"],
+      "id": "strategy-context-template-metadata",
+      "status": "17 existing template types with bounded deterministic report metadata; validation, audience, heading precedence, freshness and renderers remain canonical existing owners",
+      "owner": "apps/api-strategy/src/context/template-registry.ts",
+      "roots": [
+        "apps/api-strategy/src"
+      ],
       "symbols": [
         {
           "name": "DOCUMENT_TYPES",
@@ -14,9 +16,69 @@
         {
           "name": "TEMPLATE_KEY_BY_TYPE",
           "kind": "variable"
+        },
+        {
+          "name": "OPERATIONAL_REPORT_TEMPLATE_KEYS",
+          "kind": "variable"
+        },
+        {
+          "name": "REPORT_SECTION_TITLES",
+          "kind": "variable"
+        },
+        {
+          "name": "REPORT_SECTION_ORDER",
+          "kind": "variable"
+        },
+        {
+          "name": "REPORT_PREFIX_FALLBACKS",
+          "kind": "variable"
+        },
+        {
+          "name": "isOperationalReportTemplate",
+          "kind": "function"
+        },
+        {
+          "name": "reportFallbackSection",
+          "kind": "function"
         }
       ],
       "edges": [
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "module": "./template-registry.js",
+          "imported": "DOCUMENT_TYPES",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "module": "./template-registry.js",
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "REPORT_SECTION_ORDER",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "REPORT_SECTION_TITLES",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "isOperationalReportTemplate",
+          "uses": 2
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "reportFallbackSection",
+          "uses": 1
+        },
         {
           "file": "apps/api-strategy/src/context/context-import.service.ts",
           "module": "./frontmatter.js",
@@ -44,16 +106,534 @@
       ],
       "carriers": [
         {
-          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "file": "apps/api-strategy/src/context/template-registry.ts",
           "name": "DOCUMENT_TYPES",
           "kind": "variable",
           "sha256": "acb6d11b65700793f099ac20f6196dee28eb8c44a24d40a1fba6f0856790f1c1"
         },
         {
-          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "file": "apps/api-strategy/src/context/template-registry.ts",
           "name": "TEMPLATE_KEY_BY_TYPE",
           "kind": "variable",
           "sha256": "99f60cff678bd1e17647714fc67dac0ba0ef4535c6b17618a6a4b72eff75f004"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "OPERATIONAL_REPORT_TEMPLATE_KEYS",
+          "kind": "variable",
+          "sha256": "10cf6cce9a45f76b7b19ded7156d20d0b9f5c3405c97d5b23dc172063a288a49"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "REPORT_SECTION_TITLES",
+          "kind": "variable",
+          "sha256": "3657f6c8d91af3bb67ea828e491594b4f3afd9111789b6a0f64624e36cf864f2"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "REPORT_SECTION_ORDER",
+          "kind": "variable",
+          "sha256": "7148b9d8d4f32ab05b99a41626f9d6661ade9ff0b1829d290c7f6dfffd1480b2"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "REPORT_PREFIX_FALLBACKS",
+          "kind": "variable",
+          "sha256": "0caef4f8ccc1173afcf7318c9a02100e282219975207df852234fc055dd90962"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "isOperationalReportTemplate",
+          "kind": "function",
+          "sha256": "9eac48b0f226912dbd9480e2b2d9c7a39c866b102d69bf7a836b68788ac61cb6"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "reportFallbackSection",
+          "kind": "function",
+          "sha256": "f3b1261dc407e750d1845dc74699cff15516068a007b9341812e5da7f7272551"
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "name": "assembleReportContext",
+          "kind": "function",
+          "sha256": "88dd4331840554c0c3769d89f39c31c7bca197b8a3e4960896b6f1351ceaea44"
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "name": "categoryFor",
+          "kind": "function",
+          "sha256": "bcd76e33e5da8f396b6c805452ed247980cf9dc1e621b8ee0c8571825ec35fa2"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "DocumentTypeValue",
+          "kind": "type",
+          "sha256": "81bc16123e5db7ef61f00c068e3c53322f11bcc0fef799fc0403ab719f848421"
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "DocumentTypeValue",
+          "kind": "type",
+          "sha256": "81bc16123e5db7ef61f00c068e3c53322f11bcc0fef799fc0403ab719f848421"
+        }
+      ],
+      "aliases": [
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "DOCUMENT_TYPES",
+          "sha256": "61e46507c0d5ada863fff8938f37e9f3c64f4453f20057a7ea8616bafeac64ec"
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "TEMPLATE_KEY_BY_TYPE",
+          "sha256": "4090749b4c6b486978d575b607e2153624fddacc27e3816eca2aaa6cd3703d7f"
+        }
+      ]
+    },
+    {
+      "id": "tango-rest-page-leaves",
+      "status": "bounded REST count/page/rate leaf adoption; transport/security/retry remain canonical client owners",
+      "owner": "apps/api/src/external/tango/tango-rest-page.ts",
+      "roots": [
+        "apps/api/src"
+      ],
+      "symbols": [
+        {
+          "name": "asCount",
+          "kind": "function"
+        },
+        {
+          "name": "nextPageOf",
+          "kind": "function"
+        },
+        {
+          "name": "rateOf",
+          "kind": "function"
+        },
+        {
+          "name": "RateReadProfile",
+          "kind": "type"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "asCount",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "nextPageOf",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "rateOf",
+          "uses": 2
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "asCount",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "nextPageOf",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "rateOf",
+          "uses": 2
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "asCount",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "nextPageOf",
+          "uses": 1
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "module": "./tango-rest-page.js",
+          "imported": "rateOf",
+          "uses": 1
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+          "name": "TangoDibbsClient",
+          "kind": "class",
+          "sha256": "2d5973e556c0c495ad2ee57f935ce9562690674470299b4d4c41589b0a7c2e82"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+          "name": "TangoSbirClient",
+          "kind": "class",
+          "sha256": "29ef3e6e00f42a68c2d2b06075e68cfd1ce9460ea5ebc74531db458de969d72b"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+          "name": "TangoSubawardClient",
+          "kind": "class",
+          "sha256": "d192a570330a53e6571d37a7955b533b0a0eb0bfa3e3deaef36aac4b13e643e2"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "asCount",
+          "kind": "function",
+          "sha256": "17c2a6a3dc9e5a6804204cb6bb8fa4d0aa8d1d80270a2519eea80658b9e2fd06"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "nextPageOf",
+          "kind": "function",
+          "sha256": "6bf468c02300df75c6ee11c1a86494353794c33128a774bb33ede8bdd06c062e"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "rateOf",
+          "kind": "function",
+          "sha256": "3a765cd9416dc0b52fd1a6a1f6e35c5982f93873d265285b72f926a78c3bedf3"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "asRateInteger",
+          "kind": "function",
+          "sha256": "3f74fe0c0f862d8d8b99a81bbe61b090ad2f31e7914c4abcece14456f5b0f59d"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "RateReadProfile",
+          "kind": "type",
+          "sha256": "fb8a370d65c1e3b016866b16686fbf1cbbff800dd03ef25a7e37be19ef8d6550"
+        }
+      ]
+    },
+    {
+      "id": "workspace-product-descriptors",
+      "status": "11 product descriptors and six independently ordered one-time mutable projections; no section rule or industry policy conversion",
+      "owner": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "roots": [
+        "apps/workspace/src"
+      ],
+      "symbols": [
+        {
+          "name": "WORKSPACE_PRODUCT_REGISTRY",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_METADATA",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_SECTIONS",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_PAGES",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_CANONICAL",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_UNIVERSAL",
+          "kind": "variable"
+        },
+        {
+          "name": "WORKSPACE_PRODUCT_FUNDING",
+          "kind": "variable"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_REGISTRY",
+          "uses": 19
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_METADATA",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_SECTIONS",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_PAGES",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_CANONICAL",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_UNIVERSAL",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "module": "./workspace-product.registry.js",
+          "imported": "WORKSPACE_PRODUCT_FUNDING",
+          "uses": 1
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_REGISTRY",
+          "kind": "variable",
+          "sha256": "315fe73a890d69d0c7f59ee58acb7eb14bdc4e4faf95603a557e581332a58648"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_METADATA",
+          "kind": "variable",
+          "sha256": "035c585a1f07d752c1ea4cb50dfba70312bb1a551ccc63dcb3d2eb23f34ce3da"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_SECTIONS",
+          "kind": "variable",
+          "sha256": "2872e0e6e416a36c678dd9187f94cfdfa284ee8a8451627be85e45916aea3f6a"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_PAGES",
+          "kind": "variable",
+          "sha256": "c6a4838b47e5ed9b387447a81e2381d52a597c5120760dc39428426b5a7f1408"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_CANONICAL",
+          "kind": "variable",
+          "sha256": "344977b891c4252c12d7b4289be22cbb3ccd01138fea514d42ef786c0871c1db"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_UNIVERSAL",
+          "kind": "variable",
+          "sha256": "1c07d5d8c691d166ef9a1320413c1ec1f458881d1fad80ca4de735afb60c1a29"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WORKSPACE_PRODUCT_FUNDING",
+          "kind": "variable",
+          "sha256": "cf0a657a9107e0b7f1e54510e26df4f48b159bdfef3cd2587f14b37b9aa46778"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "workspaceProductsInOrder",
+          "kind": "function",
+          "sha256": "f50a815158e92fa97a12e29ed1b7fc37f3d01bbb1f7ce128621b8994fbd3b5c1"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WorkspaceProductProjection",
+          "kind": "type",
+          "sha256": "a222a3435364b8b77716b660ec876cba606a4a39e806ddb01ca33aff249a48a0"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WorkspaceProductKey",
+          "kind": "type",
+          "sha256": "5075fc2ef3415ecf567019428dfbbbf6dcaa8d6ecde1afad053107b299fd69cd"
+        },
+        {
+          "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+          "name": "WorkspaceProductDescriptor",
+          "kind": "interface",
+          "sha256": "96353f89622f136bf3f3f548aff8353396f9790f4c8e40e0fc3046658765bdc7"
+        }
+      ]
+    },
+    {
+      "id": "workspace-existing-product-facade",
+      "status": "existing public const aliases and unchanged WSC/sectionSpecFor owner; no new persistence or section-rule extraction",
+      "owner": "apps/workspace/src/cascade/cascade.config.ts",
+      "roots": [
+        "apps/workspace/src"
+      ],
+      "symbols": [
+        {
+          "name": "CASCADE",
+          "kind": "variable"
+        },
+        {
+          "name": "UNIVERSAL_PRODUCTS",
+          "kind": "variable"
+        },
+        {
+          "name": "CANONICAL_PRODUCTS",
+          "kind": "variable"
+        },
+        {
+          "name": "FUNDING_PRODUCTS",
+          "kind": "variable"
+        },
+        {
+          "name": "PRODUCT_META",
+          "kind": "variable"
+        },
+        {
+          "name": "SUGGESTED_SECTIONS",
+          "kind": "variable"
+        },
+        {
+          "name": "SUGGESTED_PAGES",
+          "kind": "variable"
+        },
+        {
+          "name": "INDUSTRY_DATA",
+          "kind": "variable"
+        },
+        {
+          "name": "SECTION_LIBRARY",
+          "kind": "variable"
+        },
+        {
+          "name": "WSC",
+          "kind": "variable"
+        },
+        {
+          "name": "sectionSpecFor",
+          "kind": "function"
+        },
+        {
+          "name": "ProductMeta",
+          "kind": "interface"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/workspace/src/cascade/cascade.service.ts",
+          "module": "./cascade.config.js",
+          "imported": "WSC",
+          "uses": 10
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.service.ts",
+          "module": "./cascade.config.js",
+          "imported": "SECTION_LIBRARY",
+          "uses": 1
+        },
+        {
+          "file": "apps/workspace/src/checks/checks.service.ts",
+          "module": "../cascade/cascade.config.js",
+          "imported": "WSC",
+          "uses": 2
+        },
+        {
+          "file": "apps/workspace/src/generation/generation.service.ts",
+          "module": "../cascade/cascade.config.js",
+          "imported": "WSC",
+          "uses": 11
+        },
+        {
+          "file": "apps/workspace/src/drafts/drafts.service.ts",
+          "module": "../cascade/cascade.config.js",
+          "imported": "WSC",
+          "uses": 5
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "CASCADE",
+          "kind": "variable",
+          "sha256": "a106447af97f834dd99f6a6c93479c8e807edd44485f910ede3af7a414f100a5"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "UNIVERSAL_PRODUCTS",
+          "kind": "variable",
+          "sha256": "a380164a329d856c07db86da51ef3a00d4cc388300ece795100893de5d60a468"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "CANONICAL_PRODUCTS",
+          "kind": "variable",
+          "sha256": "b58acd69e042afa0931d4b5f5b0d3a144ce1173022114ca1e54410e852b23f8b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "FUNDING_PRODUCTS",
+          "kind": "variable",
+          "sha256": "be15fe655dda67d2ddba641255d0d0d176996166a113001542b17501aa70080e"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "PRODUCT_META",
+          "kind": "variable",
+          "sha256": "889f4d8087b4eeb42db244b2189ff7b4d6d8b70c5582284498aa99f8962d2001"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "SUGGESTED_SECTIONS",
+          "kind": "variable",
+          "sha256": "a54b70d44851aff4604fa5e23484c5d61523313a3a9222d06ce5301274f25cfe"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "SUGGESTED_PAGES",
+          "kind": "variable",
+          "sha256": "6bec4fcf1f49165f838c43223630e8da3191c22b4901d0e9168b6d85db606c1b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "INDUSTRY_DATA",
+          "kind": "variable",
+          "sha256": "4fe30c2864518e220dc2219faef44dd23584245ec41e9cb23e97906615d1d736"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "SECTION_LIBRARY",
+          "kind": "variable",
+          "sha256": "400e593544e495510eda97c2bdde38b1313727b514396f17a73a5a7a65f32d8b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "WSC",
+          "kind": "variable",
+          "sha256": "484b3546a7af961e0e0db059fd56483f7344dbbcac10d2301d75171a0867fa7b"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "sectionSpecFor",
+          "kind": "function",
+          "sha256": "8de11067bad033b595522207d455096784968059f2a83b66f8706426b5de049a"
+        },
+        {
+          "file": "apps/workspace/src/cascade/cascade.config.ts",
+          "name": "ProductMeta",
+          "kind": "interface",
+          "sha256": "248ccbb50288ec41309dac7993235614732386718707597c24090966d59c2b78"
         }
       ]
     }

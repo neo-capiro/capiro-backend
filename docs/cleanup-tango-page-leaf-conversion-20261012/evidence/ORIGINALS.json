@@ -1,0 +1,24 @@
+{
+  "source": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "tree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "files": [
+    {
+      "path": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "fixture": "docs/cleanup-tango-page-leaf-conversion-20261012/evidence/originals/tango-dibbs.client.ts.txt",
+      "blob": "880ac38de2f6b5781cf5bc6994fcf0350529f7da",
+      "sha256": "905ba33964b001aa66c19c60df883c51976145887cd2b725e67c2e0ea0fd28c8"
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "fixture": "docs/cleanup-tango-page-leaf-conversion-20261012/evidence/originals/tango-sbir.client.ts.txt",
+      "blob": "71790479b3b08e0d32be71fbc497bc306b28ee79",
+      "sha256": "cf914eb4de8f76397d017d4f78932a8b6d5a75f0a76386f89339a7689eb9b766"
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "fixture": "docs/cleanup-tango-page-leaf-conversion-20261012/evidence/originals/tango-subaward.client.ts.txt",
+      "blob": "14108e15698f0dc2f678971fe01bf42cc4da0794",
+      "sha256": "33a5629fb6b8ea83e4e5cf3cbf7b5b69e7b6cf27601392a081abfd32f68a39c1"
+    }
+  ]
+}

@@ -21,9 +21,81 @@ const safePath = (value) =>
   !value.split('/').some((part) => !part || part === '.' || part === '..');
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 
+// Only inert string syntax and lexically bound const initializers are read.
+// No calls, property reads, coercion, module loading or source execution.
+function staticString(node, sf, checker, seen = new Set()) {
+  const t = ts();
+  if (!node || seen.has(node)) return null;
+  if (seen.size > 128) throw new Error('Static source syntax budget exceeded');
+  seen = new Set(seen).add(node);
+  if (t.isStringLiteralLike(node)) return node.text;
+  if (t.isTemplateExpression(node)) {
+    let value = node.head.text;
+    for (const span of node.templateSpans) {
+      const part = staticString(span.expression, sf, checker, seen);
+      if (part === null) return null;
+      value += part + span.literal.text;
+    }
+    return value;
+  }
+  if (
+    t.isParenthesizedExpression(node) ||
+    t.isAsExpression(node) ||
+    t.isTypeAssertionExpression(node) ||
+    t.isNonNullExpression(node)
+  )
+    return staticString(node.expression, sf, checker, seen);
+  if (t.isBinaryExpression(node) && node.operatorToken.kind === t.SyntaxKind.PlusToken) {
+    const left = staticString(node.left, sf, checker, seen);
+    const right = staticString(node.right, sf, checker, seen);
+    return left === null || right === null ? null : left + right;
+  }
+  if (t.isIdentifier(node)) {
+    const declarations = checker().getSymbolAtLocation(node)?.declarations ?? [];
+    if (declarations.length !== 1) return null;
+    const declaration = declarations[0];
+    if (
+      t.isVariableDeclaration(declaration) &&
+      t.isIdentifier(declaration.name) &&
+      t.isVariableDeclarationList(declaration.parent) &&
+      declaration.parent.flags & t.NodeFlags.Const
+    )
+      return staticString(declaration.initializer, sf, checker, seen);
+  }
+  return null;
+}
+
+function isRequireReference(node, sf, checker, seen = new Set()) {
+  const t = ts();
+  if (!node || seen.has(node)) return false;
+  if (seen.size > 128) throw new Error('Static source syntax budget exceeded');
+  seen = new Set(seen).add(node);
+  if (
+    t.isParenthesizedExpression(node) ||
+    t.isAsExpression(node) ||
+    t.isTypeAssertionExpression(node) ||
+    t.isNonNullExpression(node)
+  )
+    return isRequireReference(node.expression, sf, checker, seen);
+  if (!t.isIdentifier(node)) return false;
+  if (node.text === 'require') return true;
+  const declarations = checker().getSymbolAtLocation(node)?.declarations ?? [];
+  if (declarations.length !== 1) return false;
+  const declaration = declarations[0];
+  return (
+    t.isVariableDeclaration(declaration) &&
+    t.isIdentifier(declaration.name) &&
+    t.isVariableDeclarationList(declaration.parent) &&
+    !!(declaration.parent.flags & t.NodeFlags.Const) &&
+    isRequireReference(declaration.initializer, sf, checker, seen)
+  );
+}
+
 function declarations(sf) {
   const t = ts();
   const rows = [];
+  let checker;
+  const getChecker = () => (checker ??= lexicalChecker(sf));
   const add = (node, name, kind) => {
     if (!name) return;
     if (t.isObjectBindingPattern(name) || t.isArrayBindingPattern(name)) {
@@ -31,10 +103,11 @@ function declarations(sf) {
         if (!t.isOmittedExpression(element)) add(node, element.name, kind);
       return;
     }
-    if (t.isComputedPropertyName(name) && t.isStringLiteralLike(name.expression))
-      name = name.expression;
-    if (!t.isIdentifier(name) && !t.isStringLiteralLike(name)) return;
-    rows.push({ node, name: name.text, kind });
+    if (t.isComputedPropertyName(name)) {
+      const value = staticString(name.expression, sf, getChecker);
+      if (value !== null) rows.push({ node, name: value, kind });
+    } else if (t.isIdentifier(name) || t.isStringLiteralLike(name))
+      rows.push({ node, name: name.text, kind });
   };
   function visit(node) {
     if (t.isVariableDeclaration(node)) add(node, node.name, 'variable');
@@ -50,6 +123,17 @@ function declarations(sf) {
     else if (t.isInterfaceDeclaration(node)) add(node, node.name, 'interface');
     else if (t.isTypeAliasDeclaration(node)) add(node, node.name, 'type');
     else if (t.isEnumDeclaration(node)) add(node, node.name, 'enum');
+    else if (
+      t.isBinaryExpression(node) &&
+      node.operatorToken.kind >= t.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= t.SyntaxKind.LastAssignment
+    ) {
+      if (t.isPropertyAccessExpression(node.left)) add(node, node.left.name, 'assignment');
+      else if (t.isElementAccessExpression(node.left)) {
+        const name = staticString(node.left.argumentExpression, sf, getChecker);
+        if (name !== null) rows.push({ node, name, kind: 'assignment' });
+      }
+    }
     t.forEachChild(node, visit);
   }
   visit(sf);
@@ -95,7 +179,12 @@ export function declarationDigest(source, name, kind, file = 'source.ts') {
   const t = ts();
   const sf = t.createSourceFile(file, source, t.ScriptTarget.Latest, true);
   if (sf.parseDiagnostics.length) return null;
-  const rows = declarations(sf).filter((row) => row.name === name && row.kind === kind);
+  let rows;
+  try {
+    rows = declarations(sf).filter((row) => row.name === name && row.kind === kind);
+  } catch {
+    return null;
+  }
   if (rows.length !== 1) return null;
   const printer = t.createPrinter({ removeComments: true, newLine: t.NewLineKind.LineFeed });
   return digest(printer.printNode(t.EmitHint.Unspecified, declarationEnvelope(rows[0].node), sf));
@@ -192,7 +281,12 @@ export function inspectRegistryOwnership(files, config) {
     }
     const sf = t.createSourceFile(file, source, t.ScriptTarget.Latest, true);
     if (sf.parseDiagnostics.length) errors.push(`${file}: source syntax error`);
-    parsed.set(file, { sf, rows: declarations(sf) });
+    try {
+      parsed.set(file, { sf, rows: declarations(sf) });
+    } catch {
+      errors.push(`${file}: bounded declaration inspection failed`);
+      parsed.set(file, { sf, rows: [] });
+    }
   }
   const ids = new Set();
   for (const profile of config.profiles) {
@@ -221,6 +315,58 @@ export function inspectRegistryOwnership(files, config) {
     if (!scoped.some(([file]) => file === profile.owner))
       errors.push(`${profile.id}: missing owner`);
     const symbolNames = new Set();
+    for (const symbol of profile.symbols)
+      if (typeof symbol?.name === 'string') symbolNames.add(symbol.name);
+    const aliases = [];
+    const aliasKeys = new Set();
+    if (profile.aliases !== undefined && !Array.isArray(profile.aliases))
+      errors.push(`${profile.id}: invalid compatibility aliases`);
+    for (const alias of Array.isArray(profile.aliases) ? profile.aliases : []) {
+      const key = `${alias?.file}|${alias?.name}`;
+      const source = parsed.get(alias?.file);
+      const rows = source?.rows.filter((row) => row.name === alias.name) ?? [];
+      const row = rows[0];
+      const initializer = row?.node.initializer;
+      let binding;
+      let imported;
+      if (initializer && t.isIdentifier(initializer)) {
+        const checker = lexicalChecker(source.sf);
+        binding = checker.getSymbolAtLocation(initializer);
+        imported = binding?.declarations?.find((node) => t.isImportSpecifier(node));
+      }
+      const clause = imported?.parent.parent;
+      const statement = clause?.parent;
+      if (
+        !alias ||
+        !safePath(alias.file) ||
+        !inScope(alias.file) ||
+        alias.file === profile.owner ||
+        !symbolNames.has(alias.name) ||
+        !profile.symbols.some(
+          (symbol) => symbol.name === alias.name && symbol.kind === 'variable',
+        ) ||
+        aliasKeys.has(key) ||
+        rows.length !== 1 ||
+        row.kind !== 'variable' ||
+        !(row.node.parent.flags & t.NodeFlags.Const) ||
+        !isNamedModuleExport(row.node, source?.sf) ||
+        !imported ||
+        imported.isTypeOnly ||
+        clause.isTypeOnly ||
+        (imported.propertyName ?? imported.name).text !== alias.name ||
+        !t.isImportDeclaration(statement) ||
+        canonicalModule(alias.file, statement.moduleSpecifier.text) !== profile.owner ||
+        !/^[0-9a-f]{64}$/.test(alias.sha256) ||
+        declarationDigest(files.get(alias.file), alias.name, 'variable', alias.file) !==
+          alias.sha256
+      ) {
+        errors.push(`${profile.id}: invalid compatibility alias: ${key}`);
+        continue;
+      }
+      aliasKeys.add(key);
+      aliases.push(alias);
+    }
+    symbolNames.clear();
     for (const symbol of profile.symbols) {
       if (
         !symbol ||
@@ -235,11 +381,17 @@ export function inspectRegistryOwnership(files, config) {
       const hits = scoped.flatMap(([file, { rows }]) =>
         rows.filter((row) => row.name === symbol.name).map((row) => ({ file, ...row })),
       );
+      const ownerHits = hits.filter((hit) => hit.file === profile.owner);
+      const namedAliases = aliases.filter((alias) => alias.name === symbol.name);
       if (
-        hits.length !== 1 ||
-        hits[0].file !== profile.owner ||
-        hits[0].kind !== symbol.kind ||
-        !isNamedModuleExport(hits[0].node, parsed.get(profile.owner)?.sf)
+        hits.length !== 1 + namedAliases.length ||
+        ownerHits.length !== 1 ||
+        ownerHits[0].kind !== symbol.kind ||
+        !isNamedModuleExport(ownerHits[0].node, parsed.get(profile.owner)?.sf) ||
+        hits.some(
+          (hit) =>
+            hit.file !== profile.owner && !namedAliases.some((alias) => alias.file === hit.file),
+        )
       )
         errors.push(
           `${profile.id}: ${symbol.name} must have one named module export (${symbol.kind}) in ${profile.owner}`,
@@ -266,20 +418,31 @@ export function inspectRegistryOwnership(files, config) {
       const key = `${edge.file}|${edge.imported}`;
       if (edgeKeys.has(key)) errors.push(`${profile.id}: duplicate consumer edge`);
       edgeKeys.add(key);
-      const failure = inspectEdge(parsed.get(edge.file).sf, edge.file, edge, profile.owner);
+      const endpoint = canonicalModule(edge.file, edge.module);
+      const alias = aliases.find((item) => item.file === endpoint && item.name === edge.imported);
+      const failure = inspectEdge(
+        parsed.get(edge.file).sf,
+        edge.file,
+        edge,
+        alias?.file ?? profile.owner,
+      );
       if (failure) errors.push(`${profile.id}: ${edge.file}/${edge.imported}: ${failure}`);
     }
     // Every named runtime import of an owned symbol has a data-owned edge.
     // Namespace/default/static dynamic imports of the owner are outside this
     // finite contract and fail instead of hiding an additional consumer.
     for (const [file, { sf }] of scoped) {
+      let checker;
+      const getChecker = () => (checker ??= lexicalChecker(sf));
       function visit(node) {
         if (t.isImportDeclaration(node)) {
           const clause = node.importClause;
-          const ownerModule = canonicalModule(file, node.moduleSpecifier.text) === profile.owner;
+          const endpoint = canonicalModule(file, node.moduleSpecifier.text);
+          const ownerModule = endpoint === profile.owner;
+          const aliasModule = aliases.some((alias) => alias.file === endpoint);
           if (!clause?.isTypeOnly) {
             if (
-              ownerModule &&
+              (ownerModule || aliasModule) &&
               (!clause ||
                 clause.name ||
                 (clause.namedBindings && !t.isNamedImports(clause.namedBindings)))
@@ -291,7 +454,10 @@ export function inspectRegistryOwnership(files, config) {
                 if (
                   !item.isTypeOnly &&
                   symbolNames.has(imported) &&
-                  (!ownerModule ||
+                  (!(
+                    ownerModule ||
+                    aliases.some((alias) => alias.file === endpoint && alias.name === imported)
+                  ) ||
                     !profile.edges.some(
                       (edge) =>
                         edge.file === file &&
@@ -309,7 +475,10 @@ export function inspectRegistryOwnership(files, config) {
           t.isExternalModuleReference(node.moduleReference) &&
           node.moduleReference.expression &&
           t.isStringLiteralLike(node.moduleReference.expression) &&
-          canonicalModule(file, node.moduleReference.expression.text) === profile.owner
+          (canonicalModule(file, node.moduleReference.expression.text) === profile.owner ||
+            aliases.some(
+              (alias) => alias.file === canonicalModule(file, node.moduleReference.expression.text),
+            ))
         )
           errors.push(`${profile.id}: unsupported import-equals owner reference in ${file}`);
         if (
@@ -317,21 +486,33 @@ export function inspectRegistryOwnership(files, config) {
           !node.isTypeOnly &&
           node.moduleSpecifier &&
           t.isStringLiteralLike(node.moduleSpecifier) &&
-          canonicalModule(file, node.moduleSpecifier.text) === profile.owner
+          (canonicalModule(file, node.moduleSpecifier.text) === profile.owner ||
+            aliases.some(
+              (alias) => alias.file === canonicalModule(file, node.moduleSpecifier.text),
+            ))
         )
           errors.push(`${profile.id}: unsupported owner re-export in ${file}`);
         if (
           t.isCallExpression(node) &&
           (node.expression.kind === t.SyntaxKind.ImportKeyword ||
-            (t.isIdentifier(node.expression) && node.expression.text === 'require')) &&
+            isRequireReference(node.expression, sf, getChecker)) &&
           node.arguments[0] &&
-          t.isStringLiteralLike(node.arguments[0]) &&
-          canonicalModule(file, node.arguments[0].text) === profile.owner
+          (canonicalModule(file, staticString(node.arguments[0], sf, getChecker)) ===
+            profile.owner ||
+            aliases.some(
+              (alias) =>
+                alias.file ===
+                canonicalModule(file, staticString(node.arguments[0], sf, getChecker)),
+            ))
         )
           errors.push(`${profile.id}: unsupported dynamic owner import in ${file}`);
         t.forEachChild(node, visit);
       }
-      visit(sf);
+      try {
+        visit(sf);
+      } catch {
+        errors.push(`${profile.id}: ${file}: bounded owner import inspection failed`);
+      }
     }
     const carrierKeys = new Set();
     for (const carrier of profile.carriers) {

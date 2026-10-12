@@ -1,0 +1,81 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "tree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "roles": [
+    {
+      "owner": "dibbs",
+      "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "profile": "interleaved",
+      "importedSymbols": [
+        "asCount",
+        "nextPageOf",
+        "rateOf"
+      ],
+      "import": "./tango-rest-page.js",
+      "asCountCalls": 1,
+      "nextPageOfCalls": 1,
+      "rateOfCalls": 2,
+      "classBodyByteExactAfterRemovingOnlyProfileOperands": true,
+      "changedAstPaths": [
+        "SourceFile/imports",
+        "SourceFile/functions(asCount,nextPageOf,rateOf):removed",
+        "Class(TangoDibbsClient)/Method(list)/try/successReturn/rate:profileOperand",
+        "Class(TangoDibbsClient)/Method(list)/try/nonOkThrow/errorRate:profileOperand"
+      ]
+    },
+    {
+      "owner": "sbir",
+      "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "profile": "interleaved",
+      "importedSymbols": [
+        "asCount",
+        "nextPageOf",
+        "rateOf"
+      ],
+      "import": "./tango-rest-page.js",
+      "asCountCalls": 1,
+      "nextPageOfCalls": 1,
+      "rateOfCalls": 2,
+      "classBodyByteExactAfterRemovingOnlyProfileOperands": true,
+      "changedAstPaths": [
+        "SourceFile/imports",
+        "SourceFile/functions(asCount,nextPageOf,rateOf):removed",
+        "Class(TangoSbirClient)/Method(list)/try/successReturn/rate:profileOperand",
+        "Class(TangoSbirClient)/Method(list)/try/nonOkThrow/errorRate:profileOperand"
+      ]
+    },
+    {
+      "owner": "subaward",
+      "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "profile": "captured",
+      "importedSymbols": [
+        "asCount",
+        "nextPageOf",
+        "rateOf"
+      ],
+      "import": "./tango-rest-page.js",
+      "asCountCalls": 1,
+      "nextPageOfCalls": 1,
+      "rateOfCalls": 1,
+      "classBodyByteExactAfterRemovingOnlyProfileOperands": true,
+      "changedAstPaths": [
+        "SourceFile/imports",
+        "SourceFile/functions(asCount,nextPageOf,rateOf):removed",
+        "Class(TangoSubawardClient)/Method(listSubawards)/try/successReturn/rate:profileOperand"
+      ]
+    }
+  ],
+  "helperFile": "apps/api/src/external/tango/tango-rest-page.ts",
+  "helperExports": [
+    "asCount",
+    "nextPageOf",
+    "rateOf",
+    "RateReadProfile"
+  ],
+  "privateHelper": "asRateInteger",
+  "explicitProfileRequired": true,
+  "protectedExistingConsumerTestConfigPlanPaths": 25,
+  "originalFixtureHashesVerified": true,
+  "wholeClientBodyExceptProfileOperandsByteExact": true,
+  "providersNativeDatabaseExecuted": false
+}

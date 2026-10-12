@@ -1,0 +1,7 @@
+# Finite reviewed function owners; rows are profile ID TAB exported function name.
+tango-rest-page-leaves	asCount
+tango-rest-page-leaves	nextPageOf
+tango-rest-page-leaves	rateOf
+strategy-context-template-metadata	isOperationalReportTemplate
+strategy-context-template-metadata	reportFallbackSection
+workspace-existing-product-facade	sectionSpecFor

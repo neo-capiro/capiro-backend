@@ -1,0 +1,49 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "baseTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "source": "6d243a1393b8736544e1d216cf2bd141595dd315",
+  "sourceTree": "7ef0d154bddf8e69014433bdd9eab3252b2c2963",
+  "productionPaths": [
+    "apps/api/src/external/tango/tango-dibbs.client.ts",
+    "apps/api/src/external/tango/tango-rest-page.spec.ts",
+    "apps/api/src/external/tango/tango-rest-page.ts",
+    "apps/api/src/external/tango/tango-sbir.client.ts",
+    "apps/api/src/external/tango/tango-subaward.client.ts"
+  ],
+  "productionPathsCount": 5,
+  "wholeClientBodiesExceptOnlyFiveProfileOperandsByteExact": true,
+  "protectedPathsMatchCurrentBase": 25,
+  "strictNoUncheckedFocusedCompiler": "PASS exit 0",
+  "runtimeJest": {
+    "passed": 237,
+    "failed": 0,
+    "suites": 3,
+    "newTests": 208,
+    "existingTests": 29,
+    "realProvidersOrDatabaseSetup": false
+  },
+  "sourceCorpora": {
+    "originalLeaf": 213,
+    "candidateLeaf": 213,
+    "originalEnvelope": 54,
+    "candidateEnvelope": 54,
+    "totalEvaluations": 534,
+    "sameHostErrorRealm": true,
+    "errorMessagesNormalized": false,
+    "all54ReviewedGoldenResultsExact": true
+  },
+  "retainedFailedEvidence": [
+    "evidence/jest-first.log",
+    "evidence/pure.jest.first.cjs",
+    "evidence/before-after-leaf-first.log",
+    "evidence/before-after-leaf-first.mjs"
+  ],
+  "privateUntrackedCachedBindings": [
+    "node_modules",
+    "apps/api/node_modules"
+  ],
+  "mainMergeDeployProviderDbMigrationNativePrismaOrSecurityOperations": false,
+  "rootOwnsControlCiAndPublication": true,
+  "independentApplicationAcceptance": "pending separate reviewer",
+  "oldAuditEvidenceChanged": false
+}

@@ -1,0 +1,12 @@
+{
+  "candidateExecutions": 204,
+  "totalBeforeAfterExecutions": 426,
+  "cases": 68,
+  "originalExecutions": 204,
+  "profileProbeCases": 3,
+  "profileProbeExecutions": 9,
+  "totalOriginalLeafExecutions": 213,
+  "allThreeMainOutputsEqual": true,
+  "providerCalls": false,
+  "source": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+}

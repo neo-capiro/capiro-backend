@@ -1,0 +1,30 @@
+{
+  "source": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "tree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "files": [
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.ts",
+      "snapshot": "docs/cleanup-strategy-template-conversion-20261012/evidence/original-frontmatter.ts",
+      "gitEntry": "100644 blob 9d3564ce92fcc7a29d2f99bd1b1dcf379f1d49ba\tapps/api-strategy/src/context/frontmatter.ts",
+      "sha256": "250a942a6b06f1529a02315b6bf07e3f7d1a872fdf6e70daecd0f69406353645"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.ts",
+      "snapshot": "docs/cleanup-strategy-template-conversion-20261012/evidence/original-report-context.ts",
+      "gitEntry": "100644 blob 7eab9da1adf4f2cab0b6d2554e738bbb19dadc2f\tapps/api-strategy/src/reports/report-context.ts",
+      "sha256": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb"
+    },
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "snapshot": "docs/cleanup-strategy-template-conversion-20261012/evidence/original-frontmatter.spec.ts",
+      "gitEntry": "100644 blob 14ed6f01c2ef73f1570173b6014029f67bb604c1\tapps/api-strategy/src/context/frontmatter.spec.ts",
+      "sha256": "96dd6b26998b823c1dff57458a30229c973d6126e15a1ef4ca9d76755ac4a948"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "snapshot": "docs/cleanup-strategy-template-conversion-20261012/evidence/original-report-context.spec.ts",
+      "gitEntry": "100644 blob cef2327c6142597bf48b3715c169a4a3f51f2585\tapps/api-strategy/src/reports/report-context.spec.ts",
+      "sha256": "1b473f0c02c92416c513966dc216ad2847846691b17c8e9ecaf319c7b6de7cf1"
+    }
+  ]
+}

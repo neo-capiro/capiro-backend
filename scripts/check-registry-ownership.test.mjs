@@ -44,6 +44,254 @@ function check(change) {
   return inspectRegistryOwnership(value.files, value.config);
 }
 
+function aliasFixture() {
+  const value = fixture();
+  const aliasFile = 'apps/example/src/compatibility.ts';
+  const canonical = 'export const canonicalRoute = ["first", "second"];';
+  const aliasSource =
+    "import { canonicalRoute as registryRoute } from './registry.js';\nexport const canonicalRoute = registryRoute;";
+  const consumerWithAlias = consumerSource.replace('./registry.js', './compatibility.js');
+  value.files.set(owner, canonical);
+  value.files.set(aliasFile, aliasSource);
+  value.files.set(consumer, consumerWithAlias);
+  const profile = value.config.profiles[0];
+  profile.symbols[0].kind = 'variable';
+  profile.aliases = [
+    {
+      file: aliasFile,
+      name: 'canonicalRoute',
+      sha256: declarationDigest(aliasSource, 'canonicalRoute', 'variable'),
+    },
+  ];
+  profile.edges[0].module = './compatibility.js';
+  profile.edges.push({
+    file: aliasFile,
+    module: './registry.js',
+    imported: 'canonicalRoute',
+    uses: 1,
+  });
+  profile.carriers[0].sha256 = declarationDigest(consumerWithAlias, 'dispatch', 'function');
+  return value;
+}
+
+test('accepts an exact mutable const compatibility alias and its bound consumers', () => {
+  const value = aliasFixture();
+  assert.deepEqual(inspectRegistryOwnership(value.files, value.config), {
+    errors: [],
+    profiles: 1,
+    files: 3,
+  });
+});
+
+for (const [label, code] of [
+  ['concatenated object method', 'const copy = { ["canonical" + "Route"]() { return 1; } };'],
+  [
+    'const-bound object method',
+    'const key = "canonicalRoute"; const copy = { [key]() { return 1; } };',
+  ],
+  [
+    'const-chain object property',
+    'const suffix = "Route"; const key = "canonical" + suffix; const copy = { [key]: () => 1 };',
+  ],
+  ['concatenated class method', 'class Copy { ["canonical" + "Route"]() { return 1; } }'],
+  ['const-bound class property', 'const key = "canonicalRoute"; class Copy { [key] = () => 1; }'],
+  [
+    'static assertion method',
+    'const copy = { [("canonical" + "Route") as const]() { return 1; } };',
+  ],
+  [
+    'shadow-bound method',
+    'const key = "other"; function copy() { const key = "canonicalRoute"; return { [key]() {} }; }',
+  ],
+  ['concatenated dynamic import', 'import("./reg" + "istry.js");'],
+  ['const-bound dynamic import', 'const moduleName = "./registry.js"; import(moduleName);'],
+  [
+    'const-chain require',
+    'const ending = "istry.js"; const moduleName = "./reg" + ending; require(moduleName);',
+  ],
+  ['parenthesized require', 'require(("./reg" + "istry.js"));'],
+  [
+    'template-string method',
+    'const prefix = "canonical"; const copy = { [`${prefix}Route`]() {} };',
+  ],
+  ['template-string import', 'const ending = "istry.js"; import(`./reg${ending}`);'],
+  ['constant require alias', 'const load = require; load("./registry.js");'],
+  [
+    'constant require alias chain',
+    'const first = require; const load = first; load("./reg" + "istry.js");',
+  ],
+  ['parenthesized require callee', '(require)("./registry.js");'],
+  ['prototype method assignment', 'class Copy {} Copy.prototype.canonicalRoute = () => 1;'],
+  [
+    'computed property assignment',
+    'const copy = {}; const key = "canonicalRoute"; copy[key] = () => 1;',
+  ],
+  [
+    'erased require alias assertion',
+    'const load = require as typeof require; load("./registry.js");',
+  ],
+  [
+    'erased require alias type assertion',
+    'const load = <typeof require>require; load("./registry.js");',
+  ],
+  ['erased require alias non-null assertion', 'const load = require!; load("./registry.js");'],
+  [
+    'exhausted computed-name syntax budget',
+    'const copy = { [' + '('.repeat(140) + '"canonicalRoute"' + ')'.repeat(140) + ']() {} };',
+  ],
+  [
+    'exhausted import syntax budget',
+    'import(' + '('.repeat(140) + '"./registry.js"' + ')'.repeat(140) + ');',
+  ],
+])
+  test(`refuses bounded static ${label}`, () => {
+    assert.ok(check(({ files }) => files.set('apps/example/src/copy.ts', code)).errors.length > 0);
+  });
+
+for (const keyword of ['let', 'var'])
+  test(`refuses ${keyword} compatibility alias even with its supplied fingerprint`, () => {
+    const value = aliasFixture();
+    const alias = value.config.profiles[0].aliases[0];
+    const source = value.files
+      .get(alias.file)
+      .replace('export const canonicalRoute', `export ${keyword} canonicalRoute`);
+    value.files.set(alias.file, source);
+    alias.sha256 = declarationDigest(source, alias.name, 'variable');
+    assert.ok(inspectRegistryOwnership(value.files, value.config).errors.length > 0);
+  });
+
+test('constant-string inspection remains lexical and does not evaluate initializers', () => {
+  assert.deepEqual(
+    check(({ files }) =>
+      files.set(
+        'apps/example/src/unrelated.ts',
+        'const key = "other"; const copy = { [key]() {} }; const runtime = (() => { throw Error("must not execute"); })(); const unknown = { [runtime]() {} };',
+      ),
+    ).errors,
+    [],
+  );
+});
+
+for (const [label, change] of [
+  ['unlisted alias', ({ config }) => delete config.profiles[0].aliases],
+  [
+    'duplicate alias descriptor',
+    ({ config }) => config.profiles[0].aliases.push(config.profiles[0].aliases[0]),
+  ],
+  ['invalid alias collection', ({ config }) => (config.profiles[0].aliases = {})],
+  ['null alias descriptor', ({ config }) => (config.profiles[0].aliases = [null])],
+  [
+    'unscanned alias',
+    ({ config }) => (config.profiles[0].aliases[0].file = 'apps/other/src/alias.ts'),
+  ],
+  ['alias in owner', ({ config }) => (config.profiles[0].aliases[0].file = owner)],
+  ['alias with wrong symbol', ({ config }) => (config.profiles[0].aliases[0].name = 'other')],
+  [
+    'alias with wrong fingerprint',
+    ({ config }) => (config.profiles[0].aliases[0].sha256 = '0'.repeat(64)),
+  ],
+  [
+    'additional same-name copy',
+    ({ files }) => files.set('apps/example/src/copy.ts', 'export const canonicalRoute = [];'),
+  ],
+  ['missing alias input edge', ({ config }) => config.profiles[0].edges.pop()],
+  [
+    'alias namespace consumer',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "import * as copy from './compatibility.js'; copy.canonicalRoute;",
+      ),
+  ],
+  [
+    'alias default consumer',
+    ({ files }) =>
+      files.set('apps/example/src/extra.ts', "import copy from './compatibility.js'; copy;"),
+  ],
+  [
+    'alias unlisted named consumer',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "import { canonicalRoute } from './compatibility.js'; canonicalRoute;",
+      ),
+  ],
+  [
+    'alias dynamic import',
+    ({ files }) => files.set('apps/example/src/extra.ts', "import('./compatibility.js');"),
+  ],
+  [
+    'alias require',
+    ({ files }) => files.set('apps/example/src/extra.ts', "require('./compatibility.js');"),
+  ],
+  [
+    'alias reexport',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "export { canonicalRoute } from './compatibility.js';",
+      ),
+  ],
+  [
+    'alias import equals',
+    ({ files }) =>
+      files.set('apps/example/src/extra.ts', "import copy = require('./compatibility.js');"),
+  ],
+])
+  test(`refuses compatibility ${label}`, () => {
+    const value = aliasFixture();
+    change(value);
+    assert.ok(inspectRegistryOwnership(value.files, value.config).errors.length > 0);
+  });
+
+for (const [label, source] of [
+  ['copied literal', 'export const canonicalRoute = ["first", "second"];'],
+  [
+    'spread copy',
+    "import { canonicalRoute as registryRoute } from './registry.js'; export const canonicalRoute = [...registryRoute];",
+  ],
+  [
+    'fallback',
+    "import { canonicalRoute as registryRoute } from './registry.js'; export const canonicalRoute = registryRoute || [];",
+  ],
+  [
+    'call',
+    "import { canonicalRoute as registryRoute } from './registry.js'; export const canonicalRoute = registryRoute();",
+  ],
+  [
+    'type-only source',
+    "import type { canonicalRoute as registryRoute } from './registry.js'; export const canonicalRoute = registryRoute;",
+  ],
+  [
+    'type-only member',
+    "import { type canonicalRoute as registryRoute } from './registry.js'; export const canonicalRoute = registryRoute;",
+  ],
+  [
+    'wrong imported name',
+    "import { other as registryRoute } from './registry.js'; export const canonicalRoute = registryRoute;",
+  ],
+  [
+    'wrong module',
+    "import { canonicalRoute as registryRoute } from './other.js'; export const canonicalRoute = registryRoute;",
+  ],
+  [
+    'shadowed input',
+    "import { canonicalRoute as original } from './registry.js'; const registryRoute = []; export const canonicalRoute = registryRoute;",
+  ],
+  [
+    'nested alias',
+    "import { canonicalRoute as registryRoute } from './registry.js'; function copy() { const canonicalRoute = registryRoute; }",
+  ],
+  ['ambient alias', 'export declare const canonicalRoute: unknown;'],
+])
+  test(`refuses compatibility ${label} even with its own supplied fingerprint`, () => {
+    const value = aliasFixture();
+    const alias = value.config.profiles[0].aliases[0];
+    value.files.set(alias.file, source);
+    alias.sha256 = declarationDigest(source, alias.name, 'variable');
+    assert.ok(inspectRegistryOwnership(value.files, value.config).errors.length > 0);
+  });
+
 test('accepts the canonical declaration, alias-bound use and reviewed carrier', () => {
   assert.deepEqual(check(), { errors: [], profiles: 1, files: 2 });
 });
