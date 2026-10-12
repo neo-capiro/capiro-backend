@@ -1,0 +1,111 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "readOnlyRelevantPaths": [
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "gitBlob": "ea92c70ca5578d8661985d67bf8b9c1a8c7327b2",
+      "bytes": 15684,
+      "sha256": "3a32a9d94d87ffd08448a6259d1b81214ac28d6ef918e0487ae608c412428341"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.service.ts",
+      "gitBlob": "4e0d1544c731282e8c54c8d988b1e82c3a2b3911",
+      "bytes": 1967,
+      "sha256": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.controller.ts",
+      "gitBlob": "246eda7a4425d8b49bc820ee0e1259c60988ebf0",
+      "bytes": 3923,
+      "sha256": "62f69202b88a95b53e95f52943c176daaee1a4d8c37de1ab212fae6615b9fa8b"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.module.ts",
+      "gitBlob": "3c6f08aff61cfec2813f35aea5d0b746c3103f44",
+      "bytes": 337,
+      "sha256": "9a8132b73c0f6a4d8627f4e49d32c9ef11a4cdef64ec323e697d987b052cb22c"
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.service.ts",
+      "gitBlob": "7833c1d02c6391a011843ef2fe2df7be487db0f7",
+      "bytes": 80037,
+      "sha256": "4104e274c0f781e2e6731d311fa5b482135b7b025e18d659a6de06cff16efb5f"
+    },
+    {
+      "path": "apps/workspace/src/checks/checks.service.ts",
+      "gitBlob": "32ae1cfdccc20f906483d810dbcec804b486c475",
+      "bytes": 22083,
+      "sha256": "2013018c8a7bc3d9252ff7c6a6e8c661097d18adeecc404540366592e7f3ed47"
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.service.ts",
+      "gitBlob": "e4f2b5e90d0fe3c091164a7bcea2c3ea0cbf8622",
+      "bytes": 17576,
+      "sha256": "44028389c1e414c52962c56077e2759e43bf4328093b7be0e9dfb9e8c7b8ca44"
+    },
+    {
+      "path": "apps/workspace/src/drafts/dto/draft.dto.ts",
+      "gitBlob": "0989e9edcab2883998eed8224f02333621f53f90",
+      "bytes": 1644,
+      "sha256": "bfdad7ad95e8a40f25d36f599bc98a0678a46ff7460dcbcaa1a648aa8bec16df"
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.controller.ts",
+      "gitBlob": "01a7191e7ba2cfbbc0b7c6815d7a8213cfb8830e",
+      "bytes": 5551,
+      "sha256": "903fa0f3723da786d65aff8c827b995d3c6a30ecd35677fa822542072abcbae7"
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.controller.ts",
+      "gitBlob": "f5bb125cea3b0ff3fb8f1cc64006901eff94b284",
+      "bytes": 2223,
+      "sha256": "8fea8dc5298a606fcffad4d10c0b8daacbd2bd420601f356415bba1eef803874"
+    },
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "gitBlob": "2b9b82ca7c4e2c50c60bfdbf450984b0c08fe207",
+      "bytes": 2205,
+      "sha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd"
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.service.spec.ts",
+      "gitBlob": "137aefdfa9ecc15a0ca80176ce2851ce68d5af89",
+      "bytes": 22126,
+      "sha256": "d48f8e327a62c8938247fe11eaa0f3715abe02bfb22cd956a30b921aad6a5583"
+    },
+    {
+      "path": "apps/workspace/test/engine-api.int-spec.ts",
+      "gitBlob": "fc7cb5d80e177d3a4438df8fad8d0d3287ff1414",
+      "bytes": 7457,
+      "sha256": "39afae85f41198700fb49a68485619675e01ee41a41e937256671d71af8843c6"
+    },
+    {
+      "path": "apps/web/src/pages/workspace/SetupPage.tsx",
+      "gitBlob": "7523eddb57f5c3288d4dfc5629d766199c8960ad",
+      "bytes": 97577,
+      "sha256": "c0d5f919e045ec660eeb46a03fab8ebba747d3e957a813299164e6635573b3d1"
+    },
+    {
+      "path": "apps/web/src/pages/workspace/api.ts",
+      "gitBlob": "7142f396a0f9f05ccf9083fef55fc3fb1704680b",
+      "bytes": 33964,
+      "sha256": "e7c58728e38ebf58fd2e3f60d55629eed70cee05575e09568c5ce1021c4bebea"
+    },
+    {
+      "path": "docs/plans/CleanUp4.md",
+      "gitBlob": "5719b93387d7f3c45b58d413c8cd09ed50ff9058",
+      "bytes": 24876,
+      "sha256": "eccda8048174bf51100be10dd6cda0c0ee94062fb47b3890e21915a6d89bf130"
+    },
+    {
+      "path": "docs/cleanup-executable-prereqs-20261012/ADOPTION-MATRIX.md",
+      "gitBlob": "2185d72e07e345608752b9b562be3b1b95bc338c",
+      "bytes": 16305,
+      "sha256": "2c5dd310d2563adf32d5598ca7bef55eecfe68dc7727220e36f6765752f18cbd"
+    }
+  ],
+  "productionSourceEdits": false,
+  "sourceRetirements": false,
+  "nativeAcceptance": false
+}

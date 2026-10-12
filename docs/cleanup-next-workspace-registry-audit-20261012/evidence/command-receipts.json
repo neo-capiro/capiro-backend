@@ -1,0 +1,58 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "commands": [
+    {
+      "argv": [
+        "rg",
+        "--files",
+        "-g",
+        "AGENTS.md",
+        "."
+      ],
+      "exit": 1,
+      "meaning": "no applicable AGENTS found; discovery only"
+    },
+    {
+      "argv": [
+        "node",
+        "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+        "--config",
+        "docs/cleanup-next-workspace-registry-audit-20261012/evidence/cascade-baseline.jest.cjs",
+        "--runInBand",
+        "--no-cache",
+        "--json"
+      ],
+      "exit": 1,
+      "result": "actual7cases6PASS1originalcountRED",
+      "stdout": "cascade-original-red.stdout.log",
+      "stderr": "cascade-original-red.stderr.log",
+      "json": "cascade-original-red.json",
+      "nativeBootstrap": false,
+      "identityInjectableDecoratorOnly": true
+    },
+    {
+      "argv": [
+        "node",
+        "docs/cleanup-next-workspace-registry-audit-20261012/evidence/product-projection-probe.cjs"
+      ],
+      "exit": 0,
+      "result": "exact frozen old-source vs docs-only six-initializer registry projection differential PASS",
+      "stdout": "product-projection-probe.json",
+      "stderr": "product-projection-probe.stderr.log",
+      "productionModuleImplemented": false
+    },
+    {
+      "kind": "read-only TypeScript AST importer/rule inventory",
+      "exit": 0,
+      "stdout": "callers-and-ordered-rules.json",
+      "result": "5directconfigimporters,4runtime1type,28WSCcalls;7orderedrules+fallback"
+    }
+  ],
+  "readOnlySearchCorrections": [
+    "Initial draft DTO guesses draft.dto.ts/drafts.dto.ts did not exist; actual path drafts/dto/draft.dto.ts was read. No source defect inferred."
+  ],
+  "productionSourceEdits": false,
+  "retirements": false,
+  "nativeOrFullGateAcceptance": false
+}

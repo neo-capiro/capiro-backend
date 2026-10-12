@@ -1,0 +1,389 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "directProductionImporters": 5,
+  "runtimeImporters": 4,
+  "typeOnlyImporters": 1,
+  "directWscCallsites": 28,
+  "callers": [
+    {
+      "path": "apps/workspace/src/cascade/cascade.service.ts",
+      "imports": [
+        {
+          "module": "./cascade.config.js",
+          "typeOnly": false,
+          "names": [
+            {
+              "name": "WSC",
+              "typeOnly": false
+            },
+            {
+              "name": "SECTION_LIBRARY",
+              "typeOnly": false
+            },
+            {
+              "name": "IndustryDatum",
+              "typeOnly": true
+            }
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "method": "industries",
+          "line": 12,
+          "arguments": []
+        },
+        {
+          "method": "productsFor",
+          "line": 16,
+          "arguments": [
+            "industry"
+          ]
+        },
+        {
+          "method": "allLibraryProducts",
+          "line": 20,
+          "arguments": []
+        },
+        {
+          "method": "pathwaysFor",
+          "line": 24,
+          "arguments": [
+            "industry",
+            "product"
+          ]
+        },
+        {
+          "method": "committeesFor",
+          "line": 28,
+          "arguments": [
+            "industry",
+            "pathways"
+          ]
+        },
+        {
+          "method": "dataFor",
+          "line": 33,
+          "arguments": [
+            "industry"
+          ]
+        },
+        {
+          "method": "meta",
+          "line": 52,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedSections",
+          "line": 60,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedPages",
+          "line": 61,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "isFunding",
+          "line": 62,
+          "arguments": [
+            "product"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.controller.ts",
+      "imports": [
+        {
+          "module": "./cascade.config.js",
+          "typeOnly": true,
+          "names": [
+            {
+              "name": "IndustryDatum",
+              "typeOnly": false
+            }
+          ]
+        }
+      ],
+      "calls": []
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.service.ts",
+      "imports": [
+        {
+          "module": "../cascade/cascade.config.js",
+          "typeOnly": false,
+          "names": [
+            {
+              "name": "WSC",
+              "typeOnly": false
+            }
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "method": "suggestedPages",
+          "line": 457,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "industries",
+          "line": 694,
+          "arguments": []
+        },
+        {
+          "method": "allLibraryProducts",
+          "line": 695,
+          "arguments": []
+        },
+        {
+          "method": "meta",
+          "line": 718,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "pathwaysFor",
+          "line": 719,
+          "arguments": [
+            "industry",
+            "product"
+          ]
+        },
+        {
+          "method": "committeesFor",
+          "line": 720,
+          "arguments": [
+            "industry",
+            "pathways"
+          ]
+        },
+        {
+          "method": "suggestedSections",
+          "line": 721,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedPages",
+          "line": 722,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "isFunding",
+          "line": 723,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedSections",
+          "line": 1708,
+          "arguments": [
+            "args.product"
+          ]
+        },
+        {
+          "method": "specFor",
+          "line": 1712,
+          "arguments": [
+            "args.section"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.service.ts",
+      "imports": [
+        {
+          "module": "../cascade/cascade.config.js",
+          "typeOnly": false,
+          "names": [
+            {
+              "name": "WSC",
+              "typeOnly": false
+            }
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "method": "meta",
+          "line": 51,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedSections",
+          "line": 52,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedPages",
+          "line": 53,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "isFunding",
+          "line": 54,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "isFunding",
+          "line": 368,
+          "arguments": [
+            "product"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/workspace/src/checks/checks.service.ts",
+      "imports": [
+        {
+          "module": "../cascade/cascade.config.js",
+          "typeOnly": false,
+          "names": [
+            {
+              "name": "WSC",
+              "typeOnly": false
+            }
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "method": "isFunding",
+          "line": 134,
+          "arguments": [
+            "product"
+          ]
+        },
+        {
+          "method": "suggestedPages",
+          "line": 142,
+          "arguments": [
+            "product || 'White paper'"
+          ]
+        }
+      ]
+    }
+  ],
+  "orderedSectionRules": [
+    {
+      "order": 1,
+      "matcher": "/\\bthe ask\\b|^ask\\b|\\btitle\\b|effective date|^opening|^closing|letterhead|header/",
+      "result": {
+        "goal": "State this directly and briefly.",
+        "format": "short",
+        "targetWords": [
+          10,
+          40
+        ]
+      }
+    },
+    {
+      "order": 2,
+      "matcher": "/funding history|budget|requested amount|total cost|funding ask|appropriation amount/",
+      "result": {
+        "goal": "Present the budget figures by fiscal year.",
+        "format": "table",
+        "targetWords": [
+          20,
+          90
+        ]
+      }
+    },
+    {
+      "order": 3,
+      "matcher": "/talking points|key facts|recommendation|next steps|objective|outcomes|metrics|anticipated questions|q&a|questions & responses/",
+      "result": {
+        "goal": "List the key points concisely.",
+        "format": "bullets",
+        "targetWords": [
+          40,
+          150
+        ]
+      }
+    },
+    {
+      "order": 4,
+      "matcher": "/contact|logistics|disclosure|certification|account & program|recipient information|requesting entity|witness/",
+      "result": {
+        "goal": "Provide the specific factual details, briefly.",
+        "format": "short",
+        "targetWords": [
+          15,
+          70
+        ]
+      }
+    },
+    {
+      "order": 5,
+      "matcher": "/operative provision|definitions|exceptions|authorization of appropriations|report language|bill language/",
+      "result": {
+        "goal": "Draft in precise legislative/statutory drafting register.",
+        "format": "prose",
+        "targetWords": [
+          60,
+          220
+        ]
+      }
+    },
+    {
+      "order": 6,
+      "matcher": "/executive summary|^summary|bluf|abstract/",
+      "result": {
+        "goal": "Summarize the core message up front.",
+        "format": "prose",
+        "targetWords": [
+          80,
+          140
+        ]
+      }
+    },
+    {
+      "order": 7,
+      "matcher": "/analysis|position|justification|background|impact|problem|solution|program description|rationale|need/",
+      "result": {
+        "goal": "Develop the argument with specifics and supporting evidence.",
+        "format": "prose",
+        "targetWords": [
+          150,
+          280
+        ]
+      }
+    }
+  ],
+  "fallback": {
+    "goal": "Develop this section clearly and specifically.",
+    "format": "prose",
+    "targetWords": [
+      120,
+      220
+    ]
+  },
+  "normalization": "const n = (name || '').toLowerCase(); no trim; first match wins; non-global regexes",
+  "productionSourceEdits": false
+}
