@@ -1,0 +1,62 @@
+{
+  "RECEIPT.json": {
+    "sha256": "f24a57d0d41a806baedbf76cd8551a95f15f88268ac049651c77fb569ec8246d",
+    "bytes": 5849
+  },
+  "REVIEW.md": {
+    "sha256": "5e7a610094d5f3f107b3b1f3730ec47c2ff48b318041232d89afe8f31a7e7af6",
+    "bytes": 4697
+  },
+  "author-baseline-corrected.json": {
+    "sha256": "615eb5772d931bdd92060f00fbcd71ac06f68a3802a2b4021b58140e9cae4016",
+    "bytes": 17154
+  },
+  "author-baseline-corrected.log": {
+    "sha256": "e11b84113ff9c31e096f09eb4f88c9f1a4b946ebac8d4be8636527fe06b48f1f",
+    "bytes": 1008
+  },
+  "author-baseline.log": {
+    "sha256": "a7a4c772fee4b1b530737c36e72cd3764e58c67725f195ce271a771e7caa9cd9",
+    "bytes": 785
+  },
+  "combined-final.json": {
+    "sha256": "12ddbf994bdd37282a062be3624b4a4929b4f1829c142f87b547b68e86619457",
+    "bytes": 51575
+  },
+  "combined-final.log": {
+    "sha256": "ca6552ba0a55fe33ed49faebfbe57ce6193bd31ce15197622f205301ba677673",
+    "bytes": 1769
+  },
+  "independent-final.json": {
+    "sha256": "dc9f4d43b08b51ad1d771b3c02322d2e8a5ec14e111fe8eec81d3c1f373ce101",
+    "bytes": 17836
+  },
+  "independent-final.log": {
+    "sha256": "aa5a9e0563b2dec1a907f11b54ee4c89b33a0880a8f99049debeddeb98edb791",
+    "bytes": 3586
+  },
+  "independent-initial.log": {
+    "sha256": "05c9bc7907faff282124833e81ea6c336731e49d1fe387f4eb96b546b3c0b8f8",
+    "bytes": 215
+  },
+  "independent-transform-repaired.json": {
+    "sha256": "adaed7a14e209c90eb82d9e6c1ad77a2f66a5d9bc537ab5fc5e9a326d8177f3e",
+    "bytes": 49320
+  },
+  "independent-transform-repaired.log": {
+    "sha256": "39c8f16e374d6f8f1c5e30e14c39c7b4bd74590600c99bd6b454bab78970e353",
+    "bytes": 14049
+  },
+  "objective-independent-initial-fixture.ts": {
+    "sha256": "43ab92249b199ffb85e4fce9aaac82a5f43a4a4235f23470f2011872390f2ab6",
+    "bytes": 14558
+  },
+  "objective-independent.jest.cjs": {
+    "sha256": "eb53d2b9bd31fb7f7f5f6b53908fd050183faa3d9bd8bd6825e8ca8cc85e6ce6",
+    "bytes": 734
+  },
+  "objective-independent.spec.ts": {
+    "sha256": "dbb3d202feed14b30f6216415fe1c9b68ad9612bc8a3c95c2bb9c743c5ccbf0d",
+    "bytes": 14793
+  }
+}

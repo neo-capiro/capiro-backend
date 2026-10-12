@@ -1,0 +1,252 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts (10.27 s)
+  Independent integrated Objective/Outreach destination boundary
+    ✓ normalizes UUIDs and returns only canonical owner identities without mutation (15 ms)
+    ✓ rechecks current tenantActive on identical replay (3 ms)
+    ✓ rechecks current memberActive on identical replay (3 ms)
+    ✓ rechecks current actorMapped on identical replay (3 ms)
+    ✓ rechecks current clientAvailable on identical replay (3 ms)
+    ✓ rechecks current grant on identical replay (4 ms)
+    ✓ rechecks current objective on identical replay (2 ms)
+    ✓ rechecks current revision on identical replay (2 ms)
+    ✓ rejects currently downgraded membership client_portal_user despite stale administrator context (1 ms)
+    ✓ rejects currently downgraded membership unknown_role despite stale administrator context (1 ms)
+    ✓ refuses changed request tenantId before Objective authority lookup (1 ms)
+    ✓ refuses changed request userId before Objective authority lookup (1 ms)
+    ✓ refuses the historical revision after a current Objective edit, without reading content (3 ms)
+    ✓ rejects a deleted Objective before reporting its stale version (2 ms)
+    ✓ waits for the owned session lock before starting any client/Objective lookup (2 ms)
+    ✓ waits for wall authorization before loading revision/content or returning a binding (1 ms)
+    ✓ rejects archived on replay before Objective lookup (2 ms)
+    ✓ rejects completed on replay before Objective lookup (1 ms)
+    ✓ rejects archival marker inconsistency (1 ms)
+    ✓ rechecks the exact newer state version and refuses sponsor transfer (2 ms)
+    ✕ does not derive authority from none text or client references (2 ms)
+    ✕ does not derive authority from firm text or client references (1 ms)
+    ✕ does not derive authority from multi_client text or client references (1 ms)
+    ✕ does not derive authority from coalition text or client references (1 ms)
+    ✕ rejects client sponsor with non-single references %j (5001 ms)
+    ✕ rejects client sponsor with non-single references {"clientId":"ABCDEFAB-4444-4444-8444-444444444444"} (1 ms)
+    ✓ refuses corrupt stored shape null before metadata (2 ms)
+    ✓ refuses corrupt stored shape {} before metadata (6 ms)
+    ✓ refuses corrupt stored shape {"schemaVersion":"unknown"} before metadata (1 ms)
+    ✓ fails closed for a digest mismatch without returning an Objective binding (4 ms)
+  Independent duplicate/nested Objective destination HTTP parameters
+    ✓ rejects duplicated scalar clientId (53 ms)
+    ✓ rejects duplicated scalar objectiveId (7 ms)
+    ✓ rejects duplicated scalar objectiveVersion (4 ms)
+    ✓ rejects bracket-array clientId (7 ms)
+    ✓ rejects bracket-array objectiveId (4 ms)
+    ✓ rejects bracket-array objectiveVersion (3 ms)
+    ✓ rejects nested-object clientId (5 ms)
+    ✓ rejects nested-object objectiveId (4 ms)
+    ✓ rejects nested-object objectiveVersion (6 ms)
+
+  ● Independent integrated Objective/Outreach destination boundary › does not derive authority from none text or client references
+
+    ZodError: [
+      {
+        "code": "custom",
+        "path": [
+          "sponsor",
+          "clientRefs"
+        ],
+        "message": "none sponsor scope cannot contain client references."
+      }
+    ]
+
+      691 |   // than the hash.
+      692 |   if (!normalizedSkeleton) delete normalized.contentSkeleton;
+    > 693 |   return outreachCampaignSpecV1Schema.parse(normalized);
+          |                                       ^
+      694 | }
+      695 |
+      696 | /**
+
+      at Object.get error [as error] (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:45:31)
+      at ZodEffects.parse (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:120:22)
+      at normalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:693:39)
+      at parseCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:736:22)
+      at canonicalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:762:33)
+      at hashCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:766:38)
+      at Object.rehash (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:69:58)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:164:7
+
+  ● Independent integrated Objective/Outreach destination boundary › does not derive authority from firm text or client references
+
+    ZodError: [
+      {
+        "code": "custom",
+        "path": [
+          "sponsor",
+          "clientRefs"
+        ],
+        "message": "firm sponsor scope cannot contain client references."
+      }
+    ]
+
+      691 |   // than the hash.
+      692 |   if (!normalizedSkeleton) delete normalized.contentSkeleton;
+    > 693 |   return outreachCampaignSpecV1Schema.parse(normalized);
+          |                                       ^
+      694 | }
+      695 |
+      696 | /**
+
+      at Object.get error [as error] (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:45:31)
+      at ZodEffects.parse (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:120:22)
+      at normalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:693:39)
+      at parseCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:736:22)
+      at canonicalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:762:33)
+      at hashCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:766:38)
+      at Object.rehash (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:69:58)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:164:7
+
+  ● Independent integrated Objective/Outreach destination boundary › does not derive authority from multi_client text or client references
+
+    ZodError: [
+      {
+        "code": "custom",
+        "path": [
+          "sponsor",
+          "clientRefs"
+        ],
+        "message": "Multi-client sponsor scope requires at least two client references."
+      }
+    ]
+
+      691 |   // than the hash.
+      692 |   if (!normalizedSkeleton) delete normalized.contentSkeleton;
+    > 693 |   return outreachCampaignSpecV1Schema.parse(normalized);
+          |                                       ^
+      694 | }
+      695 |
+      696 | /**
+
+      at Object.get error [as error] (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:45:31)
+      at ZodEffects.parse (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:120:22)
+      at normalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:693:39)
+      at parseCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:736:22)
+      at canonicalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:762:33)
+      at hashCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:766:38)
+      at Object.rehash (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:69:58)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:164:7
+
+  ● Independent integrated Objective/Outreach destination boundary › does not derive authority from coalition text or client references
+
+    ZodError: [
+      {
+        "code": "custom",
+        "path": [
+          "sponsor",
+          "label"
+        ],
+        "message": "Coalition sponsor scope requires a label."
+      }
+    ]
+
+      691 |   // than the hash.
+      692 |   if (!normalizedSkeleton) delete normalized.contentSkeleton;
+    > 693 |   return outreachCampaignSpecV1Schema.parse(normalized);
+          |                                       ^
+      694 | }
+      695 |
+      696 | /**
+
+      at Object.get error [as error] (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:45:31)
+      at ZodEffects.parse (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:120:22)
+      at normalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:693:39)
+      at parseCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:736:22)
+      at canonicalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:762:33)
+      at hashCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:766:38)
+      at Object.rehash (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:69:58)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:164:7
+
+  ● Independent integrated Objective/Outreach destination boundary › rejects client sponsor with non-single references %j
+
+    ZodError: [
+      {
+        "code": "invalid_type",
+        "expected": "array",
+        "received": "function",
+        "path": [
+          "sponsor",
+          "clientRefs"
+        ],
+        "message": "Expected array, received function"
+      }
+    ]
+
+      733 |
+      734 | export function parseCampaignSpecV1(input: unknown): OutreachCampaignSpecV1 {
+    > 735 |   const structurallyValid = outreachCampaignSpecV1BaseSchema.parse(input);
+          |                                                              ^
+      736 |   const normalized = normalizeCampaignSpecV1(structurallyValid);
+      737 |   const bytes = Buffer.byteLength(canonicalJsonStringify(normalized), 'utf8');
+      738 |   if (bytes > OUTREACH_V3_LIMITS.campaignSpecBytes) {
+
+      at Object.get error [as error] (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:45:31)
+      at ZodObject.parse (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:120:22)
+      at parseCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:735:62)
+      at canonicalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:762:33)
+      at hashCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:766:38)
+      at Object.rehash (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:69:58)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:169:62
+
+  ● Independent integrated Objective/Outreach destination boundary › rejects client sponsor with non-single references %j
+
+    thrown: "Exceeded timeout of 5000 ms for a test while waiting for `done()` to be called.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      166 |   });
+      167 |
+    > 168 |   it.each([[], [{ clientId: input.clientId }, { clientId: otherId }]])('rejects client sponsor with non-single references %j', async (refs) => {
+          |                                                                       ^
+      169 |     const h = fixture(); h.spec.sponsor.clientRefs = refs; h.rehash();
+      170 |     await expect(h.run()).rejects.toBeInstanceOf(NotFoundException);
+      171 |   });
+
+      at ../capirov2/node_modules/.pnpm/jest-each@29.7.0/node_modules/jest-each/build/bind.js:47:15
+          at Array.forEach (<anonymous>)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:168:71
+      at Object.<anonymous> (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:74:1)
+
+  ● Independent integrated Objective/Outreach destination boundary › rejects client sponsor with non-single references {"clientId":"ABCDEFAB-4444-4444-8444-444444444444"}
+
+    ZodError: [
+      {
+        "code": "invalid_type",
+        "expected": "array",
+        "received": "object",
+        "path": [
+          "sponsor",
+          "clientRefs"
+        ],
+        "message": "Expected array, received object"
+      }
+    ]
+
+      733 |
+      734 | export function parseCampaignSpecV1(input: unknown): OutreachCampaignSpecV1 {
+    > 735 |   const structurallyValid = outreachCampaignSpecV1BaseSchema.parse(input);
+          |                                                              ^
+      736 |   const normalized = normalizeCampaignSpecV1(structurallyValid);
+      737 |   const bytes = Buffer.byteLength(canonicalJsonStringify(normalized), 'utf8');
+      738 |   if (bytes > OUTREACH_V3_LIMITS.campaignSpecBytes) {
+
+      at Object.get error [as error] (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:45:31)
+      at ZodObject.parse (../capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.cjs:120:22)
+      at parseCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:735:62)
+      at canonicalizeCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:762:33)
+      at hashCampaignSpecV1 (apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts:766:38)
+      at Object.rehash (docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:69:58)
+      at docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts:169:62
+
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 33 passed, 39 total
+Snapshots:   0 total
+Time:        10.583 s
+Ran all test suites.
+Test results written to: docs/objective-destinations-20261012/evidence/independent-review/independent-transform-repaired.json

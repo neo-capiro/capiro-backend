@@ -1,0 +1,122 @@
+{
+  "reviewedSourceHead": "49c6fe290cfc4f02552b05357ae00df1f6750b67",
+  "reviewedSourceTree": "b3119cffa84304611f53c9627b2de665b1556df5",
+  "originalReviewedHead": "68de4c51a72bb6e4b1e661c367339183ca18825a",
+  "originalReviewedTree": "9cadc4970c1d6919cfd2d5c8d00767101703b2a1",
+  "localEquivalentSourceHead": "55c13abb097d717950d34ca7db858d37093524c9",
+  "localEquivalentTree": "b3119cffa84304611f53c9627b2de665b1556df5",
+  "base": "68ffba6fe7f6b89c049555a17e3308926f21be56",
+  "baseMeaning": "preserved Objective2362 merged with refreshed main; no unrelated candidates merged",
+  "worktree": "/workspace/objective-destinations-review",
+  "branch": "codex/objective-destination-independent-review-20261012",
+  "sourcePathHashes": {
+    "apps/api/src/clients/objectives/objective-destination.spec.ts": {
+      "sha256": "b05fdf58badb7c3cfd5c99cdf0ae8ebd42a60b6e34077cdf6c332550ab17ffdb",
+      "gitBlob": "347630a1f6d91d1437dff2ad54839671071ce3b5",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/clients/objectives/objective-destination.ts": {
+      "sha256": "37683104fca3a6e1c50af0427ea21d935a8502fc35e73837372d4185b50ae300",
+      "gitBlob": "9c37efa61041ff0e2a4a1de9af2fd100f0fb9cc8",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/clients/objectives/objectives.service.ts": {
+      "sha256": "abf316b4677abafd760b21392be55cc351ac4f08def15e7c0e7473210966a98a",
+      "gitBlob": "60965dd5af5994b7253a8cc60f9b9682f8bc82fa",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json": {
+      "sha256": "1b78310e48de805bfe58ed0ef42c93c1f417aa6c340ce9b0e3fc6459ee750c2a",
+      "gitBlob": "b86ea8d80ea1d49f618183be009b611c81aa7243",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts": {
+      "sha256": "8abdb077617c74c9257ebd76e29893c63fbda6678f36cd7c7336fdcf1913d5e1",
+      "gitBlob": "77fe877f2b32b4434e01f23727ffc01631b11b52",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts": {
+      "sha256": "fd9e581a809c547f608ed72d6fc9927c69dc6417f9e28c12f1bfd9120afbca61",
+      "gitBlob": "9e4a24a5f388a7f59a962322e38f454f9bdeb7c6",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts": {
+      "sha256": "9af6f78610b56f5df8831ee54db1dbcc2d47a10bbc5b90bebe7c6b1ef01dabbe",
+      "gitBlob": "5aeb4a5657e49678ad0b0f1a05f63968414501d6",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts": {
+      "sha256": "1c3512f82e1e09d02b4823e9b75062ed2f54e1cf8fd31d898a6963179016971e",
+      "gitBlob": "792552d03266e69d98b6752ffe617eb1b1bdb6b1",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/services/outreach-session.service.ts": {
+      "sha256": "e7c8144ba2084f4ab41c90f42695a745e6cd9f005f3dff893386ca47c9b571e4",
+      "gitBlob": "0f2f43d1841e0cbf8d6271fa47cdc3a26a1c5e88",
+      "workingCopyIdentical": true
+    },
+    "docs/objective-destinations-20261012/CONTRACT.md": {
+      "sha256": "f6082a3b0bdbb40b14874637a071c9f9eac3e614213c5e76371bfc33686cbfa7",
+      "gitBlob": "2742b108f672f1ab732931db2c2b731e957369e9",
+      "workingCopyIdentical": true
+    },
+    "docs/objective-destinations-20261012/evidence/generate-objective-client.cjs": {
+      "sha256": "4fe6148ebefb33dcb9523bf35bde3089727532d4da6db8a6c8fbbe2e8a4edbb7",
+      "gitBlob": "36459d5e33d6aab748946e33405d270f557cb479",
+      "workingCopyIdentical": true
+    },
+    "docs/objective-destinations-20261012/evidence/objective.jest.cjs": {
+      "sha256": "c38b117585a198e882b4618a2bcabe7aed3631370c46110254f8ac1646b5be0c",
+      "gitBlob": "176cc0a591105ebce2ca6a034ec6a14ef311b40c",
+      "workingCopyIdentical": true
+    }
+  },
+  "agentsFileExists": {
+    "/AGENTS.md": false,
+    "/workspace/AGENTS.md": false,
+    "/workspace/objective-destinations-review/AGENTS.md": false
+  },
+  "trackedAgentsPaths": 0,
+  "evidencePins": {
+    "reconciledLedger": "797e3a59158cff56b017ab7d01ee445bf624fced:docs/backend-frontend-handoff-20261012/RECONCILED-LEDGER.md",
+    "prospectContract": "6c26ac2dad3756a61b6733329dea7ce3c9138ece:docs/prospect-resources-20261012/CONTRACT.md",
+    "prospectIntegration": "6c26ac2dad3756a61b6733329dea7ce3c9138ece:docs/prospect-resources-20261012/INTEGRATION.md"
+  },
+  "independentTests": {
+    "suite": "objective-independent.spec.ts",
+    "passingResult": "independent-final.json",
+    "passingLog": "independent-final.log",
+    "count": 39,
+    "kind": "synthetic tagged SQL boundary plus local Nest HTTP; no database"
+  },
+  "failuresRetained": {
+    "author-baseline.log": "wrong root Jest binary path, corrected apps/api launcher",
+    "independent-initial.log": "review configuration root could not resolve ts-jest, repaired absolute pinned transform",
+    "independent-transform-repaired.json": "33 passed/6 failed due invalid synthetic sponsor fixtures and empty-array Jest.each shape; preserved initial fixture"
+  },
+  "unrun": [
+    "native PostgreSQL",
+    "RLS",
+    "migration execution",
+    "database permission acceptance",
+    "native MVCC and lock/deadlock acceptance",
+    "providers",
+    "AWS",
+    "paid models",
+    "customer data mutation",
+    "credential/permission/network changes"
+  ],
+  "scope": "one existing Outreach session resolver only; no durable association or creation, generic destination authority, frontend activation, generation or send",
+  "combinedRerun": {
+    "passingResult": "combined-final.json",
+    "passingLog": "combined-final.log",
+    "tests": 119,
+    "suites": 9,
+    "independentTests": 39,
+    "authorSelectedTests": 80,
+    "databaseSuitesExcluded": [
+      "objectives.pg.spec.ts",
+      "objectives.authorization.spec.ts"
+    ]
+  }
+}
