@@ -2,8 +2,8 @@
   "files": [
     {
       "path": "HANDOFF.md",
-      "bytes": 2606,
-      "sha256": "46aa11c1a57e3fd706867b07a75e794237bff4a1f269d37fd65df1afa4a51b57"
+      "bytes": 2864,
+      "sha256": "32c2196e211d6cc84352aa2950872eec0dc5263473d92f679b0acb2f6132a277"
     },
     {
       "path": "NEWSLETTER-METADATA-CONTRACT.md",
@@ -51,6 +51,11 @@
       "sha256": "b59cc773c19abba5958eeec53527c062ff6d5754c355bdc10dc8cc195e5f6f99"
     },
     {
+      "path": "evidence/WHITESPACE.json",
+      "bytes": 191,
+      "sha256": "42acc611a0e6a938960264b556b62228a916ca5f85528870808636f75a178a3d"
+    },
+    {
       "path": "evidence/frontend-engagement.ts",
       "bytes": 10920,
       "sha256": "c76d84157ccbb5b7e4debc46a710f76e4f9922ee9811ec2beab1202d0e924457"
@@ -94,6 +99,16 @@
       "path": "evidence/publishedstageinterface.ts.txt",
       "bytes": 181,
       "sha256": "b1ece3cd2815fe8c118783d08c3b2bf0fd8de6dba66e5907a1a718c90b5d0968"
+    },
+    {
+      "path": "evidence/raw-whitespace.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/raw-whitespace.stdout",
+      "bytes": 123,
+      "sha256": "e4baed1aa21ba08241c524001cf78640cd975e2defad51dbf56740a359756a76"
     },
     {
       "path": "evidence/read-binding-checks.json",
