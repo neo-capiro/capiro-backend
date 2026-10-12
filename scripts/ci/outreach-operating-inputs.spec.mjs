@@ -1,0 +1,362 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { createHash } from 'node:crypto';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+// Read source as data. Never import the verifier, launch its CLI, or execute Git,
+// application modules, providers, native tooling, or environment loading.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const RUNNER = 'scripts/verify-outreach-v3-p1-architecture.mjs';
+const SPEC = 'scripts/verify-outreach-v3-p1-architecture.spec.mjs';
+const CONTRACT = 'docs/contracts/outreach-v3-verification-inputs-v1.md';
+const OLD_PLANS = [
+  'docs/plans/outreach-v3/revised-phase-1-shared-foundations.md',
+  'docs/plans/outreach-v3/revised-phase-2-readiness.md',
+];
+const OLD_HASHES = [
+  '89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55',
+  '9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716',
+];
+const OPERATING_DOCS = [
+  'docs/contracts/engagement-runtime-ownership-v1.md',
+  'docs/contracts/capiro-capabilities-v1.md',
+  'docs/runbooks/capiro-capability-security.md',
+  'docs/runbooks/engagement-runtime-ownership.md',
+];
+const WORKER_FILES = [
+  'apps/api/src/engagement-workers/outreach-job-worker.service.ts',
+  'apps/api/src/engagement-workers/outreach-send-intent-worker.service.ts',
+  'apps/api/src/engagement-workers/notetaker-reconcile-worker.service.ts',
+  'apps/api/src/engagement-callbacks/engagement-callbacks.module.ts',
+  'apps/api/src/webhooks/recall-webhook.module.ts',
+];
+const CAPABILITY_FILES = [
+  'apps/api/src/capabilities/capability-context.ts',
+  'apps/api/src/capabilities/capability-result.ts',
+  'apps/api/src/capabilities/capability-errors.ts',
+  'apps/api/src/capabilities/capability-definition.ts',
+  'apps/api/src/capabilities/capability-registry.ts',
+  'apps/api/src/capabilities/adapters/capability-tool-adapter.ts',
+];
+const BASE_SHA = '46e029dad5c27bf44c7920cd5a4000716621671f';
+const END_SHA = 'cf0aa80d8d16fbd1e775fc054e8de34570535e23';
+const CATALOG = 'apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json';
+const REVERSE = 'apps/api/src/engagement/__fixtures__/outreach-v3-p1-reverse-dependencies.v1.json';
+const OWNERSHIP = 'infra/cdk/fixtures/engagement-runtime-ownership.v1.json';
+const readSource = (name) => fs.readFileSync(path.join(ROOT, name), 'utf8');
+const hash = (source) => createHash('sha256').update(source, 'utf8').digest('hex');
+const after = readSource(RUNNER);
+const contract = readSource(CONTRACT);
+const existingSpec = readSource(SPEC);
+const ownershipSource = readSource('scripts/engagement-runtime-ownership.mjs');
+const normalize = (value) => JSON.parse(JSON.stringify(value));
+
+function originalSource() {
+  return after
+    .replace("import { createHash } from 'node:crypto';\n", '')
+    .replace(/\/\/ Owned verification-input contract:[\s\S]*?\/\/ End owned verification-input contract\.\n\n/, '')
+    .replace('    VERIFICATION_INPUTS_DOCUMENT,\n', OLD_PLANS.map((name) => `    '${name}',\n`).join(''))
+    .replace(
+      '    else if (requiredDoc === VERIFICATION_INPUTS_DOCUMENT) {\n' +
+      '      problems.push(...validateVerificationInputsDocument(read(requiredDoc)));\n    }\n',
+      '',
+    );
+}
+const before = originalSource();
+
+function project(source, filename) {
+  return source.replace(/^#![^\n]*\n/, '').replace(/^import\s[\s\S]*?;\n/gm, '')
+    .replace(/^export /gm, '')
+    .replaceAll('import.meta.url', JSON.stringify(pathToFileURL(path.join(ROOT, filename)).href));
+}
+
+function catalog(names) {
+  return names.map((name) => ({
+    name, status: ['get_client_context', 'get_recent_activity', 'get_capiro_record'].includes(name)
+      ? 'implemented' : 'contract_only',
+    domainOwner: 'synthetic', inputSchema: `${name}.input.v1`, outputSchema: `${name}.output.v1`,
+    authorizationLayer: 'server', provenanceClass: 'structured', meriConsumer: true, outreachConsumer: true,
+  }));
+}
+
+function ownership() {
+  const profile = (owner, productionAllowed) => ({
+    productionAllowed, testOnly: !productionAllowed,
+    owners: Object.fromEntries(['workers', 'callbacks', 'recall', 'externalActions'].map((key) => [key, owner])),
+    services: Object.fromEntries(['api', 'engagement-api'].map((serviceName) => [serviceName, {
+      serviceName, processMode: serviceName === 'engagement-api' && productionAllowed ? 'shadow' : 'active',
+      backgroundOwner: owner, callbacksEnabled: serviceName === owner,
+      recallWebhookEnabled: serviceName === owner, externalActions: serviceName === owner ? 'enabled' : 'disabled',
+    }])),
+  });
+  return { schemaVersion: 1, currentProductionProfile: profile('api', true),
+    futureRehearsalProfile: profile('engagement-api', false) };
+}
+
+function fixture() {
+  const historicalNames = ['search_capiro', 'get_capiro_record', 'get_client_context', 'search_memory',
+    'research_government', 'analyze_relationships', 'get_recent_activity', 'search_targets', 'get_target_profile'];
+  const historical = catalog(historicalNames);
+  const current = catalog([...historicalNames, 'get_document', 'recommend_outreach_strategy',
+    'analyze_target_coverage', 'find_similar_targets']);
+  const files = new Map([
+    [CATALOG, JSON.stringify(current)],
+    [REVERSE, JSON.stringify([{ consumerModule: 'synthetic', consumerFile: 'synthetic.ts',
+      currentImport: 'neutral-port', symbols: ['port'], methodUses: ['read'],
+      targetBoundary: 'shared-capabilities', allowedAfterPhase1: true }])],
+    [OWNERSHIP, JSON.stringify(ownership())],
+    ['apps/api/src/engagement/engagement.module.ts', 'MeetingCapturePersistenceService OutreachJobService ' +
+      'OutreachSendIntentService NotetakerService new NotetakerService(prisma, bot, persistence as never'],
+    ...['apps/api/src/reviews/reviews.module.ts', 'apps/api/src/reviews/reviews.service.ts',
+      'apps/api/src/intelligence/alert-memo/alert-memo.module.ts',
+      'apps/api/src/intelligence/alert-memo/district-brief.module.ts',
+      'apps/api/src/intelligence/alert-memo/hearing-recap.service.ts',
+      'apps/api/src/webhooks/webhooks.module.ts'].map((name) => [name, 'synthetic source']),
+    ['apps/api/src/meri/meri.module.ts', 'AiCredentialsModule'],
+    ...['apps/api/src/app.module.ts', 'apps/api/src/engagement-api.app.module.ts'].map((name) => [name,
+      'EngagementIntegrationActionsModule EngagementCallbacksModule EngagementWorkersModule RecallWebhookModule CapabilitiesModule']),
+    ...CAPABILITY_FILES.map((name) => [name, 'synthetic provider-neutral source']),
+    ['apps/api/src/ai-credentials/internal-ai-credentials.controller.ts', 'InternalServiceGuard'],
+    ...WORKER_FILES.map((name) => [name, 'synthetic retained required file']),
+    ...OPERATING_DOCS.map((name) => [name, 'synthetic retained operating input']),
+    ...OLD_PLANS.map((name) => [name, 'synthetic historical file presence']),
+    [CONTRACT, contract],
+  ]);
+  return { files, historical, current, env: {}, changed: [], failDiff: false };
+}
+
+function load(source, value, { cli = false, args = [] } = {}) {
+  const accesses = [];
+  const output = [];
+  const declaredFiles = new Set(fixture().files.keys());
+  const relative = (file) => {
+    const name = path.relative(ROOT, file);
+    assert.ok(declaredFiles.has(name), `unqualified filesystem access: ${name}`);
+    return name;
+  };
+  const exitSignal = { kind: 'fake-process-exit' };
+  const fakeProcess = { env: value.env, argv: ['fake-node', ...(cli ? [path.join(ROOT, RUNNER), ...args] : [])],
+    exit(code) { output.push(['exit', code]); throw exitSignal; } };
+  const fakeFs = {
+    readFileSync(file, encoding) {
+      assert.equal(encoding, 'utf8');
+      const name = relative(file); accesses.push(['read', name]);
+      assert.ok(value.files.has(name), `missing synthetic input: ${name}`);
+      return value.files.get(name);
+    },
+    existsSync(file) { const name = relative(file); accesses.push(['exists', name]); return value.files.has(name); },
+  };
+  const fakeExec = (command, argv, options) => {
+    assert.equal(command, 'git'); assert.equal(options.cwd, ROOT); assert.equal(options.encoding, 'utf8');
+    accesses.push(['fake-child', command, ...argv]);
+    if (argv[0] === 'show' && argv.length === 2) {
+      if (argv[1] === `${value.env.OUTREACH_V3_P1_SCOPE_END ?? END_SHA}:${CATALOG}`) return JSON.stringify(value.historical);
+      if (value.env.OUTREACH_V3_P1_CATALOG_SHA && argv[1] === `${value.env.OUTREACH_V3_P1_CATALOG_SHA}:${CATALOG}`) {
+        return JSON.stringify(value.current);
+      }
+    }
+    if (argv[0] === 'diff' && argv[1] === '--name-only' && argv.length === 3) {
+      const ranges = [`${BASE_SHA}..${value.env.OUTREACH_V3_P1_SCOPE_END ?? END_SHA}`];
+      if (value.env.OUTREACH_V3_P1_BASE_SHA) ranges.push(`${value.env.OUTREACH_V3_P1_BASE_SHA}..${value.env.OUTREACH_V3_P1_SCOPE_END ?? 'HEAD'}`);
+      assert.ok(ranges.includes(argv[2]), `unqualified synthetic diff: ${argv[2]}`);
+      if (value.failDiff) throw new Error('synthetic Git refusal');
+      return value.changed.join('\n');
+    }
+    assert.fail(`unqualified child operation: ${command} ${argv.join(' ')}`);
+  };
+  const context = vm.createContext({ fs: fakeFs, path, fileURLToPath, createHash, process: fakeProcess,
+    console: { log: (...args) => output.push(['log', ...args]), error: (...args) => output.push(['error', ...args]) },
+    execFileSync: fakeExec });
+  // The real ownership validator is projected too, rather than replaced by a passing stub.
+  vm.runInContext(`(() => { ${project(ownershipSource, 'scripts/engagement-runtime-ownership.mjs')}
+    globalThis.validateOwnershipFixture = validateOwnershipFixture; })()`, context);
+  try {
+    vm.runInContext(`${project(source, RUNNER)}\n globalThis.qualified = {
+      architectureProblems, validateCapabilityCatalog, validateReverseDependencies, REQUIRED_CAPABILITIES,
+      ${source === after ? 'validateVerificationInputsDocument,' : ''}
+    };`, context);
+  } catch (error) { if (error !== exitSignal) throw error; }
+  return { context, module: context.qualified, accesses, output };
+}
+
+function parity(name, mutate) {
+  test(`existing architecture control retained: ${name}`, () => {
+    const left = fixture(); const right = fixture(); mutate(left); mutate(right);
+    const old = load(before, left); const next = load(after, right);
+    const expected = normalize(old.module.architectureProblems());
+    assert.ok(expected.length > 0, 'negative control must fail before the migration');
+    assert.deepEqual(normalize(next.module.architectureProblems()), expected);
+    const outsideDocSeam = (calls) => calls.filter((call) => !OLD_PLANS.includes(call[1]) && call[1] !== CONTRACT);
+    assert.deepEqual(next.accesses.filter((call) => call[0] === 'fake-child'), old.accesses.filter((call) => call[0] === 'fake-child'));
+    assert.deepEqual(outsideDocSeam(next.accesses), outsideDocSeam(old.accesses));
+  });
+}
+const append = (name, text) => (value) => value.files.set(name, value.files.get(name) + '\n' + text);
+const replace = (name, text, replacement = '') => (value) => value.files.set(name, value.files.get(name).replaceAll(text, replacement));
+const jsonChange = (name, mutate) => (value) => { const json = JSON.parse(value.files.get(name)); mutate(json); value.files.set(name, JSON.stringify(json)); };
+
+test('the entire original verifier and six-case specification retain their pinned byte identities outside the owned seam', () => {
+  assert.equal(hash(before), 'a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42');
+  assert.equal(hash(existingSpec), '1e5c2c3014950abed5c5a040d768fb1d2eee1afbcfbaa4427ebb251db08b58ac');
+});
+
+test('complete verifier passes the same synthetic architecture and retains child operations and non-document source reads', () => {
+  const old = load(before, fixture()); const next = load(after, fixture());
+  assert.deepEqual(normalize(old.module.architectureProblems()), []);
+  assert.deepEqual(normalize(next.module.architectureProblems()), []);
+  const retained = (calls) => calls.filter((call) => !OLD_PLANS.includes(call[1]) && call[1] !== CONTRACT);
+  assert.deepEqual(retained(next.accesses), retained(old.accesses));
+  assert.deepEqual(next.accesses.filter((call) => call[1] === CONTRACT), [['exists', CONTRACT], ['read', CONTRACT]]);
+  assert.ok(!next.accesses.some((call) => OLD_PLANS.includes(call[1])));
+});
+
+test('all six original test cases run unchanged in the same projected realm before and after', () => {
+  const receipts = [];
+  for (const source of [before, after]) {
+    const projected = load(source, fixture()); const names = [];
+    projected.context.assert = assert;
+    projected.context.test = (name, callback) => { callback(); names.push(name); };
+    projected.context.__architecture = projected.module;
+    vm.runInContext('(() => { const { REQUIRED_CAPABILITIES, validateCapabilityCatalog, validateReverseDependencies } = __architecture;\n' +
+      project(existingSpec, SPEC) + '\n})()', projected.context);
+    receipts.push(names);
+  }
+  assert.equal(receipts[0].length, 6);
+  assert.deepEqual(receipts[1], receipts[0]);
+});
+
+for (const name of [...OPERATING_DOCS, ...WORKER_FILES]) parity(`required ${name}`, (value) => value.files.delete(name));
+for (const forbidden of ['MicrosoftOAuthController', 'GoogleOAuthController', 'EngagementSyncSchedulerService']) {
+  parity(`request/core excludes ${forbidden}`, append('apps/api/src/engagement/engagement.module.ts', forbidden));
+}
+for (const required of ['MeetingCapturePersistenceService', 'OutreachJobService', 'OutreachSendIntentService', 'NotetakerService']) {
+  parity(`request/core requires ${required}`, replace('apps/api/src/engagement/engagement.module.ts', required));
+}
+parity('exact notetaker persistence composition', replace('apps/api/src/engagement/engagement.module.ts', 'persistence as never'));
+for (const file of ['apps/api/src/reviews/reviews.module.ts', 'apps/api/src/reviews/reviews.service.ts']) {
+  for (const dependency of ['EngagementModule', 'EngagementService', 'OutreachDraftService']) parity(`${file} excludes ${dependency}`, append(file, dependency));
+}
+for (const file of ['apps/api/src/intelligence/alert-memo/alert-memo.module.ts', 'apps/api/src/intelligence/alert-memo/district-brief.module.ts']) {
+  parity(`${file} excludes broad EngagementModule`, append(file, "import { EngagementModule } from 'synthetic';"));
+}
+parity('hearing recap excludes broad EngagementService', append('apps/api/src/intelligence/alert-memo/hearing-recap.service.ts', 'EngagementService'));
+parity('Meri requires neutral credential module', replace('apps/api/src/meri/meri.module.ts', 'AiCredentialsModule'));
+parity('Meri excludes legacy credential resolver', append('apps/api/src/meri/meri.module.ts', '../engagement/ai-credential-resolver.service'));
+for (const dependency of ['EngagementModule', 'RecallWebhook']) parity(`general webhooks exclude ${dependency}`, append('apps/api/src/webhooks/webhooks.module.ts', dependency));
+for (const file of ['apps/api/src/app.module.ts', 'apps/api/src/engagement-api.app.module.ts']) {
+  for (const required of ['EngagementIntegrationActionsModule', 'EngagementCallbacksModule', 'EngagementWorkersModule', 'RecallWebhookModule', 'CapabilitiesModule']) {
+    parity(`${file} composes ${required}`, replace(file, required));
+  }
+}
+for (const file of CAPABILITY_FILES) {
+  for (const provider of ['openai', '@modelcontextprotocol', 'langgraph', 'langchain']) parity(`${file} rejects ${provider}`, append(file, `import provider from '${provider}';`));
+}
+parity('raw credential internal-service guard', replace('apps/api/src/ai-credentials/internal-ai-credentials.controller.ts', 'InternalServiceGuard'));
+for (const [name, mutate] of [
+  ['duplicate capability', (rows) => rows.push({ ...rows[0] })],
+  ['complete thirteen-entry current catalog', (rows) => rows.pop()],
+  ['consumer-prefixed fork', (rows) => { rows[0].name = 'outreach_search_capiro'; }],
+  ['implemented proof status', (rows) => { rows.find((row) => row.name === 'get_client_context').status = 'contract_only'; }],
+  ...['domainOwner', 'inputSchema', 'outputSchema', 'authorizationLayer', 'provenanceClass', 'meriConsumer', 'outreachConsumer']
+    .map((field) => [`capability metadata ${field}`, (rows) => { delete rows[0][field]; }]),
+]) parity(name, jsonChange(CATALOG, mutate));
+parity('closed nine-entry immutable foundation', (value) => value.historical.pop());
+parity('optional pinned current catalog authority', (value) => { value.env.OUTREACH_V3_P1_CATALOG_SHA = 'fake-current-pin'; delete value.current[0].authorizationLayer; });
+parity('reverse dependency uniqueness', jsonChange(REVERSE, (rows) => rows.push({ ...rows[0] })));
+for (const field of ['consumerModule', 'consumerFile', 'currentImport', 'symbols', 'methodUses', 'targetBoundary', 'allowedAfterPhase1']) {
+  parity(`reverse dependency metadata ${field}`, jsonChange(REVERSE, (rows) => { delete rows[0][field]; }));
+}
+parity('reverse dependency prohibited transition', jsonChange(REVERSE, (rows) => { rows[0].allowedAfterPhase1 = false; }));
+parity('ownership schema', jsonChange(OWNERSHIP, (value) => { value.schemaVersion = 2; }));
+parity('current ownership remains API', jsonChange(OWNERSHIP, (value) => { value.currentProductionProfile.owners.workers = 'engagement-api'; }));
+parity('current Engagement remains shadow', jsonChange(OWNERSHIP, (value) => { value.currentProductionProfile.services['engagement-api'].processMode = 'active'; }));
+parity('unique callback owner', jsonChange(OWNERSHIP, (value) => { value.currentProductionProfile.services['engagement-api'].callbacksEnabled = true; }));
+parity('future ownership stays production prohibited', jsonChange(OWNERSHIP, (value) => { value.futureRehearsalProfile.productionAllowed = true; }));
+parity('future ownership stays test-only', jsonChange(OWNERSHIP, (value) => { value.futureRehearsalProfile.testOnly = false; }));
+for (const file of ['apps/web/src/synthetic.ts', 'apps/api/prisma/migrations/synthetic/migration.sql', 'infra/cdk/lib/synthetic.ts', 'apps/api/src/campaign-spec.ts', 'apps/api/src/outreachsession.ts', 'apps/api/src/outreachevent.ts']) {
+  parity(`historical Phase 1 scope rejects ${file}`, (value) => { value.changed.push(file); });
+}
+parity('moving whole-change scope remains attributed', (value) => { value.env.OUTREACH_V3_P1_BASE_SHA = 'fake-moving-base'; value.changed.push('apps/web/src/synthetic.ts'); });
+parity('historical scope failure is a refusal', (value) => { value.failDiff = true; });
+
+test('old planning paths are no longer runtime filesystem inputs', () => {
+  const value = fixture(); OLD_PLANS.forEach((name) => value.files.delete(name));
+  const old = load(before, value); const next = load(after, value);
+  assert.deepEqual(normalize(old.module.architectureProblems()), OLD_PLANS.map((name) => `missing required documentation ${name}`));
+  assert.deepEqual(normalize(next.module.architectureProblems()), []);
+  assert.ok(!next.accesses.some((call) => OLD_PLANS.includes(call[1])));
+});
+
+test('missing operating contract is refused without attempting to read it', () => {
+  const value = fixture(); value.files.delete(CONTRACT); const next = load(after, value);
+  assert.deepEqual(normalize(next.module.architectureProblems()), [`missing required documentation ${CONTRACT}`]);
+  assert.ok(!next.accesses.some((call) => call[0] === 'read' && call[1] === CONTRACT));
+});
+
+test('every nonempty original requirement line is preserved and omission is refused', () => {
+  const next = load(after, fixture());
+  for (const [index, id] of ['outreach-v3-phase1-foundations', 'outreach-v3-phase2-readiness'].entries()) {
+    const begin = `<!-- ${id}:begin -->\n`; const end = `<!-- ${id}:end -->`;
+    const start = contract.indexOf(begin) + begin.length; const finish = contract.indexOf(end);
+    const body = contract.slice(start, finish);
+    assert.equal(hash(body), OLD_HASHES[index]);
+    assert.equal(Buffer.byteLength(body, 'utf8'), [2474, 1215][index]);
+    for (const line of body.split('\n').filter(Boolean)) {
+      const omission = contract.slice(0, start) + body.replace(line, '') + contract.slice(finish);
+      assert.match(next.module.validateVerificationInputsDocument(omission).join('\n'), /changed or omitted original/);
+    }
+  }
+});
+
+test('missing, duplicate, reordered markers and changed original claims are refused', () => {
+  const next = load(after, fixture());
+  for (const id of ['outreach-v3-phase1-foundations', 'outreach-v3-phase2-readiness']) {
+    const begin = `<!-- ${id}:begin -->\n`; const end = `<!-- ${id}:end -->`;
+    for (const invalid of [contract.replace(begin, ''), contract.replace(end, ''), contract + begin,
+      contract + end, contract.replace(begin, '<temporary-marker>').replace(end, begin).replace('<temporary-marker>', end)]) {
+      assert.ok(next.module.validateVerificationInputsDocument(invalid).length > 0);
+    }
+  }
+  assert.ok(next.module.validateVerificationInputsDocument(contract.replace('Open P0 = 0', 'Open P0 waived')).length > 0);
+});
+
+test('current-catalog, completion, scope and authority qualifications cannot be omitted', () => {
+  const next = load(after, fixture());
+  for (const line of ['# Outreach V3 verification inputs v1',
+    'Historical implementation labels below are claims preserved from the original plans; they do not establish current completion or a passing gate.',
+    'The frozen Phase 1 catalog has nine entries; the current architecture verifier requires all thirteen current entries and their existing authority checks.',
+    'This contract grants no production ownership transfer, future-profile activation, frontend retirement, or waiver of executable acceptance gates.']) {
+    assert.match(next.module.validateVerificationInputsDocument(contract.replace(line, '')).join('\n'), /missing qualification/);
+  }
+});
+
+test('whole-verifier contract requirement omission is a failing architecture result', () => {
+  const value = fixture(); value.files.set(CONTRACT, contract.replace('Open P1 = 0', 'Open P1 waived'));
+  assert.match(load(after, value).module.architectureProblems().join('\n'), /changed or omitted original outreach-v3-phase2-readiness requirements/);
+});
+
+test('default CLI and ignored legacy arguments retain exact success and existing-failure protocol through fake IO only', () => {
+  for (const args of [[], ['--legacy-unused'], ['--backend-only']]) {
+    for (const invalid of [false, true]) {
+      const left = fixture(); const right = fixture();
+      if (invalid) {
+        left.files.delete(WORKER_FILES[0]); right.files.delete(WORKER_FILES[0]);
+      }
+      const old = load(before, left, { cli: true, args }); const next = load(after, right, { cli: true, args });
+      assert.deepEqual(next.output, old.output);
+      assert.deepEqual(next.output.at(-1), invalid ? ['exit', 1] : ['log', 'OUTREACH_V3_P1_ARCHITECTURE_VALID']);
+    }
+  }
+});
+
+test('missing contract and altered requirements retain existing failing CLI marker and exit policy through fake IO', () => {
+  for (const mutate of [(value) => value.files.delete(CONTRACT),
+    (value) => value.files.set(CONTRACT, contract.replace('Open P0 = 0', 'Open P0 waived'))]) {
+    const value = fixture(); mutate(value); const next = load(after, value, { cli: true });
+    assert.deepEqual(next.output.at(-1), ['exit', 1]);
+    assert.deepEqual(next.output.at(-2), ['error', '\nOUTREACH_V3_P1_ARCHITECTURE_INVALID (1)']);
+  }
+});
