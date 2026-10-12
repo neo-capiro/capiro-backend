@@ -1,0 +1,14 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-review/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/versions/objective-destination.spec.ts
+PASS src/prospect-resources/prospect-independent-review.spec.ts
+PASS src/prospect-resources/prospect-draft-access.spec.ts (5.028 s)
+PASS src/documents/documents.service.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       90 passed, 90 total
+Snapshots:   0 total
+Time:        7.658 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/workspace-combined-final.json

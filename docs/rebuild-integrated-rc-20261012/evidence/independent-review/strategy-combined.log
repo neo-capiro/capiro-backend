@@ -1,0 +1,157 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-review/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/planner/planner-task-create-command.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      69 |   plannerTimeRollups,
+      70 | } from '@capiro/strategy-verifier';
+    > 71 | import {
+         | ^
+      72 |   Prisma,
+      73 |   type SpPlannerProject,
+      74 |   type SpPlannerTask,
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/planner/planner.service.ts:71:1)
+      at Object.<anonymous> (src/planner/planner-task-create-command.spec.ts:4:1)
+
+FAIL src/planner/planner-task-create-command.independent-review.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      69 |   plannerTimeRollups,
+      70 | } from '@capiro/strategy-verifier';
+    > 71 | import {
+         | ^
+      72 |   Prisma,
+      73 |   type SpPlannerProject,
+      74 |   type SpPlannerTask,
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/planner/planner.service.ts:71:1)
+      at Object.<anonymous> (src/planner/planner-task-create-command.independent-review.spec.ts:4:1)
+
+FAIL src/strategy/objective-destination.service.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+       8 | // load-bearing: `Prisma.dmmf` below drives the tenant-scoped model set, and it
+       9 | // must reflect THIS service's schema, not apps/api's default client.
+    > 10 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+         | ^
+      11 |
+      12 | /**
+      13 |  * Tenant isolation for the api-strategy engine.
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:10:1)
+      at Object.<anonymous> (src/strategy/strategy.service.ts:9:1)
+      at Object.<anonymous> (src/strategy/objective-destination.service.spec.ts:11:1)
+
+PASS src/prisma/migration-safety.spec.ts
+FAIL src/strategy/objective-destination.controller.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+       8 | // load-bearing: `Prisma.dmmf` below drives the tenant-scoped model set, and it
+       9 | // must reflect THIS service's schema, not apps/api's default client.
+    > 10 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+         | ^
+      11 |
+      12 | /**
+      13 |  * Tenant isolation for the api-strategy engine.
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:10:1)
+      at Object.<anonymous> (src/flags/strategy-flags.service.ts:2:1)
+      at Object.<anonymous> (src/flags/strategy-planner.guard.ts:4:1)
+      at Object.<anonymous> (src/strategy/objective-destination.controller.spec.ts:8:1)
+
+FAIL src/prisma/apply-tenant-scope.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+       8 | // load-bearing: `Prisma.dmmf` below drives the tenant-scoped model set, and it
+       9 | // must reflect THIS service's schema, not apps/api's default client.
+    > 10 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+         | ^
+      11 |
+      12 | /**
+      13 |  * Tenant isolation for the api-strategy engine.
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:10:1)
+      at Object.<anonymous> (src/prisma/apply-tenant-scope.spec.ts:2:1)
+
+PASS src/prisma/tenant-scope-guard.spec.ts
+PASS src/planner/planner-links.spec.ts
+PASS src/planner/planner-command-scope.spec.ts
+
+Test Suites: 5 failed, 4 passed, 9 total
+Tests:       24 passed, 24 total
+Snapshots:   0 total
+Time:        5.277 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/strategy-combined.json

@@ -1,0 +1,5 @@
+{
+  "fullStagedDiffCheck": "raw ts-jest logs retain original whitespace warnings",
+  "sourceAndReviewDocsDiffCheck": "PASS",
+  "rawLogsTrimmed": false
+}

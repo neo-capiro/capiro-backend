@@ -1,0 +1,2053 @@
+{
+  "frozenSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "tree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "observedAt": "2026-10-12T10:07:37.010344+00:00",
+  "histories": [
+    {
+      "pr": 2362,
+      "head": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+      "ancestor": true
+    },
+    {
+      "pr": 2364,
+      "head": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+      "ancestor": true
+    },
+    {
+      "pr": 2365,
+      "head": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+      "ancestor": true
+    },
+    {
+      "pr": 2371,
+      "head": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+      "ancestor": true
+    },
+    {
+      "pr": 2373,
+      "head": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+      "ancestor": true
+    },
+    {
+      "pr": 2381,
+      "head": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+      "ancestor": true
+    },
+    {
+      "pr": 2392,
+      "head": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "ancestor": false
+    },
+    {
+      "pr": 2393,
+      "head": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+      "ancestor": true
+    },
+    {
+      "pr": 2394,
+      "head": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+      "ancestor": true
+    },
+    {
+      "pr": 2395,
+      "head": "c5e41e320af4b4d841d4b3136777d712116916ed",
+      "ancestor": true
+    },
+    {
+      "pr": 2396,
+      "head": "e2c2c110edd986e799d47d43b0db50b24fab0201",
+      "ancestor": true
+    },
+    {
+      "pr": 2397,
+      "head": "4915f3fa5c938182b2624377375674654baa5337",
+      "ancestor": true
+    },
+    {
+      "pr": 2398,
+      "head": "797e3a59158cff56b017ab7d01ee445bf624fced",
+      "ancestor": true
+    },
+    {
+      "pr": 2399,
+      "head": "0783423aeaaa8b65f289d0927d605142816d8cfe",
+      "ancestor": true
+    },
+    {
+      "pr": 2400,
+      "head": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "ancestor": true
+    },
+    {
+      "pr": 2401,
+      "head": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "ancestor": true
+    },
+    {
+      "pr": 2402,
+      "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "ancestor": true
+    },
+    {
+      "pr": 2403,
+      "head": "39b4ae45db578d121b18db9f95029a8c3ec293a2",
+      "ancestor": true
+    },
+    {
+      "pr": 2404,
+      "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+      "ancestor": true
+    },
+    {
+      "pr": 2405,
+      "head": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e",
+      "ancestor": true
+    }
+  ],
+  "unmodifiedPublishedRuntimeCount": 172,
+  "unmodifiedPublishedRuntime": [
+    {
+      "path": "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "7048874032f7a8ed079ab0aafee4804b1c97943b"
+      },
+      "actualBlob": "7048874032f7a8ed079ab0aafee4804b1c97943b"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.controller.roles.spec.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "0b1673328b77570c351405e9c3e7529c3a5ae91f"
+      },
+      "actualBlob": "0b1673328b77570c351405e9c3e7529c3a5ae91f"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.controller.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "64c47c6c6bf75b05779c89bba0b6065c2ead684f"
+      },
+      "actualBlob": "64c47c6c6bf75b05779c89bba0b6065c2ead684f"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.dto.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "3e925c60401ceb6c4616359e642ef1fc389bec54"
+      },
+      "actualBlob": "3e925c60401ceb6c4616359e642ef1fc389bec54"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.service.spec.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "9b0e51aa82fff51138e0e34910a998a8073a37e6"
+      },
+      "actualBlob": "9b0e51aa82fff51138e0e34910a998a8073a37e6"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.service.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "ac30a777bc2aa6b91f5d59b824fd2673817fadba"
+      },
+      "actualBlob": "ac30a777bc2aa6b91f5d59b824fd2673817fadba"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-stages.spec.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "972c5909816aa0a3f2bbd15da7193391854a74f5"
+      },
+      "actualBlob": "972c5909816aa0a3f2bbd15da7193391854a74f5"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-stages.ts",
+      "owners": [
+        2365
+      ],
+      "publishedBlobs": {
+        "2365": "bf427fe32dc4c9eba033fb2baff495fafe7865c3"
+      },
+      "actualBlob": "bf427fe32dc4c9eba033fb2baff495fafe7865c3"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.controller.ts",
+      "owners": [
+        2371
+      ],
+      "publishedBlobs": {
+        "2371": "c7d4dbdb6c3023d4d6c176cda676225105033d19"
+      },
+      "actualBlob": "c7d4dbdb6c3023d4d6c176cda676225105033d19"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.dto.ts",
+      "owners": [
+        2371
+      ],
+      "publishedBlobs": {
+        "2371": "fd5a1b106f5b6f99a96cab45f54fd0367ee558a1"
+      },
+      "actualBlob": "fd5a1b106f5b6f99a96cab45f54fd0367ee558a1"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.module.ts",
+      "owners": [
+        2371
+      ],
+      "publishedBlobs": {
+        "2371": "1db1f11dc0eef2eb05782278a5715d9d1257e4da"
+      },
+      "actualBlob": "1db1f11dc0eef2eb05782278a5715d9d1257e4da"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.pg.spec.ts",
+      "owners": [
+        2371
+      ],
+      "publishedBlobs": {
+        "2371": "c72bb50b7604d390d2b46c17ced6e9f5e58609ca"
+      },
+      "actualBlob": "c72bb50b7604d390d2b46c17ced6e9f5e58609ca"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.store.ts",
+      "owners": [
+        2371
+      ],
+      "publishedBlobs": {
+        "2371": "af8b3b5d582a1825495adaf1a64b6ea58a83b782"
+      },
+      "actualBlob": "af8b3b5d582a1825495adaf1a64b6ea58a83b782"
+    },
+    {
+      "path": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "40cddf3a635516074cb245093393edf2665e3391",
+        "2405": "40cddf3a635516074cb245093393edf2665e3391"
+      },
+      "actualBlob": "40cddf3a635516074cb245093393edf2665e3391"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "c54239b2816926b9ba50a059330867e1a044c246",
+        "2405": "c54239b2816926b9ba50a059330867e1a044c246"
+      },
+      "actualBlob": "c54239b2816926b9ba50a059330867e1a044c246"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "5c9edbd16fec800d49d760b62a276665da545929",
+        "2405": "a1fb911614e9b854b1625bd2be32027a01fca964"
+      },
+      "actualBlob": "a1fb911614e9b854b1625bd2be32027a01fca964"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "2a0f173fe510f3273fffb5f0de133f3a984e65c8",
+        "2405": "2a0f173fe510f3273fffb5f0de133f3a984e65c8"
+      },
+      "actualBlob": "2a0f173fe510f3273fffb5f0de133f3a984e65c8"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "61f8f1ccea720a4510729b32cba993baf9305073",
+        "2405": "61f8f1ccea720a4510729b32cba993baf9305073"
+      },
+      "actualBlob": "61f8f1ccea720a4510729b32cba993baf9305073"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "5104b8623b0603c1350b3319305232ffee55943a",
+        "2405": "5104b8623b0603c1350b3319305232ffee55943a"
+      },
+      "actualBlob": "5104b8623b0603c1350b3319305232ffee55943a"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "cc63f0da610caf51b237a06c2e972031d7dc4c52",
+        "2405": "7b1f1482687ed43fb1084c51b135a255a7d104af"
+      },
+      "actualBlob": "7b1f1482687ed43fb1084c51b135a255a7d104af"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "0744b426d998a51ddf8405c2d3dd64849ad6e55d",
+        "2405": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+      },
+      "actualBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+    },
+    {
+      "path": "apps/api/src/engagement/independent-sender-review.spec.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "16253b0c1b313d41cd3dd5e3301cb93271e4f2e5",
+        "2405": "16253b0c1b313d41cd3dd5e3301cb93271e4f2e5"
+      },
+      "actualBlob": "16253b0c1b313d41cd3dd5e3301cb93271e4f2e5"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "77ae04c5846e61a5c664dcc2cefdf39761035c1c",
+        "2405": "77ae04c5846e61a5c664dcc2cefdf39761035c1c"
+      },
+      "actualBlob": "77ae04c5846e61a5c664dcc2cefdf39761035c1c"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.spec.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "f4eca9f0d762648f6ec4dcd4015b2a78c1f79cff",
+        "2405": "f4eca9f0d762648f6ec4dcd4015b2a78c1f79cff"
+      },
+      "actualBlob": "f4eca9f0d762648f6ec4dcd4015b2a78c1f79cff"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.ts",
+      "owners": [
+        2393,
+        2405
+      ],
+      "publishedBlobs": {
+        "2393": "d7973f991a95fc8acdb0563e2a9aaf011e671de4",
+        "2405": "d7973f991a95fc8acdb0563e2a9aaf011e671de4"
+      },
+      "actualBlob": "d7973f991a95fc8acdb0563e2a9aaf011e671de4"
+    },
+    {
+      "path": "apps/api/scripts/geocode-facilities.ts",
+      "owners": [
+        2394
+      ],
+      "publishedBlobs": {
+        "2394": "d28a8cc5062596469b34218749c12f5ff005a701"
+      },
+      "actualBlob": "d28a8cc5062596469b34218749c12f5ff005a701"
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.controller.ts",
+      "owners": [
+        2394
+      ],
+      "publishedBlobs": {
+        "2394": "e2766f659ed6fb7121b95239475850f168977f85"
+      },
+      "actualBlob": "e2766f659ed6fb7121b95239475850f168977f85"
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.service.spec.ts",
+      "owners": [
+        2394
+      ],
+      "publishedBlobs": {
+        "2394": "d3ccc19fa07adce4d9bc65b98d978e2242709a73"
+      },
+      "actualBlob": "d3ccc19fa07adce4d9bc65b98d978e2242709a73"
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.service.ts",
+      "owners": [
+        2394
+      ],
+      "publishedBlobs": {
+        "2394": "db96a02371ac4d55ca61639d96f77e6232613a7c"
+      },
+      "actualBlob": "db96a02371ac4d55ca61639d96f77e6232613a7c"
+    },
+    {
+      "path": "apps/api/src/clients/facility-geocode-candidate-cas.spec.ts",
+      "owners": [
+        2394
+      ],
+      "publishedBlobs": {
+        "2394": "97c2eeae0aa5cf84e0a820a16695e7766ca098ef"
+      },
+      "actualBlob": "97c2eeae0aa5cf84e0a820a16695e7766ca098ef"
+    },
+    {
+      "path": "apps/api/src/clients/facility-geocode-candidate-revision.ts",
+      "owners": [
+        2394
+      ],
+      "publishedBlobs": {
+        "2394": "0d70659f7f824596791901abfe1339584b55c40f"
+      },
+      "actualBlob": "0d70659f7f824596791901abfe1339584b55c40f"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-command-scope.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "e02a10c942c7f9ba45f3ba02f599084e0e7abde9"
+      },
+      "actualBlob": "e02a10c942c7f9ba45f3ba02f599084e0e7abde9"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-command-scope.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "0b387a531e845e2e3953c5761841e8b29d0d5954"
+      },
+      "actualBlob": "0b387a531e845e2e3953c5761841e8b29d0d5954"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "0dac882286b987eca957f13900f510020ab9589b"
+      },
+      "actualBlob": "0dac882286b987eca957f13900f510020ab9589b"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "cf104878051fea4b5e177eb8172cca01f3a7bf2e"
+      },
+      "actualBlob": "cf104878051fea4b5e177eb8172cca01f3a7bf2e"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "293ecddb044c27dc7c9d8de5eae78ee7e88960bd"
+      },
+      "actualBlob": "293ecddb044c27dc7c9d8de5eae78ee7e88960bd"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.http.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "c423faa8dd0e5482d60c8399bd0b32e3fdfb27f0"
+      },
+      "actualBlob": "c423faa8dd0e5482d60c8399bd0b32e3fdfb27f0"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "4248a97787b6a6546f02b4e183141679338b7638"
+      },
+      "actualBlob": "4248a97787b6a6546f02b4e183141679338b7638"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.access.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "e46d31e8f74bfd68b6a781ef4adf2af822b70633"
+      },
+      "actualBlob": "e46d31e8f74bfd68b6a781ef4adf2af822b70633"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.additional-review.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "1f511035a985174c06ea3a0b0b6ea774a3848bf5"
+      },
+      "actualBlob": "1f511035a985174c06ea3a0b0b6ea774a3848bf5"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.controller.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "fa3846047b043c148253c115b55b253e118daec8"
+      },
+      "actualBlob": "fa3846047b043c148253c115b55b253e118daec8"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.http.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "d03acd4a980258a958fadfb74c4df075ffcefab6"
+      },
+      "actualBlob": "d03acd4a980258a958fadfb74c4df075ffcefab6"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "1d87cfb3e5055a764e0d4504c5347d7eccbaea18"
+      },
+      "actualBlob": "1d87cfb3e5055a764e0d4504c5347d7eccbaea18"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.input.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "19fb9ee1b391179c70e7b4a4c79a5cc77f216589"
+      },
+      "actualBlob": "19fb9ee1b391179c70e7b4a4c79a5cc77f216589"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.input.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "2be87c7018ec4b06a1a1038b4f12f9d834d73c8f"
+      },
+      "actualBlob": "2be87c7018ec4b06a1a1038b4f12f9d834d73c8f"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.planner.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "8c7686bfe88d48529d7c4412ecdb7becc1462310"
+      },
+      "actualBlob": "8c7686bfe88d48529d7c4412ecdb7becc1462310"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.planner.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "58235e55c1fa31604152f2d6d7f0f743d0742408"
+      },
+      "actualBlob": "58235e55c1fa31604152f2d6d7f0f743d0742408"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.service.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "c3e7d3942c567971fb34af3c3daf303e55a1756e"
+      },
+      "actualBlob": "c3e7d3942c567971fb34af3c3daf303e55a1756e"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.service.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "e5f71b52f9e2cf4adfd55b8f6f5f21aa21bd4810"
+      },
+      "actualBlob": "e5f71b52f9e2cf4adfd55b8f6f5f21aa21bd4810"
+    },
+    {
+      "path": "apps/api/src/clients/client-activity.service.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "4be6afb3a89a31c9ded52753f86df45f540543df"
+      },
+      "actualBlob": "4be6afb3a89a31c9ded52753f86df45f540543df"
+    },
+    {
+      "path": "apps/api/src/clients/client-activity.wall.spec.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "de5da41cb4e9ec98392318db1430530eb6527a43"
+      },
+      "actualBlob": "de5da41cb4e9ec98392318db1430530eb6527a43"
+    },
+    {
+      "path": "apps/api/test/support/activity-command.fixture.ts",
+      "owners": [
+        2396
+      ],
+      "publishedBlobs": {
+        "2396": "2dd0f0ef3b2a8f8bced5bee972e4828e99cbb93e"
+      },
+      "actualBlob": "2dd0f0ef3b2a8f8bced5bee972e4828e99cbb93e"
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate-rules.spec.ts",
+      "owners": [
+        2397
+      ],
+      "publishedBlobs": {
+        "2397": "9ff655906de35b20447790b0cdae4280028eb9cb"
+      },
+      "actualBlob": "9ff655906de35b20447790b0cdae4280028eb9cb"
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate-rules.ts",
+      "owners": [
+        2397
+      ],
+      "publishedBlobs": {
+        "2397": "f009e66c609046cd4fa26d1d839f9805524d8d85"
+      },
+      "actualBlob": "f009e66c609046cd4fa26d1d839f9805524d8d85"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.memory-approval-wording.spec.ts",
+      "owners": [
+        2397
+      ],
+      "publishedBlobs": {
+        "2397": "d2f254faf765f5e6661074ec2dea68c3ff26e896"
+      },
+      "actualBlob": "d2f254faf765f5e6661074ec2dea68c3ff26e896"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "owners": [
+        2397
+      ],
+      "publishedBlobs": {
+        "2397": "c4cc8ee7623c94b733650e9031d8b8e29388a3a1"
+      },
+      "actualBlob": "c4cc8ee7623c94b733650e9031d8b8e29388a3a1"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "fc61f8599f8056ca9cc438bb36a5320d28b581e3"
+      },
+      "actualBlob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3"
+    },
+    {
+      "path": "apps/api/src/clients/client-account-owner.service.spec.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "3bfe744882231ce9f8680eb3d79ec9b9f7fafd6d"
+      },
+      "actualBlob": "3bfe744882231ce9f8680eb3d79ec9b9f7fafd6d"
+    },
+    {
+      "path": "apps/api/src/clients/client-account-owner.service.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "80543c87f0a2426c55a854153fc07528a5f90312"
+      },
+      "actualBlob": "80543c87f0a2426c55a854153fc07528a5f90312"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.access.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "c4e7961441e946270f941213abd87b12c1a6db89"
+      },
+      "actualBlob": "c4e7961441e946270f941213abd87b12c1a6db89"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.controller.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "39ea1ca92655e14f0a53e8a7a9025003c0314863"
+      },
+      "actualBlob": "39ea1ca92655e14f0a53e8a7a9025003c0314863"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "accccdcc31d8a196ddaec6b3f06761076e2e23fc"
+      },
+      "actualBlob": "accccdcc31d8a196ddaec6b3f06761076e2e23fc"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "50ed560a83937c102e52932c5317bb34326b27dd"
+      },
+      "actualBlob": "50ed560a83937c102e52932c5317bb34326b27dd"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "5b3820b97abee5dda53ea273a3ec6ada7002cbbb"
+      },
+      "actualBlob": "5b3820b97abee5dda53ea273a3ec6ada7002cbbb"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "f61bb6a9ecc2b37a47d4e25196f63edda08aceac"
+      },
+      "actualBlob": "f61bb6a9ecc2b37a47d4e25196f63edda08aceac"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.test-support.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "fa6ef84aa8d1587d834cec72874dd1d013b7254b"
+      },
+      "actualBlob": "fa6ef84aa8d1587d834cec72874dd1d013b7254b"
+    },
+    {
+      "path": "apps/api/src/clients/client-team.service.spec.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "65e3d57fe85dcb3c1645d74be0a468fe86c10c68"
+      },
+      "actualBlob": "65e3d57fe85dcb3c1645d74be0a468fe86c10c68"
+    },
+    {
+      "path": "apps/api/src/clients/client-team.service.ts",
+      "owners": [
+        2399
+      ],
+      "publishedBlobs": {
+        "2399": "e2008d913887c3cfb0f4cc1ca1151fc65ed51b09"
+      },
+      "actualBlob": "e2008d913887c3cfb0f4cc1ca1151fc65ed51b09"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "a4b2b546398f50938f6f39f5c014ca5bf827c968"
+      },
+      "actualBlob": "a4b2b546398f50938f6f39f5c014ca5bf827c968"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.spec.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "f5ac05cceec6055b8a95b347e68c388be0021987"
+      },
+      "actualBlob": "f5ac05cceec6055b8a95b347e68c388be0021987"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "47921754eddea52d351208bfbe3eb2628661e0c8"
+      },
+      "actualBlob": "47921754eddea52d351208bfbe3eb2628661e0c8"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "169b92fe0a8b50e85762008574492c944b66b93b"
+      },
+      "actualBlob": "169b92fe0a8b50e85762008574492c944b66b93b"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "2e4dfe26024dafed7bde7c01c478b9a28da39d34"
+      },
+      "actualBlob": "2e4dfe26024dafed7bde7c01c478b9a28da39d34"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-observation.spec.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "38e2f35da148d1fe654d362cfb6388e895478baf"
+      },
+      "actualBlob": "38e2f35da148d1fe654d362cfb6388e895478baf"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-observation.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "162c9f7a101fba26994751b64a0ba6b26bcd4a89"
+      },
+      "actualBlob": "162c9f7a101fba26994751b64a0ba6b26bcd4a89"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.controller.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "0eeaaa8a3fcd5521ff64bcba7f74c953db55cdf7"
+      },
+      "actualBlob": "0eeaaa8a3fcd5521ff64bcba7f74c953db55cdf7"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.service.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "c8e0e71655b1069b06fd3dda52c417c4fc06f566"
+      },
+      "actualBlob": "c8e0e71655b1069b06fd3dda52c417c4fc06f566"
+    },
+    {
+      "path": "apps/api/src/ingestion/embed-watermark.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "ef7adbb17953f0df1be2a07a6d3e552320af5dc9"
+      },
+      "actualBlob": "ef7adbb17953f0df1be2a07a6d3e552320af5dc9"
+    },
+    {
+      "path": "apps/api/src/ingestion/sync-run.helper.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "7e29cb88b966755e5e3706f70540d1feed04efe3"
+      },
+      "actualBlob": "7e29cb88b966755e5e3706f70540d1feed04efe3"
+    },
+    {
+      "path": "apps/api-strategy/Dockerfile",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "317fdeb1d486b1b835d8205b4830f10948d622d2"
+      },
+      "actualBlob": "317fdeb1d486b1b835d8205b4830f10948d622d2"
+    },
+    {
+      "path": "apps/api-strategy/package.json",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "c6d489d2ef1f19dde1f9b7c4a10832f5bd97d297"
+      },
+      "actualBlob": "c6d489d2ef1f19dde1f9b7c4a10832f5bd97d297"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.controller.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "e2945aa814577bb4ffcb9bee888035ff42803563"
+      },
+      "actualBlob": "e2945aa814577bb4ffcb9bee888035ff42803563"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.service.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "d74e8210194dd9e4c3463fe63c000755f4f9d38d"
+      },
+      "actualBlob": "d74e8210194dd9e4c3463fe63c000755f4f9d38d"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "c6c0e635a868aa862e4097f2d15d945b18b16b1b"
+      },
+      "actualBlob": "c6c0e635a868aa862e4097f2d15d945b18b16b1b"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.controller.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "c2d99378e71830d2a9c46a098e4bea004690212a"
+      },
+      "actualBlob": "c2d99378e71830d2a9c46a098e4bea004690212a"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.service.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "2993392d376ca298780b6dedfb5fc48664c1faea"
+      },
+      "actualBlob": "2993392d376ca298780b6dedfb5fc48664c1faea"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "3c3bb03b6a237d8d779307cb8737aa88bb490c97"
+      },
+      "actualBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "c01ee3cbf26986dd44c2b03dbfe4b80447c59b45"
+      },
+      "actualBlob": "c01ee3cbf26986dd44c2b03dbfe4b80447c59b45"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "6451534513cf1283942b925cde02a700b50c5715"
+      },
+      "actualBlob": "6451534513cf1283942b925cde02a700b50c5715"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "bb1b59d9a5bb5104890a59dd060154f04c8a1724"
+      },
+      "actualBlob": "bb1b59d9a5bb5104890a59dd060154f04c8a1724"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "8fe1096621c7caa41bfc84284510e536b9957204"
+      },
+      "actualBlob": "8fe1096621c7caa41bfc84284510e536b9957204"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "2feac26b819b53fd908554788dbecdc5eb9f04b0"
+      },
+      "actualBlob": "2feac26b819b53fd908554788dbecdc5eb9f04b0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "1bcf7f6e871bb90022ae4b60b90b9acaf9eaf82e"
+      },
+      "actualBlob": "1bcf7f6e871bb90022ae4b60b90b9acaf9eaf82e"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective.dto.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "7df26dd269f79b3f8c70077b4619610306f3450f"
+      },
+      "actualBlob": "7df26dd269f79b3f8c70077b4619610306f3450f"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "938f1c7cb64041f0f672d419a3b012a73da68df0"
+      },
+      "actualBlob": "938f1c7cb64041f0f672d419a3b012a73da68df0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "44d3a6cc40fab1e36cb930c92b8edeb8518adde9"
+      },
+      "actualBlob": "44d3a6cc40fab1e36cb930c92b8edeb8518adde9"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "164ed9499affe58530415f8dc37009329c7201f7"
+      },
+      "actualBlob": "164ed9499affe58530415f8dc37009329c7201f7"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "51f7da0274f308a5432140313f0ae4a5933337d0"
+      },
+      "actualBlob": "51f7da0274f308a5432140313f0ae4a5933337d0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "9bf217e53d4928f92d6f37d202849f5b34777d5a"
+      },
+      "actualBlob": "9bf217e53d4928f92d6f37d202849f5b34777d5a"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "cffc4601583c5a0889b0900352a7609635167dea"
+      },
+      "actualBlob": "cffc4601583c5a0889b0900352a7609635167dea"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "77fe877f2b32b4434e01f23727ffc01631b11b52"
+      },
+      "actualBlob": "77fe877f2b32b4434e01f23727ffc01631b11b52"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "792552d03266e69d98b6752ffe617eb1b1bdb6b1"
+      },
+      "actualBlob": "792552d03266e69d98b6752ffe617eb1b1bdb6b1"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-session.service.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "0f2f43d1841e0cbf8d6271fa47cdc3a26a1c5e88"
+      },
+      "actualBlob": "0f2f43d1841e0cbf8d6271fa47cdc3a26a1c5e88"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "owners": [
+        2404,
+        2405
+      ],
+      "publishedBlobs": {
+        "2404": "767a11ddff2ff43a39cdf572029b40a4976facac",
+        "2405": "767a11ddff2ff43a39cdf572029b40a4976facac"
+      },
+      "actualBlob": "767a11ddff2ff43a39cdf572029b40a4976facac"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "owners": [
+        2404,
+        2405
+      ],
+      "publishedBlobs": {
+        "2404": "938191affd3e707608f7efb42db710c662f7c225",
+        "2405": "c9f3a056b94de58b5777f50bec1f9a2659954591"
+      },
+      "actualBlob": "c9f3a056b94de58b5777f50bec1f9a2659954591"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "b5310cb18658d7ddddafd2eb9bdfff2f6eab9aa5"
+      },
+      "actualBlob": "b5310cb18658d7ddddafd2eb9bdfff2f6eab9aa5"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc"
+      },
+      "actualBlob": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc"
+    },
+    {
+      "path": "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "4b18cf85d4627b6b8068fbab5b62874674b08578"
+      },
+      "actualBlob": "4b18cf85d4627b6b8068fbab5b62874674b08578"
+    },
+    {
+      "path": "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "cfad001a025ad081126f4c5fe7262bd5b4846209"
+      },
+      "actualBlob": "cfad001a025ad081126f4c5fe7262bd5b4846209"
+    },
+    {
+      "path": "apps/api/src/clients/client-files.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "a4b499084ff6b6392d55cc24a893a253bd0647b5"
+      },
+      "actualBlob": "a4b499084ff6b6392d55cc24a893a253bd0647b5"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "d6c8298abfa75c98315fa9647929f2efc768d272"
+      },
+      "actualBlob": "d6c8298abfa75c98315fa9647929f2efc768d272"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "55d68b3224e2405876b6e7001222885ffcda03bc"
+      },
+      "actualBlob": "55d68b3224e2405876b6e7001222885ffcda03bc"
+    },
+    {
+      "path": "apps/api/src/common/tenant-flags.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d"
+      },
+      "actualBlob": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d"
+    },
+    {
+      "path": "apps/api/src/embeddings/client-kb-access.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "4ab774234695caaee3249dc3efabb7c950613f2a"
+      },
+      "actualBlob": "4ab774234695caaee3249dc3efabb7c950613f2a"
+    },
+    {
+      "path": "apps/api/src/embeddings/client-kb.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "50e96f82b3f7d57e120ad8c6b1b149c076be94f0"
+      },
+      "actualBlob": "50e96f82b3f7d57e120ad8c6b1b149c076be94f0"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "471eaedee9dbfb8b419bad36c465ce2e33f77643"
+      },
+      "actualBlob": "471eaedee9dbfb8b419bad36c465ce2e33f77643"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "3b6794388e94d165d685b8670514e20a18603c50"
+      },
+      "actualBlob": "3b6794388e94d165d685b8670514e20a18603c50"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "11d96f72986b2f7edbe06f270987fb69ca7b15f9"
+      },
+      "actualBlob": "11d96f72986b2f7edbe06f270987fb69ca7b15f9"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "317631c53b9f26f0d1592bd773bf649eee1d1761"
+      },
+      "actualBlob": "317631c53b9f26f0d1592bd773bf649eee1d1761"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-document-read.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "ba8fa5298d1989b5d30858efad6e7cd757660af6"
+      },
+      "actualBlob": "ba8fa5298d1989b5d30858efad6e7cd757660af6"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "02f909fbb7dfa399ba681292793ebfbc58b23bff"
+      },
+      "actualBlob": "02f909fbb7dfa399ba681292793ebfbc58b23bff"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "32ebbfec70419663b8dabb4a63eec8698680523e"
+      },
+      "actualBlob": "32ebbfec70419663b8dabb4a63eec8698680523e"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc"
+      },
+      "actualBlob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc"
+    },
+    {
+      "path": "apps/api/src/meri/meri-job-deliverables.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "4d72c2cca8b8f0305ceb7e27c40ab2f20f080a57"
+      },
+      "actualBlob": "4d72c2cca8b8f0305ceb7e27c40ab2f20f080a57"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "d336a4396401e45fae01024fedcce83f6e792cff"
+      },
+      "actualBlob": "d336a4396401e45fae01024fedcce83f6e792cff"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "70c009506c25183f38e0eaf16d12e1671e57fc3b"
+      },
+      "actualBlob": "70c009506c25183f38e0eaf16d12e1671e57fc3b"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "e5065cb153abb29cb1fe5a2971dfe8614cc4be5e"
+      },
+      "actualBlob": "e5065cb153abb29cb1fe5a2971dfe8614cc4be5e"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "2adbac98e73f8106046420acb802be30e59a367f"
+      },
+      "actualBlob": "2adbac98e73f8106046420acb802be30e59a367f"
+    },
+    {
+      "path": "apps/workspace/src/checks/checks.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "9e1a2fec5861447b6f8142e2c72290b6b66e73aa"
+      },
+      "actualBlob": "9e1a2fec5861447b6f8142e2c72290b6b66e73aa"
+    },
+    {
+      "path": "apps/workspace/src/checks/checks.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "32ae1cfdccc20f906483d810dbcec804b486c475"
+      },
+      "actualBlob": "32ae1cfdccc20f906483d810dbcec804b486c475"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/collaborators.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "83a0aa30a01ca03abaef0331a05c124666ea2563"
+      },
+      "actualBlob": "83a0aa30a01ca03abaef0331a05c124666ea2563"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/collaborators.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "baf7065138f374e03d0b09d191f31ff789b50826"
+      },
+      "actualBlob": "baf7065138f374e03d0b09d191f31ff789b50826"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/role-policy.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "f1525b192107e90c1bf4007d987be0eeb047c49f"
+      },
+      "actualBlob": "f1525b192107e90c1bf4007d987be0eeb047c49f"
+    },
+    {
+      "path": "apps/workspace/src/comments/comments.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "23df5555a0f69404054c1b9515205729d0b035d3"
+      },
+      "actualBlob": "23df5555a0f69404054c1b9515205729d0b035d3"
+    },
+    {
+      "path": "apps/workspace/src/comments/comments.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "15b0916056cb920a478d2d2fcabcad14211a0ed0"
+      },
+      "actualBlob": "15b0916056cb920a478d2d2fcabcad14211a0ed0"
+    },
+    {
+      "path": "apps/workspace/src/context/context.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "4bd7cfaadb20a65bb950cd4f5dd37e27d9432e5f"
+      },
+      "actualBlob": "4bd7cfaadb20a65bb950cd4f5dd37e27d9432e5f"
+    },
+    {
+      "path": "apps/workspace/src/delivery/approval.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "0e8d5b9dac6bb73e1093887523609e585ff64b06"
+      },
+      "actualBlob": "0e8d5b9dac6bb73e1093887523609e585ff64b06"
+    },
+    {
+      "path": "apps/workspace/src/delivery/delivery.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "c253c5c32deb1952420332fa60889aa3db51a14e"
+      },
+      "actualBlob": "c253c5c32deb1952420332fa60889aa3db51a14e"
+    },
+    {
+      "path": "apps/workspace/src/delivery/share-link.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "4d68bdaac4a91e8bd27f792fbbc781e40969cf2f"
+      },
+      "actualBlob": "4d68bdaac4a91e8bd27f792fbbc781e40969cf2f"
+    },
+    {
+      "path": "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "86cea29fa226482799e99019cbd18801efffed46"
+      },
+      "actualBlob": "86cea29fa226482799e99019cbd18801efffed46"
+    },
+    {
+      "path": "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "7e5404314f6ca6e2ca1443f275f794ec99b00af9"
+      },
+      "actualBlob": "7e5404314f6ca6e2ca1443f275f794ec99b00af9"
+    },
+    {
+      "path": "apps/workspace/src/document-agent/document-agent.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "6fafaaba90448e57572f6cfcc0d224024164cc4d"
+      },
+      "actualBlob": "6fafaaba90448e57572f6cfcc0d224024164cc4d"
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "3811cad5d6f56b215ebb8043e9d2480b3f44ef9b"
+      },
+      "actualBlob": "3811cad5d6f56b215ebb8043e9d2480b3f44ef9b"
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "16496a633dcf8341b6b33878de7899b90dafabaf"
+      },
+      "actualBlob": "16496a633dcf8341b6b33878de7899b90dafabaf"
+    },
+    {
+      "path": "apps/workspace/src/documents/meri-import-text.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "98ce06f6d1140b47f75a892dbd1d7f5166a2a829"
+      },
+      "actualBlob": "98ce06f6d1140b47f75a892dbd1d7f5166a2a829"
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "f5bb125cea3b0ff3fb8f1cc64006901eff94b284"
+      },
+      "actualBlob": "f5bb125cea3b0ff3fb8f1cc64006901eff94b284"
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "e4f2b5e90d0fe3c091164a7bcea2c3ea0cbf8622"
+      },
+      "actualBlob": "e4f2b5e90d0fe3c091164a7bcea2c3ea0cbf8622"
+    },
+    {
+      "path": "apps/workspace/src/drafts/dto/draft.dto.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "0989e9edcab2883998eed8224f02333621f53f90"
+      },
+      "actualBlob": "0989e9edcab2883998eed8224f02333621f53f90"
+    },
+    {
+      "path": "apps/workspace/src/edit-lock/edit-lock.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "3d93ed4aa312bff4bd98840a46fd404d3f554bf3"
+      },
+      "actualBlob": "3d93ed4aa312bff4bd98840a46fd404d3f554bf3"
+    },
+    {
+      "path": "apps/workspace/src/export/export.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "33ccff74bc0db56364789d6f679eeebf18f8ee95"
+      },
+      "actualBlob": "33ccff74bc0db56364789d6f679eeebf18f8ee95"
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "7833c1d02c6391a011843ef2fe2df7be487db0f7"
+      },
+      "actualBlob": "7833c1d02c6391a011843ef2fe2df7be487db0f7"
+    },
+    {
+      "path": "apps/workspace/src/generation/memory-promotion.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "1b17963dbfa474ce94285a0dfa8d3b4510620329"
+      },
+      "actualBlob": "1b17963dbfa474ce94285a0dfa8d3b4510620329"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-document.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "cc2c9a382686a3cf4fc1293debfde494e00e0000"
+      },
+      "actualBlob": "cc2c9a382686a3cf4fc1293debfde494e00e0000"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "fef394387ab200c4e5c50a2053c870bb0aa6fb09"
+      },
+      "actualBlob": "fef394387ab200c4e5c50a2053c870bb0aa6fb09"
+    },
+    {
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "1c9445dc1cbf3c756e8d7d49beda819638175bc8"
+      },
+      "actualBlob": "1c9445dc1cbf3c756e8d7d49beda819638175bc8"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "decc4a3ce0de3b9d9d9b1842e7c966ccdb116899"
+      },
+      "actualBlob": "decc4a3ce0de3b9d9d9b1842e7c966ccdb116899"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "60541a9bfebcd51033a5cdcdb1d3d21220c8d347"
+      },
+      "actualBlob": "60541a9bfebcd51033a5cdcdb1d3d21220c8d347"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "ad0b3ad9016250656963cc52334c58b9288c4528"
+      },
+      "actualBlob": "ad0b3ad9016250656963cc52334c58b9288c4528"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "92c87c3c57acdbbabeb5ed8292edcbb28a7629bd"
+      },
+      "actualBlob": "92c87c3c57acdbbabeb5ed8292edcbb28a7629bd"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "692ad494ef80d966431724ba218d22ebee4cd35a"
+      },
+      "actualBlob": "692ad494ef80d966431724ba218d22ebee4cd35a"
+    },
+    {
+      "path": "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "3214b9f3a682c06e6ca53584dcceb24dea6ef9c1"
+      },
+      "actualBlob": "3214b9f3a682c06e6ca53584dcceb24dea6ef9c1"
+    },
+    {
+      "path": "apps/workspace/src/quick-draft/quick-draft.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "3b91cbc570b21b50984f06d3be2782d9a11d9261"
+      },
+      "actualBlob": "3b91cbc570b21b50984f06d3be2782d9a11d9261"
+    },
+    {
+      "path": "apps/workspace/src/quick-draft/source-resolver.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "96840defd38de43c985a2e77e911a0c384fca78d"
+      },
+      "actualBlob": "96840defd38de43c985a2e77e911a0c384fca78d"
+    },
+    {
+      "path": "apps/workspace/src/template-studio/template-studio.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "fc3f58ac461beebab4d46a20d752c8b3bdd196cd"
+      },
+      "actualBlob": "fc3f58ac461beebab4d46a20d752c8b3bdd196cd"
+    },
+    {
+      "path": "apps/workspace/src/versions/dto/objective-destination.dto.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "ec6994391b02175a0b6d4e536dc6a22396473c6c"
+      },
+      "actualBlob": "ec6994391b02175a0b6d4e536dc6a22396473c6c"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "8cb4e78420216fe0045a7c0868c495623d0edfd0"
+      },
+      "actualBlob": "8cb4e78420216fe0045a7c0868c495623d0edfd0"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1"
+      },
+      "actualBlob": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "403fa2ab75555daad73a379a9ef7a7980ba7fe31"
+      },
+      "actualBlob": "403fa2ab75555daad73a379a9ef7a7980ba7fe31"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "42c72f392a32c34b4706e28126436d493fcd5cc8"
+      },
+      "actualBlob": "42c72f392a32c34b4706e28126436d493fcd5cc8"
+    },
+    {
+      "path": "packages/shared/src/prospect-resource-scope.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "08a2f40ccb97780dac520d0789b113bc316f8886"
+      },
+      "actualBlob": "08a2f40ccb97780dac520d0789b113bc316f8886"
+    },
+    {
+      "path": "packages/shared/src/tenant-feature.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "5ba86a9068029bbeebb23b4ac3e71783e43dce93"
+      },
+      "actualBlob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "c388618b7d618c0b3314fcb6bea77a2e0c205076"
+      },
+      "actualBlob": "c388618b7d618c0b3314fcb6bea77a2e0c205076"
+    }
+  ],
+  "compositionDeltas": [
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.service.ts",
+      "owners": [
+        2371
+      ],
+      "publishedBlobs": {
+        "2371": "bf44ee541c6eb08a24bee3050b022f7a55f1e1c0"
+      },
+      "actualBlob": "b90a37b8ce9fe83fb1a68a4f99aa14fdd9ac80e4"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "owners": [
+        2396,
+        2404
+      ],
+      "publishedBlobs": {
+        "2396": "adef2a6d48836fa8305965812a5af55d5c282779",
+        "2404": "f0217da17af573d0888dc1f975f9fad2e9694d65"
+      },
+      "actualBlob": "182e6ccf4af1b70f7902cd5b812f6b2b06413bda"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "owners": [
+        2396,
+        2404
+      ],
+      "publishedBlobs": {
+        "2396": "ca25bd0d78912356b62b77da7e507fe38b655c1a",
+        "2404": "df8c3619a309fcecab529f825c83088759ae17cd"
+      },
+      "actualBlob": "211a3bf1819180d7246179c73378f4c8a95d62b8"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "owners": [
+        2396,
+        2399,
+        2403,
+        2404,
+        2405
+      ],
+      "publishedBlobs": {
+        "2396": "909438a84d4b282726d1528e536b9776669419c2",
+        "2399": "d12ada7700cecae95e0e9da2c5aad2cb9d18ebcd",
+        "2403": "689d494f0780255c815e10c8fa7a6c8b43954623",
+        "2404": "512cf1eea07e105282cbd415ed6cb4b962f34b70",
+        "2405": "be06a82e1f354f60b5ff84537ecdcc4a3ca4f159"
+      },
+      "actualBlob": "ab07167f8f703c0dca17a43812ea7413a53610d4"
+    },
+    {
+      "path": "apps/api/src/clients/client-activity.service.ts",
+      "owners": [
+        2396,
+        2405
+      ],
+      "publishedBlobs": {
+        "2396": "8d506dd84df8cde3c7de40c6f0f0b52215594f46",
+        "2405": "89075589654ee4167087e70f1b4afbaafef4bd67"
+      },
+      "actualBlob": "84d0adc9786f4a63d1074c048319d54d5554031c"
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "owners": [
+        2396,
+        2399,
+        2404
+      ],
+      "publishedBlobs": {
+        "2396": "4d0f920afaa9419f9db9568af79148d6a57ee769",
+        "2399": "6f0fae84718a0c32f47e3e4bad5dd627c6840cb6",
+        "2404": "39c86fb232049cc0b4f6b75a63b88cab5df3d2c7"
+      },
+      "actualBlob": "f34b141a8101cece76c3765ed5d7d340334c5d98"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-register.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "65ebf36fc3ff49e2cd59b9014e60652cb89b487c"
+      },
+      "actualBlob": "697fea28df42abe0dfd9f2d088a5a9cea8631770"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "ec5ef92c792785e33c4a0b49ed458d2626450898"
+      },
+      "actualBlob": "89340848dae27655a0436dff4eda64c276e4c5fb"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-script-independent-review.spec.ts",
+      "owners": [
+        2403
+      ],
+      "publishedBlobs": {
+        "2403": "97833c5728feb3c42c9dcfd9482e82de8ed76b79"
+      },
+      "actualBlob": "8f83740672d20398e4f8225a60c616f47a96a153"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.module.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "b279c3d38c17fc540f2561d7b57b15f72991186d"
+      },
+      "actualBlob": "cf2cd536c8d14958861416d51d2811bfe11d562a"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+      "owners": [
+        2404,
+        2405
+      ],
+      "publishedBlobs": {
+        "2404": "b86ea8d80ea1d49f618183be009b611c81aa7243",
+        "2405": "0ff5c8239e998f3db1a059ea36a00611bdb46128"
+      },
+      "actualBlob": "dcc1a215744cf684e6a14ddb848c16c01ee1bc29"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "owners": [
+        2404,
+        2405
+      ],
+      "publishedBlobs": {
+        "2404": "9e4a24a5f388a7f59a962322e38f454f9bdeb7c6",
+        "2405": "76a1c9f94b71a44336b9f60b728d97ccfca3740d"
+      },
+      "actualBlob": "73723e049f3a9a23c174b4de3dd50ddc29fe4582"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+      "owners": [
+        2404
+      ],
+      "publishedBlobs": {
+        "2404": "5aeb4a5657e49678ad0b0f1a05f63968414501d6"
+      },
+      "actualBlob": "ac21e44dcff3daf622d814c853c6354bd59868d8"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "e2bce04218c67151419d370777b7d22c8611c7b0"
+      },
+      "actualBlob": null
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+      "owners": [
+        2405
+      ],
+      "publishedBlobs": {
+        "2405": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b"
+      },
+      "actualBlob": null
+    }
+  ],
+  "mainMigrationCount": 471,
+  "changedMainMigrations": [],
+  "exactCleanupGuardBlobs": {
+    "scripts/check-migration-integrity.mjs": {
+      "cleanup": "689ef736fd7f0f92465b3ba1a1a1779296ef6c51",
+      "candidate": "689ef736fd7f0f92465b3ba1a1a1779296ef6c51",
+      "equal": true
+    },
+    "scripts/check-migration-timestamps.mjs": {
+      "cleanup": "e1d14d893c384fc1882b920d8a2a2cabed12cdcd",
+      "candidate": "e1d14d893c384fc1882b920d8a2a2cabed12cdcd",
+      "equal": true
+    },
+    "scripts/cleanup-gates/lib/cli.mjs": {
+      "cleanup": "1a8b032dd615628c695d5d6b4af9ad5905313cec",
+      "candidate": "1a8b032dd615628c695d5d6b4af9ad5905313cec",
+      "equal": true
+    }
+  },
+  "reportingExcluded": "task01a12dc9-21a3-7062-908e-b6fabc37c027",
+  "native": "NOT RUN"
+}

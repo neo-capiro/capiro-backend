@@ -1,0 +1,33 @@
+{
+  "preparedAt": "2026-10-12T09:28:36.395461+00:00",
+  "status": "pre-freeze independent audit; no integrated candidate accepted",
+  "frozenSourceRequired": true,
+  "checks": [
+    "Selected published source heads and preserved feature histories; unrelated Cleanup source and unpublished reporting explicitly excluded",
+    "Nonintersection runtime blobs byte-identical to canonical published owner; failed/pass evidence retained",
+    "One canonical Objective/activity/owner/prospect/contact store; composed Prisma declarations and relation fields",
+    "Core and Workspace migration ledgers remain separate; allocated Contacts proposal exact SQL body and provenance",
+    "Actual ClientsModule, BusinessDevelopmentModule, Outreach state module registrations and route metadata preserve all owners",
+    "Exact shared Objective helper and saved Workspace revision seam; private no-store owner observations",
+    "Planner command and Objective resolver compose current task/project ACL and explicit client authority",
+    "Core activity atomic creation/wall checks compose prospect document exclusions",
+    "Contacts current canonical scope before data/replay with initial FOR UPDATE retained; current role/feature/member/link/wall revocation fails closed",
+    "Sender/reply/attachment paths remain accepted owner semantics; published reportOverview remains unchanged from main",
+    "Selected release/migration guard dependency closure exact and tested; no full native Cleanup acceptance inferred",
+    "Effective checkpoint/evidence logic and missing-DB script guard/lifecycle coexist",
+    "Combined synthetic/type/build checks use no database/native provider execution"
+  ],
+  "neverRun": [
+    "migrations",
+    "database tests",
+    "PostgreSQL/RLS qualification",
+    "Prisma native engine download",
+    "provider calls",
+    "messages/uploads",
+    "paid models",
+    "AWS",
+    "credential/permission changes",
+    "main merge",
+    "deployment"
+  ]
+}

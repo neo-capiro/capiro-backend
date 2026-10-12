@@ -1,0 +1,16 @@
+[
+  {
+    "app": "workspace",
+    "candidateSchemaSHA256": "09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db",
+    "generatedSchemaSHA256": "09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db",
+    "identical": true,
+    "source": "existing official5.22 WASM/no-engine author outputs; no generation/download/DB run in review"
+  },
+  {
+    "app": "api-strategy",
+    "candidateSchemaSHA256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+    "generatedSchemaSHA256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+    "identical": true,
+    "source": "existing official5.22 WASM/no-engine author outputs; no generation/download/DB run in review"
+  }
+]

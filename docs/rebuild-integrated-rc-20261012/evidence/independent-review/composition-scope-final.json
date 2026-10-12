@@ -1,0 +1,22 @@
+{
+  "frozenSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "tree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "time": "2026-10-12T10:19:17.593374+00:00",
+  "allChangedPaths": 827,
+  "outsidePublishedUnionPaths": [
+    "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+    "apps/api/src/business-development/business-development.module.ts",
+    "apps/api/src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts",
+    "apps/api/src/federal-register/effective-lifecycle-integration.spec.ts",
+    "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+    "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+    "scripts/check-migration-integrity.mjs",
+    "scripts/check-migration-timestamps.mjs",
+    "scripts/cleanup-gates/lib/cli.mjs"
+  ],
+  "unexpectedOutsidePaths": [],
+  "preservedDistinctEvidenceBlobs": 571,
+  "evidenceMismatch": [],
+  "directBlobCopies": 172,
+  "native": "NOT RUN"
+}

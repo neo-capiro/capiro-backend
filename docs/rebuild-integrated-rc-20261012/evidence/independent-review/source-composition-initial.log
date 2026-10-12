@@ -1,0 +1,51 @@
+✔ frozen source and tree are exact (16.717246ms)
+✖ all 20 selected published histories remain ancestors, full Cleanup excluded (3.819302ms)
+✔ all 471 pre-existing migration SQL blobs are preserved (6549.153186ms)
+✔ Workspace migration allocation changes only names and preserves exact SQL (18.540929ms)
+✔ migration offsets remain exact main policy, Core2 Workspace0 (12.762381ms)
+✔ Contacts allocation preserves the reviewed SQL proposal body (9.213302ms)
+✔ all three narrow Cleanup guard blobs are exact (27.689889ms)
+✔ retired Meri release guard pair and active release code remain main (42.731826ms)
+✔ both cross-service authority seams are exact published bytes (18.042753ms)
+✔ shared barrel retains all canonical source helpers (10.267894ms)
+✔ canonical additive models occur once and retain their published bodies (102.717017ms)
+✔ no new commitment party schema or independent task/message store (23.472613ms)
+✔ ClientsModule composes Objective, activity and ordered-owner canonical registrations (82.36123ms)
+✔ Outreach imports exported canonical Objective owner and never duplicates its provider (17.865351ms)
+✔ Contacts existing module is activated through BusinessDevelopment only (27.310218ms)
+✔ both Outreach bounded Objective and staging routes survive manifest composition (10.461836ms)
+✔ Planner task command and Objective owner routes survive composition (1224.203127ms)
+✔ Core activity transactional owner methods remain exact with prospect read exclusion (314.359468ms)
+✔ accepted sender command remains exact and unpublished reporting is not substituted (847.427549ms)
+✔ calendar production evidence/checkpoint owner remains exact apart from entry lifecycle (60.881777ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 19
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9836.315385
+
+✖ failing tests:
+
+test at docs/rebuild-integrated-rc-20261012/evidence/independent-review/source-composition.test.mjs:64:1
+✖ all 20 selected published histories remain ancestors, full Cleanup excluded (3.819302ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  19 !== 20
+  
+      at TestContext.<anonymous> (file:///workspace/capirov2-integrated-review/docs/rebuild-integrated-rc-20261012/evidence/independent-review/source-composition.test.mjs:66:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 19,
+    expected: 20,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

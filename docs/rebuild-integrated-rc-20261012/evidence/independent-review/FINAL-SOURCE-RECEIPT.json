@@ -1,0 +1,65 @@
+{
+  "acceptedImplementationSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "acceptedImplementationTree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "reviewedAt": "2026-10-12T10:22:49.874022+00:00",
+  "worktree": "/workspace/capirov2-integrated-review",
+  "runtimeRepairs": [],
+  "newIndependentControls": {
+    "sourceComposition": 20,
+    "contacts": 87
+  },
+  "combinedIndependentReruns": {
+    "contacts-final": {
+      "tests": 87,
+      "passed": 87,
+      "failed": 0,
+      "suites": 1
+    },
+    "core-combined": {
+      "tests": 798,
+      "passed": 798,
+      "failed": 0,
+      "suites": 48
+    },
+    "workspace-combined-final": {
+      "tests": 90,
+      "passed": 90,
+      "failed": 0,
+      "suites": 4
+    },
+    "strategy-combined-final": {
+      "tests": 101,
+      "passed": 101,
+      "failed": 0,
+      "suites": 9
+    }
+  },
+  "countsOverlapAuthor": true,
+  "preservation": {
+    "referencedPRHeads": 20,
+    "includedPRHistories": 19,
+    "unchangedCoreWorkspaceMigrationSQL": 471,
+    "bytePreservedPublishedRuntimePaths": 172,
+    "bytePreservedPublishedEvidenceBlobs": 571,
+    "verifiedPinnedChangedSources": 194,
+    "verifiedMigrationSources": 9,
+    "verifiedServiceSchemas": 3,
+    "matrixPairs": 190
+  },
+  "scope": "Source-only review accepted; native/database/provider/deployment acceptance remains unrun",
+  "excludedReportingOwner": "task01a12dc9-21a3-7062-908e-b6fabc37c027",
+  "sourceManifestIdentity": "1dc78edcd669aa83a5140e96aee51ae8713b63d8f6e34c6fb25b58d280ea8c99",
+  "rawFailuresRetained": [
+    "source-composition-initial.log",
+    "source-composition-count-error.mjs",
+    "contacts-initial.log",
+    "contacts-retry.json",
+    "contacts-retry.log",
+    "contacts-fixture-initial.spec.ts",
+    "workspace-combined.json",
+    "workspace-combined.log",
+    "strategy-combined.json",
+    "strategy-combined.log"
+  ],
+  "noRuntimeFilesChangedInReviewer": true
+}

@@ -1,0 +1,32 @@
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-final.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-final.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-retry.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-retry.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/core-combined.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/core-combined.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/source-composition-initial.log:35: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/source-composition-initial.log:37: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/strategy-combined-final.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/strategy-combined-final.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/strategy-combined.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/strategy-combined.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/workspace-combined-final.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/workspace-combined-final.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/workspace-combined.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/independent-review/workspace-combined.log:3: trailing whitespace.
++  

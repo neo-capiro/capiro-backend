@@ -1,0 +1,121 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-review/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/prospect-resources/prospect-draft-access.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+    > 2 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+        | ^
+      3 | import {
+      4 |   assertContextPersistenceReleased,
+      5 |   workspaceDraftWriteTarget,
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:2:1)
+      at Object.<anonymous> (src/collaborators/collaborators.service.ts:9:1)
+      at Object.<anonymous> (src/prospect-resources/prospect-draft-access.spec.ts:10:1)
+
+FAIL src/versions/objective-destination.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+    > 2 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+        | ^
+      3 | import {
+      4 |   assertContextPersistenceReleased,
+      5 |   workspaceDraftWriteTarget,
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:2:1)
+      at Object.<anonymous> (src/versions/versions.service.ts:9:1)
+      at Object.<anonymous> (src/versions/objective-destination.spec.ts:7:1)
+
+FAIL src/prospect-resources/prospect-independent-review.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+    > 2 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+        | ^
+      3 | import {
+      4 |   assertContextPersistenceReleased,
+      5 |   workspaceDraftWriteTarget,
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:2:1)
+      at Object.<anonymous> (src/notifications/notifications.service.ts:3:1)
+      at Object.<anonymous> (src/prospect-resources/prospect-independent-review.spec.ts:4:1)
+
+FAIL src/documents/documents.service.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+    > 2 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+        | ^
+      3 | import {
+      4 |   assertContextPersistenceReleased,
+      5 |   workspaceDraftWriteTarget,
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:2:1)
+      at Object.<anonymous> (src/documents/documents.service.ts:3:1)
+      at Object.<anonymous> (src/documents/documents.service.spec.ts:3:1)
+
+Test Suites: 4 failed, 4 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        3.471 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/workspace-combined.json

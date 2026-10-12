@@ -1,0 +1,19 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-review/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/planner/planner-links.spec.ts
+PASS src/prisma/migration-safety.spec.ts
+PASS src/planner/planner-command-scope.spec.ts
+PASS src/prisma/tenant-scope-guard.spec.ts
+PASS src/strategy/objective-destination.service.spec.ts
+PASS src/strategy/objective-destination.controller.spec.ts
+PASS src/prisma/apply-tenant-scope.spec.ts
+PASS src/planner/planner-task-create-command.spec.ts
+PASS src/planner/planner-task-create-command.independent-review.spec.ts
+
+Test Suites: 9 passed, 9 total
+Tests:       101 passed, 101 total
+Snapshots:   0 total
+Time:        7.943 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/strategy-combined-final.json

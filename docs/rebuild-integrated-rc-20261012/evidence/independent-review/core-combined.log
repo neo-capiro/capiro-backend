@@ -1,0 +1,65 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-review/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/business-development/business-development.service.spec.ts (6.633 s)
+PASS src/clients/client-facilities.service.spec.ts
+PASS src/capabilities/context/outreach-context-reference.service.spec.ts
+PASS src/federal-register/effective-independent-review.spec.ts
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-federal-register","rows_inserted":0,"rows_updated":1,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+PASS src/outreach-v3/services/outreach-newsletter-staging.spec.ts
+PASS src/engagement/mailbox-selection.spec.ts
+PASS src/engagement/attachments/outbound-attachment-access.spec.ts
+PASS src/engagement/attachments/prospect-attachment-access.spec.ts
+PASS src/federal-register/effective-checkpoint-independent-review.spec.ts
+PASS src/clients/activity-commands/activity-command.service.spec.ts
+PASS src/business-development/business-development.controller.roles.spec.ts
+PASS src/clients/client-ordered-owner.independent.spec.ts
+PASS src/engagement/attachments/prospect-independent-review.spec.ts
+PASS src/clients/activity-commands/activity-command.independent-review.spec.ts
+PASS src/embeddings/client-kb-access.spec.ts
+PASS src/clients/objectives/objectives.service.spec.ts
+PASS src/clients/client-ordered-owner.service.spec.ts
+PASS src/federal-register/effective-script-independent-review.spec.ts
+PASS src/engagement/engagement-document-read.spec.ts
+PASS src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts
+PASS src/engagement/engagement-send-thread-key.spec.ts
+PASS src/outreach-v3/api/outreach-objective-destination.controller.spec.ts
+PASS src/memory/memory-candidate-rules.spec.ts
+PASS src/clients/client-team.service.spec.ts
+PASS src/clients/objectives/objectives.controller.spec.ts
+PASS src/clients/objectives/objective-destination.spec.ts
+PASS src/engagement/attachments/prospect-resource-scope.spec.ts
+PASS src/federal-register/effective-date-evidence.spec.ts
+PASS src/engagement/independent-sender-review.spec.ts
+PASS src/clients/objectives/objective-destination.shared.spec.ts
+PASS src/clients/activity-commands/activity-command.planner.spec.ts
+PASS src/federal-register/federal-register-calendar.spec.ts
+PASS src/clients/client-activity.service.spec.ts
+PASS src/clients/client-ordered-owner.http.spec.ts
+PASS src/federal-register/federal-register-observation.spec.ts
+PASS src/engagement/engagement-send-authorization.spec.ts
+PASS src/clients/activity-commands/activity-command.input.spec.ts
+PASS src/meri/meri-tools.memory-approval-wording.spec.ts (6.634 s)
+PASS src/federal-register/effective-lifecycle-integration.spec.ts
+PASS src/clients/activity-commands/activity-command.additional-review.spec.ts
+PASS src/clients/client-activity.wall.spec.ts
+PASS src/clients/objectives/objective-destination.privileges.spec.ts
+PASS src/clients/activity-commands/activity-command.http.spec.ts
+PASS src/clients/objectives/objective-rules.spec.ts
+PASS src/engagement/mailbox-selection.controller.spec.ts
+PASS src/clients/client-account-owner.service.spec.ts
+PASS src/business-development/prospect-stages.spec.ts
+
+Test Suites: 48 passed, 48 total
+Tests:       798 passed, 798 total
+Snapshots:   0 total
+Time:        33.806 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/core-combined.json

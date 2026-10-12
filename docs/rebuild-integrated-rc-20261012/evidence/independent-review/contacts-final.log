@@ -1,0 +1,100 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts
+  independent Contacts composition boundaries
+    ✓ list denies current tenant before all contact data (5 ms)
+    ✓ list denies current enabled before all contact data (2 ms)
+    ✓ list denies current member before all contact data (1 ms)
+    ✓ list denies current client before all contact data (1 ms)
+    ✓ list denies current grant before all contact data
+    ✓ list denies current predicate before all contact data
+    ✓ create denies current tenant before all contact data (1 ms)
+    ✓ create denies current enabled before all contact data (1 ms)
+    ✓ create denies current member before all contact data (1 ms)
+    ✓ create denies current client before all contact data (1 ms)
+    ✓ create denies current grant before all contact data (1 ms)
+    ✓ create denies current predicate before all contact data (1 ms)
+    ✓ update denies current tenant before all contact data (1 ms)
+    ✓ update denies current enabled before all contact data (1 ms)
+    ✓ update denies current member before all contact data (1 ms)
+    ✓ update denies current client before all contact data
+    ✓ update denies current grant before all contact data
+    ✓ update denies current predicate before all contact data (2 ms)
+    ✓ remove denies current tenant before all contact data (1 ms)
+    ✓ remove denies current enabled before all contact data (1 ms)
+    ✓ remove denies current member before all contact data
+    ✓ remove denies current client before all contact data (1 ms)
+    ✓ remove denies current grant before all contact data
+    ✓ remove denies current predicate before all contact data (1 ms)
+    ✓ list preserves exclusive-first and tenant-bound scope order (1 ms)
+    ✓ create preserves exclusive-first and tenant-bound scope order
+    ✓ update preserves exclusive-first and tenant-bound scope order (2 ms)
+    ✓ remove preserves exclusive-first and tenant-bound scope order (2 ms)
+    ✓ list preserves infrastructure failure from exclusive (1 ms)
+    ✓ list preserves infrastructure failure from prospect (1 ms)
+    ✓ list preserves infrastructure failure from tenant (1 ms)
+    ✓ list preserves infrastructure failure from member (1 ms)
+    ✓ list preserves infrastructure failure from identity (1 ms)
+    ✓ list preserves infrastructure failure from client
+    ✓ list preserves infrastructure failure from grant
+    ✓ list preserves infrastructure failure from predicate
+    ✓ list preserves infrastructure failure from data (7 ms)
+    ✓ create preserves infrastructure failure from exclusive (1 ms)
+    ✓ create preserves infrastructure failure from prospect
+    ✓ create preserves infrastructure failure from tenant
+    ✓ create preserves infrastructure failure from member
+    ✓ create preserves infrastructure failure from identity
+    ✓ create preserves infrastructure failure from client
+    ✓ create preserves infrastructure failure from grant (1 ms)
+    ✓ create preserves infrastructure failure from predicate
+    ✓ create preserves infrastructure failure from data
+    ✓ update preserves infrastructure failure from exclusive
+    ✓ update preserves infrastructure failure from prospect
+    ✓ update preserves infrastructure failure from tenant (1 ms)
+    ✓ update preserves infrastructure failure from member
+    ✓ update preserves infrastructure failure from identity
+    ✓ update preserves infrastructure failure from client (1 ms)
+    ✓ update preserves infrastructure failure from grant
+    ✓ update preserves infrastructure failure from predicate (1 ms)
+    ✓ update preserves infrastructure failure from data
+    ✓ remove preserves infrastructure failure from exclusive (1 ms)
+    ✓ remove preserves infrastructure failure from prospect
+    ✓ remove preserves infrastructure failure from tenant
+    ✓ remove preserves infrastructure failure from member
+    ✓ remove preserves infrastructure failure from identity
+    ✓ remove preserves infrastructure failure from client
+    ✓ remove preserves infrastructure failure from grant (1 ms)
+    ✓ remove preserves infrastructure failure from predicate
+    ✓ remove preserves infrastructure failure from data
+    ✓ list observes member revocation after prospect lock await (1 ms)
+    ✓ create observes member revocation after prospect lock await (1 ms)
+    ✓ update observes member revocation after prospect lock await
+    ✓ remove observes member revocation after prospect lock await
+    ✓ list cannot rely on a prior grant result when canonical predicate denies (1 ms)
+    ✓ create cannot rely on a prior grant result when canonical predicate denies (1 ms)
+    ✓ update cannot rely on a prior grant result when canonical predicate denies
+    ✓ remove cannot rely on a prior grant result when canonical predicate denies (1 ms)
+    ✓ converted/dismissed exact replay strips internal receipt metadata (1 ms)
+    ✓ refuses changed/removed exact replay (hash) without writing (1 ms)
+    ✓ refuses changed/removed exact replay (removed) without writing (1 ms)
+    ✓ new converted create refuses without materializing a client contact or other store (1 ms)
+    ✓ update preserves stale CAS conflict (1 ms)
+    ✓ remove preserves stale CAS conflict (1 ms)
+    ✓ controller retains firm-private prefix, current role floor and feature guard (1 ms)
+  actual Contacts validation boundary
+    ✓ refuses incompatible or caller-authority DTO undefined (5 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (2 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined
+    ✓ accepts the existing narrow create DTO and trims its name
+
+Test Suites: 1 passed, 1 total
+Tests:       87 passed, 87 total
+Snapshots:   0 total
+Time:        1.927 s, estimated 4 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-final.json

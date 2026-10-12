@@ -1,0 +1,75 @@
+{
+  "frozenHead": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "records": [
+    {
+      "run": "source-composition-initial",
+      "command": "node --test docs/rebuild-integrated-rc-20261012/evidence/independent-review/source-composition.test.mjs",
+      "cwd": "/workspace/capirov2-integrated-review",
+      "exit": 1,
+      "outcome": "19/20; incorrect reviewer history count; initial fixture snapshot retained"
+    },
+    {
+      "run": "source-composition-final",
+      "command": "same Node command after reviewer count correction",
+      "exit": 0,
+      "tests": 20
+    },
+    {
+      "run": "contacts-initial",
+      "command": "../../node_modules/.bin/jest from apps/api",
+      "exit": 127,
+      "outcome": "launcher missing; no test ran"
+    },
+    {
+      "run": "contacts-retry",
+      "command": "node_modules/.bin/jest --config ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-jest.cjs --runInBand --json",
+      "exit": 1,
+      "outcome": "82/87; five reviewer fixture/metadata-key errors, original fixture retained"
+    },
+    {
+      "run": "contacts-final",
+      "command": "same app-local Jest command after fixture correction",
+      "exit": 0,
+      "tests": 87
+    },
+    {
+      "run": "core-combined",
+      "command": "app-local Jest --config combined-core-jest.cjs --runInBand --json",
+      "exit": 0,
+      "tests": 798
+    },
+    {
+      "run": "workspace-combined",
+      "command": "app-local Jest --config combined-workspace-jest.cjs --runInBand --json",
+      "exit": 1,
+      "outcome": "0 tests/4 collection failures; missing generated client"
+    },
+    {
+      "run": "strategy-combined",
+      "command": "app-local Jest --config combined-strategy-jest.cjs --runInBand --json",
+      "exit": 1,
+      "outcome": "24 passing tests/5 collection failures; missing generated client"
+    },
+    {
+      "run": "workspace-combined-final",
+      "command": "same command with source-schema-verified read-only existing generated binding",
+      "exit": 0,
+      "tests": 90
+    },
+    {
+      "run": "strategy-combined-final",
+      "command": "same command with source-schema-verified read-only existing generated binding",
+      "exit": 0,
+      "tests": 101
+    }
+  ],
+  "removedEnvironmentNames": [
+    "DATABASE_URL",
+    "WS_TEST_DATABASE_URL",
+    "CI_DISPOSABLE_POSTGRES",
+    "CAPIRO_DISPOSABLE_PG",
+    "ALLOW_DISPOSABLE_PG"
+  ],
+  "databaseProviderExecution": false,
+  "nativeAcceptance": false
+}

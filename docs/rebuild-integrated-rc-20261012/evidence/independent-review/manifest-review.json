@@ -1,0 +1,19 @@
+{
+  "time": "2026-10-12T10:21:08.042343+00:00",
+  "acceptedSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "tree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "reviewedDocuments": {
+    "HANDOFF.md": "200a8774032f0b6c6082ff3dde8118f0cd62142fe2c626782190231b4efbdf69",
+    "INTEGRATION.md": "d8f47fa489c0230f8635696e92e65cb7a2b22ad57136c2b5011c6999d510068f",
+    "QUALIFICATION.md": "56185ca030c3217e99d8a0ba94b9eaf4d61de4112c28d9b40478d2c1da4d80de",
+    "RELEASE-MANIFEST.json": "091ababe8dfbc225185f61b90668b4fc3ae28b68cd49a331ae206e5ed6a3c815",
+    "SOURCE-MANIFEST.json": "1dc78edcd669aa83a5140e96aee51ae8713b63d8f6e34c6fb25b58d280ea8c99",
+    "OVERLAP-MATRIX.json": "def3be99edbf279d02f7d015dbf4ba56c0b28f91c5fa674e58401fb3bddaacb2"
+  },
+  "verifiedChangedSourceBlobs": 194,
+  "verifiedNewMigrationSources": 9,
+  "verifiedServiceSchemas": 3,
+  "pairwiseMatrixPairs": 190,
+  "verdict": "compatible source-only manifest; final review adoption/docs may append acceptance evidence without runtime edits",
+  "native": "NOT RUN"
+}

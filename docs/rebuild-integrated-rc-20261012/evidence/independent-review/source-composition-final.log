@@ -1,0 +1,28 @@
+✔ frozen source and tree are exact (14.01825ms)
+✔ all 19 included published histories remain ancestors, full Cleanup excluded from 20 references (2.104036ms)
+✔ all 471 pre-existing migration SQL blobs are preserved (7274.546692ms)
+✔ Workspace migration allocation changes only names and preserves exact SQL (21.298783ms)
+✔ migration offsets remain exact main policy, Core2 Workspace0 (15.674149ms)
+✔ Contacts allocation preserves the reviewed SQL proposal body (9.84124ms)
+✔ all three narrow Cleanup guard blobs are exact (42.13673ms)
+✔ retired Meri release guard pair and active release code remain main (27.994481ms)
+✔ both cross-service authority seams are exact published bytes (20.223196ms)
+✔ shared barrel retains all canonical source helpers (10.045079ms)
+✔ canonical additive models occur once and retain their published bodies (317.428856ms)
+✔ no new commitment party schema or independent task/message store (117.261238ms)
+✔ ClientsModule composes Objective, activity and ordered-owner canonical registrations (77.042525ms)
+✔ Outreach imports exported canonical Objective owner and never duplicates its provider (19.99876ms)
+✔ Contacts existing module is activated through BusinessDevelopment only (30.48331ms)
+✔ both Outreach bounded Objective and staging routes survive manifest composition (9.772534ms)
+✔ Planner task command and Objective owner routes survive composition (749.40082ms)
+✔ Core activity transactional owner methods remain exact with prospect read exclusion (144.465389ms)
+✔ accepted sender command remains exact and unpublished reporting is not substituted (687.336861ms)
+✔ calendar production evidence/checkpoint owner remains exact apart from entry lifecycle (52.905312ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10245.39099

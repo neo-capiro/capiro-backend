@@ -1,0 +1,185 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts
+  independent Contacts composition boundaries
+    ✓ list denies current tenant before all contact data (7 ms)
+    ✓ list denies current enabled before all contact data (3 ms)
+    ✓ list denies current member before all contact data (1 ms)
+    ✓ list denies current client before all contact data (1 ms)
+    ✓ list denies current grant before all contact data
+    ✓ list denies current predicate before all contact data (1 ms)
+    ✓ create denies current tenant before all contact data (2 ms)
+    ✓ create denies current enabled before all contact data (2 ms)
+    ✓ create denies current member before all contact data (3 ms)
+    ✓ create denies current client before all contact data (1 ms)
+    ✓ create denies current grant before all contact data
+    ✓ create denies current predicate before all contact data
+    ✓ update denies current tenant before all contact data (1 ms)
+    ✓ update denies current enabled before all contact data
+    ✓ update denies current member before all contact data
+    ✓ update denies current client before all contact data (1 ms)
+    ✓ update denies current grant before all contact data
+    ✓ update denies current predicate before all contact data
+    ✓ remove denies current tenant before all contact data (1 ms)
+    ✓ remove denies current enabled before all contact data (1 ms)
+    ✓ remove denies current member before all contact data (1 ms)
+    ✓ remove denies current client before all contact data (1 ms)
+    ✓ remove denies current grant before all contact data (1 ms)
+    ✓ remove denies current predicate before all contact data (1 ms)
+    ✓ list preserves exclusive-first and tenant-bound scope order (3 ms)
+    ✓ create preserves exclusive-first and tenant-bound scope order (1 ms)
+    ✕ update preserves exclusive-first and tenant-bound scope order (21 ms)
+    ✕ remove preserves exclusive-first and tenant-bound scope order (1 ms)
+    ✓ list preserves infrastructure failure from exclusive
+    ✓ list preserves infrastructure failure from prospect
+    ✓ list preserves infrastructure failure from tenant (1 ms)
+    ✓ list preserves infrastructure failure from member
+    ✓ list preserves infrastructure failure from identity
+    ✓ list preserves infrastructure failure from client (1 ms)
+    ✓ list preserves infrastructure failure from grant
+    ✓ list preserves infrastructure failure from predicate
+    ✓ list preserves infrastructure failure from data (1 ms)
+    ✓ create preserves infrastructure failure from exclusive
+    ✓ create preserves infrastructure failure from prospect (1 ms)
+    ✓ create preserves infrastructure failure from tenant
+    ✓ create preserves infrastructure failure from member (1 ms)
+    ✓ create preserves infrastructure failure from identity
+    ✓ create preserves infrastructure failure from client (1 ms)
+    ✓ create preserves infrastructure failure from grant (1 ms)
+    ✓ create preserves infrastructure failure from predicate
+    ✓ create preserves infrastructure failure from data
+    ✓ update preserves infrastructure failure from exclusive (1 ms)
+    ✓ update preserves infrastructure failure from prospect (1 ms)
+    ✓ update preserves infrastructure failure from tenant (1 ms)
+    ✓ update preserves infrastructure failure from member
+    ✓ update preserves infrastructure failure from identity (1 ms)
+    ✓ update preserves infrastructure failure from client
+    ✓ update preserves infrastructure failure from grant
+    ✓ update preserves infrastructure failure from predicate
+    ✕ update preserves infrastructure failure from data (3 ms)
+    ✓ remove preserves infrastructure failure from exclusive (1 ms)
+    ✓ remove preserves infrastructure failure from prospect
+    ✓ remove preserves infrastructure failure from tenant
+    ✓ remove preserves infrastructure failure from member
+    ✓ remove preserves infrastructure failure from identity (1 ms)
+    ✓ remove preserves infrastructure failure from client
+    ✓ remove preserves infrastructure failure from grant (1 ms)
+    ✓ remove preserves infrastructure failure from predicate
+    ✕ remove preserves infrastructure failure from data
+    ✓ list observes member revocation after prospect lock await (1 ms)
+    ✓ create observes member revocation after prospect lock await
+    ✓ update observes member revocation after prospect lock await (1 ms)
+    ✓ remove observes member revocation after prospect lock await
+    ✓ list cannot rely on a prior grant result when canonical predicate denies (1 ms)
+    ✓ create cannot rely on a prior grant result when canonical predicate denies
+    ✓ update cannot rely on a prior grant result when canonical predicate denies (1 ms)
+    ✓ remove cannot rely on a prior grant result when canonical predicate denies
+    ✓ converted/dismissed exact replay strips internal receipt metadata (2 ms)
+    ✓ refuses changed/removed exact replay (hash) without writing
+    ✓ refuses changed/removed exact replay (removed) without writing (1 ms)
+    ✓ new converted create refuses without materializing a client contact or other store (1 ms)
+    ✓ update preserves stale CAS conflict (1 ms)
+    ✓ remove preserves stale CAS conflict
+    ✕ controller retains firm-private prefix, current role floor and feature guard (2 ms)
+  actual Contacts validation boundary
+    ✓ refuses incompatible or caller-authority DTO undefined (5 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (2 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (2 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined (1 ms)
+    ✓ refuses incompatible or caller-authority DTO undefined
+    ✓ accepts the existing narrow create DTO and trims its name
+
+  ● independent Contacts composition boundaries › update preserves exclusive-first and tenant-bound scope order
+
+    ConflictException: Archived or converted prospects have read-only contacts.
+
+      62 | export function requireWritable(readOnly: boolean) {
+      63 |   if (readOnly)
+    > 64 |     throw new ConflictException('Archived or converted prospects have read-only contacts.');
+         |           ^
+      65 | }
+      66 | export async function requireContact(
+      67 |   tx: Prisma.TransactionClient,
+
+      at requireWritable (apps/api/src/business-development/prospect-contacts/prospect-contacts.store.ts:64:11)
+      at apps/api/src/business-development/prospect-contacts/prospect-contacts.service.ts:90:22
+      at docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts:81:26
+
+  ● independent Contacts composition boundaries › remove preserves exclusive-first and tenant-bound scope order
+
+    ConflictException: Archived or converted prospects have read-only contacts.
+
+      62 | export function requireWritable(readOnly: boolean) {
+      63 |   if (readOnly)
+    > 64 |     throw new ConflictException('Archived or converted prospects have read-only contacts.');
+         |           ^
+      65 | }
+      66 | export async function requireContact(
+      67 |   tx: Prisma.TransactionClient,
+
+      at requireWritable (apps/api/src/business-development/prospect-contacts/prospect-contacts.store.ts:64:11)
+      at apps/api/src/business-development/prospect-contacts/prospect-contacts.service.ts:105:22
+      at docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts:81:26
+
+  ● independent Contacts composition boundaries › update preserves infrastructure failure from data
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: INDEPENDENT_INFRASTRUCTURE]
+    Received: [ConflictException: Archived or converted prospects have read-only contacts.]
+
+      89 |   it.each(operations.flatMap(operation => ['exclusive', 'prospect', 'tenant', 'member', 'identity', 'client', 'grant', 'predicate', 'data'].map(phase => [operation, phase] as const)))('%s preserves infrastructure failure from %s', async (operation, phase) => {
+      90 |     const h = fixture(); h.state.failPhase = phase;
+    > 91 |     await expect(h.run(operation)).rejects.toBe(h.error);
+         |                                            ^
+      92 |     if (phase !== 'data') expect(h.calls.some(call => call.phase === 'data')).toBe(false);
+      93 |   });
+      94 |   it.each(operations)('%s observes member revocation after prospect lock await', async operation => {
+
+      at Object.toBe (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts:91:44
+
+  ● independent Contacts composition boundaries › remove preserves infrastructure failure from data
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: INDEPENDENT_INFRASTRUCTURE]
+    Received: [ConflictException: Archived or converted prospects have read-only contacts.]
+
+      89 |   it.each(operations.flatMap(operation => ['exclusive', 'prospect', 'tenant', 'member', 'identity', 'client', 'grant', 'predicate', 'data'].map(phase => [operation, phase] as const)))('%s preserves infrastructure failure from %s', async (operation, phase) => {
+      90 |     const h = fixture(); h.state.failPhase = phase;
+    > 91 |     await expect(h.run(operation)).rejects.toBe(h.error);
+         |                                            ^
+      92 |     if (phase !== 'data') expect(h.calls.some(call => call.phase === 'data')).toBe(false);
+      93 |   });
+      94 |   it.each(operations)('%s observes member revocation after prospect lock await', async operation => {
+
+      at Object.toBe (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts:91:44
+
+  ● independent Contacts composition boundaries › controller retains firm-private prefix, current role floor and feature guard
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: ["standard_user", "user_admin", "capiro_admin"]
+    Received: undefined
+
+      127 |     expect(Reflect.getMetadata('path', ProspectContactsController)).toBe('business-development/prospects/:prospectId/contacts');
+      128 |     expect(Reflect.getMetadata('__guards__', ProspectContactsController)).toEqual([RolesGuard, BusinessDevelopmentFlagGuard]);
+    > 129 |     expect(Reflect.getMetadata('roles', ProspectContactsController)).toEqual(['standard_user', 'user_admin', 'capiro_admin']);
+          |                                                                      ^
+      130 |   });
+      131 | });
+      132 |
+
+      at Object.<anonymous> (docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-composition.spec.ts:129:70)
+
+Test Suites: 1 failed, 1 total
+Tests:       5 failed, 82 passed, 87 total
+Snapshots:   0 total
+Time:        3.537 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/independent-review/contacts-retry.json
