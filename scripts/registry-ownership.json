@@ -74,6 +74,10 @@
         {
           "name": "rateOf",
           "kind": "function"
+        },
+        {
+          "name": "RateReadProfile",
+          "kind": "type"
         }
       ],
       "edges": [
@@ -174,6 +178,12 @@
           "name": "asRateInteger",
           "kind": "function",
           "sha256": "3f74fe0c0f862d8d8b99a81bbe61b090ad2f31e7914c4abcece14456f5b0f59d"
+        },
+        {
+          "file": "apps/api/src/external/tango/tango-rest-page.ts",
+          "name": "RateReadProfile",
+          "kind": "type",
+          "sha256": "fb8a370d65c1e3b016866b16686fbf1cbbff800dd03ef25a7e37be19ef8d6550"
         }
       ]
     }

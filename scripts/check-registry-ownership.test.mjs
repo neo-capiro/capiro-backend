@@ -83,6 +83,78 @@ test('accepts an exact mutable const compatibility alias and its bound consumers
   });
 });
 
+for (const [label, code] of [
+  ['concatenated object method', 'const copy = { ["canonical" + "Route"]() { return 1; } };'],
+  [
+    'const-bound object method',
+    'const key = "canonicalRoute"; const copy = { [key]() { return 1; } };',
+  ],
+  [
+    'const-chain object property',
+    'const suffix = "Route"; const key = "canonical" + suffix; const copy = { [key]: () => 1 };',
+  ],
+  ['concatenated class method', 'class Copy { ["canonical" + "Route"]() { return 1; } }'],
+  ['const-bound class property', 'const key = "canonicalRoute"; class Copy { [key] = () => 1; }'],
+  [
+    'static assertion method',
+    'const copy = { [("canonical" + "Route") as const]() { return 1; } };',
+  ],
+  [
+    'shadow-bound method',
+    'const key = "other"; function copy() { const key = "canonicalRoute"; return { [key]() {} }; }',
+  ],
+  ['concatenated dynamic import', 'import("./reg" + "istry.js");'],
+  ['const-bound dynamic import', 'const moduleName = "./registry.js"; import(moduleName);'],
+  [
+    'const-chain require',
+    'const ending = "istry.js"; const moduleName = "./reg" + ending; require(moduleName);',
+  ],
+  ['parenthesized require', 'require(("./reg" + "istry.js"));'],
+  [
+    'template-string method',
+    'const prefix = "canonical"; const copy = { [`${prefix}Route`]() {} };',
+  ],
+  ['template-string import', 'const ending = "istry.js"; import(`./reg${ending}`);'],
+  ['constant require alias', 'const load = require; load("./registry.js");'],
+  [
+    'constant require alias chain',
+    'const first = require; const load = first; load("./reg" + "istry.js");',
+  ],
+  ['parenthesized require callee', '(require)("./registry.js");'],
+  ['prototype method assignment', 'class Copy {} Copy.prototype.canonicalRoute = () => 1;'],
+  [
+    'computed property assignment',
+    'const copy = {}; const key = "canonicalRoute"; copy[key] = () => 1;',
+  ],
+])
+  test(`refuses bounded static ${label}`, () => {
+    assert.ok(check(({ files }) => files.set('apps/example/src/copy.ts', code)).errors.length > 0);
+  });
+
+for (const keyword of ['let', 'var'])
+  test(`refuses ${keyword} compatibility alias even with its supplied fingerprint`, () => {
+    const value = aliasFixture();
+    const alias = value.config.profiles[0].aliases[0];
+    const source = value.files
+      .get(alias.file)
+      .replace('export const canonicalRoute', `export ${keyword} canonicalRoute`);
+    value.files.set(alias.file, source);
+    alias.sha256 = declarationDigest(source, alias.name, 'variable');
+    assert.ok(inspectRegistryOwnership(value.files, value.config).errors.length > 0);
+  });
+
+test('constant-string inspection remains lexical and does not evaluate initializers', () => {
+  assert.deepEqual(
+    check(({ files }) =>
+      files.set(
+        'apps/example/src/unrelated.ts',
+        'const key = "other"; const copy = { [key]() {} }; const runtime = (() => { throw Error("must not execute"); })(); const unknown = { [runtime]() {} };',
+      ),
+    ).errors,
+    [],
+  );
+});
+
 for (const [label, change] of [
   ['unlisted alias', ({ config }) => delete config.profiles[0].aliases],
   [
