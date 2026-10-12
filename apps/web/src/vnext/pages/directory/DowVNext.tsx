@@ -295,7 +295,7 @@ function SelectedDowRail({
   const detailData: AcquisitionPersonnelDetail | null = detail.detail;
 
   async function copyContact() {
-    const value = record.publicProfileUrl ?? record.emailDomain;
+    const value = record.email ?? record.phone ?? record.publicProfileUrl ?? record.emailDomain;
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
@@ -333,6 +333,30 @@ function SelectedDowRail({
         <p className="capiro-directory-field__label">Role</p>
         <p className="capiro-directory-field__value">{record.role || 'Not recorded'}</p>
       </div>
+      {record.parentOffice ? (
+        <div className="capiro-directory-field">
+          <p className="capiro-directory-field__label">Parent office</p>
+          <p className="capiro-directory-field__value">{record.parentOffice}</p>
+        </div>
+      ) : null}
+      {record.department ? (
+        <div className="capiro-directory-field">
+          <p className="capiro-directory-field__label">Department</p>
+          <p className="capiro-directory-field__value">{record.department}</p>
+        </div>
+      ) : null}
+      {record.phone ? (
+        <div className="capiro-directory-field">
+          <p className="capiro-directory-field__label">Phone</p>
+          <p className="capiro-directory-field__value">{record.phone}</p>
+        </div>
+      ) : null}
+      {record.email ? (
+        <div className="capiro-directory-field">
+          <p className="capiro-directory-field__label">Email</p>
+          <p className="capiro-directory-field__value">{record.email}</p>
+        </div>
+      ) : null}
 
       {/* Provenance: displayed, never invented. Each line is absent when the
           source did not supply it. */}
@@ -387,7 +411,7 @@ function SelectedDowRail({
         <CapiroButton
           size="compact"
           onClick={() => void copyContact()}
-          disabled={!record.publicProfileUrl && !record.emailDomain}
+          disabled={!record.email && !record.phone && !record.publicProfileUrl && !record.emailDomain}
         >
           {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy'}
         </CapiroButton>

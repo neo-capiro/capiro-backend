@@ -31,6 +31,24 @@ const ROLE_TYPES: readonly RoleType[] = [
   'other',
 ];
 
+function uploadedContactField(
+  metadata: unknown,
+  field: 'phone' | 'parentOffice' | 'department',
+): string | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const contact = (metadata as Record<string, unknown>).uploadedDirectoryContact;
+  if (!contact || typeof contact !== 'object' || Array.isArray(contact)) return null;
+  const value = (contact as Record<string, unknown>)[field];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function publicPersonnelMetadata(metadata: unknown): unknown {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return metadata;
+  const { uploadedDirectoryContact: _contact, uploadedDirectoryPrevious: _previous, ...rest } =
+    metadata as Record<string, unknown>;
+  return rest;
+}
+
 /**
  * Normalize a person's free-text role/title into the PersonRole.roleType enum
  * ('peo' | 'pm' | 'deputy' | 'chief_engineer' | 'contracting_officer' | 'staff' |
@@ -181,6 +199,11 @@ export class AcquisitionPersonnelReadService {
         peSecondary: p.peSecondary,
         emailDomain: p.emailDomain,
         email: ctx.role === 'capiro_admin' ? (p.email ?? null) : null,
+        phone: ctx.role === 'capiro_admin' ? uploadedContactField(p.metadata, 'phone') : null,
+        parentOffice:
+          ctx.role === 'capiro_admin' ? uploadedContactField(p.metadata, 'parentOffice') : null,
+        department:
+          ctx.role === 'capiro_admin' ? uploadedContactField(p.metadata, 'department') : null,
         publicProfileUrl: p.publicProfileUrl,
         headshotUrl:
           p.metadata && typeof p.metadata === 'object' && !Array.isArray(p.metadata)
@@ -238,12 +261,21 @@ export class AcquisitionPersonnelReadService {
       pePrimary: person.pePrimary,
       peSecondary: person.peSecondary,
       emailDomain: person.emailDomain,
+      email: ctx.role === 'capiro_admin' ? (person.email ?? null) : null,
+      phone: ctx.role === 'capiro_admin' ? uploadedContactField(person.metadata, 'phone') : null,
+      parentOffice:
+        ctx.role === 'capiro_admin' ? uploadedContactField(person.metadata, 'parentOffice') : null,
+      department:
+        ctx.role === 'capiro_admin' ? uploadedContactField(person.metadata, 'department') : null,
       publicProfileUrl: person.publicProfileUrl,
       confidence: person.confidence,
       status: person.status,
       firstSeenAt: person.firstSeenAt.toISOString(),
       lastSeenAt: person.lastSeenAt.toISOString(),
-      metadata: person.metadata,
+      metadata:
+        ctx.role === 'capiro_admin'
+          ? person.metadata
+          : publicPersonnelMetadata(person.metadata),
       sources: person.sources.map((s) => ({
         id: s.id,
         source: s.source,
@@ -334,6 +366,9 @@ export class AcquisitionPersonnelReadService {
         peSecondary: p.peSecondary,
         emailDomain: p.emailDomain,
         email: isAdmin ? (p.email ?? null) : null,
+        phone: isAdmin ? uploadedContactField(p.metadata, 'phone') : null,
+        parentOffice: isAdmin ? uploadedContactField(p.metadata, 'parentOffice') : null,
+        department: isAdmin ? uploadedContactField(p.metadata, 'department') : null,
         publicProfileUrl: p.publicProfileUrl,
         headshotUrl:
           p.metadata && typeof p.metadata === 'object' && !Array.isArray(p.metadata)

@@ -74,6 +74,7 @@ function makePrisma(seed: {
     },
 
     acquisitionPersonnel: {
+      count: async () => store.personnel.length,
       findMany: async ({ where }: { where: Row }) => {
         const w = where as {
           supersededAt?: null;
@@ -262,6 +263,71 @@ function makeRole(over: Row = {}): Row {
     ...over,
   };
 }
+
+describe('AcquisitionPersonnelReadService.getPersonDetail — uploaded contact gate', () => {
+  const uploadedMetadata = {
+    headshotUrl: 'https://example.gov/portrait.jpg',
+    uploadedDirectoryContact: {
+      phone: '202-555-0100', parentOffice: 'Acquisition Office', department: 'Department of Defense',
+    },
+    uploadedDirectoryPrevious: { title: 'Earlier title' },
+  };
+
+  test('shows uploaded contact information to a Capiro admin', async () => {
+    const prisma = makePrisma({
+      personnel: [makePerson({ email: 'jane@example.gov', metadata: uploadedMetadata, sources: [] })],
+    });
+    const result = await new AcquisitionPersonnelReadService(prisma as never).getPersonDetail('p1', ctx);
+
+    expect(result.email).toBe('jane@example.gov');
+    expect(result.phone).toBe('202-555-0100');
+    expect(result.parentOffice).toBe('Acquisition Office');
+    expect(result.department).toBe('Department of Defense');
+    expect(result.metadata).toEqual(uploadedMetadata);
+  });
+
+  test('does not expose uploaded contact or previous values to a standard user', async () => {
+    const prisma = makePrisma({
+      personnel: [makePerson({ email: 'jane@example.gov', metadata: uploadedMetadata, sources: [] })],
+    });
+    const result = await new AcquisitionPersonnelReadService(prisma as never).getPersonDetail(
+      'p1',
+      { ...ctx, role: 'standard_user' },
+    );
+
+    expect(result.email).toBeNull();
+    expect(result.phone).toBeNull();
+    expect(result.parentOffice).toBeNull();
+    expect(result.department).toBeNull();
+    expect(result.metadata).toEqual({ headshotUrl: 'https://example.gov/portrait.jpg' });
+  });
+});
+
+describe('AcquisitionPersonnelReadService.listPersonnel — uploaded contact gate', () => {
+  test('shows uploaded phone and email only to a Capiro admin', async () => {
+    const prisma = makePrisma({
+      personnel: [makePerson({
+        email: 'jane@example.gov',
+        metadata: { uploadedDirectoryContact: {
+          phone: '202-555-0100', parentOffice: 'Acquisition Office', department: 'Department of Defense',
+        } },
+      })],
+    });
+    const svc = new AcquisitionPersonnelReadService(prisma as never);
+
+    const admin = (await svc.listPersonnel({}, ctx)).data[0]!;
+    const standard = (await svc.listPersonnel({}, { ...ctx, role: 'standard_user' })).data[0]!;
+
+    expect(admin.email).toBe('jane@example.gov');
+    expect(admin.phone).toBe('202-555-0100');
+    expect(admin.parentOffice).toBe('Acquisition Office');
+    expect(admin.department).toBe('Department of Defense');
+    expect(standard.email).toBeNull();
+    expect(standard.phone).toBeNull();
+    expect(standard.parentOffice).toBeNull();
+    expect(standard.department).toBeNull();
+  });
+});
 
 describe('AcquisitionPersonnelReadService.getProgramElementPersonnel — role attachment', () => {
   test('attaches the FULL role chain (office manages program; program maps to PE)', async () => {
