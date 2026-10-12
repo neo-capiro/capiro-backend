@@ -53,7 +53,7 @@ establish Objective-bound access. No frontend navigation is activated here.
 the existing repository. The session must be active and have no archive marker.
 The existing Objective owner then verifies and locks the current active tenant,
 active membership with the established internal role floor, exact UUID/Clerk user
-mapping, active same-tenant client, and the actual ethical-wall grant when needed.
+mapping, nonarchived same-tenant client, and the actual ethical-wall grant when needed.
 Administrative roles and Objective assignment grant no bypass.
 
 The current nondeleted Objective must belong to that exact tenant/client and its
@@ -69,8 +69,10 @@ existing parser, digest and sponsor-isolation checks. Sponsor kind must be
 Free text, firm, coalition, multi-client and other scopes cannot substitute.
 Campaign goal/objective strings are not canonical Objective identity.
 
-Lock order is session → tenant/membership/user/client → actual wall grant (when
-walled) → Objective → revision. The owned session lock serializes sponsor edits
+The lock stages are session → current authority rows (tenant/membership/user/client
+in one joined query) → actual wall grant (when walled) → Objective → revision.
+This does not independently qualify PostgreSQL's row acquisition order within the
+joined authority query. The owned session lock serializes sponsor edits
 and archival; shared authority locks protect current row/grant revocation and
 Objective updates until the response snapshot transaction finishes. Every retry
 opens a new transaction and rechecks current authority. A later committed change

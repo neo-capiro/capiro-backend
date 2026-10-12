@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-objective-destinations/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS src/clients/objectives/objective-destination.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       23 passed, 23 total
+Snapshots:   0 total
+Time:        2.58 s
+Ran all test suites matching /src\/clients\/objectives\/objective-destination.spec.ts|src\/outreach-v3\/services\/outreach-objective-destination.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

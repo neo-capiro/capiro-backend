@@ -1,0 +1,16 @@
+src/clients/objectives/objective-destination.spec.ts(60,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(61,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(62,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(63,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(66,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(67,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(68,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(69,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(70,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(71,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(72,12): error TS2532: Object is possibly 'undefined'.
+src/clients/objectives/objective-destination.spec.ts(78,12): error TS2532: Object is possibly 'undefined'.
+src/outreach-v3/services/outreach-objective-destination.spec.ts(113,12): error TS2532: Object is possibly 'undefined'.
+src/outreach-v3/services/outreach-objective-destination.spec.ts(114,12): error TS2532: Object is possibly 'undefined'.
+src/outreach-v3/services/outreach-objective-destination.spec.ts(115,12): error TS2532: Object is possibly 'undefined'.
+src/outreach-v3/services/outreach-session.service.ts(125,9): error TS2532: Object is possibly 'undefined'.
