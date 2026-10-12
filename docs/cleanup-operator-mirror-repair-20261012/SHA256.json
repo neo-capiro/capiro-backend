@@ -1,0 +1,53 @@
+{
+  "files": [
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/AUTHOR-RECEIPT.json",
+      "sha256": "64ae4ea19e47a0b6257cd9ade37edc8378f5099a69c0e0ff2d8e81fbf82ccdbb"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/REPAIR.md",
+      "sha256": "5115c5131b8bfd4020062bad578025a27a2c5ea58c19edd7be3dc0821acbaae8"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/baseline-three-drift-red.json",
+      "sha256": "e5ea8e7688df9175985589af3d9fbce0c0defbaad91437e760c66b90e6c8d5c0"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/baseline-three-drift-red.log",
+      "sha256": "85dca7f87065342468f29c87ed945ee818780dca5787d9618d889e9d90f7c322"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/inert-operator-source-final.log",
+      "sha256": "bc2d5edbd55ff737897759b177e06b92d5aa66f967f64e8e1aa8e36d62188fe9"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/inert-operator-source-first.log",
+      "sha256": "a98b63ae828b80ef421d1e271b70408ed2891c8e39c7600994f21ee3d62368b7"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/inert-operator-source-first.test.mjs",
+      "sha256": "9dd30e3c8a91523b3994150b2379f9b8cb514e5cb2d77a90eedc93a50320f03d"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/inert-operator-source.test.mjs",
+      "sha256": "4ce056d143fb247657b0bc56dabc1bd221e0710036a2c798890cc9ad9d48361a"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/repaired-trace-green.json",
+      "sha256": "f68819bd9b1e5928755408700d511d2eff4b7f0e8d9280f27725a2da0b2aae46"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/repaired-trace-green.log",
+      "sha256": "79dc9e75ce53a45a0a6dd9fd068f0e9781be48699e9068fba2b9e73e38a64e2b"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/three-mirror-source.patch",
+      "sha256": "5b9d98ee86a7418c2f884b3029c007a834bcc7f506ee9a9f3916119f577ec5c5"
+    },
+    {
+      "path": "docs/cleanup-operator-mirror-repair-20261012/evidence/trace-and-equality.mjs",
+      "sha256": "56bca7e1fa5551bd2a3fceb20af6cad2fd80289a8e2fd0e656776fe9d370a1a0"
+    }
+  ],
+  "manifestExcludesSelf": true
+}

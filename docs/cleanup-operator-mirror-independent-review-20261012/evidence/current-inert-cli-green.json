@@ -1,0 +1,3799 @@
+{
+  "head": "aaea904f9d16df38ef57bc1d668a2b06f8d0fd14",
+  "tree": "41b8827051bac6d2c1ef4650798c8cdc330d5353",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "baseline": false,
+  "node": "v24.19.0",
+  "cachedTypeScript": "5.9.3",
+  "changedProductionPaths": [
+    "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+    "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+    "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts"
+  ],
+  "pairs": [
+    {
+      "name": "phase6-stage-cycle.ts",
+      "source": "apps/api/scripts/phase6-stage-cycle.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+      "oldBlob": "9bd1bb63da4397b35f347af2ea945b1bcb3c8df5",
+      "newBlob": "d9a82728dc01bd0b48a92580ab581b13ff19bec8",
+      "originalSha256": "f8e75a370aad408c5006f09f45800cb67dbd474b6e5f095a3a2c05f297ae7c37",
+      "newSha256": "e9005acc539c1e9cb3e8d0187b4e9c3fc41391a7dde0ce08973f387020a987f2",
+      "exactCanonicalEquality": true
+    },
+    {
+      "name": "plan-defense-budget-promotion-v1.ts",
+      "source": "apps/api/scripts/plan-defense-budget-promotion-v1.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+      "oldBlob": "94fef129178ecfd4c5118e6ae17a7bab5ac23e55",
+      "newBlob": "c5be25e428397dcf41c10a6cadba0bd6ca3ae2df",
+      "originalSha256": "352da5af8f24f06ac23e29cdd4aa93a88be616506a75fedbb1be32ed47321bee",
+      "newSha256": "0527611e0f93d7378c5c3ac270541096a623391ae061976f2f5ff0c283c80424",
+      "exactCanonicalEquality": true
+    },
+    {
+      "name": "status-defense-budget-promotion-v1.ts",
+      "source": "apps/api/scripts/status-defense-budget-promotion-v1.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts",
+      "oldBlob": "de5426ebfa605340f52334003f18ad691f1df2df",
+      "newBlob": "d36871ae5ce879f59b941f6ab5eb1c944ab0dec8",
+      "originalSha256": "52c26e8f9f0e023060d6c2df43c5e258b04cce543125a6b3be539dc12fc820a5",
+      "newSha256": "48662d2c8fa69ee9d1041964b48bef8b6baa2ac6c0ddf97111c44a90d34c1531",
+      "exactCanonicalEquality": true
+    }
+  ],
+  "canonicalSourceUnchanged": true,
+  "importsUnchanged": true,
+  "driftCount": 0,
+  "sourceProbeCases": 52,
+  "sourceFragmentExecutions": 104,
+  "failedMirrorProbeCases": 0,
+  "results": [
+    {
+      "name": "no args prints usage before resources",
+      "file": "phase6-stage-cycle.ts",
+      "args": [],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0,
+        "usage": true
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "help stops before resources",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--help"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0,
+        "usage": true
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "unknown command refuses before resources",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "unknown"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]\n--command must be one of extract_stage_document, compose_authorization_cycle, compose_appropriations_cycle, compose_post_enactment_evidence, verify_full_stage_cycle, report_cycle_certification"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]\n--command must be one of extract_stage_document, compose_authorization_cycle, compose_appropriations_cycle, compose_post_enactment_evidence, verify_full_stage_cycle, report_cycle_certification"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "incomplete command refuses",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]\n--command must be one of extract_stage_document, compose_authorization_cycle, compose_appropriations_cycle, compose_post_enactment_evidence, verify_full_stage_cycle, report_cycle_certification"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]\n--command must be one of extract_stage_document, compose_authorization_cycle, compose_appropriations_cycle, compose_post_enactment_evidence, verify_full_stage_cycle, report_cycle_certification"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "unknown bare flag refuses",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--unknown"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]\n--command must be one of extract_stage_document, compose_authorization_cycle, compose_appropriations_cycle, compose_post_enactment_evidence, verify_full_stage_cycle, report_cycle_certification"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]\n--command must be one of extract_stage_document, compose_authorization_cycle, compose_appropriations_cycle, compose_post_enactment_evidence, verify_full_stage_cycle, report_cycle_certification"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "commit forbidden before delegated extraction",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document",
+        "--commit"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Phase 6 stage-cycle commands do not support canonical commit or promotion"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Phase 6 stage-cycle commands do not support canonical commit or promotion"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "promotion forbidden before input read",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input",
+        "fixture.json",
+        "--promote"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Phase 6 stage-cycle commands do not support canonical commit or promotion"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Phase 6 stage-cycle commands do not support canonical commit or promotion"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing input refuses",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "--input <cycle-input.json> is required\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "--input <cycle-input.json> is required\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "input option without value refuses",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --input\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --input\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "option-looking input refuses",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input",
+        "--unknown"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --input\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --input\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "unknown option in inspect mode refuses before file",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input",
+        "fixture.json",
+        "--unknown"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --unknown\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --unknown\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "help mixed with inspect options refuses before file",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input",
+        "fixture.json",
+        "--help"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --help\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Unsupported or incomplete argument: --help\nUsage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured inspect compose_authorization_cycle",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 1,
+        "childCallbacks": 0,
+        "plannerCallbacks": 1,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "compose_authorization_cycle",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"compose_authorization_cycle\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "compose_authorization_cycle",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"compose_authorization_cycle\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured inspect compose_appropriations_cycle",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_appropriations_cycle",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 1,
+        "childCallbacks": 0,
+        "plannerCallbacks": 1,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "compose_appropriations_cycle",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"compose_appropriations_cycle\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "compose_appropriations_cycle",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"compose_appropriations_cycle\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured inspect compose_post_enactment_evidence",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_post_enactment_evidence",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 1,
+        "childCallbacks": 0,
+        "plannerCallbacks": 1,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "compose_post_enactment_evidence",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"compose_post_enactment_evidence\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "compose_post_enactment_evidence",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"compose_post_enactment_evidence\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured inspect verify_full_stage_cycle",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "verify_full_stage_cycle",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 1,
+        "childCallbacks": 0,
+        "plannerCallbacks": 1,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "verify_full_stage_cycle",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"verify_full_stage_cycle\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "verify_full_stage_cycle",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"verify_full_stage_cycle\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured inspect report_cycle_certification",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "report_cycle_certification",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 1,
+        "childCallbacks": 0,
+        "plannerCallbacks": 1,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "report_cycle_certification",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"report_cycle_certification\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [
+            {
+              "command": "report_cycle_certification",
+              "input": {
+                "synthetic": true
+              }
+            }
+          ],
+          "prismaConstructors": 0,
+          "stdout": [
+            "{\n  \"synthetic\": true,\n  \"command\": \"report_cycle_certification\",\n  \"input\": {\n    \"synthetic\": true\n  }\n}"
+          ],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "malformed JSON preserved failure",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "compose_authorization_cycle",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 1,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [
+            {
+              "file": "fixture.json",
+              "encoding": "utf8"
+            }
+          ],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction forwards Phase3 flags",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document",
+        "--manifest",
+        "fixture.json",
+        "--out",
+        "synthetic.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 1,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts",
+                "--manifest",
+                "fixture.json",
+                "--out",
+                "synthetic.json"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts",
+                "--manifest",
+                "fixture.json",
+                "--out",
+                "synthetic.json"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction delegates unknown flag validation",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document",
+        "--unknown"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 1,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts",
+                "--unknown"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts",
+                "--unknown"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction forbids inspect input before child",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document",
+        "--input",
+        "fixture.json"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "extract_stage_document uses Phase 3 extraction flags, not --input; provide --manifest/--document/--source/--work-dir/--out"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "extract_stage_document uses Phase 3 extraction flags, not --input; provide --manifest/--document/--source/--work-dir/--out"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction Windows executable preserved",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 1,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm.cmd",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm.cmd",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction child status preserved",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 7,
+        "fileReads": 0,
+        "childCallbacks": 1,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 7,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 7,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction missing child status becomes 1",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 1,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "extraction child error caught",
+      "file": "phase6-stage-cycle.ts",
+      "args": [
+        "--command",
+        "extract_stage_document"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 1,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "synthetic child failure"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [
+            {
+              "executable": "pnpm",
+              "argv": [
+                "exec",
+                "tsx",
+                "scripts/extract-defense-budget-cycle.ts"
+              ],
+              "options": {
+                "cwd": "/synthetic-cwd",
+                "stdio": "inherit"
+              }
+            }
+          ],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "synthetic child failure"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "Phase6 existing eager import tail preserved",
+      "file": "phase6-stage-cycle.ts",
+      "args": [],
+      "databaseFixture": false,
+      "importOnly": true,
+      "expected": {
+        "exitCode": 1,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0,
+        "usage": true
+      },
+      "canonical": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 1,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:child_process",
+            "node:fs",
+            "../src/defense-budget/phase6/phase6-cycle-runner-v1.js"
+          ],
+          "dotenv": 0,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: phase6-stage-cycle --command <extract_stage_document|compose_authorization_cycle|compose_appropriations_cycle|compose_post_enactment_evidence|verify_full_stage_cycle|report_cycle_certification> [--input cycle-input.json | Phase 3 extraction flags]"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing DATABASE_URL no args refuses before Prisma",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "unsupported help missing DB preserves configuration refusal",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--help"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing DB fully configured args refuse before Prisma",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing required --environment",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --environment is required"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --environment is required"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing required --cycle-id",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --cycle-id is required"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --cycle-id is required"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing required --fiscal-year",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year is required"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year is required"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing required --families",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --families is required (comma-separated)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --families is required (comma-separated)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing required --eligibility-hash",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        ""
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --eligibility-hash is required (64 hex characters)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --eligibility-hash is required (64 hex characters)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --eligibility-hash=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --eligibility-hash must be 64 lowercase hex characters"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --eligibility-hash must be 64 lowercase hex characters"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --eligibility-hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --eligibility-hash must be 64 lowercase hex characters"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --eligibility-hash must be 64 lowercase hex characters"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --fiscal-year=not-number",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "not-number",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year must be an integer between 1900 and 2200 (got not-number)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year must be an integer between 1900 and 2200 (got not-number)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --fiscal-year=2027.5",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027.5",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year must be an integer between 1900 and 2200 (got 2027.5)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year must be an integer between 1900 and 2200 (got 2027.5)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --fiscal-year=2201",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2201",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year must be an integer between 1900 and 2200 (got 2201)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --fiscal-year must be an integer between 1900 and 2200 (got 2201)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --families=, ,",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        ", ,",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --families must name at least one family"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --families must name at least one family"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid --families=not-family",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "not-family",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: unknown budget family/families: not-family; valid values are rdte, procurement, om, milcon, milpers, committee, alternative_funding, execution, public_law, overview, unknown"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: unknown budget family/families: not-family; valid values are rdte, procurement, om, milcon, milpers, committee, alternative_funding, execution, public_law, overview, unknown"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "invalid promotion mode refuses before Prisma",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--mode",
+        "invalid"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --mode must be one of baseline_hydration, new_cycle, correction, rollback (got invalid)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "plan-defense-budget-promotion-v1: --mode must be one of baseline_hydration, new_cycle, correction, rollback (got invalid)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured main reaches synthetic owner barrier",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 1,
+        "thrown": "synthetic Prisma constructor barrier"
+      },
+      "canonical": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured unknown flag remains inherited non-universal guard",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--unknown"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 1,
+        "thrown": "synthetic Prisma constructor barrier"
+      },
+      "canonical": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "import-only main guard stops configured owner",
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--cycle-id",
+        "fixture",
+        "--fiscal-year",
+        "2027",
+        "--families",
+        "rdte",
+        "--eligibility-hash",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "databaseFixture": true,
+      "importOnly": true,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "node:crypto",
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/promotion-planner-v1.js",
+            "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+            "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+            "../src/defense-budget/contracts/extraction-artifact-v1.js",
+            "../src/defense-budget/contracts/canonical-json.js",
+            "../src/defense-budget/promotion/promotion-eligibility-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing DATABASE_URL no args refuses before Prisma",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "unsupported help missing DB preserves configuration refusal",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [
+        "--help"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "missing DB with environment refuses before Prisma",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic"
+      ],
+      "databaseFixture": false,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "Usage: apps/api/scripts/status-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured missing environment refuses",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 2,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "status-defense-budget-promotion-v1: --environment is required"
+          ]
+        }
+      },
+      "observedMirror": {
+        "exitCode": 2,
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": [
+            "status-defense-budget-promotion-v1: --environment is required"
+          ]
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured main reaches synthetic owner barrier",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 1,
+        "thrown": "synthetic Prisma constructor barrier"
+      },
+      "canonical": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "configured unknown flag remains inherited non-universal guard",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic",
+        "--unknown"
+      ],
+      "databaseFixture": true,
+      "importOnly": false,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 1,
+        "thrown": "synthetic Prisma constructor barrier"
+      },
+      "canonical": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "thrown": {
+          "name": "Error",
+          "message": "synthetic Prisma constructor barrier"
+        },
+        "isolatedAsyncMain": true,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 1,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    },
+    {
+      "name": "import-only main guard stops configured owner",
+      "file": "status-defense-budget-promotion-v1.ts",
+      "args": [
+        "--environment",
+        "synthetic"
+      ],
+      "databaseFixture": true,
+      "importOnly": true,
+      "expected": {
+        "exitCode": 0,
+        "fileReads": 0,
+        "childCallbacks": 0,
+        "plannerCallbacks": 0,
+        "prismaConstructors": 0
+      },
+      "canonical": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "observedMirror": {
+        "exitCode": 0,
+        "isolatedAsyncMain": false,
+        "events": {
+          "imports": [
+            "dotenv",
+            "@prisma/client",
+            "../src/defense-budget/promotion/slo-metrics-v1.js"
+          ],
+          "dotenv": 1,
+          "fileReads": [],
+          "childCallbacks": [],
+          "plannerCallbacks": [],
+          "prismaConstructors": 0,
+          "stdout": [],
+          "stderr": []
+        }
+      },
+      "violations": [],
+      "canonicalTraceEqual": true
+    }
+  ],
+  "allDependenciesSynthetic": true,
+  "productionDependenciesLoaded": false,
+  "actualDatabaseFileChildProviderNativeOperations": false,
+  "asyncGuardProbeQualification": "Exact original main/import source evaluated without outer CLI catch to emulate process.exit without synthetic catch contamination; full unmodified modules used for import-only probes. Configured paths stop at a synthetic Prisma constructor barrier.",
+  "phase6UnknownFlagQualification": "Inspect options reject unknown tokens; extraction delegates Phase3 flag validation. Plan/status retain original non-universal flag handling and unsupported help.",
+  "dotenvQualification": "Planner/status retain top-level dotenvConfig; synthetic config callback runs on import. No claim of completely side-effect-free real imports.",
+  "nativeRlsOrFullVerifierAccepted": false
+}
