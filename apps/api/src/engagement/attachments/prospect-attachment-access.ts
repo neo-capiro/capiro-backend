@@ -77,11 +77,15 @@ export async function beginProspectUpload(
   await requireProspectScope(tx, ctx, input.prospectId, 'write');
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':' + ctx.userId + ':' + input.requestId.toLowerCase()},0))`;
   const prior = await tx.prospectAttachmentUploadIntent.findFirst({
-    where: { tenantId: ctx.tenantId, actorUserId: ctx.userId, requestId: input.requestId },
+    where: {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.userId,
+      requestId: input.requestId.toLowerCase(),
+    },
   });
   if (prior) {
     if (
-      prior.prospectId !== input.prospectId ||
+      prior.prospectId !== input.prospectId.toLowerCase() ||
       prior.fileName !== input.fileName ||
       prior.contentType !== input.contentType ||
       prior.contentLength !== input.contentLength ||
@@ -104,8 +108,8 @@ export async function beginProspectUpload(
       id,
       tenantId: ctx.tenantId,
       actorUserId: ctx.userId,
-      requestId: input.requestId,
-      prospectId: input.prospectId,
+      requestId: input.requestId.toLowerCase(),
+      prospectId: input.prospectId.toLowerCase(),
       fileName: input.fileName,
       contentType: input.contentType,
       contentLength: input.contentLength,
@@ -133,7 +137,11 @@ export async function prospectUploadForConfirm(
   const intent = await tx.prospectAttachmentUploadIntent.findFirst({
     where: { tenantId: ctx.tenantId, s3Key: input.s3Key },
   });
-  if (!intent || intent.actorUserId !== ctx.userId || intent.prospectId !== input.prospectId)
+  if (
+    !intent ||
+    intent.actorUserId !== ctx.userId ||
+    intent.prospectId !== input.prospectId.toLowerCase()
+  )
     throw new NotFoundException('Prospect upload not found');
   if (
     intent.bucket !== bucket ||

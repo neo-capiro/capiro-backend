@@ -34,12 +34,15 @@ CREATE POLICY prospect_attachment_upload_intents_isolation ON prospect_attachmen
  USING (tenant_id = NULLIF(current_setting('app.current_tenant',true),'')::uuid OR current_setting('app.bypass_rls',true)='on')
  WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant',true),'')::uuid OR current_setting('app.bypass_rls',true)='on');
 
+-- Preserve User ON DELETE SET NULL erasure; the intent retains original actor UUID.
+-- A non-null uploader can never be reassigned (including after erasure).
 CREATE FUNCTION preserve_prospect_attachment_origin() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF NEW.prospect_id IS DISTINCT FROM OLD.prospect_id OR
    (OLD.prospect_id IS NOT NULL AND (NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
      OR NEW.s3_key IS DISTINCT FROM OLD.s3_key OR NEW.bucket IS DISTINCT FROM OLD.bucket
-     OR NEW.uploaded_by_user_id IS DISTINCT FROM OLD.uploaded_by_user_id)) THEN
+     OR (NEW.uploaded_by_user_id IS NOT NULL
+       AND NEW.uploaded_by_user_id IS DISTINCT FROM OLD.uploaded_by_user_id))) THEN
    RAISE EXCEPTION 'attachment prospect origin is immutable' USING ERRCODE='23514';
  END IF;
  RETURN NEW;

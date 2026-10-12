@@ -162,6 +162,22 @@ describe('prospect attachment lifecycle (synthetic only)', () => {
     expect((await h.upload()).s3Key).toBe(result.s3Key);
     expect(h.intents).toHaveLength(1);
   });
+  it('treats UUID letter case as the same durable request and prospect', async () => {
+    const h = harness();
+    const canonical = {
+      ...input,
+      requestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      prospectId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    };
+    const first = await h.service.createAttachmentUploadUrl(ctx, canonical);
+    const replay = await h.service.createAttachmentUploadUrl(ctx, {
+      ...canonical,
+      requestId: canonical.requestId.toUpperCase(),
+      prospectId: canonical.prospectId.toUpperCase(),
+    });
+    expect(replay.s3Key).toBe(first.s3Key);
+    expect(h.intents).toHaveLength(1);
+  });
   it.each([
     { fileName: 'other.txt' },
     { prospectId: '66666666-6666-4666-8666-666666666666' },
@@ -280,7 +296,9 @@ describe('prospect attachment lifecycle (synthetic only)', () => {
     expect((await h.service.listAttachments(ctx, { prospectId })).map((r: any) => r.id)).toEqual([
       row.id,
     ]);
-    expect((await h.service.listAttachments(ctx, { unlinked: true })).map((r: any) => r.id)).toEqual(['legacy']);
+    expect(
+      (await h.service.listAttachments(ctx, { unlinked: true })).map((r: any) => r.id),
+    ).toEqual(['legacy']);
   });
   it('checks the live viewer ACL and rechecks the wall after URL signing', async () => {
     const h = harness();
