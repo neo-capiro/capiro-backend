@@ -1,0 +1,150 @@
+{
+  "scope": "Exact physical independent packet; indexself excluded. All failing/passing rawoutputs preserved, no representationchanges. Immutable source/body bindings are in separate receipts.",
+  "files": [
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/BASELINE-IDENTITIES.json",
+      "bytes": 2269,
+      "sha256": "4cda82231947b663dfd3746908a047344faf1145cca330473ec0bcd35208b53a"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/HANDOFF.md",
+      "bytes": 3126,
+      "sha256": "a19d83bd0f80ffd15ac8af985e11147d0138be9739706d08eb8f5d73984512a3"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/RESULT.json",
+      "bytes": 2482,
+      "sha256": "860aac04f4a4e9231302b9b6ac29de40031ae02f0e91a8772d3614ed31ea2da2"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/01-verify-outreach-v3-p1-architecture.mjs.txt",
+      "bytes": 12837,
+      "sha256": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/02-verify-outreach-v3-p1-architecture.spec.mjs.txt",
+      "bytes": 2476,
+      "sha256": "1e5c2c3014950abed5c5a040d768fb1d2eee1afbcfbaa4427ebb251db08b58ac"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/03-engagement-runtime-ownership.mjs.txt",
+      "bytes": 4110,
+      "sha256": "8f0c69e8e17c302cff51db9c57df152299d71552ef15d7634557d86ed9d1e914"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/04-revised-phase-1-shared-foundations.md.txt",
+      "bytes": 2474,
+      "sha256": "89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/05-revised-phase-2-readiness.md.txt",
+      "bytes": 1215,
+      "sha256": "9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/01-original-six-source-cases.tap",
+      "bytes": 541,
+      "sha256": "b7f62a3ba1c48305b4390876be70f529566a50c0e2271ff2ff21a3e76aee7bd2"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/02-candidate-six-source-cases.tap",
+      "bytes": 544,
+      "sha256": "3679165d2285a415eb5153b29d511a6b010479b4873825494e7e5130a4e01f68"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/03-candidate-operating-cases.tap",
+      "bytes": 12653,
+      "sha256": "d9f5ea52e0f96749be64dc73af541c11dcc70dcd834b331943c746708fad4093"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/04-marker-negative-probe.json",
+      "bytes": 3973,
+      "sha256": "9d69cb953607eff84429c99abd696411e609955d813c0cd3dc7655a391f53fda"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/04-marker-negative-probe.log",
+      "bytes": 477,
+      "sha256": "085fc161d6b8c1d901aa1069201ad989790108ad51e1819e2ce1044c0bb60e33"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/05-original-source-inverse.json",
+      "bytes": 1437,
+      "sha256": "b568e203ff856da3d2797362fd8c7ac8a48f5550fcd7d634b55e850282ae30e0"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/05-original-source-inverse.log",
+      "bytes": 159,
+      "sha256": "a752ce2160394ad2950f4014f81fa4108791020b86be874348c38f40dffd363c"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/06-corrected-marker-negative-probe.json",
+      "bytes": 4592,
+      "sha256": "e53a12826a930dbb5826ce1a5d6700e1037aa441024cafb99eb2ce6929e2ea01"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/06-corrected-marker-negative-probe.log",
+      "bytes": 39,
+      "sha256": "3ea811f57d869ce52d4d59a159c79b5e6c853b633aac27bfeadbc8a914a2e7e9"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/07-corrected-operating-cases.tap",
+      "bytes": 13358,
+      "sha256": "cb845e88ae94ccfa636061c139a1abcf9563a9ee2dc5c0df1d2489c1d4607bb4"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/08-corrected-source-inverse.json",
+      "bytes": 4315,
+      "sha256": "3246b59ce43317bbb0c5b57892af2cb46b675185e3219d430e75f8b594e73610"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/08-corrected-source-inverse.log",
+      "bytes": 161,
+      "sha256": "553786605676e3979034ab6f18fe55d1e2c2f2266adeb272a888d96fa2ea3e9f"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/09-correction-qualification.initial.log",
+      "bytes": 88,
+      "sha256": "2c4cf6ee3fb84976c844e0c6002b84fb287a30845e628c228ba12ddf533560d9"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/10-correction-qualification.log",
+      "bytes": 156,
+      "sha256": "e2e527de5b954b053df103a306e33ab9650de70105473a30a4b489da1df979cf"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/CORRECTION-QUALIFICATION.json",
+      "bytes": 1229,
+      "sha256": "f353d62ae2ccc60688a96c01486647b52d317eb9a435870e45ab06d96abe1a13"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/correction-qualification.initial.py",
+      "bytes": 1639,
+      "sha256": "b3aca26a51a80bc9d8bb6a8dfc3a0dba6e50adc90129acd4ff1a69ddbc9036de"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/correction-qualification.py",
+      "bytes": 2845,
+      "sha256": "acf19021b80c82a78c95704375d35f9688e12b1822866642cfbd9886822b7b71"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/marker-negative-probe.cjs",
+      "bytes": 2598,
+      "sha256": "6603b976a386c0497f73dad653af4e13166e139641e2a2996b21562f18c667f4"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/marker-negative-probe.initial.cjs",
+      "bytes": 2387,
+      "sha256": "aa4360f7fff650dc1d3d8c30cc71cdfc7f57134cc5d68c6e011b8e890b5b3433"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/source-inverse-audit.cjs",
+      "bytes": 4028,
+      "sha256": "95dba41194861cea299bf80c3e7fd1bbb139533b43bbf16839821d630920a2f6"
+    },
+    {
+      "path": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/evidence/source-inverse-audit.initial.cjs",
+      "bytes": 3900,
+      "sha256": "a3fae532b3dac37ce28b86983dded3e6bc9ead9a8ce4c7d02373395fc57212db"
+    }
+  ]
+}

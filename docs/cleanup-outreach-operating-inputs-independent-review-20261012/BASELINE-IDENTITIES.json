@@ -1,0 +1,43 @@
+{
+  "head": "faf46db1cb26ac55899675796d67dfd5d226d49e",
+  "tree": "042de56d12b8cadd183885253e58965c5c79bfe5",
+  "capturedBeforeCandidate": true,
+  "files": [
+    {
+      "path": "scripts/verify-outreach-v3-p1-architecture.mjs",
+      "snapshot": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/01-verify-outreach-v3-p1-architecture.mjs.txt",
+      "bytes": 12837,
+      "sha256": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42",
+      "blob": "6b7e82f2681362afa84e5911a629ed245fb45b4e"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-p1-architecture.spec.mjs",
+      "snapshot": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/02-verify-outreach-v3-p1-architecture.spec.mjs.txt",
+      "bytes": 2476,
+      "sha256": "1e5c2c3014950abed5c5a040d768fb1d2eee1afbcfbaa4427ebb251db08b58ac",
+      "blob": "f4e2e4b5437f8ac3ff1265f5e6dd3890856da1ad"
+    },
+    {
+      "path": "scripts/engagement-runtime-ownership.mjs",
+      "snapshot": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/03-engagement-runtime-ownership.mjs.txt",
+      "bytes": 4110,
+      "sha256": "8f0c69e8e17c302cff51db9c57df152299d71552ef15d7634557d86ed9d1e914",
+      "blob": "29aab53959867061f7ad26c25f49ea1087948e4f"
+    },
+    {
+      "path": "docs/plans/outreach-v3/revised-phase-1-shared-foundations.md",
+      "snapshot": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/04-revised-phase-1-shared-foundations.md.txt",
+      "bytes": 2474,
+      "sha256": "89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55",
+      "blob": "b8741c9b637d04423593547fcc6efa5accb99548"
+    },
+    {
+      "path": "docs/plans/outreach-v3/revised-phase-2-readiness.md",
+      "snapshot": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/baseline/05-revised-phase-2-readiness.md.txt",
+      "bytes": 1215,
+      "sha256": "9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716",
+      "blob": "89c8d191ed5ffd1280b374c6c42d8ae1816e2a9c"
+    }
+  ],
+  "safety": "Verifier/ownership module imports only builtins; main is path guarded and not entered by Node test import. No application/provider/DB/native imports. Plans source-only text."
+}
