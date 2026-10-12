@@ -1,0 +1,5 @@
+{
+ "extends":"../../tsconfig.base.json",
+ "compilerOptions":{"noEmit":true,"incremental":false,"module":"CommonJS","moduleResolution":"Node","experimentalDecorators":true,"types":["node","jest"],"typeRoots":["/workspace/capirov2/apps/api/node_modules/@types"],"baseUrl":"../..","paths":{"@nestjs/common":["/workspace/capirov2/apps/api/node_modules/@nestjs/common/index.d.ts"]}},
+ "files":["../../apps/workspace/src/cascade/cascade.config.ts","../../apps/workspace/src/cascade/workspace-product.registry.ts","../../apps/workspace/src/cascade/cascade.service.ts","../../apps/workspace/test/product-registry-characterization.spec.ts"]
+}

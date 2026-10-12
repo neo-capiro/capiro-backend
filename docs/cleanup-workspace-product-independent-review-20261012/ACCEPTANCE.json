@@ -1,0 +1,68 @@
+{
+  "decision": "ACCEPT bounded application source equivalence only",
+  "sourceHead": "77e936d2a695203819b7d46277bf63ab6a659539",
+  "sourceTree": "d5763734ebf1ad79a0257e973090e6a417817e54",
+  "authorDocsHead": "9f10c9e091dc4fd717d9d54e87586927d31d801e",
+  "authorDocsTree": "cc46d7c8ffede35c65f2768af5e74050bbbbcb27",
+  "independentOracle": "actual immutable802 Git source, not author fixture",
+  "independentChecks": 864,
+  "authorChecks": 115,
+  "oldCascadeBoth": {
+    "passed": 6,
+    "failed": 1,
+    "expected": 10,
+    "actual": 11
+  },
+  "focusedStrictExitCode": 0,
+  "applicationEdits": 0,
+  "rootAdoptionAccepted": false,
+  "fullWorkspaceNativeLiveAccepted": false,
+  "checks": [
+    {
+      "command": "node docs/cleanup-workspace-product-independent-review-20261012/evidence/review-workspace-products.cjs",
+      "log": "evidence/01-independent-differential.log",
+      "exitCode": 1,
+      "classification": "harness label coercion RED",
+      "runner": "evidence/review-workspace-products.initial.cjs"
+    },
+    {
+      "command": "node docs/cleanup-workspace-product-independent-review-20261012/evidence/review-workspace-products.cjs",
+      "log": "evidence/02-independent-differential.log",
+      "exitCode": 1,
+      "classification": "harness recipient phrase expectation RED",
+      "runner": "evidence/review-workspace-products.label-repaired.cjs"
+    },
+    {
+      "command": "node docs/cleanup-workspace-product-independent-review-20261012/evidence/review-workspace-products.cjs",
+      "log": "evidence/05-independent-differential-final.log",
+      "output": "evidence/05-independent-differential-final.json",
+      "exitCode": 0,
+      "classification": "864 independent checks PASS"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-workspace-product-independent-review-20261012/jest.candidate-inert.cjs --runInBand --json --outputFile docs/cleanup-workspace-product-independent-review-20261012/evidence/03-author-and-existing-candidate.json",
+      "log": "evidence/03-author-and-existing-candidate.log",
+      "exitCode": 1,
+      "classification": "115 new PASS; old6PASS/1RED"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-workspace-product-independent-review-20261012/jest.original-inert.cjs --runInBand --json --outputFile docs/cleanup-workspace-product-independent-review-20261012/evidence/04-original-cascade-baseline.json",
+      "log": "evidence/04-original-cascade-baseline.log",
+      "exitCode": 1,
+      "classification": "original old6PASS/1RED"
+    },
+    {
+      "command": "node /workspace/capirov2/node_modules/typescript/bin/tsc -p docs/cleanup-workspace-product-independent-review-20261012/tsconfig.focused.json",
+      "log": "evidence/06-independent-focused-strict.log",
+      "exitCode": 2,
+      "classification": "review-local cache type path RED",
+      "config": "evidence/tsconfig.focused.initial.json"
+    },
+    {
+      "command": "node /workspace/capirov2/node_modules/typescript/bin/tsc -p docs/cleanup-workspace-product-independent-review-20261012/tsconfig.focused.json",
+      "log": "evidence/07-independent-focused-strict-repaired.log",
+      "exitCode": 0,
+      "classification": "focused strict source PASS"
+    }
+  ]
+}
