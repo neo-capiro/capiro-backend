@@ -1,0 +1,21 @@
+{
+  "command": [
+    "node",
+    "--require",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-memory-funding-static-fixture-adoption-20261012/evidence/web-read-refusal.cjs",
+    "apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-memory-funding-static-fixture-adoption-20261012/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+    "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-memory-funding-static-fixture-adoption-20261012/evidence/web-refused-results.json"
+  ],
+  "exit": 1,
+  "noWebFilesModified": true,
+  "policy": "deny all filesystem reads under apps/web; no external/child ports"
+}

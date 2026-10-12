@@ -1,0 +1,339 @@
+{
+  "source": "44eda40f7951e73722566862649939e51a8f151a",
+  "beforeAfterAndWebRefusedCasesAndAssertionCountsIdentical": true,
+  "summaries": {
+    "before": {
+      "numTotalTests": 60,
+      "numPassedTests": 59,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "after": {
+      "numTotalTests": 60,
+      "numPassedTests": 59,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "web-refused": {
+      "numTotalTests": 60,
+      "numPassedTests": 59,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3
+    }
+  },
+  "allCaseStatuses": [
+    {
+      "name": "every signal either scorer can emit has a label grant signal assistanceListing is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal agency is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal capabilityKeyword is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal sector is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal fundingCategory is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal knownPartner is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal applicantType is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label grant signal stateRestriction is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal naicsExact is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal pscExact is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal programElement is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal agencyHistory is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal placeOfPerformanceSite is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal setAsideSelfReported is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal naicsIndustryGroup is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal pscCategory is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal capabilityKeyword is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal officeHistory is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal facilityState is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal sector is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label contract signal genericTopical is labelled",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "every signal either scorer can emit has a label the vocabulary has no entries for signals nothing emits",
+      "status": "passed",
+      "assertions": 19
+    },
+    {
+      "name": "every signal either scorer can emit has a label no label is a raw camelCase key",
+      "status": "passed",
+      "assertions": 34
+    },
+    {
+      "name": "every signal either scorer can emit has a label every detail sentence NAMES the matched value",
+      "status": "passed",
+      "assertions": 17
+    },
+    {
+      "name": "every signal either scorer can emit has a label an unrecognized key says it is unlabelled rather than pretending",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "a weak generic token can never be described as strong evidence genericTopical is weak in the scorer AND says so in its prose",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "a weak generic token can never be described as strong evidence a pile of weak hits is still a weak fit",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "a weak generic token can never be described as strong evidence the fit band comes from the STRONGEST signal, not from a count",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "a weak generic token can never be described as strong evidence two moderate signals clear the floor; one does not",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "a weak generic token can never be described as strong evidence an industry-GROUP match says the full codes differ",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "the explanation does not depend on input order the leading reason is the same whatever order signals arrive in",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "the explanation does not depend on input order signals come back strongest first, so the evidence panel reads top-down",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "the explanation does not depend on input order the same input twice is byte-identical",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "thin and conflicting profiles stay honest grant explanations use the grant floor for a priority with independent sector evidence",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "thin and conflicting profiles stay honest eligibility context never becomes fit evidence, even with old strong metadata",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "name": "thin and conflicting profiles stay honest a funding priority names its source and phrase without inventing a capability",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "name": "thin and conflicting profiles stay honest no signals at all yields no leading reason, not an invented one",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "thin and conflicting profiles stay honest an explanation never asserts the ABSENCE of a signal",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "thin and conflicting profiles stay honest a conflicting profile \u2014 strong classification, weak everything else \u2014 reads as strong but shows both",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "name": "thin and conflicting profiles stay honest the bands and their labels are one-to-one",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "thin and conflicting profiles stay honest grant and contract rails use the SAME three bands",
+      "status": "passed",
+      "assertions": 1
+    },
+    {
+      "name": "the surviving v2 card leads with evidence, not a bare score the v2 domain mirrors every API-labelled signal key",
+      "status": "passed",
+      "assertions": 19
+    },
+    {
+      "name": "the surviving v2 card leads with evidence, not a bare score the card renders match presentation and keeps numeric relevance behind evidence disclosure",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract uses explicit tenant and actor predicates instead of relying on RLS",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract keeps broad inbox rows body-free and detail protected",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract uses stable total-order cursor pagination",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract rechecks membership, assignment eligibility, and canonical authorization",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract marks only currently authorized recipient notifications as read",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract prevents the generic review API from reading or deciding memory rows",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract mounts one canonical inbox instead of the legacy broad body queues",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract supports every required plain-English workflow and notification action",
+      "status": "passed",
+      "assertions": 12
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract does not embed email rendering or deep-link helpers in notification helpers",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "name": "Memory Review Phase 3 inbox contract rehearses the real database boundaries before printing the Phase 3 marker",
+      "status": "passed",
+      "assertions": 10
+    },
+    {
+      "name": "memory administrator self-approval policy contract permits only candidate- and actor-bound active tenant administrators at the database boundary",
+      "status": "passed",
+      "assertions": 10
+    },
+    {
+      "name": "memory administrator self-approval policy contract sets exact transaction-local capabilities only after canonical admin authorization",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "memory administrator self-approval policy contract keeps walls and client status in canonical authorization while exempting admins from self-review denial",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "memory administrator self-approval policy contract makes assignment optional for admins but preserves it for standard reviewers",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "memory administrator self-approval policy contract expands only the admin inbox path and batches current authorization checks",
+      "status": "passed",
+      "assertions": 7
+    },
+    {
+      "name": "memory administrator self-approval policy contract removes the independent-approver claim from every active shared-memory UI surface",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "name": "memory administrator self-approval policy contract keeps Memory Review notifications in-app only",
+      "status": "passed",
+      "assertions": 6
+    }
+  ],
+  "inheritedFailure": [
+    "memory administrator self-approval policy contract removes the independent-approver claim from every active shared-memory UI surface"
+  ],
+  "failureBoundary": "Current exact Web MemoryFileEditor delegates copy to an existing helper; the original static assertion expects literal Submitted for approval in the editor file. The fixture deliberately preserves that same source and refusal. No source/fixture/assertion repair is part of this slice.",
+  "structuralControls": 39,
+  "refusalControls": 8,
+  "fullFloorOrNativeUiAcceptance": false
+}

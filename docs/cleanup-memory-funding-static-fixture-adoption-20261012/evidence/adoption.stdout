@@ -1,0 +1,6 @@
+{
+  "paths": 10,
+  "fixturesExactCurrentWeb": 7,
+  "readerOnlyReadOperandDelta": 3,
+  "allProposalExact": true
+}

@@ -1,0 +1,28 @@
+{
+  "source": "44eda40f7951e73722566862649939e51a8f151a",
+  "sourceTree": "d13ee8799aa89c5a55d2d96efdbd9458c6e4439f",
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "sourceChangedPaths": [
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+    "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+    "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+    "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts"
+  ],
+  "exactScope": true,
+  "sourceWhitespaceExit": 0,
+  "authoredEvidenceIndependentReviewPending": true,
+  "ownerSuites": "59 pass/1 inherited refusal/60 before and after; no skips",
+  "pureControls": 39,
+  "refusalControls": 8,
+  "newDetailedDeniedReportReadOrPublished": false,
+  "frontendChanged": false,
+  "rootPackageCiProcessPolicyChanged": false,
+  "protectedReportingSourceOrBranchRead": false,
+  "nativeDbProviderAcceptance": false
+}
