@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 // Compare committed migration paths and exact Git blobs. Working-tree edits
 // are outside this check; CI must provide the PR base commit and full history.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { namedGuardBase } from './cleanup-gates/lib/cli.mjs';
 
 function git(...args) {
   return execFileSync('git', args, {
@@ -64,11 +66,7 @@ function migrationsAt(commit) {
 }
 
 try {
-  const args = process.argv.slice(2);
-  if (args.length !== 0 && (args.length !== 2 || args[0] !== '--base')) {
-    throw new Error('Usage: node scripts/check-migration-integrity.mjs [--base <ref>]');
-  }
-  const ref = args.length ? args[1] : 'origin/main';
+  const ref = namedGuardBase('check-migration-integrity');
   if (!ref || ref.startsWith('-') || /[\0\r\n]/.test(ref)) throw new Error('Invalid base ref');
   const baseCommit = git('rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`).toString().trim();
   const head = git('rev-parse', '--verify', 'HEAD^{commit}').toString().trim();

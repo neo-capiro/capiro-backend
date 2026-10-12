@@ -15,10 +15,10 @@ import { StarterTemplateSeeder } from '../templates/starter-template-seeder.js';
 import { OutreachV3StateController } from './outreach-v3-state.controller.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
-import { ClientObjectivesService } from '../../clients/objectives/objectives.service.js';
+import { ClientObjectivesModule } from '../../clients/objectives/objectives.module.js';
 
 @Module({
-  imports: [PrismaModule, CapabilitiesModule],
+  imports: [PrismaModule, CapabilitiesModule, ClientObjectivesModule],
   controllers: [OutreachV3StateController, OutreachTemplateController],
   providers: [
     OutreachAuditedStateRepository,
@@ -27,7 +27,6 @@ import { ClientObjectivesService } from '../../clients/objectives/objectives.ser
       useExisting: OutreachAuditedStateRepository,
     },
     OutreachSessionService,
-    ClientObjectivesService,
     OutreachCommandEngineService,
     OutreachCommandProposalService,
     OutreachStateVersionGuardService,

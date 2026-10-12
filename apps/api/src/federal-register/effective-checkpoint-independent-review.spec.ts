@@ -76,12 +76,14 @@ async function execute(options: {
     constructor(value?: string | number | Date) { super(value ?? NOW.getTime()); }
     static now() { return NOW.getTime(); }
   }
-  runInNewContext(compiled, {
-    exports: {}, require: (name: string) => {
+  const entryModule = { exports: {} };
+  const entryRequire = Object.assign((name: string) => {
       if (!(name in modules)) throw new Error(`Forbidden unmocked dependency ${name}`);
       return modules[name];
-    },
-    process: { argv: ['node', 'sync-federal-register.ts', ...(options.argv ?? [])], env: options.env ?? {},
+    }, { main: entryModule });
+  runInNewContext(compiled, {
+    exports: entryModule.exports, module: entryModule, require: entryRequire,
+    process: { argv: ['node', 'sync-federal-register.ts', ...(options.argv ?? [])], env: { DATABASE_URL: 'synthetic-no-connection', ...options.env },
       exit: (code: number) => { logs.push(['exit', code]); finish(); } },
     URL, Date: ClockDate, Set, Error, Promise, setTimeout: (fn: () => void) => { fn(); },
     console: Object.fromEntries(['log', 'warn', 'error'].map(method => [method, (...args: unknown[]) => logs.push([method, ...args])])),

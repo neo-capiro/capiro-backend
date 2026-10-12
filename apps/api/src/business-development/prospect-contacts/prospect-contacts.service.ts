@@ -4,8 +4,9 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
-import { ROLE_RANK, type TenantContext } from '@capiro/shared';
+import { ROLE_RANK, prospectResourceScope, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   CreateProspectContactDto,
@@ -28,10 +29,19 @@ export class ProspectContactsService {
     if (!ctx.tenantId || !ctx.userId || typeof rank !== 'number' || rank < ROLE_RANK.standard_user)
       throw new ForbiddenException();
   }
+  private async currentScope(tx: Parameters<typeof prospectScope>[0], ctx: TenantContext, prospectId: string) {
+    // Take the existing exclusive prospect lock first. A SHARE-to-UPDATE lock
+    // upgrade would deadlock concurrent callers. Current authority is still
+    // checked before any contact read, replay or mutation in this transaction.
+    const readOnly = await prospectScope(tx, ctx.tenantId, prospectId);
+    const scope = await prospectResourceScope(tx, ctx.tenantId, { userId: ctx.userId }, prospectId, 'read');
+    if (!scope) throw new NotFoundException('Prospect contact access is unavailable');
+    return readOnly;
+  }
   async list(ctx: TenantContext, prospectId: string, after?: string) {
     this.authorize(ctx);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const readOnly = await prospectScope(tx, ctx.tenantId, prospectId);
+      const readOnly = await this.currentScope(tx, ctx, prospectId);
       const rows = after
         ? await tx.$queryRaw<ContactRow[]>`SELECT * FROM business_development_prospect_contacts
           WHERE tenant_id=${ctx.tenantId}::uuid AND prospect_id=${prospectId}::uuid AND removed_at IS NULL
@@ -51,7 +61,7 @@ export class ProspectContactsService {
     const data = fields(body);
     const hash = createHash('sha256').update(JSON.stringify(data)).digest('hex');
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const readOnly = await prospectScope(tx, ctx.tenantId, prospectId);
+      const readOnly = await this.currentScope(tx, ctx, prospectId);
       // A retry can recover an already committed create even if lifecycle changed meanwhile.
       const existing = await tx.$queryRaw<
         ContactRow[]
@@ -77,7 +87,7 @@ export class ProspectContactsService {
     this.authorize(ctx);
     const data = fields(body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      requireWritable(await prospectScope(tx, ctx.tenantId, prospectId));
+      requireWritable(await this.currentScope(tx, ctx, prospectId));
       await requireContact(tx, ctx.tenantId, prospectId, id);
       const rows = await tx.$queryRaw<ContactRow[]>`UPDATE business_development_prospect_contacts
         SET name=${data.name},title=${data.title},email=${data.email},phone=${data.phone},notes=${data.notes},
@@ -92,7 +102,7 @@ export class ProspectContactsService {
   async remove(ctx: TenantContext, prospectId: string, id: string, expectedVersion: number) {
     this.authorize(ctx);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      requireWritable(await prospectScope(tx, ctx.tenantId, prospectId));
+      requireWritable(await this.currentScope(tx, ctx, prospectId));
       await requireContact(tx, ctx.tenantId, prospectId, id);
       const rows = await tx.$queryRaw<ContactRow[]>`UPDATE business_development_prospect_contacts
         SET removed_at=now(),updated_at=now(),version=version+1,updated_by_user_id=${ctx.userId}::uuid

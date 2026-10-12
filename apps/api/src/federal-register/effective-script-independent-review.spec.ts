@@ -50,12 +50,14 @@ async function execute(options: {
       },
     },
   };
-  runInNewContext(compiled, {
-    exports: {}, require: (name: string) => {
+  const entryModule = { exports: {} };
+  const entryRequire = Object.assign((name: string) => {
       if (!(name in modules)) throw new Error(`Forbidden unmocked dependency ${name}`);
       return modules[name];
-    },
-    process: { argv: ['node', 'sync-federal-register.ts', ...(options.argv ?? [])], env: {},
+    }, { main: entryModule });
+  runInNewContext(compiled, {
+    exports: entryModule.exports, module: entryModule, require: entryRequire,
+    process: { argv: ['node', 'sync-federal-register.ts', ...(options.argv ?? [])], env: { DATABASE_URL: 'synthetic-no-connection' },
       exit: (code: number) => { logs.push(['exit', code]); finish(); } },
     URL, Date, Set, Error, Promise,
     setTimeout: (fn: () => void) => { fn(); },

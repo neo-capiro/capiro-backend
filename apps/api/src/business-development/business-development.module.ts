@@ -21,6 +21,7 @@ import { BizDevMeriScopeService } from './bizdev-meri-scope.service.js';
 import { BizDevWatchService } from './bizdev-watch.service.js';
 import { BusinessDevelopmentWatchFlagGuard } from './bizdev-watch.flag.guard.js';
 import { BizDevPdlModule } from './bizdev-pdl.module.js';
+import { ProspectContactsModule } from './prospect-contacts/prospect-contacts.module.js';
 
 /**
  * Business Development Phase 1 — firm-private prospect pipeline.
@@ -44,7 +45,7 @@ import { BizDevPdlModule } from './bizdev-pdl.module.js';
  * exposed; the trace table is service-internal.
  */
 @Module({
-  imports: [ClientsModule, IntelligenceModule, VendorReferenceModule, BizDevPdlModule],
+  imports: [ClientsModule, IntelligenceModule, VendorReferenceModule, BizDevPdlModule, ProspectContactsModule],
   controllers: [BusinessDevelopmentController],
   providers: [
     BusinessDevelopmentService,

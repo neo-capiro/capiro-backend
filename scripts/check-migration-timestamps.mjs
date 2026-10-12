@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=0 helpExit=0 */
 /**
  * Migration directory timestamp guard.
  *
@@ -43,13 +44,12 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { namedGuardBase } from './cleanup-gates/lib/cli.mjs';
 
 const CONFIG_PATH =
   process.env.MIGRATION_OFFSETS_CONFIG ?? 'scripts/migration-timestamp-offsets.json';
 
-const argv = process.argv.slice(2);
-const baseArgIdx = argv.indexOf('--base');
-const baseRef = baseArgIdx >= 0 ? argv[baseArgIdx + 1] : 'origin/main';
+const baseRef = namedGuardBase('check-migration-timestamps');
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 /** Same, but a missing path/ref is an expected outcome — keep git's noise out of the log. */
