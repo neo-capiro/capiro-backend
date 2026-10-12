@@ -1,0 +1,12 @@
+{
+  "target": "b69cc02fc788f6f285a11d0fb4357174dc33018c",
+  "tree": "4e22cacfd2c98504800ad277c1296b4bc0c1f14f",
+  "sourceChanges": [
+    "packages/shared/src/index.ts",
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "preservedParentSourceEntries": 192,
+  "verifiedQualificationFiles": 242,
+  "historicalParentPacketUnchanged": true,
+  "nativeOrFullCleanupAcceptance": false
+}

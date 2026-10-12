@@ -1,0 +1,77 @@
+{
+  "runtimeSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "runtimeTree": "d6c9d0b4c4a3836576576ebd12a90c30f0520d1f",
+  "observedPublication": "b69cc02fc788f6f285a11d0fb4357174dc33018c",
+  "inputSha256": {
+    "web-full-source-unit.json": "ca115e0972fde97e70839360c8ee112db9f45870242471261442e2f5a94c66f6",
+    "web-full-main-baseline.json": "939c0b199e6ebf81a02fd10337b8f95df2e84a2c166db173364367777f4f2be9",
+    "web-full-baseline-final-classification.json": "b0b90f193c96772805a539d0d130786c173dbdaf849b6ae01b0290e817298332",
+    "verify-baseline-artifact-timer.cjs": "5e8437209a72cb7d1cb32337830d264f0475c17b1481f75e4a4cdad7af6d0eb5",
+    "qualification-overlay-initial-buffer-failure.json": "6b7a31d39bfeab1992d8bdd8ec5ed9acf9195e59d79b3fa25b9e351b1223af7e",
+    "qualification-overlay-first-pass.json": "2aba34b8dae7f1d227eeb727f876ffc63bb40ee7b8ba6ebc64d267068ca417c4"
+  },
+  "comparedCaseMultiset": 6435,
+  "physicalFilesEach": 701,
+  "candidatePassedFailed": [
+    6433,
+    2
+  ],
+  "mainPassedFailed": [
+    6434,
+    1
+  ],
+  "soleStatusDifference": [
+    {
+      "file": "src/vnext/meri/MeriArtifactCanvas.test.tsx",
+      "case": "MeriArtifactCanvas Word preview downloads the authenticated canonical DOCX binary without replacing its persisted spec",
+      "candidate": "failed",
+      "main": "passed"
+    }
+  ],
+  "artifactFileDurations": [
+    {
+      "run": "candidate",
+      "milliseconds": 32241.81298828125
+    },
+    {
+      "run": "main",
+      "milliseconds": 1736.512451171875
+    }
+  ],
+  "failures": [
+    {
+      "run": "candidate",
+      "file": "src/vnext/meri/MeriArtifactCanvas.test.tsx",
+      "case": "MeriArtifactCanvas Word preview downloads the authenticated canonical DOCX binary without replacing its persisted spec"
+    },
+    {
+      "run": "candidate",
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "case": "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile"
+    },
+    {
+      "run": "main",
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "case": "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile"
+    }
+  ],
+  "allWebTrackedBytesUnchangedToMain": true,
+  "inertBaselineProbePassed": true,
+  "bufferChangeOnly64MiB": true,
+  "allVerifierAssertionsPreserved": true,
+  "publishedQualificationHashesVerifiedByAuthor": 242,
+  "documents": {
+    "HANDOFF.md": "aad7d0c99fdb2b93b02a9bc81880053a40cd0ab37e158fe137339a1a0d2d1caf",
+    "QUALIFICATION.md": "773c41b91973afc6932ef44164158a5966aafb71164430818de349242a775aba",
+    "BLOCKERS.json": "41e07bbb8a2d1fdf1ed904606876c209f64a2663bce19c78daec7cdb72236f65",
+    "GATE-MATRIX.json": "d4703f86854f61ed4eef794531600a7dee122991b3272b0f5ed012952121ceba",
+    "SOURCE-OVERLAY.json": "76bfc49e0924261a57acb41a959e5692f374526aff769324417b54091848d479",
+    "RELEASE-MANIFEST.json": "fddf3a41672907239fd299e7bdcaf5d9683e8b845871b2a6d92df13d38b74e88"
+  },
+  "classificationAccepted": "environment-dependent inherited timer mechanism; causal attribution inferred, exact original artifact assertion not reproduced on main",
+  "candidateFailureStillRed": true,
+  "fullCleanupOrNativeAcceptance": false,
+  "newRuntimeChange": false,
+  "independentlyReadVerifiedQualificationFiles": 242,
+  "published194SourceEntriesAndHistoricalPacketVerified": true
+}
