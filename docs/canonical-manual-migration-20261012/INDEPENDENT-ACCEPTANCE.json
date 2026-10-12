@@ -1,0 +1,97 @@
+{
+  "acceptedSource": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "acceptedTree": "88a1aea62dbaaf4a8aa82086caa7c9aea511d8d7",
+  "rootRawOperandOverlay": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+  "rootRawOperandTree": "fabd55359b4f56d5f68be7559ff933a072b55dc0",
+  "independentEvidenceCommit": "2819d731d33f30ed280af2392e2b509ddef90b0f",
+  "independentEvidenceTree": "0defe1ce9f47a26e35a903ec409f01ae88a1ede5",
+  "independentReceipt": "docs/cleanup-migration-canonical-interface-review-20261012/RECEIPT.json",
+  "independentReceiptSha256": "765c2833313d3aa4df1babcc4484ae7d979b7b25ec7ccae68104e104875dacb3",
+  "independentEvidenceChecksumEntriesVerified": 26,
+  "allSevenReviewedSourceHashesAndBlobsVerified": true,
+  "authorEvidenceCommit": "df203cd478770705373c2a0a9c0da0c87d72fa05",
+  "originalAuthorReceiptAndEvidencePreserved": true,
+  "historicalPendingWording": "The earlier author check packet records its pre-review point; this supplement records final independent acceptance.",
+  "independentAcceptance": {
+    "acceptedAuthorSource": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+    "acceptedAuthorTree": "88a1aea62dbaaf4a8aa82086caa7c9aea511d8d7",
+    "rootOperandOverlay": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+    "rootOperandOverlayTree": "fabd55359b4f56d5f68be7559ff933a072b55dc0",
+    "reviewSourceComposition": "8252a43367b8b67909f52863deb0d1126fd898d6",
+    "reviewSourceTree": "e5e9d187ef324f855e11e1dcd2804152081be9ef",
+    "base": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+    "scope": "canonical manual migration source-policy helper, Phase A alignment, exact runbooks, and raw lint source operand",
+    "sourcePaths": {
+      "apps/api/scripts/lib/pe-migration-guards.spec.ts": {
+        "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+        "gitBlob": "92ebecd7ab6fa18a69d7dcb404f097a89bf33411",
+        "sha256": "56219e60d984b3bed650378ab32e40c6e258bf460591e71d3aee40f9a328d64b"
+      },
+      "apps/api/scripts/lib/pe-migration-guards.ts": {
+        "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+        "gitBlob": "20affa081ef362cd6cb18fd4261b634404aedec8",
+        "sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc"
+      },
+      "apps/api/scripts/lib/pe-phase-a-safety.spec.ts": {
+        "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+        "gitBlob": "342604b55711082a13f82a907a903388171fc04a",
+        "sha256": "0f0d7fb4a6097f30c1680decaf74314d468573846edea55e143827371a59d538"
+      },
+      "apps/api/scripts/verify-pe-phase-a-safety.ts": {
+        "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+        "gitBlob": "0f68c7ccd86f9ef052128081b9a900b95b0c022e",
+        "sha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22"
+      },
+      "docs/runbooks/prisma-failed-migration-recovery.md": {
+        "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+        "gitBlob": "903f0c8d3c7cce5d2a94a570414ff464a25f7111",
+        "sha256": "622f2c4ba12a0b3996aa2a90cfb61f429a41aa227e8f5527b105059b1875e99e"
+      },
+      "docs/runbooks/program-elements-trust-gates.md": {
+        "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+        "gitBlob": "1e1a990467675a2ee52b77f045ae3e8c9d3ba99f",
+        "sha256": "a6975e64de92d5071eba7bbf7064e15d34fb5d8b2d888b842673630f44e0374e"
+      },
+      "apps/api/scripts/lint-pe-scripts.ts": {
+        "owner": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+        "gitBlob": "4623abcfe13a3aa887b5b03dd67190e81da4d513",
+        "sha256": "a0c36656629218c3f8d2a4d21ead6446d45d34ef110d5bce1016da04b25cf678"
+      }
+    },
+    "checks": {
+      "actualTrioSourceCases": 82,
+      "sourcePositive": 4,
+      "sourceRefusals": 78,
+      "genericStrictControls": 5,
+      "replayControls": 5,
+      "primitiveCapturePurityControls": 9,
+      "actualLintOperandControls": 7,
+      "independentControlsTotal": 108,
+      "focusedSpecificationsPassed": 69,
+      "entrypointTrioBytesUnchanged": true,
+      "urlComposerAndMigrationVerifierUnchanged": true,
+      "originalForbiddenPatternsAndFourHelpersExact": true,
+      "originalTestNamesPreserved": 10,
+      "originalTestBodiesExact": 9,
+      "intentionalPhaseATestAlignments": 1
+    },
+    "reviewerSetupFailuresPreserved": [
+      "initial-independent-jest-launch-failure.json",
+      "initial-preservation-anchor-failure.json"
+    ],
+    "remainingConcreteSourceBlockers": [],
+    "reviewerSourceEdits": false,
+    "shellMutantsExecuted": false,
+    "nativeOperations": false,
+    "runtimeOperatorAuthenticationClaim": false,
+    "operatorConcurrencyExclusionClaim": false,
+    "fullCleanupAcceptance": false,
+    "separateRootCliReview": "577bddc91784eb27f68f19f2feea8e93fe5e2829 belongs to separate reviewer",
+    "rootOwnsIntegrationAndPublication": true
+  },
+  "rootOwnsIntegrationCliMetadataSmokeAndPublication": true,
+  "newSourceEdits": false,
+  "operatorAuthenticationOrConcurrencyAttested": false,
+  "nativeAcceptance": false,
+  "fullCleanupAcceptance": false
+}
