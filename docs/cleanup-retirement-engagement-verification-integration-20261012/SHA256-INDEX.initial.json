@@ -1,0 +1,186 @@
+{
+  "source": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+  "sourceTree": "42c692a5c9620c71d7ccbfdc7c979247f6253a00",
+  "packet": [
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/COMMANDS.json",
+      "bytes": 2774,
+      "sha256": "86f2ece75f36968201e1d2fe322c65c463c18d882c4f24ad3d6e08431550fea0"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/HANDOFF.md",
+      "bytes": 4711,
+      "sha256": "0a6a36d76aaff9225c6b35bf333b3d0c33ade8862ca0cb8079607c5da4f5816a"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/SOURCE-MANIFEST.final.json",
+      "bytes": 2287,
+      "sha256": "f435bda6f916ff536a2b4deac49a51a2a272f0c4a546872866eb79c1ba72257a"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/SOURCE-MANIFEST.json",
+      "bytes": 2287,
+      "sha256": "52ab7ddf3c9360b22c698fee2ba385b190a1fa89bec12288c3032414e7437f56"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log",
+      "bytes": 21239,
+      "sha256": "799961f0bfa5740d0b0efe6a42d769746e3d81f0e60933605088116181d28648"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/02-pure-plan-controls-repaired.log",
+      "bytes": 7531,
+      "sha256": "26fa4fed971c9b21e7d3554d8ed94932141cbe8a2fce161d4e20d5bfc26b474d"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/03-focused-verifier-source-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/04-pure-plan-controls-final.log",
+      "bytes": 6861,
+      "sha256": "cf091692be23f0a62cd0afbb2871e4de50a3a50b8c237ff49897315ad35344da"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/05-pure-plan-early-guard-controls.log",
+      "bytes": 8309,
+      "sha256": "045f406af0a99a5948714842a1b3fb3c3d6b764ea9729a0f6d39548ebe950f55"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/06-phase3-helper-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/07-phase3-wrapper-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/08-phase2-shell-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/09-frozen-source-whitespace.log",
+      "bytes": 184,
+      "sha256": "ed411bd0280cd3756ae8bf57f2c412e59ae0ee16f63d16ca4aee551c00818026"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/10-whitespace-repaired-pure-controls.log",
+      "bytes": 8296,
+      "sha256": "6b96de3e367944bcedf2a2dfed9ebd1cf8b62e35be9f7fc9fa64d701f58dfef5"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/11-scoped-mixed-receipt-repaired-controls.log",
+      "bytes": 8774,
+      "sha256": "7b2591a3b4426a1758836437119c9be87de648c884f3d0d8fd68e94620c0a123"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/12-final-packet-freeze.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/13-final-phase3-helper-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/14-final-phase3-wrapper-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/15-final-phase2-shell-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/16-final-source-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/freeze-packet.cjs",
+      "bytes": 3420,
+      "sha256": "9cbd329a675e5f9c54f1922231fb2a8c6eab7328ad34b29243c9f49e3c80eb8b"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/freeze-packet.repaired.cjs",
+      "bytes": 3945,
+      "sha256": "17cf8c5ffd57e61db162e5bd8fe3bfb7310faf82df9b24dfe70dce9d16885f43"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-mode.spec.initial.mjs",
+      "bytes": 12145,
+      "sha256": "34d221f0ab5ec7d7a68afb02cfe8695910ceebf457b13830ccfb032c2f3dd91e"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch",
+      "bytes": 5842,
+      "sha256": "a3fa3322166469059e3d5b9b3d6f1b2929aebf417e1652c34fcf3e67d16e24eb"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase3-plan.spec.initial.mjs",
+      "bytes": 6134,
+      "sha256": "88b85564cf8fd57fb2db6cbf05ef2e38a3ed2864474463b69956dc0f2245a8ce"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase3-plan.spec.realm-repaired.mjs",
+      "bytes": 6163,
+      "sha256": "f621dbd75b02f545884993c0b6a7ba273b1e66d7d3540997097f9a6299501cf7"
+    }
+  ],
+  "sourceEntries": [
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs",
+      "blob": "7dc95ea85b0cf9a1476cefa4eae7488818acdabd",
+      "bytes": 6666,
+      "sha256": "9f0a674f11767dec8bb4c87c2a690b51793527ffe467bbefe51aa58eb18978a9"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "blob": "6771d57177d20846394a1eab8263272628df249c",
+      "bytes": 4688,
+      "sha256": "4eefd0212439c021fdbca7fa3025442b3f2d5b766943421c929dee4dfd8416de"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "blob": "9dff1de2265bea2b1646c43050d54b3d8c34d172",
+      "bytes": 7905,
+      "sha256": "385b31449f270d1c0fe386cea98f1c76a6afae46fbb78ac0fc1b32b50c74ad8c"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "blob": "347f03d8b21a9d61f3cf534303473b1afb84752c",
+      "bytes": 5730,
+      "sha256": "d204addc0fa4db86ce9acbeb0049a41ec76f978e4906b2b6e8211b783f3339dd"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "blob": "ec9e0cc0be1bc38bb75b69d3e87e9f715edfffa8",
+      "bytes": 9377,
+      "sha256": "b587e424428c75cead5b114143d74b673b1b69195176a265a9a00b0e9995fec3"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "blob": "fe75410cf49b043f62cff3237af488e9a88caa9a",
+      "bytes": 12703,
+      "sha256": "ffc6d371b4cd0f1d44266b25a387fd0a8a1e94342c96c8126a46f23c9fb86cdd"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.sh",
+      "blob": "31c94f1a2a4cbb5748f0aeaff53d178617a961d0",
+      "bytes": 17334,
+      "sha256": "f79da59c632447150a6ba5bd2c4d4b4b9b877aec235660fdf51dcf743e61e96b"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "blob": "8e006ea5a7da244ee957180a9b89d68d407512ee",
+      "bytes": 9581,
+      "sha256": "2029f17a3ad869a1448f8fd7aa68c565f9ab501884c776bc356bada7c98d1188"
+    }
+  ]
+}

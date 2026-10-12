@@ -1,0 +1,14 @@
+{
+  "result": "RED",
+  "packet": 26,
+  "source": 8,
+  "failures": [
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/12-final-packet-freeze.log",
+      "expectedBytes": 0,
+      "actualBytes": 76,
+      "expectedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actualSha256": "102965d7e337225fbf11accb4304de93835457370d140d1d2b256c1c854d7e2f"
+    }
+  ]
+}

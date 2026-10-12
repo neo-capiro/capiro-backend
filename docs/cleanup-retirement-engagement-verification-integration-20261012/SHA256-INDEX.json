@@ -13,6 +13,11 @@
       "sha256": "0a6a36d76aaff9225c6b35bf333b3d0c33ade8862ca0cb8079607c5da4f5816a"
     },
     {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/SHA256-INDEX.initial.json",
+      "bytes": 8335,
+      "sha256": "da6183616d328e233af847668b7599c71a2b9ea8cfc1df92ae32be93d6a05f1f"
+    },
+    {
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/SOURCE-MANIFEST.final.json",
       "bytes": 2287,
       "sha256": "f435bda6f916ff536a2b4deac49a51a2a272f0c4a546872866eb79c1ba72257a"
@@ -79,8 +84,8 @@
     },
     {
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/12-final-packet-freeze.log",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "bytes": 76,
+      "sha256": "102965d7e337225fbf11accb4304de93835457370d140d1d2b256c1c854d7e2f"
     },
     {
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/13-final-phase3-helper-syntax.log",
@@ -101,6 +106,11 @@
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/16-final-source-whitespace.log",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/17-sha-index-initial-verification.log",
+      "bytes": 440,
+      "sha256": "70fc234a69bf99470ce9a5bb7fa9bd9de15dabdfb5634a763e3d47fd19c775fb"
     },
     {
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/freeze-packet.cjs",
@@ -131,6 +141,11 @@
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase3-plan.spec.realm-repaired.mjs",
       "bytes": 6163,
       "sha256": "f621dbd75b02f545884993c0b6a7ba273b1e66d7d3540997097f9a6299501cf7"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/verify-index.cjs",
+      "bytes": 742,
+      "sha256": "8c8afea7e7dd68a19f2e66da4d63508d2018053bf4529dc690135de1150574b5"
     }
   ],
   "sourceEntries": [
