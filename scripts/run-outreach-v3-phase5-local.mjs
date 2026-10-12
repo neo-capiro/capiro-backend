@@ -59,7 +59,7 @@ const summary = {
 };
 
 try {
-  run('Phase 5 DB-free closeout', 'node', ['scripts/verify-outreach-v3-phase5-code.mjs']);
+  run('Phase 5 DB-free closeout', 'node', ['scripts/verify-outreach-v3-phase5-code.mjs', '--run']);
   summary.dbFree = true;
 
   run('Phase 2 state/database regression', 'node', ['scripts/verify-outreach-v3-phase2-db.mjs']);

@@ -513,7 +513,7 @@ export async function persistReceipt(file, value, io = { open, rename, rm }) {
 }
 
 async function cli() {
-  const usage = 'Usage: node scripts/meri-release.mjs --action inspect|prepare|promote|rollback --service api|workspace|orchestrator [required action options]';
+  const usage = 'Usage: node scripts/meri-release.mjs <inspect|prepare|promote|rollback> [action options]; inspect --service <service>; prepare --qualification <file> --out <file>; promote|rollback --manifest <file> --approve <file> --confirm <token> --receipt <file>';
   const argv = process.argv.slice(2);
   if (argv.length === 1 && argv[0] === '--help') {
     console.log(usage);
