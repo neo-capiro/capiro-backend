@@ -1,0 +1,9 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/evidence/probe-artifact-manifest-corrected.cjs"
+  ],
+  "exitCode": 0,
+  "sqlExecuted": false,
+  "nativeReplay": false
+}

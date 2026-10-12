@@ -1,0 +1,38 @@
+✔ complete ten-artifact inventory accepts and recomputes schema equality (7.911715ms)
+✔ client and artifact ordering does not change finite set completeness (0.553006ms)
+✔ inventory refuses all clients omitted before artifact/source reads (4.537372ms)
+✔ inventory refuses Core client omitted before artifact/source reads (0.534547ms)
+✔ inventory refuses Workspace client omitted before artifact/source reads (0.457536ms)
+✔ inventory refuses all artifact inventories omitted before artifact/source reads (0.390805ms)
+✔ inventory refuses Core artifacts omitted before artifact/source reads (0.377608ms)
+✔ inventory refuses Workspace artifacts omitted before artifact/source reads (0.432441ms)
+✔ inventory refuses one artifact omitted before artifact/source reads (0.348143ms)
+✔ inventory refuses duplicated client root before artifact/source reads (3.826925ms)
+✔ inventory refuses extra client root before artifact/source reads (0.495936ms)
+✔ inventory refuses outside client root before artifact/source reads (0.391219ms)
+✔ inventory refuses wrong schema source before artifact/source reads (0.586957ms)
+✔ inventory refuses outside schema source before artifact/source reads (0.379121ms)
+✔ inventory refuses wrong version before artifact/source reads (0.473633ms)
+✔ inventory refuses duplicate artifact before artifact/source reads (1.008645ms)
+✔ inventory refuses extra artifact before artifact/source reads (0.50384ms)
+✔ inventory refuses outside artifact path before artifact/source reads (0.500828ms)
+✔ inventory refuses traversal artifact path before artifact/source reads (0.91883ms)
+✔ inventory refuses wrong artifact filename before artifact/source reads (2.229108ms)
+✔ inventory refuses missing client array before artifact/source reads (0.337532ms)
+✔ inventory refuses missing artifact array before artifact/source reads (0.408294ms)
+✔ inventory refuses invalid byte count before artifact/source reads (0.366915ms)
+✔ inventory refuses invalid hash before artifact/source reads (0.271683ms)
+✔ inventory refuses wrong source head before artifact/source reads (0.301398ms)
+✔ malformed second inventory refuses before first client files are read (0.6469ms)
+✔ cached schema versus bound source mismatch refuses despite claimed equality true (0.737123ms)
+✔ actual artifact content hash mismatch refuses (0.45318ms)
+✔ inventory validator itself has no file input dependency (1.123292ms)
+✔ guarded CLI plan refuses incomplete inventory before bound-source reads or driver work (14.370346ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 169.314692

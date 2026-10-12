@@ -1,0 +1,68 @@
+{
+  "oldSource": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "oldReceipt": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+  "oldIndexedGitHashesVerified": 19,
+  "originalPhysicalUnchanged": [
+    "ENGINE-CLIENT-IDENTITIES.json",
+    "PLAN.md",
+    "RESULT.md",
+    "canonical-native-loader.cjs",
+    "evidence/01-native-prisma-attempt-0.json",
+    "evidence/01-native-prisma-attempt-0.stderr.log",
+    "evidence/01-native-prisma-attempt-0.stdout.log",
+    "evidence/02-after-cleanup-probe.json",
+    "evidence/02-after-cleanup-probe.stderr.log",
+    "evidence/02-after-cleanup-probe.stdout.log",
+    "evidence/ACCEPTANCE-RECEIPT.json",
+    "evidence/AFTER-CLEANUP-TARGET.json",
+    "evidence/after-cleanup-probe.cjs",
+    "evidence/native-prisma-attempt-0.json",
+    "evidence/run-native-command.py",
+    "fixture-assembly.cjs",
+    "parent-fixture.sql",
+    "source-bindings.json"
+  ],
+  "intentionalChangedSourceOnly": [
+    "native-prisma-owner-harness.cjs"
+  ],
+  "nativeSixGroupBodiesByteExact": true,
+  "newNativeSqlRun": false,
+  "controls": {
+    "pureGuardTests": 29,
+    "passed": 29,
+    "omissionCorpusCases": 4,
+    "candidateAccepted": [
+      true,
+      false,
+      false,
+      false
+    ],
+    "candidateReadCounts": [
+      12,
+      0,
+      0,
+      0
+    ]
+  },
+  "hostAttemptRetained": "04ROOT-onlyprobercanonicalfalseat6reads:VMlackedNodeBuffer;05ROOT+Bufferadaptedhostcanonicalpasses12reads",
+  "artifactSchemaComparison": "computed from bytes, storedflagignored",
+  "guardTiming": "canonicalwithTenantUser2LOCALGUCsbeforecallbackidentityguard;callbackguardbeforeROLE/ownertables",
+  "freezeBlocker": "/workspaceGitdiskfull0; source head pending, currentHEADec6b",
+  "sourceFiles": [
+    {
+      "path": "docs/cleanup-native-prisma-owner-qualification-20261012/native-prisma-owner-harness.cjs",
+      "bytes": 19777,
+      "sha256": "0086e7cc5d7c34d7ed56955a4f05138b125bc1b6c1302c1cabbda80f4f45d0de"
+    },
+    {
+      "path": "docs/cleanup-native-prisma-owner-qualification-20261012/artifact-guard.spec.cjs",
+      "bytes": 4561,
+      "sha256": "c55a147fadd61d7d19c96e641d667ce9b1bd9d56826d994b0038ab03efade6ed"
+    },
+    {
+      "path": "docs/cleanup-native-prisma-owner-qualification-20261012/ARTIFACT-GUARD-CORRECTION.md",
+      "bytes": 2159,
+      "sha256": "e9ba1ae472edff04d70d78b9fb7fd7a87cf93297b57403c7d554c38e24eab7a6"
+    }
+  ]
+}

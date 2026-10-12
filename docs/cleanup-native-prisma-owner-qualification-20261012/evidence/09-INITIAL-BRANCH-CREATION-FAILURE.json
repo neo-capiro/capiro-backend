@@ -1,0 +1,17 @@
+{
+  "action": "git switch -c codex/cleanup-native-prisma-artifact-guard-20261012",
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "tool": "exec_command",
+  "exitCode": 128,
+  "capturedToolOutput": "fatal: cannot update the ref 'refs/heads/codex/cleanup-native-prisma-artifact-guard-20261012': unable to append to '/workspace/capirov2/.git/logs/refs/heads/codex/cleanup-native-prisma-artifact-guard-20261012': No space left on device\n",
+  "captureQualification": "Tool-result transcription; original tool output retained in conversation, no shell stdout file existed for this action.",
+  "readOnlyOutcomeVerification": {
+    "newBranchExisted": false,
+    "head": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+    "currentBranch": "codex/cleanup-native-prisma-owner-qualification-20261012",
+    "workspaceFreeBytesReported": 0,
+    "tmpAvailableApprox": "31MB",
+    "sourceFilesPresent": true
+  },
+  "recovery": "Root removed only another owners completed clean checkout after zero-change verification; retained all Git objects/heads/tree. Worker deleted nothing. Branch created only after workspace439MBavailable."
+}

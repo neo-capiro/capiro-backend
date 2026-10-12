@@ -1,0 +1,78 @@
+{
+  "guardSourceHead": "51cc812e0c371c170562bd6bb7711e50764af7cf",
+  "guardSourceTree": "007c4555b74c69a813946583a3d0b6fc6ca4b07d",
+  "nativeRunSourceHead": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "nativeRunReceiptHead": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+  "originalReviewProbeHead": "b316890f617f7f3daf1a9bb86cf55d93ae295e47",
+  "original19GitByteHashesVerified": 19,
+  "original18PhysicalFilesUnchanged": [
+    "ENGINE-CLIENT-IDENTITIES.json",
+    "PLAN.md",
+    "RESULT.md",
+    "canonical-native-loader.cjs",
+    "evidence/01-native-prisma-attempt-0.json",
+    "evidence/01-native-prisma-attempt-0.stderr.log",
+    "evidence/01-native-prisma-attempt-0.stdout.log",
+    "evidence/02-after-cleanup-probe.json",
+    "evidence/02-after-cleanup-probe.stderr.log",
+    "evidence/02-after-cleanup-probe.stdout.log",
+    "evidence/ACCEPTANCE-RECEIPT.json",
+    "evidence/AFTER-CLEANUP-TARGET.json",
+    "evidence/after-cleanup-probe.cjs",
+    "evidence/native-prisma-attempt-0.json",
+    "evidence/run-native-command.py",
+    "fixture-assembly.cjs",
+    "parent-fixture.sql",
+    "source-bindings.json"
+  ],
+  "intentionalSourceGuardChanged": "native-prisma-owner-harness.cjs",
+  "nativeSixGroupBodiesByteExact": true,
+  "guardControls": {
+    "total": 30,
+    "passed": 30,
+    "exitCode": 0
+  },
+  "sameOmissionCorpus": {
+    "cases": 4,
+    "originalAccepted": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "newAccepted": [
+      true,
+      false,
+      false,
+      false
+    ],
+    "originalReads": [
+      10,
+      0,
+      5,
+      0
+    ],
+    "newReads": [
+      12,
+      0,
+      0,
+      0
+    ],
+    "newReadsQualification": "10declaredartifacts+2boundcurrentSchemas;manifestreadnotcounted"
+  },
+  "hostRefusalRetained": "04canonicalfalseafter6reads:VMmissingNodeBuffer;05ROOT+BufferhostaddsONLYrequiredglobals,canonicaltrue12reads. Bothphysicalprograms/JSON/logs retained.",
+  "guardedPlan": {
+    "exitCode": 0,
+    "clients": 2,
+    "artifacts": 10,
+    "schemasRecomputedEqual": true,
+    "databaseConnected": false,
+    "clientConstructed": false
+  },
+  "databaseQueriesForCorrection": 0,
+  "nativeReplay": false,
+  "guardTiming": "actualwithTenantUsertwoLOCALGUCsprecedecallbackguard;guardbeforeroleandownertables",
+  "fullWhitespaceQualification": "OPEN;noencoding/deletion/exclusionofrawbytes",
+  "independentReview": "pending",
+  "scope": "DeclaredJSONinventorycompleteness+pinnedfilechecks;notOSisolation/genericmodulegraph/productionhardening"
+}
