@@ -1,0 +1,10 @@
+{
+  "agent": "/root/objective_destinations/independent_review",
+  "observedStatus": {
+    "errored": "Selected model is at capacity. Please try a different model."
+  },
+  "evidenceSource": "collaboration.list_agents current task observation",
+  "acceptanceProduced": false,
+  "modelOverride": false,
+  "sourceImplementationAuthorized": false
+}

@@ -1,0 +1,712 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "cases": 18,
+  "originalParserExecutions": 54,
+  "results": [
+    {
+      "client": "dibbs",
+      "label": "null",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "array root",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "string root",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "number root",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "boolean root",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "missing results",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "null results",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "nonarray results",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "object results",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsEnvelopeError",
+          "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "empty valid page",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 0,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "mixed rows",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "returned": {
+          "items": [
+            {},
+            {}
+          ],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "wrong count string",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "null count coerces to zero",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 0,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "inherited page fields",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "returned": {
+          "items": [
+            {
+              "key": "row"
+            }
+          ],
+          "totalCount": 3,
+          "nextPage": 2,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "getters read in original order",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 2,
+          "nextPage": 3,
+          "rate": null
+        }
+      },
+      "getterReads": [
+        "results",
+        "results",
+        "count",
+        "next"
+      ]
+    },
+    {
+      "client": "dibbs",
+      "label": "changing results getter",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsHttpError",
+          "status": 0,
+          "message": "TypeError: parsed.results.filter is not a function",
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "throwing count getter",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsHttpError",
+          "status": 0,
+          "message": "synthetic count getter",
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "dibbs",
+      "label": "symbol count",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "result": {
+        "threw": {
+          "name": "TangoDibbsHttpError",
+          "status": 0,
+          "message": "Cannot convert a Symbol value to a number",
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "null",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "array root",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "string root",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "number root",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "boolean root",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "missing results",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "null results",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "nonarray results",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "object results",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirEnvelopeError",
+          "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "empty valid page",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 0,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "mixed rows",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "returned": {
+          "items": [
+            {},
+            {}
+          ],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "wrong count string",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "null count coerces to zero",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 0,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "inherited page fields",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "returned": {
+          "items": [
+            {
+              "key": "row"
+            }
+          ],
+          "totalCount": 3,
+          "nextPage": 2,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "getters read in original order",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 2,
+          "nextPage": 3,
+          "rate": null
+        }
+      },
+      "getterReads": [
+        "results",
+        "results",
+        "count",
+        "next"
+      ]
+    },
+    {
+      "client": "sbir",
+      "label": "changing results getter",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirHttpError",
+          "status": 0,
+          "message": "TypeError: parsed.results.filter is not a function",
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "throwing count getter",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirHttpError",
+          "status": 0,
+          "message": "synthetic count getter",
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "sbir",
+      "label": "symbol count",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "result": {
+        "threw": {
+          "name": "TangoSbirHttpError",
+          "status": 0,
+          "message": "Cannot convert a Symbol value to a number",
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "null",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "threw": {
+          "name": "TangoSubawardHttpError",
+          "status": 0,
+          "message": "TypeError: Cannot read properties of null (reading 'results')"
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "array root",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "string root",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "number root",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "boolean root",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "missing results",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "null results",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "nonarray results",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "object results",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "empty valid page",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 0,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "mixed rows",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [
+            {},
+            {}
+          ],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "wrong count string",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": null,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "null count coerces to zero",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 0,
+          "nextPage": null,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "inherited page fields",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [
+            {
+              "key": "row"
+            }
+          ],
+          "totalCount": 3,
+          "nextPage": 2,
+          "rate": null
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "getters read in original order",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "returned": {
+          "items": [],
+          "totalCount": 2,
+          "nextPage": 3,
+          "rate": null
+        }
+      },
+      "getterReads": [
+        "results",
+        "results",
+        "count",
+        "next"
+      ]
+    },
+    {
+      "client": "subaward",
+      "label": "changing results getter",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "threw": {
+          "name": "TangoSubawardHttpError",
+          "status": 0,
+          "message": "TypeError: parsed.results.filter is not a function"
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "throwing count getter",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "threw": {
+          "name": "TangoSubawardHttpError",
+          "status": 0,
+          "message": "synthetic count getter"
+        }
+      }
+    },
+    {
+      "client": "subaward",
+      "label": "symbol count",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "result": {
+        "threw": {
+          "name": "TangoSubawardHttpError",
+          "status": 0,
+          "message": "Cannot convert a Symbol value to a number"
+        }
+      }
+    }
+  ],
+  "scope": "original success-parser/catch fragments only; synthetic parsed objects; envelope code remains client-owned",
+  "providerCalls": false,
+  "timersOrFetchExecuted": false,
+  "productionSourceEdits": false
+}

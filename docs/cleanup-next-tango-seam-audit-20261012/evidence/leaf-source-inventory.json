@@ -1,0 +1,96 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "clients": [
+    {
+      "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "sourceSha256": "905ba33964b001aa66c19c60df883c51976145887cd2b725e67c2e0ea0fd28c8",
+      "lineCount": 297,
+      "functions": [
+        {
+          "name": "asCount",
+          "startLine": 135,
+          "endLine": 138,
+          "lines": 4,
+          "sha256": "1b739ac92c41f9360ee753ccbd01d113bbe327f309fafad922ab3c5cd6af3c07"
+        },
+        {
+          "name": "nextPageOf",
+          "startLine": 148,
+          "endLine": 157,
+          "lines": 10,
+          "sha256": "1ed9245111d0e5112b7c2ac98e8e0eb10b7d0dc9195413c6b6c44f62977e24ab"
+        },
+        {
+          "name": "rateOf",
+          "startLine": 159,
+          "endLine": 179,
+          "lines": 21,
+          "sha256": "b232d92df5df03026b00e41f7614cef8474c8a5c29fe24cf3e8b2735f3717d4f"
+        }
+      ],
+      "localFunctionLines": 35
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "sourceSha256": "cf914eb4de8f76397d017d4f78932a8b6d5a75f0a76386f89339a7689eb9b766",
+      "lineCount": 329,
+      "functions": [
+        {
+          "name": "asCount",
+          "startLine": 168,
+          "endLine": 171,
+          "lines": 4,
+          "sha256": "1b739ac92c41f9360ee753ccbd01d113bbe327f309fafad922ab3c5cd6af3c07"
+        },
+        {
+          "name": "nextPageOf",
+          "startLine": 181,
+          "endLine": 190,
+          "lines": 10,
+          "sha256": "1ed9245111d0e5112b7c2ac98e8e0eb10b7d0dc9195413c6b6c44f62977e24ab"
+        },
+        {
+          "name": "rateOf",
+          "startLine": 192,
+          "endLine": 212,
+          "lines": 21,
+          "sha256": "b232d92df5df03026b00e41f7614cef8474c8a5c29fe24cf3e8b2735f3717d4f"
+        }
+      ],
+      "localFunctionLines": 35
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "sourceSha256": "33a5629fb6b8ea83e4e5cf3cbf7b5b69e7b6cf27601392a081abfd32f68a39c1",
+      "lineCount": 178,
+      "functions": [
+        {
+          "name": "asCount",
+          "startLine": 53,
+          "endLine": 56,
+          "lines": 4,
+          "sha256": "1b739ac92c41f9360ee753ccbd01d113bbe327f309fafad922ab3c5cd6af3c07"
+        },
+        {
+          "name": "nextPageOf",
+          "startLine": 58,
+          "endLine": 67,
+          "lines": 10,
+          "sha256": "1ed9245111d0e5112b7c2ac98e8e0eb10b7d0dc9195413c6b6c44f62977e24ab"
+        },
+        {
+          "name": "rateOf",
+          "startLine": 69,
+          "endLine": 93,
+          "lines": 25,
+          "sha256": "841c234f1a46e1d8da8dee1e8c191b1d84e1e079015c630e2a6f2b1307bc77c9"
+        }
+      ],
+      "localFunctionLines": 39
+    }
+  ],
+  "totalFunctionLines": 109,
+  "sourceEdits": false,
+  "providerCalls": false
+}
