@@ -1,0 +1,58 @@
+{
+  "scope": "source-only exact original closure; no install",
+  "inspectedYamlCachedVersion": "2.9.1",
+  "traversedSnapshots": 60,
+  "changes": {
+    "importerEntries": [
+      {
+        "kind": "dependencies",
+        "name": "htmlparser2",
+        "row": {
+          "specifier": "8.0.2",
+          "version": "8.0.2"
+        }
+      },
+      {
+        "kind": "dependencies",
+        "name": "sanitize-html",
+        "row": {
+          "specifier": "2.17.7",
+          "version": "2.17.7"
+        }
+      },
+      {
+        "kind": "dependencies",
+        "name": "sharp",
+        "row": {
+          "specifier": "0.35.5",
+          "version": "0.35.5(@types/node@20.19.39)"
+        }
+      },
+      {
+        "kind": "devDependencies",
+        "name": "@types/sanitize-html",
+        "row": {
+          "specifier": "^2.16.1",
+          "version": "2.16.1"
+        }
+      }
+    ],
+    "packageNodes": [
+      "htmlparser2@8.0.2"
+    ],
+    "snapshotNodes": [
+      "sharp@0.35.5(@types/node@20.19.39)",
+      "htmlparser2@8.0.2"
+    ],
+    "requiredReachabilityMarkers": [
+      {
+        "section": "snapshots",
+        "key": "@img/colour@1.1.0",
+        "before": true,
+        "after": false
+      }
+    ]
+  },
+  "allExistingUnrelatedImportersAndNodeFieldsPreserved": true,
+  "onlyExistingNodeChanges": "exact optional reachability marker removal required by original newly required importer dependency graph"
+}

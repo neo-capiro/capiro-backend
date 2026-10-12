@@ -1,0 +1,5 @@
+{
+ "extends":"../../apps/api/tsconfig.json",
+ "compilerOptions":{"rootDir":"../..","noEmit":true,"incremental":false,"baseUrl":"../..","typeRoots":["/workspace/capirov2/apps/api/node_modules/@types"],"paths":{"@prisma/client":[".enginefree/core-client/index.d.ts"],"@capiro/shared":["packages/shared/src/index.ts"],"@capiro/shared/*":["packages/shared/src/*"]}},
+ "include":["../../apps/api/src/**/*"],"exclude":["../../apps/api/node_modules","../../apps/api/dist","../../apps/api/test"]
+}
