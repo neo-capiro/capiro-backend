@@ -1,0 +1,7 @@
+{
+  "checkpoint": "9173d2654",
+  "receiptGenerationExitCode": 1,
+  "cause": "The receipt checker expected three unlabeled config values; npm config get with multiple keys outputs key=value lines. Original tool output and exact effective-config log are retained. This was a metadata checker failure, with no package or artifact mutation.",
+  "intermediatePacketNotQualified": true,
+  "followup": "Parse the three explicit key=value lines and regenerate the complete current master and correction receipt before acceptance."
+}

@@ -14,13 +14,18 @@
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/HANDOFF.md",
-      "bytes": 6062,
-      "sha256": "838167d68fc71068ef1f761edf490f34719bf3e97cdd167312a398bf8e84b1e3"
+      "bytes": 6907,
+      "sha256": "f6cef67378a9ce8906c198224c43e67f3f2591b3661740aca113824736526041"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/NOTIFIER-CORRECTION.json",
+      "bytes": 51837,
+      "sha256": "218a08361593424694f24d517cb2e4255f1a442c719502dcf9ac6846bd603611"
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/PACKED-MANIFEST.json",
-      "bytes": 84647,
-      "sha256": "d5b85b061b6faf90865a9b535778ebb18562eefed49241ffeefa9d2a9dcb9f74"
+      "bytes": 85935,
+      "sha256": "02a5a379790da3eb96035b5a022ca7366d03f0ad4c179a44eb4402191ba9aa9b"
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/artifact/capiro-shared-0.0.0.tgz",
@@ -29,8 +34,18 @@
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/DISCOVERY-NOTES.md",
-      "bytes": 1243,
-      "sha256": "48eb100d7b527dd1b360a45e5cd0109e9de25b0b9e60738b3528a66915ff08b4"
+      "bytes": 1889,
+      "sha256": "d03cdb76e154b6efe205d810317998dbca23855c97a6dee05059d588300248e4"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/PACKED-MANIFEST-INITIAL.json",
+      "bytes": 84647,
+      "sha256": "d5b85b061b6faf90865a9b535778ebb18562eefed49241ffeefa9d2a9dcb9f74"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/SHA256-INDEX-INITIAL.json",
+      "bytes": 24939,
+      "sha256": "5fc8a2a97ade52873b96296aa732347f70ddc8107d0ac1d79ae94d6e1b920ab1"
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/FAILURE.json",
@@ -403,9 +418,79 @@
       "sha256": "5004c3dd50b92f70820cd7034fc81c508b963ef169157e00e8671393311d49bc"
     },
     {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/finalize-notifier-correction.py",
+      "bytes": 3203,
+      "sha256": "042a53b946e5c791798add0b2c4cfa679e775dd867dba80bdc967066275ac0a4"
+    },
+    {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/frontend-pr16-handover.json",
       "bytes": 5108,
       "sha256": "bb8ca0f66df064422dd510c987ce41a00faa5ad5c3d73bf1b5bd45d8a084b174"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-attempt-1/FAILURE.json",
+      "bytes": 219,
+      "sha256": "ded632ee441d21e21744789905f5390a37cc3be53753a4ced6046ca246b8980d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-attempt-1/npm-pack-3.stderr.log",
+      "bytes": 117,
+      "sha256": "250e369d730a46c4d41df37449a5c58c169b4b1d2ab546951a8bed0285805a95"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-attempt-1/npm-pack-3.stdout.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-attempt-1/pack-canonical-package.py",
+      "bytes": 5174,
+      "sha256": "4d51c61b6becc745ec1c88433ea709f3aa370123906596502ea2862dd8d7b6cf"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-attempt-1/pack-notifier-disabled-summary.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-attempt-1/pack-notifier-disabled-summary.log",
+      "bytes": 296,
+      "sha256": "ce7942b49018b64b0347e5407665b810225080aa82b4e565c513b92a7e97b101"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-effective-config.log",
+      "bytes": 55,
+      "sha256": "3128229a807202cb5acde7ef17ba8d6306d4dd4cb67357aee16d89803f5abce2"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-disabled-effective-config.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/notifier-receipt-attempt-1.json",
+      "bytes": 525,
+      "sha256": "f4e925b541a9a40cdbfd82b7866a35fba1517b25ef9085a7ce5cb42e99666f7b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-notifier-disabled-2026-10-12T22_22_41_544Z-debug-0.log",
+      "bytes": 1720,
+      "sha256": "a8d2b92332576a92a6aa5f94ef8b4ee4df6d3222e6f05a21a109af4f3626d4b4"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-notifier-disabled-2026-10-12T22_22_42_517Z-debug-0.log",
+      "bytes": 1720,
+      "sha256": "3af0230ca6acea61d072507a784408a992d02728216bb44d0392ceabcd2ba31c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-original-2026-10-12T22_09_46_397Z-debug-0.log",
+      "bytes": 1637,
+      "sha256": "91b26dfff53bd948da21f0facf157591b3856bb0daeea148e3dfe191db961a2c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-original-2026-10-12T22_09_47_545Z-debug-0.log",
+      "bytes": 1329,
+      "sha256": "e202d80b964364962bda80ffbe0dfa8d056eb88d01f48083f93d3bfe911c5382"
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-1.stderr.log",
@@ -428,14 +513,54 @@
       "sha256": "0d0dd66a13cc9a776ef45610e6dba04c3e670e24c608261fe15049cab3792c3b"
     },
     {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-3.stderr.log",
+      "bytes": 117,
+      "sha256": "250e369d730a46c4d41df37449a5c58c169b4b1d2ab546951a8bed0285805a95"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-3.stdout.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-4.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-4.stdout.json",
+      "bytes": 19847,
+      "sha256": "0d0dd66a13cc9a776ef45610e6dba04c3e670e24c608261fe15049cab3792c3b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-5.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-5.stdout.json",
+      "bytes": 19847,
+      "sha256": "0d0dd66a13cc9a776ef45610e6dba04c3e670e24c608261fe15049cab3792c3b"
+    },
+    {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/original-C-renderer-golden.json",
       "bytes": 54405,
       "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-canonical-package.py",
-      "bytes": 4076,
-      "sha256": "e03bf9d2bd4b6817362f32a18f95982570ccc45078af15fe0443de75e6869633"
+      "bytes": 5487,
+      "sha256": "f1ecee9d42ab39d0fa014aff11c661a814e16cc99cc752636b2c7c57614b1d85"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-notifier-disabled-summary.json",
+      "bytes": 309,
+      "sha256": "2212c8a1821ffb7e2b62ac9e614202640f019124f177de5ff87cd00b0d95a93c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-notifier-disabled-summary.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-summary.json",
@@ -543,5 +668,6 @@
       "sha256": "60d9fded5ff63103b77e53dbab9ed8aa5aac9e565b672a142204342cc7895406"
     }
   ],
-  "indexExcludesItself": true
+  "indexExcludesItself": true,
+  "initialIndexRetained": "evidence/SHA256-INDEX-INITIAL.json"
 }
