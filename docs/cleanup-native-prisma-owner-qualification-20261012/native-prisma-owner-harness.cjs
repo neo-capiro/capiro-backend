@@ -4,7 +4,7 @@ const path=require('node:path');
 const assert=require('node:assert/strict');
 const {createHash}=require('node:crypto');
 const {TARGET,validateTarget}=require('../cleanup-native-contract-prerequisites-20261012/native-contract-harness.cjs');
-const {verifyBindings,loadCanonical,apiRequire,CORE_CLIENT}=require('./canonical-native-loader.cjs');
+const {ROOT,verifyBindings,loadCanonical,apiRequire,CORE_CLIENT}=require('./canonical-native-loader.cjs');
 const {assembleFixture}=require('./fixture-assembly.cjs');
 const ENGINE=CORE_CLIENT+'/libquery_engine-debian-openssl-3.0.x.so.node';
 const WORKSPACE_CLIENT='/tmp/capirov2-local-native-prerequisite-20261012/workspace-client';
@@ -14,13 +14,50 @@ const APP='capiro_app';
 const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 const I={tenant:id(101),otherTenant:id(102),user:id(103),otherUser:id(104),client:id(105),otherClient:id(106),objective:id(107),revision:id(108),draft:id(109),version:id(110),session:id(111),request:id(112),grant:id(113)};
 const ctx={tenantId:I.tenant,userId:I.user,clerkUserId:'user_native_prisma_synthetic',tenantSlug:'native-synthetic',role:'standard_user'};
-function verifyArtifacts(){
- const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'ENGINE-CLIENT-IDENTITIES.json'),'utf8'));
+const EXPECTED_CLIENTS=Object.freeze([
+ {path:CORE_CLIENT,schemaSource:'apps/api/prisma/schema.prisma'},
+ {path:WORKSPACE_CLIENT,schemaSource:'apps/workspace/prisma/schema.prisma'},
+]);
+const EXPECTED_ARTIFACTS=Object.freeze(['package.json','index.js','runtime/library.js','schema.prisma','libquery_engine-debian-openssl-3.0.x.so.node']);
+function validateArtifactInventory(manifest){
+ assert(manifest&&typeof manifest==='object'&&!Array.isArray(manifest),'Artifact manifest must be an object');
+ assert.equal(manifest.schemaVersion,1);
+ assert.equal(manifest.productSourceHead,'277053c8196dc1be4789c42ea304b0de0553fe00');
+ assert(Array.isArray(manifest.clients),'Artifact client inventory must be an array');
+ assert.equal(manifest.clients.length,EXPECTED_CLIENTS.length,'Exactly two client roots required');
+ const roots=new Set();
  for(const client of manifest.clients){
-  assert.equal(client.version,'5.22.0');assert.equal(client.schemaByteEquality,true);
-  for(const e of client.artifacts){const b=fs.readFileSync(e.path);assert.equal(b.length,e.bytes);assert.equal(createHash('sha256').update(b).digest('hex'),e.sha256);}
+  assert(client&&typeof client==='object'&&!Array.isArray(client),'Client entry must be an object');
+  const expected=EXPECTED_CLIENTS.find(e=>e.path===client.path);
+  assert(expected,'Unexpected client root');assert(!roots.has(client.path),'Duplicate client root');roots.add(client.path);
+  assert.equal(client.version,'5.22.0');assert.equal(client.schemaSource,expected.schemaSource);
+  assert(Array.isArray(client.artifacts),'Artifact inventory must be an array');
+  assert.equal(client.artifacts.length,EXPECTED_ARTIFACTS.length,'Exactly five artifacts per client required');
+  const expectedPaths=new Set(EXPECTED_ARTIFACTS.map(name=>path.join(client.path,name)));
+  const seen=new Set();
+  for(const artifact of client.artifacts){
+   assert(artifact&&typeof artifact==='object'&&!Array.isArray(artifact),'Artifact entry must be an object');
+   assert(expectedPaths.has(artifact.path),'Unexpected or outside artifact path');
+   assert(!seen.has(artifact.path),'Duplicate artifact path');seen.add(artifact.path);
+   assert(Number.isSafeInteger(artifact.bytes)&&artifact.bytes>0,'Positive artifact byte count required');
+   assert(typeof artifact.sha256==='string'&&/^[a-f0-9]{64}$/.test(artifact.sha256),'Canonical artifact hash required');
+  }
  }
+ // Complete shape of BOTH clients is validated before reading any artifact or schema.
  return manifest;
+}
+function verifyArtifacts(readFile=fs.readFileSync){
+ const manifest=validateArtifactInventory(JSON.parse(readFile(path.join(__dirname,'ENGINE-CLIENT-IDENTITIES.json'),'utf8')));
+ const verified=[];
+ for(const client of manifest.clients){
+  let cachedSchema;
+  for(const e of client.artifacts){const b=readFile(e.path);assert.equal(b.length,e.bytes);assert.equal(createHash('sha256').update(b).digest('hex'),e.sha256);if(e.path===path.join(client.path,'schema.prisma'))cachedSchema=b;}
+  const boundSourceSchema=readFile(path.join(ROOT,client.schemaSource));
+  assert(Buffer.isBuffer(cachedSchema)&&Buffer.isBuffer(boundSourceSchema),'Schema bytes required');
+  assert(cachedSchema.equals(boundSourceSchema),'Cached schema must equal current bound source bytes');
+  verified.push({...client,schemaByteEquality:true});
+ }
+ return {...manifest,clients:verified};
 }
 function connectionUrl(label,limit){
  const url=new URL(`postgresql://${TARGET.user}@localhost:${TARGET.port}/${TARGET.database}`);
@@ -30,7 +67,8 @@ function connectionUrl(label,limit){
 function sameTarget(row){for(const key of ['dataDirectory','listenAddresses','inetServerAddr','user','database','systemIdentifier'])assert.equal(row[key],TARGET[key],`Native target mismatch:${key}`);}
 const targetSQL=`SELECT current_setting('data_directory') AS "dataDirectory",current_setting('listen_addresses') AS "listenAddresses",inet_server_addr() AS "inetServerAddr",current_user AS "user",current_database() AS "database",system_identifier::text AS "systemIdentifier" FROM pg_control_system()`;
 async function nativeGuard(tx,tenantId='',userId=''){
- // Existing maintenance identity is checked before role/GUC/owner mutations.
+ // Canonical withTenantUser already executed its two LOCAL GUC statements.
+ // This identity guard precedes this callback's role/GUC and owner operations.
  sameTarget((await tx.$queryRawUnsafe(targetSQL))[0]);
  assert.equal((await tx.$queryRawUnsafe('SELECT current_schema() AS schema'))[0].schema,SCHEMA);
  await tx.$executeRawUnsafe(`SET LOCAL ROLE ${APP}`);
@@ -40,7 +78,7 @@ async function nativeGuard(tx,tenantId='',userId=''){
  assert.deepEqual(role,{name:APP,rolsuper:false,rolbypassrls:false,rolinherit:false,rolcanlogin:false,owner_member:false});
 }
 async function executeNative(verified,output){
- validateTarget(verified);verifyBindings();const artifacts=verifyArtifacts();
+ validateTarget(verified);const artifacts=verifyArtifacts();verifyBindings();
  if(Object.keys(process.env).some(k=>/^PG|DATABASE_URL|SHADOW_DATABASE_URL|PRISMA_ACCELERATE|PRISMA_CLIENT_ENGINE_TYPE/.test(k)))throw new Error('Ambient database/provider configuration refused; use sanitized child environment');
  process.env.PRISMA_QUERY_ENGINE_LIBRARY=ENGINE; // Exact existing hashed library, never a downloader.
  const {Client}=apiRequire('pg');
@@ -137,10 +175,10 @@ async function executeNative(verified,output){
  fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');if(result.failed)process.exitCode=1;return result;
 }
 async function main(args){
- if(args.length===1&&args[0]==='--plan'){console.log(JSON.stringify({source:verifyBindings().sourceHead,artifacts:verifyArtifacts(),target:TARGET,coreUrl:connectionUrl('core',2),workspaceUrl:connectionUrl('workspace',1),databaseConnected:false,clientConstructed:false,nativeExecutionAuthorized:false},null,2));return;}
+ if(args.length===1&&args[0]==='--plan'){const artifacts=verifyArtifacts();const source=verifyBindings().sourceHead;console.log(JSON.stringify({source,artifacts,target:TARGET,coreUrl:connectionUrl('core',2),workspaceUrl:connectionUrl('workspace',1),databaseConnected:false,clientConstructed:false,nativeExecutionAuthorized:false},null,2));return;}
  if(args.length!==5||args[0]!=='--run'||args[1]!=='--verified-target'||args[3]!=='--output')throw new Error('Usage: --plan OR --run --verified-target <root receipt> --output <new owned receipt>');
  const output=path.resolve(args[4]);if(!output.startsWith(path.join(__dirname,'evidence')+path.sep)||fs.existsSync(output))throw new Error('Fresh owned output required');
  return executeNative(JSON.parse(fs.readFileSync(args[2],'utf8')),output);
 }
-module.exports={verifyArtifacts,connectionUrl,main};
+module.exports={verifyArtifacts,validateArtifactInventory,connectionUrl,main};
 if(require.main===module)main(process.argv.slice(2)).catch(e=>{console.error(e.stack);process.exitCode=1;});

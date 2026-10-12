@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/native-prisma-owner-harness.cjs",
+    "--plan"
+  ],
+  "exitCode": 0,
+  "sqlExecuted": false,
+  "nativeReplay": false,
+  "scope": "read-only cached artifact/source hashing; no construction/driver"
+}

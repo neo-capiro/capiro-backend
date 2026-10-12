@@ -1,0 +1,260 @@
+{
+  "guardSourceHead": "51cc812e0c371c170562bd6bb7711e50764af7cf",
+  "entries": [
+    {
+      "path": "ARTIFACT-GUARD-CORRECTION.md",
+      "bytes": 2159,
+      "sha256": "e9ba1ae472edff04d70d78b9fb7fd7a87cf93297b57403c7d554c38e24eab7a6"
+    },
+    {
+      "path": "ENGINE-CLIENT-IDENTITIES.json",
+      "bytes": 3216,
+      "sha256": "28ebb9fabfaa181c095f6a3fad604ae8dd0285f310a3089b2b474ec15478fa97"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 3988,
+      "sha256": "dd06afc28d2962ee659f32fd230a9d4fff191a7b55aa61f072e1a81a52caba7b"
+    },
+    {
+      "path": "RESULT.md",
+      "bytes": 2014,
+      "sha256": "5c4832632f24bca91d19e68602bca00ceaa8c430cd21b956ca7748ac607cbffa"
+    },
+    {
+      "path": "SHA256SUMS.json",
+      "bytes": 3217,
+      "sha256": "bbc6fcafd957748682943117ebe7e5529ab1d7f300eaba9e9c368b73c333a91d"
+    },
+    {
+      "path": "artifact-guard.spec.cjs",
+      "bytes": 6056,
+      "sha256": "c7d5d612b4e657e9fc2eef336ffdfed444614867d0a8e59c3aa3e4731a4cfb65"
+    },
+    {
+      "path": "canonical-native-loader.cjs",
+      "bytes": 5926,
+      "sha256": "4394c10642dd7ebaeda67872069fc73a26fc64f1e1a7bc7ec4894f3e7c22ac4d"
+    },
+    {
+      "path": "evidence/01-native-prisma-attempt-0.json",
+      "bytes": 1230,
+      "sha256": "836536f4e64a970aff34dfa8394baa9afdcb10132aabbfc3a32de616c86f4827"
+    },
+    {
+      "path": "evidence/01-native-prisma-attempt-0.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/01-native-prisma-attempt-0.stdout.log",
+      "bytes": 459,
+      "sha256": "fe3f4d7d1ae4d8077c66093fac1aea0871818b9b136841daa712c492a3c8baf4"
+    },
+    {
+      "path": "evidence/02-after-cleanup-probe.json",
+      "bytes": 551,
+      "sha256": "ee1359b5d231422b53f252259c9e99cfc8534a2f21e4c025e7ee6f98bb3e10de"
+    },
+    {
+      "path": "evidence/02-after-cleanup-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-after-cleanup-probe.stdout.log",
+      "bytes": 583,
+      "sha256": "e459b01300ee532e866452816218c689d0bc14403552fdf36571e482eb37ce13"
+    },
+    {
+      "path": "evidence/03-artifact-guard-controls.json",
+      "bytes": 318,
+      "sha256": "5e10b153000c7549b69eeb4e974a3d5374b3cfec9d280503d808d73ed38021df"
+    },
+    {
+      "path": "evidence/03-artifact-guard-controls.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/03-artifact-guard-controls.stdout.log",
+      "bytes": 2564,
+      "sha256": "91a5ff0e4f19155a3901a7860e046158f34b4660587414f77217120f427a3d70"
+    },
+    {
+      "path": "evidence/04-corrected-artifact-manifest-probe-command.json",
+      "bytes": 274,
+      "sha256": "d49eb7ecfc8f3ac9c7591379421b4f069270d75e335890bcd5a3c130308992d1"
+    },
+    {
+      "path": "evidence/04-corrected-artifact-manifest-probe.json",
+      "bytes": 1021,
+      "sha256": "83334cf04eb5857cf04f8ab6aad0b5a0dc03e91c441675512c75e94bc749af02"
+    },
+    {
+      "path": "evidence/04-corrected-artifact-manifest-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/04-corrected-artifact-manifest-probe.stdout.log",
+      "bytes": 801,
+      "sha256": "8a338af4b37027bf9a6446dd681af4c7028758bc448c4d90b8caf7d4628637e6"
+    },
+    {
+      "path": "evidence/05-corrected-artifact-manifest-probe-command.json",
+      "bytes": 340,
+      "sha256": "c26b302d3e2da6648309b42109ee11cef68cabe802e69884165408ad299b44d5"
+    },
+    {
+      "path": "evidence/05-corrected-artifact-manifest-probe.json",
+      "bytes": 1032,
+      "sha256": "d8d75286718fdb590f3065dec28a898a035bda966187918105acd77392b6f7e8"
+    },
+    {
+      "path": "evidence/05-corrected-artifact-manifest-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/05-corrected-artifact-manifest-probe.stdout.log",
+      "bytes": 812,
+      "sha256": "7c57d3bc7584e6e765da76be2ddd47122a188a12f52aaf7147dc2c859f5969ab"
+    },
+    {
+      "path": "evidence/06-guarded-plan.json",
+      "bytes": 395,
+      "sha256": "3daf30145bcf1d3720679520a893ae0279086576d417dfc24d1aee20cdaca795"
+    },
+    {
+      "path": "evidence/06-guarded-plan.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/06-guarded-plan.stdout.log",
+      "bytes": 4506,
+      "sha256": "c025b8fa63af05813603ef72d11cf1bf883d5bb8460bed56429f884a3baa9dea"
+    },
+    {
+      "path": "evidence/07-artifact-guard-controls-final.json",
+      "bytes": 300,
+      "sha256": "2b9287c03ce2e981a398f1258aa28842871ed50da69927930b4567dace54347b"
+    },
+    {
+      "path": "evidence/07-artifact-guard-controls-final.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/07-artifact-guard-controls-final.stdout.log",
+      "bytes": 2669,
+      "sha256": "98f221bcfd8b1be471a323196ee566c4f46c766b1d6d379a085b013b41da945b"
+    },
+    {
+      "path": "evidence/08-guarded-plan-final.json",
+      "bytes": 352,
+      "sha256": "9a5506aa15bc1435c677209a4149ba3c2f2ab8b90a69e1ad90f0431831a89e99"
+    },
+    {
+      "path": "evidence/08-guarded-plan-final.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/08-guarded-plan-final.stdout.log",
+      "bytes": 4506,
+      "sha256": "c025b8fa63af05813603ef72d11cf1bf883d5bb8460bed56429f884a3baa9dea"
+    },
+    {
+      "path": "evidence/09-INITIAL-BRANCH-CREATION-FAILURE.json",
+      "bytes": 1136,
+      "sha256": "cad34009bfd5c5227ae328084527b5f41bd07067a735338ac91285e9eecdf2e6"
+    },
+    {
+      "path": "evidence/ACCEPTANCE-RECEIPT.json",
+      "bytes": 8523,
+      "sha256": "f2029570e153aaddcecc189b4242dac031da2450af748ee9744cb969685f192c"
+    },
+    {
+      "path": "evidence/AFTER-CLEANUP-TARGET.json",
+      "bytes": 583,
+      "sha256": "e459b01300ee532e866452816218c689d0bc14403552fdf36571e482eb37ce13"
+    },
+    {
+      "path": "evidence/ARTIFACT-GUARD-FINAL-RECEIPT.json",
+      "bytes": 2498,
+      "sha256": "ca49c72f0fccbcfbcda0faacbbf8644c5457e7a37f05371573200254fff70f80"
+    },
+    {
+      "path": "evidence/ARTIFACT-GUARD-SCOPE-RECEIPT.json",
+      "bytes": 2370,
+      "sha256": "2ada399cf37e392ec75003f18b420ed286de88ba712841dc25d25ec784d0dad9"
+    },
+    {
+      "path": "evidence/REVIEW-ORIGINAL-artifact-manifest-probe.json",
+      "bytes": 923,
+      "sha256": "ac331722ba1ef3fa4c1fbd6283ef9ce33d4032c0c3eb777dd57006fa2f28e5cd"
+    },
+    {
+      "path": "evidence/REVIEW-ORIGINAL-artifact-manifest-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/REVIEW-ORIGINAL-artifact-manifest-probe.stdout.log",
+      "bytes": 703,
+      "sha256": "39260d5e9699fc22e13e0dcd2378628887958e2110b51d4cd2b060e56bcc8edf"
+    },
+    {
+      "path": "evidence/REVIEW-ORIGINAL-probe-artifact-manifest.cjs",
+      "bytes": 2648,
+      "sha256": "590bae2b6621e07d2c29fee5c19f18c4eb7dd739049d8c1d68152393e1da3a17"
+    },
+    {
+      "path": "evidence/after-cleanup-probe.cjs",
+      "bytes": 2631,
+      "sha256": "fa1ac41970b32e394416803dc851a091744ab217123b71a7b85aa328f7811fb1"
+    },
+    {
+      "path": "evidence/native-prisma-attempt-0.json",
+      "bytes": 5377,
+      "sha256": "eead414c1e2aa9d2506ffe465af937cfe353ae44e7fae8eb3ab2bb867b7956c9"
+    },
+    {
+      "path": "evidence/probe-artifact-manifest-corrected-buffer.cjs",
+      "bytes": 2754,
+      "sha256": "7377606046adfc64d4ccc33da5e8c5729e0150649c74f565ace37f90cbd2a2bb"
+    },
+    {
+      "path": "evidence/probe-artifact-manifest-corrected.cjs",
+      "bytes": 2735,
+      "sha256": "f3b3f7ee13e7fe77796e565909cee9adf89dc26dff51f83640cfdb098fa7c105"
+    },
+    {
+      "path": "evidence/run-native-command.py",
+      "bytes": 2081,
+      "sha256": "a6cfeccc7edd21a5e80ae74124b877aaa856396594bc21166876277401e02d83"
+    },
+    {
+      "path": "fixture-assembly.cjs",
+      "bytes": 4449,
+      "sha256": "5d9039c849ddd43dfce997302a8c970960828f7d5d4c70731d42649f93e795e9"
+    },
+    {
+      "path": "native-prisma-owner-harness.cjs",
+      "bytes": 19777,
+      "sha256": "0086e7cc5d7c34d7ed56955a4f05138b125bc1b6c1302c1cabbda80f4f45d0de"
+    },
+    {
+      "path": "parent-fixture.sql",
+      "bytes": 1435,
+      "sha256": "8e5f948fd0b3edff07c7e7f9c672e98f259e784b2f3017f7fe62f961ebc81d26"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 16017,
+      "sha256": "5ddce7c6af3127b8a4c3ecd80955501bc169cfa4eb9c304f61e0a4cd9e09966b"
+    }
+  ]
+}
