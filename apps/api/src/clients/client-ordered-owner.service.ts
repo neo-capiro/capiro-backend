@@ -11,7 +11,7 @@ const uuid = z
   .transform((value) => value.toLowerCase());
 const replacement = z
   .object({
-    expectedVersion: z.number().int().min(0).max(2147483646),
+    expectedVersion: z.number().int().min(0).max(2147483647),
     userIds: z
       .array(uuid)
       .max(4)

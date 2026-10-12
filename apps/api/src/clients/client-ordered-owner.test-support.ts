@@ -4,7 +4,13 @@ import type { TenantContext } from '@capiro/shared';
 export const tenant = '11111111-1111-4111-8111-111111111111';
 export const client = '22222222-2222-4222-8222-222222222222';
 export const actor = '99999999-9999-4999-8999-999999999999';
-export const ids = [1, 2, 3, 4, 5].map((n) => `33333333-3333-4333-8333-33333333333${n}`);
+export const ids = [1, 2, 3, 4, 5].map((n) => `33333333-3333-4333-8333-33333333333${n}`) as [
+  string,
+  string,
+  string,
+  string,
+  string,
+];
 export const ctx = {
   tenantId: tenant,
   userId: actor,

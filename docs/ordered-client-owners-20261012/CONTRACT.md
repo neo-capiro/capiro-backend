@@ -13,7 +13,7 @@ automatic promotion. The empty list means unassigned.
 
 `PUT` on that same route accepts only `{expectedVersion,userIds}`; UUID array
 order defines ranks, with zero to four distinct active tenant members. UUIDs
-normalize to lowercase. Expected version is an integer0–2147483646. Both verbs
+normalize to lowercase. Expected version is an integer0–2147483647. Both verbs
 return200. Unknown fields, duplicate/malformed IDs and inactive/foreign requested
 members return400. Missing/archived/walled client returns nondisclosing404.
 No current active actor, wrong identity or insufficient role returns403. GET

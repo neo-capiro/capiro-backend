@@ -74,7 +74,7 @@ describe('ordered client ownership', () => {
       available: false,
       person: null,
     });
-    expect(view.owners[1].rank).toBe(2);
+    expect(view.owners[1]!.rank).toBe(2);
     expect(state.primary).toBe(ids[0]);
     await status(
       service.replace(ctx, client, { expectedVersion: 0, userIds: ids.slice(0, 2) }),
@@ -179,5 +179,21 @@ describe('ordered client ownership', () => {
     expect(tx.$executeRaw).not.toHaveBeenCalled();
     for (const primary of [null, ids[1], ids[3]])
       await status(service.replaceLegacy(ctx, client, primary), 409, 'ordered_owners_required');
+  });
+  test('maximum version permits a read/no-op but refuses every mutation before a write', async () => {
+    const { service, state, tx } = setup([ids[0]]);
+    state.version = 2147483647;
+    expect(
+      (await service.replace(ctx, client, { expectedVersion: 2147483647, userIds: [ids[0]] }))
+        .version,
+    ).toBe(2147483647);
+    await status(
+      service.replace(ctx, client, { expectedVersion: 2147483647, userIds: [] }),
+      409,
+      'owner_version_exhausted',
+    );
+    await status(service.replaceLegacy(ctx, client, null), 409, 'owner_version_exhausted');
+    await status(service.replace(ctx, client, { expectedVersion: 2147483648, userIds: [] }), 400);
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
   });
 });
