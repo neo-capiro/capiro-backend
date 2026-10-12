@@ -1,0 +1,30 @@
+{
+  "source": "5a3c73f0b626a0d659d1a4fbbdb1ef37040310e6",
+  "tree": "df6fa9ccf56959552eaf68f82e4c7942abc3d00a",
+  "parent": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+  "baseline": "61e9b467295235829e7d8097368ce41b0434818a",
+  "file": "apps/workspace/test/cascade.spec.ts",
+  "beforeSha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd",
+  "afterSha256": "782870251eab85a057be6e3b74aacbc47ffe4e0158048a728f627a981074bddc",
+  "exactOnlyLiteral10To11": true,
+  "allSevenOriginalNamesAndOtherAssertionsExact": true,
+  "historicalNameStillSays10PreservedForCaseIdentity": true,
+  "baselineRegistryAndWrapperUnchanged": true,
+  "canonicalProjection": 10,
+  "originalWhitePaperPlusCanonicalLibrary": [
+    "White paper",
+    "NDAA Authorization Request",
+    "Appropriations Justification",
+    "CDS / Earmark Application",
+    "Authorization Bill Language",
+    "Report Language Request",
+    "Meeting Brief & Advocacy",
+    "Member letter",
+    "Written testimony",
+    "One-pager",
+    "Strategy memo"
+  ],
+  "libraryCount": 11,
+  "runtimeOrModelProviderDatabaseCalls": 0,
+  "onlyPureDataRegistryEvaluated": true
+}

@@ -1,0 +1,44 @@
+{
+  "accepted": true,
+  "pythonSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+  "pythonTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+  "finalCountSource": "5a3c73f0b626a0d659d1a4fbbdb1ef37040310e6",
+  "finalCountTree": "df6fa9ccf56959552eaf68f82e4c7942abc3d00a",
+  "pythonPaths": 5,
+  "cascadeAdditionalPaths": 1,
+  "allProductionAstStringsAndAssertionsPreservedUnderDeclaredBooleanReturnAndOnlyTestImportSort": true,
+  "beforeAfterBooleanLeafComparisons": 16035,
+  "resultOrExceptionMessagesNotNormalized": true,
+  "narrowOptionalAnnotations": [
+    "pypdfium2:import-untyped",
+    "paddleocr:import-not-found"
+  ],
+  "oldUnusedAssignmentIgnoreRemoved": true,
+  "noBlanketConfigOrDependencyLockChange": true,
+  "heavyOptionalModelsImportedByReviewer": false,
+  "rootFinalQualityResults": {
+    "ruff": 0,
+    "mypy": {
+      "exit": 0,
+      "sourceFiles": 37
+    },
+    "pytest": {
+      "exit": 0,
+      "passed": 283
+    }
+  },
+  "rootOriginalFailuresPreservedAt": "36cee23f7758f2c9dea93e17be05995cadf453d4",
+  "allSourceOutsideFivePythonThreeAcceptedNewsletterAndOneCountScopesUnchanged": true,
+  "cascadeFixOnlyLiteral10To11": true,
+  "originalCascadeCaseNamesRetained": 7,
+  "actualBaselineLibraryProducts": 11,
+  "newProductOrRuntimeServiceIntroduced": false,
+  "realNativePgProviderModelCustomerCalls": 0,
+  "publicationOwner": "/root",
+  "remainingLimits": [
+    "No live/native PostgreSQL/RLS/MVCC/database or provider acceptance",
+    "Optional Docling/Paddle SDK execution is not qualified by local import annotations",
+    "Coverage absence and fresh pinned visual qualification remain separate root gates",
+    "Current formatter scope and existingMeri139 catalog are passing; historical47/138 failures are not current blockers"
+  ]
+}

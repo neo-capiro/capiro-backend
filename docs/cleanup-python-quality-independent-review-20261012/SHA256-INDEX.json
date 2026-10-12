@@ -1,0 +1,108 @@
+{
+  "pythonSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+  "pythonTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+  "countSource": "5a3c73f0b626a0d659d1a4fbbdb1ef37040310e6",
+  "countTree": "df6fa9ccf56959552eaf68f82e4c7942abc3d00a",
+  "packet": [
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 1761,
+      "sha256": "3de0bec3b80b66b1b06d32ad8f63d578687913d93e0d8e10afd2a9e967b4eb52"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/COMMANDS.json",
+      "bytes": 1288,
+      "sha256": "45022771301338b48c70338596e4239d929e67bbdf2384a17a870cd52bbae372"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/HANDOFF.md",
+      "bytes": 3825,
+      "sha256": "b137eb24e1c0af4547cc1fed48c3b0426b2d2f791ea8ba822406f9335c71a2c8"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/cascade-count-proof.json",
+      "bytes": 1135,
+      "sha256": "85d54c3e95f4cc9a80be174b9f41a723d9be76e8cad23235dd2db48cc4a379ab"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/cascade-count-proof.log",
+      "bytes": 131,
+      "sha256": "a57bf80ff35a2055130d7325ce2f6cb16cbd8024b9361580892ef28bcf7cffe5"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/original-mypy-exit.json",
+      "bytes": 16,
+      "sha256": "331dd85020eaf7c911e3417ee78f7ff17a0d1257e2a5c310696fc702d1c3f16f"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/original-mypy.stdout",
+      "bytes": 639,
+      "sha256": "23e46ebdec7d0f616ef5f9acad6fb4f223cf5cf116ea2c74a42337365fd68cdb"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/original-pytest-command.json",
+      "bytes": 1003,
+      "sha256": "bc167a8383785b756edc3d1bff34c0bda481fb3cda6bb800bc4f390e77bcb98c"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/original-ruff-exit.json",
+      "bytes": 16,
+      "sha256": "331dd85020eaf7c911e3417ee78f7ff17a0d1257e2a5c310696fc702d1c3f16f"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/original-ruff.stdout",
+      "bytes": 5225,
+      "sha256": "fb0575618379601edc89944c6926918179fd91e3a30991ffb02573026eabec82"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/packet-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/python-equivalence.json",
+      "bytes": 8453,
+      "sha256": "6e174ee8f782313016d1bbc9e6452f353c3cd1a2c6becc9e340e9ea59c3ce23b"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/python-equivalence.log",
+      "bytes": 327,
+      "sha256": "1454802f6a33ff5251ce54895826212a0944653a299c9b6cfad569d8808aae7b"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/root-mypy-final.log",
+      "bytes": 44,
+      "sha256": "34df9cf38736563d4bb02e64b66effac851acb546ad0a3c3761547e25bbe3570"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/root-pytest-final-junit.xml",
+      "bytes": 35746,
+      "sha256": "81ac3d0a4fbbdc99da92f8bec92222155c561ac04a1b0bd1b7afcebc5146aeb7"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/root-pytest-final.log",
+      "bytes": 6887,
+      "sha256": "2686a19366ac734bd2545f86191793b741ce9dcd5e47c0520c1bfc533b419696"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/root-ruff-final.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/root-ruff-first-repair-red.log",
+      "bytes": 508,
+      "sha256": "2e9d09833b8102e0cd5f1b6b635b466e69c31b51282f706e101913e0c3c10f4d"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/verify-cascade-count.cjs",
+      "bytes": 3123,
+      "sha256": "6cfd552a2ec231f3bf8438f24902e6473d70b249d438075bb27d351a6f6d2044"
+    },
+    {
+      "path": "docs/cleanup-python-quality-independent-review-20261012/evidence/verify-python-equivalence.py",
+      "bytes": 7307,
+      "sha256": "9d335bf9784d3dfe7dcfe7307284cab18a497c841e5d7abc3e84875dae7d5967"
+    }
+  ]
+}
