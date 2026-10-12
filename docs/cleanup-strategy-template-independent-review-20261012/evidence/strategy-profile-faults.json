@@ -1,0 +1,257 @@
+{
+  "integratedSource": "ffb6660b517f554aa8702eb23b16c2b0389399e8",
+  "integratedTree": "d5a9e8e887ae4f091d9dcbc6bb307ed7d828134c",
+  "inherited": "991ca2f88e0e2829e2ec31a33cdc2e195a870cf3",
+  "applicationSourceFreeze": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "strategySourceMapFiles": 169,
+  "strategyOnlyActualSourceBaseline": {
+    "errors": [],
+    "profiles": 1,
+    "files": 169
+  },
+  "actualSourceFaultCases": 26,
+  "refusedMutants": 24,
+  "acceptedBenignCases": 2,
+  "cases": [
+    {
+      "name": "duplicate complete metadata owner",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: DOCUMENT_TYPES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: TEMPLATE_KEY_BY_TYPE must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: OPERATIONAL_REPORT_TEMPLATE_KEYS must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: REPORT_SECTION_TITLES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: REPORT_SECTION_ORDER must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: REPORT_PREFIX_FALLBACKS must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: isOperationalReportTemplate must have one named module export (function) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: reportFallbackSection must have one named module export (function) in apps/api-strategy/src/context/template-registry.ts"
+      ]
+    },
+    {
+      "name": "detached literal tuple alias",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: invalid compatibility alias: apps/api-strategy/src/context/frontmatter.ts|DOCUMENT_TYPES",
+        "strategy-context-template-metadata: DOCUMENT_TYPES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES: expected 1 bound references, found 0",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES: module does not resolve to owner",
+        "strategy-context-template-metadata: unlisted owner import apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES"
+      ]
+    },
+    {
+      "name": "let facade alias",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: invalid compatibility alias: apps/api-strategy/src/context/frontmatter.ts|DOCUMENT_TYPES",
+        "strategy-context-template-metadata: DOCUMENT_TYPES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES: module does not resolve to owner",
+        "strategy-context-template-metadata: unlisted owner import apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES"
+      ]
+    },
+    {
+      "name": "getter reexport facade",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: invalid compatibility alias: apps/api-strategy/src/context/frontmatter.ts|DOCUMENT_TYPES",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES: expected 1 bound references, found 0",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES: module does not resolve to owner",
+        "strategy-context-template-metadata: unlisted owner import apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES",
+        "strategy-context-template-metadata: unsupported owner re-export in apps/api-strategy/src/context/frontmatter.ts"
+      ]
+    },
+    {
+      "name": "widen seventeen tuple value",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/DOCUMENT_TYPES"
+      ]
+    },
+    {
+      "name": "widen canonical document type",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/DocumentTypeValue"
+      ]
+    },
+    {
+      "name": "widen facade document type",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/DocumentTypeValue"
+      ]
+    },
+    {
+      "name": "prefix identity drift",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/REPORT_PREFIX_FALLBACKS"
+      ]
+    },
+    {
+      "name": "report output order drift",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/REPORT_SECTION_ORDER"
+      ]
+    },
+    {
+      "name": "operational membership drift",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/OPERATIONAL_REPORT_TEMPLATE_KEYS"
+      ]
+    },
+    {
+      "name": "title drift",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/REPORT_SECTION_TITLES"
+      ]
+    },
+    {
+      "name": "local report prefix bypass",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: apps/api-strategy/src/reports/report-context.ts/reportFallbackSection: expected 1 bound references, found 0",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/reports/report-context.ts/categoryFor"
+      ]
+    },
+    {
+      "name": "local report membership bypass",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: apps/api-strategy/src/reports/report-context.ts/isOperationalReportTemplate: expected 2 bound references, found 1",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/reports/report-context.ts/assembleReportContext"
+      ]
+    },
+    {
+      "name": "metadata helper membership bypass",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/isOperationalReportTemplate"
+      ]
+    },
+    {
+      "name": "shadowed compatibility binding",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: invalid compatibility alias: apps/api-strategy/src/context/frontmatter.ts|DOCUMENT_TYPES",
+        "strategy-context-template-metadata: DOCUMENT_TYPES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES: expected 1 bound references, found 0",
+        "strategy-context-template-metadata: apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES: module does not resolve to owner",
+        "strategy-context-template-metadata: unlisted owner import apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES"
+      ]
+    },
+    {
+      "name": "same-name local fallback definition",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: reportFallbackSection must have one named module export (function) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: apps/api-strategy/src/reports/report-context.ts/reportFallbackSection: expected 1 bound references, found 2"
+      ]
+    },
+    {
+      "name": "unlisted named consumer",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unlisted owner import apps/api-strategy/src/context/source-map-independent-probe.ts/reportFallbackSection"
+      ]
+    },
+    {
+      "name": "namespace owner import",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unsupported owner import in apps/api-strategy/src/context/source-map-independent-probe.ts"
+      ]
+    },
+    {
+      "name": "default owner import",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unsupported owner import in apps/api-strategy/src/context/source-map-independent-probe.ts"
+      ]
+    },
+    {
+      "name": "side-effect owner import",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unsupported owner import in apps/api-strategy/src/context/source-map-independent-probe.ts"
+      ]
+    },
+    {
+      "name": "import-equals owner reference",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unsupported import-equals owner reference in apps/api-strategy/src/context/source-map-independent-probe.ts"
+      ]
+    },
+    {
+      "name": "static dynamic owner import",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unsupported dynamic owner import in apps/api-strategy/src/context/source-map-independent-probe.ts"
+      ]
+    },
+    {
+      "name": "aliased require owner reference",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: unsupported dynamic owner import in apps/api-strategy/src/context/source-map-independent-probe.ts"
+      ]
+    },
+    {
+      "name": "owner missing",
+      "refused": true,
+      "errors": [
+        "strategy-context-template-metadata: missing owner",
+        "strategy-context-template-metadata: DOCUMENT_TYPES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: TEMPLATE_KEY_BY_TYPE must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: OPERATIONAL_REPORT_TEMPLATE_KEYS must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: REPORT_SECTION_TITLES must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: REPORT_SECTION_ORDER must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: REPORT_PREFIX_FALLBACKS must have one named module export (variable) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: isOperationalReportTemplate must have one named module export (function) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: reportFallbackSection must have one named module export (function) in apps/api-strategy/src/context/template-registry.ts",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/DOCUMENT_TYPES",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/TEMPLATE_KEY_BY_TYPE",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/OPERATIONAL_REPORT_TEMPLATE_KEYS",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/REPORT_SECTION_TITLES",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/REPORT_SECTION_ORDER",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/REPORT_PREFIX_FALLBACKS",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/isOperationalReportTemplate",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/reportFallbackSection",
+        "strategy-context-template-metadata: carrier drift or missing declaration: apps/api-strategy/src/context/template-registry.ts/DocumentTypeValue"
+      ]
+    },
+    {
+      "name": "benign comment contains owned names",
+      "refused": false,
+      "errors": []
+    },
+    {
+      "name": "benign unrelated local binding",
+      "refused": false,
+      "errors": []
+    }
+  ],
+  "strategyDataCounts": {
+    "runtimeSymbols": 8,
+    "pinnedCarriersIncludingBothTypeAliases": 12,
+    "compatibilityAliases": 2,
+    "canonicalAndFacadeEdges": 10
+  },
+  "inheritedTangoProfileValuesExact": true,
+  "inheritedTangoProfileTextFormattingQualification": "JSON roots array whitespace was reformatted; structured profile, values and ordering are exact.",
+  "inheritedHelperRowsExact": true,
+  "strategyHelperRows": 2,
+  "wholeHelperInventory": {
+    "errors": [],
+    "helpers": 5
+  },
+  "packageOnlyAddsFocusedAlias": true,
+  "ciOnlyAddsUnconditionalFocusedStep": true,
+  "threeOriginalServicesByteExact": true,
+  "baselineAfterFaultsStillPass": true,
+  "scope": "Only Strategy actual-sourceMap/data faults. Generic root controls and inherited Tango application/profile acceptance belong to independent owners; Core/reporting sources were not read.",
+  "packageManagerCiProviderDatabaseNativeExecution": false
+}

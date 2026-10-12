@@ -1,0 +1,265 @@
+{
+  "source": "9a23cd7273028e97581b0605d321e69d0185d536",
+  "tree": "a75722610fcf567f6aca0294e534821c4eee5bbc",
+  "baselineSourceFiles": 2047,
+  "results": [
+    {
+      "label": "baseline legitimate owner",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "literal computed method",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "constant binary computed method",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "template computed method",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "constant lexical computed method",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "binary computed property implementation",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "binary computed class property",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "literal named getter",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "ambient same-name declaration",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "prototype static assignment lead",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "constant dynamic owner import",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "template dynamic owner import",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "literal dynamic owner import",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "aliased require owner lead",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "owner require computed string",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "named transitive owner barrel",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported owner re-export in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "benign comment/type/string",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "direct const runtime alias",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "export let alias with exact supplied digest",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute"
+      ]
+    },
+    {
+      "label": "export var alias with exact supplied digest",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute"
+      ]
+    },
+    {
+      "label": "runtime import plus shadowed alias",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: apps/example/src/compatibility.ts/canonicalRoute: expected 1 bound references, found 0",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute"
+      ]
+    },
+    {
+      "label": "alias wrong imported member",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: apps/example/src/compatibility.ts/canonicalRoute: expected one runtime named import, found 0",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute"
+      ]
+    },
+    {
+      "label": "alias type-only member",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: apps/example/src/compatibility.ts/canonicalRoute: expected one runtime named import, found 0",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute"
+      ]
+    },
+    {
+      "label": "alias namespace input",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: apps/example/src/compatibility.ts/canonicalRoute: expected one runtime named import, found 0",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute",
+        "review: unsupported owner import in apps/example/src/compatibility.ts"
+      ]
+    },
+    {
+      "label": "ambient alias",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: invalid compatibility alias: apps/example/src/compatibility.ts|canonicalRoute",
+        "review: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts",
+        "review: apps/example/src/consumer.ts/canonicalRoute: module does not resolve to owner",
+        "review: apps/example/src/compatibility.ts/canonicalRoute: expected one runtime named import, found 0",
+        "review: unlisted owner import apps/example/src/consumer.ts/canonicalRoute"
+      ]
+    }
+  ],
+  "wholeMap": [
+    {
+      "label": "literal canonical copied method",
+      "source": "const extra={asCount(value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "binary computed canonical method",
+      "source": "const extra={['as'+'Count'](value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "lexical constant canonical method",
+      "source": "const KEY='asCount';const extra={[KEY](value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "constant dynamic canonical owner import",
+      "source": "import('./external/tango/tango-rest-'+'page.js');",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: unsupported dynamic owner import in apps/api/src/review-static-extra.ts"
+      ]
+    }
+  ],
+  "unexpectedAccepts": [],
+  "sourceMutantsExecuted": false,
+  "productionFilesChanged": false
+}

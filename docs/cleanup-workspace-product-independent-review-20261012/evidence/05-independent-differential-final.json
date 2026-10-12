@@ -1,0 +1,3487 @@
+{
+  "result": "PASS independent original802 differential",
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "baseTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "sourceHead": "77e936d2a695203819b7d46277bf63ab6a659539",
+  "docHead": "9f10c9e091dc4fd717d9d54e87586927d31d801e",
+  "originalBindings": [
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "blob": "ea92c70ca5578d8661985d67bf8b9c1a8c7327b2",
+      "sha256": "3a32a9d94d87ffd08448a6259d1b81214ac28d6ef918e0487ae608c412428341"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.service.ts",
+      "blob": "4e0d1544c731282e8c54c8d988b1e82c3a2b3911",
+      "sha256": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21"
+    },
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "blob": "2b9b82ca7c4e2c50c60bfdbf450984b0c08fe207",
+      "sha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd"
+    }
+  ],
+  "descriptorCount": 11,
+  "projectionCount": 6,
+  "cascadeNameReferences": 19,
+  "checks": 864,
+  "results": [
+    {
+      "label": "exact serialized original PRODUCT_META",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original SUGGESTED_SECTIONS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original SUGGESTED_PAGES",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original CANONICAL_PRODUCTS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original UNIVERSAL_PRODUCTS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original FUNDING_PRODUCTS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original CASCADE",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original INDUSTRY_DATA",
+      "result": "PASS"
+    },
+    {
+      "label": "exact serialized original SECTION_LIBRARY",
+      "result": "PASS"
+    },
+    {
+      "label": "independent insertion order PRODUCT_META",
+      "result": "PASS"
+    },
+    {
+      "label": "independent insertion order SUGGESTED_SECTIONS",
+      "result": "PASS"
+    },
+    {
+      "label": "independent insertion order SUGGESTED_PAGES",
+      "result": "PASS"
+    },
+    {
+      "label": "independent list order CANONICAL_PRODUCTS",
+      "result": "PASS"
+    },
+    {
+      "label": "independent list order UNIVERSAL_PRODUCTS",
+      "result": "PASS"
+    },
+    {
+      "label": "independent list order FUNDING_PRODUCTS",
+      "result": "PASS"
+    },
+    {
+      "label": "eleven descriptors and all six ranks match original values/order",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner WSC",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner sectionSpecFor",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner INDUSTRY_DATA",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner SECTION_LIBRARY",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner CascadeProduct",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner CascadeIndustry",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner ProductMeta",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner IndustryDatum",
+      "result": "PASS"
+    },
+    {
+      "label": "byte-exact untouched owner SectionSpec",
+      "result": "PASS"
+    },
+    {
+      "label": "19 CASCADE name references replace only original names",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product ",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product ",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product ",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product ",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product toString",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product toString",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product toString",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product toString",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product null",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product null",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product null",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product null",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product 0",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product 0",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product 0",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product 0",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product false",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product false",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product false",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product false",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product object",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product object",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product object",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product object",
+      "result": "PASS"
+    },
+    {
+      "label": "meta product object",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedSections product object",
+      "result": "PASS"
+    },
+    {
+      "label": "suggestedPages product object",
+      "result": "PASS"
+    },
+    {
+      "label": "isFunding product object",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults ",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults toString",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults null",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults 0",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults false",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults object",
+      "result": "PASS"
+    },
+    {
+      "label": "service defaults object",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Defense & Aerospace",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Defense & Aerospace",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Defense & Aerospace object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Defense & Aerospace [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Health & Pharma",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Health & Pharma",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Health & Pharma object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Health & Pharma [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Energy & Resources",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Energy & Resources",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Energy & Resources object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Energy & Resources [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Agriculture",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Agriculture",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Agriculture object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Agriculture [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Transportation",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Transportation",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Transportation object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Transportation [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Homeland Security",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Homeland Security",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Homeland Security object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Homeland Security [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Environment",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Environment",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Environment object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Environment [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor Commerce & Tech",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor Commerce & Tech",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor Commerce & Tech object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor Commerce & Tech [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor unknown object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor unknown [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor ",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor   White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor  object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor  [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor null",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor null object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor null [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor undefined object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor undefined [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor __proto__ object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor __proto__ [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "productsFor constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "dataFor constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor White paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Appropriations Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor NDAA Authorization Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Meeting Brief & Advocacy",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor CDS / Earmark Application",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Authorization Bill Language",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Report Language Request",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Member letter",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Strategy memo",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor Written testimony",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor One-pager",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor White Paper",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor  White paper ",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor toString",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor valueOf",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor hasOwnProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor prototype",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor null",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor 0",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor false",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor object",
+      "result": "PASS"
+    },
+    {
+      "label": "pathwaysFor constructor object",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor ",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor null",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor NDAA Authorization,NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor Defense Appropriations,NDAA Authorization,Defense Appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor unknown",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor __proto__",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor constructor",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor NDAA Authorization",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor 0",
+      "result": "PASS"
+    },
+    {
+      "label": "committeesFor constructor [object Object]",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Problem statement",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Solution",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Current status",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Funding history & request",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule National security impact",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Economic & district impact",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule The ask",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Executive summary",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Account & program line",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Program description",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Funding history",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Justification & impact",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Performance & outcomes",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Requesting entity & recipient information",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Project title",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Project description",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Requested amount & total cost",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Federal nexus statement",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Evidence of community support",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Financial disclosure certification",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Outcomes & metrics",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Short title",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Findings & purpose",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Definitions",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Main operative provision",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Exceptions & special rules",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Conforming & transitional provisions",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Authorization of appropriations",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Effective date",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Requesting entity & contact",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Bill, account & subcommittee",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Background & problem",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Proposed report language",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Justification",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Relationship to existing law & PBR",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Meeting logistics",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Member profile",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Background",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Objectives & the ask",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Talking points",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Anticipated questions & responses",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Leave-behind summary",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Follow-up plan",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Opening",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Request",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Closing",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Disclosure & witness intro",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Opening statement",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Position",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Recommendations",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Header & title",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Key facts & data",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Our position & the ask",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Contact information",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Situation",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Analysis",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Recommendation",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Next steps",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule BLUF",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Operational need",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Strategy & COCOM alignment",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule UPL / UFR status",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Execution rationale",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Endorsements & attachments",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Precedent",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Certifications",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Contact block",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule ",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule unmatched",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule THE ASK",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule  Requested amount title",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule title funding history",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule budget recommendations",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule objective contact",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule recipient operative provision",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule definitions summary",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule summary analysis",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule BACKGROUND",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule   Opening",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule Effective date funding history",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule q&a budget",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule null",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule undefined",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule 0",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule false",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule symbol",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule object",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule object",
+      "result": "PASS"
+    },
+    {
+      "label": "section ordered rule object",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback title budget",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback budget recommendations",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback objective contact",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback recipient information operative provision",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback definitions summary",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback summary analysis",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback background",
+      "result": "PASS"
+    },
+    {
+      "label": "seven-rule priority/fallback unmatched",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype metaShared",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype metaReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype sectionsExportMutation",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype sectionsReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype pagesReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype pagesZero",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype fundingReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype canonicalReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype universalReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype cascadeReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype dataReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype libraryReplacement",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype sectionsCopyIsolation",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype libraryCopyIsolation",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype pagesGetter",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype throwingSectionsGetter",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype prototypePages",
+      "result": "PASS"
+    },
+    {
+      "label": "mutable/CJS/getter/prototype prototypeSections",
+      "result": "PASS"
+    },
+    {
+      "label": "plain mutable maps/list export descriptors",
+      "result": "PASS"
+    },
+    {
+      "label": "shared/reference versus fresh-copy semantics",
+      "result": "PASS"
+    },
+    {
+      "label": "detached original receiver productsFor",
+      "result": "PASS"
+    },
+    {
+      "label": "detached original receiver pathwaysFor",
+      "result": "PASS"
+    },
+    {
+      "label": "detached original receiver committeesFor",
+      "result": "PASS"
+    },
+    {
+      "label": "detached original receiver suggestedSections",
+      "result": "PASS"
+    },
+    {
+      "label": "new canonical aliases preserve projected object/array identity",
+      "result": "PASS"
+    },
+    {
+      "label": "registry has zero runtime imports and no runtime reverse cycle",
+      "result": "PASS"
+    },
+    {
+      "label": "oracle catches a descriptor/page/order/name behavior regression",
+      "result": "PASS"
+    }
+  ],
+  "scope": "pure data/helper VM evaluation and thin identity-decorator service only; no application/provider/DB graph; no native/type/runtime/security acceptance"
+}

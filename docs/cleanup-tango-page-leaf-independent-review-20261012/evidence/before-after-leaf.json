@@ -1,0 +1,4559 @@
+{
+  "source": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "tree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "originalClients": [
+    {
+      "name": "dibbs",
+      "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "sourceSha256": "905ba33964b001aa66c19c60df883c51976145887cd2b725e67c2e0ea0fd28c8"
+    },
+    {
+      "name": "sbir",
+      "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "sourceSha256": "cf914eb4de8f76397d017d4f78932a8b6d5a75f0a76386f89339a7689eb9b766"
+    },
+    {
+      "name": "subaward",
+      "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "sourceSha256": "33a5629fb6b8ea83e4e5cf3cbf7b5b69e7b6cf27601392a081abfd32f68a39c1"
+    },
+    {
+      "name": "candidate-dibbs",
+      "file": "apps/api/src/external/tango/tango-rest-page.ts",
+      "sourceSha256": "acea0b45c771e67d8e7261924823b64c73cdfed78189feef140a1c08ec68872a"
+    },
+    {
+      "name": "candidate-sbir",
+      "file": "apps/api/src/external/tango/tango-rest-page.ts",
+      "sourceSha256": "acea0b45c771e67d8e7261924823b64c73cdfed78189feef140a1c08ec68872a"
+    },
+    {
+      "name": "candidate-subaward",
+      "file": "apps/api/src/external/tango/tango-rest-page.ts",
+      "sourceSha256": "acea0b45c771e67d8e7261924823b64c73cdfed78189feef140a1c08ec68872a"
+    }
+  ],
+  "cases": 68,
+  "originalExecutions": 204,
+  "candidateExecutions": 204,
+  "results": [
+    {
+      "kind": "asCount",
+      "name": "coercion 0: undefined",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 1: null",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 0
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 2: ",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 0
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 3:  ",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 0
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 4: 0",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 0
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 5: -1",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 6: 1.9",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 1
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 7: 2.9",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 2
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 8: true",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 1
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 1
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 9: false",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 0
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 10: NaN",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 11: Infinity",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 12: -Infinity",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 13: NaN",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 14: 1e3",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 1000
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 15: ",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 0
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 0
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 16: 2",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 2
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 17: [object Object]",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 18: 2",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 2
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "coercion 19: Symbol(count)",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "Cannot convert a Symbol value to a number"
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "Cannot convert a Symbol value to a number"
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "Cannot convert a Symbol value to a number"
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "Cannot convert a Symbol value to a number"
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "Cannot convert a Symbol value to a number"
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "Cannot convert a Symbol value to a number"
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "inherited count property",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 12
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 12
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 12
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 12
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 12
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 12
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "count getter sampled by caller once",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "value": 7,
+              "reads": 1
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "value": 7,
+              "reads": 1
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "value": 7,
+              "reads": 1
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "value": 7,
+              "reads": 1
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "value": 7,
+              "reads": 1
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "value": 7,
+              "reads": 1
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "inherited numeric primitive conversion",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 4
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "asCount",
+      "name": "throwing count primitive conversion",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic count coercion"
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic count coercion"
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic count coercion"
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic count coercion"
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic count coercion"
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic count coercion"
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 0: undefined",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 1: null",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 2: ",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 3:  ",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 4: 0",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 5: [object Object]",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 6: ?page=2",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 7: ?page=2",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 2
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 8: /api/x/?page=3",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 3
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 9: https://other.invalid/x?page=4",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 4
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 4
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 10: http://other.invalid/x?page=5",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 5
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 5
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 5
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 5
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 5
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 5
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 11: //other.invalid/x?page=6",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 6
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 6
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 6
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 6
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 6
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 6
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 12: ?page=0",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 13: ?page=-1",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 14: ?page=2.5",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 15: ?page=NaN",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 16: ?page=Infinity",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 17: ?page=1e3",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 1000
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 1000
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 18: ?page=",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 19: ?page=2&page=7",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 2
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 2
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 20: https://[invalid/?page=2",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 21: javascript:opaque?page=8",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 8
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 8
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 8
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 8
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 8
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 8
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "next 22: __proto__?page=9",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 9
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 9
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 9
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 9
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 9
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 9
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "invalid base URL remains null",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": null
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": null
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "nextPageOf",
+      "name": "inherited next field",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": 3
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": 3
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 0",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 1",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 2",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 3",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 4",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 5",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 3,
+                "limit": 3,
+                "resetIn": 3,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 3,
+                "limit": 3,
+                "resetIn": 3,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 3,
+                "limit": 3,
+                "resetIn": 3,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 3,
+                "limit": 3,
+                "resetIn": 3,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 3,
+                "limit": 3,
+                "resetIn": 3,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 3,
+                "limit": 3,
+                "resetIn": 3,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 6",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 1000000,
+                "limit": 1000000,
+                "resetIn": 1000000,
+                "retryAfter": 1000000,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 1000000,
+                "limit": 1000000,
+                "resetIn": 1000000,
+                "retryAfter": 1000000,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 1000000,
+                "limit": 1000000,
+                "resetIn": 1000000,
+                "retryAfter": 1000000,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 1000000,
+                "limit": 1000000,
+                "resetIn": 1000000,
+                "retryAfter": 1000000,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 1000000,
+                "limit": 1000000,
+                "resetIn": 1000000,
+                "retryAfter": 1000000,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 1000000,
+                "limit": 1000000,
+                "resetIn": 1000000,
+                "retryAfter": 1000000,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 7",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 8",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 9",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 10",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": null,
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 11",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 2,
+                "limit": 2,
+                "resetIn": 2,
+                "retryAfter": 2,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 2,
+                "limit": 2,
+                "resetIn": 2,
+                "retryAfter": 2,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 2,
+                "limit": 2,
+                "resetIn": 2,
+                "retryAfter": 2,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 2,
+                "limit": 2,
+                "resetIn": 2,
+                "retryAfter": 2,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 2,
+                "limit": 2,
+                "resetIn": 2,
+                "retryAfter": 2,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 2,
+                "limit": 2,
+                "resetIn": 2,
+                "retryAfter": 2,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "header coercion 12",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": 0,
+                "limit": 0,
+                "resetIn": 0,
+                "retryAfter": 0,
+                "limitType": null
+              },
+              "reads": [
+                "x-ratelimit-remaining",
+                "x-ratelimit-limit",
+                "x-ratelimit-reset-in",
+                "retry-after",
+                "x-ratelimit-type"
+              ]
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "native Headers with mixed values",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "remaining": 4,
+              "limit": 25,
+              "resetIn": 0,
+              "retryAfter": 2,
+              "limitType": "burst"
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "remaining": 4,
+              "limit": 25,
+              "resetIn": 0,
+              "retryAfter": 2,
+              "limitType": "burst"
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "remaining": 4,
+              "limit": 25,
+              "resetIn": 0,
+              "retryAfter": 2,
+              "limitType": "burst"
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "remaining": 4,
+              "limit": 25,
+              "resetIn": 0,
+              "retryAfter": 2,
+              "limitType": "burst"
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "remaining": 4,
+              "limit": 25,
+              "resetIn": 0,
+              "retryAfter": 2,
+              "limitType": "burst"
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "remaining": 4,
+              "limit": 25,
+              "resetIn": 0,
+              "retryAfter": 2,
+              "limitType": "burst"
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "empty limitType is present",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": null,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": ""
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": null,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": ""
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": null,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": ""
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": null,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": ""
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": null,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": ""
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": null,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": ""
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "inherited get method preserves receiver",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": 25,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": null
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": 25,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": null
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": 25,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": null
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": 25,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": null
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": 25,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": null
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "remaining": null,
+              "limit": 25,
+              "resetIn": null,
+              "retryAfter": null,
+              "limitType": null
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "get property getter reads and binds every call",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": null,
+                "limit": null,
+                "resetIn": null,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": 5
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": null,
+                "limit": null,
+                "resetIn": null,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": 5
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": null,
+                "limit": null,
+                "resetIn": null,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": 5
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": null,
+                "limit": null,
+                "resetIn": null,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": 5
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": null,
+                "limit": null,
+                "resetIn": null,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": 5
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "returned": {
+              "rate": {
+                "remaining": null,
+                "limit": null,
+                "resetIn": null,
+                "retryAfter": 3,
+                "limitType": null
+              },
+              "reads": 5
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "missing get method throws unchanged",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "headers.get is not a function"
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "headers.get is not a function"
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "headers.get is not a function"
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "headers.get is not a function"
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "headers.get is not a function"
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "threw": {
+              "name": "TypeError",
+              "message": "headers.get is not a function"
+            }
+          }
+        }
+      ],
+      "equal": true
+    },
+    {
+      "kind": "rateOf",
+      "name": "throwing inherited get method",
+      "observed": [
+        {
+          "client": "dibbs",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic header failure"
+            }
+          }
+        },
+        {
+          "client": "sbir",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic header failure"
+            }
+          }
+        },
+        {
+          "client": "subaward",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic header failure"
+            }
+          }
+        },
+        {
+          "client": "candidate-dibbs",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic header failure"
+            }
+          }
+        },
+        {
+          "client": "candidate-sbir",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic header failure"
+            }
+          }
+        },
+        {
+          "client": "candidate-subaward",
+          "outcome": {
+            "threw": {
+              "name": "Error",
+              "message": "synthetic header failure"
+            }
+          }
+        }
+      ],
+      "equal": true
+    }
+  ],
+  "profileProbeCases": 3,
+  "profileProbeExecutions": 9,
+  "candidateProfileProbeExecutions": 9,
+  "totalOriginalLeafExecutions": 213,
+  "totalBeforeAfterExecutions": 426,
+  "outOfContractHeaderTrace": [
+    {
+      "client": "dibbs",
+      "rate": {
+        "remaining": 2,
+        "limit": 2,
+        "resetIn": 2,
+        "retryAfter": 2,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:retry-after",
+        "get:x-ratelimit-type"
+      ]
+    },
+    {
+      "client": "sbir",
+      "rate": {
+        "remaining": 2,
+        "limit": 2,
+        "resetIn": 2,
+        "retryAfter": 2,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:retry-after",
+        "get:x-ratelimit-type"
+      ]
+    },
+    {
+      "client": "subaward",
+      "rate": {
+        "remaining": 2,
+        "limit": 2,
+        "resetIn": 2,
+        "retryAfter": 2,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "get:x-ratelimit-type"
+      ]
+    },
+    {
+      "client": "candidate-dibbs",
+      "rate": {
+        "remaining": 2,
+        "limit": 2,
+        "resetIn": 2,
+        "retryAfter": 2,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:retry-after",
+        "get:x-ratelimit-type"
+      ]
+    },
+    {
+      "client": "candidate-sbir",
+      "rate": {
+        "remaining": 2,
+        "limit": 2,
+        "resetIn": 2,
+        "retryAfter": 2,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:retry-after",
+        "get:x-ratelimit-type"
+      ]
+    },
+    {
+      "client": "candidate-subaward",
+      "rate": {
+        "remaining": 2,
+        "limit": 2,
+        "resetIn": 2,
+        "retryAfter": 2,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "get:x-ratelimit-type"
+      ]
+    }
+  ],
+  "outOfContractThrowTrace": [
+    {
+      "client": "dibbs",
+      "outcome": {
+        "threw": {
+          "name": "Error",
+          "message": "synthetic numeric coercion failure"
+        }
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining"
+      ]
+    },
+    {
+      "client": "sbir",
+      "outcome": {
+        "threw": {
+          "name": "Error",
+          "message": "synthetic numeric coercion failure"
+        }
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining"
+      ]
+    },
+    {
+      "client": "subaward",
+      "outcome": {
+        "threw": {
+          "name": "Error",
+          "message": "synthetic numeric coercion failure"
+        }
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:x-ratelimit-remaining"
+      ]
+    },
+    {
+      "client": "candidate-dibbs",
+      "outcome": {
+        "threw": {
+          "name": "Error",
+          "message": "synthetic numeric coercion failure"
+        }
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining"
+      ]
+    },
+    {
+      "client": "candidate-sbir",
+      "outcome": {
+        "threw": {
+          "name": "Error",
+          "message": "synthetic numeric coercion failure"
+        }
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "coerce:x-ratelimit-remaining"
+      ]
+    },
+    {
+      "client": "candidate-subaward",
+      "outcome": {
+        "threw": {
+          "name": "Error",
+          "message": "synthetic numeric coercion failure"
+        }
+      },
+      "trace": [
+        "get:x-ratelimit-remaining",
+        "get:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in",
+        "get:retry-after",
+        "coerce:x-ratelimit-remaining"
+      ]
+    }
+  ],
+  "outOfContractMutationTrace": [
+    {
+      "client": "dibbs",
+      "rate": {
+        "remaining": 0,
+        "limit": 1,
+        "resetIn": 2,
+        "retryAfter": 3,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining:state=0",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit:state=1",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in:state=2",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after:state=3",
+        "coerce:retry-after",
+        "get:x-ratelimit-type:state=4"
+      ]
+    },
+    {
+      "client": "sbir",
+      "rate": {
+        "remaining": 0,
+        "limit": 1,
+        "resetIn": 2,
+        "retryAfter": 3,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining:state=0",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit:state=1",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in:state=2",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after:state=3",
+        "coerce:retry-after",
+        "get:x-ratelimit-type:state=4"
+      ]
+    },
+    {
+      "client": "subaward",
+      "rate": {
+        "remaining": 0,
+        "limit": 0,
+        "resetIn": 0,
+        "retryAfter": 0,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining:state=0",
+        "get:x-ratelimit-limit:state=0",
+        "get:x-ratelimit-reset-in:state=0",
+        "get:retry-after:state=0",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "get:x-ratelimit-type:state=4"
+      ]
+    },
+    {
+      "client": "candidate-dibbs",
+      "rate": {
+        "remaining": 0,
+        "limit": 1,
+        "resetIn": 2,
+        "retryAfter": 3,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining:state=0",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit:state=1",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in:state=2",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after:state=3",
+        "coerce:retry-after",
+        "get:x-ratelimit-type:state=4"
+      ]
+    },
+    {
+      "client": "candidate-sbir",
+      "rate": {
+        "remaining": 0,
+        "limit": 1,
+        "resetIn": 2,
+        "retryAfter": 3,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining:state=0",
+        "coerce:x-ratelimit-remaining",
+        "get:x-ratelimit-limit:state=1",
+        "coerce:x-ratelimit-limit",
+        "get:x-ratelimit-reset-in:state=2",
+        "coerce:x-ratelimit-reset-in",
+        "get:retry-after:state=3",
+        "coerce:retry-after",
+        "get:x-ratelimit-type:state=4"
+      ]
+    },
+    {
+      "client": "candidate-subaward",
+      "rate": {
+        "remaining": 0,
+        "limit": 0,
+        "resetIn": 0,
+        "retryAfter": 0,
+        "limitType": null
+      },
+      "trace": [
+        "get:x-ratelimit-remaining:state=0",
+        "get:x-ratelimit-limit:state=0",
+        "get:x-ratelimit-reset-in:state=0",
+        "get:retry-after:state=0",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "get:x-ratelimit-type:state=4"
+      ]
+    }
+  ],
+  "headerIdentityScope": "each candidate profile exactly retains its corresponding frozen original effects including malformed object-valued coercion; distinct original profiles remain distinct",
+  "scope": "frozen original pure declarations versus actual canonical candidate exports; no constructor, fetch, timeout, full client, or provider execution",
+  "boundedCandidateSourceEdits": true,
+  "providerCalls": false,
+  "nativeOperations": false
+}

@@ -1,0 +1,24 @@
+{
+  "baselineFiles": 2047,
+  "results": [
+    {
+      "label": "erased as-expression require alias",
+      "source": "const load=require as typeof require;load('./external/tango/tango-rest-page.js');",
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "deep static canonical declaration",
+      "source": "const extra={[(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((('asCount'))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))](){return 1;}};",
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "deep static owner module",
+      "source": "import((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((('./external/tango/tango-rest-page.js')))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));",
+      "rejected": false,
+      "errors": []
+    }
+  ],
+  "sourceMutantsExecuted": false
+}

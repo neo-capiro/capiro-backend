@@ -1,0 +1,152 @@
+{
+  "source": "74d04937d4453813d15ec957a76337c73b712899",
+  "tree": "6ecdbf3af3c2c35df83a8a2bf28958fafe8c94f6",
+  "scope": "frozen four root hunks/supporting guard and Jest source/four accepted app files plus complete independent packet; excludes index itself",
+  "entries": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "bytes": 16010,
+      "sha256": "3f9e5246053da066f1fc48272d80a3fc72046feb2b5b047b4785e119609dae5c"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "bytes": 11636,
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620"
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "bytes": 8338,
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732"
+    },
+    {
+      "path": "apps/workspace/test/fixtures/product-registry-before.json",
+      "bytes": 106607,
+      "sha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c"
+    },
+    {
+      "path": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "bytes": 11659,
+      "sha256": "dc7ae9e34e26c5e3d3f9c56a5a8802865b3b3ce2d3d8cac504664b6af08c35d8"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 3436,
+      "sha256": "275b2ebd138cea7c29ddfea88743d40441f97c584e918d70ee80d301ea9f03f7"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/REVIEW.md",
+      "bytes": 4311,
+      "sha256": "656ff98105ac58f88c3934b8cdeccfe507fc06bcb3bca202a81342cf0a33259c"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/SOURCE-BINDINGS.json",
+      "bytes": 2887,
+      "sha256": "0da846c5dcf9dbfe4b880e57da3f6a2161ac1effc9d03dd3d4cfdb1d3f407b59"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/01-root-unit-controls.tap",
+      "bytes": 10457,
+      "sha256": "18a853bc7cd949746e58e7f63c8164b0af6e2a0ba0773a4b3524032cbe6456b3"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/02-actual-registry-profile.json",
+      "bytes": 53,
+      "sha256": "9d2df84754a168ff02729e46d196807e2f79e5250a5032736a2687b2fcd9dadc"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/02-actual-registry-profile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/03-workspace-profile-adversaries.json",
+      "bytes": 36983,
+      "sha256": "9a6c4d919f099434371e52b5b32637a03501fd2463c9073368fc70799fcc2342"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/03-workspace-profile-adversaries.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/04-actual-workspace-alias-body.log",
+      "bytes": 2882,
+      "sha256": "b80710acdc4e884c4b81927d3fd525be3cbaca3bcfa2bd73073f4abfd5bf87bb"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/05-actual-workspace-alias-body-repaired.json",
+      "bytes": 49425,
+      "sha256": "9cf32f2bf7f10efe249d45ae44184d15a76ac12f73ceeb12ae1cf804156dafc6"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/05-actual-workspace-alias-body-repaired.log",
+      "bytes": 8320,
+      "sha256": "f8f9f9afcf409ad46bfd5b620059a088627f813957082f0aa9768f0dacad1bc3"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/06-root-wiring-and-bindings.json",
+      "bytes": 2513,
+      "sha256": "78d4f522e7b66ebd71e836324ae21d936d4e2e4321f231670cfc9db599d87c44"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/07-actual-duplicate-helpers.json",
+      "bytes": 69,
+      "sha256": "3117f995f50ffe8caefe44dc57110d53c364ba475d0c0948dbd916876a26ee93"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/07-actual-duplicate-helpers.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/08-raw-log-whitespace-red.log",
+      "bytes": 585,
+      "sha256": "38a3765bfa307968e25751db6aa7fe41576d5d0f202e4e8696089af02e8ef0ce"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/workspace-profile-adversaries.mjs",
+      "bytes": 9737,
+      "sha256": "2c7f078e074c79f5d77d56e942b1e141ce2fa78efb4e4c197d34b988210f05a8"
+    },
+    {
+      "path": "package.json",
+      "bytes": 11414,
+      "sha256": "fd49ad6f0b2585d74b22551e68dddee0a9def8e473b0f4cad8aecdf3dbcf349a"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "bytes": 3322,
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.test.mjs",
+      "bytes": 2391,
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "bytes": 23600,
+      "sha256": "c48c499d6dbb79d67e20bdd57526cfe4900ef09a4321fbc5004cff79581a637f"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "bytes": 25430,
+      "sha256": "2bc2b995d25640708353f4317e43fab6202403f1a24ac9d15855d74dd6a66619"
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "bytes": 768,
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "bytes": 347,
+      "sha256": "4cc9a091df48ec0abc30e6788051aecd64e7b5708190367521074bbb835ba936"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "bytes": 21801,
+      "sha256": "f2dcc0da283ca9599316af13eb75dd03556a3aea087ee0ad18d09d1e6056198b"
+    }
+  ]
+}

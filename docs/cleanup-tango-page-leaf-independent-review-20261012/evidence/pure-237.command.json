@@ -1,0 +1,7 @@
+{
+  "source": "34bd52b6f49393f49732cf1f918002ba0893574d",
+  "tree": "bde461631aea971158fdd5c9b287860aeff061e1",
+  "shellCommand": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config scripts/cleanup-runtime-equivalence.jest.cjs --runInBand apps/api/src/external/tango/tango-rest-page.spec.ts apps/api/src/external/tango/tango-sbir.client.spec.ts apps/api/src/external/tango/tango-subaward.client.spec.ts > docs/cleanup-tango-page-leaf-independent-review-20261012/evidence/pure-237.log 2>&1",
+  "exitCode": 0,
+  "providerDatabaseNativeOrPackageManagerOperations": false
+}

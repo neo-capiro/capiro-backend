@@ -1,0 +1,5755 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "head": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "tree": "a143416a96a04d8626ba67cef9e69803586749e2",
+  "sourceHashes": {
+    "originalFront": "250a942a6b06f1529a02315b6bf07e3f7d1a872fdf6e70daecd0f69406353645",
+    "originalReport": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb",
+    "front": "09c1451c74d01742a2348dce9bd88c12babd06c98a673e899b0b96f30d8684e9",
+    "report": "65619375d58a6689ee5ac633cf4c40cdfcac47baf8d748bdd0a21e05af23f8a9",
+    "registry": "088255d598e7c0319f05d6209f73c830bd2c59e3ab01ecd05c94596129d49ead"
+  },
+  "knownTemplateKeys": 17,
+  "unknownKeys": 19,
+  "malformedSameRealmTypeErrors": 5,
+  "independentlyAuthoredPairedCases": 129,
+  "originalAndCandidateEvaluations": 258,
+  "publicFacadeRuntimeExportNamesDescriptorsSharedReferencesAndNamespaceReplacementMatch": true,
+  "originalParserAuthorityDateCleaningFunctionsByteExact": true,
+  "originalTestsStrictlyAdditive": true,
+  "statefulPrefixGetterReceiverAndShortCircuitTracesMatch": true,
+  "freshReportResultMutationIsolationMatches": true,
+  "registryRuntimeImports": 0,
+  "cases": [
+    {
+      "name": "known/client/00_context_manifest",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "known/internal/00_context_manifest",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "00_context_manifest",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "00_context_manifest",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/01_strategy_brief",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/01_strategy_brief",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/02_client_constraints",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "02_client_constraints",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "02_client_constraints",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/02_client_constraints",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "02_client_constraints",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "02_client_constraints",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/03_ask_and_options",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "03_ask_and_options",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "03_ask_and_options",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "ask",
+            "title": "Strategic ask and options",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/03_ask_and_options",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "03_ask_and_options",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "03_ask_and_options",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "ask",
+            "title": "Strategic ask and options",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/04_stakeholder_map",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "04_stakeholder_map",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "04_stakeholder_map",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "stakeholders",
+            "title": "Stakeholder landscape",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/04_stakeholder_map",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "04_stakeholder_map",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "04_stakeholder_map",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "stakeholders",
+            "title": "Stakeholder landscape",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/05_calendar_and_deadlines",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "05_calendar_and_deadlines",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "05_calendar_and_deadlines",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "timing",
+            "title": "Timing and external windows",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/05_calendar_and_deadlines",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "05_calendar_and_deadlines",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "05_calendar_and_deadlines",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "timing",
+            "title": "Timing and external windows",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/06_decision_rules",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "06_decision_rules",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "06_decision_rules",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/06_decision_rules",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "06_decision_rules",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "06_decision_rules",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/07_current_plan",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "known/internal/07_current_plan",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "07_current_plan",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "07_current_plan",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/08_evidence_register",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "08_evidence_register",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "08_evidence_register",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "evidence",
+            "title": "Evidence and assumptions",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/08_evidence_register",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "08_evidence_register",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "08_evidence_register",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "evidence",
+            "title": "Evidence and assumptions",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/09_meeting_intelligence",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "09_meeting_intelligence",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "09_meeting_intelligence",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "intelligence",
+            "title": "Recent intelligence",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/09_meeting_intelligence",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "09_meeting_intelligence",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "09_meeting_intelligence",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "intelligence",
+            "title": "Recent intelligence",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/10_decision_log",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "10_decision_log",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "10_decision_log",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/10_decision_log",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "10_decision_log",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "10_decision_log",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/11_agent_mission",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "known/internal/11_agent_mission",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "11_agent_mission",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "11_agent_mission",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/12_execution_playbook",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "known/internal/12_execution_playbook",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "12_execution_playbook",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "12_execution_playbook",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/13_agent_permissions",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "known/internal/13_agent_permissions",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "13_agent_permissions",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "13_agent_permissions",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/14_target_budget_line",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "14_target_budget_line",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "14_target_budget_line",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/14_target_budget_line",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "14_target_budget_line",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "14_target_budget_line",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/15_vendor_reference_pull",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "15_vendor_reference_pull",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "15_vendor_reference_pull",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/15_vendor_reference_pull",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "15_vendor_reference_pull",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "15_vendor_reference_pull",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/client/16_route_and_vehicle_status",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "16_route_and_vehicle_status",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "16_route_and_vehicle_status",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "known/internal/16_route_and_vehicle_status",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "16_route_and_vehicle_status",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "16_route_and_vehicle_status",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/__proto__",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "__proto__",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "__proto__",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/constructor",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "constructor",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "constructor",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/toString",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "toString",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "toString",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/prototype",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "prototype",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "prototype",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/hasOwnProperty",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "hasOwnProperty",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "hasOwnProperty",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/valueOf",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "valueOf",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "valueOf",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/00_fake",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "00_fake",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "00_fake",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/07_current_plan_suffix",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "07_current_plan_suffix",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "07_current_plan_suffix",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/13_AGENT_PERMISSIONS",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "13_AGENT_PERMISSIONS",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "13_AGENT_PERMISSIONS",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/ 01_strategy_brief",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": " 01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": " 01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/01_",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/01_future",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_future",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_future",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/02_future",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "02_future",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "02_future",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/06_future",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "06_future",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "06_future",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/03_future",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "03_future",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "03_future",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "ask",
+            "title": "Strategic ask and options",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/14_future",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "14_future",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "14_future",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/16_future",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "16_future",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "16_future",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "unknown/<script>x</script>",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "<script>x</script>",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "<script>x</script>",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "malformed-key/0",
+      "threw": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'replace')",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "malformed-key/1",
+      "threw": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'replace')",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "malformed-key/2",
+      "threw": {
+        "name": "TypeError",
+        "message": "templateKey.replace is not a function",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "malformed-key/3",
+      "threw": {
+        "name": "TypeError",
+        "message": "templateKey.replace is not a function",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "malformed-key/4",
+      "threw": {
+        "name": "TypeError",
+        "message": "templateKey.replace is not a function",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "heading-first/decision evidence deadline ask goal",
+      "returned": "decisions"
+    },
+    {
+      "name": "heading-first/stakeholder deadline evidence",
+      "returned": "stakeholders"
+    },
+    {
+      "name": "heading-first/deadline evidence constraint",
+      "returned": "timing"
+    },
+    {
+      "name": "heading-first/evidence approval ask",
+      "returned": "evidence"
+    },
+    {
+      "name": "heading-first/approval option goal",
+      "returned": "constraints"
+    },
+    {
+      "name": "heading-first/option goal intelligence",
+      "returned": "ask"
+    },
+    {
+      "name": "heading-first/success intelligence",
+      "returned": "outcomes"
+    },
+    {
+      "name": "heading-first/current position",
+      "returned": "intelligence"
+    },
+    {
+      "name": "heading-first/Overview",
+      "returned": "situation"
+    },
+    {
+      "name": "prefix-getter-trace/01_",
+      "returned": {
+        "category": "situation",
+        "trace": [
+          "get",
+          "01_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/02_",
+      "returned": {
+        "category": "constraints",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/06_",
+      "returned": {
+        "category": "constraints",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/03_",
+      "returned": {
+        "category": "ask",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/04_",
+      "returned": {
+        "category": "stakeholders",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_",
+          "get",
+          "04_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/05_",
+      "returned": {
+        "category": "timing",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_",
+          "get",
+          "04_",
+          "get",
+          "05_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/08_",
+      "returned": {
+        "category": "evidence",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_",
+          "get",
+          "04_",
+          "get",
+          "05_",
+          "get",
+          "08_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/09_",
+      "returned": {
+        "category": "intelligence",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_",
+          "get",
+          "04_",
+          "get",
+          "05_",
+          "get",
+          "08_",
+          "get",
+          "09_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/10_",
+      "returned": {
+        "category": "decisions",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_",
+          "get",
+          "04_",
+          "get",
+          "05_",
+          "get",
+          "08_",
+          "get",
+          "09_",
+          "get",
+          "10_"
+        ]
+      }
+    },
+    {
+      "name": "prefix-getter-trace/null",
+      "returned": {
+        "category": "governance",
+        "trace": [
+          "get",
+          "01_",
+          "get",
+          "02_",
+          "get",
+          "06_",
+          "get",
+          "03_",
+          "get",
+          "04_",
+          "get",
+          "05_",
+          "get",
+          "08_",
+          "get",
+          "09_",
+          "get",
+          "10_"
+        ]
+      }
+    },
+    {
+      "name": "metadata/client/0",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/0",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/1",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/1",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/2",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/2",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/3",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/3",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/4",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/4",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/5",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "metadata/internal/5",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": null,
+            "confidentiality": null,
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": null,
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": null,
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": null,
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/6",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "metadata/internal/6",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": null,
+            "confidentiality": "firm_internal",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": null,
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": null,
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": null,
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/7",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/7",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/8",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "unvetted",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "unvetted",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "unvetted",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "unvetted",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/8",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "unvetted",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "unvetted",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "unvetted",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "unvetted",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/client/9",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "metadata/internal/9",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/client/null",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/internal/null",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/client/2026-10-11T23:59:59.999Z",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "freshness/internal/2026-10-11T23:59:59.999Z",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-11",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/client/2026-10-12T00:00:00Z",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-12",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/internal/2026-10-12T00:00:00Z",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-12",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/client/2026-10-13T00:00:00Z",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-13",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/internal/2026-10-13T00:00:00Z",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-13",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "An authored claim with context.",
+                "label": "Overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "freshness/client/invalid",
+      "returned": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "freshness/internal/invalid",
+      "threw": {
+        "name": "RangeError",
+        "message": "Invalid time value",
+        "intrinsicTypeError": false
+      }
+    },
+    {
+      "name": "heading-confidentiality/client/Instructions to Meri",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/internal/Instructions to Meri",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Instructions to Meri",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Instructions to Meri",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/client/Meri may",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/internal/Meri may",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Meri may",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Meri may",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/client/Watcher rules",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/internal/Watcher rules",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          },
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Watcher rules",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Watcher rules",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/client/Proposed firm reference changes",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/internal/Proposed firm reference changes",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Proposed firm reference changes",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Proposed firm reference changes",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/client/Internal operating notes",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/internal/Internal operating notes",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Internal operating notes",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Internal operating notes",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/client/Client-facing overview",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Client-facing overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Client-facing overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "heading-confidentiality/internal/Client-facing overview",
+      "returned": {
+        "documents": [
+          {
+            "id": "synthetic-document",
+            "title": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "synthetic-fact",
+            "text": "A distinct established context claim.",
+            "documentTitle": "Independent synthetic input",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "A substantive authored claim.",
+                "label": "Client-facing overview",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Client-facing overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "A distinct established context claim.",
+                "label": "Established context",
+                "sourceTitle": "Independent synthetic input",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "parser/63a4c31f",
+      "returned": {
+        "parsed": {
+          "frontmatter": {
+            "document_type": "strategy_brief"
+          },
+          "body": "\n##  Two  spaces\n- row\n",
+          "errors": []
+        },
+        "errors": [
+          {
+            "field": "schema_version",
+            "message": "must be '1.0'"
+          },
+          {
+            "field": "state",
+            "message": "must be one of: draft, active, superseded, archived (missing)"
+          },
+          {
+            "field": "scope",
+            "message": "must be one of: once, node, strategy, client, firm (missing)"
+          },
+          {
+            "field": "authority",
+            "message": "must be one of: firm_approved, client_approved, working_draft, external_authoritative, meeting_intelligence (missing)"
+          },
+          {
+            "field": "confidentiality",
+            "message": "must be one of: client_confidential, firm_internal (missing)"
+          },
+          {
+            "field": "source_of_truth",
+            "message": "must be a boolean (true or false)"
+          },
+          {
+            "field": "as_of",
+            "message": "as_of is required (a real YYYY-MM-DD date, not null)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "parser/0475d7b7",
+      "threw": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'document_type')",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "parser/86afa444",
+      "returned": {
+        "parsed": {
+          "frontmatter": {
+            "document_type": "strategy_brief",
+            "as_of": "2027-02-30"
+          },
+          "body": "body",
+          "errors": []
+        },
+        "errors": [
+          {
+            "field": "schema_version",
+            "message": "must be '1.0'"
+          },
+          {
+            "field": "state",
+            "message": "must be one of: draft, active, superseded, archived (missing)"
+          },
+          {
+            "field": "scope",
+            "message": "must be one of: once, node, strategy, client, firm (missing)"
+          },
+          {
+            "field": "authority",
+            "message": "must be one of: firm_approved, client_approved, working_draft, external_authoritative, meeting_intelligence (missing)"
+          },
+          {
+            "field": "confidentiality",
+            "message": "must be one of: client_confidential, firm_internal (missing)"
+          },
+          {
+            "field": "source_of_truth",
+            "message": "must be a boolean (true or false)"
+          },
+          {
+            "field": "as_of",
+            "message": "not a valid YYYY-MM-DD calendar date"
+          }
+        ]
+      }
+    },
+    {
+      "name": "parser/4685fce8",
+      "returned": {
+        "parsed": {
+          "frontmatter": {},
+          "body": "body",
+          "errors": []
+        },
+        "errors": [
+          {
+            "field": "document_type",
+            "message": "must be one of: context_manifest, strategy_brief, client_constraints, ask_and_options, stakeholder_map, calendar_and_deadlines, decision_rules, current_plan, evidence_register, meeting_intelligence, decision_log, agent_mission, execution_playbook, agent_permissions, target_budget_line, vendor_reference_pull, route_and_vehicle_status (missing)"
+          },
+          {
+            "field": "schema_version",
+            "message": "must be '1.0'"
+          },
+          {
+            "field": "state",
+            "message": "must be one of: draft, active, superseded, archived (missing)"
+          },
+          {
+            "field": "scope",
+            "message": "must be one of: once, node, strategy, client, firm (missing)"
+          },
+          {
+            "field": "authority",
+            "message": "must be one of: firm_approved, client_approved, working_draft, external_authoritative, meeting_intelligence (missing)"
+          },
+          {
+            "field": "confidentiality",
+            "message": "must be one of: client_confidential, firm_internal (missing)"
+          },
+          {
+            "field": "source_of_truth",
+            "message": "must be a boolean (true or false)"
+          },
+          {
+            "field": "as_of",
+            "message": "as_of is required (a real YYYY-MM-DD date, not null)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "parser/54d96a5f",
+      "threw": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'document_type')",
+        "intrinsicTypeError": true
+      }
+    },
+    {
+      "name": "mutable-facade/shared-array",
+      "returned": {
+        "documentTypeErrors": [],
+        "tuple": [
+          "context_manifest",
+          "strategy_brief",
+          "client_constraints",
+          "ask_and_options",
+          "stakeholder_map",
+          "calendar_and_deadlines",
+          "decision_rules",
+          "current_plan",
+          "evidence_register",
+          "meeting_intelligence",
+          "decision_log",
+          "agent_mission",
+          "execution_playbook",
+          "agent_permissions",
+          "target_budget_line",
+          "vendor_reference_pull",
+          "route_and_vehicle_status",
+          "synthetic_review_type"
+        ],
+        "map": {
+          "context_manifest": "00_context_manifest",
+          "strategy_brief": "01_strategy_brief",
+          "client_constraints": "02_client_constraints",
+          "ask_and_options": "03_ask_and_options",
+          "stakeholder_map": "04_stakeholder_map",
+          "calendar_and_deadlines": "05_calendar_and_deadlines",
+          "decision_rules": "06_decision_rules",
+          "current_plan": "07_current_plan",
+          "evidence_register": "08_evidence_register",
+          "meeting_intelligence": "09_meeting_intelligence",
+          "decision_log": "10_decision_log",
+          "agent_mission": "11_agent_mission",
+          "execution_playbook": "12_execution_playbook",
+          "agent_permissions": "13_agent_permissions",
+          "target_budget_line": "14_target_budget_line",
+          "vendor_reference_pull": "15_vendor_reference_pull",
+          "route_and_vehicle_status": "16_route_and_vehicle_status"
+        }
+      }
+    },
+    {
+      "name": "mutable-facade/namespace-array-replacement",
+      "returned": {
+        "documentTypeErrors": [],
+        "tuple": [
+          "synthetic_review_type"
+        ],
+        "map": {
+          "context_manifest": "00_context_manifest",
+          "strategy_brief": "01_strategy_brief",
+          "client_constraints": "02_client_constraints",
+          "ask_and_options": "03_ask_and_options",
+          "stakeholder_map": "04_stakeholder_map",
+          "calendar_and_deadlines": "05_calendar_and_deadlines",
+          "decision_rules": "06_decision_rules",
+          "current_plan": "07_current_plan",
+          "evidence_register": "08_evidence_register",
+          "meeting_intelligence": "09_meeting_intelligence",
+          "decision_log": "10_decision_log",
+          "agent_mission": "11_agent_mission",
+          "execution_playbook": "12_execution_playbook",
+          "agent_permissions": "13_agent_permissions",
+          "target_budget_line": "14_target_budget_line",
+          "vendor_reference_pull": "15_vendor_reference_pull",
+          "route_and_vehicle_status": "16_route_and_vehicle_status"
+        }
+      }
+    },
+    {
+      "name": "mutable-facade/shared-map-entry",
+      "returned": {
+        "documentTypeErrors": [
+          {
+            "field": "document_type",
+            "message": "must be one of: context_manifest, strategy_brief, client_constraints, ask_and_options, stakeholder_map, calendar_and_deadlines, decision_rules, current_plan, evidence_register, meeting_intelligence, decision_log, agent_mission, execution_playbook, agent_permissions, target_budget_line, vendor_reference_pull, route_and_vehicle_status"
+          }
+        ],
+        "tuple": [
+          "context_manifest",
+          "strategy_brief",
+          "client_constraints",
+          "ask_and_options",
+          "stakeholder_map",
+          "calendar_and_deadlines",
+          "decision_rules",
+          "current_plan",
+          "evidence_register",
+          "meeting_intelligence",
+          "decision_log",
+          "agent_mission",
+          "execution_playbook",
+          "agent_permissions",
+          "target_budget_line",
+          "vendor_reference_pull",
+          "route_and_vehicle_status"
+        ],
+        "map": {
+          "context_manifest": "00_context_manifest",
+          "strategy_brief": "01_synthetic",
+          "client_constraints": "02_client_constraints",
+          "ask_and_options": "03_ask_and_options",
+          "stakeholder_map": "04_stakeholder_map",
+          "calendar_and_deadlines": "05_calendar_and_deadlines",
+          "decision_rules": "06_decision_rules",
+          "current_plan": "07_current_plan",
+          "evidence_register": "08_evidence_register",
+          "meeting_intelligence": "09_meeting_intelligence",
+          "decision_log": "10_decision_log",
+          "agent_mission": "11_agent_mission",
+          "execution_playbook": "12_execution_playbook",
+          "agent_permissions": "13_agent_permissions",
+          "target_budget_line": "14_target_budget_line",
+          "vendor_reference_pull": "15_vendor_reference_pull",
+          "route_and_vehicle_status": "16_route_and_vehicle_status"
+        }
+      }
+    },
+    {
+      "name": "mutable-facade/namespace-map-replacement",
+      "returned": {
+        "documentTypeErrors": [
+          {
+            "field": "document_type",
+            "message": "must be one of: context_manifest, strategy_brief, client_constraints, ask_and_options, stakeholder_map, calendar_and_deadlines, decision_rules, current_plan, evidence_register, meeting_intelligence, decision_log, agent_mission, execution_playbook, agent_permissions, target_budget_line, vendor_reference_pull, route_and_vehicle_status"
+          }
+        ],
+        "tuple": [
+          "context_manifest",
+          "strategy_brief",
+          "client_constraints",
+          "ask_and_options",
+          "stakeholder_map",
+          "calendar_and_deadlines",
+          "decision_rules",
+          "current_plan",
+          "evidence_register",
+          "meeting_intelligence",
+          "decision_log",
+          "agent_mission",
+          "execution_playbook",
+          "agent_permissions",
+          "target_budget_line",
+          "vendor_reference_pull",
+          "route_and_vehicle_status"
+        ],
+        "map": {
+          "strategy_brief": "replacement"
+        }
+      }
+    },
+    {
+      "name": "fresh-output-arrays-and-items",
+      "returned": {
+        "second": {
+          "documents": [
+            {
+              "id": "synthetic-document",
+              "title": "Independent synthetic input",
+              "templateKey": "01_strategy_brief",
+              "authority": "working_draft",
+              "confidentiality": "client_confidential",
+              "asOf": "2026-10-11",
+              "validUntil": null,
+              "updatedAt": "2026-10-11T00:00:00.000Z",
+              "highlightCount": 9
+            }
+          ],
+          "facts": [],
+          "sections": [
+            {
+              "key": "situation",
+              "title": "Situation and stakes",
+              "items": [
+                {
+                  "text": "Unique statement 8.",
+                  "label": "Overview",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:Overview",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "outcomes",
+              "title": "Objectives and definition of success",
+              "items": [
+                {
+                  "text": "Unique statement 6.",
+                  "label": "success intelligence",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:success intelligence",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "ask",
+              "title": "Strategic ask and options",
+              "items": [
+                {
+                  "text": "Unique statement 5.",
+                  "label": "option goal intelligence",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:option goal intelligence",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "stakeholders",
+              "title": "Stakeholder landscape",
+              "items": [
+                {
+                  "text": "Unique statement 1.",
+                  "label": "stakeholder deadline evidence",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:stakeholder deadline evidence",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "constraints",
+              "title": "Constraints and decision rules",
+              "items": [
+                {
+                  "text": "Unique statement 4.",
+                  "label": "approval option goal",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:approval option goal",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "timing",
+              "title": "Timing and external windows",
+              "items": [
+                {
+                  "text": "Unique statement 2.",
+                  "label": "deadline evidence constraint",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:deadline evidence constraint",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "decisions",
+              "title": "Decisions and commitments",
+              "items": [
+                {
+                  "text": "Unique statement 0.",
+                  "label": "decision evidence deadline ask goal",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:decision evidence deadline ask goal",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "intelligence",
+              "title": "Recent intelligence",
+              "items": [
+                {
+                  "text": "Unique statement 7.",
+                  "label": "current position",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:current position",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "evidence",
+              "title": "Evidence and assumptions",
+              "items": [
+                {
+                  "text": "Unique statement 3.",
+                  "label": "evidence approval ask",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:evidence approval ask",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            }
+          ],
+          "excludedDocuments": 0
+        },
+        "snapshot": {
+          "documents": [
+            {
+              "id": "synthetic-document",
+              "title": "Independent synthetic input",
+              "templateKey": "01_strategy_brief",
+              "authority": "working_draft",
+              "confidentiality": "client_confidential",
+              "asOf": "2026-10-11",
+              "validUntil": null,
+              "updatedAt": "2026-10-11T00:00:00.000Z",
+              "highlightCount": 9
+            }
+          ],
+          "facts": [],
+          "sections": [
+            {
+              "key": "situation",
+              "title": "Situation and stakes",
+              "items": [
+                {
+                  "text": "Unique statement 8.",
+                  "label": "Overview",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:Overview",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "outcomes",
+              "title": "Objectives and definition of success",
+              "items": [
+                {
+                  "text": "Unique statement 6.",
+                  "label": "success intelligence",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:success intelligence",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "ask",
+              "title": "Strategic ask and options",
+              "items": [
+                {
+                  "text": "Unique statement 5.",
+                  "label": "option goal intelligence",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:option goal intelligence",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "stakeholders",
+              "title": "Stakeholder landscape",
+              "items": [
+                {
+                  "text": "Unique statement 1.",
+                  "label": "stakeholder deadline evidence",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:stakeholder deadline evidence",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "constraints",
+              "title": "Constraints and decision rules",
+              "items": [
+                {
+                  "text": "Unique statement 4.",
+                  "label": "approval option goal",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:approval option goal",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "timing",
+              "title": "Timing and external windows",
+              "items": [
+                {
+                  "text": "Unique statement 2.",
+                  "label": "deadline evidence constraint",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:deadline evidence constraint",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "decisions",
+              "title": "Decisions and commitments",
+              "items": [
+                {
+                  "text": "Unique statement 0.",
+                  "label": "decision evidence deadline ask goal",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:decision evidence deadline ask goal",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "intelligence",
+              "title": "Recent intelligence",
+              "items": [
+                {
+                  "text": "Unique statement 7.",
+                  "label": "current position",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:current position",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            },
+            {
+              "key": "evidence",
+              "title": "Evidence and assumptions",
+              "items": [
+                {
+                  "text": "Unique statement 3.",
+                  "label": "evidence approval ask",
+                  "sourceTitle": "Independent synthetic input",
+                  "sourceRef": "heading:evidence approval ask",
+                  "authority": "working_draft",
+                  "asOf": "2026-10-11",
+                  "confidence": null
+                }
+              ]
+            }
+          ],
+          "excludedDocuments": 0
+        }
+      }
+    }
+  ],
+  "realServiceProviderDatabaseNetworkPackageManagerNativeOperations": false,
+  "arbitraryGlobalJavaScriptMutationContainment": false,
+  "fullNativeOrGuardAdoptionAcceptance": false
+}
