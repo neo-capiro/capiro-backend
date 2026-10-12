@@ -1,0 +1,192 @@
+{
+  "source": "8f48604aa1cefdb3e420026633ce8e1f2ca95953",
+  "results": [
+    {
+      "label": "shadowed harmless const key",
+      "source": "const key='canonicalRoute';function harmless(){const key='other';return {[key](){}}}",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "shadowed owned const key",
+      "source": "const key='other';function copy(){const key='canonicalRoute';return {[key](){}}}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "parameter shadows outer const",
+      "source": "const key='canonicalRoute';function harmless(key:string){return {[key](){}}}",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "block const chain owned key",
+      "source": "{const suffix='Route';const key='canonical'+suffix;const copy={[key](){}}}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "constant key cycle terminates",
+      "source": "const first=second;const second=first;const copy={[first](){}}",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "require alias cycle terminates",
+      "source": "const first=second;const second=first;first('./registry.js');",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "string-only template owned key",
+      "source": "const prefix='canonical';const suffix='Route';const copy={[`${prefix}${suffix}`](){}}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "numeric template not coerced",
+      "source": "const suffix=1;const copy={[`other${suffix}`](){}}",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "property getter expression not evaluated",
+      "source": "const value={get key(){throw new Error('MUST NOT EXECUTE')}};const copy={[value.key](){}}",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "call expression not evaluated",
+      "source": "const key=(()=>{throw new Error('MUST NOT EXECUTE')})();const copy={[key](){}}",
+      "expectedReject": false,
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "assertion string owned key",
+      "source": "const key=('canonical'+'Route') as string;const copy={[key](){}}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "type assertion string owned key",
+      "source": "const key=<string>('canonical'+'Route');const copy={[key](){}}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "non-null string owned key",
+      "source": "const key=('canonical'+'Route')!;const copy={[key](){}}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+      ]
+    },
+    {
+      "label": "string assertion module",
+      "source": "import(('./registry.js') as string);",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "string type assertion module",
+      "source": "require(<string>'./registry.js');",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "require alias parenthesis",
+      "source": "const load=((require));load('./registry.js');",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "require alias as expression",
+      "source": "const load=require as typeof require;load('./registry.js');",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "require alias type assertion",
+      "source": "const load=<typeof require>require;load('./registry.js');",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "require alias non-null expression",
+      "source": "const load=require!;load('./registry.js');",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "deep static key parenthesis",
+      "source": "const copy={[(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((('canonicalRoute'))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))](){}};",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "apps/example/src/extra.ts: bounded declaration inspection failed"
+      ]
+    },
+    {
+      "label": "deep static module parenthesis",
+      "source": "import((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((('./registry.js')))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: apps/example/src/extra.ts: bounded owner import inspection failed"
+      ]
+    },
+    {
+      "label": "shadowed local require is conservatively rejected",
+      "source": "function harmless(require:(value:string)=>unknown){require('./registry.js');}",
+      "expectedReject": true,
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    }
+  ],
+  "unexpectedAccepts": [],
+  "unexpectedRejects": [],
+  "sourceMutantsExecuted": false
+}
