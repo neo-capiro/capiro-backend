@@ -1,0 +1,97 @@
+{
+  "commands": [
+    {
+      "kind": "launcher-failure",
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/jest/bin/jest.js"
+      ],
+      "exit": 1,
+      "reason": "cached Jest is linked under apps/api, not root; no install attempted",
+      "stderr": "baseline-original-red.stderr.log"
+    },
+    {
+      "kind": "original-genuine-source-RED",
+      "argv": [
+        "node",
+        "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+        "--config",
+        "docs/canonical-manual-migration-20261012/evidence/pure.jest.cjs",
+        "--runInBand",
+        "--no-cache",
+        "--json"
+      ],
+      "environment": {
+        "MIGRATION_SOURCE_TEST_ROOT": "/workspace/capirov2-cleanup-reviewed-source-composition/apps/api"
+      },
+      "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+      "exit": 1,
+      "result": "10cases9PASS1conflictingPhaseARED",
+      "stdout": "baseline-original-red-attempt2.stdout.log",
+      "stderr": "baseline-original-red-attempt2.stderr.log"
+    },
+    {
+      "kind": "first-source-controls",
+      "sourceWorkingBlobs": "prior to snapshot field capture controls",
+      "exit": 0,
+      "result": "67PASS",
+      "stdout": "source-protocol-initial.stdout.log",
+      "stderr": "source-protocol-initial.stderr.log"
+    },
+    {
+      "kind": "focused-strict-initial-RED",
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "focused-strict-initial.tsconfig.json",
+        "--pretty",
+        "false"
+      ],
+      "exit": 2,
+      "reason": "readonly Jest tuple typing plus missing shared type binding; raw output retained",
+      "stdout": "focused-strict-initial.stdout.log",
+      "stderr": "focused-strict-initial.stderr.log"
+    },
+    {
+      "kind": "focused-strict-source-PASS",
+      "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "exit": 0,
+      "config": "focused-strict.tsconfig.json",
+      "stdout": "focused-strict-current.stdout.log",
+      "stderr": "focused-strict-current.stderr.log"
+    },
+    {
+      "kind": "final-source-controls-PASS",
+      "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "exit": 0,
+      "result": "69PASS0FAIL0SKIP",
+      "config": "pure.jest.cjs",
+      "stdout": "source-protocol-current.stdout.log",
+      "stderr": "source-protocol-current.stderr.log"
+    },
+    {
+      "kind": "actual-PhaseA-inert-and-two-original-confinement-REDs",
+      "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "argv": [
+        "node",
+        "docs/canonical-manual-migration-20261012/evidence/inert-phase-a-source.cjs"
+      ],
+      "exit": 0,
+      "stdout": "inert-phase-a-source.json",
+      "stderr": "inert-phase-a-source.stderr.log"
+    },
+    {
+      "kind": "original-predicate/function/test-preservation",
+      "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "argv": [
+        "node",
+        "docs/canonical-manual-migration-20261012/evidence/source-preservation.cjs"
+      ],
+      "exit": 0,
+      "stdout": "source-preservation.json",
+      "stderr": "source-preservation.stderr.log"
+    }
+  ],
+  "noNativeOrFullGateAcceptance": true
+}

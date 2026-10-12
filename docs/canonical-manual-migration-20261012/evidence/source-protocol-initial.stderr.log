@@ -1,0 +1,9 @@
+PASS apps/api/scripts/lib/pe-migration-guards.spec.ts
+PASS apps/api/scripts/lib/pe-phase-a-safety.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       67 passed, 67 total
+Snapshots:   0 total
+Time:        1.227 s
+Ran all test suites.
+Test results written to: docs/canonical-manual-migration-20261012/evidence/source-protocol-initial.json

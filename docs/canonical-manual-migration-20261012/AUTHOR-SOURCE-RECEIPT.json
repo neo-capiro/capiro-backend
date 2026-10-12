@@ -1,0 +1,128 @@
+{
+  "base": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "baseTree": "825587efcaca9ef152eb90eb996c88b3e8b6a717",
+  "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "tree": "88a1aea62dbaaf4a8aa82086caa7c9aea511d8d7",
+  "ownedPaths": [
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "gitBlob": "92ebecd7ab6fa18a69d7dcb404f097a89bf33411",
+      "bytes": 15452,
+      "sha256": "56219e60d984b3bed650378ab32e40c6e258bf460591e71d3aee40f9a328d64b"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "gitBlob": "20affa081ef362cd6cb18fd4261b634404aedec8",
+      "bytes": 11419,
+      "sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "gitBlob": "342604b55711082a13f82a907a903388171fc04a",
+      "bytes": 5670,
+      "sha256": "0f0d7fb4a6097f30c1680decaf74314d468573846edea55e143827371a59d538"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "gitBlob": "0f68c7ccd86f9ef052128081b9a900b95b0c022e",
+      "bytes": 16305,
+      "sha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22"
+    },
+    {
+      "path": "docs/runbooks/prisma-failed-migration-recovery.md",
+      "gitBlob": "903f0c8d3c7cce5d2a94a570414ff464a25f7111",
+      "bytes": 6292,
+      "sha256": "622f2c4ba12a0b3996aa2a90cfb61f429a41aa227e8f5527b105059b1875e99e"
+    },
+    {
+      "path": "docs/runbooks/program-elements-trust-gates.md",
+      "gitBlob": "1e1a990467675a2ee52b77f045ae3e8c9d3ba99f",
+      "bytes": 8945,
+      "sha256": "a6975e64de92d5071eba7bbf7064e15d34fb5d8b2d888b842673630f44e0374e"
+    }
+  ],
+  "originalEntrypointTrio": [
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "gitBlob": "4acf1252b390dafee65382a1f55aefe63d9879a1",
+      "bytes": 16437,
+      "rawSha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b",
+      "rawLfNormalizedSha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-legacy.sh",
+      "gitBlob": "4f8fb3029be6229f277c61fe40daf88f4c691fac",
+      "bytes": 645,
+      "rawSha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a",
+      "rawLfNormalizedSha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "gitBlob": "481a88ed5207030e5f73f2fbde2aaaea90ca07d4",
+      "bytes": 77254,
+      "rawSha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf",
+      "rawLfNormalizedSha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf",
+      "byteExactBase": true
+    }
+  ],
+  "entrypointBehaviorChanged": false,
+  "originalCaseNames": [
+    "Program Elements operational safety guards supported entrypoints contain no automatic migration-history mutation",
+    "Program Elements operational safety guards exactly one supported entrypoint can execute a migration",
+    "Program Elements operational safety guards canonical promotion gates SHA approval and comparison before DB access",
+    "Program Elements operational safety guards preflight stays network-free and vendor parsing requires explicit authorization",
+    "Program Elements operational safety guards historical LlamaParse unit audit remains SELECT-only",
+    "pe-migration-guards (K4) stripShellComments drops # lines only",
+    "pe-migration-guards (K4) blocks _prisma_migrations and migrate resolve in entrypoint body",
+    "pe-migration-guards (K4) allows migrate deploy and ignores commented history references",
+    "pe-migration-guards (K4) validate/generate exit codes",
+    "pe-migration-guards (K4) replay interpretation forbids resolve and history mutation"
+  ],
+  "originalNamesRetained": 10,
+  "originalNamesRemoved": 0,
+  "authorSelectedCasesPassed": 69,
+  "authorSelectedCasesFailed": 0,
+  "authorSelectedCasesPending": 0,
+  "baselineGenuineRefusal": {
+    "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+    "cases": 10,
+    "passed": 9,
+    "failed": 1,
+    "rawJson": "evidence/baseline-original-red-attempt2.json"
+  },
+  "inertActualPhaseAFunctionAndOriginalConfinementReds": "evidence/inert-phase-a-source.json",
+  "sourcePreservation": "evidence/source-preservation.json",
+  "sourceChecksPerformedAfterLastSourceEditBeforeSourceCommit": true,
+  "checkedFourSourceWorkingBlobsEqualFrozenCommit": true,
+  "focusedStrictSemanticCompile": {
+    "exitCode": 0,
+    "config": "evidence/focused-strict.tsconfig.json",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "incremental": false,
+    "actualTransitiveSourceImports": true,
+    "cachedSharedDeclarations": {
+      "path": "/workspace/capirov2/packages/shared/dist/index.d.ts",
+      "bytes": 203300,
+      "sha256": "f67991a15d17f1ab21b8c7fbf506a0165b257bc4eae09351f5831044bed7cb64"
+    },
+    "jestTypes": "cached real @jest/globals and @types/node/jest; no test type stubs",
+    "wholeCoreCompilerAcceptance": false,
+    "nativeAcceptance": false
+  },
+  "rootOwnedDependency": {
+    "lintRawSnapshotOverlay": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+    "requiredOperand": "source: read(p)",
+    "authorDidNotChangeWrapperOrMetadata": true
+  },
+  "independentReview": "pending /root/objective_destinations exact source review; author receipts are not independent acceptance",
+  "operatorAuthorizationAttested": false,
+  "shellOrMigrationSourceExecuted": false,
+  "databaseProviderNativeOperations": false,
+  "nativeAcceptance": false,
+  "fullCleanup1Acceptance": false,
+  "widerCleanup4Acceptance": false
+}

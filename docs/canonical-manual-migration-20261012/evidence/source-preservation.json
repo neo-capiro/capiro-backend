@@ -1,0 +1,19 @@
+{
+  "sourceHead": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "sourceTree": "88a1aea62dbaaf4a8aa82086caa7c9aea511d8d7",
+  "originalForbiddenPatternDeclarationByteExact": true,
+  "originalFourFunctionDeclarationsByteExact": [
+    "stripShellComments",
+    "countMigrateDeployInvocations",
+    "interpretPrismaValidateGenerate",
+    "interpretMigrateReplay"
+  ],
+  "originalEntireFiveTestGuardDescribeBlockByteExact": true,
+  "phaseAOutsideMigrationFunctionAndOneImportByteExact": true,
+  "originalFullNamesRetained": 10,
+  "originalNamesRemoved": 0,
+  "currentCasesPassed": 69,
+  "guardSha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc",
+  "phaseASha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22",
+  "nativeAcceptance": false
+}

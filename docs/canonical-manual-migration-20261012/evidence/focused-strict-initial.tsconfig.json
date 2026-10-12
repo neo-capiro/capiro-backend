@@ -1,0 +1,32 @@
+{
+  "extends": "../../../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../..",
+    "noEmit": true,
+    "incremental": false,
+    "baseUrl": "../../..",
+    "types": [
+      "node",
+      "jest"
+    ],
+    "typeRoots": [
+      "/workspace/capirov2/apps/api/node_modules/@types"
+    ],
+    "paths": {
+      "@jest/globals": [
+        "/workspace/capirov2/apps/api/node_modules/@jest/globals/build/index.d.ts"
+      ],
+      "@capiro/shared/money": [
+        "packages/shared/src/money.ts"
+      ]
+    }
+  },
+  "files": [
+    "../../../apps/api/scripts/lib/pe-migration-guards.ts",
+    "../../../apps/api/scripts/lib/pe-migration-guards.spec.ts",
+    "../../../apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+    "../../../apps/api/scripts/verify-pe-phase-a-safety.ts"
+  ],
+  "include": [],
+  "exclude": []
+}

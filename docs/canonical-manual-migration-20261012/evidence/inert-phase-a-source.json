@@ -1,0 +1,60 @@
+{
+  "sourceHead": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "sourceTree": "88a1aea62dbaaf4a8aa82086caa7c9aea511d8d7",
+  "exactGuardSha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc",
+  "exactPhaseASha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22",
+  "baselineHead": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "originalStrictCanonicalTrioRefusal": {
+    "ok": false,
+    "findings": [
+      {
+        "code": "prisma_migrate_resolve",
+        "severity": "blocker",
+        "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+        "path": "scripts/entrypoint.sh"
+      }
+    ]
+  },
+  "correctedCanonicalTrio": {
+    "ok": true,
+    "findings": []
+  },
+  "originalPhaseASourceConfinementReds": [
+    {
+      "name": "extra resolve inside a recognized operator arm",
+      "original": {
+        "accepted": true,
+        "snapshotReads": 3
+      },
+      "corrected": {
+        "accepted": false,
+        "snapshotReads": 3,
+        "error": "scripts/entrypoint.sh: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+      },
+      "shellExecuted": false
+    },
+    {
+      "name": "obfuscated automatic resolve outside the operator arms",
+      "original": {
+        "accepted": true,
+        "snapshotReads": 3
+      },
+      "corrected": {
+        "accepted": false,
+        "snapshotReads": 3,
+        "error": "scripts/entrypoint.sh: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+      },
+      "shellExecuted": false
+    }
+  ],
+  "correctedActualPhaseAFunction": {
+    "accepted": true,
+    "snapshotReads": 3
+  },
+  "sourceTextsReadOnly": true,
+  "shellSourceExecuted": false,
+  "subprocessesInvoked": false,
+  "providerCalls": false,
+  "prismaCalled": false,
+  "nativeAcceptance": false
+}
