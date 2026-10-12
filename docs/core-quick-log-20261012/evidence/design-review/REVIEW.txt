@@ -1,0 +1,166 @@
+Independent pre-source design review: Core Quick log continuation
+Date: 2026-10-12
+Reviewer: /root/independent_backend_review (not implementing author)
+
+Verdict
+The revised bounded design in the committed scope below is suitable to implement.
+No unresolved blocking design finding remains for that narrow scope. This is not
+source acceptance, deployment approval, native qualification, or closure of the
+full Figma Quick log contract. Ordinary Planner reads use Planner ACLs, not Core
+client-wall checks; the scope now resolves that concern by sending a fixed generic
+task name with no copied body, client/person/meeting/project associations, URLs,
+collaborators or sensitive text. Core retains protected lineage.
+
+Scope checkpoint accepted
+/workspace/capirov2-quicklog/docs/core-quick-log-20261012/SCOPE.md at exact
+2dbf27f55580c537bc35540475218d5097b641af, deliberately stacked on immutable
+c5e41e320af4b4d841d4b3136777d712116916ed. The scope also requires explicit IANA
+zone with a Planner date, preserves ambiguity without replacing keys, allocates
+20281012010000_client_activity_commands deliberately, and forbids executing that
+migration even in a test database. Final source and regression tests remain to
+be independently reviewed.
+
+Sources inspected
+- Initial Core worktree /workspace/capirov2-quicklog, main exact
+  4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace, clean when inspected.
+- Planner prerequisite /workspace/capirov2-planner, published exact
+  c5e41e320af4b4d841d4b3136777d712116916ed.
+  Its independently qualified implementation source is
+  78b24af72e97f5e36202f8e036d7a96345006b57; earlier review evidence is in
+  ../planner/FINAL-RECEIPT.json. Current review does not rerun those suites.
+- Core ClientActivityService create: apps/api/src/clients/client-activity.service.ts:231;
+  hard deletion: same file:318. Existing service validates same-tenant/client
+  person association but does not itself enforce the client memory wall.
+- Core context resolution and impersonation: apps/api/src/tenant/tenant-context.middleware.ts:220
+  and :308. TenantContext does not carry an impersonation indicator; reject the
+  incoming impersonation header explicitly on the new command surface.
+- Strategy signed identity resolution: packages/auth/src/tenant.guard.ts:111;
+  apps/api-strategy/src/auth/org-tenant-resolver.provider.ts:7, :56, :128.
+  Tenant mapping cache is 60 seconds; membership cache is 30 seconds. Core and
+  Strategy do not accept precisely identical tenant-selection fallback modes.
+- Planner canonical receipts: apps/api-strategy/src/planner/planner.service.ts:717,
+  :723, :744 and :809; planner-task-create-command.ts:42;
+  planner.controller.ts:195; planner-context.guard.ts:12.
+- Ordinary Planner ACL/read behavior: planner.service.ts:237, :311, :682, :690.
+- Existing activity migration:
+  apps/api/prisma/migrations/20261120020000_client_activity/migration.sql.
+  Client composite uniqueness: apps/api/prisma/schema.prisma:994.
+- Date semantics: docs/planner-create-receipt-20261012/CONTRACT.md:80.
+
+Accepted design corrections from review
+1. Same bearer alone cannot guarantee equal resolved tenants at both services,
+   especially during org mapping cache drift. New Core candidate may add optional
+   x-capiro-expected-tenant-id and x-capiro-expected-actor-id constraints to the
+   PR2395 POST and GET controllers. Compare against independently authenticated
+   Planner context before delegation; mismatch is generic 403. Never treat the
+   headers as identity or authority. Core bridge always sends both, with original
+   bearer; reject impersonation, forward no caller tenant-selection hints.
+   Preserve optional-header behavior for existing direct callers and shared auth.
+2. Core's key includes client, whereas Planner's key includes tenant/Clerk actor.
+   Persist one server-generated Core-command UUID as the remote key; do not
+   forward the browser requestId unchanged. Freeze original Clerk actor and
+   assignee mapping plus exact Planner JSON. Identity changes fail closed.
+3. Keep receipt independent of mutable/deletable ClientActivity. Preserve its
+   original activity ID after legacy deletion. No cascade or restrict relation
+   to activity that destroys the receipt or blocks existing hard deletion.
+   Never recreate a deleted activity. Check same-tenant/client activity presence
+   before a new attempt; preserve uncertain historical remote state when absent.
+4. Explicitly stack only immutable PR2395 c5e41e320 prerequisite; keep base and
+   new delta separate in ownership/path ledgers. Preserve PR2393/2394/2395 and
+   all original candidates. No new task service.
+
+Remaining design conditions
+AUTHORITY AND PAYLOAD
+- Check active Core actor and assignee membership, same-tenant Clerk mapping,
+  current client walls for both, and current client-person association before
+  reads and attempts. Request/receipt IDs do not grant authority. Receipt access
+  is owner-private plus current Core client authority, not merely tenant-wide.
+- Planner task/list/queue reads do not recheck Core walls. Prefer a generic
+  personal task with no copied activity body, contact/client names or sensitive
+  association; retain protected details and lineage in Core. Deliberately decide
+  how even client/person IDs or deep-link association are exposed. Otherwise
+  ongoing visibility requires a separately reviewed policy. Preflight grants
+  are not a fence against concurrent cross-service revocation.
+- Initial Planner fields must be narrowly allowlisted: no project memberships,
+  collaborators, dependencies, rule/template/form expansion, arbitrary links,
+  or caller-controlled privileged lineage. New sourceType/sourceId and structured
+  lineage are server-owned. Unsupported Directory counterparty, owed-by semantics,
+  objective and strategy-step writes fail closed; ordinary legacy activity kinds
+  are not evidence that those richer product policies have been implemented.
+
+TRANSACTION AND RECOVERY
+- Create local activity and durable command/receipt in the same caller-owned
+  tenant transaction through a shared ClientActivityService helper. Preserve
+  legacy create validation and behavior. Do not nest a second own transaction.
+- Local uniqueness must scope tenant/Core actor/client/browser request ID.
+  Stable payload hash rejects changed data; resolved defaults and remote payload
+  are frozen once. Validate bounded JSON before recursive hashing.
+- Commit versioned attempt token/lease before HTTP; network executes outside the
+  Core transaction. Finalization CAS checks attempt token and version. An old
+  response cannot overwrite a newer attempt. Expired leases reuse the same
+  remote command key. Failed local finalization does not delete remote tasks.
+- Remote receipt GET 404 means missing receipt OR missing/inaccessible task;
+  403 can mean revoked membership/link. Neither proves no task was created.
+  Preserve historical state and fixed key; never call ambiguous/unavailable
+  outcomes definitely failed or allocate a new key. Explicit resume uses read-only
+  recovery first and only the identical-key POST under current authority.
+- A formerly accepted task receipt is not continuing access. Do not return cached
+  task details or an enabled destination after current remote authority fails.
+  Distinguish local activity saved, follow-up pending/unknown, authorized complete,
+  and unavailable. Activity deletion must not cause remote recreation or an
+  unsupported claim that an unknown task never existed.
+- Validate remote status, exact request ID, completed status and UUID task ID.
+  Malformed/oversized/partial HTTP success is ambiguous. Fixed trusted URL only,
+  no redirects, bounded timeout/body, no bearer persistence or raw upstream body
+  in public errors/logs. A timeout does not prove the remote transaction aborted.
+
+DATES AND LINEAGE
+- Core dueAt is an instant; Planner dueOn is date-only with optional wall time and
+  IANA zone. Accept an explicit bounded Planner schedule or leave mapping
+  unsupported. Do not infer date by UTC slicing or guess the user's time zone.
+  Preserve canonical Planner DST gap/fold and default-zone behavior without
+  claiming that this decides full Quick log overdue/reminder policy.
+- Structured immutable lineage can name command, activity, existing client person,
+  remote request and accepted task. Do not invent objective/workflow destinations.
+  An edited activity must not mutate the frozen remote command payload.
+
+MIGRATION AND DATA LIFECYCLE
+- Allocate a new migration source deliberately; do not run it. New table needs
+  FORCE RLS with tenant USING and WITH CHECK, application tenant predicates,
+  positive version/attempt constraints and scoped command uniqueness.
+- Prefer tenant-bound composite client FK where appropriate; ensure all writes
+  match tenant/client. Record original actor identity without enabling reassignment.
+  Tenant/client deletion and retained payload policy must be explicit and avoid
+  silently changing existing deletion behavior. Activity deletion cannot cascade
+  the durable idempotency receipt or be blocked by it.
+- Do not expose internal receipts through generic resource or tenant-wide reads.
+
+Required focused negative controls for implementation review
+- Same browser UUID across different clients remains independent; same scope
+  identical retry yields one activity and task; changed payload conflicts.
+- Lost response after remote commit; failed local finalization; expired attempt;
+  late older completion; concurrent duplicate command and explicit resume.
+- Foreign/inactive actor or assignee, changed Clerk mapping, client grant revoked,
+  foreign person, unsupported fields, impersonation: no remote write.
+- Expected tenant and actor mismatches on BOTH Planner POST and GET, checked
+  before delegation; legacy direct calls without headers remain compatible.
+- Missing/deleted local activity and missing/deleted/unauthorized remote task;
+  receipt retained, no local recreation or new remote key, honest unknown state.
+- Core GET with current remote refusal must not expose cached protected task
+  details. Receipt and actor/client scope remain enforced after a task is edited.
+- Timeout, redirect, transport failure, malformed/oversized 2xx, mismatched
+  request/status/task ID, 401/403/404/409/5xx; no raw token/body exposure.
+- Date-only, explicit time/zone, gap/fold, no schedule; no implicit dueAt slicing.
+- Legacy activity create/update/delete regression; source-level schema/RLS and
+  synthetic lifecycle checks. The committed scope prohibits executing the new
+  migration even in a test database; honor that boundary. Keep native limitations
+  explicit.
+
+Qualification and limits
+Current activity was source/design inspection only; no new runtime tests executed,
+no production files edited, and no migration/database/provider call made.
+Native Prisma engines remain unavailable: official download CONNECT is rejected
+403 by the environment proxy before TLS. No bypass attempted. Native PostgreSQL
+RLS/MVCC/concurrency qualification remains separate. Backend ESLint is undeclared
+and no applicable checked-in configuration was found by the implementing owner;
+that is not relabeled as a passing lint check.
