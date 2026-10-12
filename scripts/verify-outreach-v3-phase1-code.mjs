@@ -69,7 +69,7 @@ const steps = [
       'src/engagement-workers/engagement-workers.spec.ts',
       'src/engagement/runtime',
       'src/engagement/engagement-sync-scheduler.service.spec.ts',
-      'src/engagement/outreach-job.service.spec.ts',
+      'src/engagement/outreach-job.spec.ts',
       'src/engagement/outreach-send-intent.service.spec.ts',
       'src/engagement/notetaker/notetaker.service.spec.ts',
       'src/intelligence/alert-memo/alert-memo.service.spec.ts',

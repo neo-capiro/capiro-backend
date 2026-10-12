@@ -38,7 +38,7 @@ const TEST_TARGETS = [
   'src/engagement/ai-credential-resolver.service.spec.ts',
   'src/engagement/governed-engagement.factory.spec.ts',
   'src/engagement/engagement-sync-scheduler.service.spec.ts',
-  'src/engagement/outreach-job.service.spec.ts',
+  'src/engagement/outreach-job.spec.ts',
   'src/engagement/outreach-send-intent.service.spec.ts',
   'src/engagement/notetaker/notetaker.service.spec.ts',
   'src/engagement/mail-sender.service.spec.ts',
