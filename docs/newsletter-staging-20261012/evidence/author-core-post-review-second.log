@@ -1,0 +1,32 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/outreach-v3/services/outreach-newsletter-staging.spec.ts
+  ● saved newsletter staging through canonical Workspace and Outreach owners › locks same-client wall and its live grant, then delegates canonical client authorization
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      139 |     const h = harness(true); await h.stage();
+      140 |     expect(h.authorization.authorizeClientWithinTx).toHaveBeenCalledWith(h.tx, expect.anything(), clientId);
+    > 141 |     expect(h.sql.filter((q) => q.text.includes('FROM clients') || q.text.includes('FROM client_memory_access')).every((q) => q.text.includes('FOR SHARE'))).toBe(true);
+          |                                                                                                                                                             ^
+      142 |   });
+      143 |   it.each(['grant', 'clientExists', 'authorized'])('refuses current client %s failure before state change', async (key) => {
+      144 |     const h = harness(true); (h.state as any)[key] = false; await expect(h.stage()).rejects.toThrow(); expect(h.state.writes).toBe(0);
+
+      at Object.<anonymous> (src/outreach-v3/services/outreach-newsletter-staging.spec.ts:141:157)
+
+PASS src/outreach-v3/services/outreach-command-engine.service.spec.ts
+PASS src/outreach-v3/outreach-v3-phase2-architecture.spec.ts
+PASS src/outreach-v3/state/outreach-content-skeleton-state.spec.ts
+PASS src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts
+PASS src/outreach-v3/state/outreach-command-contract.spec.ts
+
+Test Suites: 1 failed, 5 passed, 6 total
+Tests:       1 failed, 91 passed, 92 total
+Snapshots:   0 total
+Time:        7.503 s
+Ran all test suites matching /src\/outreach-v3\/services\/outreach-newsletter-staging.spec.ts|src\/outreach-v3\/services\/outreach-command-engine.service.spec.ts|src\/outreach-v3\/state\/outreach-command-contract.spec.ts|src\/outreach-v3\/state\/outreach-content-skeleton-state.spec.ts|src\/outreach-v3\/state\/outreach-content-skeleton-boundaries.spec.ts|src\/outreach-v3\/outreach-v3-phase2-architecture.spec.ts/i.

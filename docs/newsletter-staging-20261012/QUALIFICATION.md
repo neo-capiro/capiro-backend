@@ -2,7 +2,7 @@
 
 Independent accepted implementation: `77e8323527d5ed533aa084cb8865f4b2d75f9958`.
 Tree: `fd813d3ecf5937f1eebcc498af244f612bcdb61b`.
-The publication commit adds only this handoff/evidence directory. All eleven
+The publication commits add only this handoff/evidence directory. All eleven
 incremental code/test/migration-source Git blobs remain identical to that head.
 
 Passing author checks: shared TypeScript build; primary full Core TypeScript

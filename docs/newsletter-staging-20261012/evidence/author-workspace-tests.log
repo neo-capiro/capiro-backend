@@ -1,0 +1,57 @@
+FAIL src/prospect-resources/prospect-draft-access.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/prospect-resources/prospect-notification-access.ts[0m:[93m16[0m:[93m25[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'prospectId' does not exist in type 'WsDraftSelect<DefaultArgs>'.
+
+    [7m16[0m     select: { id: true, prospectId: true, ownerId: true },
+    [7m  [0m [91m                        ~~~~~~~~~~[0m
+    [96msrc/prospect-resources/prospect-notification-access.ts[0m:[93m19[0m:[93m14[0m - [91merror[0m[90m TS2339: [0mProperty 'prospectId' does not exist on type '{ id: string; status: WsDocStatus; tenantId: string; ownerId: string; lastEditedById: string | null; docTitle: string; industry: string | null; product: string | null; client: string | null; ... 5 more ...; updatedAt: Date; }'.
+
+    [7m19[0m   if (!draft.prospectId) return true;
+    [7m  [0m [91m             ~~~~~~~~~~[0m
+    [96msrc/prospect-resources/prospect-notification-access.ts[0m:[93m23[0m:[93m87[0m - [91merror[0m[90m TS2339: [0mProperty 'prospectId' does not exist on type '{ id: string; status: WsDocStatus; tenantId: string; ownerId: string; lastEditedById: string | null; docTitle: string; industry: string | null; product: string | null; client: string | null; ... 5 more ...; updatedAt: Date; }'.
+
+    [7m23[0m       !(await prospectResourceScope(tx, tenantId, { clerkUserId: recipientId }, draft.prospectId!))
+    [7m  [0m [91m                                                                                      ~~~~~~~~~~[0m
+    [96msrc/prospect-resources/prospect-notification-access.ts[0m:[93m27[0m:[93m40[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'prospectId' does not exist in type 'WsDraftWhereInput'.
+
+    [7m27[0m       where: { id: draft.id, tenantId, prospectId: draft.prospectId },
+    [7m  [0m [91m                                       ~~~~~~~~~~[0m
+    [96msrc/prospect-resources/prospect-notification-access.ts[0m:[93m27[0m:[93m58[0m - [91merror[0m[90m TS2339: [0mProperty 'prospectId' does not exist on type '{ id: string; status: WsDocStatus; tenantId: string; ownerId: string; lastEditedById: string | null; docTitle: string; industry: string | null; product: string | null; client: string | null; ... 5 more ...; updatedAt: Date; }'.
+
+    [7m27[0m       where: { id: draft.id, tenantId, prospectId: draft.prospectId },
+    [7m  [0m [91m                                                         ~~~~~~~~~~[0m
+
+FAIL src/prospect-resources/prospect-independent-review.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/prospect-resources/prospect-draft-create.ts[0m:[93m41[0m:[93m30[0m - [91merror[0m[90m TS2339: [0mProperty 'wsProspectDraftReceipt' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">'.
+
+    [7m41[0m     const receipt = await tx.wsProspectDraftReceipt.findFirst({
+    [7m  [0m [91m                             ~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96msrc/prospect-resources/prospect-draft-create.ts[0m:[93m48[0m:[93m58[0m - [91merror[0m[90m TS2353: [0mObject literal may only specify known properties, and 'prospectId' does not exist in type 'WsDraftWhereInput'.
+
+    [7m48[0m         where: { id: receipt.draftId, tenantId, ownerId, prospectId },
+    [7m  [0m [91m                                                         ~~~~~~~~~~[0m
+    [96msrc/prospect-resources/prospect-draft-create.ts[0m:[93m57[0m:[93m14[0m - [91merror[0m[90m TS2339: [0mProperty 'wsProspectDraftReceipt' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">'.
+
+    [7m57[0m     await tx.wsProspectDraftReceipt.create({
+    [7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+FAIL src/documents/documents.service.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/documents/documents.service.ts[0m:[93m56[0m:[93m26[0m - [91merror[0m[90m TS2559: [0mType '{ id: string; tenantId: string; ownerId: string; lastEditedById: string | null; docTitle: string; industry: string | null; product: string | null; client: string | null; status: WsDocStatus; ... 5 more ...; updatedAt: Date; }' has no properties in common with type '{ prospectId?: string | null | undefined; }'.
+
+    [7m56[0m     denyProspectTransfer(draft);
+    [7m  [0m [91m                         ~~~~~[0m
+    [96msrc/documents/documents.service.ts[0m:[93m78[0m:[93m26[0m - [91merror[0m[90m TS2559: [0mType '{ id: string; tenantId: string; ownerId: string; lastEditedById: string | null; docTitle: string; industry: string | null; product: string | null; client: string | null; status: WsDocStatus; ... 5 more ...; updatedAt: Date; }' has no properties in common with type '{ prospectId?: string | null | undefined; }'.
+
+    [7m78[0m     denyProspectTransfer(draft);
+    [7m  [0m [91m                         ~~~~~[0m
+
+Test Suites: 3 failed, 3 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        9.346 s
+Ran all test suites matching /src\/documents\/documents.service.spec.ts|src\/prospect-resources\/prospect-independent-review.spec.ts|src\/prospect-resources\/prospect-draft-access.spec.ts/i.

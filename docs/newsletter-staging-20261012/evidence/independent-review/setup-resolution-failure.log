@@ -1,0 +1,8 @@
+● Validation Error:
+
+  Module ts-jest in the transform option was not found.
+         <rootDir> is: /workspace/newsletter-staging
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
