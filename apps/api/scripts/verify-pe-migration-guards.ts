@@ -3,8 +3,7 @@
  * Executable migration guards for PE permanent release gate (K4).
  *
  * Offline (always):
- *  - automatic entrypoint paths: no _prisma_migrations mutation or migrate resolve
- *  - exact-shape operator recovery arms are checked separately, never replayed
+ *  - entrypoints: no _prisma_migrations mutation, no migrate resolve
  *  - exactly one active migrate deploy path among entrypoint trio
  *  - package scripts expose prisma validate / generate
  *
@@ -20,7 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  assertNoAutomaticMigrationHistoryMutation,
+  assertNoMigrationHistoryMutation,
   countMigrateDeployInvocations,
   interpretPrismaValidateGenerate,
   stripShellComments,
@@ -59,7 +58,7 @@ function main(): void {
     'scripts/entrypoint-dispatcher.inc',
   ].map((path) => ({ path, source: read(path) }));
 
-  const history = assertNoAutomaticMigrationHistoryMutation(snaps);
+  const history = assertNoMigrationHistoryMutation(snaps);
   assert.equal(
     history.ok,
     true,
