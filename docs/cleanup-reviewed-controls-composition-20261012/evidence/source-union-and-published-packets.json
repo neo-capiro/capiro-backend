@@ -1,0 +1,62 @@
+{
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "composedSourceHead": "fc7ef349e49a943b7020ab78ee9d2b8bdb02f9ed",
+  "composedSourceTree": "ef854c0670db309d396ca2f4e8131b35581c6d81",
+  "publishedAncestors": {
+    "2413": "cc489e7e33a4f451e12a94612fb01968d8e7a568",
+    "2414": "5f49b1ae05782bbaedcabda51ae293e5c4b5c373",
+    "2415": "fa8bd32059c62f9b0dd5a5b10e935c2452a07f11"
+  },
+  "nonDocUnion": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "blob": "baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "sha256": "4ab5e5b3aa91b3466ceafa1cd84f882ede5a21aeb083e96ca409cef0363fa91e"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+      "blob": "d9a82728dc01bd0b48a92580ab581b13ff19bec8",
+      "sha256": "e9005acc539c1e9cb3e8d0187b4e9c3fc41391a7dde0ce08973f387020a987f2"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+      "blob": "c5be25e428397dcf41c10a6cadba0bd6ca3ae2df",
+      "sha256": "0527611e0f93d7378c5c3ac270541096a623391ae061976f2f5ff0c283c80424"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts",
+      "blob": "d36871ae5ce879f59b941f6ab5eb1c944ab0dec8",
+      "sha256": "48662d2c8fa69ee9d1041964b48bef8b6baa2ac6c0ddf97111c44a90d34c1531"
+    },
+    {
+      "path": "package.json",
+      "blob": "4bd52e61f66c11f5293783dde6e98724dda934ea",
+      "sha256": "00027871f453433492f5e32d279fbc80b60cd11139c6e497e5a8dd311ac17a39"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "blob": "5e46f212702716896bd2e4e2a986180435ae6142",
+      "sha256": "1ee6be5fee4f958b29e57e7c9f77c1da9071b59aa8749b53553da75d1a024c35"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "blob": "0d1699b9c75a44e2d5541db42ee4aeeaca50f2ce",
+      "sha256": "031bb5c6a8b3ffb3df1d1fa1e824d1183cd92d301add8b6de38e499bd2422e65"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "blob": "7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "sha256": "f68cf0819176ebdd56f25ef3387b2a9fd3e014f40ade90ecb4dc7cca75699019"
+    }
+  ],
+  "packageSemanticOverlap": "only new ownership alias and Phase1 required --run",
+  "allOtherPackageValuesExact": true,
+  "publishedMasterHashesVerified": {
+    "2413": 249,
+    "2414": 27,
+    "2415": 31
+  },
+  "newsletterProductionLineageAdopted": false,
+  "allDeclaredProductionAndRebuiltUnified": false,
+  "nativeAcceptance": false
+}
