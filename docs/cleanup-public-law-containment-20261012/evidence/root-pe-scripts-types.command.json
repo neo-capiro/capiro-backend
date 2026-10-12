@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-public-law-source/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig.pe-scripts.json",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-public-law-source/apps/api",
+  "source": "74b10b5b7c9f536d0b39b4bb078b602152d253af",
+  "uncommittedMetadataAndSmokeOnly": true,
+  "exitCode": 0,
+  "seconds": 8.789,
+  "cachedNoEngineDeclarations": true,
+  "nativeAcceptance": false
+}

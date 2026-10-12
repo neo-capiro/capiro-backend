@@ -1,0 +1,22 @@
+[
+  {
+    "manifest": "docs/public-law-exact-sha-investigation-20261012/SHA256.json",
+    "entries": 53,
+    "bad": []
+  },
+  {
+    "manifest": "docs/cleanup-public-law-independent-review-20261012/SHA256SUMS-CCE.json",
+    "entries": 13,
+    "bad": []
+  },
+  {
+    "manifest": "docs/cleanup-public-law-independent-review-20261012/SHA256SUMS.json",
+    "entries": 23,
+    "bad": []
+  },
+  {
+    "manifest": "docs/cleanup-migration-policy-investigation-20261012/SHA256SUMS.json",
+    "entries": 11,
+    "bad": []
+  }
+]

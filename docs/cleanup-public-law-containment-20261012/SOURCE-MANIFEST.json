@@ -1,0 +1,28 @@
+{
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "reviewedIntegrationSource": "364019751656acec243e49ef428044dd48425e95",
+  "tree": "149589a99dcb66e62999afbb68101359b620ae8d",
+  "files": [
+    {
+      "path": "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+      "blob": "29e2f89defd7950d2bc29e7771f7dfe59f2e8f90",
+      "sha256": "e8dad94d883bf2274e2bd2ddaf955407b304bbb0aaedf58d8a73f49ddd0bb072"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-public-law-facade-containment.ts",
+      "blob": "00f152adefb259a17bb746adee2537589c99fb58",
+      "sha256": "a5124c196aefce4b43b3e5882ef3cdc7a585f366934c53fd07ab2230628c728e"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "blob": "5545291345f7603e2f700203a8828b765019a02f",
+      "sha256": "478024c4f23a72735107a1fe0b70edb90acdf3a2d663c21fc4c940160be9cf5f"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs",
+      "blob": "b288f8dd0952587d63d81f5d5f10eefad995d903",
+      "sha256": "10cfbc2f5c3c6348f7b2ad5524cb2bad6891d8ed064a2d7d06a84cfbb9b5fe1a"
+    }
+  ],
+  "nativeAcceptance": false
+}

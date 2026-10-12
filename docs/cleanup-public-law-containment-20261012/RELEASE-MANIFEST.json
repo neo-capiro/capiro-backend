@@ -1,0 +1,15 @@
+{
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "source": "364019751656acec243e49ef428044dd48425e95",
+  "tree": "149589a99dcb66e62999afbb68101359b620ae8d",
+  "authorOriginalSource": "fcbf671f585968144b30293c2b1a4fc146cd82ff",
+  "authorRepairSource": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "independentInitialEvidence": "69757d9eccad97aafcdd9bca9d05a57d88a3e53a",
+  "finalIndependentReview": "3b7d686d2ca4e78606ef224c7085941068a04005",
+  "sourceManifest": "SOURCE-MANIFEST.json",
+  "remainingBaselinePolicyRefusals": 2,
+  "backendHttpDtoContractDelta": false,
+  "nativeAcceptance": false,
+  "publicationHeadTree": "PR body and external publication receipt",
+  "independentControlsPassed": 131
+}

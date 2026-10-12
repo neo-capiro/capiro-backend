@@ -1,0 +1,5 @@
+{
+  "action": "comment-only header update",
+  "result": "patch context absent; author had already corrected header, no edit applied",
+  "sourceUntouched": true
+}

@@ -1,0 +1,16 @@
+{
+  "source": "364019751656acec243e49ef428044dd48425e95",
+  "protectedFilesUnchanged": [
+    "apps/api/scripts/parse-defense-approps-public-law.ts",
+    "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+    "apps/api/scripts/verify-pe-migration-guards.ts",
+    "apps/api/scripts/lib/pe-migration-guards.ts",
+    "apps/api/scripts/lint-pe-scripts.ts",
+    "apps/api/scripts/entrypoint.sh"
+  ],
+  "schemaMigrationChanges": [],
+  "frontendSourceChanges": [],
+  "inheritedPacketChanges": [],
+  "backendHttpDtoContractDelta": false,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,21 @@
+{
+  "source": "fcbf671f585968144b30293c2b1a4fc146cd82ff",
+  "check": "array-guard prefix operator identity",
+  "original": [],
+  "mutations": [
+    {
+      "operator": "+",
+      "failures": []
+    },
+    {
+      "operator": "-",
+      "failures": []
+    },
+    {
+      "operator": "~",
+      "failures": []
+    }
+  ],
+  "defect": true,
+  "nativeAcceptance": false
+}
