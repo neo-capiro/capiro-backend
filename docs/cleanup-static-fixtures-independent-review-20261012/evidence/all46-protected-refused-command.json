@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/bounded.jest.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/all46-protected-refused-results.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api",
+  "source": "4d61968117ba685ab0082b8fc7f04095c4f1f4db",
+  "exitCode": 1,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "99e26c5b91dd35c4b868213226a9184c9e298103a629f847e65b4791fd72af0e",
+  "reasonForBoundedRerun": "add explicit protected reporting-body refusal as well as existing live-Web/ports refusal"
+}

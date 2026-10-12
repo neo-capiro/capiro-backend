@@ -1,0 +1,60 @@
+{
+  "acceptedSourceCandidates": [
+    "98397536c3bda66810abc2ca997ad2ff02b76b34",
+    "2d88ac7063e0e5b75c0490411a3758cb655beb01"
+  ],
+  "acceptedSourceCandidateTrees": [
+    "d8ad11fd32cd93496aea1c5e112eeae3a7d3b728",
+    "56645f11cfaef1f78cc370e41fa9a4fed074d198"
+  ],
+  "reviewSourceUnion": "4d61968117ba685ab0082b8fc7f04095c4f1f4db",
+  "reviewSourceUnionTree": "2f4bf7c5aa5c7cfdbfc8c6f9c37c31b10af32250",
+  "reviewBase": "62d057b4a17b2c038920f10b93e83e51e46239bc",
+  "publishedCode": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "acceptedCodePaths": 9,
+  "fixturesCurrentWebExact": 5,
+  "readersFullOriginalInverseExact": 3,
+  "baselineEntriesOutsideNineExact": 22832,
+  "priorDocsExact": 11069,
+  "schemaMigrationPredicatePathsExact": 611,
+  "finalMockedCases": {
+    "Intelligence": 32,
+    "Meri": 4,
+    "skeleton": 10,
+    "total": 46,
+    "failed": 0,
+    "pending": 0,
+    "todo": 0
+  },
+  "finalCaseStatusMultisetEqualsBeforeAfter": true,
+  "finalHostProtectedReadRefusal": true,
+  "finalHostLiveWebAndPortsRefusal": true,
+  "initialBroadHostIncidentalProtectedHasteRead": true,
+  "protectedBehaviorManuallyInspectedPrintedOrExecuted": false,
+  "unpublishedReportingBranchAccessed": false,
+  "originalBroadHostsZeroProtectedReadClaim": false,
+  "actualDefaultSkeletonControls": 8,
+  "independentAdditionalSkeletonControls": 7,
+  "sourceMapMutationRefusals": 21,
+  "authorIndexBindingsVerified": 56,
+  "sourceWhitespaceExit": 2,
+  "sourceWhitespaceWarningRetained": true,
+  "fullFloorAcceptance": "OPEN",
+  "frontendRuntimeExecuted": false,
+  "nativeDatabaseProviderAcceptance": false,
+  "deniedDetailedReportReadOrRetried": false,
+  "defaultRepoJestConfigChanged": false,
+  "productionApplicationRuntimeEdited": false,
+  "authorMetadataSupplement": {
+    "authorMetadataSupplement": "94d93c6f3e47a2acbbd89049472d037349b50717",
+    "authorMetadataTree": "8a423bac37fbb14d31978556188c27a1d16edded",
+    "indexBindingsVerified": 16,
+    "sourceCarryFromPriorReviewUnion": "4d61968117ba685ab0082b8fc7f04095c4f1f4db",
+    "sourceCarryNonDocDelta": [],
+    "currentReviewUnion": "92d8e7521510f12c082543178efeea18a41a50f2",
+    "currentReviewTree": "b87aa2bae5ddb319db64d56c023268825d91e05c",
+    "noTestsRepeatedForDocCarry": true,
+    "originalC482FourteenBindingsAndRawRetained": true
+  },
+  "sourceProofProtectedReadFieldScope": "Git source proof only; original broad Jest incidental read is disclosed separately"
+}

@@ -1,0 +1,10 @@
+PASS src/intelligence/intelligence.mapping-governance.spec.ts
+PASS src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts
+PASS src/meri/meri-stream-launcher.fail-closed.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       46 passed, 46 total
+Snapshots:   0 total
+Time:        2.808 s
+Ran all test suites.
+Test results written to: ../../docs/cleanup-static-fixtures-independent-review-20261012/evidence/all46-results.json

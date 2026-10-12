@@ -1,0 +1,11 @@
+Error: Independent fixture qualification refused protected reporting body read
+    at checked (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs:8:120)
+    at fs.<computed> [as readFileSync] (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs:12:41)
+    at getContent (/workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/worker.js:114:22)
+    at Object.worker (/workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/worker.js:138:23)
+    at HasteMap._processFile (/workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/index.js:637:8)
+    at HasteMap._buildHasteMap (/workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/index.js:684:28)
+    at /workspace/capirov2/node_modules/.pnpm/jest-haste-map@29.7.0/node_modules/jest-haste-map/build/index.js:379:33
+    at async /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:268:9
+    at async Promise.all (index 0)
+    at async buildContextsAndHasteMaps (/workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js:248:20)

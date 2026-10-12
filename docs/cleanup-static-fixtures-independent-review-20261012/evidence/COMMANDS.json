@@ -1,0 +1,49 @@
+[
+  {
+    "name": "all46-web-refused",
+    "source": "4d61968117ba685ab0082b8fc7f04095c4f1f4db",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--require",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/bounded.jest.cjs",
+      "--runInBand",
+      "--no-cache",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/all46-results.json"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC",
+      "CI": "1"
+    },
+    "exitCode": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "328457665c79cd28f29579c1111382ad9c5664a7ff2c9787235b005ef2284df4"
+  },
+  {
+    "name": "skeleton-default-web-refused",
+    "source": "4d61968117ba685ab0082b8fc7f04095c4f1f4db",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--require",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs",
+      "scripts/ci/outreach-skeleton-owned-input.spec.mjs"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC",
+      "CI": "1"
+    },
+    "exitCode": 0,
+    "stdoutSha256": "b4f3169677968aafe634747a818247ea0061b61119cb41fd8d8dfc952167d55a",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

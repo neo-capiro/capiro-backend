@@ -1,0 +1,7 @@
+● Validation Error:
+
+  Test environment /workspace/capirov2/apps/api/node_modules/jest-environment-node cannot be found. Make sure the testEnvironment configuration option points to an existing node module.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+

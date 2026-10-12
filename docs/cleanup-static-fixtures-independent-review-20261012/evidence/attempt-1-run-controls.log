@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/run-controls.py", line 18, in <module>
+    run('all46-web-refused',[node,'--require',str(packet/'no-web-read.cjs'),'/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js','--config',str(packet/'bounded.jest.cjs'),'--runInBand','--no-cache','--json','--outputFile',str(packet/'all46-results.json')],root/'apps/api')
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/run-controls.py", line 17, in run
+    assert r.returncode==0,(name,r.returncode,r.stderr.decode())
+           ^^^^^^^^^^^^^^^
+AssertionError: ('all46-web-refused', 1, '● Validation Error:\n\n  Test environment /workspace/capirov2/apps/api/node_modules/jest-environment-node cannot be found. Make sure the testEnvironment configuration option points to an existing node module.\n\n  Configuration Documentation:\n  https://jestjs.io/docs/configuration\n\n')

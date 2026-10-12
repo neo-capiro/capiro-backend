@@ -1,0 +1,29 @@
+[
+  {
+    "name": "all46-web-refused",
+    "source": "4d61968117ba685ab0082b8fc7f04095c4f1f4db",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--require",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/bounded.jest.cjs",
+      "--runInBand",
+      "--no-cache",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/all46-results.json"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC",
+      "CI": "1"
+    },
+    "exitCode": 1,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "238b9ab23a5d267abdb13751c1c31f508a66535ddd4f5507d1f47e07393bd395"
+  }
+]

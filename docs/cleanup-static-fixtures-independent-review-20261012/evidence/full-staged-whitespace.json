@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "exitCode": 2,
+  "reason": "verbatim initial Jest environment-error stderr retains final blank line",
+  "rawWarningPreserved": true,
+  "rawBytesTrimmedOrReencoded": false,
+  "fullFloorAcceptance": "OPEN"
+}

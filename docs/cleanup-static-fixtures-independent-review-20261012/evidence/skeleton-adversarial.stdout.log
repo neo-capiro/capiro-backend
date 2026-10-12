@@ -1,0 +1,23 @@
+✔ backend input preserves exact Core bytes and all ten original boundary cases (3.777657ms)
+✔ backend identity succeeds with Web absent and makes zero Web read attempts (5.122959ms)
+✔ missing opaque source is refused (2.105823ms)
+✔ same-size opaque source drift is refused (2.418961ms)
+✔ restored current-Web read operand is refused (1.262598ms)
+✔ skipping a browser/server syntax obligation is refused (1.052027ms)
+✔ removing a server schema assertion is refused (3.702526ms)
+✔ opaque symlink substitution is refused before reading (0.982098ms)
+✔ independent: removing the malformed-key refusal preserves case count but is rejected (1.531187ms)
+✔ independent: flipping null-clear acceptance without deleting its case is rejected (1.20588ms)
+✔ independent: adding a second live-Web read operand is rejected before execution (1.603461ms)
+✔ independent: substituting a different owned frontend snapshot is rejected (0.907494ms)
+✔ independent: reader symlink is refused before reading even with exact target bytes (1.384842ms)
+✔ independent: missing reader has no fallback to live Web (0.893631ms)
+✔ independent: adding invisible fixture bytes cannot hide behind source-policy strings (0.735091ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47.797273

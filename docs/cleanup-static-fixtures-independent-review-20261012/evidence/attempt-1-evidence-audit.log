@@ -1,0 +1,14 @@
+fatal: path 'ARCHITECTURE-ASSESSMENT.md' does not exist in '501b426533fdeff74ce8d7a3552626d2e65e83a0'
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/audit-evidence.py", line 10, in <module>
+    data=git(ref,row['path']);assert hashlib.sha256(data).hexdigest()==row['sha256'] and len(data)==row['bytes']
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/audit-evidence.py", line 4, in git
+    def git(ref,path):return subprocess.check_output(['git','show',ref+':'+path],cwd=root)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['git', 'show', '501b426533fdeff74ce8d7a3552626d2e65e83a0:ARCHITECTURE-ASSESSMENT.md']' returned non-zero exit status 128.
