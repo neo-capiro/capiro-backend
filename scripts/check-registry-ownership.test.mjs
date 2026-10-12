@@ -126,6 +126,23 @@ for (const [label, code] of [
     'computed property assignment',
     'const copy = {}; const key = "canonicalRoute"; copy[key] = () => 1;',
   ],
+  [
+    'erased require alias assertion',
+    'const load = require as typeof require; load("./registry.js");',
+  ],
+  [
+    'erased require alias type assertion',
+    'const load = <typeof require>require; load("./registry.js");',
+  ],
+  ['erased require alias non-null assertion', 'const load = require!; load("./registry.js");'],
+  [
+    'exhausted computed-name syntax budget',
+    'const copy = { [' + '('.repeat(140) + '"canonicalRoute"' + ')'.repeat(140) + ']() {} };',
+  ],
+  [
+    'exhausted import syntax budget',
+    'import(' + '('.repeat(140) + '"./registry.js"' + ')'.repeat(140) + ');',
+  ],
 ])
   test(`refuses bounded static ${label}`, () => {
     assert.ok(check(({ files }) => files.set('apps/example/src/copy.ts', code)).errors.length > 0);
