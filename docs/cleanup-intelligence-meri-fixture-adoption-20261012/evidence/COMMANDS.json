@@ -1,0 +1,41 @@
+{
+  "before": [
+    "node",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/bounded.jest.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/before-jest-results.json"
+  ],
+  "after": [
+    "node",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/bounded.jest.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/after-jest-results.json"
+  ],
+  "pure": [
+    "node",
+    "--test",
+    "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/fixture-bridge-controls.test.mjs"
+  ],
+  "sourceDiff": [
+    "git",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "exitCodes": {
+    "before": 0,
+    "after": 0,
+    "pure": 0,
+    "sourceDiff": 2
+  }
+}

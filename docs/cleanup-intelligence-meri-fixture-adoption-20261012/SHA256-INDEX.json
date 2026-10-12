@@ -1,0 +1,77 @@
+{
+  "sourceHead": "98397536c3bda66810abc2ca997ad2ff02b76b34",
+  "sourceTree": "d8ad11fd32cd93496aea1c5e112eeae3a7d3b728",
+  "files": [
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/HANDOFF.md",
+      "bytes": 4059,
+      "sha256": "25bb1aa87d9cf177de9c54abb817b4da7914ee0d6e3176ad0afabca6bdc622a1"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/SOURCE-RECEIPT.json",
+      "bytes": 4640,
+      "sha256": "499e1beb17c544485569db953e4ef356370e20134a9dcad4f65d3f3a270de0c8"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/CASE-INDEX.json",
+      "bytes": 5908,
+      "sha256": "07f7f6e24234d0f93cbb23a86312acbfe408fdf19b566d4c16c44a7c22e7a1b1"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/COMMANDS.json",
+      "bytes": 1057,
+      "sha256": "f177d39b791d6d7d0318c92d6c1294844cf80924ace68719356c165cce159a12"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/after-jest-results.json",
+      "bytes": 15494,
+      "sha256": "a8eaa88947a203070bc043e175aee3fd37fc5b6ac6a65548ef31917029b0293d"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/after-jest.log",
+      "bytes": 378,
+      "sha256": "4e844c0c2646ec0f7a4b4801d9ce02e6774c464e849ef10e4c2840b848fea8aa"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/baseline-source-transition-red.json",
+      "bytes": 871,
+      "sha256": "5d9c1a8b8719b95ceeb49a04963a6bc03cac5b086f3c14152bd3cf30c2562c6d"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/before-jest-results.json",
+      "bytes": 15495,
+      "sha256": "546f08b9c2ed1e57c10968d5a3d7eb010cc8ca538804be10b08ac41c0aa69de2"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/before-jest.log",
+      "bytes": 379,
+      "sha256": "94cecdc2dc0bff346b40792f4eb3ad7e1abc6f2b365fe381642e1e7c651e52be"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/bounded.jest.cjs",
+      "bytes": 1996,
+      "sha256": "227b4e4def756fef11bf7222c16c49f0b813f22d62c01bd3865978277cad321e"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/fixture-bridge-controls.log",
+      "bytes": 1489,
+      "sha256": "0f682dcd5bcb23500d5863b9c2f2e8fb3aeefd257e9691baead9562a17899c92"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/fixture-bridge-controls.test.mjs",
+      "bytes": 5329,
+      "sha256": "1bd9749979659a961ffb62138b11ee0a1fc833c92a6f681cd71e3dc8b8357d60"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/source-diff-check.log",
+      "bytes": 121,
+      "sha256": "c86983df4492fc8d97e3d9cc5aeaa8da3dae9faeef273427e57c71df83ee72f6"
+    },
+    {
+      "path": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/unused-import-boundary.cjs",
+      "bytes": 435,
+      "sha256": "ef07e171263a270b75df9304c6f4c6b0b2b2965656302839402de770858d759e"
+    }
+  ],
+  "indexExcludesItself": true
+}

@@ -1,0 +1,20 @@
+✔ all four adopted fixtures match exact current Web and published code bytes (91.026554ms)
+✔ baseline RED captures the six unresolved fixture/reader transitions without executing UI (27.214666ms)
+✔ refuses fixture byte drift: apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt (42.252103ms)
+✔ refuses fixture byte drift: apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt (42.563346ms)
+✔ refuses fixture byte drift: apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt (39.643715ms)
+✔ refuses fixture byte drift: apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt (38.482708ms)
+✔ refuses fallback to live Web reader: apps/api/src/intelligence/intelligence.mapping-governance.spec.ts (36.029131ms)
+✔ refuses case/assertion body drift: apps/api/src/intelligence/intelligence.mapping-governance.spec.ts (39.890822ms)
+✔ refuses fallback to live Web reader: apps/api/src/meri/meri-stream-launcher.fail-closed.spec.ts (37.28339ms)
+✔ refuses case/assertion body drift: apps/api/src/meri/meri-stream-launcher.fail-closed.spec.ts (44.532755ms)
+✔ refuses a missing legacy data fixture (47.397682ms)
+✔ existing before/after fake-authority and source test cases all remain passing (11.267613ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 598.36659

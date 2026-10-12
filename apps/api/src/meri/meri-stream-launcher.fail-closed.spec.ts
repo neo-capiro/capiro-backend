@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const MERI_ROOT = __dirname;
-const WEB_ROOT = join(__dirname, '../../../web/src');
+const WEB_ROOT = join(__dirname, '__fixtures__/legacy-ui-contracts');
 
 function readApi(name: string): string {
   return readFileSync(join(MERI_ROOT, name), 'utf8');
 }
 
 function readWeb(rel: string): string {
-  return readFileSync(join(WEB_ROOT, rel), 'utf8');
+  return readFileSync(join(WEB_ROOT, `${rel}.txt`), 'utf8');
 }
 
 describe('Meri stream/launcher fail-closed contracts', () => {
