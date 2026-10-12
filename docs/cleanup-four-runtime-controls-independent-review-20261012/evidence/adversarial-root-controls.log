@@ -1,0 +1,44 @@
+{
+  "baselineFiles": 2047,
+  "fixtureCases": 25,
+  "unexpectedAccepted": [
+    "constant binary computed method",
+    "constant lexical computed method",
+    "binary computed property implementation",
+    "binary computed class property",
+    "prototype static assignment lead",
+    "constant dynamic owner import",
+    "aliased require owner lead",
+    "owner require computed string",
+    "export let alias with exact supplied digest",
+    "export var alias with exact supplied digest"
+  ],
+  "wholeMap": [
+    {
+      "label": "literal canonical copied method",
+      "source": "const extra={asCount(value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "binary computed canonical method",
+      "source": "const extra={['as'+'Count'](value:unknown){return 1;}};",
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "lexical constant canonical method",
+      "source": "const KEY='asCount';const extra={[KEY](value:unknown){return 1;}};",
+      "rejected": false,
+      "errors": []
+    },
+    {
+      "label": "constant dynamic canonical owner import",
+      "source": "import('./external/tango/tango-rest-'+'page.js');",
+      "rejected": false,
+      "errors": []
+    }
+  ]
+}
