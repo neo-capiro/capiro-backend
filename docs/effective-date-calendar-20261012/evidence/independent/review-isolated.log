@@ -1,0 +1,83 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/effective-calendar-review/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/federal-register/effective-independent-review.spec.ts
+  independent adversarial effective-date provenance review
+    ✓ rejects non-exact date "2026-02-29" (5 ms)
+    ✓ rejects non-exact date "2026-11-31" (1 ms)
+    ✓ rejects non-exact date "2026-1-01" (1 ms)
+    ✓ rejects non-exact date " 2026-11-12" (2 ms)
+    ✓ rejects non-exact date "2026-11-12T00:00:00Z" (1 ms)
+    ✓ rejects non-exact date "2026-11-12T00:00:00+05:00" (1 ms)
+    ✓ rejects non-exact date 20261112
+    ✓ rejects non-exact date undefined
+    ✓ accepts a valid leap date and never substitutes publication or comment dates (1 ms)
+    ✓ excludes PROPOSED_RULE even with dates (1 ms)
+    ✓ excludes Proposed Rule even with dates
+    ✓ excludes Notice even with dates
+    ✓ excludes PRESIDENTIAL_DOCUMENT even with dates
+    ✓ refuses unqualified official PDF http://www.govinfo.gov/content/pkg/FR-2026-10-12/pdf/2026-12345.pdf (1 ms)
+    ✓ refuses unqualified official PDF https://www.govinfo.gov.evil.example/content/pkg/FR-2026-10-12/pdf/2026-12345.pdf (1 ms)
+    ✓ refuses unqualified official PDF https://attacker@www.govinfo.gov/content/pkg/FR-2026-10-12/pdf/2026-12345.pdf (1 ms)
+    ✓ refuses unqualified official PDF https://www.govinfo.gov:8443/content/pkg/FR-2026-10-12/pdf/2026-12345.pdf
+    ✓ refuses unqualified official PDF https://www.govinfo.gov/content/pkg/FR-2026-10-12/pdf/2026-99999.pdf
+    ✓ refuses unqualified official PDF https://www.govinfo.gov/content/pkg/FR-2026-10-12/pdf/2026-12345.pdf?redirect=1 (1 ms)
+    ✓ refuses unqualified official PDF https://www.govinfo.gov/content/pkg/FR-2026-99-99/pdf/2026-12345.pdf
+    ✓ refuses unqualified official PDF https://www.govinfo.gov/content/pkg/FR-2026-10-11/pdf/2026-12345.pdf
+    ✓ rejects incomplete or unsafe correction metadata {"correction_of": undefined}
+    ✓ rejects incomplete or unsafe correction metadata {"corrections": undefined}
+    ✓ rejects incomplete or unsafe correction metadata {"corrections": null} (1 ms)
+    ✓ rejects incomplete or unsafe correction metadata {"correction_of": "https://www.federalregister.gov/documents/2026-12344"} (1 ms)
+    ✓ rejects incomplete or unsafe correction metadata {"corrections": [Array]}
+    ✓ rejects incomplete or unsafe correction metadata {"corrections": [Array]}
+    ✓ suppresses both corrections and corrected originals rather than treating them as verified
+    ✓ refreshes observation without changing revision, and records the corrected transition exactly once (2 ms)
+    ✓ fails closed on malformed receipts {"dateKind": "publication"}
+    ✓ fails closed on malformed receipts {"documentNumber": "2026-99999"}
+    ✓ fails closed on malformed receipts {"sourceField": "comments_close_on"}
+    ✓ fails closed on malformed receipts {"sourceUrl": "https://evil.example"}
+    ✓ fails closed on malformed receipts {"evidenceHash": "0000000000000000000000000000000000000000000000000000000000000000"} (3 ms)
+    ✓ fails closed on malformed receipts {"date": "2026-12-01"} (1 ms)
+    ✓ fails closed on malformed receipts {"revision": 0}
+    ✓ fails closed on malformed receipts {"observedAt": "invalid"} (1 ms)
+    ✓ fails closed on malformed receipts {"changedAt": "invalid"}
+    ✓ fails closed on malformed receipts {"observedAt": "2026-10-12"} (1 ms)
+    ✓ fails closed on malformed receipts {"changedAt": "2026-10-12T06:00:00Z"}
+    ✓ fails closed on malformed receipts {"changedAt": "2026-10-12T06:00:00.001Z"} (1 ms)
+    ✓ recomputes the source projection checksum rather than trusting the receipt hash
+    ✓ bounds previous snapshots and strips unexpected provenance fields (1 ms)
+  independent observation ordering review (synthetic transaction only)
+    ✓ makes equal/older observation a write-free replay (0ms) (3 ms)
+    ✓ makes equal/older observation a write-free replay (-1ms) (1 ms)
+    ✓ makes equal/older observation a write-free replay (-60000ms)
+    ✓ locks identity before loading and writes evidence and canonical metadata in one transaction (3 ms)
+    ✓ rejects metadata/source identity disagreement {"documentNumber": "2026-99999"} (28 ms)
+    ✓ rejects metadata/source identity disagreement {"type": "NOTICE"} (1 ms)
+    ✓ rejects metadata/source identity disagreement {"publicationDate": 2026-10-11T00:00:00.000Z} (1 ms)
+    ✓ rejects metadata/source identity disagreement {"pdfUrl": "https://www.govinfo.gov/content/pkg/FR-2026-10-12/pdf/2026-99999.pdf"}
+    ✓ propagates failed evidence persistence instead of reporting successful observation (2 ms)
+  independent calendar authority and coverage review
+    ✓ keeps fresh evidence and exposes date-kind/provenance plus deliberately incomplete coverage (4 ms)
+    ✓ includes exact 48h evidence boundary and suppresses even one millisecond older or future evidence (1 ms)
+    ✓ suppresses legacy authority (1 ms)
+    ✓ suppresses foreign authority (1 ms)
+    ✓ suppresses column_date authority (2 ms)
+    ✓ suppresses column_observed authority (1 ms)
+    ✓ suppresses invalid_hash authority (1 ms)
+    ✓ suppresses correction authority (1 ms)
+    ✓ rejects range/page abuse {"dateFrom": "2026-02-30"} before DB calls (5 ms)
+    ✓ rejects range/page abuse {"dateTo": "2026-10-31"} before DB calls (2 ms)
+    ✓ rejects range/page abuse {"dateTo": "2028-01-01"} before DB calls (3 ms)
+    ✓ rejects range/page abuse {"page": 10001} before DB calls (2 ms)
+    ✓ rejects range/page abuse {"page": 1.2} before DB calls (2 ms)
+    ✓ rejects range/page abuse {"page": NaN} before DB calls (3 ms)
+    ✓ rejects range/page abuse {"limit": 0} before DB calls (2 ms)
+    ✓ rejects range/page abuse {"limit": 101} before DB calls (1 ms)
+    ✓ authorizes the actual handler through controller metadata and current RolesGuard (5 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       69 passed, 69 total
+Snapshots:   0 total
+Time:        2.781 s
+Ran all test suites within paths "apps/api/src/federal-register/effective-independent-review.spec.ts".
+Test results written to: docs/effective-date-calendar-20261012/evidence/independent/review-isolated.json
