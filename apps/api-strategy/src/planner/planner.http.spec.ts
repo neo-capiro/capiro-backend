@@ -26,6 +26,8 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     task: jest.fn(async () => ({ id: ID })),
     saveTask: jest.fn(async () => ({ id: ID, version: 2 })),
     importTask: jest.fn(async () => ({ id: ID, actualMinutes: 90 })),
+    createTaskCommand: jest.fn(async () => ({ requestId: ID, status: 'completed', taskId: ID })),
+    taskCreateCommand: jest.fn(async () => ({ requestId: ID, status: 'completed', taskId: ID })),
     saveProject: jest.fn(async () => ({ id: ID })),
     resources: jest.fn(async () => []),
     reportWidget: jest.fn(async () => ({ buckets: [], total: 0, matched: 0, dashboardVersion: 1 })),
@@ -102,8 +104,32 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
   afterAll(async () => {
     await app?.close();
   });
+  it('routes task commands and recovery through the signed-in tenant with the original bearer', async () => {
+    const dto = { requestId: ID, data: { name: 'Synthetic' } };
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/task-create-commands')
+      .set('x-planner-qa', 'allowed')
+      .set('authorization', 'Bearer synthetic')
+      .send(dto)
+      .expect(201);
+    expect(planner.createTaskCommand).toHaveBeenCalledWith(ctx, dto, 'Bearer synthetic');
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/task-create-commands/${ID}`)
+      .set('x-planner-qa', 'allowed')
+      .set('authorization', 'Bearer synthetic')
+      .expect(200);
+    expect(planner.taskCreateCommand).toHaveBeenCalledWith(ctx, ID, 'Bearer synthetic');
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/task-create-commands')
+      .set('x-planner-qa', 'allowed')
+      .set('x-capiro-impersonate-tenant', ID)
+      .send(dto)
+      .expect(403);
+  });
   it.each([
     ['get', 'bootstrap'],
+    ['post', 'task-create-commands'],
+    ['get', `task-create-commands/${ID}`],
     ['get', 'queue'],
     ['get', 'time/settings'],
     ['patch', 'time/settings'],

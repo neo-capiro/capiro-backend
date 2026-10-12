@@ -55,3 +55,14 @@ command/outbox, or claim an atomic Core+Planner operation. A future Core orchest
 must own durable partial states and call this command with the same request ID to
 recover remote outcomes. Quick log domain/lineage decisions remain in the backend
 ledger. No approval, generation, delivery, billing or deployment path is enabled.
+
+## Canonical date and status clarification from initial tests
+
+The existing Planner scheduler deliberately selects the earlier occurrence in a DST
+fold and shifts forward across a gap. The command preserves this tested policy and
+does not reject a valid IANA wall time in a gap. Date-only `dueOn` remains the exact
+calendar string; the existing derived `deadlineAt` uses end-of-day in task.timeZone
+or the service's default zone when null. This candidate does not invent a user zone
+or settle Quick log's deadline/reminder semantics. Fresh-task inactive-member
+validation retains the existing400; inactive actor receipt replay/recovery is403.
+Initial incorrect test assumptions and TypeScript fixture errors remain retained.

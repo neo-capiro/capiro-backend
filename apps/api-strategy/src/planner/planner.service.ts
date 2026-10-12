@@ -79,6 +79,14 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { PlannerLinksService } from './planner-links.service.js';
 import {
+  TASK_CREATE_RECEIPT,
+  taskCreateCommand,
+  taskCreateReceiptWhere,
+  storedTaskCreateReceipt,
+  taskCreateReceipt,
+  type TaskCreateCommand,
+} from './planner-task-create-command.js';
+import {
   fail,
   keys,
   object,
@@ -706,6 +714,53 @@ export class PlannerService {
       );
     });
   }
+  async createTaskCommand(ctx: AuthTenantContext, raw: unknown, authorization?: string) {
+    const { data, command } = taskCreateCommand(raw);
+    const task = await this.saveTask(ctx, null, { data }, authorization, undefined, command);
+    return taskCreateReceipt(command.requestId, task.id);
+  }
+  async taskCreateCommand(ctx: AuthTenantContext, requestId: string, authorization?: string) {
+    requestId = uuid(requestId).toLowerCase();
+    return this.scope(ctx, async (tx) => {
+      const receipt = await tx.spPlannerResource.findFirst({
+        where: taskCreateReceiptWhere(ctx, requestId),
+      });
+      if (!receipt) throw missing();
+      const task = await this.taskForCreateReceipt(
+        tx,
+        ctx,
+        receipt,
+        requestId,
+        await this.projects(tx, ctx),
+        authorization,
+      );
+      return taskCreateReceipt(requestId, task.id);
+    });
+  }
+  private async taskForCreateReceipt(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    receipt: SpPlannerResource,
+    requestId: string,
+    projects: SpPlannerProject[],
+    authorization?: string,
+  ) {
+    if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+      throw new ForbiddenException('Active membership is required');
+    const recorded = storedTaskCreateReceipt(receipt, ctx, requestId);
+    const task = await tx.spPlannerTask.findFirst({
+      where: { tenantId: ctx.tenantId, id: recorded.taskId },
+    });
+    if (!task) throw missing();
+    requireRole(plannerTaskAccess(task, projects, ctx.clerkUserId), 'editor');
+    // A receipt is evidence of an earlier write, never a grant to its current links.
+    const data = taskData(task);
+    await this.links.validate(
+      { clientId: data.clientId, meetingId: data.meetingId },
+      authorization,
+    );
+    return task;
+  }
   async importTask(ctx: AuthTenantContext, raw: unknown, authorization?: string) {
     const input = object(raw);
     keys(input, ['importKey', 'data', 'actualMinutes', 'time']);
@@ -731,6 +786,7 @@ export class PlannerService {
     raw: unknown,
     authorization?: string,
     imported?: { key: string; actualMinutes: number; time: unknown },
+    command?: TaskCreateCommand,
   ) {
     if (id) uuid(id);
     const dto = validateMutation(raw);
@@ -746,6 +802,25 @@ export class PlannerService {
       ctx,
       async (tx) => {
         const projects = await this.projects(tx, ctx);
+        if (command) {
+          if (id || imported) fail('Task creation commands create new tasks');
+          const receipt = await tx.spPlannerResource.findFirst({
+            where: taskCreateReceiptWhere(ctx, command.requestId),
+          });
+          if (receipt) {
+            const task = await this.taskForCreateReceipt(
+              tx,
+              ctx,
+              receipt,
+              command.requestId,
+              projects,
+              authorization,
+            );
+            if (storedTaskCreateReceipt(receipt, ctx, command.requestId).hash !== command.hash)
+              throw new ConflictException('This request ID already belongs to different task data');
+            return this.taskView(tx, task, projects, ctx);
+          }
+        }
         const importHash = imported
           ? createHash('sha256')
               .update(JSON.stringify([dto.data, imported.actualMinutes, imported.time]))
@@ -932,6 +1007,24 @@ export class PlannerService {
           else if (data.status === 'done') data.approval = 'approved';
         }
         const row = await this.persistTask(tx, ctx, newId, old, data, projects, all, dto);
+        if (command) {
+          // The canonical tenant write lock protects lookup + task + receipt together.
+          // Do not expose this internal resource through generic resource APIs.
+          await tx.spPlannerResource.create({
+            data: {
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              kind: TASK_CREATE_RECEIPT,
+              name: 'Task creation receipt',
+              data: json({
+                receiptVersion: 1,
+                requestId: command.requestId,
+                hash: command.hash,
+                taskId: row.id,
+              }),
+            },
+          });
+        }
         if (imported) {
           if (imported.actualMinutes > 0) {
             const options = this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx));
@@ -2395,7 +2488,8 @@ export class PlannerService {
     ctx: AuthTenantContext,
   ): PlannerRole | null {
     if (row.kind.startsWith('capacity_')) return null;
-    if (['task_import_receipt', 'timer_session'].includes(row.kind)) return null;
+    if (['task_import_receipt', TASK_CREATE_RECEIPT, 'timer_session'].includes(row.kind))
+      return null;
     if (['project_budget', 'project_budget_alert'].includes(row.kind)) {
       const project = projects.find((p) => p.id === row.projectId);
       return project &&
