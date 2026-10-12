@@ -25,6 +25,27 @@ function replace(before: string, after: string): string {
 }
 
 const mutants: Array<[string, () => string]> = [
+  ...['+', '-', '~', '++', '--'].map((operator): [string, () => string] => [
+    `array guard prefix operator ${operator}`,
+    () =>
+      replace('if (!Array.isArray(candidatesRaw))', `if (${operator}Array.isArray(candidatesRaw))`),
+  ]),
+  [
+    'deferred filesystem import',
+    () => replace("import * as fs from 'node:fs'", "import defer * as fs from 'node:fs'"),
+  ],
+  [
+    'deferred schema import',
+    () => replace('import {\n  defenseBudget', 'import defer {\n  defenseBudget'),
+  ],
+  [
+    'argument lookup postfix increment',
+    () => replace('process.argv[index + 1]', 'process.argv[index++]'),
+  ],
+  [
+    'argument lookup postfix decrement',
+    () => replace('process.argv[index + 1]', 'process.argv[index--]'),
+  ],
   ['empty program with inert markers', () => spoofMarkers],
   ['unreachable decoy facade', () => `if (false) {\n${facade}\n}\n${spoofMarkers}`],
   ['DB import', () => "import { PrismaClient } from '@prisma/client';\n" + facade],

@@ -72,8 +72,13 @@ interface ExecutableShape {
   kind: ts.SyntaxKind;
   value?: string;
   typeOnly?: boolean;
+  importPhase?: ts.SyntaxKind;
   declarationFlags?: number;
   typeOperator?: ts.SyntaxKind;
+  unaryOperator?: ts.SyntaxKind;
+  literalFlags?: number;
+  templateFlags?: number;
+  unterminated?: boolean;
   optionalChain?: boolean;
   children: ExecutableShape[];
 }
@@ -87,10 +92,35 @@ function executableShape(node: ts.Node): ExecutableShape {
   if (ts.isImportClause(node) || ts.isImportSpecifier(node) || ts.isExportSpecifier(node)) {
     shape.typeOnly = node.isTypeOnly;
   }
+  if (ts.isImportClause(node)) {
+    // TS 5.9 adds deferred imports; the locally declared ^5.5 API may lack
+    // this field in its typings. Absence is the ordinary eager-import contract.
+    shape.importPhase = (node as ts.ImportClause & { phaseModifier?: ts.SyntaxKind }).phaseModifier;
+  }
   if (ts.isVariableDeclarationList(node)) {
     shape.declarationFlags = node.flags;
   }
   if (ts.isTypeOperatorNode(node)) shape.typeOperator = node.operator;
+  if (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) {
+    shape.unaryOperator = node.operator;
+  }
+  if (
+    ts.isStringLiteralLike(node) ||
+    ts.isNumericLiteral(node) ||
+    ts.isTemplateLiteralToken(node)
+  ) {
+    shape.unterminated = node.isUnterminated === true;
+  }
+  if (ts.isNumericLiteral(node)) {
+    shape.literalFlags = (
+      node as ts.NumericLiteral & { numericLiteralFlags?: number }
+    ).numericLiteralFlags;
+  }
+  if (ts.isTemplateLiteralToken(node)) {
+    shape.templateFlags = (
+      node as ts.TemplateLiteralToken & { templateFlags?: number }
+    ).templateFlags;
+  }
   if (
     ts.isCallExpression(node) ||
     ts.isPropertyAccessExpression(node) ||
