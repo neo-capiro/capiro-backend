@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "scripts/check-strategy-time-bypasses.test.mjs"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-clock-source",
+  "source": "abb22da7ef5ad19347cce386899ac43705c5eba4",
+  "uncommittedRootGuard": true,
+  "exitCode": 0,
+  "seconds": 0.631,
+  "nativeAcceptance": false
+}

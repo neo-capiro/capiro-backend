@@ -1,0 +1,7 @@
+{
+  "exitCode": 1,
+  "expectedStep": "Test apps/api (Jest)",
+  "actualStep": "Test apps/api",
+  "meaning": "Initial exact-step lookup failed before workflow mutation; data and package alias were written, workflow wiring completed after reading actual step names",
+  "nativeAcceptance": false
+}

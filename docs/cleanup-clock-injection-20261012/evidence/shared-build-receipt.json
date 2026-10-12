@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "-p",
+    "packages/shared/tsconfig.json"
+  ],
+  "exitCode": 0,
+  "completedBeforeStrategyCompiler": true,
+  "sourceBase": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "newTimeSourceSha256": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854",
+  "indexChange": "only added export from ./time.js",
+  "cachedToolchain": "TypeScript5.9.3, no install/generation",
+  "nativeAcceptance": false
+}

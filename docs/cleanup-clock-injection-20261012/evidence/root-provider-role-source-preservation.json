@@ -1,0 +1,11 @@
+{
+  "source": "6123e3d2d8c2606c4775db8201da5568ae0358cc",
+  "tree": "6c640e32238aac753055eb7b7ae61c45b293d4a2",
+  "repairSource": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "guardThreeBlobsExact": true,
+  "otherFifteenPathsExactFirstSource": true,
+  "allOriginalDataFieldsAnd119RowsExact": true,
+  "protectedSchemaMigrationPriorPacketBlobIdsExact": 1393,
+  "sourceScope": 18,
+  "nativeAcceptance": false
+}

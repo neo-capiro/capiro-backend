@@ -1,0 +1,16 @@
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.log:3: trailing whitespace.
++  
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-initial.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-initial.log:3: trailing whitespace.
++  
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.log:3: trailing whitespace.
++  
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.log:3: trailing whitespace.
++  
