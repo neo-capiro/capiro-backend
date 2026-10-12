@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "node",
+    "--import",
+    "tsx",
+    "scripts/verify-pe-phase-e-exact-sha.ts",
+    "--unknown"
+  ],
+  "cwd": "/workspace/capirov2-public-law-exact-sha-review/apps/api",
+  "exitCode": 2,
+  "expectedExitCode": 2,
+  "seconds": 0.851,
+  "sourceOnly": true,
+  "DATABASE_URL": "unset",
+  "nativeAcceptance": false
+}

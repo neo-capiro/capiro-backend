@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "node",
+    "/workspace/capirov2-public-law-exact-sha-review/node_modules/prettier/bin/prettier.cjs",
+    "--check",
+    "--stdin-filepath",
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts"
+  ],
+  "input": "exact2408 apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+  "exitCode": 1,
+  "sourceChange": false
+}

@@ -1,0 +1,15 @@
+--- actual-verifier
++++ formatter-preview-only
+@@ -81,8 +81,10 @@
+     continue;
+   }
+ 
+-  if (!source.includes("from './lib/pe-exact-sha-loader-contract.js'") &&
+-      !source.includes('from "./lib/pe-exact-sha-loader-contract.js"')) {
++  if (
++    !source.includes("from './lib/pe-exact-sha-loader-contract.js'") &&
++    !source.includes('from "./lib/pe-exact-sha-loader-contract.js"')
++  ) {
+     failures.push(`${fileName}: does not import pe-exact-sha-loader-contract`);
+   }
+   if (!source.includes('resolvePeDollarLoaderPosture')) {

@@ -1,0 +1,10 @@
+{
+  "exitCode": 1,
+  "classification": "review harness dependency path error before collection",
+  "missingJestPath": "node_modules/jest/bin/jest.js",
+  "correctInstalledJestPath": "apps/api/node_modules/jest/bin/jest.js",
+  "originalConfig": "jest-source-only.config.json",
+  "originalLog": "focused-source-controls.log",
+  "sourceChange": false,
+  "testsExecuted": 0
+}

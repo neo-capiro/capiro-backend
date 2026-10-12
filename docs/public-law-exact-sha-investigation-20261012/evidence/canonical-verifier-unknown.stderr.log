@@ -1,0 +1,2 @@
+Unknown argument(s): --unknown
+Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]

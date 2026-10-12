@@ -1,0 +1,106 @@
+{
+  "baseline": {
+    "commit": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+    "tree": "d3ede11cd213151b244853e39bb7fab30610d2d9"
+  },
+  "publicationLineage": {
+    "phaseE": "d06601b0ac4e2f393b946df17224052f1f7933ff",
+    "phase6Facade": "96bc222e20a34914bec55b08206bcc08174322e8",
+    "directLoaderKillSwitchRepair": "d3934642d6f59abebb9bf74f2360808678fd89f8"
+  },
+  "readSourceHashes": {
+    "apps/api/scripts/parse-defense-approps-public-law.ts": {
+      "gitBlob": "3a2cdeb9bc8bb6392ed6df9dad8d70b95da90880",
+      "sha256": "975303f4a2386b30a8069446c844106f3a44f69b09261c0a5ec7db9bc9e05aca"
+    },
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts": {
+      "gitBlob": "1c655e0763812ff731b32be07c3df823cee41521",
+      "sha256": "b895211f165d32c6c0322ea3dd7d1cfef1bfefe06c2b4cc53e18e90658a6754d"
+    },
+    "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts": {
+      "gitBlob": "fafd59c3945548fd3f34a1664193e6d8ef81ccf0",
+      "sha256": "95424aff212423b61f05fd47a810c88242410ac514b9b40ce1a7e8b235876022"
+    },
+    "apps/api/scripts/lib/pe-exact-sha-loader-contract.spec.ts": {
+      "gitBlob": "18113f4a6680c86dd448d7a12a95ee9417c6f673",
+      "sha256": "76d9e25c2094ae75a9eb47907a838cbf208c6181261c8a64a8d13e872cd8bfec"
+    },
+    "apps/api/scripts/lib/defense-budget-commit.ts": {
+      "gitBlob": "d72b468df9ceb13e864a93f474a3e8fd683fad65",
+      "sha256": "32c4431150a55badab4db64652d0b59bf68cc30b08204bd0493b1608a98b80ff"
+    },
+    "apps/api/scripts/verify-pe-budget-phase-7-safety.ts": {
+      "gitBlob": "71b3f59de2f5393abe991af96c14e734134209d2",
+      "sha256": "f94037b11f5140d8cddab0591e4a3462d7e78c4d5e055473b66bf45cad1e6882"
+    },
+    "apps/api/src/defense-budget/stages/enacted/enactment-proof-v1.ts": {
+      "gitBlob": "adfad27f3849d310bdb47e7386bf84bb4c96c0bc",
+      "sha256": "801bd6e8705c3e46efd26eb2f6b287538d4a59e708a3230b412d7ab4b39dd0c7"
+    },
+    "apps/api/src/defense-budget/stages/enacted/enacted-v1.spec.ts": {
+      "gitBlob": "81b0bfcd1884bf635084125da3011bb8ae052273",
+      "sha256": "7a6220a6e948f7b51647c515aea13ae6c0f209044bb5f295f5cc12c9802ebec2"
+    },
+    "apps/api/src/defense-budget/verification/rules/enactment-proof.rules.ts": {
+      "gitBlob": "614ded18d04fd2a4b617537450310e532abdc625",
+      "sha256": "b3fad2e7027d1476de6ac546a0b88cd31e8e86725f441020a719f2d974f17ef0"
+    },
+    "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts": {
+      "gitBlob": "e671c9ba5448f2f639744e60845a69c0a4bf763f",
+      "sha256": "f9661fcb3536a83d053bd1f5489badd7c522f8e7307a1eeb2d63105eb7337f94"
+    },
+    "docs/defense-budget/CONGRESSIONAL-TO-ENACTED-INGESTION-V1.md": {
+      "gitBlob": "35e2c10252cb061368dca2168195a286825cd3ee",
+      "sha256": "2a0d61d131c919fd5e2402b49aeb6d93b11a9fb454c50d6e2fff9ab2fe3d0b28"
+    },
+    "docs/phase7-handoff.md": {
+      "gitBlob": "7f251666de065412bffe37d016a9b64b70db5dd4",
+      "sha256": "367aded9aa57699881746756918c3652c5d85386755b2f7f06448575a14e0ef9"
+    },
+    "docs/runbooks/defense-budget-enactment-proof-v1.md": {
+      "gitBlob": "e2f5c8c6ce0caeff9273baba8f68c1334d57fb40",
+      "sha256": "6f2dd49084a4f4b816ead98a84edd4938995cdd413c248ae6f0233adc0058923"
+    },
+    "docs/handoffs/pe-budget-phases-1-7-audit-repairs-2026-08-09.md": {
+      "gitBlob": "9b92af8ab406cf2da2eb5059b3f9ffb2c287f0e8",
+      "sha256": "f029786c02b47b05c2dd71fb9c4c534737ae8015762bd9082428727a6ea2f834"
+    },
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs": {
+      "gitBlob": "b62724feba23b6dfa02de3cd0a0da99cb549f295",
+      "sha256": "d2f981797f16285aee1f4759d750ebd1100816118864c0860b4e17e1cd75a60b"
+    }
+  },
+  "staticFindings": {
+    "facadeBodyExactPhase6WithOnlyCleanupAnnotationAdded": true,
+    "phaseEAllExistingLoaderPredicatesByteIdenticalToOriginal": true,
+    "fourHistoricalWriteLoaderMarkersAbsent": [
+      "pe-exact-sha-loader-contract",
+      "resolvePeDollarLoaderPosture",
+      "assertExactShaCommitAllowed",
+      "'approved-sha256'"
+    ],
+    "commitRefusalPrecedesArtifactReads": true,
+    "inspectOnlyReportLiteral": true,
+    "canonicalWritesFalseLiteral": true,
+    "phase7AlreadyRequiresPermanentFacadeCommitRefusal": true
+  },
+  "proposalScope": [
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.ts",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "implementationStatus": "proposed only; no source edits or execution; awaiting parent disposition",
+  "frontend": {
+    "requestedPin": "4a161488",
+    "localRepository": "/workspace/capiro-frontend",
+    "objectAvailable": false,
+    "explicitSourceComparison": "pending parent exact repository/ref resolution; proposed backend change has no route/DTO/schema/owner contract delta"
+  },
+  "limits": [
+    "No facade/verifier executed",
+    "No DB/migration/native/provider/cloud/security operation",
+    "No approved-SHA/runtime/security policy change proposed",
+    "No unpublished EngagementService reporting branch/source accessed"
+  ]
+}

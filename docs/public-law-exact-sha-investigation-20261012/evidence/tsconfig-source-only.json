@@ -1,0 +1,14 @@
+{
+  "extends": "../../../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "files": [
+    "../../../apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+    "../../../apps/api/scripts/lib/pe-exact-sha-loader-contract.spec.ts",
+    "../../../apps/api/scripts/verify-pe-phase-e-exact-sha.ts"
+  ],
+  "include": [],
+  "exclude": []
+}

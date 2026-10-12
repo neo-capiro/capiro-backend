@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "otherWriteLoaderPredicatesByteExact": true,
+  "existingPredicateSha256": "5a2702d3f664a0a1fc21988e1c00ab09ac1ab04619cb963686e741b942cde14a",
+  "preservedExactPaths": [
+    "apps/api/scripts/parse-defense-approps-public-law.ts",
+    "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+    "apps/api/scripts/lib/defense-budget-commit.ts",
+    "apps/api/scripts/verify-pe-budget-phase-7-safety.ts",
+    "apps/api/src/defense-budget/stages/enacted/enactment-proof-v1.ts",
+    "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "runtimeRouteDtoSchemaContractDelta": false,
+  "rootSharedWorkflowEdits": false,
+  "noDBNativeProviderOperations": true
+}

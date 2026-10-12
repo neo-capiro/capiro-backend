@@ -1,0 +1,10 @@
+{
+  "exitCode": 134,
+  "classification": "review harness broad ts-jest parent include exhausted default Node heap before result collection",
+  "originalConfig": "jest-source-only-corrected.config.json",
+  "originalLog": "focused-source-controls-corrected.log",
+  "finalAggregateExists": false,
+  "sourceGuardChange": false,
+  "harnessCorrection": "explicit files/include-empty compiler config; all existing assertions retained; separate direct tsc",
+  "noNativeDatabaseExecuted": true
+}

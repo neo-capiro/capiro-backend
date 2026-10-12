@@ -1,0 +1,21 @@
+{
+  "rootDir": "/workspace/capirov2-public-law-exact-sha-review/apps/api",
+  "testEnvironment": "node",
+  "transform": {
+    "^.+\\.ts$": [
+      "/workspace/capirov2-cleanup-source-prereqs/apps/api/node_modules/ts-jest",
+      {
+        "tsconfig": "/workspace/capirov2-public-law-exact-sha-review/docs/public-law-exact-sha-investigation-20261012/evidence/tsconfig-source-only.json",
+        "diagnostics": true
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "testMatch": [
+    "<rootDir>/scripts/lib/pe-public-law-facade-containment.spec.ts",
+    "<rootDir>/scripts/lib/pe-exact-sha-loader-contract.spec.ts"
+  ],
+  "cache": false
+}

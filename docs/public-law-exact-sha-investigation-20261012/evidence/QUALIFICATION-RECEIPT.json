@@ -1,0 +1,70 @@
+{
+  "sourceCommit": "fcbf671f585968144b30293c2b1a4fc146cd82ff",
+  "sourceTree": "e709f6027cc473971aa3700dba50056bd040087d",
+  "sourceSha256": {
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts": "c2a1b4e8ac2af573039333a3f1504857f374572cbed4c8ad6abb067c1049c7ae",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.ts": "62fac6bb7d0bb3d2c32e133de9991862a87c4aeb30125c7db649b9adf13bac22",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts": "f55a7301c8342c7b1e30e67b62a1054098f40833641aba03ef860327d60f054c"
+  },
+  "sourceUnitTests": {
+    "log": "focused-source-controls-final.log",
+    "report": "focused-source-controls-final.json",
+    "exitCode": 0,
+    "passed": 72,
+    "failed": 0,
+    "suites": 2,
+    "newContainmentControls": 58,
+    "existingShaControls": 14
+  },
+  "types": {
+    "argv": [
+      "node",
+      "apps/api/node_modules/typescript/bin/tsc",
+      "-p",
+      "docs/public-law-exact-sha-investigation-20261012/evidence/tsconfig-source-only.json",
+      "--noEmit",
+      "--incremental",
+      "false"
+    ],
+    "log": "targeted-types-final.log",
+    "exitCode": 0
+  },
+  "newFileFormatter": {
+    "log": "new-files-format-check-final.log",
+    "exitCode": 0
+  },
+  "inheritedVerifierFormatter": {
+    "candidateLog": "three-files-format-check.log",
+    "baselineLog": "baseline-verifier-format.log",
+    "exitCode": 1,
+    "classification": "same original predicate formatting debt; predicate preserved byte-exact"
+  },
+  "retainedFailedQualification": [
+    {
+      "log": "focused-source-controls.log",
+      "exitCode": 1,
+      "classification": "launcher path before collection"
+    },
+    {
+      "log": "focused-source-controls-corrected.log",
+      "exitCode": 134,
+      "classification": "broad harness TypeScript program heap exhaustion before result"
+    },
+    {
+      "log": "focused-source-controls-bounded.log",
+      "report": "focused-source-controls-bounded.json",
+      "exitCode": 1,
+      "classification": "new test typing error;14 existing tests passed"
+    },
+    {
+      "log": "targeted-types.log",
+      "exitCode": 2,
+      "classification": "same new test typing error"
+    }
+  ],
+  "preservation": "source-preservation.json",
+  "independentReview": "pending root commissioned review",
+  "rootCliSmokeExpectationUpdate": "root-owned pending; not edited here",
+  "backendApiContractDelta": false,
+  "nativeAcceptance": false
+}

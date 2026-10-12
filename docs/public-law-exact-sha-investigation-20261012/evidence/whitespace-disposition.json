@@ -1,0 +1,8 @@
+{
+  "fullEvidenceStagedDiffCheckExitCode": 2,
+  "rawFailureLog": "raw-evidence-staged-whitespace-failure.log",
+  "reason": "raw failure logs and formatter preview diff preserve original whitespace/context blank lines",
+  "rawEvidenceTrimmed": false,
+  "authoredSourceDiffCheckExitCode": 0,
+  "scopedAuthoredEvidenceCheck": "excludes only raw *.log/*.diff; assertions/source/configs/handoff remain checked"
+}
