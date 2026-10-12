@@ -739,6 +739,13 @@
       "reason": "Single lazy system default in the canonical time utility; injected only by Strategy providers."
     }
   ],
+  "systemHookValueOwners": [
+    {
+      "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+      "binding": "STRATEGY_TIME_PROVIDERS",
+      "reason": "Lazy shared system defaults are values only in the canonical Nest provider registration; calls and fallback references elsewhere are refused."
+    }
+  ],
   "retryDefinition": "apps/api-strategy/src/meri/context-load.ts",
   "extraSourceFiles": ["packages/shared/src/time.ts"],
   "canonicalDefinitions": [
