@@ -1,0 +1,205 @@
+{
+  "harnessSource": "b9dceb71e42d4e520760125d070542362dbaacdf",
+  "harnessTree": "ba7980ca621acbad577e7ad042442781963ee912",
+  "nativeEvidence": "3c28ed933722ce896d6ba421236219001bea9ae5",
+  "nativeEvidenceTree": "953517e3487eed24720ef28469c15ac24187ea9f",
+  "productSource": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "independentControls": [
+    {
+      "name": "exact target accepted without driver",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: dataDirectory//tmp/foreign",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: user/foreign",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: database/foreign",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: systemIdentifier/0",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: listenAddresses/*",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: inetServerAddr/127.0.0.1",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: version/PostgreSQL 17.0",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: publicTables/1",
+      "status": "PASS"
+    },
+    {
+      "name": "target mismatch refused: publicTables/0",
+      "status": "PASS"
+    },
+    {
+      "name": "credential input refused: password",
+      "status": "PASS"
+    },
+    {
+      "name": "credential input refused: connectionString",
+      "status": "PASS"
+    },
+    {
+      "name": "credential input refused: url",
+      "status": "PASS"
+    },
+    {
+      "name": "missing/nonobject target refused: null",
+      "status": "PASS"
+    },
+    {
+      "name": "missing/nonobject target refused: ",
+      "status": "PASS"
+    },
+    {
+      "name": "missing/nonobject target refused: undefined",
+      "status": "PASS"
+    },
+    {
+      "name": "symlinked socket refused",
+      "status": "PASS"
+    },
+    {
+      "name": "symlinked data directory refused",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: canonical",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: dataDirectory",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: listenAddresses",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: inetServerAddr",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: user",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: database",
+      "status": "PASS"
+    },
+    {
+      "name": "exact connect identity guard: systemIdentifier",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: []",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: [\"--help\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: [\"--unknown\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: [\"--run\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: [\"--run\",\"--run\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: [\"--plan\",\"--run\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI refusal before imports: [\"--run\",\"--verified-target\",\"unused\",\"--output\",\"/tmp/foreign.json\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "existing evidence output refused before target read",
+      "status": "PASS"
+    },
+    {
+      "name": "exact tagged adapter uses parameters/rowCount",
+      "status": "PASS"
+    },
+    {
+      "name": "projection adapter rejects unsupported owner arguments",
+      "status": "PASS"
+    }
+  ],
+  "passed": 35,
+  "failed": 0,
+  "nativeGroupsReviewed": [
+    "strict synthetic application role has no owner membership or bypass",
+    "Objective tenant RLS, missing GUC and foreign write",
+    "Objective constraints and immutable revision locking privileges",
+    "actual Objective owner requires live actor, same client and current revision",
+    "actual Workspace saved bytes/hash and immutable version",
+    "actual Outreach concurrent duplicate stages produce one durable mutation/receipt",
+    "stage wrong hash and request reuse cannot write or reinterpret receipt",
+    "current grant revocation refuses Objective, Workspace and durable-stage replay",
+    "native reader client SHARE versus writer grant DELETE/client UPDATE deadlock",
+    "Core rich newsletter receipt RLS uses distinct legacy identifiers",
+    "actual global calendar evidence and Repeatable Read snapshot"
+  ],
+  "nativeGroups": 11,
+  "nativeExitCode": 0,
+  "loadedCanonicalFiles": [
+    "packages/shared/src/client-objective-destination.ts",
+    "packages/shared/src/workspace-saved-revision.ts",
+    "packages/shared/src/client-memory-wall.ts",
+    "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+    "apps/api/src/capabilities/capability-errors.ts",
+    "apps/api/src/outreach-v3/state/outreach-command.contract.ts",
+    "apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts",
+    "apps/api/src/capabilities/targets/outreach-target.contract.ts",
+    "apps/api/src/capabilities/context/outreach-context.contract.ts",
+    "apps/api/src/outreach-v3/state/outreach-style-sample.contract.ts",
+    "apps/api/src/outreach-v3/state/outreach-command-errors.ts",
+    "apps/api/src/outreach-v3/state/outreach-command-normalization.ts",
+    "apps/api/src/outreach-v3/state/outreach-command-reducer.ts",
+    "apps/api/src/outreach-v3/context/outreach-context-sponsor-policy.ts",
+    "apps/api/src/outreach-v3/persistence/outreach-state.repository.ts",
+    "apps/api/src/capabilities/capability-authorization.service.ts",
+    "apps/api/src/memory/memory-wall.helpers.ts",
+    "apps/api/src/federal-register/federal-register.service.ts",
+    "apps/api/src/federal-register/effective-date-evidence.ts"
+  ],
+  "evidenceHashesVerified": 32,
+  "sourceHashesVerified": 59,
+  "sourceEqualAtMemoryReview": true,
+  "harnessSixFilesEqualFrozenSource": true,
+  "cleanupSelectCount": 5,
+  "cleanupStateZero": true,
+  "databaseDriverLoadedByReviewer": false,
+  "databaseOrSqlExecutedByReviewer": false,
+  "applicationOwnersExecutedByReviewer": false,
+  "actualPrismaAcceptance": false,
+  "limitations": [
+    "Reported native run is author/root execution; no independent database replay.",
+    "Deadlock writer repeats canonical SQL order; actual ClientsService method is not loaded.",
+    "Fixture grants/minimal parents are prerequisites, not deployed Workspace RLS or grants.",
+    "Strict synthetic NOLOGIN role differs from current deployed table-owner membership.",
+    "Rich case qualifies account-invitation subset and five policy-presence flags only.",
+    "Additional CASE-MATRIX rows/subcases and actual Prisma/full migrations remain open."
+  ]
+}
