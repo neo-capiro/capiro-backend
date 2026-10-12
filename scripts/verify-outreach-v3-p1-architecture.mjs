@@ -70,13 +70,14 @@ export function validateVerificationInputsDocument(source) {
     ['outreach-v3-phase1-foundations', '89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55'],
     ['outreach-v3-phase2-readiness', '9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716'],
   ]) {
-    const begin = `<!-- ${id}:begin -->\n`;
+    const beginMarker = `<!-- ${id}:begin -->`;
+    const begin = `${beginMarker}\n`;
     const end = `<!-- ${id}:end -->`;
-    const start = source.indexOf(begin);
+    const start = source.indexOf(beginMarker);
     const finish = source.indexOf(end);
     if (
-      start < 0 || finish < start + begin.length ||
-      source.indexOf(begin, start + begin.length) >= 0 ||
+      start < 0 || !source.startsWith(begin, start) || finish < start + begin.length ||
+      source.indexOf(beginMarker, start + beginMarker.length) >= 0 ||
       source.indexOf(end, finish + end.length) >= 0
     ) {
       problems.push(`verification-input contract requires one complete ${id} block`);

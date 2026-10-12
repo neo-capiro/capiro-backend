@@ -323,6 +323,22 @@ test('missing, duplicate, reordered markers and changed original claims are refu
   assert.ok(next.module.validateVerificationInputsDocument(contract.replace('Open P0 = 0', 'Open P0 waived')).length > 0);
 });
 
+test('the exact canonical LF contract passes the bounded document validator', () => {
+  assert.deepEqual(normalize(load(after, fixture()).module.validateVerificationInputsDocument(contract)), []);
+});
+
+for (const id of ['outreach-v3-phase1-foundations', 'outreach-v3-phase2-readiness']) {
+  for (const [label, suffix] of [['EOF without LF', ''], ['CRLF', '\r\n'], ['space plus LF', ' \n']]) {
+    test(`duplicate bare begin marker is refused for ${id}: ${label}`, () => {
+      const validate = load(after, fixture()).module.validateVerificationInputsDocument;
+      const duplicate = `<!-- ${id}:begin -->${suffix}`;
+      for (const source of [contract + duplicate, duplicate + contract]) {
+        assert.match(validate(source).join('\n'), new RegExp(`requires one complete ${id} block`));
+      }
+    });
+  }
+}
+
 test('current-catalog, completion, scope and authority qualifications cannot be omitted', () => {
   const next = load(after, fixture());
   for (const line of ['# Outreach V3 verification inputs v1',
