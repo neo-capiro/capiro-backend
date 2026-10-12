@@ -1,0 +1,218 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "sourceTree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "pairs": [
+    {
+      "source": "apps/api/scripts/phase6-stage-cycle.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+      "canonicalBlob": "d9a82728dc01bd0b48a92580ab581b13ff19bec8",
+      "originalMirrorBlob": "9bd1bb63da4397b35f347af2ea945b1bcb3c8df5",
+      "canonicalSha256": "e9005acc539c1e9cb3e8d0187b4e9c3fc41391a7dde0ce08973f387020a987f2",
+      "mirrorSha256": "f8e75a370aad408c5006f09f45800cb67dbd474b6e5f095a3a2c05f297ae7c37",
+      "equal": false,
+      "imports": [
+        {
+          "specifier": "node:child_process",
+          "declaration": "import { spawnSync } from 'node:child_process';"
+        },
+        {
+          "specifier": "node:fs",
+          "declaration": "import * as fs from 'node:fs';"
+        },
+        {
+          "specifier": "../src/defense-budget/phase6/phase6-cycle-runner-v1.js",
+          "declaration": "import {\n  buildPhase6OperatorPlanV1,\n  PHASE6_OPERATOR_COMMAND_VALUES,\n  type Phase6OperatorCommandV1,\n} from '../src/defense-budget/phase6/phase6-cycle-runner-v1.js';"
+        }
+      ],
+      "targets": [
+        {
+          "specifier": "../src/defense-budget/phase6/phase6-cycle-runner-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/phase6/phase6-cycle-runner-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/phase6/phase6-cycle-runner-v1.ts",
+          "sha256": "6e4b5c17c5f11d5dbb5b8a65f5f457b4d3c2f381e0910fd86d3ad707b05bb3c9",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/phase6/phase6-cycle-runner-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        }
+      ]
+    },
+    {
+      "source": "apps/api/scripts/plan-defense-budget-promotion-v1.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+      "canonicalBlob": "c5be25e428397dcf41c10a6cadba0bd6ca3ae2df",
+      "originalMirrorBlob": "94fef129178ecfd4c5118e6ae17a7bab5ac23e55",
+      "canonicalSha256": "0527611e0f93d7378c5c3ac270541096a623391ae061976f2f5ff0c283c80424",
+      "mirrorSha256": "352da5af8f24f06ac23e29cdd4aa93a88be616506a75fedbb1be32ed47321bee",
+      "equal": false,
+      "imports": [
+        {
+          "specifier": "node:crypto",
+          "declaration": "import { createHash } from 'node:crypto';"
+        },
+        {
+          "specifier": "dotenv",
+          "declaration": "import { config as dotenvConfig } from 'dotenv';"
+        },
+        {
+          "specifier": "@prisma/client",
+          "declaration": "import { PrismaClient } from '@prisma/client';"
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/promotion-planner-v1.js",
+          "declaration": "import {\n  buildPromotionPlanV1,\n  type ManualOverlayV1,\n  type PriorCanonicalRowV1,\n  type PromotionModeV1,\n} from '../src/defense-budget/promotion/promotion-planner-v1.js';"
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+          "declaration": "import {\n  canonicalMappingRegistryHashV1,\n  DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION,\n  type CanonicalEntityV1,\n} from '../src/defense-budget/promotion/canonical-mapping-registry-v1.js';"
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+          "declaration": "import { PrismaEligibilityBoundProjectionSourceV1 } from '../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js';"
+        },
+        {
+          "specifier": "../src/defense-budget/contracts/extraction-artifact-v1.js",
+          "declaration": "import {\n  BUDGET_FAMILY_V1_VALUES,\n  type BudgetFamilyV1,\n  type FundingFieldV1,\n} from '../src/defense-budget/contracts/extraction-artifact-v1.js';"
+        },
+        {
+          "specifier": "../src/defense-budget/contracts/canonical-json.js",
+          "declaration": "import { sha256CanonicalJson, type JsonValue } from '../src/defense-budget/contracts/canonical-json.js';"
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/promotion-eligibility-v1.js",
+          "declaration": "import { evaluatePromotionEligibilityV1 } from '../src/defense-budget/promotion/promotion-eligibility-v1.js';"
+        }
+      ],
+      "targets": [
+        {
+          "specifier": "../src/defense-budget/promotion/promotion-planner-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/promotion/promotion-planner-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/promotion/promotion-planner-v1.ts",
+          "sha256": "99f82feb1ab864fcee891a40b2f9e7efac7fa6e5e6cbf1d9b849d78328b63428",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/promotion/promotion-planner-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/promotion/canonical-mapping-registry-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/promotion/canonical-mapping-registry-v1.ts",
+          "sha256": "f60ab6aa8b5b4399d62efd076865ee2a7d33bc1b8651c7ba700a4d41e68c6a2c",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/promotion/canonical-mapping-registry-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.ts",
+          "sha256": "131305770fc1578b0868485ff899a968eb618aea22d5661a5320fca8e29c3741",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        },
+        {
+          "specifier": "../src/defense-budget/contracts/extraction-artifact-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/contracts/extraction-artifact-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/contracts/extraction-artifact-v1.ts",
+          "sha256": "8052f1b78b9bff4c1e6342e4c588e6a8782b0fc46dd6d6f0cdfe781aeaa37e5b",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/contracts/extraction-artifact-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        },
+        {
+          "specifier": "../src/defense-budget/contracts/canonical-json.js",
+          "canonicalTarget": "apps/api/src/defense-budget/contracts/canonical-json.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/contracts/canonical-json.ts",
+          "sha256": "8378e808102e19c25a70190e7c9918c5246ab2a53dd130a2e7c77c99432c5e67",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/contracts/canonical-json.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/promotion-eligibility-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/promotion/promotion-eligibility-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/promotion/promotion-eligibility-v1.ts",
+          "sha256": "96908ebd14c87595ddf11ec6a8e1315b042bd92d9e2dbf0a4f3b498c53033269",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/promotion/promotion-eligibility-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        }
+      ]
+    },
+    {
+      "source": "apps/api/scripts/status-defense-budget-promotion-v1.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts",
+      "canonicalBlob": "d36871ae5ce879f59b941f6ab5eb1c944ab0dec8",
+      "originalMirrorBlob": "de5426ebfa605340f52334003f18ad691f1df2df",
+      "canonicalSha256": "48662d2c8fa69ee9d1041964b48bef8b6baa2ac6c0ddf97111c44a90d34c1531",
+      "mirrorSha256": "52c26e8f9f0e023060d6c2df43c5e258b04cce543125a6b3be539dc12fc820a5",
+      "equal": false,
+      "imports": [
+        {
+          "specifier": "dotenv",
+          "declaration": "import { config as dotenvConfig } from 'dotenv';"
+        },
+        {
+          "specifier": "@prisma/client",
+          "declaration": "import { PrismaClient } from '@prisma/client';"
+        },
+        {
+          "specifier": "../src/defense-budget/promotion/slo-metrics-v1.js",
+          "declaration": "import {\n  ConsoleSloMetricSinkV1,\n  SloMetricRecorderV1,\n} from '../src/defense-budget/promotion/slo-metrics-v1.js';"
+        }
+      ],
+      "targets": [
+        {
+          "specifier": "../src/defense-budget/promotion/slo-metrics-v1.js",
+          "canonicalTarget": "apps/api/src/defense-budget/promotion/slo-metrics-v1.ts",
+          "mirroredTarget": "apps/defense-api/runtime-source/defense-budget/promotion/slo-metrics-v1.ts",
+          "sha256": "8b179592f09a0e258ac6cc7febc09d65c591fd72f6d5d8cbd121bca2163f6c19",
+          "verbatimRelativePath": "apps/defense-api/runtime-source/src/defense-budget/promotion/slo-metrics-v1.ts",
+          "qualification": "Source-parity operator copies retain original imports. They are outside compiled/runtime image scope and are not relocated executable entrypoints."
+        }
+      ]
+    }
+  ],
+  "unchangedDefenseBudgetTree": "49a033881715fb1102e8941c9895664f585efae2",
+  "protectedSources": [
+    {
+      "path": "apps/defense-api/runtime-source/README.md",
+      "sha256": "e3b4838f361970335a5e0809f0bcc295d2cc463ffb1a9c1cb1beb0c4efe4eb27",
+      "preserved": true
+    },
+    {
+      "path": "apps/defense-api/tsconfig.json",
+      "sha256": "19f1c38f53f0ca7e02c77af5de0ae840bd4d9b66ea95896c13b7bdb975f3b5c8",
+      "preserved": true
+    },
+    {
+      "path": "apps/defense-api/nest-cli.json",
+      "sha256": "bcb15e3049ff5d131762d2bfe3a6f917c3c64c83ac772467a4073975cd423b5b",
+      "preserved": true
+    },
+    {
+      "path": "apps/defense-api/Dockerfile",
+      "sha256": "c0a973ec65fed292cc4d8f4c64b847124bf0b80b09a154ca52820740796fae2c",
+      "preserved": true
+    },
+    {
+      "path": "apps/defense-api/package.json",
+      "sha256": "97832181e0f5b660fa2fe535d191fdc443afaa69386f006d3a7f771129e89a8c",
+      "preserved": true
+    },
+    {
+      "path": "apps/defense-api/src/runtime/phase1-7-runtime.manifest.ts",
+      "sha256": "a5fb94cb690a5f4178ef4feeec49619dd8cbcaef2aea9c2600e09dcddbe25408",
+      "preserved": true
+    },
+    {
+      "path": "apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts",
+      "sha256": "6fd3a889703f54c9f0c5107c033eb28851fa00089d8b56cb66251f8a9c577e44",
+      "preserved": true
+    },
+    {
+      "path": "scripts/verify-phase8-session4.mjs",
+      "sha256": "6eacfcd7328737700091757381094bea3ab6b3f9996e38d7e15d2112070eba08",
+      "preserved": true
+    }
+  ],
+  "directMappedTargets": 8,
+  "addedImports": 0,
+  "driftCount": 3,
+  "actualSession4VerifierExecuted": false,
+  "productionModulesLoaded": false,
+  "providerDatabaseNativeDockerOperations": false
+}

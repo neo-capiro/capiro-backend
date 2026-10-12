@@ -1,0 +1,76 @@
+✔ phase6-stage-cycle.ts: exact canonical bytes, original history retained, one-byte drift refuses (16.717628ms)
+✔ phase6-stage-cycle.ts: imports unchanged and syntax parses without loading imports (21.356622ms)
+✔ plan-defense-budget-promotion-v1.ts: exact canonical bytes, original history retained, one-byte drift refuses (13.285475ms)
+✔ plan-defense-budget-promotion-v1.ts: imports unchanged and syntax parses without loading imports (32.255984ms)
+✔ status-defense-budget-promotion-v1.ts: exact canonical bytes, original history retained, one-byte drift refuses (11.171395ms)
+✔ status-defense-budget-promotion-v1.ts: imports unchanged and syntax parses without loading imports (10.91911ms)
+✔ phase6: no args refuses before IO (both exact owners) (45.503002ms)
+✔ phase6: sole help succeeds before IO (both exact owners) (26.858864ms)
+✔ phase6: help plus another token is not help (both exact owners) (31.335804ms)
+✔ phase6: commit always refuses (both exact owners) (45.36375ms)
+✔ phase6: promote always refuses (both exact owners) (34.46103ms)
+✔ phase6: unknown command refuses (both exact owners) (17.887929ms)
+✔ phase6: incomplete command refuses (both exact owners) (31.76679ms)
+✔ phase6: missing input refuses (both exact owners) (23.57753ms)
+✔ phase6: incomplete input refuses (both exact owners) (15.342916ms)
+✔ phase6: input value that begins flag refuses (both exact owners) (28.441277ms)
+✔ phase6: extra inspect flag refuses (both exact owners) (28.727196ms)
+✔ phase6: extract cannot receive cycle-input flag (both exact owners) (32.279327ms)
+✔ phase6: compose_authorization_cycle reaches only inert inspect ports (both exact owners) (42.417618ms)
+✔ phase6: compose_appropriations_cycle reaches only inert inspect ports (both exact owners) (25.188274ms)
+✔ phase6: compose_post_enactment_evidence reaches only inert inspect ports (both exact owners) (14.57467ms)
+✔ phase6: verify_full_stage_cycle reaches only inert inspect ports (both exact owners) (11.595822ms)
+✔ phase6: report_cycle_certification reaches only inert inspect ports (both exact owners) (10.538494ms)
+✔ phase6: extraction delegates exact argv to inert port (both exact owners) (11.862172ms)
+✔ phase6: Windows retains pnpm.cmd delegation (both exact owners) (9.006904ms)
+✔ promotion plan validation: database config missing before all other validation (both exact owners) (53.141724ms)
+✔ promotion plan validation: environment missing (both exact owners) (74.471189ms)
+✔ promotion plan validation: cycle missing (both exact owners) (59.212ms)
+✔ promotion plan validation: fiscal year missing (both exact owners) (63.02317ms)
+✔ promotion plan validation: families missing (both exact owners) (61.621138ms)
+✔ promotion plan validation: eligibility missing (both exact owners) (51.348517ms)
+✔ promotion plan validation: uppercase eligibility refuses (both exact owners) (61.911455ms)
+✔ promotion plan validation: short eligibility refuses (both exact owners) (49.093063ms)
+✔ promotion plan validation: fractional fiscal year refuses (both exact owners) (84.721909ms)
+✔ promotion plan validation: low fiscal year refuses (both exact owners) (20.667467ms)
+✔ promotion plan validation: high fiscal year refuses (both exact owners) (31.315237ms)
+✔ promotion plan validation: empty families refuses (both exact owners) (23.537891ms)
+✖ promotion plan validation: unknown family refuses (both exact owners) (32.612593ms)
+✔ promotion plan validation: unknown mode refuses (both exact owners) (54.853198ms)
+✔ promotion plan validation: valid scope stops before Prisma (both exact owners) (55.078003ms)
+✔ promotion plan validation: baseline_hydration mode stops before Prisma (both exact owners) (58.179703ms)
+✔ promotion plan validation: correction mode stops before Prisma (both exact owners) (60.741314ms)
+✔ promotion plan validation: rollback mode stops before Prisma (both exact owners) (54.971408ms)
+✔ promotion status validation: missing database refuses first (both exact owners) (57.671934ms)
+✔ promotion status validation: missing environment refuses (both exact owners) (18.472255ms)
+✔ promotion status validation: valid environment stops before Prisma (both exact owners) (18.427176ms)
+✔ plan-defense-budget-promotion-v1.ts: import guard encloses main and Prisma remains function-local (4.573193ms)
+✔ status-defense-budget-promotion-v1.ts: import guard encloses main and Prisma remains function-local (1.028291ms)
+✔ plan refused/blocked returns retain finally disconnect source (2.997623ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 48
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2152.88037
+
+✖ failing tests:
+
+test at docs/cleanup-operator-mirror-repair-20261012/evidence/inert-operator-source.test.mjs:146:31
+✖ promotion plan validation: unknown family refuses (both exact owners) (32.612593ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 2
+  
+      at TestContext.<anonymous> (file:///workspace/capirov2-operator-mirror-repair/docs/cleanup-operator-mirror-repair-20261012/evidence/inert-operator-source.test.mjs:149:27)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
