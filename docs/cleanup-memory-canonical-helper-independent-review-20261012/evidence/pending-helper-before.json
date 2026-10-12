@@ -1,0 +1,61 @@
+{
+  "source": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "file": "apps/web/src/components/pending-memory-review-shared.ts",
+  "sourceSha256": "c6b715f984064ba51ecbe969b3948ffe4bd3535de443ea360994268c14d7de31",
+  "compilerVersion": "5.9.3",
+  "emittedSha256": "59e1ebbb72e08dc11e2f60a86083f78ac0b21c4f515d00f287ab4cc62decd12e",
+  "hardcodedBeforeExpectations": true,
+  "cases": [
+    {
+      "name": "blocked pending review",
+      "expected": "Review blocked",
+      "actual": "Review blocked"
+    },
+    {
+      "name": "unblocked pending review",
+      "expected": "Waiting for approval",
+      "actual": "Waiting for approval"
+    },
+    {
+      "name": "absent blocked flag",
+      "expected": "Waiting for approval",
+      "actual": "Waiting for approval"
+    },
+    {
+      "name": "inherited blocked flag remains existing runtime behavior",
+      "expected": "Review blocked",
+      "actual": "Review blocked"
+    },
+    {
+      "name": "null-prototype unblocked input",
+      "expected": "Waiting for approval",
+      "actual": "Waiting for approval"
+    },
+    {
+      "name": "truthy nonboolean remains existing runtime behavior",
+      "expected": "Review blocked",
+      "actual": "Review blocked"
+    },
+    {
+      "name": "blocked getter read once",
+      "reads": 1,
+      "actual": "Review blocked"
+    },
+    {
+      "name": "blocked getter exception identity preserved in same realm",
+      "pass": true
+    },
+    {
+      "name": "undefined preserves original TypeError",
+      "pass": true
+    },
+    {
+      "name": "null preserves original TypeError",
+      "pass": true
+    }
+  ],
+  "runtimeImports": 0,
+  "frontendUiExecuted": false,
+  "authorityPolicyChanged": false,
+  "nativeDatabaseExecuted": false
+}

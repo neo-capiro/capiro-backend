@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "277053c8196dc1be4789c42ea304b0de0553fe00",
+    "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+    "--",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/memory-file-editor-shared.ts.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/pending-memory-review-shared.ts.txt",
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts"
+  ],
+  "exitCode": 0,
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

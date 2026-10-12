@@ -1,0 +1,38 @@
+{
+  "source": "2322ed5f9d467e83eaa49b331921f981dc342eaf",
+  "specSha256": "54ad2b2b65dba535774965911d6a1316d26004bd927492233f50c9b000c9f7b2",
+  "actualSelectedCase": "removes the independent-approver claim from every active shared-memory UI surface",
+  "results": [
+    {
+      "name": "canonical baseline",
+      "expectedAccepted": true,
+      "accepted": true,
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only editor import disconnects runtime helper",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only pending import disconnects runtime headline",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "inert nested JSX holds marker while real panel returns null",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    }
+  ],
+  "sourceOverridesOpaqueOnly": true,
+  "frontendRuntimeExecuted": false,
+  "sqlExecuted": false
+}

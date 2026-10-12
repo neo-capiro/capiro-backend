@@ -1,0 +1,44 @@
+{
+  "source": "8048a314ecedc605f565f4650152b45b3454c07d",
+  "specSha256": "63b38890c8c504760b480e8e1c9bfe8f1f4d56b3e5b14e3f9a1adc578442b01b",
+  "actualSelectedCase": "removes the independent-approver claim from every active shared-memory UI surface",
+  "results": [
+    {
+      "name": "canonical baseline",
+      "expectedAccepted": true,
+      "accepted": true,
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only editor import disconnects runtime helper",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 1\nReceived length: 0\nReceived array:  []",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only pending import disconnects runtime headline",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 1\nReceived length: 0\nReceived array:  []",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "inert nested JSX holds marker while real panel returns null",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 1\nReceived length: 0\nReceived array:  []",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    }
+  ],
+  "sourceOverridesOpaqueOnly": true,
+  "frontendRuntimeExecuted": false,
+  "sqlExecuted": false
+}

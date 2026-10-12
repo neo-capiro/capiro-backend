@@ -1,0 +1,33 @@
+{
+  "source": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+  "reviewHead": "d1a4ad03c0066d1dcf005fab9a7f87ddda3fbeb6",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-memory-canonical-helper-independent-review-20261012/evidence/strict-web-read-refusal.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-memory-canonical-helper-independent-review-20261012/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-memory-canonical-helper-independent-review-20261012/evidence/same60-independent-results.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC",
+    "CI": "1"
+  },
+  "exitCode": 0,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "1834c0b9d7c5f5143ecf393a2640eb33e2c24b0571f41e8d54f3ee6f86fb2513",
+  "protectedBodyAndLiveWebReadsRefused": true,
+  "sqlExecuted": false,
+  "transformDiagnostics": false
+}

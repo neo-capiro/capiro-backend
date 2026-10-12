@@ -1,0 +1,66 @@
+{
+  "source": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "file": "apps/web/src/components/memory-file-editor-shared.ts",
+  "sourceSha256": "72905cd3aa59a1a9bf415926f99111ec7f9d8b94fc78da6263ebe83812de0c4f",
+  "compilerVersion": "5.9.3",
+  "emittedSha256": "ea32d2b7630d2461dd7352d91d3994052b3f799a4ccda6ec823db7506c1af48d",
+  "hardcodedBeforeExpectations": true,
+  "cases": [
+    {
+      "name": "pending shared proposal",
+      "expected": "Submitted for approval",
+      "actual": "Submitted for approval"
+    },
+    {
+      "name": "immediate personal save",
+      "expected": "Saved",
+      "actual": "Saved"
+    },
+    {
+      "name": "absent status",
+      "expected": "Saved",
+      "actual": "Saved"
+    },
+    {
+      "name": "undefined status",
+      "expected": "Saved",
+      "actual": "Saved"
+    },
+    {
+      "name": "unrecognized runtime status",
+      "expected": "Saved",
+      "actual": "Saved"
+    },
+    {
+      "name": "inherited status remains existing runtime behavior",
+      "expected": "Submitted for approval",
+      "actual": "Submitted for approval"
+    },
+    {
+      "name": "null-prototype status",
+      "expected": "Submitted for approval",
+      "actual": "Submitted for approval"
+    },
+    {
+      "name": "status getter read once",
+      "reads": 1,
+      "actual": "Submitted for approval"
+    },
+    {
+      "name": "getter exception identity propagated in same realm",
+      "pass": true
+    },
+    {
+      "name": "undefined preserves original TypeError",
+      "pass": true
+    },
+    {
+      "name": "null preserves original TypeError",
+      "pass": true
+    }
+  ],
+  "runtimeImports": 0,
+  "frontendUiExecuted": false,
+  "authorityPolicyChanged": false,
+  "nativeDatabaseExecuted": false
+}

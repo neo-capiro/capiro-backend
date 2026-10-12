@@ -1,0 +1,28 @@
+{
+  "disposition": "accepted within the declared finite source/mock scope",
+  "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "source": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+  "sourceTree": "795f12489bd8006de7cab5fe66dfbd939deae332",
+  "authorEvidence": "940f2c8a94556b8f0f5b7f3576d0123e5a142738",
+  "sourcePaths": 3,
+  "independentMockCasesPassed": 60,
+  "independentMockSuitesPassed": 3,
+  "originalNamesPreserved": 60,
+  "unchangedOtherCaseStatusesAndAssertionCounts": 59,
+  "actualCallbackCorpusPassed": 9,
+  "baselineCanonicalHelperCasesCarriedByByteIdentity": 21,
+  "authorCommittedChecksumBindingsVerified": 93,
+  "frontendProductionChanged": false,
+  "backendAuthorityChanged": false,
+  "dependencyChanged": false,
+  "opaqueUiExecuted": false,
+  "protectedReportingBodyReadByCurrentHost": false,
+  "databaseOrSqlExecutedByReviewer": false,
+  "nativeAcceptance": false,
+  "arbitraryJavaScriptDataflowProof": false,
+  "generalUiRuntimeConformance": false,
+  "remainingBlockers": [
+    "Separate native runner source/evidence review pending",
+    "Whole release/native/retirement acceptance outside this finite correction"
+  ]
+}

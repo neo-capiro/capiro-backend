@@ -1,0 +1,81 @@
+{
+  "source": "8048a314ecedc605f565f4650152b45b3454c07d",
+  "specSha256": "63b38890c8c504760b480e8e1c9bfe8f1f4d56b3e5b14e3f9a1adc578442b01b",
+  "actualSelectedCase": "removes the independent-approver claim from every active shared-memory UI surface",
+  "results": [
+    {
+      "name": "canonical baseline",
+      "expectedAccepted": true,
+      "accepted": true,
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only editor import disconnects runtime helper",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 1\nReceived length: 0\nReceived array:  []",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only pending import disconnects runtime headline",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 1\nReceived length: 0\nReceived array:  []",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "inert nested JSX holds marker while real panel returns null",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 1\nReceived length: 0\nReceived array:  []",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "computed later onSuccess override disconnects preserved callback",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "deferred editor import is not ordinary runtime binding",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "deferred panel import is not ordinary runtime binding",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "top-level assignment disconnects imported helper",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "local helper shadow is refused",
+      "expectedAccepted": false,
+      "accepted": false,
+      "errorName": "Error",
+      "message": "expect(received).toHaveLength(expected)\n\nExpected length: 0\nReceived length: 1\nReceived array:  [{\"emitNode\": undefined, \"end\": 2284, \"exclamationToken\": undefined, \"flags\": 0, \"id\": 0, \"initializer\": {\"body\": {\"emitNode\": undefined, \"end\": 2284, \"flags\": 0, \"hasExtendedUnicodeEscape\": false, \"id\": 0, \"kind\": 11, \"localSymbol\": undefined, \"modifierFlagsCache\": 0, \"original\": undefined, \"parent\": [Circular], \"pos\": 2276, \"singleQuote\": undefined, \"symbol\": undefined, \"text\": \"Saved\", \"transformFlags\": 0}, \"emitNode\": undefined, \"end\": 2284, \"endFlowNode\": undefined, \"equalsGreaterThanToken\": {\"emitNode\": undefined, \"end\": 2276, \"flags\": 0, \"id\": 0, \"kind\": 39, \"parent\": [Circular], \"pos\": 2273, \"transformFlags\": 0}, \"flags\": 0, \"flowNode\": undefined, \"id\": 0, \"jsDoc\": undefined, \"kind\": 220, \"localSymbol\": undefined, \"locals\": undefined, \"modifierFlagsCache\": 0, \"modifiers\": undefined, \"nextContainer\": undefined, \"original\": undefined, \"parameters\": [], \"parent\": [Circular], \"pos\": 2270, \"returnFlowNode\": undefined, \"symbol\": undefined, \"transformFlags\": 1024, \"type\": undefined, \"typeArguments\": undefined, \"typeParameters\": undefined}, \"jsDoc\": undefined, \"kind\": 261, \"localSymbol\": undefined, \"modifierFlagsCache\": 0, \"name\": {\"emitNode\": undefined, \"end\": 2268, \"escapedText\": \"settingsMemorySuccessMessage\", \"flags\": 0, \"flowNode\": undefined, \"id\": 0, \"jsDoc\": undefined, \"kind\": 80, \"parent\": [Circular], \"pos\": 2239, \"symbol\": undefined, \"transformFlags\": 0}, \"original\": undefined, \"parent\": {\"declarations\": [[Circular]], \"emitNode\": undefined, \"end\": 2284, \"flags\": 2, \"id\": 0, \"kind\": 262, \"modifierFlagsCache\": 0, \"original\": undefined, \"parent\": {\"declarationList\": [Circular], \"emitNode\": undefined, \"end\": 2285, \"flags\": 0, \"flowNode\": undefined, \"id\": 0, \"jsDoc\": undefined, \"kind\": 244, \"modifierFlagsCache\": 0, \"modifiers\": undefined, \"original\": undefined, \"parent\": {\"emitNode\": undefined, \"end\": 6575, \"flags\": 0, \"id\": 0, \"jsDoc\": undefined, \"kind\": 242, \"locals\": undefined, \"modifierFlagsCache\": 0, \"multiLine\": true, \"nextContainer\": undefined, \"original\": undefined, \"parent\": [NodeObject], \"pos\": 1218, \"statements\": [Array], \"transformFlags\": 4474275}, \"pos\": 2230, \"transformFlags\": 4457472}, \"pos\": 2230, \"transformFlags\": 4457472}, \"pos\": 2239, \"symbol\": undefined, \"transformFlags\": 1024, \"type\": undefined}]",
+      "pass": true,
+      "mutatedSourceExecuted": false
+    }
+  ],
+  "sourceOverridesOpaqueOnly": true,
+  "frontendRuntimeExecuted": false,
+  "sqlExecuted": false
+}

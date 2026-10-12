@@ -1,0 +1,60 @@
+{
+  "source": "2322ed5f9d467e83eaa49b331921f981dc342eaf",
+  "specSha256": "54ad2b2b65dba535774965911d6a1316d26004bd927492233f50c9b000c9f7b2",
+  "actualSelectedCase": "removes the independent-approver claim from every active shared-memory UI surface",
+  "results": [
+    {
+      "name": "canonical baseline",
+      "expectedAccepted": true,
+      "accepted": true,
+      "pass": true,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only editor import disconnects runtime helper",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "type-only pending import disconnects runtime headline",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    },
+    {
+      "name": "inert nested JSX holds marker while real panel returns null",
+      "expectedAccepted": false,
+      "accepted": true,
+      "pass": false,
+      "mutatedSourceExecuted": false
+    }
+  ],
+  "sourceOverridesOpaqueOnly": true,
+  "frontendRuntimeExecuted": false,
+  "sqlExecuted": false
+}
+node:internal/assert/utils:77
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: Source-contract refusals escaped
+    at Object.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-memory-canonical-helper-independent-review-20261012/evidence/probe-reader-opaque-overrides.cjs:61:8)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
