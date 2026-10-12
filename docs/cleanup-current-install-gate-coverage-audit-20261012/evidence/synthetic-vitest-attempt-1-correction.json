@@ -1,0 +1,8 @@
+{
+  "exitCode": 1,
+  "error": "MISSING DEPENDENCY Cannot find dependency '@vitest/coverage-v8'",
+  "cause": "Private consumer mirroring expected a direct @vitest namespace entry that canonical cached Web importer does not have; explicit private coverage-v8 link omitted.",
+  "correction": "Created only private synthetic consumer @vitest/coverage-v8 exact verified package link; canonical source/config/global bindings unchanged.",
+  "autoInstallerExecuted": false,
+  "originalLogRetained": true
+}

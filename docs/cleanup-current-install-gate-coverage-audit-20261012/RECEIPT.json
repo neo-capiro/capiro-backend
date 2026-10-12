@@ -1,0 +1,119 @@
+{
+  "schema": "capiro.cleanup-current-install-gate-coverage-audit.v1",
+  "auditedSourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "auditedSourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "productionChanges": 0,
+  "packageLockWorkflowConfigurationChanges": 0,
+  "completed": {
+    "gateConfigPureControls": 34,
+    "workerDatabasePureControls": 45,
+    "authCompleteSuite": {
+      "files": 1,
+      "passed": 20,
+      "failed": 0,
+      "pending": 0,
+      "todo": 0,
+      "diagnosticCoverageOnly": true
+    },
+    "meriCompleteConfiguredSuite": {
+      "files": 117,
+      "passed": 1717,
+      "failed": 0,
+      "pending": 0,
+      "todo": 2,
+      "coverage": false
+    },
+    "lockedProviderRetrieval": {
+      "packages": 5,
+      "officialHTTPStatus": 200,
+      "allLockedSRIExact": true,
+      "privateBytes": 1070456,
+      "capBytes": 5242880,
+      "lifecycleExecuted": false,
+      "installerExecuted": false,
+      "nativeDownloaderExecuted": false
+    },
+    "providerPreparation": {
+      "checks": 30,
+      "actualName": "v8",
+      "actualVersion": "2.1.9",
+      "oneCpuProbeRefusedBeforeExecution": true
+    },
+    "actualSyntheticV8Coverage": {
+      "files": 1,
+      "passed": 3,
+      "failed": 0,
+      "sourceMapOriginalTypeScript": true,
+      "lines": "5/5",
+      "statements": "5/5",
+      "branches": "4/4",
+      "functions": "1/1",
+      "refusalControls": 4,
+      "outputCapBytes": 1048576,
+      "outputBytes": 123439,
+      "defaultAppGraph": false
+    }
+  },
+  "coverageFloor": {
+    "status": "OPEN",
+    "canonicalPath": "docs/plans/cleanup1-coverage-baseline.json",
+    "verifierExit": 1,
+    "reason": "Missing canonical tracked five-target complete coverage floor",
+    "requiredTargets": [
+      "apps/api",
+      "apps/web",
+      "apps/workspace",
+      "apps/onboard-web",
+      "apps/defense-budget-parser"
+    ]
+  },
+  "notExecuted": [
+    "frozen full install",
+    "default full application suites",
+    "complete coverage:cleanup1",
+    "gate:cleanup1 all/core/e2e/python",
+    "actual Phase8 mirror verifier",
+    "Docker contained smoke or visual lane",
+    "native DB/migration/Prisma generation/download",
+    "hosted CI dispatch",
+    "real external model/provider/customer operations"
+  ],
+  "preservedFailures": [
+    "Manifest/lock dependency misclassified from cached binding absence; corrected no source patch",
+    "Initial cached YAML root alias MODULE_NOT_FOUND",
+    "Initial dependency alias walker failure",
+    "Retrieval assertion rejected inert magicast prepare declaration",
+    "Private link setup attempted omitted dependency field",
+    "Two overly strict provider-import zero-attempt counter assertions",
+    "Synthetic V8 missing private namespace binding",
+    "Synthetic V8 lazy ESM dependency failure outside physical node_modules"
+  ],
+  "toolchain": {
+    "node": "24.19.0",
+    "ciNode": "22",
+    "jest": "29.7.0",
+    "tsJest": "29.4.14",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9",
+    "vite": "5.4.21",
+    "esbuild": "0.21.5",
+    "pnpmSourcePin": "9.12.0"
+  },
+  "limitations": [
+    "Safe complete package suites are concrete results, not blanket source-only claims.",
+    "Auth diagnostic coverage and Meriv2 full tests do not qualify the five-target floor.",
+    "Cached metadata/runtime availability is not a frozen-install receipt.",
+    "Standard JS refusers and a pure closure do not prove arbitrary OS containment.",
+    "Current published reporting ownership remains protected; no body inspection or changes.",
+    "Root owns isolated native endpoint/bootstrap qualification and broader full-suite gates."
+  ],
+  "privateBindingsExcludedFromCommit": true,
+  "sourceBindings": "evidence/source-bindings.json",
+  "rawEvidenceIndex": "SHA256-INDEX.json",
+  "formatVerification": {
+    "authoredMarkdownAndReceiptPrettier": "PASS",
+    "stagedNonLogWhitespaceCheck": 0,
+    "rawCliLogWhitespaceCheck": 2,
+    "rawCliOutputPreserved": true
+  }
+}

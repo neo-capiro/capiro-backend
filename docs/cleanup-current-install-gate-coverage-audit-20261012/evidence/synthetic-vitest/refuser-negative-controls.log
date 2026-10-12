@@ -1,0 +1,4 @@
+PASS https.request refused before activation
+PASS net.connect refused before activation
+PASS fetch refused before activation
+PASS unapproved-child refused before activation

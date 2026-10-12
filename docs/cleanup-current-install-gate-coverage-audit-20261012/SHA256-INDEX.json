@@ -1,0 +1,409 @@
+{
+  "schema": "capiro.cleanup-current-install-gate-coverage-audit.sha256-index.v1",
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "sourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "files": [
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/AUDIT.md",
+      "bytes": 16041,
+      "sha256": "7abf8b99ae92a2e06be1fcec126364fdbd3b0a451d3ba58266964f0ea5346564"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/RECEIPT.json",
+      "bytes": 3968,
+      "sha256": "ee80336bd4223f2f3fb76ed858fc2b9ea0f44964ba0f60b25321bcfcab4066e1"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/audit-corrections.json",
+      "bytes": 1938,
+      "sha256": "8c32a17640562d25565a7c94018cf56c38561e18159bfd7e577cd313f0c2e3dc"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/auth-full-coverage/coverage-summary.json",
+      "bytes": 2521,
+      "sha256": "bf71d1e452e64194459d24777830d7e87f22ea4804b3c1a23a5789f9449be6a5"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/auth-full-suite-coverage.log",
+      "bytes": 3375,
+      "sha256": "eafa6b355a5fa15ec4d40b35e232a82a71222f94d70dcdcf3c7f187d7a4b930b"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/auth-full-test-results.json",
+      "bytes": 62420,
+      "sha256": "34f515f84b5cb753620917e8ed9bc30867eb90103b5c13f12d5f04c648f2aeff"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/cached-tool-package-inventory.json",
+      "bytes": 13437,
+      "sha256": "a9f810051c1a9fc0cddcac40f4d5e3a677bde089b56435dd1465e235715afe32"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/completion-source-status.json",
+      "bytes": 585,
+      "sha256": "9e1e4b3bba31467e483fb54eb1353c282d4c9027a5948b5faff47903999f9017"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/continue-locked-coverage-provider.py",
+      "bytes": 3942,
+      "sha256": "ec445ca7a3cec0cfb3f339fb8a3f053c707197c863b2f02f781b2eadd7b1ac7a"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-floor-verification.json",
+      "bytes": 303,
+      "sha256": "ba7bebaadcd7ecf88fd7eccd9b2d4ed5862dcee1a793f34079e3581fcadb0ef8"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-floor-verification.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-graph-attempt-1/FAILURE.json",
+      "bytes": 276,
+      "sha256": "9dfdb08b2f97a414e689e07c7690247bdecc68cdc88c7d19b5070951fa7e5ae7"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-graph-attempt-1/coverage-provider-cache-graph.cjs",
+      "bytes": 3273,
+      "sha256": "4109b5307bb2bb735b587564d5ce36cce9514c02dedcc94838ba029cb14c4ece"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-graph-attempt-1/coverage-provider-cache-graph.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-graph-attempt-1/coverage-provider-cache-graph.log",
+      "bytes": 1669,
+      "sha256": "587701cff474813acb28f16780647c0fb8f8c0b18553860efe2f7fc00b34bc95"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-attempted-operations.json",
+      "bytes": 1042,
+      "sha256": "1155395c6a3a66ef5df50f74fa19d057a0c1c6f37d0a5718833135049155da31"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs",
+      "bytes": 3330,
+      "sha256": "8ebd1126ab22baaf58e41190942e56bebdc5184ef6664bab6edecb5b3982cfc2"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.json",
+      "bytes": 42593,
+      "sha256": "7211870b0047f21e4b63be970e28b77fb4e6a27d45216c2f3eadb769a32ea64b"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-private-links.json",
+      "bytes": 9645,
+      "sha256": "424f4211f545d1c795a888f26ba64fab533f6ee7d5603221dc7ef667f1639fb8"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-runtime-attempt-2.log",
+      "bytes": 377,
+      "sha256": "e90217a6a4065e6f8764803f8b9b1b1203be98d5e782adf1bea63b1e1cae4977"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-runtime-failure-attempt-2.json",
+      "bytes": 7248,
+      "sha256": "fe91dfc59cd6b77ef402054b1a35e0e7c8e58565422309416b91bd55bf048b9e"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-runtime-failure.json",
+      "bytes": 7238,
+      "sha256": "b02e48cacf7ea53b0c3937be7dcf585f2b1ce4581b48929f71a657ba136d7143"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-runtime-final.log",
+      "bytes": 56,
+      "sha256": "6917256d277e3c025071d8b5236e71513b98c538fb2d5480da1043f3ca5a375b"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-runtime-verification.json",
+      "bytes": 8479,
+      "sha256": "4c30a92f4d854ac6ef981fc16eb1126b784e8cb07693c32c08c23c2596fab7bf"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-runtime-verification.log",
+      "bytes": 367,
+      "sha256": "373fcaf3dd5b66986679f90af3ac7076de1d12d579c80cf46029a7567159af74"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/current-gate-scope.json",
+      "bytes": 4181,
+      "sha256": "541d5121d8b26de4f26fb175be443279af3126101c7015d6011a38f9e763e525"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/fetch-locked-coverage-provider.py",
+      "bytes": 5410,
+      "sha256": "9dc834bd3e525338f19f0915f006b45178f27cc841992f126a9688d0e03c141f"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/gate-config-pure-tests.log",
+      "bytes": 3415,
+      "sha256": "7d32ec17830d2c54f4c9670647e3daf79751c8b278dd9b853d95775c207209d5"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/locked-coverage-provider-continuation.json",
+      "bytes": 19236,
+      "sha256": "0d6f1c008383f6c63e9a1a717796c5cc8a98be9f36041cea73798fa8293b4aa6"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/locked-coverage-provider-continuation.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/locked-coverage-provider-continuation.stdout.json",
+      "bytes": 113,
+      "sha256": "c57c3e2ad78033f5d440c6e51139d07e3647059b45bb8edb6907e78d111b3d12"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/locked-coverage-provider-retrieval.json",
+      "bytes": 10936,
+      "sha256": "071dd8bd5b0a814129621c5fd87470d3d5456b7e7bd0ff37feceaecc2e8508b9"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/locked-coverage-provider-retrieval.stderr.log",
+      "bytes": 377,
+      "sha256": "04b23b2821d130203d5f2b6eb66b6b0317c87229da2587dbb9b28b6558d9cc93"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/locked-coverage-provider-retrieval.stdout.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-full-command.json",
+      "bytes": 990,
+      "sha256": "1c3bdf476ec72a8b671004739f43c1c9738ab49b53228a917aff93a3760c1ccf"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-full-exit.json",
+      "bytes": 53,
+      "sha256": "5be607aa6069756a424013851e837a1d6719ca60a53323cc1dcdd74f0dd1cb8a"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-full-suite.log",
+      "bytes": 5680,
+      "sha256": "71ad85f1160c312002af6287791e05ecf02b762ee76ffb676b8da89d44c1bd15"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-full-test-results.json",
+      "bytes": 727872,
+      "sha256": "c08dabbc6cedf814c6f32499a115101fef996a5ffeba5ef839d677f585f77015"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-generated-cache-manifest.json",
+      "bytes": 155028,
+      "sha256": "8aed5ee3f24c9fc82b9edbd8b17347f22839df0ffea7d1caff4d1be6299764b2"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-shared-cache-source-bindings.json",
+      "bytes": 11193,
+      "sha256": "71648fabc9aa59dfd3d8a96bca6aa84cf5dd62a733cde2b4530947952c816c4c"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/per-package-cache-bindings.json",
+      "bytes": 10520,
+      "sha256": "4a9bdd175800de0a93e2ab689dd48210ea26373659cb40a51d269a71112e7eb9"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/private-link-attempt-1.json",
+      "bytes": 324,
+      "sha256": "30770b3b71f78c0d3a2f38539a2e7b865ca8f498b4e7daad15c13bae8293f1be"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/run-meri-full-suite.cjs",
+      "bytes": 1495,
+      "sha256": "a70d71b5b28339195c853383dd68ae01d20e6d012d46f17121db14c556a97ccf"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/run-synthetic-vitest-v8-attempt-2.cjs",
+      "bytes": 1773,
+      "sha256": "ca138c7a07eded805d3aa4caca38010b99c0a651899b41792b4ba793ddfa5e07"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/run-synthetic-vitest-v8-attempt-3.cjs",
+      "bytes": 1773,
+      "sha256": "924b5082d69fb4b33f7225926909e039903d420dbd11cba04eb381fdba8a8140"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/run-synthetic-vitest-v8.cjs",
+      "bytes": 1773,
+      "sha256": "de2ebe30ee6d4e13a2f0b7cf2f74f61d60262c5596707d48aa99bb774a7a4cb3"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/source-bindings.json",
+      "bytes": 62190,
+      "sha256": "79e7a2da2dabd5e2fee38fdd4a75e88464cd04eb5231d4b0a77365b68b3373a6"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/staged-whitespace-raw.log",
+      "bytes": 860,
+      "sha256": "78212287ca85a75a5657a83ca7ea44b8b697742096a18cba08a6dabb78d2e12f"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/staged-whitespace-verification.json",
+      "bytes": 326,
+      "sha256": "6f28032e0ed1d2d1e1d3de9f111478022e438590f9dcc84c97fd85a065dd14de"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-provider-layout-copy.json",
+      "bytes": 2166,
+      "sha256": "5f1a300fb5cd5eac4629ded315061136a14417520da14e31d931daa5c8f9f239"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/coverage/coverage-final.json",
+      "bytes": 1452,
+      "sha256": "bf24e7dc419ca54dedeead3ba808203762448fcec72eee92232ab61e30dd4fed"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/coverage/coverage-summary.json",
+      "bytes": 599,
+      "sha256": "a9eaaf874a63347c6a068fc246619f047c79e6c954a62ac1b3cde4d3c5d1726e"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/operation-receipts.jsonl",
+      "bytes": 3325,
+      "sha256": "8e0271ac6429e9a77689f0cb5589b431410af7a6cf2ee524f483c27743f70a42"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/package.json",
+      "bytes": 42,
+      "sha256": "609158e6c5fbc237939fa3ddf7faab80ab690bdc0c8d584414a885130103c4e8"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/refuser-negative-controls.log",
+      "bytes": 173,
+      "sha256": "84ed0eb20b4821e5ce0a07f6a2e2fbb9851a71a375f376db51655fd6cd3c080e"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/results.json",
+      "bytes": 1357,
+      "sha256": "4bcb54f1f4f86faa26edc693611844ab644d073f77ca3cfbc57b0c850a3c917b"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/run-attempt-1.log",
+      "bytes": 67,
+      "sha256": "763c779c94a113851c261be2618d08037176b7e53e589dbc66366150daa10d46"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/run-attempt-2.log",
+      "bytes": 1261,
+      "sha256": "e71ce377ebbdd9064f7b8fcec5ecaa3aa9c2464568ee1793d137be3fbea0038a"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/run-attempt-3.log",
+      "bytes": 552,
+      "sha256": "6e74080f0f85191c7e6e011fff74ca0f580c70e30c3c3cf915238ffb0d9a51cc"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/subject.spec.ts",
+      "bytes": 362,
+      "sha256": "a8c0346ae69be1682b0729479b2a641970f5493bcfefa63e422c1ecbc4c30412"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/subject.ts",
+      "bytes": 141,
+      "sha256": "8893bf579396a41897f6dd6099be9b9f96e2f71a8ea35c1d6bfd7b4b2ac7d1a8"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/vitest.config.mjs",
+      "bytes": 333,
+      "sha256": "f984e62c67db080a9794bd0eeb3c02a76cc85610edfecff91abb078fc7b5be87"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-attempt-1-correction.json",
+      "bytes": 498,
+      "sha256": "559b7f357eca5a9c5834aa9707b58d3450a84c66a2852702c3ec1b73f8a613e1"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-command.json",
+      "bytes": 894,
+      "sha256": "d6c8cbff129d21780abf3af37d07ae7c6e6fe08d7d551ff8ca81c5d0234a33c3"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-evidence-transfer.json",
+      "bytes": 4011,
+      "sha256": "7dc3481e136547a4b915c79d0faee90569adb597f8e0a45e98470b11013c0861"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-exit-attempt-1.json",
+      "bytes": 533,
+      "sha256": "5ff9218c2ca9126615d874b536be550f0dd8cea047e73409f968ee134ec5004a"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-exit-attempt-2.json",
+      "bytes": 602,
+      "sha256": "6e2573fc13d2275850936bcb33aa829f4da4f69a47940f0885cc7be0120fabee"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-exit-attempt-3.json",
+      "bytes": 1869,
+      "sha256": "f58b2b2afd550cc9fb4319de0526a89452d8356228398b43e5a6d486375a41b4"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-v8-acceptance.json",
+      "bytes": 5016,
+      "sha256": "936b7d0c5f796fc2d77022eba7d61852566f3a81e41c3fea33bf315242c47e83"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest-v8-acceptance.log",
+      "bytes": 132,
+      "sha256": "47e0214a078ba2c2fac19e2b72a9f9ee178e782681b02f085dfdc17564f3935f"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-private-coverage-provider-attempt-2.cjs",
+      "bytes": 2871,
+      "sha256": "ff18a273e734540c874186559769b7c6683a8dc1569b1e9988b10b0a1b42bcb6"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-private-coverage-provider-final.cjs",
+      "bytes": 3140,
+      "sha256": "42c3c0c13a2b729d7e0fd3994a6ab969d2a5662c0a18c54ed380699d447aebbc"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-private-coverage-provider.cjs",
+      "bytes": 2510,
+      "sha256": "7de8844fdef2833c53fd50103e94673886a712b9b7bbe4adf447bc830a950bb5"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-synthetic-vitest-results.cjs",
+      "bytes": 3133,
+      "sha256": "2a400fc3e3ee0407aef69709f5d1832547df90fa84ad883685bce9a2944f3471"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/vitest-coverage-declaration-search.log",
+      "bytes": 434,
+      "sha256": "a915c4a1a8ab88502277d1523c3f82202bec054d36a561f4cc6a64ab048ed9a0"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/vitest-local-refuser.cjs",
+      "bytes": 1878,
+      "sha256": "7f559b2c146acaff444d0a87bb6ec8651fd9c11f137184886bbc09d1e56641a2"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/worker-db-pure-controls.json",
+      "bytes": 159,
+      "sha256": "72c294bd6cabddf76f61602b68e01858c0c4fabf16e5f9c9348490693dcef2ad"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/worker-db-pure-controls.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/workspace-command-inventory.json",
+      "bytes": 9328,
+      "sha256": "9c9e5cfdcd72b379f36d7454ce7187a3d624351f278eea814ff943bfe1404a94"
+    }
+  ],
+  "indexSelfExcluded": true,
+  "totalIndexedBytes": 1268479
+}

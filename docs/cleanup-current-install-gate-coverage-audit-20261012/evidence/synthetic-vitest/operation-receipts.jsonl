@@ -1,0 +1,25 @@
+{"pid":507647,"operation":"refuser-installed","allowed":true,"fixtureRoot":"/tmp/capiro-vitest-v8-toolchain-277-20261012"}
+{"pid":507647,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"physical id\" | sort |uniq | wc -l","allowed":true}
+{"pid":507647,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"core id\" | sort | uniq | wc -l","allowed":true}
+{"pid":507647,"operation":"child_process.spawn","command":"/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild","allowed":true}
+{"pid":508056,"operation":"refuser-installed","allowed":true,"fixtureRoot":"/tmp/capiro-vitest-v8-toolchain-277-20261012"}
+{"pid":508056,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"physical id\" | sort |uniq | wc -l","allowed":true}
+{"pid":508056,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"core id\" | sort | uniq | wc -l","allowed":true}
+{"pid":508056,"operation":"child_process.spawn","command":"/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild","allowed":true}
+{"pid":508672,"operation":"refuser-installed","allowed":true,"fixtureRoot":"/tmp/capiro-vitest-v8-toolchain-277-20261012"}
+{"pid":508672,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"physical id\" | sort |uniq | wc -l","allowed":true}
+{"pid":508672,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"core id\" | sort | uniq | wc -l","allowed":true}
+{"pid":508672,"operation":"child_process.spawn","command":"/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild","allowed":true}
+{"pid":508672,"operation":"child_process.fork","command":"/workspace/capirov2/node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/entry/process.js","allowed":true}
+{"pid":508702,"operation":"refuser-installed","allowed":true,"fixtureRoot":"/tmp/capiro-vitest-v8-toolchain-277-20261012"}
+{"pid":508702,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"physical id\" | sort |uniq | wc -l","allowed":true}
+{"pid":508702,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"core id\" | sort | uniq | wc -l","allowed":true}
+{"pid":508672,"operation":"child_process.fork","command":"/workspace/capirov2/node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/entry/process.js","allowed":true}
+{"pid":508724,"operation":"refuser-installed","allowed":true,"fixtureRoot":"/tmp/capiro-vitest-v8-toolchain-277-20261012"}
+{"pid":508724,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"physical id\" | sort |uniq | wc -l","allowed":true}
+{"pid":508724,"operation":"child_process.execSync","command":"cat /proc/cpuinfo | grep \"core id\" | sort | uniq | wc -l","allowed":true}
+{"pid":509017,"operation":"refuser-installed","allowed":true,"fixtureRoot":"/tmp/capiro-vitest-v8-toolchain-277-20261012"}
+{"pid":509017,"operation":"node:https.request","allowed":false}
+{"pid":509017,"operation":"node:net.connect","allowed":false}
+{"pid":509017,"operation":"global.fetch","allowed":false}
+{"pid":509017,"operation":"child_process.spawn","command":"/forbidden-unapproved-process","allowed":false}

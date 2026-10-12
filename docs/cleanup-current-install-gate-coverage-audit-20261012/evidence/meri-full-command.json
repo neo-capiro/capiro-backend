@@ -1,0 +1,22 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "cwd": "/tmp/capirov2-four-runtime-controls-review/packages/meriv2-core",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/packages/meriv2-core/node_modules/jest/bin/jest.js",
+    "--config",
+    "jest.config.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-full-test-results.json",
+    "--cacheDirectory",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/meri-jest-cache"
+  ],
+  "removedEnvironmentKeys": [],
+  "removedEnvironmentValuesDisclosed": false,
+  "canonicalConfig": true,
+  "coverage": false,
+  "networkScope": "Only existing explicit self-created loopback OTLP fixture; no paid-model, database, native engine or install commands."
+}

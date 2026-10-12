@@ -1,0 +1,6 @@
+apps/onboard-web/package.json:33:    "@vitest/coverage-v8": "^2.1.9"
+apps/web/package.json:64:    "@vitest/coverage-v8": "^2.1.9"
+pnpm-lock.yaml:778:      '@vitest/coverage-v8':
+pnpm-lock.yaml:893:      '@vitest/coverage-v8':
+pnpm-lock.yaml:1209:  '@vitest/coverage-v8@2.1.9':
+pnpm-lock.yaml:10564:  '@vitest/coverage-v8@2.1.9(vitest@2.1.9(@types/node@26.6.3)(jsdom@29.1.1(@noble/hashes@1.8.0))(lightningcss@1.32.0)(terser@5.46.2))':

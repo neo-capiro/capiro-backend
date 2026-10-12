@@ -1,0 +1,19 @@
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: Cannot find module '/workspace/capirov2/node_modules/.pnpm/@bcoe+v8-coverage@0.2.3/node_modules/@bcoe/v8-coverage/dist/lib/ascii' imported from /workspace/capirov2/node_modules/.pnpm/@bcoe+v8-coverage@0.2.3/node_modules/@bcoe/v8-coverage/dist/lib/index.mjs
+ ❯ finalizeResolution node:internal/modules/esm/resolve:271:11
+ ❯ moduleResolve node:internal/modules/esm/resolve:865:10
+ ❯ defaultResolve node:internal/modules/esm/resolve:992:11
+ ❯ #cachedDefaultResolve node:internal/modules/esm/loader:701:20
+ ❯ #resolveAndMaybeBlockOnLoaderThread node:internal/modules/esm/loader:721:38
+ ❯ ModuleLoader.resolveSync node:internal/modules/esm/loader:759:56
+ ❯ #resolve node:internal/modules/esm/loader:683:17
+ ❯ ModuleLoader.getOrCreateModuleJob node:internal/modules/esm/loader:603:35
+ ❯ ModuleJob.syncLink node:internal/modules/esm/module_job:163:33
+ ❯ ModuleJob.link node:internal/modules/esm/module_job:253:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_MODULE_NOT_FOUND', url: 'file:///workspace/capirov2/node_modules/.pnpm/@bcoe+v8-coverage@0.2.3/node_modules/@bcoe/v8-coverage/dist/lib/ascii' }
+
+
+

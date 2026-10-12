@@ -1,0 +1,199 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "links": [
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "@ampproject/remapping",
+      "lockedVersion": "2.3.0",
+      "resolvedVersion": "2.3.0",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/@ampproject/remapping",
+      "target": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@ampproject+remapping@2.3.0"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "@bcoe/v8-coverage",
+      "lockedVersion": "0.2.3",
+      "resolvedVersion": "0.2.3",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/@bcoe/v8-coverage",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@bcoe+v8-coverage@0.2.3/node_modules/@bcoe/v8-coverage"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "debug",
+      "lockedVersion": "4.4.3",
+      "resolvedVersion": "4.4.3",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/debug",
+      "target": "/workspace/capirov2/node_modules/.pnpm/debug@4.4.3/node_modules/debug"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "istanbul-lib-coverage",
+      "lockedVersion": "3.2.2",
+      "resolvedVersion": "3.2.2",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/istanbul-lib-coverage",
+      "target": "/workspace/capirov2/node_modules/.pnpm/istanbul-lib-coverage@3.2.2/node_modules/istanbul-lib-coverage"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "istanbul-lib-report",
+      "lockedVersion": "3.0.1",
+      "resolvedVersion": "3.0.1",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/istanbul-lib-report",
+      "target": "/workspace/capirov2/node_modules/.pnpm/istanbul-lib-report@3.0.1/node_modules/istanbul-lib-report"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "istanbul-lib-source-maps",
+      "lockedVersion": "5.0.6",
+      "resolvedVersion": "5.0.6",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/istanbul-lib-source-maps",
+      "target": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/istanbul-lib-source-maps@5.0.6"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "istanbul-reports",
+      "lockedVersion": "3.2.0",
+      "resolvedVersion": "3.2.0",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/istanbul-reports",
+      "target": "/workspace/capirov2/node_modules/.pnpm/istanbul-reports@3.2.0/node_modules/istanbul-reports"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "magic-string",
+      "lockedVersion": "0.30.21",
+      "resolvedVersion": "0.30.21",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/magic-string",
+      "target": "/workspace/capirov2/node_modules/.pnpm/magic-string@0.30.21/node_modules/magic-string"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "magicast",
+      "lockedVersion": "0.3.5",
+      "resolvedVersion": "0.3.5",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/magicast",
+      "target": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/magicast@0.3.5"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "std-env",
+      "lockedVersion": "3.10.0",
+      "resolvedVersion": "3.10.0",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/std-env",
+      "target": "/workspace/capirov2/node_modules/.pnpm/std-env@3.10.0/node_modules/std-env"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "test-exclude",
+      "lockedVersion": "7.0.2",
+      "resolvedVersion": "7.0.2",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/test-exclude",
+      "target": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/test-exclude@7.0.2"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "tinyrainbow",
+      "lockedVersion": "1.2.0",
+      "resolvedVersion": "1.2.0",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/tinyrainbow",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tinyrainbow@1.2.0/node_modules/tinyrainbow"
+    },
+    {
+      "owner": "@vitest/coverage-v8",
+      "dependency": "vitest",
+      "lockedVersion": "2.1.9(@types/node@26.6.3)(jsdom@29.1.1(@noble/hashes@1.8.0))(lightningcss@1.32.0)(terser@5.46.2)",
+      "resolvedVersion": "2.1.9",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules/vitest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/vitest@2.1.9_@types+node@26.6.3_jsdom@29.1.1_@noble+hashes@1.8.0__lightningcss@1.32.0_terser@5.46.2/node_modules/vitest"
+    },
+    {
+      "owner": "@ampproject/remapping",
+      "dependency": "@jridgewell/gen-mapping",
+      "lockedVersion": "0.3.13",
+      "resolvedVersion": "0.3.13",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@ampproject+remapping@2.3.0/node_modules/@jridgewell/gen-mapping",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@jridgewell+gen-mapping@0.3.13/node_modules/@jridgewell/gen-mapping"
+    },
+    {
+      "owner": "@ampproject/remapping",
+      "dependency": "@jridgewell/trace-mapping",
+      "lockedVersion": "0.3.31",
+      "resolvedVersion": "0.3.31",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@ampproject+remapping@2.3.0/node_modules/@jridgewell/trace-mapping",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@jridgewell+trace-mapping@0.3.31/node_modules/@jridgewell/trace-mapping"
+    },
+    {
+      "owner": "istanbul-lib-source-maps",
+      "dependency": "@jridgewell/trace-mapping",
+      "lockedVersion": "0.3.31",
+      "resolvedVersion": "0.3.31",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/istanbul-lib-source-maps@5.0.6/node_modules/@jridgewell/trace-mapping",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@jridgewell+trace-mapping@0.3.31/node_modules/@jridgewell/trace-mapping"
+    },
+    {
+      "owner": "istanbul-lib-source-maps",
+      "dependency": "debug",
+      "lockedVersion": "4.4.3",
+      "resolvedVersion": "4.4.3",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/istanbul-lib-source-maps@5.0.6/node_modules/debug",
+      "target": "/workspace/capirov2/node_modules/.pnpm/debug@4.4.3/node_modules/debug"
+    },
+    {
+      "owner": "istanbul-lib-source-maps",
+      "dependency": "istanbul-lib-coverage",
+      "lockedVersion": "3.2.2",
+      "resolvedVersion": "3.2.2",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/istanbul-lib-source-maps@5.0.6/node_modules/istanbul-lib-coverage",
+      "target": "/workspace/capirov2/node_modules/.pnpm/istanbul-lib-coverage@3.2.2/node_modules/istanbul-lib-coverage"
+    },
+    {
+      "owner": "magicast",
+      "dependency": "@babel/parser",
+      "lockedVersion": "7.29.3",
+      "resolvedVersion": "7.29.3",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/magicast@0.3.5/node_modules/@babel/parser",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@babel+parser@7.29.3/node_modules/@babel/parser"
+    },
+    {
+      "owner": "magicast",
+      "dependency": "@babel/types",
+      "lockedVersion": "7.29.0",
+      "resolvedVersion": "7.29.0",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/magicast@0.3.5/node_modules/@babel/types",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@babel+types@7.29.0/node_modules/@babel/types"
+    },
+    {
+      "owner": "magicast",
+      "dependency": "source-map-js",
+      "lockedVersion": "1.2.2",
+      "resolvedVersion": "1.2.2",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/magicast@0.3.5/node_modules/source-map-js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/source-map-js@1.2.2/node_modules/source-map-js"
+    },
+    {
+      "owner": "test-exclude",
+      "dependency": "@istanbuljs/schema",
+      "lockedVersion": "0.1.6",
+      "resolvedVersion": "0.1.6",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/test-exclude@7.0.2/node_modules/@istanbuljs/schema",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@istanbuljs+schema@0.1.6/node_modules/@istanbuljs/schema"
+    },
+    {
+      "owner": "test-exclude",
+      "dependency": "glob",
+      "lockedVersion": "10.4.5",
+      "resolvedVersion": "10.4.5",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/test-exclude@7.0.2/node_modules/glob",
+      "target": "/workspace/capirov2/node_modules/.pnpm/glob@10.4.5/node_modules/glob"
+    },
+    {
+      "owner": "test-exclude",
+      "dependency": "minimatch",
+      "lockedVersion": "10.2.6",
+      "resolvedVersion": "10.2.6",
+      "link": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/test-exclude@7.0.2/node_modules/minimatch",
+      "target": "/workspace/capirov2/node_modules/.pnpm/minimatch@10.2.6/node_modules/minimatch"
+    }
+  ],
+  "cacheModified": false,
+  "onlyPrivateMissingPackageLinks": true
+}

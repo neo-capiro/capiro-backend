@@ -1,0 +1,39 @@
+[Nest] 502618  - 10/12/2026, 11:16:49 PM   DEBUG [TenantGuard] Clerk verifyToken failed: bad token
+[Nest] 502618  - 10/12/2026, 11:16:49 PM    WARN [TenantGuard] {"security_event":"auth.denied","reason":"no_matching_tenant","surface":"http","tenant_id":null,"claimed_tenant_id":null,"clerk_user_id":"user_abc","count":1}
+[Nest] 502618  - 10/12/2026, 11:16:49 PM    WARN [TenantGuard] {"security_event":"auth.denied","reason":"tenant_claim_mismatch","surface":"http","tenant_id":"tenant-1","claimed_tenant_id":"tenant-OTHER","clerk_user_id":"user_abc","count":1}
+[Nest] 502618  - 10/12/2026, 11:16:49 PM    WARN [TenantGuard] {"security_event":"auth.denied","reason":"org_claim_mismatch","surface":"http","tenant_id":"tenant-1","claimed_tenant_id":"tenant-1","clerk_user_id":"user_abc","count":1}
+[Nest] 502618  - 10/12/2026, 11:16:49 PM    WARN [TenantGuard] {"security_event":"auth.denied","reason":"slug_claim_mismatch","surface":"http","tenant_id":"tenant-1","claimed_tenant_id":"tenant-1","clerk_user_id":"user_abc","count":1}
+[Nest] 502618  - 10/12/2026, 11:16:49 PM    WARN [TenantGuard] {"security_event":"auth.denied","reason":"no_active_membership","surface":"http","tenant_id":"tenant-1","claimed_tenant_id":null,"clerk_user_id":"user_abc","count":1}
+[Nest] 502618  - 10/12/2026, 11:16:49 PM    WARN [TenantGuard] {"security_event":"auth.denied","reason":"no_active_membership","surface":"http","tenant_id":"tenant-1","claimed_tenant_id":null,"clerk_user_id":"user_abc","count":1}
+PASS src/tenant.guard.spec.ts
+  TenantGuard
+    ✓ 401s a missing or malformed Authorization header (never reaches Clerk) (24 ms)
+    ✓ 401s an invalid session token (4 ms)
+    ✓ 403s a verified token with no tenant claim (2 ms)
+    ✓ fails closed on a token missing sub (never synthesizes a placeholder) (1 ms)
+    ✓ rejects a subject-less token WITHOUT hitting the database (3 ms)
+    ✓ attaches the CANONICAL tenant id resolved from the database (3 ms)
+    ✓ resolves org_id to the canonical UUID instead of using it as the tenant id (1 ms)
+    ✓ 403s when the org id resolves to no tenant (1 ms)
+    ✓ falls back to capiro_tenant_id when the tenant has no clerk_org_id linked (2 ms)
+    ✓ role falls back org_role → capiro_org_role → null
+    claim cross-checks
+      ✓ 403s when capiro_tenant_id disagrees with the resolved tenant (2 ms)
+      ✓ 403s when the resolved tenant belongs to a different Clerk org (1 ms)
+      ✓ 403s when the slug claim disagrees with the resolved tenant (1 ms)
+      ✓ accepts a slug claim that differs only by case (slug is citext) (2 ms)
+    active membership
+      ✓ 403s a verified token whose local membership is not active (1 ms)
+      ✓ checks membership against the RESOLVED tenant, not the raw claim (1 ms)
+      ✓ fails closed when the membership lookup itself reports false (2 ms)
+  normalizeClaims (Clerk v1/v2 token shapes)
+    ✓ maps the v2 compact `o` object to flat org claims and prefixes the role (1 ms)
+    ✓ prefers explicit v1 flat claims over the v2 object (1 ms)
+    ✓ passes an already-prefixed v2 role through unchanged (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       20 passed, 20 total
+Snapshots:   0 total
+Time:        3.375 s
+Ran all test suites.
+Test results written to: ../../docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/auth-full-test-results.json

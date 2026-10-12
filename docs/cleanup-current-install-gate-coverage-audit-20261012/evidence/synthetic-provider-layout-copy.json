@@ -1,0 +1,73 @@
+{
+  "files": [
+    {
+      "path": "dist/browser.js",
+      "bytes": 1281,
+      "sha256": "e9dd80b1de35defadadbcdee19e0a63c48d78905948fb3e2801cde1bd0c2049f",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "dist/index.js",
+      "bytes": 1202,
+      "sha256": "8233e412b40b6927f973fbaad5b6fb2fec9a2861867d910d5359127365787fb9",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "dist/load-provider-Bl5rgjsL.js",
+      "bytes": 214,
+      "sha256": "b501051c8d1570660c01df98325a2dfc806761f2f78b95907e9b7371675580ef",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "dist/provider.js",
+      "bytes": 105964,
+      "sha256": "e8b8f2c6c332726e384a769511e002bf5eeab67a2e79740d1fcfea5f4c5fcd2e",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "package.json",
+      "bytes": 2128,
+      "sha256": "329ffcbfa9cb704f4ff94bc3987290fe2aab3bd9dfd6ecb0c01fd58f9a73af44",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "dist/browser.d.ts",
+      "bytes": 417,
+      "sha256": "6c3a916b1be9e564d002a39e9646eb144ab4833603e5e193dfe2e5f198ee2e4d",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "dist/index.d.ts",
+      "bytes": 462,
+      "sha256": "8eb8d9aa43532b3261fbcdbf4f6e77364f8a4fe12580687cddd8bd4c9fcc1b2b",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "dist/provider.d.ts",
+      "bytes": 933,
+      "sha256": "dbb0c7a21467822baaf061f6d35a22e70f1f45bf7936ceb0aa8c14430dfa1e60",
+      "beforeExact": true,
+      "afterExact": true
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1076,
+      "sha256": "ddc110f3b89cc397cee99d3d64c4f746928b7a3bac02fed15101eb4d367079f6",
+      "beforeExact": true,
+      "afterExact": true
+    }
+  ],
+  "bytes": 113677,
+  "source": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9",
+  "destination": "/tmp/capiro-vitest-v8-toolchain-277-20261012/node_modules/@vitest/coverage-v8",
+  "copiedSourceBytesChanged": false,
+  "fixtureConfigRefuserChanged": false,
+  "noNewGET": true
+}

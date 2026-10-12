@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/fetch-locked-coverage-provider.py", line 73, in <module>
+    assert not lifecycle, 'Unexpected lifecycle hook; package not activated'
+           ^^^^^^^^^^^^^
+AssertionError: Unexpected lifecycle hook; package not activated

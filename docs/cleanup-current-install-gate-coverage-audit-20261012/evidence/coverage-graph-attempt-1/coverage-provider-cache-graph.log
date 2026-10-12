@@ -1,0 +1,17 @@
+/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:42
+  if (!snapshot || !pkg) throw Error('Missing lock node '+key);
+                         ^
+
+Error: Missing lock node string-width-cjs@string-width@4.2.3
+    at visit (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:42:32)
+    at visit (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:48:5)
+    at visit (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:48:5)
+    at visit (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:48:5)
+    at visit (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:48:5)
+    at visit (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:48:5)
+    at Object.<anonymous> (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/coverage-provider-cache-graph.cjs:51:1)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+
+Node.js v24.19.0

@@ -1,0 +1,4 @@
+{
+  "exitCode": 1,
+  "cause": "Initial graph walker assumed every lock dependency label is its real package name. string-width-cjs is an explicit string-width@4.2.3 alias; corrected walker resolves an already-existing snapshot key first. No network/install/source changes."
+}

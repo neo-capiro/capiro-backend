@@ -1,0 +1,38 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "corrections": [
+    {
+      "initialStatement": "Missing coverage provider was misclassified as absent source manifest/lock dependency.",
+      "corrected": "Exact reviewed manifests declare ^2.1.9; lock resolves 2.1.9. Only cached consumer availability is unresolved. No manifest/lock changes needed or made.",
+      "evidence": "vitest-coverage-declaration-search.log"
+    },
+    {
+      "initialStatement": "Meriv2-core OTLP subprocess requires package own dist.",
+      "corrected": "Exact test uses tsx/cjs with current TS source and self-created127.0.0.1 fixture endpoint. Own-dist prerequisite belongs Defense API full graph, not this fixture."
+    },
+    {
+      "attempt": "Coverage dependency graph used undeclared root yaml alias.",
+      "exitCode": 1,
+      "corrected": "Root pnpm isolation does not expose yaml; will use exact cached parser module path. No network/install/package writes."
+    }
+  ],
+  "failedReadPaths": [
+    "scripts/cleanup-gates/guard-config.mjs (actual gate-config.mjs)",
+    "packages/auth/src/clerk.service.spec.ts (actual tenant.guard.spec.ts)",
+    "packages/meriv2-core/test/evals/persist-run.spec.ts (no matching test)"
+  ],
+  "rawToolOutputInSessionTranscript": true,
+  "additionalExploratoryReadFailures": [
+    "scripts/cleanup-gates/baseline-contract.mjs (actual metrics/provenance libraries)",
+    "scripts/cleanup-gates/index.mjs (actual gate.mjs)",
+    "Cached apps/web/node_modules/vite/package.json createRequire path was not a direct binding; corrected to exact resolved physical Vite package.json."
+  ],
+  "additionalFailureReceipts": [
+    "private-link-attempt-1.json",
+    "locked-coverage-provider-retrieval.json",
+    "coverage-provider-runtime-failure.json",
+    "coverage-provider-runtime-failure-attempt-2.json",
+    "synthetic-vitest-attempt-1-correction.json",
+    "synthetic-vitest/run-attempt-2.log"
+  ]
+}

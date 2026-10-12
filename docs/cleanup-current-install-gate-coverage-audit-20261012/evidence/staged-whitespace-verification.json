@@ -1,0 +1,8 @@
+{
+  "allRawReceiptExit": 2,
+  "authoredNonLogExit": 0,
+  "rawLogWhitespacePreserved": true,
+  "rawLogFailures": "staged-whitespace-raw.log",
+  "reason": "Original Vitest CLI output includes blank EOF lines and text coverage table trailing whitespace; raw receipts are retained byte-exact.",
+  "noRawOutputReformatted": true
+}
