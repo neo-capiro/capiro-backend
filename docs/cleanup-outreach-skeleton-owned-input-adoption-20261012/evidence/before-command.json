@@ -1,0 +1,28 @@
+{
+  "mode": "before",
+  "source": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "command": [
+    "node",
+    "--require",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-outreach-skeleton-owned-input-adoption-20261012/evidence/no-external-ports.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-outreach-skeleton-owned-input-adoption-20261012/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-outreach-skeleton-owned-input-adoption-20261012/evidence/before-results.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api",
+  "envKeys": [
+    "CI",
+    "LANG",
+    "PATH",
+    "TZ"
+  ],
+  "exit": 0,
+  "noNativeDbOrProviderQualification": true,
+  "transformDiagnostics": false
+}

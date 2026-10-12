@@ -1,0 +1,41 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "baseTree": "0ef751228de0415c9a260c00bae3f8e7369b7755",
+  "proposal": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "paths": [
+    {
+      "path": "apps/api/src/outreach-v3/state/__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt",
+      "sha256": "44df643386b3ddc4e88a039b32b0a54ea91b43323eab8b952f576c2974798e0b",
+      "blob": "07a82c29a30090a6521bf9528c838e4145b288bd",
+      "bytes": 7644
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts",
+      "sha256": "d822ed36a9ddea41b7ed8206782c2f5ec465bf0fe741f00348c7b3f48648029a",
+      "blob": "d461cf46efbb5af290f9ccf46261a4577727fec5",
+      "bytes": 5360
+    },
+    {
+      "path": "scripts/ci/outreach-skeleton-owned-input.spec.mjs",
+      "sha256": "c07f24a71030fe26ef48bb332cbf3e9cd95bb3a6efad6843d91058035b219f6e",
+      "blob": "992657e2c126f1299d41a1f8bd7f5023984bac49",
+      "bytes": 11766
+    }
+  ],
+  "originalSource": {
+    "path": "apps/web/src/vnext/pages/engagement/outreach-v3-skeleton-editing.ts",
+    "sha256": "44df643386b3ddc4e88a039b32b0a54ea91b43323eab8b952f576c2974798e0b",
+    "blob": "07a82c29a30090a6521bf9528c838e4145b288bd"
+  },
+  "originalReader": {
+    "path": "apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts",
+    "sha256": "e004a4032a092a3d840e88491486e2838e453496d19a38a3ca655c7e963cebfb",
+    "blob": "189abf78e8cfa6ed4377a234521ba28d6ae05230",
+    "readOperand": "join(\n      process.cwd(),\n      '..',\n      'web',\n      'src',\n      'vnext',\n      'pages',\n      'engagement',\n      'outreach-v3-skeleton-editing.ts',\n    )",
+    "newReadOperand": "join(__dirname, '__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt')"
+  },
+  "onlyReaderOperandChange": true,
+  "fixtureExactCurrentWeb": true,
+  "publishedControlUnchanged": true,
+  "newDeniedDetailedReportReadOrCopied": false
+}

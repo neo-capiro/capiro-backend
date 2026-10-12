@@ -1,0 +1,78 @@
+{
+  "checks": 17,
+  "controls": [
+    {
+      "name": "unset source scope remains full",
+      "passed": true
+    },
+    {
+      "name": "posix full exact original output and filesystem call ordering",
+      "passed": true
+    },
+    {
+      "name": "posix backend/frontend disjoint full complement",
+      "passed": true
+    },
+    {
+      "name": "posix backend anchored excludes only both declared frontend roots before metadata",
+      "passed": true
+    },
+    {
+      "name": "posix full explicit API reasoning root unchanged",
+      "passed": true
+    },
+    {
+      "name": "posix backend-only explicit API reasoning root unchanged",
+      "passed": true
+    },
+    {
+      "name": "posix frontend-only explicit API reasoning root unchanged",
+      "passed": true
+    },
+    {
+      "name": "win32 full exact original output and filesystem call ordering",
+      "passed": true
+    },
+    {
+      "name": "win32 backend/frontend disjoint full complement",
+      "passed": true
+    },
+    {
+      "name": "win32 backend anchored excludes only both declared frontend roots before metadata",
+      "passed": true
+    },
+    {
+      "name": "win32 full explicit API reasoning root unchanged",
+      "passed": true
+    },
+    {
+      "name": "win32 backend-only explicit API reasoning root unchanged",
+      "passed": true
+    },
+    {
+      "name": "win32 frontend-only explicit API reasoning root unchanged",
+      "passed": true
+    },
+    {
+      "name": "invalid \"\" refuses before any fake filesystem call",
+      "passed": true
+    },
+    {
+      "name": "invalid \"typo\" refuses before any fake filesystem call",
+      "passed": true
+    },
+    {
+      "name": "invalid \"--backend-only\" refuses before any fake filesystem call",
+      "passed": true
+    },
+    {
+      "name": "invalid \"backend-onlyish\" refuses before any fake filesystem call",
+      "passed": true
+    }
+  ],
+  "publishedProposal": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "baseline": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "onlyFakeFilesystem": true,
+  "architectureSourceAdopted": false,
+  "callerClosureOrNativeAcceptance": false
+}

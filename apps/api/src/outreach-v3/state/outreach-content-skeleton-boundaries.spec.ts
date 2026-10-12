@@ -98,16 +98,7 @@ describe('the browser and server slot-token syntax agree', () => {
    * apps/web is a separate package the API's jest project cannot resolve.
    */
   const webEditingSource = readFileSync(
-    join(
-      process.cwd(),
-      '..',
-      'web',
-      'src',
-      'vnext',
-      'pages',
-      'engagement',
-      'outreach-v3-skeleton-editing.ts',
-    ),
+    join(__dirname, '__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt'),
     'utf8',
   );
 

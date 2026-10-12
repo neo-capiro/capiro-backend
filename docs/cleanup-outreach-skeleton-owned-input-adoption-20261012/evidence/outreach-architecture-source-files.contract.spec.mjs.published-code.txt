@@ -1,0 +1,249 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import test from 'node:test';
+import vm from 'node:vm';
+import {
+  outreachArchitectureProductionFiles,
+  outreachArchitectureSourceScope,
+} from '../../apps/api/src/outreach-v3/outreach-architecture-source-files.ts';
+import { outreachV3QualificationPlan } from '../outreach-v3-qualification-plan.mjs';
+
+const sha = value => createHash('sha256').update(value).digest('hex');
+const read = relative => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
+const clean = value => JSON.parse(JSON.stringify(value));
+const p4 = 'apps/api/src/outreach-v3/targets/outreach-v3-phase4-architecture.spec.ts';
+const p5 = 'apps/api/src/outreach-v3/context/outreach-v3-phase5-architecture.spec.ts';
+const architecture = 'src/outreach-v3/targets/outreach-v3-phase4-architecture.spec.ts';
+const roots = ['web', 'onboard-web'];
+
+function fixture(paths = path.posix, denied = [], extras = []) {
+  const repoRoot = paths.sep === '/' ? '/fixture' : 'C:\\fixture';
+  const names = [
+    'apps/api/src/app.module.ts', 'apps/api/src/outreach-v3/reasoning/service.ts',
+    'apps/api/src/outreach-v3/reasoning/service.spec.ts', 'apps/api/web/nested.module.ts',
+    'apps/clio-api/src/app.module.ts', 'apps/onboard-api/src/app.module.ts',
+    'apps/new-backend-worker/src/app.module.ts', 'apps/web-mirror/src/app.module.ts',
+    'apps/web/src/example.tsx', 'apps/web/src/policy.spec.ts', 'apps/web/src/policy.test.tsx',
+    'apps/onboard-web/src/example.ts', ...extras,
+  ];
+  const tree = new Map();
+  for (const name of names) {
+    const parts = name.split('/');
+    for (let index = 1; index < parts.length; index++) {
+      const parent = paths.resolve(repoRoot, ...parts.slice(0, index));
+      if (!tree.has(parent)) tree.set(parent, new Map());
+      tree.get(parent).set(parts[index], index < parts.length - 1);
+    }
+  }
+  const calls = [];
+  const check = (operation, filename) => {
+    calls.push({ operation, filename });
+    for (const root of denied.map(name => paths.resolve(repoRoot, 'apps', name))) {
+      assert.ok(filename !== root && !filename.startsWith(`${root}${paths.sep}`), `forbidden ${operation}: ${filename}`);
+    }
+  };
+  const fileSystem = {
+    existsSync(filename) { check('existsSync', filename); return tree.has(filename); },
+    readdirSync(filename) { check('readdirSync', filename); return [...tree.get(filename).keys()]; },
+    statSync(filename) { check('statSync', filename); return { isDirectory: () => tree.has(filename) }; },
+  };
+  return { repoRoot, root: paths.resolve(repoRoot, 'apps'), calls, fileSystem, paths,
+    run(scope, root = paths.resolve(repoRoot, 'apps')) {
+      return outreachArchitectureProductionFiles(root, { repoRoot, scope, fileSystem,
+        resolve: paths.resolve, separator: paths.sep });
+    } };
+}
+
+function originalWalk(root, fileSystem, paths) {
+  if (!fileSystem.existsSync(root)) return [];
+  const out = [];
+  for (const entry of fileSystem.readdirSync(root)) {
+    const filename = paths.resolve(root, entry);
+    if (fileSystem.statSync(filename).isDirectory()) out.push(...originalWalk(filename, fileSystem, paths));
+    else if ((entry.endsWith('.ts') || entry.endsWith('.tsx')) &&
+      !entry.endsWith('.spec.ts') && !entry.endsWith('.spec.tsx') &&
+      !entry.endsWith('.test.ts') && !entry.endsWith('.test.tsx')) out.push(filename);
+  }
+  return out;
+}
+
+test('default and explicit full retain the exact original traversal and file/test exclusions', () => {
+  assert.equal(outreachArchitectureSourceScope(), 'full');
+  for (const paths of [path.posix, path.win32]) {
+    const before = fixture(paths), after = fixture(paths);
+    const expected = originalWalk(before.root, before.fileSystem, paths);
+    assert.deepEqual(after.run(outreachArchitectureSourceScope()), expected);
+    assert.deepEqual(after.calls, before.calls);
+    assert.deepEqual(fixture(paths).run('full'), expected);
+  }
+});
+
+test('backend scope never touches either anchored frontend root before stat or traversal', () => {
+  for (const paths of [path.posix, path.win32]) {
+    const f = fixture(paths, roots);
+    const files = f.run('backend-only');
+    assert.ok(files.some(file => file.includes('clio-api')));
+    assert.ok(files.some(file => file.includes('onboard-api')));
+    assert.ok(files.some(file => file.includes('new-backend-worker')));
+    assert.ok(files.some(file => file.includes('web-mirror')));
+    assert.ok(files.some(file => file.includes(`api${paths.sep}web`)));
+    for (const name of roots) assert.deepEqual(f.run('backend-only', paths.resolve(f.repoRoot, 'apps', name)), []);
+  }
+});
+
+test('frontend scope excludes backend directory metadata and is the exact full complement', () => {
+  for (const paths of [path.posix, path.win32]) {
+    const all = fixture(paths).run('full');
+    const backend = fixture(paths).run('backend-only');
+    const front = fixture(paths, ['api', 'clio-api', 'onboard-api', 'new-backend-worker', 'web-mirror']).run('frontend-only');
+    assert.deepEqual([...backend, ...front].sort(), [...all].sort());
+    assert.equal(backend.some(file => front.includes(file)), false);
+    assert.equal(front.length, 2);
+  }
+});
+
+test('future Web and OnboardWeb modules remain frontend obligations and refuse a rogue standalone runtime', () => {
+  for (const relative of ['apps/web/src/future.module.ts', 'apps/onboard-web/src/future.module.ts']) {
+    const extra = [relative];
+    const full = fixture(path.posix, [], extra).run('full').filter(file => file.endsWith('.module.ts'));
+    const backend = fixture(path.posix, roots, extra).run('backend-only').filter(file => file.endsWith('.module.ts'));
+    const frontend = fixture(path.posix, [], extra).run('frontend-only').filter(file => file.endsWith('.module.ts'));
+    assert.deepEqual([...backend, ...frontend].sort(), full.sort());
+    assert.ok(!backend.some(file => file.endsWith('future.module.ts')));
+    assert.ok(frontend.some(file => file.endsWith('future.module.ts')));
+    const forbidden = /class\s+OutreachApiAppModule/;
+    assert.ok(frontend.map(file => file.endsWith('future.module.ts') ? 'class OutreachApiAppModule {}' : '').some(source => forbidden.test(source)));
+  }
+});
+
+test('explicit API reasoning scans preserve their complete inputs in all three scopes', () => {
+  for (const scope of ['full', 'backend-only', 'frontend-only']) {
+    const f = fixture();
+    assert.deepEqual(f.run(scope, '/fixture/apps/api/src/outreach-v3/reasoning'),
+      ['/fixture/apps/api/src/outreach-v3/reasoning/service.ts']);
+  }
+});
+
+test('unknown and empty scopes refuse before any filesystem operation', () => {
+  for (const scope of ['', 'backend-onlyish', 'typo', '--backend-only']) {
+    const f = fixture();
+    assert.throws(() => f.run(scope), /Unknown Outreach architecture source scope/);
+    assert.deepEqual(f.calls, []);
+  }
+});
+
+test('both complete original architecture describe/case/assertion bodies remain byte-exact', () => {
+  for (const [file, digest, count] of [
+    [p4, '21309b0f1ed26ef0313ff9faac904f30f6a18804deeff69e492408e8cb465e81', 6],
+    [p5, '8e0a3a622b715432c506cfd3b8b4ecfd946cdc21ff1a7470c510f191c318fcb2', 8],
+  ]) {
+    const source = read(file), body = source.slice(source.indexOf("describe('Outreach V3"));
+    assert.equal(sha(body), digest);
+    assert.equal((body.match(/^\s*it\(/gm) ?? []).length, count);
+    assert.match(source, /outreachArchitectureSourceScope\(process\.env\.OUTREACH_V3_ARCHITECTURE_SCOPE\)/);
+    assert.match(source, /fileSystem: \{ existsSync, readdirSync, statSync \}/);
+  }
+  assert.ok(!/^import\b/m.test(read('apps/api/src/outreach-v3/outreach-architecture-source-files.ts')));
+});
+
+test('actual Phase4 focused tuple preserves all full/backend operands while frontend retains only the six-case policy and original flags/env', () => {
+  const source = read('scripts/verify-outreach-v3-phase4-code.mjs');
+  const start = source.indexOf("run('Phase 4 focused tests'");
+  const end = source.indexOf('\n});', start) + 4;
+  const fullSteps = [];
+  vm.runInNewContext(source.slice(start, end), { run: (...step) => fullSteps.push(clean(step)), phase3Base: 'frozen-scope' }, { timeout: 1000 });
+  assert.equal(fullSteps.length, 1);
+  const full = outreachV3QualificationPlan('phase4', 'full', fullSteps);
+  assert.equal(full, fullSteps);
+  const backend = outreachV3QualificationPlan('phase4', 'backend-only', fullSteps)[0];
+  assert.deepEqual(backend[2], full[0][2]);
+  assert.deepEqual(backend[3], { env: { ENGAGEMENT_PHASE3_SCOPE_END: 'frozen-scope', OUTREACH_V3_ARCHITECTURE_SCOPE: 'backend-only' } });
+  const frontend = outreachV3QualificationPlan('phase4', 'frontend-only', fullSteps)[0];
+  assert.deepEqual(frontend[2], ['--filter', '@capiro/api', 'exec', 'jest', '--runInBand', architecture, '--forceExit']);
+  assert.deepEqual(frontend[3], { env: { ENGAGEMENT_PHASE3_SCOPE_END: 'frozen-scope', OUTREACH_V3_ARCHITECTURE_SCOPE: 'frontend-only' } });
+  const future = clean(fullSteps); future[0][2].splice(-1, 0, 'src/outreach-v3/future-runtime');
+  assert.deepEqual(outreachV3QualificationPlan('phase4', 'frontend-only', future)[0][2], frontend[2]);
+  const dropped = clean(fullSteps); dropped[0][2] = dropped[0][2].filter(arg => arg !== architecture);
+  assert.throws(() => outreachV3QualificationPlan('phase4', 'frontend-only', dropped), /architecture selector is required/);
+});
+
+const wrapper = read('scripts/verify-outreach-v3-phase5-code.mjs');
+const guardStart = wrapper.indexOf('const architectureScope');
+const guardEnd = wrapper.indexOf('const root =', guardStart);
+const scopeGuard = wrapper.slice(guardStart, guardEnd);
+const receipt = "process.stdout.write(architectureScope === 'backend-only'\n  ? '\\nOUTREACH_V3_PHASE5_BACKEND_DB_FREE_COMPLETE\\n'\n  : '\\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\\n');";
+const originalReceipt = "process.stdout.write('\\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\\n');";
+const normalizedWrapper = wrapper.replace(scopeGuard, '').replace(receipt, originalReceipt);
+
+test('Phase5 changes only early scope refusal and scoped completion; all original body/argv/source floors remain exact', () => {
+  assert.ok(guardStart > 0 && guardEnd > guardStart);
+  assert.ok(wrapper.includes(receipt));
+  assert.equal(sha(normalizedWrapper), '769cc36475cf6835baf8ac031919dd04f03c99847ce046f4e0038e53ecf24ce5');
+});
+
+function fakePhase5(source, value, { failChild = false } = {}) {
+  const events = [], stdout = [], stderr = [];
+  class Exit extends Error { constructor(code) { super('fake exit'); this.code = code; } }
+  let code = 0;
+  const env = value === undefined ? {} : { OUTREACH_V3_ARCHITECTURE_SCOPE: value };
+  const catalog = ['search_memory', 'research_government', 'get_document', 'recommend_outreach_strategy']
+    .map(name => ({ name, status: 'implemented', meriConsumer: true, outreachConsumer: true }));
+  const manifest = { runtime: 'engagement-api', requiresStateFlag: 'OUTREACH_V3_STATE_ENABLED',
+    featureFlag: 'OUTREACH_V3_CONTEXT_ENABLED', disabledBehavior: 404, routes: Array.from({ length: 5 }, () => ({})) };
+  const commands = "OUTREACH_IMPLEMENTED_COMMAND_TYPES = ['ACCEPT_CONTEXT_REFS', 'EXCLUDE_CONTEXT_REFS'];\n" +
+    "OUTREACH_FUTURE_COMMAND_TYPES = ['SET_SENDER_REF', 'SET_ATTACHMENT_REFS', 'REQUEST_SAMPLE_GENERATION', 'REQUEST_FULL_GENERATION', 'REQUEST_SEND_REVIEW'];";
+  const context = {
+    resolve: path.posix.resolve,
+    process: { cwd: () => '/fixture', platform: 'linux', env,
+      stdout: { write: value => stdout.push(value) }, stderr: { write: value => stderr.push(value) },
+      exit: code => { throw new Exit(code); } },
+    existsSync: file => { events.push(['exists', file]); return true; },
+    readFileSync: file => {
+      events.push(['read', file]);
+      if (file.endsWith('capiro-capability-catalog.v1.json')) return JSON.stringify(catalog);
+      if (file.endsWith('outreach-v3-context-route-manifest.v1.json')) return JSON.stringify(manifest);
+      if (file.endsWith('outreach-command.contract.ts')) return commands;
+      assert.ok(file.endsWith('outreach-reasoning.service.ts') || file.endsWith('outreach-v3-context.controller.ts'), `unexpected source read ${file}`);
+      return 'inert source policy stand-in';
+    },
+    spawnSync: (command, args, options) => {
+      events.push(['spawn', command, clean(args), clean(options)]);
+      if (args[0] === 'diff' && args[1] === '--name-only') return { status: 0, stdout: 'apps/api/src/outreach-v3/context/outreach-v3-context.controller.ts\n' };
+      return { status: failChild ? 1 : 0, stdout: '' };
+    },
+  };
+  const body = source.replace(/^import[^\n]+\n/gm, '');
+  try { vm.runInNewContext(body, context, { timeout: 1000 }); }
+  catch (error) { if (!(error instanceof Exit)) throw error; code = error.code; }
+  return { events, stdout, stderr, code };
+}
+
+test('Phase5 unset/full fake traces and markers match the reconstructed original exactly', () => {
+  for (const value of [undefined, 'full']) {
+    const old = fakePhase5(normalizedWrapper, value), current = fakePhase5(wrapper, value);
+    assert.deepEqual(current, old);
+    assert.equal(current.stdout.at(-1), '\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\n');
+  }
+});
+
+test('Phase5 explicit backend keeps every fake effect/argv but cannot emit the full completion marker', () => {
+  const backend = fakePhase5(wrapper, 'backend-only'), old = fakePhase5(normalizedWrapper, 'backend-only');
+  assert.deepEqual(backend.events, old.events);
+  assert.deepEqual(backend.stdout.slice(0, -1), old.stdout.slice(0, -1));
+  assert.equal(backend.stdout.at(-1), '\nOUTREACH_V3_PHASE5_BACKEND_DB_FREE_COMPLETE\n');
+  assert.ok(!backend.stdout.includes('\nOUTREACH_V3_PHASE5_DB_FREE_COMPLETE\n'));
+  const failed = fakePhase5(wrapper, 'backend-only', { failChild: true });
+  assert.equal(failed.code, 1);
+  assert.ok(!failed.stdout.some(line => line.includes('DB_FREE_COMPLETE')));
+});
+
+test('Phase5 rejects frontend/invalid environment scopes before filesystem/child effects', () => {
+  for (const scope of ['frontend-only', '', 'typo', 'backend-onlyish']) {
+    const result = fakePhase5(wrapper, scope);
+    assert.equal(result.code, 2);
+    assert.deepEqual(result.events, []);
+    assert.ok(!result.stdout.some(line => line.includes('COMPLETE')));
+  }
+});

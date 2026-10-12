@@ -1,0 +1,24 @@
+✔ backend input preserves exact Core bytes and all ten original boundary cases (4.561952ms)
+✔ backend identity succeeds with Web absent and makes zero Web read attempts (2.360285ms)
+✔ missing opaque source is refused (1.760327ms)
+✔ same-size opaque source drift is refused (2.518527ms)
+✔ restored current-Web read operand is refused (1.161055ms)
+✔ skipping a browser/server syntax obligation is refused (1.298627ms)
+✔ removing a server schema assertion is refused (1.073928ms)
+✔ opaque symlink substitution is refused before reading (0.833559ms)
+✔ explicit current frontend source matches the retained Core input bytes (1.513161ms)
+✔ current frontend absence is refused independently (1.229354ms)
+✔ current frontend byte drift is refused independently (2.361017ms)
+✔ frontend source obligation: uses the identical double-brace token pattern (0.175146ms)
+✔ frontend source obligation: uses the identical slot-key shape (0.153232ms)
+✔ frontend source obligation: collapses 3+ newlines exactly as the server assembler does (0.152322ms)
+✔ frontend source obligation: drops a token-only line exactly as the server assembler does (0.099923ms)
+✔ frontend source obligation: declares the same limits the server schemas enforce (0.255397ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37.948459
