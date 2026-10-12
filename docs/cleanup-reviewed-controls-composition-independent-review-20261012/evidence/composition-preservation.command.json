@@ -1,0 +1,9 @@
+{
+  "source": "fc7ef349e49a943b7020ab78ee9d2b8bdb02f9ed",
+  "tree": "ef854c0670db309d396ca2f4e8131b35581c6d81",
+  "shellCommand": "python3 docs/cleanup-reviewed-controls-composition-independent-review-20261012/evidence/verify-composition.py > docs/cleanup-reviewed-controls-composition-independent-review-20261012/evidence/composition-preservation.log 2>&1",
+  "exitCode": 0,
+  "applicationModulesImported": false,
+  "nativeAcceptance": false,
+  "packageManagerExecuted": false
+}

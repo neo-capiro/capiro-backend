@@ -1,0 +1,14 @@
+{
+  "readOnlyCommands": [
+    "gh api repos/neo-capiro/capirov2/pulls/2413 --jq '{number,state,draft,merged,head:.head.sha,base:.base.ref}'",
+    "gh api repos/neo-capiro/capirov2/pulls/2414 --jq '{number,state,draft,merged,head:.head.sha,base:.base.ref}'",
+    "gh api repos/neo-capiro/capirov2/pulls/2415 --jq '{number,state,draft,merged,head:.head.sha,base:.base.ref}'"
+  ],
+  "exitCode": 0,
+  "actualResponses": [
+    {"base":"codex/cleanup-canonical-recovery-source-20261012","draft":true,"head":"cc489e7e33a4f451e12a94612fb01968d8e7a568","merged":false,"number":2413,"state":"open"},
+    {"base":"codex/cleanup-canonical-recovery-source-20261012","draft":true,"head":"5f49b1ae05782bbaedcabda51ae293e5c4b5c373","merged":false,"number":2414,"state":"open"},
+    {"base":"codex/cleanup-canonical-recovery-source-20261012","draft":true,"head":"fa8bd32059c62f9b0dd5a5b10e935c2452a07f11","merged":false,"number":2415,"state":"open"}
+  ],
+  "remoteMutations": false
+}

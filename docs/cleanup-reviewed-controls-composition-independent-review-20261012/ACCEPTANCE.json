@@ -1,0 +1,73 @@
+{
+  "acceptedSource": "fc7ef349e49a943b7020ab78ee9d2b8bdb02f9ed",
+  "acceptedTree": "ef854c0670db309d396ca2f4e8131b35581c6d81",
+  "commonBase": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "scope": "Exact published registry control, Phase1 caller and canonical operator-mirror source composition only",
+  "actualPublishedHeads": [
+    {
+      "pr": "2413",
+      "head": "cc489e7e33a4f451e12a94612fb01968d8e7a568",
+      "tree": "5941ff869cd411291e459a1061fc4989622b9ebd",
+      "actualAncestor": true,
+      "newPublishedDocsPreserved": 250
+    },
+    {
+      "pr": "2414",
+      "head": "5f49b1ae05782bbaedcabda51ae293e5c4b5c373",
+      "tree": "c3c9838734b4f0d0508773f68101ba0f8294d86a",
+      "actualAncestor": true,
+      "newPublishedDocsPreserved": 28
+    },
+    {
+      "pr": "2415",
+      "head": "fa8bd32059c62f9b0dd5a5b10e935c2452a07f11",
+      "tree": "1f81aa44f2376b6e1615d4e2790aa3bd0569c79b",
+      "actualAncestor": true,
+      "newPublishedDocsPreserved": 32
+    }
+  ],
+  "actualMergeParents": [
+    "cfc3b8517d1dea6138080e5ee31bcc2db96da70e",
+    "fa8bd32059c62f9b0dd5a5b10e935c2452a07f11"
+  ],
+  "sourceUnionPaths": 8,
+  "exactPublishedNonPackageBlobs": 7,
+  "onlySourceOverlap": "package.json",
+  "packageOverlapIsTwoSeparateReviewedCommandEntries": true,
+  "baselinePathsOutsideUnionExact": 21040,
+  "applicationPathsOutsideAcceptedMirrorsExact": 10503,
+  "schemaMigrationPathsExact": 603,
+  "priorDocumentationPathsExact": 9364,
+  "newPublishedDocumentationPathsExact": 310,
+  "publishedMasterHashesVerified": [
+    249,
+    27,
+    31
+  ],
+  "freshRegistryControls": {
+    "pass": 78,
+    "fail": 0,
+    "skip": 0
+  },
+  "freshActualRegistryProfile": {
+    "profiles": 1,
+    "files": 168,
+    "errors": []
+  },
+  "freshOperatorPairsExact": 3,
+  "freshDefenseBudgetMirrorFilesExactEach": 723,
+  "phase1SixteenInertControlsCarriedByExactSourceAndCommandValue": true,
+  "rootCiWiringAndNativeReadinessConditionsExactPublishedBlobs": true,
+  "clock123DeferredSamplesStillOpen": true,
+  "nativeAcceptanceGroupsStillOpen": 11,
+  "fullMemoryDocumentationSuiteAccepted": false,
+  "historicalManifestAcceptance": false,
+  "declaredProductionCandidateUnified": false,
+  "sourceCNewsletterAdopted": false,
+  "applicationModulesOrMutantBodiesExecuted": false,
+  "packageManagerOrCleanInstallExecuted": false,
+  "ciInvoked": false,
+  "databasePrismaDockerProviderCloudOrPaidModelOperations": false,
+  "reviewerProductionEdits": false,
+  "remainingScopedCompositionDiscrepancies": []
+}
