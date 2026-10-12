@@ -1,0 +1,52 @@
+{
+  "source": "cb2af6234ba826e5ee8baa6722acaa16ca7ed40d",
+  "tree": "3f8a39aba38b4eb29fba9f0e1b32b04d519d7218",
+  "cwd": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion",
+  "node": "24.19.0",
+  "typescript": "5.9.3",
+  "cacheOnly": true,
+  "packageManagerInvoked": false,
+  "databaseOrProviderExecution": false,
+  "checks": [
+    {
+      "name": "full-composed-core-strict-cached-types",
+      "exitCode": 0,
+      "unifiedExecSession": 56061,
+      "rawLog": "docs/cleanup-meri-runtime-controls-20261012/evidence/final-composed-core-cached-typecheck.log",
+      "qualification": "Existing cached dependency/declaration graph; no native PostgreSQL/RLS or engine acceptance."
+    },
+    {
+      "name": "retained-generic-source-unit-controls",
+      "exitCode": 0,
+      "tests": 149,
+      "rawLog": "docs/cleanup-meri-runtime-controls-20261012/evidence/final-composed-root-controls.tap"
+    },
+    {
+      "name": "actual-registry-profile-inspection",
+      "exitCode": 0,
+      "profiles": 5,
+      "sourceFiles": 2199,
+      "rawLog": "docs/cleanup-meri-runtime-controls-20261012/evidence/final-reviewed-registry-profile.json"
+    },
+    {
+      "name": "finite-public-helper-inventory",
+      "exitCode": 0,
+      "helpers": 7,
+      "rawLog": "docs/cleanup-meri-runtime-controls-20261012/evidence/final-reviewed-duplicate-profile.json"
+    },
+    {
+      "name": "strategy-time-source-guard",
+      "exitCode": 0,
+      "productionFiles": 170,
+      "deferredClockRngSamplesUnchanged": 123,
+      "rawLog": "docs/cleanup-meri-runtime-controls-20261012/evidence/final-composed-strategy-time-guard.json"
+    },
+    {
+      "name": "adopted-meri-alias-direct-cached-node",
+      "exitCode": 0,
+      "tests": 887,
+      "rawLog": "docs/cleanup-meri-runtime-controls-20261012/evidence/root-focused-meri-jest.log"
+    }
+  ],
+  "mainRefreshed": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+}

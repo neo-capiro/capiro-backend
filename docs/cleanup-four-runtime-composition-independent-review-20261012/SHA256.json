@@ -1,0 +1,162 @@
+{
+  "acceptedSource": "cb2af6234ba826e5ee8baa6722acaa16ca7ed40d",
+  "acceptedTree": "3f8a39aba38b4eb29fba9f0e1b32b04d519d7218",
+  "excludesItselfOnly": true,
+  "entries": [
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 5113,
+      "sha256": "a6ae786e90b4512d9d750c2cdf1bd16c318489abdd435a074f6941ab5faf56f8"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/ACCEPTANCE.md",
+      "bytes": 4952,
+      "sha256": "59558d93ee84ba05de26a175bdbec6f679df36524f3c29a80a285a321ac8e943"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/COMMANDS.json",
+      "bytes": 2420,
+      "sha256": "665091f129bed029c32dcafb81a0ef46a60192c6e7e1ebbd80a6822a0c77529f"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.final.json",
+      "bytes": 238249,
+      "sha256": "d026c8d7e240da22614e6806b0a37317148931830d70396abe15b9ed5b97e816"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.initial.json",
+      "bytes": 226879,
+      "sha256": "202dbf40ee397b3c2dec7751b98ee82977530876cd142ddc4e7a0969ed8c3b76"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.initial.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.py",
+      "bytes": 17194,
+      "sha256": "50840c69de39acd7aac4971a7482b864637b48c78deb95654d2c27a3ded5dff4"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.time-count-harness-red.json",
+      "bytes": 238211,
+      "sha256": "3272fc5c06bba7e370c8ebe851a35930d04d1cb256c94a87bd6dad5600a4e28d"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/composition-proof.time-count-harness-red.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/HANDOFF.md",
+      "bytes": 14466,
+      "sha256": "915c3b816eee96cb9554a1ab6106492781465e88e80409453f9c746fa86b1148"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/ROOT-RECEIPT.json",
+      "bytes": 1897,
+      "sha256": "057cb31a5b79370684f79ad2410aaecdeffe648e308aa3de691acc06c2d2854c"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/SOURCE-MANIFEST.json",
+      "bytes": 8439,
+      "sha256": "1c2d72dbf880f303703d866ac636b052708f447b8ab3cf3c27d6b73bea14ce69"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-composed-core-cached-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-composed-root-controls.tap",
+      "bytes": 10444,
+      "sha256": "a221456a02a41b41f2e527b06e86777d27c879d3f9157fc89d81e9845e809c79"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-composed-strategy-time-guard.json",
+      "bytes": 96,
+      "sha256": "a05a81ce3dad75af41e448ddc4526f048ddafc2d70b78844e640058e388a983b"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-reviewed-duplicate-profile.json",
+      "bytes": 69,
+      "sha256": "f32004da811c167dad15b90182339bd771bec4d3c02ade7d2e67d764e2f5fc4c"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-reviewed-registry-profile.json",
+      "bytes": 53,
+      "sha256": "5121504b7c6bb6435512217fc87c41bed0ae7c7d5406940575baf54f6942830e"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/HANDOFF.md",
+      "bytes": 14466,
+      "sha256": "915c3b816eee96cb9554a1ab6106492781465e88e80409453f9c746fa86b1148"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/ROOT-RECEIPT.json",
+      "bytes": 1897,
+      "sha256": "057cb31a5b79370684f79ad2410aaecdeffe648e308aa3de691acc06c2d2854c"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/SOURCE-MANIFEST.json",
+      "bytes": 8439,
+      "sha256": "1c2d72dbf880f303703d866ac636b052708f447b8ab3cf3c27d6b73bea14ce69"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/evidence/final-composed-core-cached-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/evidence/final-composed-root-controls.tap",
+      "bytes": 10444,
+      "sha256": "a221456a02a41b41f2e527b06e86777d27c879d3f9157fc89d81e9845e809c79"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/evidence/final-composed-strategy-time-guard.json",
+      "bytes": 96,
+      "sha256": "a05a81ce3dad75af41e448ddc4526f048ddafc2d70b78844e640058e388a983b"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/evidence/final-reviewed-duplicate-profile.json",
+      "bytes": 69,
+      "sha256": "f32004da811c167dad15b90182339bd771bec4d3c02ade7d2e67d764e2f5fc4c"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-snapshot/evidence/final-reviewed-registry-profile.json",
+      "bytes": 53,
+      "sha256": "5121504b7c6bb6435512217fc87c41bed0ae7c7d5406940575baf54f6942830e"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-handoff-literal-harness-red.json",
+      "bytes": 11807,
+      "sha256": "24a4e01d9d052c16b2cd800ee546beb8c30499a729743cc3a71d3c8d2eefcb52"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-handoff-literal-harness-red.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-handoff-proof.json",
+      "bytes": 11781,
+      "sha256": "70bd7d89f2cb802f216fd1096a04f03689d721875787524d8b66932ae7fbd60e"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-handoff-proof.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-handoff-proof.py",
+      "bytes": 5327,
+      "sha256": "cbf2f906309dfc5a1f4d2636fc1436ecdcafede98d61aaa0153533a1e5a71274"
+    }
+  ]
+}
