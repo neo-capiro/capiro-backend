@@ -88,14 +88,12 @@ describe('ApiToolExecutorRepo — canonical mail read defaults', () => {
     searchedMailboxes: [{ mailCoverage: { sourceStatus: 'healthy' } }],
   };
   async function request(tool: string, input: Record<string, unknown>, status = 200) {
-    const fetchMock = jest
-      .fn()
-      .mockImplementation(
-        async () =>
-          new Response(JSON.stringify(status === 200 ? payload : { statusCode: status }), {
-            status,
-          }),
-      );
+    const fetchMock = jest.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify(status === 200 ? payload : { statusCode: status }), {
+          status,
+        }),
+    );
     global.fetch = fetchMock;
     const deadlineAt = Date.now() + 30_000;
     const repo = new ApiToolExecutorRepo(

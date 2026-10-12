@@ -110,7 +110,8 @@
     "gate:cleanup1:guards": "node scripts/cleanup-gates/gate.mjs --phase guards",
     "gate:cleanup1:python": "node scripts/cleanup-gates/gate.mjs --phase python",
     "gate:cleanup1:e2e": "node scripts/cleanup-gates/gate.mjs --phase e2e",
-    "gate:cleanup1:test": "node --test scripts/cleanup-gates/guard-config.test.mjs"
+    "gate:cleanup1:test": "node --test scripts/cleanup-gates/guard-config.test.mjs",
+    "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure"
   },
   "devDependencies": {
     "prettier": "^3.9.9",
