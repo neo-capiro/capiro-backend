@@ -1,0 +1,14 @@
+{
+  "baseline": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "publishedCode": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "expectedTransitionRefusals": [
+    "fixture parity: apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+    "fixture parity: apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt",
+    "fixture parity: apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt",
+    "fixture parity: apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt",
+    "reader body/path/cases: apps/api/src/intelligence/intelligence.mapping-governance.spec.ts",
+    "reader body/path/cases: apps/api/src/meri/meri-stream-launcher.fail-closed.spec.ts"
+  ],
+  "frontendExecuted": false,
+  "deniedReportRead": false
+}

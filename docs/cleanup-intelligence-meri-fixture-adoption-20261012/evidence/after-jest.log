@@ -1,0 +1,9 @@
+PASS apps/api/src/intelligence/intelligence.mapping-governance.spec.ts
+PASS apps/api/src/meri/meri-stream-launcher.fail-closed.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       36 passed, 36 total
+Snapshots:   0 total
+Time:        1.886 s
+Ran all test suites.
+Test results written to: docs/cleanup-intelligence-meri-fixture-adoption-20261012/evidence/after-jest-results.json

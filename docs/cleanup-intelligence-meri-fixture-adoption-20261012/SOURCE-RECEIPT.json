@@ -1,0 +1,115 @@
+{
+  "sourceHead": "98397536c3bda66810abc2ca997ad2ff02b76b34",
+  "sourceTree": "d8ad11fd32cd93496aea1c5e112eeae3a7d3b728",
+  "destinationBase": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "publishedCodeSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "sourcePaths": [
+    {
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+      "mode": "100644",
+      "blob": "138efadf24e54c7f882891222db95895d94e7d7e",
+      "sha256": "1d6215ccd58961b7465ac72d83fd3c5c27f7a3e6f1dbf47ccc032f7a319aff81",
+      "bytes": 53172,
+      "exactPublishedCodeBlob": true
+    },
+    {
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt",
+      "mode": "100644",
+      "blob": "2956b7e17ca874f1cd4b5afc19724e9deeafe4ec",
+      "sha256": "1344af785ccc5ce86aa6ccbd85ec41e6f6d7fa8004eeba587b0f290f25e86594",
+      "bytes": 7013,
+      "exactPublishedCodeBlob": true
+    },
+    {
+      "path": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt",
+      "mode": "100644",
+      "blob": "da1a889742a20f16d040474428f0f7eb5990938c",
+      "sha256": "db455369723bf5040235e54daac271854051d3cdce9d76cb9c9778f003b26f9c",
+      "bytes": 165027,
+      "exactPublishedCodeBlob": true
+    },
+    {
+      "path": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt",
+      "mode": "100644",
+      "blob": "4e529de1fc3fe5be4e40b202ab447e512189ea5c",
+      "sha256": "25d795dd4af7e4f5428ca76fa76f7abf8e27f67a6c5819ba423256b97afd2582",
+      "bytes": 25996,
+      "exactPublishedCodeBlob": true
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence.mapping-governance.spec.ts",
+      "mode": "100644",
+      "blob": "7cbde562cea54a3800b91e32dc76b08acc4cd068",
+      "sha256": "fcf9d351de93427bdf0a93301e85cff2afc5a13d0026f6d06a79cc8c91ca4bd1",
+      "bytes": 18129,
+      "exactPublishedCodeBlob": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-stream-launcher.fail-closed.spec.ts",
+      "mode": "100644",
+      "blob": "4e1e959a7317dde7ec9a6e9a7e70d7517ef6511b",
+      "sha256": "c30e778cd1ee210c1d0cd6764fdc1b720a4a829742fd1a2a9cd8adb1e86e32ea",
+      "bytes": 1742,
+      "exactPublishedCodeBlob": true
+    }
+  ],
+  "fixtureBindings": [
+    {
+      "fixture": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+      "currentWeb": "apps/web/src/pages/settings/IntelligenceMappingsPage.tsx",
+      "currentWebBlob": "138efadf24e54c7f882891222db95895d94e7d7e",
+      "byteExact": true
+    },
+    {
+      "fixture": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt",
+      "currentWeb": "apps/web/src/pages/settings/intelligence-mappings-shared.ts",
+      "currentWebBlob": "2956b7e17ca874f1cd4b5afc19724e9deeafe4ec",
+      "byteExact": true
+    },
+    {
+      "fixture": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt",
+      "currentWeb": "apps/web/src/components/chat/useMeriChatController.ts",
+      "currentWebBlob": "da1a889742a20f16d040474428f0f7eb5990938c",
+      "byteExact": true
+    },
+    {
+      "fixture": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt",
+      "currentWeb": "apps/web/src/vnext/shell/AppShellUui/index.tsx",
+      "currentWebBlob": "4e529de1fc3fe5be4e40b202ab447e512189ea5c",
+      "byteExact": true
+    }
+  ],
+  "readerInverseFullBodyExact": true,
+  "intelligenceReaderLiteralSites": 5,
+  "meriReaderLiteralSites": 2,
+  "allOtherGitPathsUnchangedAtSourceHead": true,
+  "frontendSourcesUnchanged": true,
+  "productionAndAuthorizationAndSharedSourcesUnchanged": true,
+  "schemasMigrationsUnchanged": true,
+  "codeOnlyInspection": true,
+  "deniedReportReadOrCopied": false,
+  "protectedReportingBodiesInspected": false,
+  "sourceDiffCheck": {
+    "exitCode": 2,
+    "log": "evidence/source-diff-check.log",
+    "reason": "Inherited final blank line in exact current Web IntelligenceMappingsPage snapshot; no snapshot trimming permitted."
+  },
+  "qualification": {
+    "beforeCases": 36,
+    "afterCases": 36,
+    "pureRefusalControls": 12,
+    "defaultApiJestGraph": false,
+    "fullTypecheck": false,
+    "nativeDatabaseRlsAcceptance": false,
+    "providerCalled": false,
+    "jestCli": "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "configuration": "evidence/bounded.jest.cjs",
+    "beforeSession": 73253,
+    "afterSession": 28278,
+    "exitCodes": [
+      0,
+      0
+    ]
+  },
+  "independentReviewPending": true
+}
