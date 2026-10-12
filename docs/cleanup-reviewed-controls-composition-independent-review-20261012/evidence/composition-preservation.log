@@ -1,0 +1,161 @@
+{
+  "acceptedSource": "fc7ef349e49a943b7020ab78ee9d2b8bdb02f9ed",
+  "acceptedTree": "ef854c0670db309d396ca2f4e8131b35581c6d81",
+  "commonBase": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "actualPublishedHeads": [
+    {
+      "pr": "2413",
+      "head": "cc489e7e33a4f451e12a94612fb01968d8e7a568",
+      "tree": "5941ff869cd411291e459a1061fc4989622b9ebd",
+      "actualAncestor": true,
+      "newPublishedDocsPreserved": 250
+    },
+    {
+      "pr": "2414",
+      "head": "5f49b1ae05782bbaedcabda51ae293e5c4b5c373",
+      "tree": "c3c9838734b4f0d0508773f68101ba0f8294d86a",
+      "actualAncestor": true,
+      "newPublishedDocsPreserved": 28
+    },
+    {
+      "pr": "2415",
+      "head": "fa8bd32059c62f9b0dd5a5b10e935c2452a07f11",
+      "tree": "1f81aa44f2376b6e1615d4e2790aa3bd0569c79b",
+      "actualAncestor": true,
+      "newPublishedDocsPreserved": 32
+    }
+  ],
+  "actualCompositionParents": [
+    "cfc3b8517d1dea6138080e5ee31bcc2db96da70e",
+    "fa8bd32059c62f9b0dd5a5b10e935c2452a07f11"
+  ],
+  "firstMerge": "cfc3b8517d1dea6138080e5ee31bcc2db96da70e",
+  "firstMergeParents": [
+    "cc489e7e33a4f451e12a94612fb01968d8e7a568",
+    "5f49b1ae05782bbaedcabda51ae293e5c4b5c373"
+  ],
+  "exactEightPathSourceUnion": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "publishedOwners": [
+        "2413"
+      ],
+      "baseEntry": "100644 blob f9931af2d0f6d916131d69f1f13001842af139de",
+      "composedEntry": "100644 blob baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "sha256": "4ab5e5b3aa91b3466ceafa1cd84f882ede5a21aeb083e96ca409cef0363fa91e",
+      "composition": "exact published mode/blob"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+      "publishedOwners": [
+        "2415"
+      ],
+      "baseEntry": "100644 blob 9bd1bb63da4397b35f347af2ea945b1bcb3c8df5",
+      "composedEntry": "100644 blob d9a82728dc01bd0b48a92580ab581b13ff19bec8",
+      "sha256": "e9005acc539c1e9cb3e8d0187b4e9c3fc41391a7dde0ce08973f387020a987f2",
+      "composition": "exact published mode/blob"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+      "publishedOwners": [
+        "2415"
+      ],
+      "baseEntry": "100644 blob 94fef129178ecfd4c5118e6ae17a7bab5ac23e55",
+      "composedEntry": "100644 blob c5be25e428397dcf41c10a6cadba0bd6ca3ae2df",
+      "sha256": "0527611e0f93d7378c5c3ac270541096a623391ae061976f2f5ff0c283c80424",
+      "composition": "exact published mode/blob"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts",
+      "publishedOwners": [
+        "2415"
+      ],
+      "baseEntry": "100644 blob de5426ebfa605340f52334003f18ad691f1df2df",
+      "composedEntry": "100644 blob d36871ae5ce879f59b941f6ab5eb1c944ab0dec8",
+      "sha256": "48662d2c8fa69ee9d1041964b48bef8b6baa2ac6c0ddf97111c44a90d34c1531",
+      "composition": "exact published mode/blob"
+    },
+    {
+      "path": "package.json",
+      "publishedOwners": [
+        "2413",
+        "2414"
+      ],
+      "baseEntry": "100644 blob 994c9476414cd4f66b13cc52f16100a72a8cfddc",
+      "composedEntry": "100644 blob 4bd52e61f66c11f5293783dde6e98724dda934ea",
+      "sha256": "00027871f453433492f5e32d279fbc80b60cd11139c6e497e5a8dd311ac17a39",
+      "composition": "two independently reviewed script entries; exact remaining package bytes"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "publishedOwners": [
+        "2413"
+      ],
+      "baseEntry": null,
+      "composedEntry": "100644 blob 5e46f212702716896bd2e4e2a986180435ae6142",
+      "sha256": "1ee6be5fee4f958b29e57e7c9f77c1da9071b59aa8749b53553da75d1a024c35",
+      "composition": "exact published mode/blob"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "publishedOwners": [
+        "2413"
+      ],
+      "baseEntry": null,
+      "composedEntry": "100644 blob 0d1699b9c75a44e2d5541db42ee4aeeaca50f2ce",
+      "sha256": "031bb5c6a8b3ffb3df1d1fa1e824d1183cd92d301add8b6de38e499bd2422e65",
+      "composition": "exact published mode/blob"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "publishedOwners": [
+        "2413"
+      ],
+      "baseEntry": null,
+      "composedEntry": "100644 blob 7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "sha256": "f68cf0819176ebdd56f25ef3387b2a9fd3e014f40ade90ecb4dc7cca75699019",
+      "composition": "exact published mode/blob"
+    }
+  ],
+  "onlySourceOverlap": "package.json",
+  "overlapOnlyTwoSeparateCommandEntries": {
+    "gate:cleanup4:registry-ownership": "node scripts/check-registry-ownership.mjs && node --test scripts/check-registry-ownership.test.mjs",
+    "verify:engagement-phase-1": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts --run && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs"
+  },
+  "allOtherPackageValuesAndRemainingPackageBytesExact": true,
+  "baselinePathsOutsideEightPathUnionExact": 21040,
+  "applicationPathsOutsideThreeAcceptedMirrorsExact": 10503,
+  "allSchemaMigrationPathsExact": 603,
+  "allPriorDocumentationPathsExact": 9364,
+  "publishedNewDocumentationPathsExact": 310,
+  "masterHashReceipts": [
+    {
+      "pr": "2413",
+      "manifest": "docs/cleanup-registry-ownership-control-20261012/SHA256SUMS.json",
+      "manifestEntry": "100644 blob 84aa0ff353e40d35df2043a9381c39128f27c8a6",
+      "verifiedHashes": 249,
+      "allExactPublishedHashes": true
+    },
+    {
+      "pr": "2414",
+      "manifest": "docs/cleanup-phase1-caller-repair-20261012/SHA256SUMS.json",
+      "manifestEntry": "100644 blob 98266b4160c54c997a29fbc413385f1e4d38d7b4",
+      "verifiedHashes": 27,
+      "allExactPublishedHashes": true
+    },
+    {
+      "pr": "2415",
+      "manifest": "docs/cleanup-operator-mirror-repair-20261012/SHA256SUMS.json",
+      "manifestEntry": "100644 blob f39e074dc29a33ec157c1ae50942f775f7b80aa9",
+      "verifiedHashes": 31,
+      "allExactPublishedHashes": true
+    }
+  ],
+  "rootGuardAndCiAccepted4104BlobsExact": true,
+  "phase1SixteenControlsCarriedByExactHelperNormalizerCallerAndCommandValue": true,
+  "clock123DeferredDataBlobExactAndNoAdoption": true,
+  "declaredProductionCandidateReconciled": false,
+  "sourceCNewsletterAdopted": false,
+  "fullPhase1OrMemoryOrHistoricalManifestOrNativeAcceptance": false,
+  "mainMergeDeploymentOrReportingBranchAccess": false
+}

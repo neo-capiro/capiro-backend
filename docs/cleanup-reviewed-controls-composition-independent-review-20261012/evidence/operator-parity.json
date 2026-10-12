@@ -1,0 +1,25 @@
+{
+  "source": "fc7ef349e49a943b7020ab78ee9d2b8bdb02f9ed",
+  "tree": "ef854c0670db309d396ca2f4e8131b35581c6d81",
+  "operatorPairs": [
+    {
+      "canonical": "apps/api/scripts/phase6-stage-cycle.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+      "sha256": "e9005acc539c1e9cb3e8d0187b4e9c3fc41391a7dde0ce08973f387020a987f2",
+      "exactByteParity": true
+    },
+    {
+      "canonical": "apps/api/scripts/plan-defense-budget-promotion-v1.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+      "sha256": "0527611e0f93d7378c5c3ac270541096a623391ae061976f2f5ff0c283c80424",
+      "exactByteParity": true
+    },
+    {
+      "canonical": "apps/api/scripts/status-defense-budget-promotion-v1.ts",
+      "mirror": "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts",
+      "sha256": "48662d2c8fa69ee9d1041964b48bef8b6baa2ac6c0ddf97111c44a90d34c1531",
+      "exactByteParity": true
+    }
+  ],
+  "filesExecuted": 0
+}
