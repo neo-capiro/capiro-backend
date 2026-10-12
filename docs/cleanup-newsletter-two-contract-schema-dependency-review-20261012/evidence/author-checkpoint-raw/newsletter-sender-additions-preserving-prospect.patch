@@ -1,0 +1,180 @@
+diff --git a/apps/api/src/engagement/outreach-send-intent.service.ts b/apps/api/src/engagement/outreach-send-intent.service.ts
+index 32ebbfec7..825deacc9 100644
+--- a/apps/api/src/engagement/outreach-send-intent.service.ts
++++ b/apps/api/src/engagement/outreach-send-intent.service.ts
+@@ -39,6 +39,7 @@ import {
+ } from '@nestjs/common';
+ import { ConfigService } from '@nestjs/config';
+ import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
++import { assertNewsletterSourceAccess } from './newsletter-source-access.js';
+ import { createHash } from 'node:crypto';
+ import type { TenantContext } from '@capiro/shared';
+ import type { AppConfig } from '../config/config.schema.js';
+@@ -75,10 +76,7 @@ const MAX_ATTACHMENTS_PER_INTENT = 25;
+ export interface CreateSendIntentInput {
+   /** Internal runtime authority supplied by a trusted server-side caller. */
+   runtimeAction?:
+-    | 'outreach_send'
+-    | 'outreach_test_send'
+-    | 'outreach_v3_send'
+-    | 'outreach_v3_test_send';
++    'outreach_send' | 'outreach_test_send' | 'outreach_v3_send' | 'outreach_v3_test_send';
+   outreachRecordId: string;
+   requestKey: string;
+   senderConnectionId: string;
+@@ -341,7 +339,12 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy
+             `Fix the recipient before sending.`,
+         );
+       }
+-      const rendered = appendOutreachSignature(renderOutreachBody(v.body), signature.signatureHtml);
++      // Newsletter HTML was built and sanitized by the trusted importer. Generic
++      // edits cannot retain this format. Keep its responsive tables and CSS intact.
++      const body = isWorkspaceNewsletterVersion(v)
++        ? { content: v.body, contentType: 'HTML' as const }
++        : renderOutreachBody(v.body);
++      const rendered = appendOutreachSignature(body, signature.signatureHtml);
+       const subject = testMode ? `[TEST] ${v.subject || 'Outreach preview'}` : v.subject;
+       return {
+         versionId: v.id,
+@@ -715,11 +718,69 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy
+     connection: SendableConnection,
+     delivery: ClaimedDelivery,
+     runtimeAction:
+-      | 'outreach_send'
+-      | 'outreach_test_send'
+-      | 'outreach_v3_send'
+-      | 'outreach_v3_test_send',
++      'outreach_send' | 'outreach_test_send' | 'outreach_v3_send' | 'outreach_v3_test_send',
+   ): Promise<void> {
++    if (delivery.generationKey.startsWith('newsletter:')) {
++      try {
++        const access = await this.prisma.withTenant(ctx.tenantId, (tx) =>
++          tx.newsletterRecipientAccess.findFirst({
++            where: {
++              tenantId: ctx.tenantId,
++              userId: ctx.userId,
++              draftVersionId: delivery.draftVersionId,
++            },
++            select: { id: true, stageId: true },
++          }),
++        );
++        if (!access) {
++          await this.finishDelivery(delivery.id, 'failed', {
++            errorCode: 'NEWSLETTER_ACCESS_MISSING',
++            errorMessage: 'The saved newsletter delivery could not be verified.',
++          });
++          return;
++        }
++        try {
++          await assertNewsletterSourceAccess(this.prisma, ctx, access.stageId);
++        } catch {
++          await this.finishDelivery(delivery.id, 'failed', {
++            errorCode: 'NEWSLETTER_SOURCE_UNAVAILABLE',
++            errorMessage: 'Access to the staged newsletter source could not be verified.',
++          });
++          return;
++        }
++        if (runtimeAction !== 'outreach_test_send' && runtimeAction !== 'outreach_v3_test_send') {
++          const blocked = await this.prisma.withTenant(ctx.tenantId, (tx) =>
++            tx.newsletterSubscription.count({
++              where: {
++                tenantId: ctx.tenantId,
++                userId: ctx.userId,
++                unsubscribedAt: { not: null },
++                email: {
++                  in: [
++                    ...delivery.envelope.to.map((r) => r.email),
++                    ...delivery.envelope.cc,
++                    ...delivery.envelope.bcc,
++                  ].map((e) => e.toLowerCase()),
++                },
++              },
++            }),
++          );
++          if (blocked) {
++            await this.finishDelivery(delivery.id, 'failed', {
++              errorCode: 'NEWSLETTER_UNSUBSCRIBED',
++              errorMessage: 'A destination unsubscribed before delivery.',
++            });
++            return;
++          }
++        }
++      } catch (error) {
++        await this.finishDelivery(delivery.id, 'failed', {
++          errorCode: 'NEWSLETTER_SUBSCRIPTION_UNAVAILABLE',
++          errorMessage: truncateError((error as Error).message),
++        });
++        return;
++      }
++    }
+     // Edge case 16: an attachment deleted between intent creation and send. The
+     // delivery FAILS rather than going out without the document it promised.
+     let attachments: Array<{ name: string; contentType: string; contentBytes: string }> | undefined;
+@@ -1096,6 +1157,9 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy
+           auditStatus: true,
+           approvalStatus: true,
+           promptSpecVersion: true,
++          contentFormat: true,
++          newsletterStageId: true,
++          generationStatus: true,
+           artifact: {
+             select: {
+               id: true,
+@@ -1143,7 +1207,36 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy
+           `A draft is not cleared for sending (verification: ${v.auditStatus}, review: ${v.approvalStatus}).`,
+         );
+       }
+-      if (this.externalSendV2Required && !testMode && !isPromptSpecV2OrLater(v.promptSpecVersion)) {
++      if (isWorkspaceNewsletterVersion(v)) {
++        await assertNewsletterSourceAccess(this.prisma, ctx, v.newsletterStageId!);
++      }
++      if (isWorkspaceNewsletterVersion(v) && !testMode) {
++        const envelope = buildEnvelope(v.artifact.recipientSnapshot);
++        const blocked = await this.prisma.withTenant(ctx.tenantId, (tx) =>
++          tx.newsletterSubscription.count({
++            where: {
++              tenantId: ctx.tenantId,
++              userId: ctx.userId,
++              unsubscribedAt: { not: null },
++              email: {
++                in: [...envelope.to.map((r) => r.email), ...envelope.cc, ...envelope.bcc].map((e) =>
++                  e.toLowerCase(),
++                ),
++              },
++            },
++          }),
++        );
++        if (blocked)
++          throw new ConflictException(
++            'A destination unsubscribed. Refresh the newsletter preview before sending.',
++          );
++      }
++      if (
++        this.externalSendV2Required &&
++        !testMode &&
++        !isPromptSpecV2OrLater(v.promptSpecVersion) &&
++        !isWorkspaceNewsletterVersion(v)
++      ) {
+         throw new BadRequestException(
+           'This draft was written with the legacy prompt; external send is blocked. Regenerate it before sending.',
+         );
+@@ -1533,6 +1626,19 @@ export function deriveParentOutreachStatus(
+ }
+ 
+ /** v2, v2.1, v3… pass; v1 does not. Prefix-safe, not a string compare. */
++/** A separate, server-authored format; it never claims AI prompt provenance. */
++export function isWorkspaceNewsletterVersion(v: {
++  contentFormat?: string;
++  newsletterStageId?: string | null;
++  generationStatus?: string;
++}): boolean {
++  return (
++    v.contentFormat === 'workspace_newsletter' &&
++    Boolean(v.newsletterStageId) &&
++    v.generationStatus === 'manually_authored'
++  );
++}
++
+ export function isPromptSpecV2OrLater(promptSpecVersion: string | null | undefined): boolean {
+   if (!promptSpecVersion) return false;
+   const match = /^v(\d+)/i.exec(promptSpecVersion.trim());

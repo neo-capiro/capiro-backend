@@ -1,0 +1,9 @@
+{
+  "result": "PASS independent original58 path-set equality",
+  "originalPlanHead": "6d89253b4db7c2a1d792a9ff5605c61a84c6300a",
+  "frozenSourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "expectedCount": 58,
+  "extra": [],
+  "missing": [],
+  "scope": "Independent immutable plan graph/test/SQL set, not regenerated from restoration author manifest; source-only"
+}

@@ -1,0 +1,1849 @@
+{
+  "scope": "Source/receipt/static hash review, no generator/internals/production/generatedclient imports or execution by reviewer. AuthorCoreTSC exit0 receipt verified; Workspace parser cache gap remains, nativePG/RLS/Sharp/provider/frontend unqualified.",
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "authorReceiptHead": "7659366f6c8353abe91aae302375d7b6553043e4",
+  "authorReceiptTree": "191480b049db8c941c391f531d2f63c57bebb3a8",
+  "rawAuthorFiles": [
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/AUTHOR-CHECKPOINT.md",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "8ae58f301ed9964b88c93da18d3961f4190b5f6b",
+      "bytes": 2686,
+      "sha256": "8786da858bbf7623839257f12e5e4abd5d92a786bb6b99a088c701af2e1d5985",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/AUTHOR-CHECKPOINT.md"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/CONTRACT.md",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "ea0f7765db8fea3da5b6959d04cff64d6551ad84",
+      "bytes": 2502,
+      "sha256": "bdcf6ff12d8899f0926df191281c7f38f74b74de1630a0cbe0b964de0d735f6f",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/CONTRACT.md"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/01-source-composition.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "33b04d71ad26901f1d217b100cb15573bd5a614c",
+      "bytes": 227,
+      "sha256": "348eaaaa4fe9bc850dfbefa12e95eab99e525f50a2947258f186ded78430fa19",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/01-source-composition.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/02-lock-source-composition.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "16135e975b5246f673eb166182384977c5a3fa28",
+      "bytes": 991,
+      "sha256": "b987e627c6867ee84b86a0d22731c46db445f201beab1415b488441545326224",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/02-lock-source-composition.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/03-lock-source-composition-repaired.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "6a8c1645117f2b665b830f2784428bf558dd82fa",
+      "bytes": 1800539,
+      "sha256": "62377b57b26a3e0e061b6258ee24afa3f49c9d291f5da06ba7e13fac8cadd09b",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/03-lock-source-composition-repaired.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/04-lock-source-composition-final.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "7bb509039fdb2926d3960a7e5925479a75f82b65",
+      "bytes": 135,
+      "sha256": "dad00e3a38b79b53328cd670c60c9055ac8a52c5a42da02b1533a91cdae56d99",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/04-lock-source-composition-final.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/05-source-whitespace-initial.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "2d3e9878467fa6c1f4905fc43b6eac651f91a794",
+      "bytes": 45,
+      "sha256": "60d2cb86601c79e529c186e4dcfa28c686da8bec03a74a960d65c474ca1f016c",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/05-source-whitespace-initial.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/06-source-whitespace-repaired.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/06-source-whitespace-repaired.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/07-enginefree-schema-generation.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "48e306070ba26360d256662b6dadb487565b0853",
+      "bytes": 118,
+      "sha256": "e326c79ee9a341aa94ad7d94ecf25676cc7a9d58363187d8ef71792c67f5a9d9",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/07-enginefree-schema-generation.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/08-source-preservation.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/08-source-preservation.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/08-source-preservation.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "220a25b10b56420dd8308362cf693d8ed638bc98",
+      "bytes": 1422,
+      "sha256": "2a532b94436734bd42102ec8cdefc348b65e818543c3c0884cbcf24e8afb4218",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/08-source-preservation.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/09-source-preservation-path-repaired.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/09-source-preservation-path-repaired.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/09-source-preservation-path-repaired.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "91ed44f29ac0b0441a0f5cc01db7ebb4b1cf38dc",
+      "bytes": 1444,
+      "sha256": "a2b685309fa1565ff57ffb6093420ddf51ecb00a5aa0e2cddda35105987ef06a",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/09-source-preservation-path-repaired.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/10-source-preservation-final.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "78a446e01097c319c23cbb74473f9ae5e644c867",
+      "bytes": 90292,
+      "sha256": "0c9c8c73209f372d62b1b633d19e019c51ea0adb3b7860c85afd19ac905305f3",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/10-source-preservation-final.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/10-source-preservation-final.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/10-source-preservation-final.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/11-core-source-types-receipt.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "1f68c5d9044676c1a66aa24759d7b44bcffd47cd",
+      "bytes": 631,
+      "sha256": "7aae97e6579b69aea85b1af437563e8daf540efd2418ad96553ff108f867fd43",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/11-core-source-types-receipt.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/11-core-source-types.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/11-core-source-types.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/12-workspace-source-types.log",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "70f59db62dc30a6bad7a2673590dd8d38f810513",
+      "bytes": 17499,
+      "sha256": "7ac6214b0355f00ff36706a2f72a6cea5c8aff14dfb0a73b036d640b3aeca11c",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/12-workspace-source-types.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/ORIGINAL-SOURCE-MANIFEST.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "83191eb43be9679337708398721f9fbf524dd276",
+      "bytes": 30926,
+      "sha256": "756a29422da59f25a115a8e3b7f275eae2c65b93f8a18c6598a49bf7da75bf0d",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/ORIGINAL-SOURCE-MANIFEST.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-canonical-source.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "45beaafc87fe5bf41a4544458715bc826e9f2620",
+      "bytes": 5730,
+      "sha256": "78965cb536049ae784ab676ac22a411e14fb3262ede1e0941056947d7e7a655e",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/compose-canonical-source.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-lock-source.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "53cef5809f4d1d088ce4b7ea402581100a526eb0",
+      "bytes": 6431,
+      "sha256": "6537576d601a493414e7c03ee53503059f3109c84c062ec12d44b5d852ad0627",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/compose-lock-source.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-lock-source.initial.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "98dbd1f6600ee00694f94db3419578dc0e26786e",
+      "bytes": 5043,
+      "sha256": "e570b788fa6fca9cd45966f76dbd0ec739fd6c48adbfb81125a338adbcdf20d8",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/compose-lock-source.initial.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-lock-source.reachability-repaired.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "4996e169b930aa6afdd5e2fe6a0e0a3a74e1b0c1",
+      "bytes": 5923,
+      "sha256": "000b82672ded4ff22b4825a86af9e065ecf6eb4954953e5389f99f4ef64e3886",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/compose-lock-source.reachability-repaired.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/enginefree-generation-receipt.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "a4571af4f34d75e05b82b59b49963afc8874a9da",
+      "bytes": 9496,
+      "sha256": "ebdc01c10f3bcdb1b3c1a1e901b2471ecdd5d409acf49818daad121a2873c0bf",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/enginefree-generation-receipt.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/lock-source-closure.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "5206296f6764d340907b0bd122a0f923702ae3ff",
+      "bytes": 1422,
+      "sha256": "db56a75bac3acc2196c18639290bbf3f20fabb8a028a46d804f73e16562a7f08",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/lock-source-closure.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/newsletter-sender-additions-preserving-prospect.patch",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "b4d05749d85dbb11bfd0bba51e669a9069a5c718",
+      "bytes": 7785,
+      "sha256": "1f3618b2d3782b7d0c28cb5590d205194a4086f8dd3edb2e7b20b85889ac077b",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/newsletter-sender-additions-preserving-prospect.patch"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/original-registration-additions.patch",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "0e1cae0efe10388304a35adaace30928469f52a9",
+      "bytes": 9159,
+      "sha256": "39f239ee68486d0581e0c64d28f88544766eba40f3c808838b02f17fbf622fca",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/original-registration-additions.patch"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/validate-and-generate-enginefree.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "04dd62412f5efdcb934831f777bb9ce60656c685",
+      "bytes": 3911,
+      "sha256": "323f70fea1af159c9b35c2e07d389ac851b265ca0ed00781795cba473be586a4",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/validate-and-generate-enginefree.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "dc63186f749bd7ac950395fb0290e759ef01a722",
+      "bytes": 8315,
+      "sha256": "27cfe4e741769557f2f8bb1861e511a3639ccd5d93f3aa233df9435359663bca",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/verify-source-preservation.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.initial.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "eb5293c58bdf808e2fb44c5c87015e117465487f",
+      "bytes": 8064,
+      "sha256": "754e2302552fb9d643f7de8b0f97a1a0219163bb2aea64f17419225ec4ce5ccd",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/verify-source-preservation.initial.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.path-guess-repaired.cjs",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "51d3bb24094e420289c26d3733e426b226de8b6a",
+      "bytes": 8086,
+      "sha256": "b5cd059ad51e1c69a7e89d36027280363cbffcd49f7e958c1590b43a1fcdc90a",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/verify-source-preservation.path-guess-repaired.cjs"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.core-source.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "432a1dbf26b24212b46212fe4b588108d4beb181",
+      "bytes": 490,
+      "sha256": "8f08a05483283dbf21583f3755a73f7704afe65f45960d0a5b8469a0b4d59551",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/tsconfig.core-source.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.host-repaired.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "0a1a995a77484e559a97074e67ff4275e0866226",
+      "bytes": 841,
+      "sha256": "2a5ab0726354d05c78213d666d20e2a569fb43104ec108672bc1ac501abdb1a8",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/tsconfig.workspace-source.host-repaired.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.json",
+      "authorCommit": "7659366f6c8353abe91aae302375d7b6553043e4",
+      "gitBlob": "db4d58b0b164a03fed0ec76a59894d9cc4ff7762",
+      "bytes": 824,
+      "sha256": "f320e77c5a7246d174c1e2620ba2ce6780f3e036b91dc05dc784590477a0861e",
+      "reviewCopy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-checkpoint-raw/tsconfig.workspace-source.json"
+    }
+  ],
+  "generationRecipeHash": "323f70fea1af159c9b35c2e07d389ac851b265ca0ed00781795cba473be586a4",
+  "generatorCachedSha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+  "generationOutputFiles": [
+    {
+      "path": ".enginefree/core-client/default.d.ts",
+      "recordedSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "actualSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "recordedBytes": 23,
+      "actualBytes": 23,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/default.js",
+      "recordedSha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412",
+      "actualSha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412",
+      "recordedBytes": 36,
+      "actualBytes": 36,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/edge.d.ts",
+      "recordedSha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224",
+      "actualSha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224",
+      "recordedBytes": 25,
+      "actualBytes": 25,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/edge.js",
+      "recordedSha256": "0ed4ac8f5b349102a76283ddf660b34f331c381c75e54819f4e94c18be911fd2",
+      "actualSha256": "0ed4ac8f5b349102a76283ddf660b34f331c381c75e54819f4e94c18be911fd2",
+      "recordedBytes": 3814816,
+      "actualBytes": 3814816,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/index-browser.js",
+      "recordedSha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff",
+      "actualSha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff",
+      "recordedBytes": 256888,
+      "actualBytes": 256888,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/index.d.ts",
+      "recordedSha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6",
+      "actualSha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6",
+      "recordedBytes": 54570016,
+      "actualBytes": 54570016,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/index.js",
+      "recordedSha256": "90d31c61e00d06bce02b5f9be8fbf136eb1a2e7be55c0b3be6006ebb7a6a3098",
+      "actualSha256": "90d31c61e00d06bce02b5f9be8fbf136eb1a2e7be55c0b3be6006ebb7a6a3098",
+      "recordedBytes": 3815091,
+      "actualBytes": 3815091,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/package.json",
+      "recordedSha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24",
+      "actualSha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24",
+      "recordedBytes": 2601,
+      "actualBytes": 2601,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/edge-esm.js",
+      "recordedSha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8",
+      "actualSha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8",
+      "recordedBytes": 166095,
+      "actualBytes": 166095,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/edge.js",
+      "recordedSha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2",
+      "actualSha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2",
+      "recordedBytes": 166370,
+      "actualBytes": 166370,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/index-browser.d.ts",
+      "recordedSha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862",
+      "actualSha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862",
+      "recordedBytes": 11850,
+      "actualBytes": 11850,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/index-browser.js",
+      "recordedSha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120",
+      "actualSha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120",
+      "recordedBytes": 34709,
+      "actualBytes": 34709,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/library.d.ts",
+      "recordedSha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62",
+      "actualSha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62",
+      "recordedBytes": 117585,
+      "actualBytes": 117585,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/library.js",
+      "recordedSha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+      "actualSha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+      "recordedBytes": 191178,
+      "actualBytes": 191178,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/react-native.js",
+      "recordedSha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611",
+      "actualSha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611",
+      "recordedBytes": 174707,
+      "actualBytes": 174707,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/runtime/wasm.js",
+      "recordedSha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab",
+      "actualSha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab",
+      "recordedBytes": 124187,
+      "actualBytes": 124187,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/schema.prisma",
+      "recordedSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "actualSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "recordedBytes": 979560,
+      "actualBytes": 979560,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/wasm.d.ts",
+      "recordedSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "actualSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "recordedBytes": 23,
+      "actualBytes": 23,
+      "outputReadOnly": true
+    },
+    {
+      "path": ".enginefree/core-client/wasm.js",
+      "recordedSha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff",
+      "actualSha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff",
+      "recordedBytes": 256888,
+      "actualBytes": 256888,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/default.d.ts",
+      "recordedSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "actualSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "recordedBytes": 23,
+      "actualBytes": 23,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/default.js",
+      "recordedSha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412",
+      "actualSha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412",
+      "recordedBytes": 36,
+      "actualBytes": 36,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/edge.d.ts",
+      "recordedSha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224",
+      "actualSha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224",
+      "recordedBytes": 25,
+      "actualBytes": 25,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/edge.js",
+      "recordedSha256": "30524505af709bcf8013b27f729422786c2f38ead01d4e1b8e7fb3b524d967a2",
+      "actualSha256": "30524505af709bcf8013b27f729422786c2f38ead01d4e1b8e7fb3b524d967a2",
+      "recordedBytes": 193377,
+      "actualBytes": 193377,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/index-browser.js",
+      "recordedSha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2",
+      "actualSha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2",
+      "recordedBytes": 21004,
+      "actualBytes": 21004,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/index.d.ts",
+      "recordedSha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9",
+      "actualSha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9",
+      "recordedBytes": 2456926,
+      "actualBytes": 2456926,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/index.js",
+      "recordedSha256": "4af526978b788b843a88d5b1e79398e5f3d20da52454fea55d9a931769c2b108",
+      "actualSha256": "4af526978b788b843a88d5b1e79398e5f3d20da52454fea55d9a931769c2b108",
+      "recordedBytes": 193689,
+      "actualBytes": 193689,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/package.json",
+      "recordedSha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe",
+      "actualSha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe",
+      "recordedBytes": 2601,
+      "actualBytes": 2601,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/edge-esm.js",
+      "recordedSha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8",
+      "actualSha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8",
+      "recordedBytes": 166095,
+      "actualBytes": 166095,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/edge.js",
+      "recordedSha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2",
+      "actualSha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2",
+      "recordedBytes": 166370,
+      "actualBytes": 166370,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/index-browser.d.ts",
+      "recordedSha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862",
+      "actualSha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862",
+      "recordedBytes": 11850,
+      "actualBytes": 11850,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/index-browser.js",
+      "recordedSha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120",
+      "actualSha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120",
+      "recordedBytes": 34709,
+      "actualBytes": 34709,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/library.d.ts",
+      "recordedSha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62",
+      "actualSha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62",
+      "recordedBytes": 117585,
+      "actualBytes": 117585,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/library.js",
+      "recordedSha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+      "actualSha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+      "recordedBytes": 191178,
+      "actualBytes": 191178,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/react-native.js",
+      "recordedSha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611",
+      "actualSha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611",
+      "recordedBytes": 174707,
+      "actualBytes": 174707,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/runtime/wasm.js",
+      "recordedSha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab",
+      "actualSha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab",
+      "recordedBytes": 124187,
+      "actualBytes": 124187,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/schema.prisma",
+      "recordedSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+      "actualSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+      "recordedBytes": 41761,
+      "actualBytes": 41761,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/wasm.d.ts",
+      "recordedSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "actualSha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1",
+      "recordedBytes": 23,
+      "actualBytes": 23,
+      "outputReadOnly": true
+    },
+    {
+      "path": "apps/workspace/generated/prisma-client/wasm.js",
+      "recordedSha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2",
+      "actualSha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2",
+      "recordedBytes": 21004,
+      "actualBytes": 21004,
+      "outputReadOnly": true
+    }
+  ],
+  "imports": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "class-transformer",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "class-validator",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "express",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "@capiro/shared",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "../tenant/current-tenant.decorator.js",
+      "resolved": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "../auth/roles.decorator.js",
+      "resolved": "apps/api/src/auth/roles.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "../auth/roles.guard.js",
+      "resolved": "apps/api/src/auth/roles.guard.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "./runtime/engagement-runtime-action.decorator.js",
+      "resolved": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "./newsletter-outreach.service.js",
+      "resolved": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "node:crypto",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "@prisma/client",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "@capiro/shared",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "@capiro/shared/newsletter-render",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "sanitize-html",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./engagement.service.js",
+      "resolved": "apps/api/src/engagement/engagement.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./outreach-draft.service.js",
+      "resolved": "apps/api/src/engagement/outreach-draft.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./outreach-send-intent.service.js",
+      "resolved": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./runtime/engagement-runtime-policy.service.js",
+      "resolved": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "module": "@capiro/shared",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "../auth/roles.decorator.js",
+      "resolved": "apps/api/src/auth/roles.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "../auth/roles.guard.js",
+      "resolved": "apps/api/src/auth/roles.guard.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "../tenant/current-tenant.decorator.js",
+      "resolved": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "@capiro/shared",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "./newsletter-account-invitation.service.js",
+      "resolved": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "node:crypto",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "@nestjs/config",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "@capiro/shared",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "@prisma/client",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "../config/config.schema.js",
+      "resolved": "apps/api/src/config/config.schema.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "./newsletter-account-provider.js",
+      "resolved": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "@capiro/shared",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "@clerk/backend",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "../auth/clerk.service.js",
+      "resolved": "apps/api/src/auth/clerk.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "../tenant-admin/tenant-admin.service.js",
+      "resolved": "apps/api/src/tenant-admin/tenant-admin.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "@nestjs/config",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "@aws-sdk/client-sesv2",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "../config/config.schema.js",
+      "resolved": "apps/api/src/config/config.schema.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "@nestjs/config",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "@aws-sdk/client-sesv2",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "../config/config.schema.js",
+      "resolved": "apps/api/src/config/config.schema.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "module": "node:dns/promises",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "module": "node:https",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "module": "node:net",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "module": "@capiro/shared/newsletter-render",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "module": "@nestjs/config",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "module": "node:crypto",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "module": "@capiro/shared/ai-model-policy",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "module": "../generation/ai-credential.service.js",
+      "resolved": "apps/workspace/src/generation/ai-credential.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "module": "htmlparser2",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "module": "sanitize-html",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "class-transformer",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "class-validator",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "../auth/tenant.guard.js",
+      "resolved": "apps/workspace/src/auth/tenant.guard.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "../auth/current-tenant.decorator.js",
+      "resolved": "apps/workspace/src/auth/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "../auth/tenant-context.js",
+      "resolved": "apps/workspace/src/auth/tenant-context.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "./newsletter.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "./newsletter-stock-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "module": "@nestjs/config",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "module": "sanitize-html",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "module": "./newsletter-brand-validation.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "module": "@capiro/shared/newsletter-render",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "module": "sharp",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "@nestjs/platform-express",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "class-validator",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "express",
+      "resolved": null,
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "class-transformer",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "../auth/tenant.guard.js",
+      "resolved": "apps/workspace/src/auth/tenant.guard.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "../auth/current-tenant.decorator.js",
+      "resolved": "apps/workspace/src/auth/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "../auth/tenant-context.js",
+      "resolved": "apps/workspace/src/auth/tenant-context.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "./newsletter.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "../hillday/hillday-source.service.js",
+      "resolved": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "../generation/ai-credential.service.js",
+      "resolved": "apps/workspace/src/generation/ai-credential.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-html-check.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-stock-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-link-preview.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-video.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-stock-image.controller.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter.controller.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "../notifications/notifications.module.js",
+      "resolved": "apps/workspace/src/notifications/notifications.module.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "@nestjs/common",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "@nestjs/config",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "node:crypto",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "class-validator",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/workspace/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../../generated/prisma-client/index.js",
+      "resolved": "apps/workspace/generated/prisma-client/index.ts",
+      "typeOnly": true,
+      "generatedBoundary": true,
+      "generatedSourceDeclarationOnly": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../hillday/hillday-source.service.js",
+      "resolved": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../generation/ai-credential.service.js",
+      "resolved": "apps/workspace/src/generation/ai-credential.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-html-check.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-link-preview.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-video.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../notifications/notifications.service.js",
+      "resolved": "apps/workspace/src/notifications/notifications.service.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "@capiro/shared/newsletter",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "@capiro/shared/newsletter-render",
+      "resolved": null,
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-validation.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-brand-validation.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "module": "./newsletter-fonts.catalog.js",
+      "resolved": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "module": "./newsletter.js",
+      "resolved": "packages/shared/src/newsletter.ts",
+      "typeOnly": true,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "module": "./newsletter.js",
+      "resolved": "packages/shared/src/newsletter.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "module": "./newsletter-fonts.js",
+      "resolved": "packages/shared/src/newsletter-fonts.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "module": "./newsletter-social-share.js",
+      "resolved": "packages/shared/src/newsletter-social-share.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "module": "./newsletter.js",
+      "resolved": "packages/shared/src/newsletter.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "module": "./newsletter-fonts.js",
+      "resolved": "packages/shared/src/newsletter-fonts.ts",
+      "typeOnly": false,
+      "generatedBoundary": false,
+      "generatedSourceDeclarationOnly": false
+    }
+  ],
+  "cache": [
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@8.0.2",
+      "present": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@10.1.0",
+      "present": true
+    }
+  ],
+  "recipeFaults": [
+    {
+      "name": "disableNoEngine",
+      "sourceIdentityRefused": true,
+      "notExecuted": true
+    },
+    {
+      "name": "populateNativePath",
+      "sourceIdentityRefused": true,
+      "notExecuted": true
+    },
+    {
+      "name": "enableEnvFile",
+      "sourceIdentityRefused": true,
+      "notExecuted": true
+    },
+    {
+      "name": "resolveURL",
+      "sourceIdentityRefused": true,
+      "notExecuted": true
+    },
+    {
+      "name": "dropEnvSanitization",
+      "sourceIdentityRefused": true,
+      "notExecuted": true
+    },
+    {
+      "name": "dropNativeArtifactRefusal",
+      "sourceIdentityRefused": true,
+      "notExecuted": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "Author evidence checkpoint has exact sourceapp equality",
+      "passed": true
+    },
+    {
+      "name": "Recorded source/type head/tree is exacta247",
+      "passed": true
+    },
+    {
+      "name": "Core compiler noEmit and isolateddTS only paths",
+      "passed": true
+    },
+    {
+      "name": "Generator exact env-i command limits keys toPATH/XDG",
+      "passed": true
+    },
+    {
+      "name": "No URL/envfile datasource resolution in generatorrecipe",
+      "passed": true
+    },
+    {
+      "name": "NoEngine true/emptybinaryPaths and controlledlocal outputs",
+      "passed": true
+    },
+    {
+      "name": "Cached generator exact recorded SHA/5.22 version",
+      "passed": true
+    },
+    {
+      "name": "Cached generator source binds copyEngine to inverseNoEngine",
+      "passed": true
+    },
+    {
+      "name": "Generation binds exact frozen schema core",
+      "passed": true
+    },
+    {
+      "name": "Exact output path set contains no native/artifact engine core",
+      "passed": true
+    },
+    {
+      "name": "Every emitted existingfile SHA/byte exact core",
+      "passed": true
+    },
+    {
+      "name": "Generation binds exact frozen schema workspace",
+      "passed": true
+    },
+    {
+      "name": "Exact output path set contains no native/artifact engine workspace",
+      "passed": true
+    },
+    {
+      "name": "Every emitted existingfile SHA/byte exact workspace",
+      "passed": true
+    },
+    {
+      "name": "OriginalC OpenAI helper body preserved except fixedprovider binding",
+      "passed": true
+    },
+    {
+      "name": "OriginalC imagefacade behavior with onlycanonical helpercall rename",
+      "passed": true
+    },
+    {
+      "name": "OriginalC alttext facade body exact",
+      "passed": true
+    },
+    {
+      "name": "Only generated declaration edge is type-only",
+      "passed": true
+    },
+    {
+      "name": "Canonical model policy unchanged and exportedOPENAI constant present",
+      "passed": true
+    },
+    {
+      "name": "Exacthtmlparser8 cache gap explicitly remains",
+      "passed": true
+    },
+    {
+      "name": "All6 generation recipe drift fingerprints refuse",
+      "passed": true
+    }
+  ],
+  "passed": 21,
+  "total": 21
+}

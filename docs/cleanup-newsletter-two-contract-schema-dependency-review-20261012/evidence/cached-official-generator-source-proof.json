@@ -1,0 +1,68 @@
+{
+  "reviewerExecution": "Read/hash only; generator/internals/client never required/executed by reviewer",
+  "rows": [
+    {
+      "name": "internals-exports",
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/index.js",
+      "sha256": "f77451868ce10a118da31b50a925aed3c0c77200f1ef9183b878e722c5342934",
+      "bytes": 14550,
+      "startLine": 20,
+      "endLine": 65,
+      "source": "__export(dist_exports, {\n  BinaryType: () => import_chunk_FPHZVRV4.BinaryType,\n  ClientEngineType: () => import_chunk_CKNTB45N.ClientEngineType,\n  DEFAULT_CLIENT_ENGINE_TYPE: () => import_chunk_CKNTB45N.DEFAULT_CLIENT_ENGINE_TYPE,\n  ErrorArea: () => import_chunk_A4QWQE3W.ErrorArea,\n  Generator: () => import_chunk_635TMBAP.Generator,\n  HelpError: () => import_chunk_6JE6QGSJ.HelpError,\n  RustPanic: () => import_chunk_A4QWQE3W.RustPanic,\n  SchemaEngineExitCode: () => import_chunk_4RWCRJYD.SchemaEngineExitCode,\n  arg: () => import_chunk_MUPZUVSI.arg,\n  assertAlways: () => import_chunk_Y4TOGY6I.assertAlways,\n  assertNever: () => import_chunk_IL7PSY44.assertNever,\n  binaryTargetRegex: () => import_chunk_AOQIUJT4.binaryTargetRegex,\n  byline: () => import_chunk_L6KOIJJ5.byline,\n  callOnceOnSuccess: () => import_chunk_NIWBAJZV.callOnceOnSuccess,\n  canConnectToDatabase: () => import_chunk_4RWCRJYD.canConnectToDatabase,\n  canPrompt: () => import_chunk_EPJYKNCQ.canPrompt,\n  checkUnsupportedDataProxy: () => import_chunk_PVHNT4K2.checkUnsupportedDataProxy,\n  chmodPlusX: () => import_chunk_TWSLDIFL.chmodPlusX,\n  createDatabase: () => import_chunk_4RWCRJYD.createDatabase,\n  credentialsToUri: () => import_chunk_X4U4GLWH.credentialsToUri,\n  debugMultipleSchemaPaths: () => import_chunk_YRBRUREX.debugMultipleSchemaPaths,\n  debugMultipleSchemas: () => import_chunk_YRBRUREX.debugMultipleSchemas,\n  drawBox: () => import_chunk_F3SIWK3J.drawBox,\n  dropDatabase: () => import_chunk_4RWCRJYD.dropDatabase,\n  engineEnvVarMap: () => import_chunk_FPHZVRV4.engineEnvVarMap,\n  extractPreviewFeatures: () => import_chunk_TSJICM5S.extractPreviewFeatures,\n  extractSchemaContent: () => import_chunk_YRBRUREX.extractSchemaContent,\n  fixBinaryTargets: () => import_chunk_X77CS5RK.fixBinaryTargets,\n  format: () => import_chunk_MUPZUVSI.format,\n  formatSchema: () => import_chunk_PVHNT4K2.formatSchema,\n  formatTable: () => import_chunk_QN6PSQY7.formatTable,\n  formatms: () => import_chunk_XYCIH36R.formatms,\n  fsFunctional: () => import_chunk_S3323RUL.fs_functional_exports,\n  fsUtils: () => import_chunk_E3APO3ZG.fs_utils_exports,\n  getBinaryTargetForCurrentPlatform: () => import_chunk_PVHNT4K2.getBinaryTargetForCurrentPlatform,\n  getCLIPathHash: () => import_chunk_PVHNT4K2.getCLIPathHash,\n  getClientEngineType: () => import_chunk_CKNTB45N.getClientEngineType,\n  getCommandWithExecutor: () => import_chunk_ZA3RMW2P.getCommandWithExecutor,\n  getConfig: () => import_chunk_PI3AAZEE.getConfig,\n  getDMMF: () => import_chunk_EIPWZ4J5.getDMMF,\n  getDirectUrl: () => import_chunk_PI3AAZEE.getDirectUrl,\n  getEffectiveUrl: () => import_chunk_PI3AAZEE.getEffectiveUrl,\n  getEngineVersion: () => import_chunk_G7LL2H2O.getEngineVersion,\n  getEnginesMetaInfo: () => import_chunk_JMZHUHCC.getEnginesMetaInfo,\n  getEnvPaths: () => import_chunk_PVHNT4K2.getEnvPaths,"
+    },
+    {
+      "name": "dmmf-wasm",
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-EIPWZ4J5.js",
+      "sha256": "1d52aff56f74ce990c8473c7b9cd75a4cee56182b1e1d8f27a4bf3044ef0bbf0",
+      "bytes": 8228,
+      "startLine": 67,
+      "endLine": 106,
+      "source": "async function getDMMF(options) {\n  warnOnDeprecatedFeatureFlag(options.previewFeatures);\n  const debugErrorType = (0, import_chunk_IAEMHQAC.createDebugErrorType)(debug, \"getDmmfWasm\");\n  debug(`Using getDmmf Wasm`);\n  const dmmfPipeline = (0, import_function.pipe)(\n    (0, import_chunk_7MD6344A.tryCatch2)(\n      () => {\n        if (options.datamodel) {\n          debug(\"Using given datamodel\");\n          return Promise.resolve(options.datamodel);\n        }\n        debug(`Reading datamodel from the given datamodel path ${options.datamodelPath}`);\n        return import_fs.default.promises.readFile(options.datamodelPath, { encoding: \"utf-8\" });\n      },\n      (e) => ({\n        type: \"read-datamodel-path\",\n        reason: \"Error while trying to read the datamodel path\",\n        error: e,\n        datamodelPath: options.datamodelPath\n      })\n    ),\n    (0, import_chunk_7MD6344A.chainW2)((datamodel) => {\n      return (0, import_function.pipe)(\n        (0, import_chunk_7MD6344A.tryCatch)(\n          () => {\n            if (process.env.FORCE_PANIC_QUERY_ENGINE_GET_DMMF) {\n              debug(\"Triggering a Rust panic...\");\n              import_chunk_5JDKBNDH.prismaSchemaWasm.debug_panic();\n            }\n            const params = JSON.stringify({\n              prismaSchema: datamodel,\n              noColor: Boolean(process.env.NO_COLOR)\n            });\n            const data = import_chunk_5JDKBNDH.prismaSchemaWasm.get_dmmf(params);\n            return data;\n          },\n          (e) => ({\n            type: \"wasm-error\",\n            reason: \"(get-dmmf wasm)\",\n            error: e"
+    },
+    {
+      "name": "config-wasm",
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-PI3AAZEE.js",
+      "sha256": "48cb232d424bf35d4d4633b98b872858c5c18dba017389fd51d0682ef3abf3bc",
+      "bytes": 8300,
+      "startLine": 84,
+      "endLine": 109,
+      "source": "}\nasync function getConfig(options) {\n  const debugErrorType = (0, import_chunk_IAEMHQAC.createDebugErrorType)(debug, \"getConfigWasm\");\n  debug(`Using getConfig Wasm`);\n  const configEither = (0, import_function.pipe)(\n    (0, import_chunk_7MD6344A.tryCatch)(\n      () => {\n        if (process.env.FORCE_PANIC_QUERY_ENGINE_GET_CONFIG) {\n          debug(\"Triggering a Rust panic...\");\n          import_chunk_5JDKBNDH.prismaSchemaWasm.debug_panic();\n        }\n        const params = JSON.stringify({\n          prismaSchema: options.datamodel,\n          datasourceOverrides: {},\n          ignoreEnvVarErrors: options.ignoreEnvVarErrors ?? false,\n          env: process.env\n        });\n        const data = import_chunk_5JDKBNDH.prismaSchemaWasm.get_config(params);\n        return data;\n      },\n      (e) => ({\n        type: \"wasm-error\",\n        reason: \"(get-config wasm)\",\n        error: e\n      })\n    ),"
+    },
+    {
+      "name": "generator-js-wrapper",
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-635TMBAP.js",
+      "sha256": "eb5c04cabe3b0b06a62833a160787c9076470f1db6f69cb403b7efa8e14d837c",
+      "bytes": 2488,
+      "startLine": 26,
+      "endLine": 52,
+      "source": "var Generator = class {\n  constructor(executablePath, config, isNode) {\n    this.manifest = null;\n    this.config = config;\n    this.generatorProcess = new import_generator_helper.GeneratorProcess(executablePath, { isNode });\n  }\n  async init() {\n    await this.generatorProcess.init();\n    this.manifest = await this.generatorProcess.getManifest(this.config);\n  }\n  stop() {\n    this.generatorProcess.stop();\n  }\n  generate() {\n    if (!this.options) {\n      throw new Error(`Please first run .setOptions() on the Generator to initialize the options`);\n    }\n    return this.generatorProcess.generate(this.options);\n  }\n  setOptions(options) {\n    this.options = options;\n  }\n  setBinaryPaths(binaryPaths) {\n    if (!this.options) {\n      throw new Error(`Please first run .setOptions() on the Generator to initialize the options`);\n    }\n    this.options.binaryPaths = binaryPaths;"
+    },
+    {
+      "name": "generator-node-process",
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/generator-helper/dist/chunk-XSSRFZR7.js",
+      "sha256": "2992e13aafbc827fc15100c7a3adde2435331ae4a70c07a8543440a245c5e173",
+      "bytes": 25450,
+      "startLine": 574,
+      "endLine": 628,
+      "source": "var GeneratorProcess = class {\n  constructor(pathOrCommand, { isNode = false } = {}) {\n    this.pathOrCommand = pathOrCommand;\n    this.handlers = {};\n    this.errorLogs = \"\";\n    this.exited = false;\n    this.getManifest = this.rpcMethod(\n      \"getManifest\",\n      (result) => result.manifest ?? null\n    );\n    this.generate = this.rpcMethod(\"generate\");\n    this.isNode = isNode;\n  }\n  async init() {\n    if (!this.initPromise) {\n      this.initPromise = this.initSingleton();\n    }\n    return this.initPromise;\n  }\n  initSingleton() {\n    return new Promise((resolve, reject) => {\n      if (this.isNode) {\n        this.child = (0, import_child_process.fork)(this.pathOrCommand, [], {\n          stdio: [\"pipe\", \"inherit\", \"pipe\", \"ipc\"],\n          env: {\n            ...process.env,\n            PRISMA_GENERATOR_INVOCATION: \"true\"\n          },\n          // TODO: this assumes the host has at least 8 GB of RAM which may not be the case.\n          execArgv: [\"--max-old-space-size=8096\"]\n        });\n      } else {\n        this.child = (0, import_cross_spawn.spawn)(this.pathOrCommand, {\n          stdio: [\"pipe\", \"inherit\", \"pipe\"],\n          env: {\n            ...process.env,\n            PRISMA_GENERATOR_INVOCATION: \"true\"\n          },\n          shell: true\n        });\n      }\n      this.child.on(\"exit\", (code, signal) => {\n        debug(`child exited with code ${code} on signal ${signal}`);\n        this.exited = true;\n        if (code) {\n          const error = new GeneratorError(\n            `Generator ${JSON.stringify(this.pathOrCommand)} failed:\n\n${this.errorLogs}`\n          );\n          this.pendingError = error;\n          this.rejectAllHandlers(error);\n        }\n      });\n      this.child.stdin.on(\"error\", () => {"
+    },
+    {
+      "name": "generator-no-engine-copy",
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/generator-build/index.js",
+      "sha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+      "bytes": 349605,
+      "startLine": 10015,
+      "endLine": 10048,
+      "source": "    });\n  }\n  const enginePath = clientEngineType === \"library\" /* Library */ ? binaryPaths.libqueryEngine : binaryPaths.queryEngine;\n  if (!enginePath) {\n    throw new Error(\n      `Prisma Client needs \\`${clientEngineType === \"library\" /* Library */ ? \"libqueryEngine\" : \"queryEngine\"}\\` in the \\`binaryPaths\\` object.`\n    );\n  }\n  if (copyEngine) {\n    if (process.env.NETLIFY) {\n      await (0, import_fs_extra.ensureDir)(\"/tmp/prisma-engines\");\n    }\n    for (const [binaryTarget, filePath] of Object.entries(enginePath)) {\n      const fileName = import_path5.default.basename(filePath);\n      let target;\n      if (process.env.NETLIFY && ![\"rhel-openssl-1.0.x\", \"rhel-openssl-3.0.x\"].includes(binaryTarget)) {\n        target = import_path5.default.join(\"/tmp/prisma-engines\", fileName);\n      } else {\n        target = import_path5.default.join(outputDir, fileName);\n      }\n      await overwriteFile(filePath, target);\n    }\n  }\n  const schemaTargetPath = import_path5.default.join(outputDir, \"schema.prisma\");\n  await import_promises.default.writeFile(schemaTargetPath, datamodel, { encoding: \"utf-8\" });\n  if (generator.previewFeatures.includes(\"driverAdapters\") && isWasmEngineSupported(provider) && copyEngine && !testMode) {\n    const suffix = provider === \"postgres\" ? \"postgresql\" : provider;\n    await import_promises.default.copyFile(\n      import_path5.default.join(runtimeDir, `query_engine_bg.${suffix}.wasm`),\n      import_path5.default.join(outputDir, `query_engine_bg.wasm`)\n    );\n    await import_promises.default.copyFile(import_path5.default.join(runtimeDir, `query_engine_bg.${suffix}.js`), import_path5.default.join(outputDir, `query_engine_bg.js`));\n  }\n  try {"
+    },
+    {
+      "name": "generator-no-engine-option",
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/generator-build/index.js",
+      "sha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+      "bytes": 349605,
+      "startLine": 10327,
+      "endLine": 10345,
+      "source": "        schemaPath: options.schemaPath,\n        binaryPaths: options.binaryPaths,\n        datasources: options.datasources,\n        envPaths: options.envPaths,\n        outputDir,\n        copyRuntime: Boolean(options.generator.config.copyRuntime),\n        // TODO: is this needed/valid?\n        copyRuntimeSourceMaps: Boolean(process.env.PRISMA_COPY_RUNTIME_SOURCEMAPS),\n        dmmf: options.dmmf,\n        generator: options.generator,\n        engineVersion: options.version,\n        clientVersion,\n        activeProvider: options.datasources[0]?.activeProvider,\n        postinstall: options.postinstall,\n        copyEngine: !options.noEngine,\n        typedSql: options.typedSql\n      });\n    }\n  });"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "passed": 21,
+  "total": 21,
+  "emittedHashes": 38,
+  "authorFiles": 34,
+  "cache": [
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@8.0.2",
+      "present": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@10.1.0",
+      "present": true
+    }
+  ],
+  "failures": []
+}

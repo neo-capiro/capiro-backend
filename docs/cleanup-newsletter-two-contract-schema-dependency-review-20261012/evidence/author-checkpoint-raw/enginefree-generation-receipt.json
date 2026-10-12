@@ -1,0 +1,249 @@
+{
+  "result": "PASS official cached WASM schema/DMMF and isolated engine-free declaration/JS generation",
+  "cachedInternalsVersion": "5.22.0",
+  "cachedClientVersion": "5.22.0",
+  "generatorPath": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/generator-build/index.js",
+  "generatorSha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+  "sanitizedEnvironmentKeys": [
+    "PATH",
+    "XDG_CACHE_HOME"
+  ],
+  "isolatedCache": ".enginefree/tool-cache",
+  "output": [
+    {
+      "scope": "core",
+      "schema": "apps/api/prisma/schema.prisma",
+      "schemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "modelCount": 464,
+      "output": ".enginefree/core-client",
+      "options": {
+        "noEngine": true,
+        "binaryPaths": {
+          "libqueryEngine": {}
+        },
+        "isCustomOutput": true,
+        "envPaths": {
+          "rootEnvPath": null,
+          "schemaEnvPath": null
+        }
+      },
+      "emitted": [
+        {
+          "path": ".enginefree/core-client/default.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": ".enginefree/core-client/default.js",
+          "bytes": 36,
+          "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+        },
+        {
+          "path": ".enginefree/core-client/edge.d.ts",
+          "bytes": 25,
+          "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+        },
+        {
+          "path": ".enginefree/core-client/edge.js",
+          "bytes": 3814816,
+          "sha256": "0ed4ac8f5b349102a76283ddf660b34f331c381c75e54819f4e94c18be911fd2"
+        },
+        {
+          "path": ".enginefree/core-client/index-browser.js",
+          "bytes": 256888,
+          "sha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff"
+        },
+        {
+          "path": ".enginefree/core-client/index.d.ts",
+          "bytes": 54570016,
+          "sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6"
+        },
+        {
+          "path": ".enginefree/core-client/index.js",
+          "bytes": 3815091,
+          "sha256": "90d31c61e00d06bce02b5f9be8fbf136eb1a2e7be55c0b3be6006ebb7a6a3098"
+        },
+        {
+          "path": ".enginefree/core-client/package.json",
+          "bytes": 2601,
+          "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/edge-esm.js",
+          "bytes": 166095,
+          "sha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/edge.js",
+          "bytes": 166370,
+          "sha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/index-browser.d.ts",
+          "bytes": 11850,
+          "sha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/index-browser.js",
+          "bytes": 34709,
+          "sha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/library.d.ts",
+          "bytes": 117585,
+          "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/react-native.js",
+          "bytes": 174707,
+          "sha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611"
+        },
+        {
+          "path": ".enginefree/core-client/runtime/wasm.js",
+          "bytes": 124187,
+          "sha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab"
+        },
+        {
+          "path": ".enginefree/core-client/schema.prisma",
+          "bytes": 979560,
+          "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+        },
+        {
+          "path": ".enginefree/core-client/wasm.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": ".enginefree/core-client/wasm.js",
+          "bytes": 256888,
+          "sha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff"
+        }
+      ]
+    },
+    {
+      "scope": "workspace",
+      "schema": "apps/workspace/prisma/schema.prisma",
+      "schemaSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+      "modelCount": 37,
+      "output": "apps/workspace/generated/prisma-client",
+      "options": {
+        "noEngine": true,
+        "binaryPaths": {
+          "libqueryEngine": {}
+        },
+        "isCustomOutput": true,
+        "envPaths": {
+          "rootEnvPath": null,
+          "schemaEnvPath": null
+        }
+      },
+      "emitted": [
+        {
+          "path": "apps/workspace/generated/prisma-client/default.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/default.js",
+          "bytes": 36,
+          "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/edge.d.ts",
+          "bytes": 25,
+          "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/edge.js",
+          "bytes": 193377,
+          "sha256": "30524505af709bcf8013b27f729422786c2f38ead01d4e1b8e7fb3b524d967a2"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/index-browser.js",
+          "bytes": 21004,
+          "sha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/index.d.ts",
+          "bytes": 2456926,
+          "sha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/index.js",
+          "bytes": 193689,
+          "sha256": "4af526978b788b843a88d5b1e79398e5f3d20da52454fea55d9a931769c2b108"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/package.json",
+          "bytes": 2601,
+          "sha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/edge-esm.js",
+          "bytes": 166095,
+          "sha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/edge.js",
+          "bytes": 166370,
+          "sha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/index-browser.d.ts",
+          "bytes": 11850,
+          "sha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/index-browser.js",
+          "bytes": 34709,
+          "sha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/library.d.ts",
+          "bytes": 117585,
+          "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/react-native.js",
+          "bytes": 174707,
+          "sha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/runtime/wasm.js",
+          "bytes": 124187,
+          "sha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/schema.prisma",
+          "bytes": 41761,
+          "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/wasm.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": "apps/workspace/generated/prisma-client/wasm.js",
+          "bytes": 21004,
+          "sha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2"
+        }
+      ]
+    }
+  ],
+  "noNativeDownloadCopyInvoke": true,
+  "noInstall": true,
+  "noPrismaClientInstantiation": true,
+  "noDatabaseOrSQL": true,
+  "qualification": "SOURCE only; not native PostgreSQL/RLS/build/deployment acceptance"
+}

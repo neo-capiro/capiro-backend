@@ -1,0 +1,11 @@
+{
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "exitCode": 0,
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 node /workspace/capirov2/node_modules/typescript/bin/tsc -p docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.core-source.json",
+  "rawLog": "11-core-source-types.log",
+  "scope": "Core source type checking with isolated cached official engine-free declarations and current shared source",
+  "prismaClientInstantiated": false,
+  "nativeDatabaseProviderOrApplicationExecution": false,
+  "nativeAcceptance": false
+}

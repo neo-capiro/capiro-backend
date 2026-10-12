@@ -1,0 +1,19 @@
+{
+  "extends": "../../apps/workspace/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "baseUrl": "../..",
+    "noEmit": true,
+    "incremental": false,
+    "typeRoots": ["/workspace/capirov2/apps/api/node_modules/@types"],
+    "paths": {
+      "@capiro/shared": ["packages/shared/src/index.ts"],
+      "@capiro/shared/*": ["packages/shared/src/*"],
+      "@capiro/meriv2-core": ["packages/meriv2-core/src/index.ts"],
+      "@capiro/meriv2-core/*": ["packages/meriv2-core/src/*"],
+      "sharp": ["/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.d.ts"]
+    }
+  },
+  "include": ["../../apps/workspace/src/**/*"],
+  "exclude": ["../../apps/workspace/node_modules", "../../apps/workspace/dist", "../../apps/workspace/test", "../../apps/workspace/scripts"]
+}
