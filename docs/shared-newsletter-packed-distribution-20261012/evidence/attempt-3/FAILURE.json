@@ -1,0 +1,4 @@
+{
+  "exitCode": 1,
+  "cause": "Whole-package map check assumed every module was top-level dist. Existing schedule/deadline map correctly uses ../../src/schedule/deadline.ts from nested dist/schedule. Corrected check resolves each map against its own directory and confines to packed src. Browser 116-case equality had passed before this check; no artifact/source change."
+}

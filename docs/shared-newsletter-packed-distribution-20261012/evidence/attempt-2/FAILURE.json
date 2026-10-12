@@ -1,0 +1,9 @@
+{
+  "exitCode": 1,
+  "cases": 116,
+  "changed": [
+    "public runtime names/newsletter",
+    "public runtime names/renderer"
+  ],
+  "cause": "Browser CommonJS namespace interop adds standard default alias; only namespace inventory cases differ. All renderer/default/config/filter/effects results match. Corpus inventory now excludes interop-only default; package stays unchanged."
+}

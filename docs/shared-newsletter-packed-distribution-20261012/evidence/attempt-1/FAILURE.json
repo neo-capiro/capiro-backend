@@ -1,0 +1,4 @@
+{
+  "exitCode": 1,
+  "cause": "Synthetic harness assumed optional default social.share exists. Actual canonical default leaves it undefined; public imports and both positive/negative type checks had completed successfully. No artifact/source repair."
+}
