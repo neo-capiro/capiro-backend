@@ -1,0 +1,1 @@
+Frozen API dependencies contain no eslint executable; no lint pass is claimed. Earlier repository tooling gap remains separate.

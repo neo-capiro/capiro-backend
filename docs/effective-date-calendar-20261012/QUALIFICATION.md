@@ -1,9 +1,37 @@
 # Effective-date source qualification
 
+Current independently accepted source: `35abc148e301b5b0b0baa4f5b284757079d9d91d`,
+tree `38c8529eb308631922bee8d1c3f4d920bc4a0bf3`. Current test/evidence adoption:
+`178fad95e51eb1f962d2bf4bf8503eae597fb4fb`, tree
+`f8e99e5a01e8be1939e44837dc0655d0e7964e84`, identical to the accepted correction
+reviewer tree. Independent final qualification passes **181/181 across eight
+suites**, including **109 independent cases** (82 original plus 27 checkpoint).
+Primary Core strict typing and strict script semantic typing pass; the production
+API source remains unchanged from the previously passing Nest build.
+
+The original published source `f5a043c2558c1073b46bbeab81e60c403830d299`
+remains an ancestor. New actual-script VM RED proof reproduces both partial-catalog
+and legacy-receipt skipped-tail defects against that original script. Corrected
+checkpoint filtering and eligibility refuse partial/error/legacy/manual receipts
+and retain the old floor until an ordinary window is proved complete. The source
+snapshot confirms only the sync script changed; other runtime/schema/migration
+blobs match the original independently accepted source.
+
+`checkpoint-independent/CHECKPOINT-RECEIPT.json` records exact source, all RED,
+GREEN, fixture failures and strict semantic checks. `SHA256SUMS.json` is deliberately
+the original 66-file first-publication manifest; validate it against the original
+Git blobs. `SHA256SUMS-current.json` verifies the corrected publication. No original
+failed/pass output or source head is overwritten. The brief executor disconnect
+and actual successful recovery checks are recorded separately.
+
+## Original accepted source and retained qualification
+
+
 Accepted runtime/source: `f2b4cf3d733bf3cbb84dd8c453c037848d82ea82`, tree
 `08519d0fa4fc14da9116b3f299d0d9d5c4e0c685`.
-Runtime code, schema and migration remain byte-identical to that independently
-reviewed source. Author worktree test/evidence adoption is
+API runtime code, schema and migration remain byte-identical to that independently
+reviewed source; the independently reviewed checkpoint correction above changes
+only the existing sync script. Author worktree test/evidence adoption is
 `84e0d719c6447d24319899838a846af9fe3a02c4`, tree
 `f9d5950eb141a85e466b9f7fbd989725f739855a`, identical to the independent
 fixture-repair tree. Subsequent publication changes only docs/evidence.

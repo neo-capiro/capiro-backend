@@ -90,7 +90,15 @@ status; thrown traversal/setup failures produce error receipts. The next refresh
 can recover failed identities. Existing publication ingestion now records partial
 window coverage on early page stop, count drift or missing identities; duplicates
 produce partial or success_with_errors receipts and cannot yield clean success;
-those runs cannot advance the successful watermark. Coverage stats use the
+those runs cannot advance the successful watermark. Automatic --incremental now
+selects only status=success receipts with protocol schemaVersion 1,
+publication_window scope and incrementalCheckpointEligible=true. The eligibility
+flag is true only for exhausted, unique, error-free ordinary source windows. Legacy,
+partial, errored and explicit --since runs never become automatic checkpoints.
+When no qualified checkpoint exists, ingestion restarts at the declared 2021 floor;
+otherwise it uses the qualified run's startedAt UTC date, inclusively. Catalog max
+publication_date is never used as proof of completed ingestion. This prevents a
+partial newest-first window from losing its unseen older tail on retry. Coverage stats use the
 existing SyncRun.stats column and optional RunCounts.stats seam. Other jobs retain
 their original behavior when stats is omitted.
 
