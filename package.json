@@ -118,7 +118,22 @@
     "gate:cleanup4:tango-page-leaves": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/external/tango/tango-rest-page.spec.ts src/external/tango/tango-sbir.client.spec.ts src/external/tango/tango-subaward.client.spec.ts",
     "gate:cleanup4:strategy-template-metadata": "pnpm --filter @capiro/api-strategy exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/context/template-registry.spec.ts src/context/frontmatter.spec.ts src/reports/report-context.spec.ts",
     "gate:cleanup4:workspace-product-metadata": "pnpm --filter @capiro/workspace exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath test/product-registry-characterization.spec.ts",
-    "gate:cleanup4:meri-local-dispatch": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/meri/meri-local-dispatch.equivalence.spec.ts"
+    "gate:cleanup4:meri-local-dispatch": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/meri/meri-local-dispatch.equivalence.spec.ts",
+    "typecheck:backend": "turbo run typecheck --concurrency=1 --filter='!@capiro/web' --filter='!@capiro/onboard-web'",
+    "typecheck:frontend": "turbo run typecheck --concurrency=1 --filter=@capiro/web --filter=@capiro/onboard-web",
+    "verify:engagement-phase-1:backend": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts --run --backend-only && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs",
+    "verify:engagement-phase-1:frontend": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts --run --frontend-only && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs",
+    "verify:engagement-phase-2:backend": "bash scripts/verify-engagement-phase2-code.sh --run --backend-only",
+    "verify:engagement-phase-2:frontend": "bash scripts/verify-engagement-phase2-code.sh --run --frontend-only",
+    "verify:engagement-phase-3:backend": "node scripts/verify-engagement-phase3-code.mjs --run --backend-only",
+    "verify:engagement-phase-3:frontend": "node scripts/verify-engagement-phase3-code.mjs --run --frontend-only",
+    "verify:outreach-v3-phase-1:backend": "node scripts/verify-outreach-v3-phase1-code.mjs --run --backend-only",
+    "verify:outreach-v3-phase-1:frontend": "node scripts/verify-outreach-v3-phase1-code.mjs --run --frontend-only",
+    "verify:outreach-v3-phase-3:backend": "node scripts/verify-outreach-v3-phase3-code.mjs --run --backend-only",
+    "verify:outreach-v3-phase-3:frontend": "node scripts/verify-outreach-v3-phase3-code.mjs --run --frontend-only",
+    "verify:outreach-v3-phase-4:backend": "node scripts/verify-outreach-v3-phase4-code.mjs --run --backend-only",
+    "verify:outreach-v3-phase-4:frontend": "node scripts/verify-outreach-v3-phase4-code.mjs --run --frontend-only",
+    "gate:cleanup4:verification-scopes": "node --test scripts/ci/rebuild-verification-scopes.spec.mjs"
   },
   "devDependencies": {
     "prettier": "^3.9.9",
