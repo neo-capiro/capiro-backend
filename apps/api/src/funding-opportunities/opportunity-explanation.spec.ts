@@ -253,14 +253,14 @@ describe('the surviving v2 card leads with evidence, not a bare score', () => {
   const card = readFileSync(
     join(
       __dirname,
-      '../../../web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx',
+      '__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt',
     ),
     'utf8',
   );
   const domain = readFileSync(
     join(
       __dirname,
-      '../../../web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts',
+      '__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt',
     ),
     'utf8',
   );
