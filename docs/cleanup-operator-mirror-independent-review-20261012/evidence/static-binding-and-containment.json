@@ -1,0 +1,205 @@
+{
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "source": "aaea904f9d16df38ef57bc1d668a2b06f8d0fd14",
+  "sourceTree": "41b8827051bac6d2c1ef4650798c8cdc330d5353",
+  "authorEvidence": "9736f1deb9f2154a9f29545a73c1be4e0494d77d",
+  "authorEvidenceTree": "49a3553b712609d8dbd219732d46d9b11fb86476",
+  "authorDocOnlyPaths": 13,
+  "authorPacketHashesVerified": 12,
+  "protectedSources": [
+    {
+      "path": "apps/defense-api/runtime-source/README.md",
+      "sha256": "e3b4838f361970335a5e0809f0bcc295d2cc463ffb1a9c1cb1beb0c4efe4eb27",
+      "unchanged": true
+    },
+    {
+      "path": "apps/defense-api/tsconfig.json",
+      "sha256": "19f1c38f53f0ca7e02c77af5de0ae840bd4d9b66ea95896c13b7bdb975f3b5c8",
+      "unchanged": true
+    },
+    {
+      "path": "apps/defense-api/nest-cli.json",
+      "sha256": "bcb15e3049ff5d131762d2bfe3a6f917c3c64c83ac772467a4073975cd423b5b",
+      "unchanged": true
+    },
+    {
+      "path": "apps/defense-api/Dockerfile",
+      "sha256": "c0a973ec65fed292cc4d8f4c64b847124bf0b80b09a154ca52820740796fae2c",
+      "unchanged": true
+    },
+    {
+      "path": "apps/defense-api/package.json",
+      "sha256": "97832181e0f5b660fa2fe535d191fdc443afaa69386f006d3a7f771129e89a8c",
+      "unchanged": true
+    },
+    {
+      "path": "apps/defense-api/src/runtime/phase1-7-runtime.manifest.ts",
+      "sha256": "a5fb94cb690a5f4178ef4feeec49619dd8cbcaef2aea9c2600e09dcddbe25408",
+      "unchanged": true
+    },
+    {
+      "path": "apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts",
+      "sha256": "6fd3a889703f54c9f0c5107c033eb28851fa00089d8b56cb66251f8a9c577e44",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/verify-phase8-session4.mjs",
+      "sha256": "6eacfcd7328737700091757381094bea3ab6b3f9996e38d7e15d2112070eba08",
+      "unchanged": true
+    }
+  ],
+  "dependencies": [
+    {
+      "operator": "phase6-stage-cycle.ts",
+      "specifier": "../src/defense-budget/phase6/phase6-cycle-runner-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/phase6/phase6-cycle-runner-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/phase6/phase6-cycle-runner-v1.ts",
+      "sha256": "6e4b5c17c5f11d5dbb5b8a65f5f457b4d3c2f381e0910fd86d3ad707b05bb3c9",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "plan-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/promotion/promotion-planner-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/promotion/promotion-planner-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/promotion/promotion-planner-v1.ts",
+      "sha256": "99f82feb1ab864fcee891a40b2f9e7efac7fa6e5e6cbf1d9b849d78328b63428",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "plan-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/promotion/canonical-mapping-registry-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/promotion/canonical-mapping-registry-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/promotion/canonical-mapping-registry-v1.ts",
+      "sha256": "f60ab6aa8b5b4399d62efd076865ee2a7d33bc1b8651c7ba700a4d41e68c6a2c",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "plan-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.ts",
+      "sha256": "131305770fc1578b0868485ff899a968eb618aea22d5661a5320fca8e29c3741",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "plan-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/contracts/extraction-artifact-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/contracts/extraction-artifact-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/contracts/extraction-artifact-v1.ts",
+      "sha256": "8052f1b78b9bff4c1e6342e4c588e6a8782b0fc46dd6d6f0cdfe781aeaa37e5b",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "plan-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/contracts/canonical-json.js",
+      "canonicalTarget": "apps/api/src/defense-budget/contracts/canonical-json.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/contracts/canonical-json.ts",
+      "sha256": "8378e808102e19c25a70190e7c9918c5246ab2a53dd130a2e7c77c99432c5e67",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "plan-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/promotion/promotion-eligibility-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/promotion/promotion-eligibility-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/promotion/promotion-eligibility-v1.ts",
+      "sha256": "96908ebd14c87595ddf11ec6a8e1315b042bd92d9e2dbf0a4f3b498c53033269",
+      "unchangedAndByteEqual": true
+    },
+    {
+      "operator": "status-defense-budget-promotion-v1.ts",
+      "specifier": "../src/defense-budget/promotion/slo-metrics-v1.js",
+      "canonicalTarget": "apps/api/src/defense-budget/promotion/slo-metrics-v1.ts",
+      "mirrorTarget": "apps/defense-api/runtime-source/defense-budget/promotion/slo-metrics-v1.ts",
+      "sha256": "8b179592f09a0e258ac6cc7febc09d65c591fd72f6d5d8cbd121bca2163f6c19",
+      "unchangedAndByteEqual": true
+    }
+  ],
+  "directLocalTargets": 8,
+  "exactSourceMutationRefusals": [
+    {
+      "file": "phase6-stage-cycle.ts",
+      "kind": "old mirror",
+      "rejected": true
+    },
+    {
+      "file": "phase6-stage-cycle.ts",
+      "kind": "mirror one byte",
+      "rejected": true
+    },
+    {
+      "file": "phase6-stage-cycle.ts",
+      "kind": "both copies changed equally",
+      "rejected": true
+    },
+    {
+      "file": "phase6-stage-cycle.ts",
+      "kind": "line ending change",
+      "rejected": true
+    },
+    {
+      "file": "phase6-stage-cycle.ts",
+      "kind": "new import",
+      "rejected": true
+    },
+    {
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "kind": "old mirror",
+      "rejected": true
+    },
+    {
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "kind": "mirror one byte",
+      "rejected": true
+    },
+    {
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "kind": "both copies changed equally",
+      "rejected": true
+    },
+    {
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "kind": "line ending change",
+      "rejected": true
+    },
+    {
+      "file": "plan-defense-budget-promotion-v1.ts",
+      "kind": "new import",
+      "rejected": true
+    },
+    {
+      "file": "status-defense-budget-promotion-v1.ts",
+      "kind": "old mirror",
+      "rejected": true
+    },
+    {
+      "file": "status-defense-budget-promotion-v1.ts",
+      "kind": "mirror one byte",
+      "rejected": true
+    },
+    {
+      "file": "status-defense-budget-promotion-v1.ts",
+      "kind": "both copies changed equally",
+      "rejected": true
+    },
+    {
+      "file": "status-defense-budget-promotion-v1.ts",
+      "kind": "line ending change",
+      "rejected": true
+    },
+    {
+      "file": "status-defense-budget-promotion-v1.ts",
+      "kind": "new import",
+      "rejected": true
+    }
+  ],
+  "unchangedDefenseBudgetSourceAndMirrorTree": "49a033881715fb1102e8941c9895664f585efae2",
+  "unchangedCompiledDefenseSrcTree": "797fc0a16e53a42d2e5a6a48f9b8024d0c12bd24",
+  "compiledSrcTsFilesInspected": 114,
+  "staticOperatorLiteralReferences": [],
+  "historicalManifestTree": "dba0990b9506e4079a9cc44c4892b063f1260d04",
+  "historicalManifestMatchesActualTree": false,
+  "inheritedManifestQualification": "Unchanged descriptor is older than actual source/mirror trees; no manifest provenance reconciliation is claimed by this three-mirror repair.",
+  "mirrorResolutionQualification": "Verbatim ../src imports are archived source-parity paths, not standalone relocated operators. Mirrors are outside src include/sourceRoot and Docker COPY.",
+  "authorInitialFailedFixtureBytesPreserved": true,
+  "actualSession4VerifierOrProductionDependenciesOrNativeOperationsExecuted": false
+}

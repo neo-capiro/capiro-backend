@@ -1,0 +1,96 @@
+{
+  "reviewScope": "Independent exact canonical source-mirror repair with bounded inert source probes and static containment",
+  "acceptedSource": "aaea904f9d16df38ef57bc1d668a2b06f8d0fd14",
+  "acceptedSourceTree": "41b8827051bac6d2c1ef4650798c8cdc330d5353",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "authorEvidence": "9736f1deb9f2154a9f29545a73c1be4e0494d77d",
+  "authorEvidenceTree": "49a3553b712609d8dbd219732d46d9b11fb86476",
+  "reviewWorktree": "/workspace/capirov2-operator-mirror-independent-review",
+  "branch": "codex/cleanup-operator-mirror-independent-review-20261012",
+  "reviewerProductionEdits": false,
+  "productionRepairPaths": [
+    "apps/defense-api/runtime-source/operators/phase6-stage-cycle.ts",
+    "apps/defense-api/runtime-source/operators/plan-defense-budget-promotion-v1.ts",
+    "apps/defense-api/runtime-source/operators/status-defense-budget-promotion-v1.ts"
+  ],
+  "changedProductionPaths": 3,
+  "canonicalSourceAndImportsUnchanged": true,
+  "exactCanonicalMirrorRepairAccepted": true,
+  "sourceBlockers": [],
+  "originalMirrorDrifts": 3,
+  "currentMirrorDrifts": 0,
+  "independentProbeFixtures": 52,
+  "independentCanonicalAndMirrorEvaluationsPerRun": 104,
+  "originalDifferentMirrorProbeCases": 19,
+  "currentFailedOrDifferentMirrorProbeCases": 0,
+  "authorInertControlsIndependentlyReplayed": {
+    "pass": 50,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "frozenSourceMutationRefusals": 15,
+  "unchangedMappedLocalDependencies": 8,
+  "unchangedContainmentFiles": 8,
+  "authorDocumentationOnlyPaths": 13,
+  "authorIndexedHashesVerified": 12,
+  "unchangedDefenseBudgetTree": "49a033881715fb1102e8941c9895664f585efae2",
+  "unchangedDefenseApiSrcTree": "797fc0a16e53a42d2e5a6a48f9b8024d0c12bd24",
+  "sourceTsFilesInspectedIncludingSpecs": 114,
+  "sourceOperatorLiteralReferences": 0,
+  "inheritedHistoricalManifestTree": "dba0990b9506e4079a9cc44c4892b063f1260d04",
+  "inheritedManifestMatchesActualTree": false,
+  "inheritedManifestGapIntroducedByRepair": false,
+  "qualifications": [
+    "Archived mirror ../src imports preserve canonical bytes; standalone relocated operator execution is not accepted.",
+    "Phase6 retains an eager CLI tail and delegates extraction flag validation; planner/status retain unsupported help and non-universal flag handling.",
+    "Planner/status require.main guards stop main, but their unchanged top-level dotenvConfig may read configuration in real imports.",
+    "Async main guard probes omit the outer CLI catch to prevent synthetic process.exit throws from contaminating exit observations; configured paths stop at synthetic Prisma constructor barriers.",
+    "The unchanged historical manifest tree descriptor is qualified separately from actual source/mirror parity; no provenance reconciliation or FY27 replay acceptance.",
+    "Fifteen immutable-source mutation refusals are review controls, not newly installed production guard policy."
+  ],
+  "commands": [
+    {
+      "script": "evidence/inert-cli-and-parity.cjs --baseline",
+      "exitCode": 1,
+      "stdout": "evidence/original-mirrors-inert-red.json",
+      "stderr": "evidence/original-mirrors-inert-red.stderr.log",
+      "expectedOriginalRed": true
+    },
+    {
+      "script": "evidence/inert-cli-and-parity.cjs",
+      "exitCode": 0,
+      "stdout": "evidence/current-inert-cli-green.json",
+      "stderr": "evidence/current-inert-cli-green.stderr.log"
+    },
+    {
+      "script": "evidence/author-inert-operator-source.test.mjs",
+      "runner": "node --test",
+      "exitCode": 0,
+      "stdout": "evidence/author-inert-replay.log",
+      "stderr": "evidence/author-inert-replay.stderr.log"
+    },
+    {
+      "script": "evidence/static-binding-and-containment.cjs",
+      "failedScriptSnapshot": "evidence/static-binding-and-containment-first.cjs",
+      "exitCode": 1,
+      "stdout": "evidence/static-binding-and-containment-first.json",
+      "stderr": "evidence/static-binding-and-containment-first.stderr.log",
+      "failure": "Independent receipt assertion expected TAP rather than the retained default reporter's fail marker."
+    },
+    {
+      "script": "evidence/static-binding-and-containment.cjs",
+      "exitCode": 0,
+      "stdout": "evidence/static-binding-and-containment.json",
+      "stderr": "evidence/static-binding-and-containment.stderr.log",
+      "correction": "Verify the actual unchanged \u2139 fail 1 marker; no source or policy change."
+    }
+  ],
+  "allOriginalAndIndependentFailuresAndPassesRetained": true,
+  "realProductionDependenciesLoaded": false,
+  "actualSession4VerifierExecuted": false,
+  "strictApplicationCompileAccepted": false,
+  "nativePostgresRlsPrismaOrFullGateAcceptance": false,
+  "rootPublicationOwner": true,
+  "realOperatorDotenvPrismaInputFileChildDatabaseSqlMigrationProviderModelDockerCloudOperations": false
+}
