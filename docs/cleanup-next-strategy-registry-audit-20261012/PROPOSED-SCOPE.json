@@ -1,0 +1,54 @@
+{
+  "baselineSource": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "baselineTree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "status": "Read-only proposal; no app/data/CI adoption until parent ownership file-map confirmation",
+  "productionPaths": [
+    "apps/api-strategy/src/context/template-registry.ts (new pure metadata owner)",
+    "apps/api-strategy/src/context/frontmatter.ts (compatibility const aliases only)",
+    "apps/api-strategy/src/reports/report-context.ts (metadata imports and exact prefix/membership delegation only)"
+  ],
+  "focusedTestPaths": [
+    "apps/api-strategy/src/context/template-registry.spec.ts (new)",
+    "apps/api-strategy/src/context/frontmatter.spec.ts",
+    "apps/api-strategy/src/reports/report-context.spec.ts"
+  ],
+  "metadataFields": {
+    "templateProfile": [
+      "documentType",
+      "templateKey",
+      "reportFallback",
+      "reportOperational"
+    ],
+    "otherFamilies": [
+      "17 ordered DOCUMENT_TYPES tuple",
+      "TEMPLATE_KEY_BY_TYPE plain-object record",
+      "5 exact operational template keys",
+      "10 report section title strings with original record order",
+      "separate 10-key output order",
+      "9 ordered prefix fallback rows",
+      "governance fallback"
+    ]
+  },
+  "functions": [
+    "isOperationalReportTemplate(templateKey:string):boolean \u2014 exact membership, no coercion",
+    "reportFallbackSection(templateKey:string):ReportNarrativeSectionKey \u2014 existing startsWith prefix semantics and governance default"
+  ],
+  "compatibility": "Existing frontmatter export const aliases retain exact tuple/union/Readonly<Record<DocumentTypeValue,string>> types and shared unfrozen array/plain-map references; preserve original CJS data properties, avoid getter-only reexports. Do not normalize malformed values.",
+  "notMoved": [
+    "parseFrontmatter/parseScalar/validateFrontmatter and other vocab/authority/date helpers",
+    "categoryFor heading-regex precedence",
+    "sectionTitleForTemplate text transformation",
+    "extractHighlights/body cleaning/table formatting/deduplication/metadata/freshness/authority",
+    "YAML/Markdown writers in context-import and current-plan export",
+    "specialized amendment selectors/renderers",
+    "Orchestrator/UI neutral labels or their14-type subsets",
+    "Steward2-required vsOrchestrator3-prioritized profiles"
+  ],
+  "productDecisions": [],
+  "outOfScopeProductChanges": [
+    "unify importable subsets or required-template priorities",
+    "change14/15/16 narrative routing",
+    "change client exclusions, authority gates or dates",
+    "change malformed/null behavior or runtime freeze/prototype protocol"
+  ]
+}

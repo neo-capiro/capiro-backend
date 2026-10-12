@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capirov2/pulls/2412",
+    "--jq",
+    "{number,html_url,state,draft,merged,head:.head.sha,branch:.head.ref,base:.base.ref,base_sha:.base.sha}"
+  ],
+  "readOnly": true,
+  "exitCode": 0
+}

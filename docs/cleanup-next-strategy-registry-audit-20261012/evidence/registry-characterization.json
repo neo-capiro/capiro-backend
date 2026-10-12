@@ -1,0 +1,4349 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "pureFrozenSourceHashes": {
+    "front": "250a942a6b06f1529a02315b6bf07e3f7d1a872fdf6e70daecd0f69406353645",
+    "report": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb"
+  },
+  "documentTypeOrder": [
+    "context_manifest",
+    "strategy_brief",
+    "client_constraints",
+    "ask_and_options",
+    "stakeholder_map",
+    "calendar_and_deadlines",
+    "decision_rules",
+    "current_plan",
+    "evidence_register",
+    "meeting_intelligence",
+    "decision_log",
+    "agent_mission",
+    "execution_playbook",
+    "agent_permissions",
+    "target_budget_line",
+    "vendor_reference_pull",
+    "route_and_vehicle_status"
+  ],
+  "templateMap": {
+    "context_manifest": "00_context_manifest",
+    "strategy_brief": "01_strategy_brief",
+    "client_constraints": "02_client_constraints",
+    "ask_and_options": "03_ask_and_options",
+    "stakeholder_map": "04_stakeholder_map",
+    "calendar_and_deadlines": "05_calendar_and_deadlines",
+    "decision_rules": "06_decision_rules",
+    "current_plan": "07_current_plan",
+    "evidence_register": "08_evidence_register",
+    "meeting_intelligence": "09_meeting_intelligence",
+    "decision_log": "10_decision_log",
+    "agent_mission": "11_agent_mission",
+    "execution_playbook": "12_execution_playbook",
+    "agent_permissions": "13_agent_permissions",
+    "target_budget_line": "14_target_budget_line",
+    "vendor_reference_pull": "15_vendor_reference_pull",
+    "route_and_vehicle_status": "16_route_and_vehicle_status"
+  },
+  "identity": {
+    "frozenTypes": false,
+    "frozenMap": false,
+    "mapPrototypePlain": true,
+    "stableTypes": true,
+    "stableMap": true,
+    "namespaceDescriptors": {
+      "types": {
+        "writable": true,
+        "enumerable": true
+      },
+      "map": {
+        "writable": true,
+        "enumerable": true
+      }
+    },
+    "validatorUsesSameTypesInstance": true
+  },
+  "operationalKeys": [
+    "00_context_manifest",
+    "07_current_plan",
+    "11_agent_mission",
+    "12_execution_playbook",
+    "13_agent_permissions"
+  ],
+  "sectionTitleRecordOrder": [
+    "situation",
+    "outcomes",
+    "ask",
+    "stakeholders",
+    "constraints",
+    "timing",
+    "evidence",
+    "decisions",
+    "intelligence",
+    "governance"
+  ],
+  "sectionOutputOrder": [
+    "situation",
+    "outcomes",
+    "ask",
+    "stakeholders",
+    "constraints",
+    "timing",
+    "decisions",
+    "intelligence",
+    "evidence",
+    "governance"
+  ],
+  "known": [
+    {
+      "documentType": "context_manifest",
+      "templateKey": "00_context_manifest",
+      "defaultTitle": "Context Manifest",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-00_context_manifest",
+            "title": "00_context_manifest",
+            "templateKey": "00_context_manifest",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-00_context_manifest",
+            "text": "Established entry for 00contextmanifest.",
+            "documentTitle": "00_context_manifest",
+            "templateKey": "00_context_manifest",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Established entry for 00contextmanifest.",
+                "label": "Established context",
+                "sourceTitle": "00_context_manifest",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "strategy_brief",
+      "templateKey": "01_strategy_brief",
+      "defaultTitle": "Strategy Brief",
+      "defaultCategory": "situation",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "client_constraints",
+      "templateKey": "02_client_constraints",
+      "defaultTitle": "Client Constraints",
+      "defaultCategory": "constraints",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-02_client_constraints",
+            "title": "02_client_constraints",
+            "templateKey": "02_client_constraints",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-02_client_constraints",
+            "text": "Established entry for 02clientconstraints.",
+            "documentTitle": "02_client_constraints",
+            "templateKey": "02_client_constraints",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "Authored entry for 02clientconstraints.",
+                "label": "Client Constraints",
+                "sourceTitle": "02_client_constraints",
+                "sourceRef": "heading:Client Constraints",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 02clientconstraints.",
+                "label": "Established context",
+                "sourceTitle": "02_client_constraints",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-02_client_constraints",
+            "title": "02_client_constraints",
+            "templateKey": "02_client_constraints",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-02_client_constraints",
+            "text": "Established entry for 02clientconstraints.",
+            "documentTitle": "02_client_constraints",
+            "templateKey": "02_client_constraints",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "Authored entry for 02clientconstraints.",
+                "label": "Client Constraints",
+                "sourceTitle": "02_client_constraints",
+                "sourceRef": "heading:Client Constraints",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 02clientconstraints.",
+                "label": "Established context",
+                "sourceTitle": "02_client_constraints",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "ask_and_options",
+      "templateKey": "03_ask_and_options",
+      "defaultTitle": "Ask And Options",
+      "defaultCategory": "ask",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-03_ask_and_options",
+            "title": "03_ask_and_options",
+            "templateKey": "03_ask_and_options",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-03_ask_and_options",
+            "text": "Established entry for 03askandoptions.",
+            "documentTitle": "03_ask_and_options",
+            "templateKey": "03_ask_and_options",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "ask",
+            "title": "Strategic ask and options",
+            "items": [
+              {
+                "text": "Authored entry for 03askandoptions.",
+                "label": "Ask And Options",
+                "sourceTitle": "03_ask_and_options",
+                "sourceRef": "heading:Ask And Options",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 03askandoptions.",
+                "label": "Established context",
+                "sourceTitle": "03_ask_and_options",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-03_ask_and_options",
+            "title": "03_ask_and_options",
+            "templateKey": "03_ask_and_options",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-03_ask_and_options",
+            "text": "Established entry for 03askandoptions.",
+            "documentTitle": "03_ask_and_options",
+            "templateKey": "03_ask_and_options",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "ask",
+            "title": "Strategic ask and options",
+            "items": [
+              {
+                "text": "Authored entry for 03askandoptions.",
+                "label": "Ask And Options",
+                "sourceTitle": "03_ask_and_options",
+                "sourceRef": "heading:Ask And Options",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 03askandoptions.",
+                "label": "Established context",
+                "sourceTitle": "03_ask_and_options",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "stakeholder_map",
+      "templateKey": "04_stakeholder_map",
+      "defaultTitle": "Stakeholder Map",
+      "defaultCategory": "stakeholders",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-04_stakeholder_map",
+            "title": "04_stakeholder_map",
+            "templateKey": "04_stakeholder_map",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-04_stakeholder_map",
+            "text": "Established entry for 04stakeholdermap.",
+            "documentTitle": "04_stakeholder_map",
+            "templateKey": "04_stakeholder_map",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "stakeholders",
+            "title": "Stakeholder landscape",
+            "items": [
+              {
+                "text": "Authored entry for 04stakeholdermap.",
+                "label": "Stakeholder Map",
+                "sourceTitle": "04_stakeholder_map",
+                "sourceRef": "heading:Stakeholder Map",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 04stakeholdermap.",
+                "label": "Established context",
+                "sourceTitle": "04_stakeholder_map",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-04_stakeholder_map",
+            "title": "04_stakeholder_map",
+            "templateKey": "04_stakeholder_map",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-04_stakeholder_map",
+            "text": "Established entry for 04stakeholdermap.",
+            "documentTitle": "04_stakeholder_map",
+            "templateKey": "04_stakeholder_map",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "stakeholders",
+            "title": "Stakeholder landscape",
+            "items": [
+              {
+                "text": "Authored entry for 04stakeholdermap.",
+                "label": "Stakeholder Map",
+                "sourceTitle": "04_stakeholder_map",
+                "sourceRef": "heading:Stakeholder Map",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 04stakeholdermap.",
+                "label": "Established context",
+                "sourceTitle": "04_stakeholder_map",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "calendar_and_deadlines",
+      "templateKey": "05_calendar_and_deadlines",
+      "defaultTitle": "Calendar And Deadlines",
+      "defaultCategory": "timing",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-05_calendar_and_deadlines",
+            "title": "05_calendar_and_deadlines",
+            "templateKey": "05_calendar_and_deadlines",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-05_calendar_and_deadlines",
+            "text": "Established entry for 05calendaranddeadlines.",
+            "documentTitle": "05_calendar_and_deadlines",
+            "templateKey": "05_calendar_and_deadlines",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "timing",
+            "title": "Timing and external windows",
+            "items": [
+              {
+                "text": "Authored entry for 05calendaranddeadlines.",
+                "label": "Calendar And Deadlines",
+                "sourceTitle": "05_calendar_and_deadlines",
+                "sourceRef": "heading:Calendar And Deadlines",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 05calendaranddeadlines.",
+                "label": "Established context",
+                "sourceTitle": "05_calendar_and_deadlines",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-05_calendar_and_deadlines",
+            "title": "05_calendar_and_deadlines",
+            "templateKey": "05_calendar_and_deadlines",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-05_calendar_and_deadlines",
+            "text": "Established entry for 05calendaranddeadlines.",
+            "documentTitle": "05_calendar_and_deadlines",
+            "templateKey": "05_calendar_and_deadlines",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "timing",
+            "title": "Timing and external windows",
+            "items": [
+              {
+                "text": "Authored entry for 05calendaranddeadlines.",
+                "label": "Calendar And Deadlines",
+                "sourceTitle": "05_calendar_and_deadlines",
+                "sourceRef": "heading:Calendar And Deadlines",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 05calendaranddeadlines.",
+                "label": "Established context",
+                "sourceTitle": "05_calendar_and_deadlines",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "decision_rules",
+      "templateKey": "06_decision_rules",
+      "defaultTitle": "Decision Rules",
+      "defaultCategory": "constraints",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-06_decision_rules",
+            "title": "06_decision_rules",
+            "templateKey": "06_decision_rules",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-06_decision_rules",
+            "text": "Established entry for 06decisionrules.",
+            "documentTitle": "06_decision_rules",
+            "templateKey": "06_decision_rules",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "Established entry for 06decisionrules.",
+                "label": "Established context",
+                "sourceTitle": "06_decision_rules",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          },
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "Authored entry for 06decisionrules.",
+                "label": "Decision Rules",
+                "sourceTitle": "06_decision_rules",
+                "sourceRef": "heading:Decision Rules",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-06_decision_rules",
+            "title": "06_decision_rules",
+            "templateKey": "06_decision_rules",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-06_decision_rules",
+            "text": "Established entry for 06decisionrules.",
+            "documentTitle": "06_decision_rules",
+            "templateKey": "06_decision_rules",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "Established entry for 06decisionrules.",
+                "label": "Established context",
+                "sourceTitle": "06_decision_rules",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          },
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "Authored entry for 06decisionrules.",
+                "label": "Decision Rules",
+                "sourceTitle": "06_decision_rules",
+                "sourceRef": "heading:Decision Rules",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "current_plan",
+      "templateKey": "07_current_plan",
+      "defaultTitle": "Current Plan",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-07_current_plan",
+            "title": "07_current_plan",
+            "templateKey": "07_current_plan",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-07_current_plan",
+            "text": "Established entry for 07currentplan.",
+            "documentTitle": "07_current_plan",
+            "templateKey": "07_current_plan",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Established entry for 07currentplan.",
+                "label": "Established context",
+                "sourceTitle": "07_current_plan",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "evidence_register",
+      "templateKey": "08_evidence_register",
+      "defaultTitle": "Evidence Register",
+      "defaultCategory": "evidence",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-08_evidence_register",
+            "title": "08_evidence_register",
+            "templateKey": "08_evidence_register",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-08_evidence_register",
+            "text": "Established entry for 08evidenceregister.",
+            "documentTitle": "08_evidence_register",
+            "templateKey": "08_evidence_register",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "evidence",
+            "title": "Evidence and assumptions",
+            "items": [
+              {
+                "text": "Authored entry for 08evidenceregister.",
+                "label": "Evidence Register",
+                "sourceTitle": "08_evidence_register",
+                "sourceRef": "heading:Evidence Register",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 08evidenceregister.",
+                "label": "Established context",
+                "sourceTitle": "08_evidence_register",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-08_evidence_register",
+            "title": "08_evidence_register",
+            "templateKey": "08_evidence_register",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-08_evidence_register",
+            "text": "Established entry for 08evidenceregister.",
+            "documentTitle": "08_evidence_register",
+            "templateKey": "08_evidence_register",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "evidence",
+            "title": "Evidence and assumptions",
+            "items": [
+              {
+                "text": "Authored entry for 08evidenceregister.",
+                "label": "Evidence Register",
+                "sourceTitle": "08_evidence_register",
+                "sourceRef": "heading:Evidence Register",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 08evidenceregister.",
+                "label": "Established context",
+                "sourceTitle": "08_evidence_register",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "meeting_intelligence",
+      "templateKey": "09_meeting_intelligence",
+      "defaultTitle": "Meeting Intelligence",
+      "defaultCategory": "intelligence",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-09_meeting_intelligence",
+            "title": "09_meeting_intelligence",
+            "templateKey": "09_meeting_intelligence",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-09_meeting_intelligence",
+            "text": "Established entry for 09meetingintelligence.",
+            "documentTitle": "09_meeting_intelligence",
+            "templateKey": "09_meeting_intelligence",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "intelligence",
+            "title": "Recent intelligence",
+            "items": [
+              {
+                "text": "Authored entry for 09meetingintelligence.",
+                "label": "Meeting Intelligence",
+                "sourceTitle": "09_meeting_intelligence",
+                "sourceRef": "heading:Meeting Intelligence",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 09meetingintelligence.",
+                "label": "Established context",
+                "sourceTitle": "09_meeting_intelligence",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-09_meeting_intelligence",
+            "title": "09_meeting_intelligence",
+            "templateKey": "09_meeting_intelligence",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-09_meeting_intelligence",
+            "text": "Established entry for 09meetingintelligence.",
+            "documentTitle": "09_meeting_intelligence",
+            "templateKey": "09_meeting_intelligence",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "intelligence",
+            "title": "Recent intelligence",
+            "items": [
+              {
+                "text": "Authored entry for 09meetingintelligence.",
+                "label": "Meeting Intelligence",
+                "sourceTitle": "09_meeting_intelligence",
+                "sourceRef": "heading:Meeting Intelligence",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 09meetingintelligence.",
+                "label": "Established context",
+                "sourceTitle": "09_meeting_intelligence",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "decision_log",
+      "templateKey": "10_decision_log",
+      "defaultTitle": "Decision Log",
+      "defaultCategory": "decisions",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-10_decision_log",
+            "title": "10_decision_log",
+            "templateKey": "10_decision_log",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-10_decision_log",
+            "text": "Established entry for 10decisionlog.",
+            "documentTitle": "10_decision_log",
+            "templateKey": "10_decision_log",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "Authored entry for 10decisionlog.",
+                "label": "Decision Log",
+                "sourceTitle": "10_decision_log",
+                "sourceRef": "heading:Decision Log",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 10decisionlog.",
+                "label": "Established context",
+                "sourceTitle": "10_decision_log",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-10_decision_log",
+            "title": "10_decision_log",
+            "templateKey": "10_decision_log",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-10_decision_log",
+            "text": "Established entry for 10decisionlog.",
+            "documentTitle": "10_decision_log",
+            "templateKey": "10_decision_log",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "Authored entry for 10decisionlog.",
+                "label": "Decision Log",
+                "sourceTitle": "10_decision_log",
+                "sourceRef": "heading:Decision Log",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 10decisionlog.",
+                "label": "Established context",
+                "sourceTitle": "10_decision_log",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "agent_mission",
+      "templateKey": "11_agent_mission",
+      "defaultTitle": "Agent Mission",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-11_agent_mission",
+            "title": "11_agent_mission",
+            "templateKey": "11_agent_mission",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-11_agent_mission",
+            "text": "Established entry for 11agentmission.",
+            "documentTitle": "11_agent_mission",
+            "templateKey": "11_agent_mission",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Established entry for 11agentmission.",
+                "label": "Established context",
+                "sourceTitle": "11_agent_mission",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "execution_playbook",
+      "templateKey": "12_execution_playbook",
+      "defaultTitle": "Execution Playbook",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-12_execution_playbook",
+            "title": "12_execution_playbook",
+            "templateKey": "12_execution_playbook",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-12_execution_playbook",
+            "text": "Established entry for 12executionplaybook.",
+            "documentTitle": "12_execution_playbook",
+            "templateKey": "12_execution_playbook",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Established entry for 12executionplaybook.",
+                "label": "Established context",
+                "sourceTitle": "12_execution_playbook",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "agent_permissions",
+      "templateKey": "13_agent_permissions",
+      "defaultTitle": "Agent Permissions",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-13_agent_permissions",
+            "title": "13_agent_permissions",
+            "templateKey": "13_agent_permissions",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 0
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-13_agent_permissions",
+            "text": "Established entry for 13agentpermissions.",
+            "documentTitle": "13_agent_permissions",
+            "templateKey": "13_agent_permissions",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Established entry for 13agentpermissions.",
+                "label": "Established context",
+                "sourceTitle": "13_agent_permissions",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "target_budget_line",
+      "templateKey": "14_target_budget_line",
+      "defaultTitle": "Target Budget Line",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-14_target_budget_line",
+            "title": "14_target_budget_line",
+            "templateKey": "14_target_budget_line",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-14_target_budget_line",
+            "text": "Established entry for 14targetbudgetline.",
+            "documentTitle": "14_target_budget_line",
+            "templateKey": "14_target_budget_line",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 14targetbudgetline.",
+                "label": "Target Budget Line",
+                "sourceTitle": "14_target_budget_line",
+                "sourceRef": "heading:Target Budget Line",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 14targetbudgetline.",
+                "label": "Established context",
+                "sourceTitle": "14_target_budget_line",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-14_target_budget_line",
+            "title": "14_target_budget_line",
+            "templateKey": "14_target_budget_line",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-14_target_budget_line",
+            "text": "Established entry for 14targetbudgetline.",
+            "documentTitle": "14_target_budget_line",
+            "templateKey": "14_target_budget_line",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 14targetbudgetline.",
+                "label": "Target Budget Line",
+                "sourceTitle": "14_target_budget_line",
+                "sourceRef": "heading:Target Budget Line",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 14targetbudgetline.",
+                "label": "Established context",
+                "sourceTitle": "14_target_budget_line",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "vendor_reference_pull",
+      "templateKey": "15_vendor_reference_pull",
+      "defaultTitle": "Vendor Reference Pull",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-15_vendor_reference_pull",
+            "title": "15_vendor_reference_pull",
+            "templateKey": "15_vendor_reference_pull",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-15_vendor_reference_pull",
+            "text": "Established entry for 15vendorreferencepull.",
+            "documentTitle": "15_vendor_reference_pull",
+            "templateKey": "15_vendor_reference_pull",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 15vendorreferencepull.",
+                "label": "Vendor Reference Pull",
+                "sourceTitle": "15_vendor_reference_pull",
+                "sourceRef": "heading:Vendor Reference Pull",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 15vendorreferencepull.",
+                "label": "Established context",
+                "sourceTitle": "15_vendor_reference_pull",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-15_vendor_reference_pull",
+            "title": "15_vendor_reference_pull",
+            "templateKey": "15_vendor_reference_pull",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-15_vendor_reference_pull",
+            "text": "Established entry for 15vendorreferencepull.",
+            "documentTitle": "15_vendor_reference_pull",
+            "templateKey": "15_vendor_reference_pull",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 15vendorreferencepull.",
+                "label": "Vendor Reference Pull",
+                "sourceTitle": "15_vendor_reference_pull",
+                "sourceRef": "heading:Vendor Reference Pull",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 15vendorreferencepull.",
+                "label": "Established context",
+                "sourceTitle": "15_vendor_reference_pull",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "documentType": "route_and_vehicle_status",
+      "templateKey": "16_route_and_vehicle_status",
+      "defaultTitle": "Route And Vehicle Status",
+      "defaultCategory": "governance",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-16_route_and_vehicle_status",
+            "title": "16_route_and_vehicle_status",
+            "templateKey": "16_route_and_vehicle_status",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-16_route_and_vehicle_status",
+            "text": "Established entry for 16routeandvehiclestatus.",
+            "documentTitle": "16_route_and_vehicle_status",
+            "templateKey": "16_route_and_vehicle_status",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 16routeandvehiclestatus.",
+                "label": "Route And Vehicle Status",
+                "sourceTitle": "16_route_and_vehicle_status",
+                "sourceRef": "heading:Route And Vehicle Status",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 16routeandvehiclestatus.",
+                "label": "Established context",
+                "sourceTitle": "16_route_and_vehicle_status",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-16_route_and_vehicle_status",
+            "title": "16_route_and_vehicle_status",
+            "templateKey": "16_route_and_vehicle_status",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-16_route_and_vehicle_status",
+            "text": "Established entry for 16routeandvehiclestatus.",
+            "documentTitle": "16_route_and_vehicle_status",
+            "templateKey": "16_route_and_vehicle_status",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 16routeandvehiclestatus.",
+                "label": "Route And Vehicle Status",
+                "sourceTitle": "16_route_and_vehicle_status",
+                "sourceRef": "heading:Route And Vehicle Status",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 16routeandvehiclestatus.",
+                "label": "Established context",
+                "sourceTitle": "16_route_and_vehicle_status",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    }
+  ],
+  "unknown": [
+    {
+      "key": "01_custom",
+      "category": "situation",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-01_custom",
+            "title": "01_custom",
+            "templateKey": "01_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_custom",
+            "text": "Established entry for 01custom.",
+            "documentTitle": "01_custom",
+            "templateKey": "01_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01custom.",
+                "label": "Custom",
+                "sourceTitle": "01_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01custom.",
+                "label": "Established context",
+                "sourceTitle": "01_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "02_custom",
+      "category": "constraints",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-02_custom",
+            "title": "02_custom",
+            "templateKey": "02_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-02_custom",
+            "text": "Established entry for 02custom.",
+            "documentTitle": "02_custom",
+            "templateKey": "02_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "Authored entry for 02custom.",
+                "label": "Custom",
+                "sourceTitle": "02_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 02custom.",
+                "label": "Established context",
+                "sourceTitle": "02_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "06_custom",
+      "category": "constraints",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-06_custom",
+            "title": "06_custom",
+            "templateKey": "06_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-06_custom",
+            "text": "Established entry for 06custom.",
+            "documentTitle": "06_custom",
+            "templateKey": "06_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "constraints",
+            "title": "Constraints and decision rules",
+            "items": [
+              {
+                "text": "Authored entry for 06custom.",
+                "label": "Custom",
+                "sourceTitle": "06_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 06custom.",
+                "label": "Established context",
+                "sourceTitle": "06_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "03_custom",
+      "category": "ask",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-03_custom",
+            "title": "03_custom",
+            "templateKey": "03_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-03_custom",
+            "text": "Established entry for 03custom.",
+            "documentTitle": "03_custom",
+            "templateKey": "03_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "ask",
+            "title": "Strategic ask and options",
+            "items": [
+              {
+                "text": "Authored entry for 03custom.",
+                "label": "Custom",
+                "sourceTitle": "03_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 03custom.",
+                "label": "Established context",
+                "sourceTitle": "03_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "04_custom",
+      "category": "stakeholders",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-04_custom",
+            "title": "04_custom",
+            "templateKey": "04_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-04_custom",
+            "text": "Established entry for 04custom.",
+            "documentTitle": "04_custom",
+            "templateKey": "04_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "stakeholders",
+            "title": "Stakeholder landscape",
+            "items": [
+              {
+                "text": "Authored entry for 04custom.",
+                "label": "Custom",
+                "sourceTitle": "04_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 04custom.",
+                "label": "Established context",
+                "sourceTitle": "04_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "05_custom",
+      "category": "timing",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-05_custom",
+            "title": "05_custom",
+            "templateKey": "05_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-05_custom",
+            "text": "Established entry for 05custom.",
+            "documentTitle": "05_custom",
+            "templateKey": "05_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "timing",
+            "title": "Timing and external windows",
+            "items": [
+              {
+                "text": "Authored entry for 05custom.",
+                "label": "Custom",
+                "sourceTitle": "05_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 05custom.",
+                "label": "Established context",
+                "sourceTitle": "05_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "08_custom",
+      "category": "evidence",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-08_custom",
+            "title": "08_custom",
+            "templateKey": "08_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-08_custom",
+            "text": "Established entry for 08custom.",
+            "documentTitle": "08_custom",
+            "templateKey": "08_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "evidence",
+            "title": "Evidence and assumptions",
+            "items": [
+              {
+                "text": "Authored entry for 08custom.",
+                "label": "Custom",
+                "sourceTitle": "08_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 08custom.",
+                "label": "Established context",
+                "sourceTitle": "08_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "09_custom",
+      "category": "intelligence",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-09_custom",
+            "title": "09_custom",
+            "templateKey": "09_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-09_custom",
+            "text": "Established entry for 09custom.",
+            "documentTitle": "09_custom",
+            "templateKey": "09_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "intelligence",
+            "title": "Recent intelligence",
+            "items": [
+              {
+                "text": "Authored entry for 09custom.",
+                "label": "Custom",
+                "sourceTitle": "09_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 09custom.",
+                "label": "Established context",
+                "sourceTitle": "09_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "10_custom",
+      "category": "decisions",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-10_custom",
+            "title": "10_custom",
+            "templateKey": "10_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-10_custom",
+            "text": "Established entry for 10custom.",
+            "documentTitle": "10_custom",
+            "templateKey": "10_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "decisions",
+            "title": "Decisions and commitments",
+            "items": [
+              {
+                "text": "Authored entry for 10custom.",
+                "label": "Custom",
+                "sourceTitle": "10_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 10custom.",
+                "label": "Established context",
+                "sourceTitle": "10_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "14_custom",
+      "category": "governance",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-14_custom",
+            "title": "14_custom",
+            "templateKey": "14_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-14_custom",
+            "text": "Established entry for 14custom.",
+            "documentTitle": "14_custom",
+            "templateKey": "14_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 14custom.",
+                "label": "Custom",
+                "sourceTitle": "14_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 14custom.",
+                "label": "Established context",
+                "sourceTitle": "14_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "15_custom",
+      "category": "governance",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-15_custom",
+            "title": "15_custom",
+            "templateKey": "15_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-15_custom",
+            "text": "Established entry for 15custom.",
+            "documentTitle": "15_custom",
+            "templateKey": "15_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 15custom.",
+                "label": "Custom",
+                "sourceTitle": "15_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 15custom.",
+                "label": "Established context",
+                "sourceTitle": "15_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "16_custom",
+      "category": "governance",
+      "title": "Custom",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-16_custom",
+            "title": "16_custom",
+            "templateKey": "16_custom",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-16_custom",
+            "text": "Established entry for 16custom.",
+            "documentTitle": "16_custom",
+            "templateKey": "16_custom",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 16custom.",
+                "label": "Custom",
+                "sourceTitle": "16_custom",
+                "sourceRef": "heading:Custom",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 16custom.",
+                "label": "Established context",
+                "sourceTitle": "16_custom",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "01",
+      "category": "governance",
+      "title": "01",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-01",
+            "title": "01",
+            "templateKey": "01",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01",
+            "text": "Established entry for 01.",
+            "documentTitle": "01",
+            "templateKey": "01",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 01.",
+                "label": "01",
+                "sourceTitle": "01",
+                "sourceRef": "heading:01",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01.",
+                "label": "Established context",
+                "sourceTitle": "01",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "unknown",
+      "category": "governance",
+      "title": "Unknown",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-unknown",
+            "title": "unknown",
+            "templateKey": "unknown",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-unknown",
+            "text": "Established entry for unknown.",
+            "documentTitle": "unknown",
+            "templateKey": "unknown",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for unknown.",
+                "label": "Unknown",
+                "sourceTitle": "unknown",
+                "sourceRef": "heading:Unknown",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for unknown.",
+                "label": "Established context",
+                "sourceTitle": "unknown",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "__proto__",
+      "category": "governance",
+      "title": "  Proto  ",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-__proto__",
+            "title": "__proto__",
+            "templateKey": "__proto__",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-__proto__",
+            "text": "Established entry for proto.",
+            "documentTitle": "__proto__",
+            "templateKey": "__proto__",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for proto.",
+                "label": "  Proto  ",
+                "sourceTitle": "__proto__",
+                "sourceRef": "heading:  Proto  ",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for proto.",
+                "label": "Established context",
+                "sourceTitle": "__proto__",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "constructor",
+      "category": "governance",
+      "title": "Constructor",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-constructor",
+            "title": "constructor",
+            "templateKey": "constructor",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-constructor",
+            "text": "Established entry for constructor.",
+            "documentTitle": "constructor",
+            "templateKey": "constructor",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for constructor.",
+                "label": "Constructor",
+                "sourceTitle": "constructor",
+                "sourceRef": "heading:Constructor",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for constructor.",
+                "label": "Established context",
+                "sourceTitle": "constructor",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "toString",
+      "category": "governance",
+      "title": "ToString",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-toString",
+            "title": "toString",
+            "templateKey": "toString",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-toString",
+            "text": "Established entry for toString.",
+            "documentTitle": "toString",
+            "templateKey": "toString",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for toString.",
+                "label": "ToString",
+                "sourceTitle": "toString",
+                "sourceRef": "heading:ToString",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for toString.",
+                "label": "Established context",
+                "sourceTitle": "toString",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "00_fake__report",
+      "category": "governance",
+      "title": "Fake  Report",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-00_fake__report",
+            "title": "00_fake__report",
+            "templateKey": "00_fake__report",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-00_fake__report",
+            "text": "Established entry for 00fakereport.",
+            "documentTitle": "00_fake__report",
+            "templateKey": "00_fake__report",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "governance",
+            "title": "Internal operating guidance",
+            "items": [
+              {
+                "text": "Authored entry for 00fakereport.",
+                "label": "Fake  Report",
+                "sourceTitle": "00_fake__report",
+                "sourceRef": "heading:Fake  Report",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 00fakereport.",
+                "label": "Established context",
+                "sourceTitle": "00_fake__report",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "key": "01_<script>alert(1)</script>",
+      "category": "situation",
+      "title": "<Script>Alert(1)</Script>",
+      "assembled": {
+        "documents": [
+          {
+            "id": "synthetic-01_<script>alert(1)</script>",
+            "title": "01_<script>alert(1)</script>",
+            "templateKey": "01_<script>alert(1)</script>",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_<script>alert(1)</script>",
+            "text": "Established entry for 01 alert(1) .",
+            "documentTitle": "01_<script>alert(1)</script>",
+            "templateKey": "01_<script>alert(1)</script>",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01 alert(1) .",
+                "label": "<Script>Alert(1)</Script>",
+                "sourceTitle": "01_<script>alert(1)</script>",
+                "sourceRef": "heading:<Script>Alert(1)</Script>",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01 alert(1) .",
+                "label": "Established context",
+                "sourceTitle": "01_<script>alert(1)</script>",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "input": null,
+      "throws": "TypeError",
+      "message": "Cannot read properties of null (reading 'replace')"
+    },
+    {
+      "input": "undefined",
+      "throws": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'replace')"
+    },
+    {
+      "input": 12,
+      "throws": "TypeError",
+      "message": "templateKey.replace is not a function"
+    },
+    {
+      "input": {},
+      "throws": "TypeError",
+      "message": "templateKey.replace is not a function"
+    },
+    {
+      "input": [
+        "01_custom"
+      ],
+      "throws": "TypeError",
+      "message": "templateKey.replace is not a function"
+    }
+  ],
+  "headingPrecedence": [
+    {
+      "heading": "decision evidence deadline ask goal",
+      "templateKey": "01_strategy_brief",
+      "category": "decisions"
+    },
+    {
+      "heading": "stakeholder deadline evidence",
+      "templateKey": "01_strategy_brief",
+      "category": "stakeholders"
+    },
+    {
+      "heading": "deadline evidence constraint",
+      "templateKey": "01_strategy_brief",
+      "category": "timing"
+    },
+    {
+      "heading": "evidence approval ask",
+      "templateKey": "01_strategy_brief",
+      "category": "evidence"
+    },
+    {
+      "heading": "approval option goal",
+      "templateKey": "01_strategy_brief",
+      "category": "constraints"
+    },
+    {
+      "heading": "option goal intelligence",
+      "templateKey": "01_strategy_brief",
+      "category": "ask"
+    },
+    {
+      "heading": "success intelligence",
+      "templateKey": "01_strategy_brief",
+      "category": "outcomes"
+    },
+    {
+      "heading": "current position",
+      "templateKey": "01_strategy_brief",
+      "category": "intelligence"
+    },
+    {
+      "heading": "Overview",
+      "templateKey": "01_strategy_brief",
+      "category": "situation"
+    }
+  ],
+  "metadataCases": [
+    {
+      "name": "null",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "undefined",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "array",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "string",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "number",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "emptyStoredRecord",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "storedInternal",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      }
+    },
+    {
+      "name": "storedClientDraft",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": null,
+            "validUntil": null,
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": null,
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": null,
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    }
+  ],
+  "freshness": [
+    {
+      "name": "prior",
+      "client": {
+        "documents": [],
+        "facts": [],
+        "sections": [],
+        "excludedDocuments": 1
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-11",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "exact",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-12",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-12",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    },
+    {
+      "name": "future",
+      "client": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-13",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      },
+      "internal": {
+        "documents": [
+          {
+            "id": "synthetic-01_strategy_brief",
+            "title": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "authority": "working_draft",
+            "confidentiality": "client_confidential",
+            "asOf": "2026-10-11",
+            "validUntil": "2026-10-13",
+            "updatedAt": "2026-10-11T00:00:00.000Z",
+            "highlightCount": 1
+          }
+        ],
+        "facts": [
+          {
+            "id": "fact-01_strategy_brief",
+            "text": "Established entry for 01strategybrief.",
+            "documentTitle": "01_strategy_brief",
+            "templateKey": "01_strategy_brief",
+            "sourceRef": "heading:Overview",
+            "authority": "working_draft",
+            "asOf": "2026-10-11",
+            "confidence": 0.5
+          }
+        ],
+        "sections": [
+          {
+            "key": "situation",
+            "title": "Situation and stakes",
+            "items": [
+              {
+                "text": "Authored entry for 01strategybrief.",
+                "label": "Strategy Brief",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Strategy Brief",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": null
+              },
+              {
+                "text": "Established entry for 01strategybrief.",
+                "label": "Established context",
+                "sourceTitle": "01_strategy_brief",
+                "sourceRef": "heading:Overview",
+                "authority": "working_draft",
+                "asOf": "2026-10-11",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ],
+        "excludedDocuments": 0
+      }
+    }
+  ],
+  "templates": [
+    {
+      "file": "00_context_manifest.md",
+      "sha256": "2bdb80ec9f1ab632aa477b14767f6bc2d93e5ff25789358f741c33b174bd7365",
+      "parsedFrontmatter": {
+        "document_type": "context_manifest",
+        "document_id": "ctx_manifest_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "01_strategy_brief.md",
+      "sha256": "6d7e950bec29c16fa7ed1bb96794b83ca8b86f0471d9d144ac36a118591d761f",
+      "parsedFrontmatter": {
+        "document_type": "strategy_brief",
+        "document_id": "ctx_strategy_brief_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "client_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "02_client_constraints.md",
+      "sha256": "a699eb6650c7436390ab4dbc8c54b724ddc6ef43c68ab0c053d9b7deb5af20ad",
+      "parsedFrontmatter": {
+        "document_type": "client_constraints",
+        "document_id": "ctx_client_constraints_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "client",
+        "client_id": "client_123",
+        "strategy_id": null,
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "client_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "03_ask_and_options.md",
+      "sha256": "76ff346a1c9fd677e75ea336372d40a1060ecb216a13da78307115f683229dcb",
+      "parsedFrontmatter": {
+        "document_type": "ask_and_options",
+        "document_id": "ctx_ask_options_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "client_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "04_stakeholder_map.md",
+      "sha256": "31e4a052caef374a81033536496fe8cd206b97626a828231bd92383dd9780727",
+      "parsedFrontmatter": {
+        "document_type": "stakeholder_map",
+        "document_id": "ctx_stakeholders_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "working_draft",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "05_calendar_and_deadlines.md",
+      "sha256": "da646c99a3672e5cf0997f349900d2de79ba526797f5efd78935aff2b1828eff",
+      "parsedFrontmatter": {
+        "document_type": "calendar_and_deadlines",
+        "document_id": "ctx_calendar_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "external_authoritative",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential",
+        "timezone": "America/New_York"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "06_decision_rules.md",
+      "sha256": "f350c696c4c1635cc241d8dc55704cdadbb62afe85a769d81ae06eaafdc6dbb9",
+      "parsedFrontmatter": {
+        "document_type": "decision_rules",
+        "document_id": "ctx_decision_rules_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "client_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "07_current_plan.md",
+      "sha256": "93c2dce4edc27bdb59ac7b166a8fcfabd3a1f2a477ccb467d1a155a154b08847",
+      "parsedFrontmatter": {
+        "document_type": "current_plan",
+        "document_id": "ctx_current_plan_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": null,
+        "owner": "system",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential",
+        "generated_by": "Capiro"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "08_evidence_register.md",
+      "sha256": "d55f5ea5406f19a1e39508cc74f7786bc1d7ee457885ba1ea5dfcfc74b61e3da",
+      "parsedFrontmatter": {
+        "document_type": "evidence_register",
+        "document_id": "ctx_evidence_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "working_draft",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "09_meeting_intelligence.md",
+      "sha256": "5012b0e4a76833b4ccd4d4077d604208e24907aa4c4b82ef3c65a1e582fdf827",
+      "parsedFrontmatter": {
+        "document_type": "meeting_intelligence",
+        "document_id": "ctx_meeting_intel_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "meeting",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": "meeting_789",
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "meeting_intelligence",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "scope",
+          "message": "meeting scope is deferred (meetings association is a later phase) — re-scope to strategy"
+        },
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "meeting_id",
+          "message": "placeholder id 'meeting_789' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "10_decision_log.md",
+      "sha256": "d52002cbf8e0335006873dadc5513fc61cadf92e54ed2b5b438175aa92560ed9",
+      "parsedFrontmatter": {
+        "document_type": "decision_log",
+        "document_id": "ctx_decision_log_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": null,
+        "owner": "user_123",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "11_agent_mission.md",
+      "sha256": "618ce67f398f6d5bf05fe8ce5745a2ec59840745fd2e90f0e98efa57dda5e488",
+      "parsedFrontmatter": {
+        "document_type": "agent_mission",
+        "document_id": "mission_keep_on_track_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential",
+        "mission_type": "strategy_watcher"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "12_execution_playbook.md",
+      "sha256": "b89ae4188e16c32f6ac88bab86942b92494341e6358a0a35429aeee7a30e9c68",
+      "parsedFrontmatter": {
+        "document_type": "execution_playbook",
+        "document_id": "ctx_execution_playbook_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "firm",
+        "client_id": null,
+        "strategy_id": null,
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "firm_internal"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "13_agent_permissions.md",
+      "sha256": "31903565c93b34eda313691fd7bd78cd4eb2b18b0a958e52524e382b2546accd",
+      "parsedFrontmatter": {
+        "document_type": "agent_permissions",
+        "document_id": "policy_agent_permissions_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "firm",
+        "client_id": null,
+        "strategy_id": null,
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "firm_internal"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "14_target_budget_line.md",
+      "sha256": "3e1477dd1511f4a1d49b0f2b61c809eca708f619b24ad46274906b376bf5c578",
+      "parsedFrontmatter": {
+        "document_type": "target_budget_line",
+        "document_id": "ctx_target_line_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "external_authoritative",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "15_vendor_reference_pull.md",
+      "sha256": "e76c28544c62b5d69522460836033ea239336e6f5addd6a16249f75272c60901",
+      "parsedFrontmatter": {
+        "document_type": "vendor_reference_pull",
+        "document_id": "ctx_vendor_pull_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": "YYYY-MM-DD",
+        "owner": "user_123",
+        "authority": "external_authoritative",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential",
+        "generated_by": "Capiro (partial; see the Verification column)"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "valid_until",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        },
+        {
+          "field": "owner",
+          "message": "placeholder id 'user_123' — fill in a real id"
+        }
+      ]
+    },
+    {
+      "file": "16_route_and_vehicle_status.md",
+      "sha256": "6ee73bfc7fba785797bdfb3d2b5ab9fb6cc0432e35aa4647285e7b1beaa07f7f",
+      "parsedFrontmatter": {
+        "document_type": "route_and_vehicle_status",
+        "document_id": "ctx_routes_001",
+        "schema_version": "1.0",
+        "state": "active",
+        "scope": "strategy",
+        "client_id": "client_123",
+        "strategy_id": "strategy_456",
+        "node_id": null,
+        "meeting_id": null,
+        "as_of": "YYYY-MM-DD",
+        "valid_until": null,
+        "owner": "system",
+        "authority": "firm_approved",
+        "source_of_truth": true,
+        "supersedes": null,
+        "confidentiality": "client_confidential",
+        "generated_by": "Capiro"
+      },
+      "validationErrors": [
+        {
+          "field": "as_of",
+          "message": "placeholder date 'YYYY-MM-DD' — fill in a real date"
+        },
+        {
+          "field": "client_id",
+          "message": "placeholder id 'client_123' — fill in a real id"
+        },
+        {
+          "field": "strategy_id",
+          "message": "placeholder id 'strategy_456' — fill in a real id"
+        }
+      ]
+    }
+  ],
+  "parserBody": {
+    "frontmatter": {
+      "document_type": "strategy_brief"
+    },
+    "body": "\n##  Two  spaces\n- row\n",
+    "errors": []
+  },
+  "actualOperations": {
+    "db": 0,
+    "providers": 0,
+    "network": 0,
+    "writes": "only review artifacts",
+    "ambientTimeSampled": 0
+  },
+  "productionChanges": 0,
+  "nativeAcceptance": false
+}

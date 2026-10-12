@@ -1,0 +1,9 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "argv": [
+    "node",
+    "docs/cleanup-next-strategy-registry-audit-20261012/evidence/consumer-inventory-initial.cjs"
+  ],
+  "exitCode": 1,
+  "classification": "Read-only ENOBUFS; named capture-buffer correction passed with unchanged policy/assertions."
+}

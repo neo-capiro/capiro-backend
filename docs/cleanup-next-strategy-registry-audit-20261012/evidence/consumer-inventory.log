@@ -1,0 +1,65 @@
+{
+  "directProduction": [
+    {
+      "file": "apps/api-strategy/src/context/context-documents.service.ts",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "bindings": [
+        "TEMPLATE_KEY_BY_TYPE",
+        "parseFrontmatter",
+        "validateFrontmatter",
+        "DocumentTypeValue",
+        "FieldError"
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.ts",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "bindings": [
+        "DOCUMENT_TYPES",
+        "TEMPLATE_KEY_BY_TYPE",
+        "validateFrontmatter",
+        "Frontmatter"
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.types.ts",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "bindings": [
+        "DocumentTypeValue"
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/context/steward.service.ts",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "bindings": [
+        "TEMPLATE_KEY_BY_TYPE",
+        "DocumentTypeValue"
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.ts",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "bindings": [
+        "parseFrontmatter"
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-snapshot.service.ts",
+      "target": "apps/api-strategy/src/reports/report-context.ts",
+      "bindings": [
+        "assembleReportContext"
+      ]
+    }
+  ],
+  "directTest": [
+    "apps/api-strategy/eval/steward/steward-fixtures.spec.ts",
+    "apps/api-strategy/src/context/context-documents.service.spec.ts",
+    "apps/api-strategy/src/context/context-import.service.spec.ts",
+    "apps/api-strategy/src/context/current-plan-export.spec.ts",
+    "apps/api-strategy/src/context/frontmatter.spec.ts",
+    "apps/api-strategy/src/context/markdown-locate.spec.ts",
+    "apps/api-strategy/src/cross-stage-integration.spec.ts",
+    "apps/api-strategy/src/reports/report-context.spec.ts"
+  ],
+  "candidateFiles": 45
+}

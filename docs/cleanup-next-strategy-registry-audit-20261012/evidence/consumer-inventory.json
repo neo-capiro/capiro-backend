@@ -1,0 +1,709 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "method": "All tracked runtime/test source paths under apps/packages/scripts/tests screened for target stem, then actual literal imports/reexports/require resolved by importer path; generic frontmatter names with other owners excluded. Type-only links included. Dynamic nonliteral external consumers are not inferred absent; stable public facade is retained.",
+  "screenedTrackedPaths": 21045,
+  "candidateFiles": 45,
+  "targets": [
+    "apps/api-strategy/src/context/frontmatter.ts",
+    "apps/api-strategy/src/reports/report-context.ts"
+  ],
+  "productionConsumers": [
+    {
+      "file": "apps/api-strategy/src/context/context-documents.service.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 17,
+      "bindings": [
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        },
+        {
+          "imported": "FieldError",
+          "local": "FieldError",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "39abf2099671088541ce94715a21231bdb93e8880353c583b9169f8e70187636"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 14,
+      "bindings": [
+        {
+          "imported": "DOCUMENT_TYPES",
+          "local": "DOCUMENT_TYPES",
+          "typeOnly": false
+        },
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "Frontmatter",
+          "local": "Frontmatter",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "d8640aa0099641e4f108ae86db56e234a4e3fdde0671d4b737d9a09052513e30"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.types.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 1,
+      "bindings": [
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "6002ba7ca553b32950a7007e521adc4cee16e568ec88944b4b8d41f7a28abca7"
+    },
+    {
+      "file": "apps/api-strategy/src/context/steward.service.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 19,
+      "bindings": [
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "7cf4f8a4a2dc3733d5138eb96d57ef8ade640ef35cb8fc91cac9d6529d5b64b6"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.ts",
+      "kind": "static-import",
+      "module": "../context/frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 1,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-snapshot.service.ts",
+      "kind": "static-import",
+      "module": "./report-context.js",
+      "target": "apps/api-strategy/src/reports/report-context.ts",
+      "line": 16,
+      "bindings": [
+        {
+          "imported": "assembleReportContext",
+          "local": "assembleReportContext",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "18010ab952bcdbd4d13825cdb5711e0fe085b6fad3e6929a452c4733865ec18e"
+    }
+  ],
+  "testConsumers": [
+    {
+      "file": "apps/api-strategy/eval/steward/steward-fixtures.spec.ts",
+      "kind": "static-import",
+      "module": "../../src/context/frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 25,
+      "bindings": [
+        {
+          "imported": "AUTHORITIES",
+          "local": "AUTHORITIES",
+          "typeOnly": false
+        },
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        },
+        {
+          "imported": "Frontmatter",
+          "local": "Frontmatter",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "8f8dad0c61a177332f5bc845cb6541b4866f14129d37e99fadf9c7fe68c3cb84"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-documents.service.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 12,
+      "bindings": [
+        {
+          "imported": "FieldError",
+          "local": "FieldError",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "20d30e90c7720435658ac2f3e62e4dc397165d21a9a1ee356f2dd60f757e60fd"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 6,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "6885a11fdedc1cbcf52729b57e6afb0a8f8de7abe00c742e31b3f67d998d23f6"
+    },
+    {
+      "file": "apps/api-strategy/src/context/current-plan-export.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "40482202180a8a1b61b031aa05ca2ded56d8ee2deafbdb10af3fb1696702305f"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "AUTHORITIES",
+          "local": "AUTHORITIES",
+          "typeOnly": false
+        },
+        {
+          "imported": "CONFIDENTIALITIES",
+          "local": "CONFIDENTIALITIES",
+          "typeOnly": false
+        },
+        {
+          "imported": "CONTEXT_SCOPES",
+          "local": "CONTEXT_SCOPES",
+          "typeOnly": false
+        },
+        {
+          "imported": "CONTEXT_STATES",
+          "local": "CONTEXT_STATES",
+          "typeOnly": false
+        },
+        {
+          "imported": "DOCUMENT_TYPES",
+          "local": "DOCUMENT_TYPES",
+          "typeOnly": false
+        },
+        {
+          "imported": "ID_PLACEHOLDERS",
+          "local": "ID_PLACEHOLDERS",
+          "typeOnly": false
+        },
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "Frontmatter",
+          "local": "Frontmatter",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "96dd6b26998b823c1dff57458a30229c973d6126e15a1ef4ca9d76755ac4a948"
+    },
+    {
+      "file": "apps/api-strategy/src/context/markdown-locate.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "e7fc5bc6561fae5824e75073efe73f1030d90e76b8a11838fbb82401f65079a1"
+    },
+    {
+      "file": "apps/api-strategy/src/cross-stage-integration.spec.ts",
+      "kind": "static-import",
+      "module": "./context/frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 8,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "38b12d9b8caf629d5b9af994333306a6cae79608b1699cfc4b002c22f8207c03"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "kind": "static-import",
+      "module": "./report-context.js",
+      "target": "apps/api-strategy/src/reports/report-context.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "assembleReportContext",
+          "local": "assembleReportContext",
+          "typeOnly": false
+        },
+        {
+          "imported": "isClientSafeContextFrontmatter",
+          "local": "isClientSafeContextFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "ReportContextDocumentInput",
+          "local": "ReportContextDocumentInput",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "1b473f0c02c92416c513966dc216ad2847846691b17c8e9ecaf319c7b6de7cf1"
+    }
+  ],
+  "results": [
+    {
+      "file": "apps/api-strategy/eval/steward/steward-fixtures.spec.ts",
+      "kind": "static-import",
+      "module": "../../src/context/frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 25,
+      "bindings": [
+        {
+          "imported": "AUTHORITIES",
+          "local": "AUTHORITIES",
+          "typeOnly": false
+        },
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        },
+        {
+          "imported": "Frontmatter",
+          "local": "Frontmatter",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "8f8dad0c61a177332f5bc845cb6541b4866f14129d37e99fadf9c7fe68c3cb84"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-documents.service.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 12,
+      "bindings": [
+        {
+          "imported": "FieldError",
+          "local": "FieldError",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "20d30e90c7720435658ac2f3e62e4dc397165d21a9a1ee356f2dd60f757e60fd"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-documents.service.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 17,
+      "bindings": [
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        },
+        {
+          "imported": "FieldError",
+          "local": "FieldError",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "39abf2099671088541ce94715a21231bdb93e8880353c583b9169f8e70187636"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 6,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "6885a11fdedc1cbcf52729b57e6afb0a8f8de7abe00c742e31b3f67d998d23f6"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 14,
+      "bindings": [
+        {
+          "imported": "DOCUMENT_TYPES",
+          "local": "DOCUMENT_TYPES",
+          "typeOnly": false
+        },
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "Frontmatter",
+          "local": "Frontmatter",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "d8640aa0099641e4f108ae86db56e234a4e3fdde0671d4b737d9a09052513e30"
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.types.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 1,
+      "bindings": [
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "6002ba7ca553b32950a7007e521adc4cee16e568ec88944b4b8d41f7a28abca7"
+    },
+    {
+      "file": "apps/api-strategy/src/context/current-plan-export.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "40482202180a8a1b61b031aa05ca2ded56d8ee2deafbdb10af3fb1696702305f"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "AUTHORITIES",
+          "local": "AUTHORITIES",
+          "typeOnly": false
+        },
+        {
+          "imported": "CONFIDENTIALITIES",
+          "local": "CONFIDENTIALITIES",
+          "typeOnly": false
+        },
+        {
+          "imported": "CONTEXT_SCOPES",
+          "local": "CONTEXT_SCOPES",
+          "typeOnly": false
+        },
+        {
+          "imported": "CONTEXT_STATES",
+          "local": "CONTEXT_STATES",
+          "typeOnly": false
+        },
+        {
+          "imported": "DOCUMENT_TYPES",
+          "local": "DOCUMENT_TYPES",
+          "typeOnly": false
+        },
+        {
+          "imported": "ID_PLACEHOLDERS",
+          "local": "ID_PLACEHOLDERS",
+          "typeOnly": false
+        },
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "Frontmatter",
+          "local": "Frontmatter",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "96dd6b26998b823c1dff57458a30229c973d6126e15a1ef4ca9d76755ac4a948"
+    },
+    {
+      "file": "apps/api-strategy/src/context/markdown-locate.spec.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "e7fc5bc6561fae5824e75073efe73f1030d90e76b8a11838fbb82401f65079a1"
+    },
+    {
+      "file": "apps/api-strategy/src/context/steward.service.ts",
+      "kind": "static-import",
+      "module": "./frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 19,
+      "bindings": [
+        {
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "local": "TEMPLATE_KEY_BY_TYPE",
+          "typeOnly": false
+        },
+        {
+          "imported": "DocumentTypeValue",
+          "local": "DocumentTypeValue",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "7cf4f8a4a2dc3733d5138eb96d57ef8ade640ef35cb8fc91cac9d6529d5b64b6"
+    },
+    {
+      "file": "apps/api-strategy/src/cross-stage-integration.spec.ts",
+      "kind": "static-import",
+      "module": "./context/frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 8,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "validateFrontmatter",
+          "local": "validateFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "38b12d9b8caf629d5b9af994333306a6cae79608b1699cfc4b002c22f8207c03"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "kind": "static-import",
+      "module": "./report-context.js",
+      "target": "apps/api-strategy/src/reports/report-context.ts",
+      "line": 4,
+      "bindings": [
+        {
+          "imported": "assembleReportContext",
+          "local": "assembleReportContext",
+          "typeOnly": false
+        },
+        {
+          "imported": "isClientSafeContextFrontmatter",
+          "local": "isClientSafeContextFrontmatter",
+          "typeOnly": false
+        },
+        {
+          "imported": "ReportContextDocumentInput",
+          "local": "ReportContextDocumentInput",
+          "typeOnly": true
+        }
+      ],
+      "sha256": "1b473f0c02c92416c513966dc216ad2847846691b17c8e9ecaf319c7b6de7cf1"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.ts",
+      "kind": "static-import",
+      "module": "../context/frontmatter.js",
+      "target": "apps/api-strategy/src/context/frontmatter.ts",
+      "line": 1,
+      "bindings": [
+        {
+          "imported": "parseFrontmatter",
+          "local": "parseFrontmatter",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-snapshot.service.ts",
+      "kind": "static-import",
+      "module": "./report-context.js",
+      "target": "apps/api-strategy/src/reports/report-context.ts",
+      "line": 16,
+      "bindings": [
+        {
+          "imported": "assembleReportContext",
+          "local": "assembleReportContext",
+          "typeOnly": false
+        }
+      ],
+      "sha256": "18010ab952bcdbd4d13825cdb5711e0fe085b6fad3e6929a452c4733865ec18e"
+    }
+  ],
+  "nativeAcceptance": false,
+  "sourceEdits": 0
+}
