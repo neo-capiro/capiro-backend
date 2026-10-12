@@ -1,0 +1,8 @@
+{
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "exitCode": 1,
+  "classification": "Independent inert fake-spawn helper decoded argv[4] (CLI path) instead of argv[3] (preload data URL), so its simulated negative case incorrectly returned the healthy exit. Corrected only fake trace indexing; production source and assertions unchanged.",
+  "mutantBodiesExecuted": false,
+  "actualSpawnCalls": 0,
+  "nativeAcceptance": false
+}

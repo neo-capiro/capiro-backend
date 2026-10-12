@@ -1,0 +1,13 @@
+{
+  "controls": 27,
+  "passed": 27,
+  "testNames": [
+    "lint-pe-scripts.ts preserves its static gate and refuses unused CLI modes",
+    "verify-pe-migration-guards.ts preserves its static gate and refuses unused CLI modes",
+    "verify-pe-phase-e-exact-sha.ts preserves its static gate and refuses unused CLI modes",
+    "migration guard help and unknown refuse before optional Prisma subprocesses",
+    "both migration CLIs refuse unreviewed raw source before success or optional Prisma"
+  ],
+  "mutantBodiesExecuted": false,
+  "actualSpawnCalls": 0
+}

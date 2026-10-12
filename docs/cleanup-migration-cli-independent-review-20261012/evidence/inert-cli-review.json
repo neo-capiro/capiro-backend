@@ -1,0 +1,127 @@
+{
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "tree": "36010242e323610ccb26d2394a90a708c962680e",
+  "results": [
+    {
+      "name": "all five actual assertion callbacks accept exact legitimate fake traces",
+      "pass": true
+    },
+    {
+      "name": "timeout/env/argv exact across every captured child boundary",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects spawn error",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects termination signal",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects wrong exit",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects missing probe",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects write counter",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects network counter",
+      "pass": true
+    },
+    {
+      "name": "invoke rejects child counter",
+      "pass": true
+    },
+    {
+      "name": "healthy callback rejects empty healthy stdout",
+      "pass": true
+    },
+    {
+      "name": "healthy callback rejects wrong healthy marker",
+      "pass": true
+    },
+    {
+      "name": "healthy callback rejects extra healthy stdout",
+      "pass": true
+    },
+    {
+      "name": "healthy callback rejects extra stderr failure",
+      "pass": true
+    },
+    {
+      "name": "healthy callback rejects forged zero plus actual nonzero probe",
+      "pass": true
+    },
+    {
+      "name": "new refusal callback rejects wrong healthy exit for refused source",
+      "pass": true
+    },
+    {
+      "name": "new refusal callback rejects success stdout at failure exit",
+      "pass": true
+    },
+    {
+      "name": "new refusal callback rejects wrong failure reason",
+      "pass": true
+    },
+    {
+      "name": "new refusal callback rejects success marker in stderr",
+      "pass": true
+    },
+    {
+      "name": "new refusal callback rejects duplicate probe marker",
+      "pass": true
+    },
+    {
+      "name": "new refusal callback rejects uncaught stack",
+      "pass": true
+    },
+    {
+      "name": "override is inert data \"node ./unsafe --run\"",
+      "pass": true
+    },
+    {
+      "name": "override is inert data \"\\\"; globalThis.mutantExecuted=true; //\"",
+      "pass": true
+    },
+    {
+      "name": "override is inert data \"` ${globalThis.mutantExecuted=true} ; process.exit(0);\"",
+      "pass": true
+    },
+    {
+      "name": "override is inert data \"first\\nsecond third\"",
+      "pass": true
+    },
+    {
+      "name": "actual preload continues refusal of writes with override",
+      "pass": true
+    },
+    {
+      "name": "actual preload continues refusal of network with override",
+      "pass": true
+    },
+    {
+      "name": "actual preload continues refusal of child with override",
+      "pass": true
+    }
+  ],
+  "actualFiveTestNames": [
+    "lint-pe-scripts.ts preserves its static gate and refuses unused CLI modes",
+    "verify-pe-migration-guards.ts preserves its static gate and refuses unused CLI modes",
+    "verify-pe-phase-e-exact-sha.ts preserves its static gate and refuses unused CLI modes",
+    "migration guard help and unknown refuse before optional Prisma subprocesses",
+    "both migration CLIs refuse unreviewed raw source before success or optional Prisma"
+  ],
+  "capturedChildBoundaries": 42,
+  "mutantBodiesExecuted": false,
+  "actualSpawnCalls": 0,
+  "actualWrites": 0,
+  "actualNetwork": 0,
+  "nativeAcceptance": false
+}

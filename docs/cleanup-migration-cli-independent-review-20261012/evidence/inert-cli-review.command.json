@@ -1,0 +1,12 @@
+{
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "tree": "36010242e323610ccb26d2394a90a708c962680e",
+  "argv": [
+    "node",
+    "docs/cleanup-migration-cli-independent-review-20261012/evidence/inert-cli-review.cjs"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-migration-cli-independent-review",
+  "exitCode": 0,
+  "mutantBodiesExecuted": false,
+  "nativeAcceptance": false
+}

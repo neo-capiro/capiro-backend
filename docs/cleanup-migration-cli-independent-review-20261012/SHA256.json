@@ -1,0 +1,23 @@
+{
+  "ACCEPTANCE.json": "a5ee26030c5bf902b03c5e500d01f085ea0ddbdb4242d128f721241862ac3cf2",
+  "REVIEW.md": "3daca0b4500b752519363d968edba242e46235a6028f060b880815930d3ffa28",
+  "evidence/guarded-cli-contracts.command.json": "d1abc63317c81d800113f2a9918dedf17ec6942c71cb75172e208db5de456f72",
+  "evidence/guarded-cli-contracts.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence/guarded-cli-contracts.stdout.log": "9f8186f55cda0fa4a8eb23f68a85ff6eba439dd0da05c39f03396dfc9c501473",
+  "evidence/inert-cli-initial-failure.json": "de06be262bf01e31ec0defcf3fba80dd14f872e885e54c0c28c46ddf1ecf505b",
+  "evidence/inert-cli-review-initial.cjs": "572ec616fc10deca283f026cd80f45f459a35b74e6d1bec52ff12db733775f85",
+  "evidence/inert-cli-review-initial.command.json": "2c547ac7253c76960bc85c456c89c892968d61cb085a206ca65c6cb62b3bd32f",
+  "evidence/inert-cli-review-initial.log": "c60fe82b016f13085cf962c1c2617b402956788858a9ddab94b8e75bafcb8857",
+  "evidence/inert-cli-review.cjs": "0a31bc486a14b114353fd197e33c0bcf60638814d5500ba9510c6c6b24402f71",
+  "evidence/inert-cli-review.command.json": "8549d018adec360498432899e59371c410f048fb34b262891e85a639a9b972e8",
+  "evidence/inert-cli-review.json": "b6c42a3c5502261613a92b8b38fd2d444ce19532e7df18dbd6daadbb1719fe59",
+  "evidence/inert-cli-review.log": "552fab8feb3c75daa359a5276b6b3372b278eb786d2a0a580c3e25fcf23f0d0c",
+  "evidence/static-cli-initial-failure.json": "131bdfbfe2684fe94eaf0b58f4510247c83ac831928dffe6f6f1a4a16abcc838",
+  "evidence/static-cli-preservation-initial.cjs": "7a9be6b398ea8daeeed8ec10202d59a15419a4b91d38279b03ed3b05f2b6a861",
+  "evidence/static-cli-preservation-initial.command.json": "0e588f96e879e1467e855806aa57b1b7f4ac447342b0713fd512d58363ac8dfc",
+  "evidence/static-cli-preservation-initial.log": "93224db6dd1acfadf7bafe05ce4f31b76b91394d3fcc58d92913bb3fdd6979a7",
+  "evidence/static-cli-preservation.cjs": "df95e20e643c81b3b93515fcab291f7005ddb0814c9a920e7b24f3414fa94c06",
+  "evidence/static-cli-preservation.command.json": "a49fc03542219a31a4cc0230acb26a70db19af98e638038bf1a66808f564df9e",
+  "evidence/static-cli-preservation.json": "0241720282bb50f56c7f12a35a76b1685285d00c427baaa5c10d004bb179137d",
+  "evidence/static-cli-preservation.log": "0241720282bb50f56c7f12a35a76b1685285d00c427baaa5c10d004bb179137d"
+}

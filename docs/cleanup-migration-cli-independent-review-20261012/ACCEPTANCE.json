@@ -1,0 +1,55 @@
+{
+  "acceptedSource": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "acceptedTree": "36010242e323610ccb26d2394a90a708c962680e",
+  "reviewScope": [
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "blob": "5feb9e7372bcb0ddaf3fe0f3bb5617cf31066164",
+      "sha256": "56c8a40eafd03f7467e95d2ff17255640e71d72bfd9f30988a429b8cafd453a2"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "blob": "15948b8f9aa5a98f8ffc6f1733159cd127d79c8b",
+      "sha256": "4aaf98051cfe514dbcc84f4a6bfdff3dd50bf94b523b5642a95d0a5281fefaa4"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs",
+      "blob": "e43f814f50460a8815bd87af5b43fcfaf45ce77d",
+      "sha256": "a00a9735fc26596d6955707411a052f860a9f7aa690ef55bf0daadd5f67a0325"
+    }
+  ],
+  "guardedTests": {
+    "pass": 5,
+    "fail": 0,
+    "existingNamesRetained": 4,
+    "newActualCliFakeReadCase": 1,
+    "actualCachedTsxCliChildInvocations": 17,
+    "forbiddenOperationsReported": 0
+  },
+  "inertControls": {
+    "pass": 27,
+    "fail": 0,
+    "actualSpawnCalls": 0,
+    "mutantBodiesExecuted": false
+  },
+  "preservation": {
+    "migrationVerifierAllExecutableTextUnchanged": true,
+    "lintOnlyExecutableDeltaRawReadOperand": true,
+    "originalProbeLiteralByteExact": true,
+    "originalInvokeEnvironmentArgvTimeoutAndAssertionsExact": true,
+    "firstThreeInvokeParametersUnchanged": true,
+    "allOriginalCaseCaptionsRetained": true,
+    "newCaseCaption": "'both migration CLIs refuse unreviewed raw source before success or optional Prisma'",
+    "lintReadStillRawLfNormalized": true,
+    "originalReadBody": "function read(rel: string): string {\n  return readFileSync(resolve(apiRoot(), rel), 'utf8').replace(/\\r\\n/g, '\\n');\n}"
+  },
+  "cachedTools": {
+    "node": "v24.19.0",
+    "typescript": "5.9.3"
+  },
+  "canonicalSourceGuardAlgorithm": "Independent A/C review; not duplicated here",
+  "nativeGenerationInvoked": false,
+  "nativeAcceptance": false,
+  "fullCleanup1Acceptance": false,
+  "remainingCliOverlayBlockers": []
+}

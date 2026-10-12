@@ -1,0 +1,13 @@
+✔ lint-pe-scripts.ts preserves its static gate and refuses unused CLI modes (1314.657836ms)
+✔ verify-pe-migration-guards.ts preserves its static gate and refuses unused CLI modes (957.233628ms)
+✔ verify-pe-phase-e-exact-sha.ts preserves its static gate and refuses unused CLI modes (2953.44404ms)
+✔ migration guard help and unknown refuse before optional Prisma subprocesses (558.989845ms)
+✔ both migration CLIs refuse unreviewed raw source before success or optional Prisma (1989.343345ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8354.693374

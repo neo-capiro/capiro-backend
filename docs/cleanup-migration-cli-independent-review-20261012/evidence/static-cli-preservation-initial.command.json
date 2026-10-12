@@ -1,0 +1,11 @@
+{
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "argv": [
+    "node",
+    "docs/cleanup-migration-cli-independent-review-20261012/evidence/static-cli-preservation-initial.cjs"
+  ],
+  "exitCode": 1,
+  "classification": "Independent receipt-helper defect; original script/log retained, named correction passed without production edits.",
+  "mutantBodiesExecuted": false,
+  "nativeAcceptance": false
+}

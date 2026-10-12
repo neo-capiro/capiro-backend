@@ -1,0 +1,7 @@
+{
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "exitCode": 1,
+  "classification": "Independent receipt helper compared escaped TypeScript regex source against an incorrectly escaped JavaScript string. All preceding exact CLI/probe assertions passed. Named corrected check compares the complete actual read() declaration byte-exact to the original and records the declaration; no production assertion changed.",
+  "productionSourceChanged": false,
+  "nativeAcceptance": false
+}
