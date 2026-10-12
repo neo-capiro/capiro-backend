@@ -104,7 +104,7 @@ function main(): void {
     'scripts/entrypoint.sh',
     'scripts/entrypoint-legacy.sh',
     'scripts/entrypoint-dispatcher.inc',
-  ].map((p) => ({ path: p, source: stripShellComments(read(p)) }));
+  ].map((p) => ({ path: p, source: read(p) }));
   const entryGuard = assertNoMigrationHistoryMutation(entrypoints);
   assert.equal(entryGuard.ok, true, entryGuard.findings.map((f) => f.message).join('; '));
 
