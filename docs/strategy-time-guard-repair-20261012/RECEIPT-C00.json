@@ -1,0 +1,111 @@
+{
+  "source": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "sourceTree": "c7ccd8cb80528c3cedaeead92e5c3babcfbdf158",
+  "previousSource": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "base": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "productionPaths": {
+    "scripts/check-strategy-time-bypasses.mjs": {
+      "blob": "383aa5737f1df694de972299fc07c7930ce4cae9",
+      "sha256": "d048004ece22ef06b1cd8106e0dd1ffb5177270eb9a5ce6ca2b72f6bc9b888c5"
+    },
+    "scripts/check-strategy-time-bypasses.test.mjs": {
+      "blob": "b18dad0fd4aaa54bfe860bc1746eb2bbfe1148c2",
+      "sha256": "37aa6e2f391477e50cc31e43aec47dc304ec643925e2388ef224216340face60"
+    },
+    "scripts/strategy-time-boundaries.json": {
+      "blob": "fe5371e38485e570ec53a93e54430d63b8e793e8",
+      "sha256": "fb7665bd53162ec74f6ca6ed9377e1987894da5a20389131de66067787eddf14"
+    }
+  },
+  "sourceFiles": 169,
+  "authorEvidenceHashes": {
+    "docs/strategy-time-guard-repair-20261012/evidence/baseline-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/baseline-tests.log": "b2969733a60d195dcb1b52e5d7c83a39f0431628c08bc3f194ba10b07730686c",
+    "docs/strategy-time-guard-repair-20261012/evidence/cli-help.log": "dea3a226e34d0360beb6c5def76c7c0074cac829fda8f2d02c95c9b563d27cf2",
+    "docs/strategy-time-guard-repair-20261012/evidence/cli-unknown.log": "dea3a226e34d0360beb6c5def76c7c0074cac829fda8f2d02c95c9b563d27cf2",
+    "docs/strategy-time-guard-repair-20261012/evidence/final-format-check.log": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20",
+    "docs/strategy-time-guard-repair-20261012/evidence/final-guard-extensions.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/final-guard-provider-provenance.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/final-guard-provider-roles.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/final-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter-extensions.log": "a01bf3eca3ea7f339e1113b5e28fec512a46975ce635ae8a279545d416eb9fb0",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter-final.log": "26d2ec66ba59731e0f3c3bc2789e5d1455d83c43e0312e6294a422fd0b0cdc09",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter-provider-provenance.log": "10ed8fc77fff85d1040b279202a5d7c8fbe2abc6463af0f70591ffe6c8d591c4",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter-provider-roles.log": "93408f50f61690d695d4498026b03cb98498f9d3303f2abafd7d41260da7ea02",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter.log": "429b5185be114abfea4c1da37ce759b13388f2a2ac440fdee1022bcc6aa0209a",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-aa1-strict-extension-review.json": "3fea4b92832260a44e67eb8639d78aba1b169bffe68f17a54256fbdf3ec88ad3",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-adversarial-guard-review.json": "f56893b5815d594e6d318bd901d87775db97eb0615991fca5533dee2b64b6d59",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-canonical-member-adversarial-red.json": "d88ccd7570c77d50a8052883a31912081d2bbde7a851d536baa12f0158c894cc",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-hoisted-alias-adversarial-red.json": "5e311a4e257b19e37b599f7358fe0ab302aab6b97ec089a85e31810ef2bdbcfa",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-provider-import-provenance-red-72b.json": "a12e627f20a509db9f796a4197b8155f082af2ce22d8e6558c62f2cc2a3384d8",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-provider-shadow-red.json": "7aaf38e42932bfb684fcb113b1df9f8ca98b9584e47b597aa2f8988b02782151",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-runtime-extension-guard-red.json": "bc7e0923e5a265372658eae92d6fba98f20b6c3ebfc237cb59a707e7fd961726",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-runtime-extension-module-resolution.json": "072fccaa48610362ab725510f2291a10ad3df57499369b634adae3f16d0aabc5",
+    "docs/strategy-time-guard-repair-20261012/evidence/inventory-and-test-preservation.json": "9af06f583c35de7abb31ea039b42fad81162ffc2ccc7be79cebcf4abcd2bb284",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-extensions.log": "7373b2f2e790af70a9b64ddba086daf05ffae76439c7eddf535683dcfdefd26b",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-first.log": "6dde7948cd013a7ba3dcaf58492cbfec3f052b615d504c4daaa78c6a9d4c322c",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-provider-provenance.log": "fcccc781f3d5c3325612b129ac883da079069dd199c663d391ea92e79981a1d5",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-provider-roles-first.log": "15298b2a6870577ccd4e22bad01745a559e649d26f866dead47c4daf02eb3a98",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-second.log": "aef2927273f2e59cfbca73b97944cab0a903741898ed281e8bc9b60e55ac8a31",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-third.log": "39e56c2bc584be51c732c01ba8bf0d1cd17220fc1d269c9376356e016975fa17",
+    "docs/strategy-time-guard-repair-20261012/evidence/provider-corpus-72b-green.log": "c1bb5c17ab084f8593266499c72f527578db31a040971f03282e904bba411b75",
+    "docs/strategy-time-guard-repair-20261012/evidence/provider-corpus-green-72b8575.json": "13d7ed04677593be026002983ce9eb25b9725dee6a88d8e4e7278ce347c522cd",
+    "docs/strategy-time-guard-repair-20261012/evidence/provider-corpus-red.json": "8892366cbd412d767a79e8b2cac58fa27b80ccde10eeb6877efc19185dc7787a",
+    "docs/strategy-time-guard-repair-20261012/evidence/provider-corpus-red.log": "543e2828e072e4a4672212b5696f73ddd594d00cac5fdde8f8e2ed6cc8827fa1",
+    "docs/strategy-time-guard-repair-20261012/evidence/provider-import-provenance-c00-green.log": "988f8f7a7f10061f91a5088601bda69b940e717ee3c01892a5b5996fb9803f9c",
+    "docs/strategy-time-guard-repair-20261012/evidence/provider-import-provenance-green-c00.json": "7ad2109d90aaafe25c4f6ba7dec3fe30a8eefb40a9601a2669c8ee09265691d2",
+    "docs/strategy-time-guard-repair-20261012/evidence/qualify-provider-import-provenance.mjs": "6373f3ce100d2e49d3b1808c2246e90879594c4ec26371123bf87a5480b9b978",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-first-guard.log": "d2932205ce631b3b0f178929dac9da7d98d7b6aca68630712c8898142e02ae2c",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-first-tests.log": "c460a66a2421f49f1d9c3f79a23d2736ff4de41898e4ed199316a60694b80187",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-second-full-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-second-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-second-tests.log": "abea9668f6365f741529d240c02d2be59e2e6eb8daba781074684e4d51cb1c85",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-72b-green.log": "2e74d7457abaa4f9ed77459ce9fbce19aa4166ca95aa7b4b646b3173752952bf",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-aa1-green.log": "b5ccfd9da4489afbc285ecdf55e82a4d74f41b7ce335109d068db503c2317704",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-final-green.log": "2833451cf36c8ae81d28ec940674b7b6e45788bd645e1a8116a92334142a69af",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-first-green.log": "2833451cf36c8ae81d28ec940674b7b6e45788bd645e1a8116a92334142a69af",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-green-72b8575.json": "05f9978ec83fb426a99d538a83cf41f8d5a105d0dc7cb1d20f7ad1cf875f9c8e",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-green-aa1ce11.json": "78a2886ec35056285c077d2dbb88013a3975282d253731da640dce6fafae1cfa",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-green.json": "67103e17f2ca70098ec67a5407b14671181fc09231f664df4c6963817ff82da0",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-red.json": "0f05704dcc5ac35c0b3df0a3b00e7c620af4a163408b65148bab3a07a938acd6",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-red.log": "d723ef3ccf33b0ea4e10060183e1dc1962401aa0f6d6cd0ce37ac2ee9638376f",
+    "docs/strategy-time-guard-repair-20261012/evidence/reproduce-provider-shadow-corpus.mjs": "bc77aa5643811f18f50f8f850a19c6dea79644bf278103870b43f59a9f36f1f5",
+    "docs/strategy-time-guard-repair-20261012/evidence/reproduce-reported-corpus-exact-source.mjs": "53b5d437b0ac563665e8fecbfb5865e5fd0bee07a5e04be3536a8f53b63a8acd",
+    "docs/strategy-time-guard-repair-20261012/evidence/reproduce-reported-corpus.mjs": "eef1e9fe91d2911fe6a5c8fb0df67248464db5f099bb74e0fc94f65dfbc0e0ef"
+  },
+  "allEarlierAuthorEvidenceHashesPreserved": true,
+  "checks": {
+    "permanentTests": {
+      "cases": 84,
+      "passed": 84,
+      "exit": 0,
+      "allEarlierTestNamesPreserved": true,
+      "additionalProvenanceMutations": 5
+    },
+    "providerImportProvenance": {
+      "priorSourceUndetected": true,
+      "currentSourceRefusedHookReferences": 3,
+      "baselineProviderEvents": 0,
+      "fullMapFiles": 169,
+      "exactSource": "c00c86917af2da637c2183fd078f4390fe0ac361"
+    },
+    "fullSourceGuard": {
+      "files": 169,
+      "exit": 0
+    },
+    "inventory": {
+      "deferredIdentities": 116,
+      "deferredSamples": 123,
+      "canonicalDefaultSamples": 3,
+      "explicitRetryCalls": 6,
+      "allOriginalDataFieldsPreserved": true,
+      "existingAmbientSha256": "9f2c2ef37f7159d96d4a9900a3c3cca70557d48957d0ff7f0d05cca7318de7a1"
+    }
+  },
+  "providerImportOwnership": "one exact named runtime ImportSpecifier of original/local hook name from @capiro/shared; no type-only import",
+  "independentReview": "awaiting final frozen-source B receipt",
+  "moduleGraphLoaded": false,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false,
+  "sourceMutationsOutsideAllowedThreeFiles": false
+}

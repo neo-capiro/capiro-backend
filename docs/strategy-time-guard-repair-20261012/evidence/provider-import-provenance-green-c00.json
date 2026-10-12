@@ -1,0 +1,82 @@
+{
+  "source": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "priorSource": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "sourceFiles": 169,
+  "baseline": [],
+  "baselineAnalysis": {
+    "events": [],
+    "retryCalls": [],
+    "retryDefinitions": [],
+    "definitions": [
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_WALL_CLOCK"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_CONTEXT_RETRY"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_TIME_PROVIDERS"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "useValue"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "random"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "delay"
+      }
+    ],
+    "problems": []
+  },
+  "badAnalysis": {
+    "events": [
+      "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider",
+      "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+      "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+    ],
+    "retryCalls": [],
+    "retryDefinitions": [],
+    "definitions": [
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_WALL_CLOCK"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_CONTEXT_RETRY"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_TIME_PROVIDERS"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "useValue"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "random"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "delay"
+      }
+    ],
+    "problems": []
+  },
+  "failures": [
+    "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider (1 > 0)",
+    "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider (1 > 0)",
+    "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider (1 > 0)"
+  ],
+  "moduleGraphLoaded": false,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

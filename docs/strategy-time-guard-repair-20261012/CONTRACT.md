@@ -1,6 +1,6 @@
 # Bounded Strategy time guard repair
 
-Current frozen source: `72b85754840cf73b484631cb27dd73a48c0e68bd`, tree `a638542193201a11c44b5595e45ac96a187e0196`. Initial repair `61804fd16f2ab3cd44e4ef5b4b60d1a2960a7e8f` / tree `a61515fffdf1fd5499f4305de360867b353f529f`, extension repair `aa1ce11fd480cf664f5b3d1902a61751368d238d` / tree `8f97dc2a55aa837115d43f9d2a38a443ee914afb`, and their raw receipts remain preserved as ancestors. Integration base: `f86bf11b9b6da367d464da453ee1f260fa60e06e`, tree `b0389feda4b907bd0e6f222c1301458bebe74d79`. Root remains the sole integration owner.
+Current frozen source: `c00c86917af2da637c2183fd078f4390fe0ac361`, tree `c7ccd8cb80528c3cedaeead92e5c3babcfbdf158`. Initial repair `61804fd16f2ab3cd44e4ef5b4b60d1a2960a7e8f` / tree `a61515fffdf1fd5499f4305de360867b353f529f`, extension repair `aa1ce11fd480cf664f5b3d1902a61751368d238d` / tree `8f97dc2a55aa837115d43f9d2a38a443ee914afb`, provider-role repair `72b85754840cf73b484631cb27dd73a48c0e68bd` / tree `a638542193201a11c44b5595e45ac96a187e0196`, and their raw receipts remain preserved as ancestors. Integration base: `f86bf11b9b6da367d464da453ee1f260fa60e06e`, tree `b0389feda4b907bd0e6f222c1301458bebe74d79`. Root remains the sole integration owner.
 
 The previous AST guard accepted 14 reported alias, computed-member, retry and helper-definition bypasses, a hoisted aliased import, and four further canonical member definitions. The original receipts and reproduction retain all 19 accepted cases and two rejected direct controls. The repaired exact-source corpus rejects all 21 cases against the same 169 production files. Mutant strings were parsed and analyzed; none were executed.
 
@@ -12,11 +12,13 @@ The reviewer additionally proved that a supported `.cts` module imported through
 
 The reviewer then found three actual provider-shadow bypasses in `aa1ce11`: function, block and callback locals could reuse the provider variable's raw name. Original independent RED and author whole-map RED are retained. Append-only `72b8575` replaces the raw-name exemption with concrete declaration and role binding. The original 84 test names remain; the provider control adds all three shadow sources and 11 registration-role mutations. Final independent acceptance of `72b8575` remains separate from the earlier `aa1ce11` findings.
 
+Independent review qualified all 24 reported refusal cases at `72b8575`, then proved its provider leaf exemption could still accept an import from a noncanonical module. The preserved `provider-import-provenance-red-72b.json` has zero detected events for that substitution. Append-only `c00c869` requires each exempt leaf's single lexical declaration to be a named runtime import of the original hook from exactly `@capiro/shared`. Wrong modules, subpaths, renamed noncanonical source hooks and type-only imports are refused. Reserved hook detections elsewhere remain broad; this verifies a direct import declaration, without loading or resolving a module graph. All 84 test names remain, and the provider control adds five provenance mutations. Final independent acceptance now targets `c00c869`.
+
 | Integration path | Owner and effect |
 | --- | --- |
 | `scripts/check-strategy-time-bypasses.mjs` | Lexical/static reference checks; existing event identities and CLI behavior preserved. |
 | `scripts/check-strategy-time-bypasses.test.mjs` | All original 29 cases preserved; 84 total controls cover reported bypasses, bounded variants, benign source, lazy provider registration and supported runtime extensions. |
-| `scripts/strategy-time-boundaries.json` | Every original data field is unchanged. Only `systemHookValueOwners` is added for the existing provider variable and its three exact lazy registration roles. |
+| `scripts/strategy-time-boundaries.json` | Every original data field is unchanged. Only `systemHookValueOwners` is added for the existing provider variable, its three exact lazy registration roles and its canonical module literal. |
 | This documentation directory | Retained raw RED, failed-development and PASS evidence; no production code. |
 
 The existing allowance array remains exactly 119 identities and 126 samples: 116 deferred identities for 123 original samples plus three lazy canonical defaults. Six required retry calls still require `this.retryRuntime`. Required files, roots, canonical helper files and all allowance maxima/reasons/statuses are unchanged. The array's JSON SHA-256 remains `9f2c2ef37f7159d96d4a9900a3c3cca70557d48957d0ff7f0d05cca7318de7a1`.
