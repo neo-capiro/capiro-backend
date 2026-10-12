@@ -636,6 +636,68 @@
           "sha256": "248ccbb50288ec41309dac7993235614732386718707597c24090966d59c2b78"
         }
       ]
+    },
+    {
+      "id": "meri-local-core-dispatch",
+      "status": "134 lazy core callbacks from the existing canonical capability type; five federal proxy owners and current-use authority remain unchanged",
+      "owner": "apps/api/src/meri/meri-local-dispatch.ts",
+      "roots": [
+        "apps/api/src"
+      ],
+      "symbols": [
+        {
+          "name": "executeMeriLocalDispatch",
+          "kind": "function"
+        },
+        {
+          "name": "MeriLocalToolName",
+          "kind": "type"
+        },
+        {
+          "name": "MeriLocalDispatchRegistry",
+          "kind": "type"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/api/src/meri/meri-tools.service.ts",
+          "module": "./meri-local-dispatch.js",
+          "imported": "executeMeriLocalDispatch",
+          "uses": 1
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/api/src/meri/meri-local-dispatch.ts",
+          "name": "executeMeriLocalDispatch",
+          "kind": "function",
+          "sha256": "e672b9bb43f3e38507ca29627e6e61faafb55519c2c872775f53a6a27f7a3e71"
+        },
+        {
+          "file": "apps/api/src/meri/meri-local-dispatch.ts",
+          "name": "MeriLocalToolName",
+          "kind": "type",
+          "sha256": "cea84f632d5596a97313179e1c8de2ddc601b2ea7ce62a9bb2047e5a45fb5da9"
+        },
+        {
+          "file": "apps/api/src/meri/meri-local-dispatch.ts",
+          "name": "MeriLocalDispatchRegistry",
+          "kind": "type",
+          "sha256": "8a6d5844810475a6e88c309bdfe090f0df5e9b56ee9763580e02f1b333df7a38"
+        },
+        {
+          "file": "apps/api/src/meri/meri-tools.service.ts",
+          "name": "MeriToolsService",
+          "kind": "class",
+          "sha256": "9013128022387baba6d160209a1d2d8aeaaac103d2877b12ff8b963c7d51bff7"
+        },
+        {
+          "file": "apps/api/src/meri/meri-tools.service.ts",
+          "name": "assertNever",
+          "kind": "function",
+          "sha256": "6201e8948f53c41538c6c64ad6faca84cf9cbdc4903cd2c281a23d0ee6437cd7"
+        }
+      ]
     }
   ]
 }

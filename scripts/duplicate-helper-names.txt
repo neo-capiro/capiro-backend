@@ -5,3 +5,4 @@ tango-rest-page-leaves	rateOf
 strategy-context-template-metadata	isOperationalReportTemplate
 strategy-context-template-metadata	reportFallbackSection
 workspace-existing-product-facade	sectionSpecFor
+meri-local-core-dispatch	executeMeriLocalDispatch

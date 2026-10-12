@@ -231,6 +231,9 @@ jobs:
       - name: Test reviewed Workspace product metadata
         run: pnpm gate:cleanup4:workspace-product-metadata
 
+      - name: Test reviewed Meri local dispatch
+        run: pnpm gate:cleanup4:meri-local-dispatch
+
       - name: Test apps/api
         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: pnpm --filter @capiro/api test
