@@ -1,0 +1,46 @@
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:2: trailing whitespace.
+++ts-jest[config] (WARN) 
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:4: trailing whitespace.
+++  
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:6: trailing whitespace.
+++ts-jest[config] (WARN) 
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:8: trailing whitespace.
+++  
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:10: trailing whitespace.
+++ts-jest[config] (WARN) 
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:12: trailing whitespace.
+++  
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:14: trailing whitespace.
+++ts-jest[config] (WARN) 
+docs/cleanup-clock-injection-20261012/evidence/whole-branch-whitespace.stdout.log:16: trailing whitespace.
+++  
+docs/cleanup-migration-policy-investigation-20261012/raw-evidence-whitespace-check.log:2: trailing whitespace.
+++    
+docs/cleanup-migration-policy-investigation-20261012/read-only-trace-0.stdout:8: trailing whitespace.
++    
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.log:3: trailing whitespace.
++  
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-initial.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/author-initial.log:3: trailing whitespace.
++  
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.log:3: trailing whitespace.
++  
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.log:3: trailing whitespace.
++  
+docs/clock-handoff-audit-20261012/shared-barrel-package-ci-readonly.diff:35: trailing whitespace.
++ 
+docs/public-law-exact-sha-investigation-20261012/evidence/focused-source-controls-corrected.log:18: trailing whitespace.
++ 9: 0x7f3d5be769b6 
+docs/public-law-exact-sha-investigation-20261012/evidence/raw-evidence-staged-whitespace-failure.log:2: trailing whitespace.
+++ 9: 0x7f3d5be769b6 
+docs/public-law-exact-sha-investigation-20261012/evidence/raw-evidence-staged-whitespace-failure.log:4: trailing whitespace.
+++ 
+docs/public-law-exact-sha-investigation-20261012/evidence/verifier-format-preview.diff:6: trailing whitespace.
++ 

@@ -1,0 +1,13 @@
+{
+  "name": "strategy-guard-controls",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/check-strategy-time-bypasses.test.mjs"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-reviewed-source-composition",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 0,
+  "seconds": 5.855,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,12 @@
+{
+  "bindings": {
+    "node_modules": "/workspace/capirov2/node_modules",
+    "apps/api/node_modules": "/workspace/capirov2-cleanup-public-law-source/apps/api/node_modules",
+    "apps/api-strategy/node_modules": "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/node_modules",
+    "packages/shared/node_modules": "/workspace/capirov2/packages/shared/node_modules"
+  },
+  "install": false,
+  "nativeGeneration": false,
+  "cacheMutations": false,
+  "note": "Untracked/ignored local dependencies; no source or shared existing cache edited."
+}

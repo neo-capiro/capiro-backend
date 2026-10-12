@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+    "--",
+    ".",
+    ":!docs/**"
+  ],
+  "exit": 0,
+  "nativeAcceptance": false
+}

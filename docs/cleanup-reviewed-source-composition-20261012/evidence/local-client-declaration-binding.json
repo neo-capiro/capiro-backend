@@ -1,0 +1,88 @@
+{
+  "source": "/workspace/capirov2-cleanup-clock-investigation/apps/api-strategy/generated/prisma-client",
+  "destination": "apps/api-strategy/generated/prisma-client",
+  "schemaSha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "f5c9774441351e9c541a03fd0f06ddd0683187ffee5a8585e16d8f376a1acee5"
+    },
+    {
+      "path": "default.js",
+      "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+    },
+    {
+      "path": "schema.prisma",
+      "sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2"
+    },
+    {
+      "path": "index.js",
+      "sha256": "0fee9501de6cb5920e58e7e928b1e70996e215224d0ded0bdf0f632942a81233"
+    },
+    {
+      "path": "index-browser.js",
+      "sha256": "23a393ea65f0390ca8daa0832814c97ca1f6727dea6f74f578e24499e2808324"
+    },
+    {
+      "path": "wasm.js",
+      "sha256": "23a393ea65f0390ca8daa0832814c97ca1f6727dea6f74f578e24499e2808324"
+    },
+    {
+      "path": "index.d.ts",
+      "sha256": "7a3db48e9c885af825bf9f5af2a3e7ed2a58fdd50a89f2a1ca9f8d6323d3ae8f"
+    },
+    {
+      "path": "wasm.d.ts",
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "edge.d.ts",
+      "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+    },
+    {
+      "path": "default.d.ts",
+      "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+    },
+    {
+      "path": "edge.js",
+      "sha256": "f15930d341c50a7c87fed8755214ed05267222f5b0c80fa6de9b239cb649d86b"
+    },
+    {
+      "path": "runtime/react-native.js",
+      "sha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611"
+    },
+    {
+      "path": "runtime/index-browser.js",
+      "sha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120"
+    },
+    {
+      "path": "runtime/library.d.ts",
+      "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+    },
+    {
+      "path": "runtime/edge-esm.js",
+      "sha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8"
+    },
+    {
+      "path": "runtime/wasm.js",
+      "sha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab"
+    },
+    {
+      "path": "runtime/index-browser.d.ts",
+      "sha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+    },
+    {
+      "path": "runtime/library.js",
+      "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+    },
+    {
+      "path": "runtime/edge.js",
+      "sha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2"
+    }
+  ],
+  "copyEngine": false,
+  "generated": false,
+  "downloaded": false,
+  "nativeExecuted": false,
+  "note": "Source cache5.22.0 already existed; copied only existing JS/declarations/JSON/schema, no source changes. Native/WASM binaries refused."
+}

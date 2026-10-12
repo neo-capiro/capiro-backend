@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2-cleanup-reviewed-source-composition/node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "cwd": "apps/api-strategy",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 0,
+  "seconds": 15.483,
+  "noInstallGenerateDownload": true,
+  "nativeAcceptance": false
+}

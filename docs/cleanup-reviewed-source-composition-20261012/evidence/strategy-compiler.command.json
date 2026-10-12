@@ -1,0 +1,16 @@
+{
+  "name": "strategy-compiler",
+  "argv": [
+    "node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2-cleanup-reviewed-source-composition/node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-reviewed-source-composition/apps/api-strategy",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 2,
+  "seconds": 25.516,
+  "nativeAcceptance": false
+}

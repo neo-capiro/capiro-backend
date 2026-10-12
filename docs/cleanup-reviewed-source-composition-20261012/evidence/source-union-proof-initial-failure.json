@@ -1,0 +1,11 @@
+{
+  "exit": 1,
+  "passedBeforeFailure": [
+    "disjoint4and18sourcepaths",
+    "exact22pathunion",
+    "allparentblobs",
+    "bothpublishedheadsandbaseancestors",
+    "protected1393modesandblobs"
+  ],
+  "error": "FileNotFoundError: expected SHA256SUMS, public-law packet actual file is SHA256SUMS.json; correct format located via rg. No source change."
+}

@@ -1,0 +1,5 @@
+{
+  "requested": "docs/cleanup-public-law-containment-20261012/evidence/root-pe-core-smoke.command.json",
+  "exit": 2,
+  "reason": "Mistyped receipt filename; rg --files found root-cli-contracts.command.json and it was read. No source mutation."
+}

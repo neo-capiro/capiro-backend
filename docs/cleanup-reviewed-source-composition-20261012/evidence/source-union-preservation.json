@@ -1,0 +1,29 @@
+{
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "tree": "825587efcaca9ef152eb90eb996c88b3e8b6a717",
+  "commonBase": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "mergeParents": [
+    "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+    "acd663314fffcad32e64e20217da6f4b018e8599"
+  ],
+  "publishedParentsActualAncestors": true,
+  "publicLawPaths": 4,
+  "clockPaths": 18,
+  "overlap": [],
+  "sourceUnionExact": 22,
+  "otherNonDocBaseBlobsUnchanged": true,
+  "protectedBaseSchemaMigrationPriorPacketPaths": 1393,
+  "protectedAllModeBlobExact": true,
+  "immutablePublishedPacketChecksums": [
+    {
+      "index": "docs/cleanup-public-law-containment-20261012/SHA256SUMS.json",
+      "verified": 101
+    },
+    {
+      "index": "docs/cleanup-clock-injection-20261012/SHA256SUMS",
+      "verified": 309
+    }
+  ],
+  "httpDtoSchemaMigrationDelta": false,
+  "nativeAcceptance": false
+}

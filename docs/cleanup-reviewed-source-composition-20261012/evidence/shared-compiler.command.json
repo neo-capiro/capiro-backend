@@ -1,0 +1,14 @@
+{
+  "name": "shared-compiler",
+  "argv": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "-p",
+    "packages/shared/tsconfig.json"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-reviewed-source-composition",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 0,
+  "seconds": 11.011,
+  "nativeAcceptance": false
+}

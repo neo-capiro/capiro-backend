@@ -1,0 +1,13 @@
+{
+  "name": "pe-core-guarded-smoke",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-reviewed-source-composition",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 0,
+  "seconds": 20.166,
+  "nativeAcceptance": false
+}

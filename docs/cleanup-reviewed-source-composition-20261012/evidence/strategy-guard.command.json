@@ -1,0 +1,12 @@
+{
+  "name": "strategy-guard",
+  "argv": [
+    "node",
+    "scripts/check-strategy-time-bypasses.mjs"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-reviewed-source-composition",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 0,
+  "seconds": 15.517,
+  "nativeAcceptance": false
+}

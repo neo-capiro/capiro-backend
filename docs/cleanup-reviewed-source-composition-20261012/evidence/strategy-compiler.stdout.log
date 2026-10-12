@@ -1,0 +1,644 @@
+src/agents/agent-safety.spec.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/agent-safety.spec.ts(796,12): error TS18046: 'factsB' is of type 'unknown'.
+src/agents/agent-safety.spec.ts(796,24): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/agents/agent-safety.spec.ts(797,12): error TS18046: 'factsB' is of type 'unknown'.
+src/agents/agent-safety.spec.ts(797,25): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/agents/agent-safety.spec.ts(811,28): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/agents/agent-safety.spec.ts(841,18): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/agent-safety.spec.ts(1019,20): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/agent-safety.spec.ts(1020,20): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/change-sets.service.spec.ts(12,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/change-sets.service.ts(7,43): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/execution-blocker.spec.ts(10,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/execution-blocker.ts(14,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/execution.approval.spec.ts(680,22): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.approval.spec.ts(705,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.approval.spec.ts(706,17): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.approval.spec.ts(718,22): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/execution.service.spec.ts(636,22): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(787,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(836,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(850,27): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(879,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(908,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(934,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(939,27): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(965,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(993,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(999,27): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1069,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1095,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1128,18): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1170,28): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1205,20): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1206,20): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1243,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1244,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1294,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1295,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1313,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1314,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1320,20): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1354,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1356,17): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1358,23): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1387,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1393,22): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1415,18): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1416,28): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1560,24): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1604,24): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1626,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1627,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1630,29): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1667,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1668,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1671,29): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1701,17): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1728,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1729,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1749,19): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1750,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1751,19): error TS2339: Property 'waitingReason' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1782,18): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1811,22): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.spec.ts(1812,23): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(10,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/execution.service.ts(209,12): error TS18046: 'rows' is of type 'unknown'.
+src/agents/execution.service.ts(209,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/agents/execution.service.ts(574,41): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(576,34): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(583,13): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(583,49): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(583,77): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(585,23): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(599,13): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(599,49): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(611,34): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(673,7): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(674,71): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(675,28): error TS2559: Type '{ blocker: ExecutionBlocker | null; }' has no properties in common with type '{ state?: unknown; waitingReason?: unknown; findings?: unknown; }'.
+src/agents/execution.service.ts(841,41): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(863,13): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(865,23): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(868,41): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(870,34): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(887,36): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(906,30): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(908,23): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(908,76): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(1132,17): error TS2339: Property 'artifactRef' does not exist on type '{}'.
+src/agents/execution.service.ts(1200,66): error TS18046: 'err' is of type 'unknown'.
+src/agents/execution.service.ts(1496,41): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(1508,38): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(1511,47): error TS2559: Type '{ blocker: ExecutionBlocker | null; }' has no properties in common with type '{ state?: unknown; waitingReason?: unknown; findings?: unknown; }'.
+src/agents/execution.service.ts(1518,40): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(1523,18): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/execution.service.ts(1644,40): error TS2345: Argument of type '{ blocker: ExecutionBlocker | null; }' is not assignable to parameter of type '{ findings: unknown; }'.
+  Property 'findings' is missing in type '{ blocker: ExecutionBlocker | null; }' but required in type '{ findings: unknown; }'.
+src/agents/execution.service.ts(1819,17): error TS18046: 'facts' is of type 'unknown'.
+src/agents/execution.service.ts(1819,29): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/agents/execution.service.ts(1902,12): error TS18046: 'rows' is of type 'unknown'.
+src/agents/execution.service.ts(2222,80): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/missions.service.spec.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/missions.service.ts(10,45): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/missions.service.ts(151,11): error TS18046: 'err' is of type 'unknown'.
+src/agents/outbox-consumer.service.ts(148,9): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/outbox-consumer.service.ts(161,24): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/outbox-consumer.service.ts(161,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/agents/outbox-consumer.service.ts(190,28): error TS18046: 'nodes' is of type 'unknown'.
+src/agents/outbox-consumer.service.ts(230,27): error TS18046: 'res' is of type 'unknown'.
+src/agents/outbox-consumer.service.ts(238,23): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/run-reconciler.service.ts(9,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/run-reconciler.service.ts(152,23): error TS18046: 'candidates' is of type 'unknown'.
+src/agents/run-reconciler.service.ts(355,49): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/run-reconciler.service.ts(360,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/run-reconciler.service.ts(363,39): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/runs.service.spec.ts(7,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/runs.service.spec.ts(1013,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/runs.service.spec.ts(1024,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/runs.service.ts(8,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/runs.service.ts(182,66): error TS18046: 'err' is of type 'unknown'.
+src/agents/runs.service.ts(192,24): error TS2339: Property 'missionId' does not exist on type '{}'.
+src/agents/runs.service.ts(310,55): error TS2345: Argument of type '{}' is not assignable to parameter of type 'RunRow'.
+  Property 'state' is missing in type '{}' but required in type 'RunRow'.
+src/agents/runs.service.ts(340,30): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(342,23): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(342,81): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(368,27): error TS2339: Property 'attempt' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(371,27): error TS2339: Property 'idempotencyKey' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(379,28): error TS2339: Property 'missionId' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(393,45): error TS2339: Property 'id' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(423,28): error TS2339: Property 'missionId' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(424,29): error TS2339: Property 'strategyId' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(429,31): error TS2339: Property 'id' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(435,42): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(436,54): error TS2339: Property 'findings' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(445,30): error TS2339: Property 'id' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(456,30): error TS2339: Property 'id' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(468,37): error TS2339: Property 'id' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(485,25): error TS2339: Property 'idempotencyKey' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(503,20): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<"completed" | "failed" | "canceled" | "superseded" | "approved" | "queued" | "planning" | "waiting_for_input" | "ready_for_review" | "executing" | "staged" | "failed_recoverable" | "failed_terminal", RunStatePolicy>'.
+src/agents/runs.service.ts(503,41): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(506,18): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(507,34): error TS2339: Property 'state' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(511,24): error TS2339: Property 'heartbeatAt' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(512,20): error TS2339: Property 'attempt' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(513,25): error TS2339: Property 'retryOfRunId' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(514,30): error TS2339: Property 'supersededByRunId' does not exist on type '{ blocker: ExecutionBlocker | null; }'.
+src/agents/runs.service.ts(543,12): error TS18046: 'rows' is of type 'unknown'.
+src/agents/runs.service.ts(544,16): error TS7006: Parameter 'run' implicitly has an 'any' type.
+src/agents/watch-mission.ts(1,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/watch-review.service.spec.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/watch-review.service.ts(9,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/watch-review.service.ts(77,53): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(96,53): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(183,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(236,51): error TS2339: Property 'state' does not exist on type '{}'.
+src/agents/watch-review.service.ts(237,49): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watch-review.service.ts(238,29): error TS2339: Property 'idempotencyKey' does not exist on type '{}'.
+src/agents/watch-review.service.ts(313,85): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(344,52): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(347,50): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(347,73): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(355,14): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(409,37): error TS2339: Property 'ops' does not exist on type '{}'.
+src/agents/watch-review.service.ts(412,28): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watch-review.service.ts(417,70): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watch-review.service.ts(426,27): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watch-review.service.ts(431,88): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watch-review.service.ts(570,16): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(627,18): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(628,15): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(730,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(777,52): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(783,35): error TS2339: Property 'ops' does not exist on type '{}'.
+src/agents/watch-review.service.ts(786,24): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(831,32): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(844,18): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(845,15): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(895,51): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(901,48): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watch-review.service.ts(902,50): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watcher-scheduler.service.ts(165,9): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/watcher-scheduler.service.ts(166,57): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/watcher-scheduler.service.ts(171,27): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/watcher-scheduler.service.ts(227,23): error TS18046: 'claimed' is of type 'unknown'.
+src/agents/watcher-scheduler.service.ts(346,23): error TS18046: 'rows' is of type 'unknown'.
+src/agents/watcher-scheduler.service.ts(376,47): error TS2339: Property 'state' does not exist on type '{}'.
+src/agents/watcher-scheduler.service.ts(376,61): error TS2339: Property 'state' does not exist on type '{}'.
+src/agents/watcher-scheduler.service.ts(377,22): error TS2339: Property 'state' does not exist on type '{}'.
+src/agents/watcher-scheduler.service.ts(378,54): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watcher.service.spec.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/watcher.service.ts(11,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/agents/watcher.service.ts(80,38): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(83,53): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(111,49): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(160,39): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(161,43): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(176,27): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(217,72): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/agents/watcher.service.ts(261,18): error TS2339: Property 'strategyId' does not exist on type '{}'.
+src/agents/watcher.service.ts(266,32): error TS2339: Property 'strategyId' does not exist on type '{}'.
+src/agents/watcher.service.ts(384,44): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ id: string; clientId: string | null; type: string; title: string; lastEditedAt: Date | null; nodes: { id: string; }[]; artifacts: { id: string; }[]; }'.
+  Type '{}' is missing the following properties from type '{ id: string; clientId: string | null; type: string; title: string; lastEditedAt: Date | null; nodes: { id: string; }[]; artifacts: { id: string; }[]; }': id, clientId, type, title, and 3 more.
+src/agents/watcher.service.ts(385,72): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/agents/watcher.service.ts(387,43): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/agents/watcher.service.ts(387,54): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/agents/watcher.service.ts(404,60): error TS2339: Property 'type' does not exist on type '{}'.
+src/agents/watcher.service.ts(407,32): error TS2339: Property 'id' does not exist on type '{}'.
+src/agents/watcher.service.ts(407,58): error TS2339: Property 'type' does not exist on type '{}'.
+src/agents/watcher.service.ts(407,81): error TS2339: Property 'title' does not exist on type '{}'.
+src/agents/watcher.service.ts(413,69): error TS2339: Property 'artifacts' does not exist on type '{}'.
+src/agents/watcher.service.ts(565,16): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/auth/org-tenant-resolver.provider.spec.ts(2,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/auth/org-tenant-resolver.provider.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/auth/org-tenant-resolver.provider.ts(143,21): error TS18046: 'rows' is of type 'unknown'.
+src/auth/org-tenant-resolver.provider.ts(179,65): error TS18046: 'err' is of type 'unknown'.
+src/auth/org-tenant-resolver.provider.ts(182,16): error TS18046: 'err' is of type 'unknown'.
+src/auth/org-tenant-resolver.provider.ts(184,70): error TS18046: 'err' is of type 'unknown'.
+src/context/context-documents-availability.spec.ts(6,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/context/context-documents.service.spec.ts(11,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/context/context-documents.service.ts(14,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/context/context-documents.service.ts(299,18): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/context-documents.service.ts(300,30): error TS2339: Property 'archivedAt' does not exist on type '{}'.
+src/context/context-documents.service.ts(300,91): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/context-documents.service.ts(300,111): error TS2339: Property 'title' does not exist on type '{}'.
+src/context/context-documents.service.ts(321,38): error TS18046: 'docs' is of type 'unknown'.
+src/context/context-documents.service.ts(321,51): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/context/context-documents.service.ts(321,100): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/context/context-documents.service.ts(330,26): error TS18046: 'strategies' is of type 'unknown'.
+src/context/context-documents.service.ts(330,42): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/context/context-documents.service.ts(332,23): error TS18046: 'docs' is of type 'unknown'.
+src/context/context-documents.service.ts(342,20): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/context-documents.service.ts(347,25): error TS2339: Property 'archivedAt' does not exist on type '{}'.
+src/context/context-documents.service.ts(348,34): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/context-documents.service.ts(348,54): error TS2339: Property 'title' does not exist on type '{}'.
+src/context/context-documents.service.ts(414,23): error TS18046: 'rows' is of type 'unknown'.
+src/context/context-documents.service.ts(414,33): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/context/context-documents.service.ts(415,62): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/context/context-documents.service.ts(524,41): error TS2339: Property 'validUntil' does not exist on type '{}'.
+src/context/context-documents.service.ts(626,20): error TS18046: 'rows' is of type 'unknown'.
+src/context/context-import.service.ts(7,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/context/context-import.service.ts(106,9): error TS18046: 'existing' is of type 'unknown'.
+src/context/context-import.service.ts(109,31): error TS18046: 'existing' is of type 'unknown'.
+src/context/context-import.service.ts(110,36): error TS18046: 'existing' is of type 'unknown'.
+src/context/context-import.service.ts(115,51): error TS2339: Property 'id' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(115,86): error TS2339: Property 'document' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(116,22): error TS2339: Property 'authority' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(116,41): error TS2339: Property 'asOf' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(118,102): error TS2339: Property 'id' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(129,89): error TS2339: Property 'id' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(149,57): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/context/context-import.service.ts(155,42): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/context/context-import.service.ts(167,51): error TS2339: Property 'id' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(167,86): error TS2339: Property 'document' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(168,22): error TS2339: Property 'authority' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(168,41): error TS2339: Property 'asOf' does not exist on type '{ fact: string; }'.
+src/context/context-import.service.ts(171,90): error TS2339: Property 'id' does not exist on type '{ fact: string; }'.
+src/context/current-plan-export.service.ts(43,31): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(44,33): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(61,27): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(61,38): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/context/current-plan-export.service.ts(76,30): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/context/current-plan-export.service.ts(83,30): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(83,44): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/context/current-plan-export.service.ts(84,30): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(84,44): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/context/current-plan-export.service.ts(91,42): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(92,8): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/context/current-plan-export.service.ts(94,46): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/context/current-plan-export.service.ts(95,8): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/context/steward.service.spec.ts(12,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/context/steward.service.spec.ts(946,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/context/steward.service.spec.ts(966,12): error TS2571: Object is of type 'unknown'.
+src/context/steward.service.spec.ts(966,62): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/context/steward.service.spec.ts(967,66): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/context/steward.service.ts(12,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/context/steward.service.ts(88,13): error TS2339: Property 'state' does not exist on type '{}'.
+src/context/steward.service.ts(90,36): error TS2339: Property 'state' does not exist on type '{}'.
+src/context/steward.service.ts(97,41): error TS2339: Property 'content' does not exist on type '{}'.
+src/context/steward.service.ts(99,21): error TS2339: Property 'frontmatter' does not exist on type '{}'.
+src/context/steward.service.ts(115,30): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(117,34): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(129,23): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(130,25): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(131,26): error TS2339: Property 'templateKey' does not exist on type '{}'.
+src/context/steward.service.ts(134,22): error TS2339: Property 'content' does not exist on type '{}'.
+src/context/steward.service.ts(136,24): error TS18046: 'existing' is of type 'unknown'.
+src/context/steward.service.ts(136,38): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/context/steward.service.ts(155,50): error TS2339: Property 'content' does not exist on type '{}'.
+src/context/steward.service.ts(186,72): error TS2339: Property 'checksum' does not exist on type '{}'.
+src/context/steward.service.ts(193,34): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(205,29): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(206,27): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(239,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/context/steward.service.ts(239,64): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(241,17): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/context/steward.service.ts(258,35): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(272,23): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(273,34): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(375,20): error TS7006: Parameter 'fact' implicitly has an 'any' type.
+src/context/steward.service.ts(388,54): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(395,39): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/context/steward.service.ts(402,17): error TS2339: Property 'id' does not exist on type '{}'.
+src/context/steward.service.ts(403,19): error TS2339: Property 'fact' does not exist on type '{}'.
+src/context/steward.service.ts(404,28): error TS2339: Property 'document' does not exist on type '{}'.
+src/context/steward.service.ts(405,24): error TS2339: Property 'authority' does not exist on type '{}'.
+src/context/steward.service.ts(406,27): error TS2339: Property 'asOf' does not exist on type '{}'.
+src/context/steward.service.ts(407,23): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(410,37): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(416,40): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(416,73): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(418,45): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(419,42): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(559,35): error TS2532: Object is possibly 'undefined'.
+src/context/steward.service.ts(562,48): error TS7006: Parameter 'fact' implicitly has an 'any' type.
+src/context/steward.service.ts(562,87): error TS7006: Parameter 'fact' implicitly has an 'any' type.
+src/context/steward.service.ts(572,57): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(576,51): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/context/steward.service.ts(577,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(586,20): error TS2339: Property 'state' does not exist on type '{}'.
+src/context/steward.service.ts(586,49): error TS2339: Property 'state' does not exist on type '{}'.
+src/context/steward.service.ts(587,29): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(587,47): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/context/steward.service.ts(591,18): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(592,15): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/context/steward.service.ts(596,43): error TS2339: Property 'fact' does not exist on type '{}'.
+src/context/steward.service.ts(597,43): error TS2339: Property 'fact' does not exist on type '{}'.
+src/context/steward.service.ts(611,18): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/context/steward.service.ts(612,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/context/steward.service.ts(618,44): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/context/steward.service.ts(689,12): error TS18046: 'rows' is of type 'unknown'.
+src/context/steward.service.ts(689,22): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/flags/strategy-flags.service.ts(69,12): error TS18046: 'rows' is of type 'unknown'.
+src/meri/draft-job.service.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/draft-job.service.ts(71,9): error TS18046: 'clientRows' is of type 'unknown'.
+src/meri/draft-job.types.ts(3,33): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/governed-strategy-meri.factory.ts(98,26): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/meri/meri.service.spec.ts(3,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/meri.service.spec.ts(252,147): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/meri.service.ts(18,65): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/meri.service.ts(216,19): error TS18046: 'phases' is of type 'unknown'.
+src/meri/meri.service.ts(216,31): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/meri/meri.service.ts(257,9): error TS18046: 'clientRows' is of type 'unknown'.
+src/meri/meri.service.ts(450,31): error TS2339: Property 'archivedAt' does not exist on type '{}'.
+src/meri/meri.service.ts(451,48): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ id: string; title: string; type: string; goal: string | null; meriContext: string | null; targetDate: Date | null; nodes: { id: string; kind: string; subject: string; title: string; note: string | null; ... 6 more ...; meriAuthored: boolean; }[]; }'.
+  Type '{}' is missing the following properties from type '{ id: string; title: string; type: string; goal: string | null; meriContext: string | null; targetDate: Date | null; nodes: { id: string; kind: string; subject: string; title: string; note: string | null; ... 6 more ...; meriAuthored: boolean; }[]; }': id, title, type, goal, and 3 more.
+src/meri/meri.service.ts(455,43): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/meri/meri.service.ts(455,55): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/meri/meri.service.ts(489,48): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/meri/meri.service.ts(501,30): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/meri/meri.service.ts(540,79): error TS2339: Property 'lastEditedAt' does not exist on type '{}'.
+src/meri/meri.service.ts(549,29): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/meri/meri.service.ts(589,27): error TS2339: Property 'meriSummary' does not exist on type '{}'.
+src/meri/meri.service.ts(597,44): error TS2339: Property 'nodes' does not exist on type '{}'.
+src/meri/meri.service.ts(597,55): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/meri/meri.service.ts(600,77): error TS2339: Property 'lastEditedAt' does not exist on type '{}'.
+src/meri/meri.service.ts(633,38): error TS2339: Property 'type' does not exist on type '{}'.
+src/meri/meri.service.ts(633,73): error TS2339: Property 'title' does not exist on type '{}'.
+src/meri/meri.service.ts(633,91): error TS2339: Property 'goal' does not exist on type '{}'.
+src/meri/meri.service.ts(635,71): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/meri/meri.service.ts(653,22): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/meri/meri.service.ts(673,39): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/meri/meri.service.ts(745,9): error TS18046: 'rows' is of type 'unknown'.
+src/meri/meri.service.ts(745,19): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/meri/meri.service.ts(1035,37): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/meri/meri.service.ts(1205,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/meri/meri.service.ts(1214,23): error TS2339: Property 'state' does not exist on type '{}'.
+src/meri/meri.service.ts(1215,72): error TS2339: Property 'state' does not exist on type '{}'.
+src/meri/meri.service.ts(1216,23): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/meri/meri.service.ts(1216,49): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/meri/strategy-conversation.service.spec.ts(1,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/strategy-conversation.service.ts(2,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/meri/strategy-conversation.service.ts(441,65): error TS18046: 'err' is of type 'unknown'.
+src/planner/planner-activity.ts(6,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/planner/planner-activity.ts(81,41): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner-activity.ts(102,28): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner-attachments.service.ts(17,50): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/planner/planner-attachments.service.ts(73,14): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner-capacity.service.ts(27,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/planner/planner-capacity.service.ts(76,27): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner-capacity.service.ts(78,39): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner-reporting-data.ts(10,36): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/planner/planner-reporting-data.ts(61,49): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/planner/planner-reporting-data.ts(62,54): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/planner/planner-reporting-data.ts(103,36): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/planner/planner-reporting-data.ts(112,36): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/planner/planner-reporting-data.ts(114,21): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/planner/planner-scheduler.service.ts(53,10): error TS18046: 'tenants' is of type 'unknown'.
+src/planner/planner-scheduler.service.ts(57,32): error TS18046: 'tenants' is of type 'unknown'.
+src/planner/planner-scheduler.service.ts(108,7): error TS18046: 'tenants' is of type 'unknown'.
+src/planner/planner-scheduler.service.ts(110,11): error TS18046: 'tenants' is of type 'unknown'.
+src/planner/planner-scheduler.service.ts(110,19): error TS18046: 'tenants' is of type 'unknown'.
+src/planner/planner-task-create-command.ts(4,40): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/planner/planner.service.ts(77,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/planner/planner.service.ts(252,31): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<PlannerRole, number>'.
+src/planner/planner.service.ts(252,41): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<PlannerRole, number>'.
+src/planner/planner.service.ts(349,26): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(349,86): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(374,18): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(375,15): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(542,14): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(551,19): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(552,41): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(554,12): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(577,46): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(633,40): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(634,45): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(645,53): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(659,23): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(663,29): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(680,25): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(742,61): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(746,18): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/planner/planner.service.ts(749,24): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(930,40): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(952,36): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(961,42): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(972,34): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(980,40): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(985,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(1003,45): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(1021,38): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(1029,42): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(1036,40): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(1041,20): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(1042,17): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(1306,32): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/planner/planner.service.ts(1467,46): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(1726,24): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2117,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2201,43): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(2208,20): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(2209,17): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(2215,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner.service.ts(2219,23): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2219,73): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2227,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2241,25): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(2241,64): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(2300,42): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2424,62): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner.service.ts(2431,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/planner/planner.service.ts(2436,26): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(2438,36): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(2439,42): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2446,29): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2453,31): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2454,87): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2454,209): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2508,42): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2630,12): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/planner/planner.service.ts(2641,34): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(2642,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2671,28): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2671,78): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2672,34): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2672,87): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2682,22): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(2797,26): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2798,23): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(2842,29): error TS18046: 'page' is of type 'unknown'.
+src/planner/planner.service.ts(2929,44): error TS18046: 'page' is of type 'unknown'.
+src/planner/planner.service.ts(2929,63): error TS18046: 'page' is of type 'unknown'.
+src/planner/planner.service.ts(3169,32): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(3171,10): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/planner/planner.service.ts(3182,20): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(3183,17): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(3190,30): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3234,35): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/planner/planner.service.ts(3237,41): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3245,31): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<SpPlannerTask, "data" | "ownerId">'.
+  Type '{}' is missing the following properties from type 'Pick<SpPlannerTask, "data" | "ownerId">': data, ownerId
+src/planner/planner.service.ts(3248,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner.service.ts(3250,10): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner.service.ts(3269,14): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3272,17): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3286,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(3313,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(3369,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(3473,29): error TS18046: 'candidates' is of type 'unknown'.
+src/planner/planner.service.ts(3489,40): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(3557,44): error TS18046: 'candidates' is of type 'unknown'.
+src/planner/planner.service.ts(3557,69): error TS18046: 'candidates' is of type 'unknown'.
+src/planner/planner.service.ts(3817,37): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/planner/planner.service.ts(3864,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/planner/planner.service.ts(3893,28): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3894,34): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(3935,14): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3942,17): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(3943,53): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/planner/planner.service.ts(3945,18): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(3955,20): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/planner/planner.service.ts(4053,43): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/planner/planner.service.ts(4199,41): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4238,39): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/planner/planner.service.ts(4241,45): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(4242,47): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4250,33): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<SpPlannerTask, "data" | "ownerId">'.
+  Type '{}' is missing the following properties from type 'Pick<SpPlannerTask, "data" | "ownerId">': data, ownerId
+src/planner/planner.service.ts(4252,38): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<SpPlannerProject, "data" | "ownerId">'.
+  Type '{}' is missing the following properties from type 'Pick<SpPlannerProject, "data" | "ownerId">': data, ownerId
+src/planner/planner.service.ts(4256,67): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<SpPlannerProject, "data" | "ownerId">'.
+  Type '{}' is missing the following properties from type 'Pick<SpPlannerProject, "data" | "ownerId">': data, ownerId
+src/planner/planner.service.ts(4266,39): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<SpPlannerTask, "data">'.
+  Property 'data' is missing in type '{}' but required in type 'Pick<SpPlannerTask, "data">'.
+src/planner/planner.service.ts(4270,42): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<SpPlannerTask, "data">'.
+  Property 'data' is missing in type '{}' but required in type 'Pick<SpPlannerTask, "data">'.
+src/planner/planner.service.ts(4628,20): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4629,21): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4668,20): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4669,17): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4676,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner.service.ts(4694,18): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4695,15): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4697,64): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/planner/planner.service.ts(4722,21): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(4730,56): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(4735,41): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/planner/planner.service.ts(4739,20): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4740,17): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4741,9): error TS2322: Type '{ createdAt: {}; id: string; kind: PlannerResourceKind; projectId: string | null; ownerId: string; name: string; data: Record<string, unknown>; version: number; archived: boolean; ... 4 more ...; reportWarnings?: { ...; }[] | undefined; }[]' is not assignable to type 'ResourceRecord[]'.
+  Type '{ createdAt: {}; id: string; kind: PlannerResourceKind; projectId: string | null; ownerId: string; name: string; data: Record<string, unknown>; version: number; archived: boolean; access: PlannerRole; publicShared?: boolean; goalProgress?: PlannerGoalProgress; parentGoalIds?: string[]; reportWarnings?: { widgetId: s...' is not assignable to type 'ResourceRecord'.
+    Type '{ createdAt: {}; id: string; kind: PlannerResourceKind; projectId: string | null; ownerId: string; name: string; data: Record<string, unknown>; version: number; archived: boolean; access: PlannerRole; publicShared?: boolean; goalProgress?: PlannerGoalProgress; parentGoalIds?: string[]; reportWarnings?: { widgetId: s...' is not assignable to type '{ createdAt: Date; }'.
+      Types of property 'createdAt' are incompatible.
+        Type '{}' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 37 more.
+src/planner/planner.service.ts(4830,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4869,24): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4870,25): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4910,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4920,35): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4933,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4962,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(4997,24): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(4998,21): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/planner/planner.service.ts(5047,33): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(5068,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/planner/planner.service.ts(5126,32): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/planner/planner.service.ts(5201,12): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/planner/planner.service.ts(5201,15): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/planner/planner.service.ts(5206,43): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(5206,46): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/planner/planner.service.ts(5213,28): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(5224,29): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(5273,34): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(5279,34): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/planner/planner.service.ts(5387,14): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+src/planner/planner.spec.ts(17,54): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/prisma/prisma.service.ts(10,38): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/prisma/prisma.service.ts(81,5): error TS18046: 'err' is of type 'unknown'.
+src/prisma/prisma.service.ts(106,16): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(106,37): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(107,13): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(111,16): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(118,16): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(123,17): error TS2339: Property '$extends' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(128,36): error TS7031: Binding element 'model' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(128,43): error TS7031: Binding element 'operation' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(128,54): error TS7031: Binding element 'args' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(128,60): error TS7031: Binding element 'query' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(155,14): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(183,14): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(209,68): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/reference-ops.ts(19,30): error TS2307: Cannot find module '../generated/prisma-client/index.js' or its corresponding type declarations.
+src/reference-ops.ts(45,55): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/reference/reference.service.ts(61,46): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/reference/reference.service.ts(62,76): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/reference/reference.service.ts(142,31): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(187,49): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(348,37): error TS7006: Parameter 'document' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(349,33): error TS7006: Parameter 'fact' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(372,43): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(385,22): error TS7006: Parameter 'fact' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(400,14): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(417,27): error TS7006: Parameter 'member' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(424,17): error TS2322: Type '{}' is not assignable to type 'string'.
+src/reports/report-snapshot.service.ts(428,13): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(477,22): error TS7006: Parameter 'artifact' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(529,8): error TS7006: Parameter 'document' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(618,33): error TS7006: Parameter 'artifact' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(631,26): error TS2339: Property 'label' does not exist on type '{ kind: string; }'.
+src/reports/report-snapshot.service.ts(632,36): error TS2339: Property 'startsOn' does not exist on type '{ kind: string; }'.
+src/reports/report-snapshot.service.ts(633,34): error TS2339: Property 'endsOn' does not exist on type '{ kind: string; }'.
+src/reports/report-snapshot.service.ts(634,23): error TS2339: Property 'fy' does not exist on type '{ kind: string; }'.
+src/reports/report-snapshot.service.ts(649,12): error TS7006: Parameter 'version' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(657,12): error TS7006: Parameter 'run' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(667,12): error TS7006: Parameter 'changeSet' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(695,12): error TS7006: Parameter 'maximum' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(695,21): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(700,12): error TS7006: Parameter 'maximum' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(700,21): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(705,12): error TS7006: Parameter 'document' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(710,12): error TS7006: Parameter 'total' implicitly has an 'any' type.
+src/reports/report-snapshot.service.ts(710,19): error TS7006: Parameter 'document' implicitly has an 'any' type.
+src/seed.ts(25,41): error TS2307: Cannot find module '../generated/prisma-client/index.js' or its corresponding type declarations.
+src/seed.ts(37,38): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/strategy/detail.ts(1,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/strategy/mutation-lock.ts(2,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/strategy/node.service.spec.ts(6,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/strategy/node.service.spec.ts(354,30): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/strategy/node.service.spec.ts(355,34): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/node.service.ts(2,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/strategy/node.service.ts(328,37): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/strategy/strategy.service.ts(8,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/strategy/strategy.service.ts(85,12): error TS18046: 'rows' is of type 'unknown'.
+src/strategy/strategy.service.ts(85,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/strategy/strategy.service.ts(97,40): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/strategy/strategy.service.ts(98,42): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/strategy/strategy.service.ts(100,41): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/strategy/strategy.service.ts(101,38): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/strategy/strategy.service.ts(123,18): error TS2339: Property 'archivedAt' does not exist on type '{}'.
+src/strategy/strategy.service.ts(128,30): error TS2339: Property 'id' does not exist on type '{}'.
+src/strategy/strategy.service.ts(129,25): error TS2339: Property 'title' does not exist on type '{}'.
+src/strategy/strategy.service.ts(152,9): error TS18046: 'clientRows' is of type 'unknown'.
+src/strategy/version.service.spec.ts(603,32): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/strategy/version.service.spec.ts(604,36): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(9,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/strategy/version.service.ts(162,45): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(163,48): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(179,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/strategy/version.service.ts(183,10): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/strategy/version.service.ts(185,48): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/strategy/version.service.ts(213,53): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(215,53): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(218,22): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(219,19): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(224,41): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/strategy/version.service.ts(233,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/strategy/version.service.ts(277,59): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/strategy/version.service.ts(326,48): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/strategy/versioning.service.ts(2,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.

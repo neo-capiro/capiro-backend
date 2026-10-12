@@ -1,0 +1,15 @@
+{
+  "name": "pe-scripts-compiler",
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-reviewed-source-composition/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig.pe-scripts.json",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-reviewed-source-composition/apps/api",
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "exit": 0,
+  "seconds": 23.149,
+  "nativeAcceptance": false
+}
