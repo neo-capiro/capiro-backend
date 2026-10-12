@@ -1,0 +1,92 @@
+{
+  "baselineHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "baselineTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "sourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "sourceTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "changedPaths": [
+    "apps/api/src/clients/clients.memory-access-lock-order.spec.ts",
+    "apps/api/src/clients/clients.service.ts"
+  ],
+  "allPriorPathsOutsideTwoSourcePathsExact": true,
+  "originalUnchangedPathCount": 23161,
+  "canonicalOwnerBoundaries": [
+    {
+      "path": "apps/api/src/clients/clients.controller.ts",
+      "modeAndGitBlob": "100644 blob 54be4e4148352309522eb1632ca2e3750940dcb9",
+      "sha256": "f96cbd5660200686a96ce3e456c6f77ec55d2e9a51208197fdfe3f516f5d52f9",
+      "baselineExact": true
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "modeAndGitBlob": "100644 blob 60fbbc8a1de21962a95af60842d25087f58a612d",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9",
+      "baselineExact": true
+    },
+    {
+      "path": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "modeAndGitBlob": "100644 blob 40fbcf7d5ad5c4bf1b75963c97ac41207ebf64b6",
+      "sha256": "4709acfb1164a4e71fa508e03534a9015a0c8e7fc4ccc452264099e913281647",
+      "baselineExact": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "modeAndGitBlob": "100644 blob 10e2eee46c016062eebe60f00eb0041c49ac7b0d",
+      "sha256": "25f51b1d894370b6d735822001e06345360f213475eaece21d1c1fd403d61b1f",
+      "baselineExact": true
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "modeAndGitBlob": "100644 blob b7cf770413db5e5fab3c74ce07f7ed8ff873a993",
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc",
+      "baselineExact": true
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "modeAndGitBlob": "100644 blob 677810b805210533034bf268a6c26014311cda1d",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "baselineExact": true
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "modeAndGitBlob": "100644 blob 39ed5db53cf9599b72f9ddf1885568441b873217",
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+      "baselineExact": true
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "modeAndGitBlob": "100644 blob 767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+      "baselineExact": true
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "modeAndGitBlob": "100644 blob cd780f1d3505ce402004befd4266b0608f95a33a",
+      "sha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9",
+      "baselineExact": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "modeAndGitBlob": "100644 blob 42065a1749144afec30b1aa56ea5d865dac847bf",
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "baselineExact": true
+    }
+  ],
+  "protectedReportingProof": "Git blob/mode identity only; no protected reporting body read or copied.",
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "blob": "dbc180fe215e58b64f2d101f4aba56b20095309f",
+      "sha256": "1d854d3fa4080d2ff613741d3a607285a2e88e28a13f55358a8c508cfddc9dec",
+      "bytes": 70294
+    },
+    {
+      "path": "apps/api/src/clients/clients.memory-access-lock-order.spec.ts",
+      "blob": "5f4358f265e1313887d1002b43f08fbd2db5a4eb",
+      "sha256": "233c230fbfd5a29cd943c083b8a48f64783dda1c4c93a2bba972bf2d903cbe5c",
+      "bytes": 11688
+    }
+  ],
+  "wholeServiceInverseControlPass": true,
+  "authorEvidenceHead": "4c4791ea1e66032fa435b889562c02a3e43eb027",
+  "authorEvidenceDocsOnly": true
+}

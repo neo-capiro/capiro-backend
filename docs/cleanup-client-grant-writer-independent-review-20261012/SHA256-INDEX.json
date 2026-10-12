@@ -1,0 +1,108 @@
+{
+  "schema": "capiro.cleanup-client-grant-writer-independent-review.sha256.v1",
+  "acceptedSourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "acceptedSourceTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "files": [
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 3653,
+      "sha256": "f57d6096461adb61cd53d4d491e0342b08eda8bef7225089e582acff8b64238a"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/REVIEW.md",
+      "bytes": 7267,
+      "sha256": "1263754fef88218debf36988f142baa17444af46878c7b91e4ee8f3f0df977dd"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/author-packet-index-verification.json",
+      "bytes": 13275,
+      "sha256": "7254be44e7b055fdf811824aa75dbeb53a6d9ab558c1dc1257c70f20e722d2b2"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/author16-focused.jest.cjs",
+      "bytes": 788,
+      "sha256": "3422ec7f3b169365413e3497cad9965d8c0e775417c9555b0cfa3d84392e39b1"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/author16-independent-results.json",
+      "bytes": 8909,
+      "sha256": "8b19f9a07042b81125c0b336fd46129ba6f0ded5f986dbb6faa2ef585380bb32"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/author16-independent.log",
+      "bytes": 1836,
+      "sha256": "3f63428ae5da10e1001208a266084867baea25e2308055ed57afd5d4dfec8518"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/author16-private-host.json",
+      "bytes": 356,
+      "sha256": "a0b1bf503481206173ff77167b9cf8975d3825b8369f385d24d050b420eb6f82"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-harness-attempt-1-stop.json",
+      "bytes": 344,
+      "sha256": "f30eec5dd1a7b37447bde5fd9ca32a34a5a05e7d8b69b5ed1a51d2f83809e326"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-harness-attempt-1.json",
+      "bytes": 439,
+      "sha256": "55f069f94b302bbc6e1e48b0306a4c6786a8134a0c233247106079922d1a0dbc"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-method-controls-40.log",
+      "bytes": 3229,
+      "sha256": "a1a7e93811840cd9c0b1a05503696fc871b35a07919e4181d63e191e5d9d751b"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-method-controls-attempt-1.cjs",
+      "bytes": 11004,
+      "sha256": "4bab563570e2277c3510b1b94dadf9e62d871f65075073a2d38206e24db7ca4d"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-method-controls-attempt-1.log",
+      "bytes": 2148,
+      "sha256": "3bc797287db6d47327313b43af92e6cc286b84d092d3c7e61e8cbbbba7029de2"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-method-controls-final.log",
+      "bytes": 3339,
+      "sha256": "a864990dab614c1e18cbf5368bfa9e49c67e1c62676e6b361104564b0b3a815f"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-method-controls.cjs",
+      "bytes": 14894,
+      "sha256": "6249b56a5f9b966325367254f2c6070be3af0c622216b6734c91f849145b26bd"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/independent-method-controls.log",
+      "bytes": 2605,
+      "sha256": "500415071239e0716a47eeec357abb468a59b6157ba348dc5744045e92767d62"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/original-source-binding.json",
+      "bytes": 404,
+      "sha256": "36ecd30137bb680bd10a8bd86e162467fb3465e5048d26c71e146d2469daa126"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/refuse-unrelated-runtime.cjs",
+      "bytes": 1280,
+      "sha256": "b9a447687554ece7c4ca433d7cdae9e784f52f2ea5687325d327f30cf4b2bed6"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/source-union-and-owner-proof.json",
+      "bytes": 3890,
+      "sha256": "0ea167ce3171f911e630ca67cf9dedbb9b495c1f3270853336f28a466b0622a5"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/test-results-summary.json",
+      "bytes": 684,
+      "sha256": "6e24f92a29adc94a8fc15a63ae373675476f54c9080095be56bd7421bb98e213"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/evidence/verification-harness-corrections.json",
+      "bytes": 756,
+      "sha256": "328e4993b3390403318d579b56094df77d760db0303288bb7f931cfdf2df73a4"
+    }
+  ],
+  "indexSelfExcluded": true
+}

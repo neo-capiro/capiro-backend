@@ -1,0 +1,21 @@
+{
+  "pythonSourceProofAttempt": {
+    "status": "SyntaxError before execution",
+    "error": "Python dict(pass=...) used reserved keyword; no proof/file work executed.",
+    "corrected": "passed/failed field names in the successful proof."
+  },
+  "exploratoryReads": [
+    {
+      "path": "packages/shared/src/tenant.ts",
+      "status": "absent",
+      "actualOwner": "packages/shared/src/index.ts:59"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/AUTHOR-RECEIPT.json",
+      "status": "absent",
+      "actualOwner": "HANDOFF.md and SHA256-INDEX.json"
+    }
+  ],
+  "inertAsyncProbeSchedulingCorrection": "independent-harness-attempt-1.json",
+  "oldOwnProcessStopCorrection": "independent-harness-attempt-1-stop.json"
+}
