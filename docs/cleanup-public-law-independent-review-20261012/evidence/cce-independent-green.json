@@ -1,0 +1,2268 @@
+{
+  "source": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "tree": "060622781263a78b255cff9850d66a4b2d465bfd",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "typescriptVersion": "5.9.3",
+  "sourceOnly": true,
+  "grammarCases": 54,
+  "grammarRows": [
+    {
+      "name": "exact immutable owner",
+      "expectedAccepted": true,
+      "accepted": true,
+      "failures": [],
+      "sourceSha256": "975303f4a2386b30a8069446c844106f3a44f69b09261c0a5ec7db9bc9e05aca"
+    },
+    {
+      "name": "comment and CRLF trivia",
+      "expectedAccepted": true,
+      "accepted": true,
+      "failures": [],
+      "sourceSha256": "379203fc6d8b7ba36bbfec8c97dff866c48d87fc5e55bb7adce2b3a3fb538f9d"
+    },
+    {
+      "name": "equivalent quoted values",
+      "expectedAccepted": true,
+      "accepted": true,
+      "failures": [],
+      "sourceSha256": "753d259a05ce9788707100114b636340f6305ab2b75e57777b683ad6ccb7181f"
+    },
+    {
+      "name": "equivalent escaped identifier",
+      "expectedAccepted": true,
+      "accepted": true,
+      "failures": [],
+      "sourceSha256": "f8a9ba6880941ad2cf0a75c6b37e17c09e8e42d1745aa4fe126f72dd7ee24e34"
+    },
+    {
+      "name": "non-child prefix operator +",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "074388480fdc7231f044de87f3ca648abdd639567f9ff2adf3143b665d8d0b59"
+    },
+    {
+      "name": "non-child prefix operator -",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "629fe8df6871fef652c5ac2fecdbbd4d05ffc19d6b5faac1e46b5377b0faff27"
+    },
+    {
+      "name": "non-child prefix operator ~",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "cef4c4015f3b0d6398c011d647150eed8cf11a76494c1202930faaf28b7f8f16"
+    },
+    {
+      "name": "non-child prefix operator ++",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "0db6824492e83653a6c71eee3307f0a9fa544974e6976222600355a75c2ac01f"
+    },
+    {
+      "name": "non-child prefix operator --",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "1553475fb00dc52668542d294b3209357a7182bea44e172bcfd8ff1949993d95"
+    },
+    {
+      "name": "non-child deferred fs import",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates read-only filesystem import"
+      ],
+      "sourceSha256": "5b2d61dbb9562d506fa85ce6ae57a53fa733c478f7739346da011da312840834"
+    },
+    {
+      "name": "non-child deferred schema import",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates canonical proof and candidate schema imports"
+      ],
+      "sourceSha256": "75d957c1c252868b2f96b01212b6f26e027a73a138ed1fe168cc463778ed17ac"
+    },
+    {
+      "name": "object modifier readonly",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "2fe56ed6555904267bfba5d357ced5c2b6e1a71e15e87fd39b755d3e72f83d27"
+    },
+    {
+      "name": "object modifier public",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "e94f5329db0b2c0962baeb172c72a714c00543a42d9b06ef4e96930b269405dd"
+    },
+    {
+      "name": "object modifier async",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "eecf78013448f1ed77074c66b5e71a8f9faeac9b58a3c1de690cbeec114f899d"
+    },
+    {
+      "name": "object modifier abstract",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "3826a848fac17e814fbcad59faa94e7dddd901f51665cb1afd51148e6c7ea852"
+    },
+    {
+      "name": "object modifier static",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "c70fd142e60dcda289a7d3a7f700c8c96fdafda04425a229e0b23aebc37b007e"
+    },
+    {
+      "name": "optional report member",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "306e374af4eafb9ac2766f4be804bf31cdce680ac94c086b8da4066df5a10501"
+    },
+    {
+      "name": "asserted report member",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "c89839b0db6e865863654e190c034c32e4f1e6e6e735c3dcda4f509a09d38a91"
+    },
+    {
+      "name": "missing commit refusal",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "f30a004157ba373a44e7e6bff0f6091aa1e5a4d732ad71e65b8a867e8b00e3c6"
+    },
+    {
+      "name": "approval-conditioned refusal",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "38adeff17fe5de06ab7c77ae709dcc7a4cd638d69e70bf7e68c04f994b4d076c"
+    },
+    {
+      "name": "side-effect proof import",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade contains missing or additional executable statements",
+        "public-law facade violates read-only filesystem import",
+        "public-law facade violates canonical proof and candidate schema imports",
+        "public-law facade violates read-only argument lookup",
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report",
+        "public-law facade violates single invocation with nonzero error handling"
+      ],
+      "sourceSha256": "9fe1458cc29fcaf5af917390cbc5d0faf8316abcd039278a78ef9066518899de"
+    },
+    {
+      "name": "filesystem import rebinding",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates read-only filesystem import"
+      ],
+      "sourceSha256": "bad967c30d6e3af83d77b755e00e70a91617eafa68858c67d48fdd8f96859429"
+    },
+    {
+      "name": "schema import changed module",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates canonical proof and candidate schema imports"
+      ],
+      "sourceSha256": "69c8681a61672268bd07913ebf9bc312c4573479902915ad0fe809c3af37be8e"
+    },
+    {
+      "name": "type-only filesystem import",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates read-only filesystem import"
+      ],
+      "sourceSha256": "e4a88aac4861385b1c85d73d0ac03324d39c97cda2bb3011144d8a4ea37545e2"
+    },
+    {
+      "name": "import schema local alias",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates canonical proof and candidate schema imports"
+      ],
+      "sourceSha256": "c340d674a28b98bf79a9b5684525c8a16b429640d2b7728dbc937dcbe4067aaf"
+    },
+    {
+      "name": "type-only proof binding",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates canonical proof and candidate schema imports"
+      ],
+      "sourceSha256": "31f2562c610278ed7300c898177e6d36c0404035bc0988538f58585df132d3df"
+    },
+    {
+      "name": "filesystem rebind",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "861591637b02cede0e26efcb7c0aab597ed8bdad88b970f373682e1f33769e66"
+    },
+    {
+      "name": "schema rebind",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "0a664d6ed4c302f2c6b253d1360c8f37c049a57f346591e905f25605d26544bd"
+    },
+    {
+      "name": "schema shadow",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "c85467d58085367dee1b8805403dda7e03f1a94f7b7fed80338609bbd1ce6a92"
+    },
+    {
+      "name": "read before commit refusal",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "da3277fccf8d10bf595451a6636395a1e2ae6bc75a4d8c3b8be5f9936a7458fa"
+    },
+    {
+      "name": "commit refusal operation becomes optional",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "c5afc22cb795049ac67b9c6520fa25c94aca6ce38ad7f8ff29ee608775a28548"
+    },
+    {
+      "name": "proof validation result bypass",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "f293aeb41721c2c65e1231dfa8dd64aefaf98e9093f58a485494b6a5251cece1"
+    },
+    {
+      "name": "proof safeParse result ignored",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "f6744a0230828be8ca5097eba0b42a7f2989bc45d311a225d3f3409137e0f460"
+    },
+    {
+      "name": "candidate validation bypass",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "1f28c10251c881af260110c4fb22560e87c3361e1b25e7d7c031e1ef303e02ba"
+    },
+    {
+      "name": "candidate parsing optional chain",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "46cb109d396600d147c18e7a5c5427645f354ca4b7f58d75ed195f231c97ddcd"
+    },
+    {
+      "name": "mutable proof binding",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "184618a4715d4b1f2a9913f4eaa1797ecaf77c7dab82f05c0331350f6cb7dba9"
+    },
+    {
+      "name": "using disposal binding",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "d905909b203fee75e59c0488434786a1baf6f19677198e10223100798adc18b2"
+    },
+    {
+      "name": "await-using disposal binding",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "8738893b1693433f025318a39cf5582b9000a34d7fb5a7f551d325f97ede63d5"
+    },
+    {
+      "name": "candidates array condition inversion",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "f7521a52dd8d51545e144fa50afaf7980832ebf96edf4d027f095510596f7090"
+    },
+    {
+      "name": "truthful read-only mode altered",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "01c942a118abd91da3d6c4fb32886998ad6ef7673265033af509b5d5537255dd"
+    },
+    {
+      "name": "write success reported",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "1335d4662ba1725de0b31583132908a7f4dd3e39189784b363929b9240445fb7"
+    },
+    {
+      "name": "fake certification reported",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "78056f01470c786fef6fbb964efb3066556761c5664b966b6e8f42b82c2fa9fe"
+    },
+    {
+      "name": "wrong candidate count",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "39803b5e5168ba4a6be116ac36138e350f5a269eed079e13ed7c7abeb3acd6b4"
+    },
+    {
+      "name": "proof identity reported from raw argv",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "ea27d1edb1b18aeadfd941a1cdddc21df4dd21cd6e6f899825c769ea5533de49"
+    },
+    {
+      "name": "provider call after output",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates single invocation with nonzero error handling"
+      ],
+      "sourceSha256": "2c416bc05a7ed4308748deb0d4ec84c422c659873aaf3538a7431f930a80f562"
+    },
+    {
+      "name": "successful caught-error exit",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates single invocation with nonzero error handling"
+      ],
+      "sourceSha256": "c3e34267053e40208f72c823229960141ebf4d3003de4d0416421894279e2b5a"
+    },
+    {
+      "name": "main not called",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates single invocation with nonzero error handling"
+      ],
+      "sourceSha256": "275459e31353eff64c953a06044d14a1e232e72d4a2ec4f6a04f06bbf569510b"
+    },
+    {
+      "name": "main called twice",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates single invocation with nonzero error handling"
+      ],
+      "sourceSha256": "c322167e4e6976e1762f76eedd91263c307615a6b9c04f3dea3cae9c428a0ed5"
+    },
+    {
+      "name": "extra executable function",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade contains missing or additional executable statements"
+      ],
+      "sourceSha256": "ffb94ab623cc70a0df6825016a77d28d7f95ab4841ecd2b90854200150340c0b"
+    },
+    {
+      "name": "dynamic provider import",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report"
+      ],
+      "sourceSha256": "e1b058d8aae16e7e5a123317226ad91c506aa1f924bb745f1fabef3593930ccd"
+    },
+    {
+      "name": "global binding replacement",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade contains missing or additional executable statements"
+      ],
+      "sourceSha256": "207d4d3f193964b5c9f28081373aa918d02ad17508bd0193277aed0ad134e65d"
+    },
+    {
+      "name": "marker-only replacement",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade contains missing or additional executable statements",
+        "public-law facade violates read-only filesystem import",
+        "public-law facade violates canonical proof and candidate schema imports",
+        "public-law facade violates read-only argument lookup",
+        "public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report",
+        "public-law facade violates single invocation with nonzero error handling"
+      ],
+      "sourceSha256": "119637185fb7f415e9ac06a444e0614be5a1baded67326a1ac301dd9881d5340"
+    },
+    {
+      "name": "malformed escape template",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade has invalid TypeScript syntax"
+      ],
+      "sourceSha256": "072480f6a161149e7f0533a50b67c2db2d79d443965376fe1a23e0e2b589a9e8"
+    },
+    {
+      "name": "malformed TypeScript",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failures": [
+        "public-law facade has invalid TypeScript syntax"
+      ],
+      "sourceSha256": "0503cfc47aa756207aa2a3209d943c6c5e1e72a10917f6ab30ff268a3926065e"
+    }
+  ],
+  "facadeInertCases": 12,
+  "facadeRows": [
+    {
+      "argv": [
+        "--commit"
+      ],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "parse-defense-approps-public-law: canonical enacted commit is disabled in Phase 6; use proof-gated cycle inspection/certification"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json",
+        "--commit"
+      ],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "parse-defense-approps-public-law: canonical enacted commit is disabled in Phase 6; use proof-gated cycle inspection/certification"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json",
+        "--approved-sha256",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--commit"
+      ],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "parse-defense-approps-public-law: canonical enacted commit is disabled in Phase 6; use proof-gated cycle inspection/certification"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--commit",
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json",
+        "--extract-only"
+      ],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "parse-defense-approps-public-law: canonical enacted commit is disabled in Phase 6; use proof-gated cycle inspection/certification"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "Usage: parse:defense-approps-public-law -- --proof <enactment-proof.json> --candidates <line-candidates.json>"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--proof",
+        "proof.json"
+      ],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "Usage: parse:defense-approps-public-law -- --proof <enactment-proof.json> --candidates <line-candidates.json>"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--candidates",
+        "candidates.json"
+      ],
+      "exitCode": 1,
+      "reads": [],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "Usage: parse:defense-approps-public-law -- --proof <enactment-proof.json> --candidates <line-candidates.json>"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json"
+      ],
+      "exitCode": 0,
+      "reads": [
+        "proof.json",
+        "candidates.json"
+      ],
+      "parses": [
+        "proof",
+        "candidate",
+        "candidate"
+      ],
+      "output": [
+        "{\n  \"mode\": \"INSPECT_ONLY\",\n  \"canonicalWrites\": false,\n  \"proofId\": \"synthetic-proof\",\n  \"publicLawNumber\": \"synthetic-law\",\n  \"proofType\": \"statutory_line_item\",\n  \"candidateCount\": 2,\n  \"next\": \"verify the Phase 6 enacted proof chain; no canonical promotion is available here\"\n}"
+      ],
+      "errors": [],
+      "effects": []
+    },
+    {
+      "name": "malformed proof JSON",
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json"
+      ],
+      "exitCode": 1,
+      "reads": [
+        "proof.json"
+      ],
+      "parses": [],
+      "output": [],
+      "errors": [
+        "SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+      ],
+      "effects": []
+    },
+    {
+      "name": "invalid proof schema",
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json"
+      ],
+      "exitCode": 1,
+      "reads": [
+        "proof.json"
+      ],
+      "parses": [
+        "proof"
+      ],
+      "output": [],
+      "errors": [
+        "inert proof refusal"
+      ],
+      "effects": []
+    },
+    {
+      "name": "non-array candidates",
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json"
+      ],
+      "exitCode": 1,
+      "reads": [
+        "proof.json",
+        "candidates.json"
+      ],
+      "parses": [
+        "proof"
+      ],
+      "output": [],
+      "errors": [
+        "candidates file must be an array"
+      ],
+      "effects": []
+    },
+    {
+      "name": "second candidate invalid",
+      "argv": [
+        "--proof",
+        "proof.json",
+        "--candidates",
+        "candidates.json"
+      ],
+      "exitCode": 1,
+      "reads": [
+        "proof.json",
+        "candidates.json"
+      ],
+      "parses": [
+        "proof",
+        "candidate",
+        "candidate"
+      ],
+      "output": [],
+      "errors": [
+        "inert candidate refusal"
+      ],
+      "effects": []
+    }
+  ],
+  "verifierInertCases": 54,
+  "verifierRows": [
+    {
+      "argv": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "uncaught": null,
+      "reads": [],
+      "output": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+      ],
+      "errors": [],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "uncaught": null,
+      "reads": [],
+      "output": [],
+      "errors": [
+        "Unknown argument(s): --unknown",
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [
+        "--help",
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "uncaught": null,
+      "reads": [],
+      "output": [],
+      "errors": [
+        "Unknown argument(s): --unknown",
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+      ],
+      "effects": []
+    },
+    {
+      "argv": [],
+      "exitCode": 0,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [
+        "{\n  \"ok\": true,\n  \"loadersChecked\": 13,\n  \"loaders\": [\n    \"sync-comptroller-jbooks.ts\",\n    \"sync-jbook-r2.ts\",\n    \"sync-jbook-performers.ts\",\n    \"parse-pdoc-army.ts\",\n    \"load-pdoc-enrichment.ts\",\n    \"load-om.ts\",\n    \"load-om-op5.ts\",\n    \"parse-hasc-sasc-reports.ts\",\n    \"parse-defense-approps-reports.ts\",\n    \"parse-ndaa-conference.ts\",\n    \"parse-defense-approps-public-law.ts\",\n    \"ingest-defense-budget-pdf.ts\",\n    \"load-defense-budget-package.ts\"\n  ]\n}"
+      ],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+      ],
+      "effects": []
+    },
+    {
+      "name": "non-child prefix operator +",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "non-child prefix operator -",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "non-child prefix operator ~",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "non-child prefix operator ++",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "non-child prefix operator --",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "non-child deferred fs import",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only filesystem import\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "non-child deferred schema import",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates canonical proof and candidate schema imports\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "object modifier readonly",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "object modifier public",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "object modifier async",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "object modifier abstract",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "object modifier static",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "optional report member",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "asserted report member",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "missing commit refusal",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "approval-conditioned refusal",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "side-effect proof import",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade contains missing or additional executable statements\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only filesystem import\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates canonical proof and candidate schema imports\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only argument lookup\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates single invocation with nonzero error handling\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "filesystem import rebinding",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only filesystem import\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "schema import changed module",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates canonical proof and candidate schema imports\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "type-only filesystem import",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only filesystem import\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "import schema local alias",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates canonical proof and candidate schema imports\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "type-only proof binding",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates canonical proof and candidate schema imports\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "filesystem rebind",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "schema rebind",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "schema shadow",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "read before commit refusal",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "commit refusal operation becomes optional",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "proof validation result bypass",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "proof safeParse result ignored",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "candidate validation bypass",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "candidate parsing optional chain",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "mutable proof binding",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "using disposal binding",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "await-using disposal binding",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "candidates array condition inversion",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "truthful read-only mode altered",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "write success reported",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "fake certification reported",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "wrong candidate count",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "proof identity reported from raw argv",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "provider call after output",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates single invocation with nonzero error handling\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "successful caught-error exit",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates single invocation with nonzero error handling\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "main not called",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates single invocation with nonzero error handling\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "main called twice",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates single invocation with nonzero error handling\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "extra executable function",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade contains missing or additional executable statements\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "dynamic provider import",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "global binding replacement",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade contains missing or additional executable statements\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "marker-only replacement",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade contains missing or additional executable statements\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only filesystem import\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates canonical proof and candidate schema imports\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates read-only argument lookup\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates inspection main with first unconditional commit refusal, required validation and truthful report\",\n    \"parse-defense-approps-public-law.ts: public-law facade violates single invocation with nonzero error handling\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "malformed escape template",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade has invalid TypeScript syntax\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    },
+    {
+      "name": "malformed TypeScript",
+      "argv": [],
+      "exitCode": 1,
+      "uncaught": null,
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "output": [],
+      "errors": [
+        "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]",
+        "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: public-law facade has invalid TypeScript syntax\"\n  ]\n}"
+      ],
+      "effects": [],
+      "expectedExit": 1
+    }
+  ],
+  "facadeInventoryOtherLoaderPredicatesAndOwnersPreserved": true,
+  "preserved": [
+    {
+      "path": "apps/api/scripts/parse-defense-approps-public-law.ts",
+      "sha256": "975303f4a2386b30a8069446c844106f3a44f69b09261c0a5ec7db9bc9e05aca"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "sha256": "95424aff212423b61f05fd47a810c88242410ac514b9b40ce1a7e8b235876022"
+    },
+    {
+      "path": "apps/api/scripts/sync-comptroller-jbooks.ts",
+      "sha256": "9516a2533c60cb342e52bcf586488680b9fd4696952cea894aa1df391d354b39"
+    },
+    {
+      "path": "apps/api/scripts/sync-jbook-r2.ts",
+      "sha256": "d1aa75865075424a80d7ac08c43ada183c778c7057c1a14adefa8a05c1de36b1"
+    },
+    {
+      "path": "apps/api/scripts/sync-jbook-performers.ts",
+      "sha256": "cbb8395e03205d20830040adf9cb391dcebdbc7dfc2164a5344aaf123c677cf5"
+    },
+    {
+      "path": "apps/api/scripts/parse-pdoc-army.ts",
+      "sha256": "81d2f97b8a67d139fa355aa78f7256cc06f45a870c50ad8c03a49aef790280db"
+    },
+    {
+      "path": "apps/api/scripts/load-pdoc-enrichment.ts",
+      "sha256": "86a5715d415351d9a7ca28107e3ba5078405adfdeff64e0a470dbb71f133bc67"
+    },
+    {
+      "path": "apps/api/scripts/load-om.ts",
+      "sha256": "4649ee14b6d4c51f1008cadcf15d4bbd70360fde26eddc3c4454b7c4241a7103"
+    },
+    {
+      "path": "apps/api/scripts/load-om-op5.ts",
+      "sha256": "7d0203a9d1c2c6f7c988ac9f500580e68a1edae5301039b650062653d00e8c4c"
+    },
+    {
+      "path": "apps/api/scripts/parse-hasc-sasc-reports.ts",
+      "sha256": "e4c2c2242737c2d0bf1ea7495b247bdb54e9b7fada90c2b17854a73448cb3295"
+    },
+    {
+      "path": "apps/api/scripts/parse-defense-approps-reports.ts",
+      "sha256": "b0c6e98326a82291cb1a824f051f16b9092b0a3cf1e9ca74cd46e4de483326e2"
+    },
+    {
+      "path": "apps/api/scripts/parse-ndaa-conference.ts",
+      "sha256": "b488cb4e20c9a56d4930ea6b31f4d08242a08c47d3247ac9630d2cb46654a447"
+    },
+    {
+      "path": "apps/api/scripts/ingest-defense-budget-pdf.ts",
+      "sha256": "b4d22f0baca8465a72f983e633fa5eb378f02d22ba1c12871518ceb4d2487d88"
+    },
+    {
+      "path": "apps/api/scripts/load-defense-budget-package.ts",
+      "sha256": "67440c4d346101143744ed7e059e632806964c042c48b76e515cacd30a0ff13a"
+    },
+    {
+      "path": "apps/api/src/defense-budget/stages/enacted/enactment-proof-v1.ts",
+      "sha256": "801bd6e8705c3e46efd26eb2f6b287538d4a59e708a3230b412d7ab4b39dd0c7"
+    },
+    {
+      "path": "apps/api/src/defense-budget/contracts/canonical-json.ts",
+      "sha256": "8378e808102e19c25a70190e7c9918c5246ab2a53dd130a2e7c77c99432c5e67"
+    },
+    {
+      "path": "apps/api/src/defense-budget/contracts/extraction-artifact-v1.ts",
+      "sha256": "8052f1b78b9bff4c1e6342e4c588e6a8782b0fc46dd6d6f0cdfe781aeaa37e5b"
+    }
+  ],
+  "sourceDelta": [
+    "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.ts",
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts"
+  ],
+  "grammarBlockers": [],
+  "verifierIntegrationBlockers": [],
+  "smokeMetadata": "@cleanup-smoke noArgsExit=1 helpExit=0",
+  "limits": "Only source parsing and fake/inert VM execution; no real artifact, provider, DB, schema, migration, Prisma/native/subject child, full Core or deployment."
+}

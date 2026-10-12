@@ -1,0 +1,69 @@
+{
+  "reviewedSource": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "reviewedTree": "060622781263a78b255cff9850d66a4b2d465bfd",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "sourceSemanticsAccepted": true,
+  "facadeInventoryOther12LoaderBlobsAndPredicatesCanonicalSchemasUnchanged": true,
+  "passingIndependentCases": {
+    "grammar": 54,
+    "actualImmutableFacadeInert": 12,
+    "verifierInert": 54,
+    "total": 120
+  },
+  "focusedStrictNoUncheckedHelperSemanticCompile": "exit0; only pure helper and installed library declarations",
+  "initialSourceBlocked": {
+    "source": "fcbf671f585968144b30293c2b1a4fc146cd82ff",
+    "tree": "e709f6027cc473971aa3700dba50056bd040087d",
+    "discriminantDefects": [
+      "non-child prefix operator +",
+      "non-child prefix operator -",
+      "non-child prefix operator ~",
+      "non-child prefix operator ++",
+      "non-child prefix operator --",
+      "non-child deferred fs import",
+      "non-child deferred schema import"
+    ],
+    "integrationDefects": [
+      "non-child prefix operator +",
+      "non-child prefix operator -",
+      "non-child prefix operator ~",
+      "non-child prefix operator ++",
+      "non-child prefix operator --",
+      "non-child deferred fs import",
+      "non-child deferred schema import"
+    ]
+  },
+  "pendingRootIntegration": [
+    "truthful verifier noArgsExit0 metadata",
+    "root exactSHA CLI characterization to genuine ordered13-loader success; both migration refusal controls preserved"
+  ],
+  "migrationRefusalsRemainSeparateBlockers": true,
+  "rawChecks": [
+    {
+      "stdout": "fcbf-independent-red.json",
+      "stderr": "fcbf-independent-red.log",
+      "exitCode": 1,
+      "meaning": "reviewer harness root-path-depth correction; raw retained"
+    },
+    {
+      "stdout": "fcbf-grammar-red.json",
+      "stderr": "fcbf-grammar-red.log",
+      "exitCode": 1,
+      "meaning": "genuine seven grammar/integration source defects; fixed in reviewedsource"
+    },
+    {
+      "stdout": "cce-independent-green.json",
+      "stderr": "cce-independent-green.log",
+      "exitCode": 0,
+      "meaning": "all120independentcontrols passed"
+    },
+    {
+      "stdout": "cce-focused-typecheck.json",
+      "stderr": "cce-focused-typecheck.log",
+      "exitCode": 0,
+      "meaning": "pure helper scopedsemanticcompile"
+    }
+  ],
+  "sourceOnly": true,
+  "fullCoreOrNativeDbProviderOrProofCertificationAcceptance": false
+}

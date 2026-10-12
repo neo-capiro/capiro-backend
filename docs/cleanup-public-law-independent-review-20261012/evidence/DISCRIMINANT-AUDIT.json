@@ -1,0 +1,77 @@
+{
+  "source": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "typescriptVersion": "5.9.3",
+  "scope": "Five permitted top-level statements and all descendant SyntaxKinds; actual frozen facade unchanged",
+  "fields": [
+    {
+      "field": "SyntaxKind + ordered forEachChild descendants",
+      "meaning": "statements, calls, binary operator token, conditionals, declarations, modifiers, bindings and control order",
+      "coverage": "whole-program closed-tree comparison; independent import/rebinding/validation/output/call insertion mutations"
+    },
+    {
+      "field": "Identifier/privateIdentifier.text",
+      "meaning": "exact decoded bindings/property names",
+      "coverage": "alias/shadow/rebind denied; equivalent escaped identifier accepted because semantic name unchanged"
+    },
+    {
+      "field": "String/Numeric/Template token.text",
+      "meaning": "decoded module target, flag, report, error and numeric values",
+      "coverage": "path/posture/output/count mutations denied; equivalent quotes accepted"
+    },
+    {
+      "field": "ImportClause/ImportSpecifier.isTypeOnly",
+      "meaning": "runtime binding versus erased import",
+      "coverage": "type-only bindings/imports denied"
+    },
+    {
+      "field": "ImportClause.phaseModifier",
+      "meaning": "ordinary eager versus deferred import",
+      "coverage": "two genuine fcbfREDs; both rejected after correction"
+    },
+    {
+      "field": "VariableDeclarationList.flags",
+      "meaning": "const/let/var/using/await-using behavior",
+      "coverage": "mutable/disposal declaration mutations denied"
+    },
+    {
+      "field": "Prefix/PostfixUnaryExpression.operator",
+      "meaning": "logical/not versus other arithmetic/update operations",
+      "coverage": "five genuine fcbfREDs; all rejected after correction; permitted facade contains prefix, no postfix node"
+    },
+    {
+      "field": "TypeOperatorNode.operator",
+      "meaning": "type-operator identity",
+      "coverage": "serialized defensively; no permitted TypeOperatorNode in current facade"
+    },
+    {
+      "field": "optionalChain + questionDotToken",
+      "meaning": "unconditional required call/access versus optional skipping",
+      "coverage": "proof/candidate/refusal optional mutations denied"
+    },
+    {
+      "field": "literal/template flags + unterminated state",
+      "meaning": "numeric representation and invalid/unterminated token handling",
+      "coverage": "serialized defensively, parseDiagnostics fail closed; malformed escape/syntax denied"
+    }
+  ],
+  "intentionallyIgnored": [
+    {
+      "field": "comments/whitespace/line endings/quote spelling",
+      "reason": "no executable effect; explicitly supported positive controls"
+    },
+    {
+      "field": "Block/ObjectLiteral.multiLine",
+      "reason": "formatting only"
+    },
+    {
+      "field": "Identifier escape spelling and untagged template rawText",
+      "reason": "semantic decoded token identity retained; current facade has no tagged template"
+    },
+    {
+      "field": "positions/parents/parser caches/flow metadata",
+      "reason": "derived metadata, not source-controlled executable discriminants"
+    }
+  ],
+  "compilerScope": "Only new pure AST helper with installed TypeScript declarations; not full Core, native Prisma or DB acceptance.",
+  "nativeOrProofCertificationAcceptance": false
+}

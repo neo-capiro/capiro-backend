@@ -1,0 +1,30 @@
+node:internal/errors:985
+  const err = new Error(message);
+              ^
+
+Error: Command failed: git show fcbf671f585968144b30293c2b1a4fc146cd82ff:apps/api/scripts/parse-defense-approps-public-law.ts
+fatal: not a git repository (or any of the parent directories): .git
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at checkExecSyncError (node:child_process:942:11)
+    at execFileSync (node:child_process:978:15)
+    at git (file:///workspace/capirov2-public-law-containment-independent-review/docs/cleanup-public-law-independent-review-20261012/evidence/independent-containment-review.mjs:18:26)
+    at blob (file:///workspace/capirov2-public-law-containment-independent-review/docs/cleanup-public-law-independent-review-20261012/evidence/independent-containment-review.mjs:20:95)
+    at file:///workspace/capirov2-public-law-containment-independent-review/docs/cleanup-public-law-independent-review-20261012/evidence/independent-containment-review.mjs:25:16
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  status: 128,
+  signal: null,
+  output: [
+    null,
+    '',
+    'fatal: not a git repository (or any of the parent directories): .git\n'
+  ],
+  pid: 249413,
+  stdout: '',
+  stderr: 'fatal: not a git repository (or any of the parent directories): .git\n'
+}
+
+Node.js v24.19.0
