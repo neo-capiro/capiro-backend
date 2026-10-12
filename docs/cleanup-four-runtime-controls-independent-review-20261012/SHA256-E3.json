@@ -1,0 +1,45 @@
+{
+  "files": [
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/RECEIPT-E3.json",
+      "sha256": "433d30bafe57e26bca9e0ba75f5bbc8ef6f0c8772f80b0987777d60451c87ba7"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/REVIEW-E3.md",
+      "sha256": "eb2be16f19378f0ab39ba8aa7e83d627f2511c23541f6347313cf3bca9bac47a"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/adversarial-root-controls.json",
+      "sha256": "0bf1feb2d1ace1cf756ca08e821667cc513b2984dc50afd276b9d5a8883b6445"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/adversarial-root-controls.log",
+      "sha256": "d8574f22cbf9301385fa772246c9619b42fc0d27a28e64229b7262803e727262"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/adversarial-root-controls.mjs",
+      "sha256": "5dcf77a5a84c97658d025e1ad024381d74f175f6916c2f057d164d35c6c1d01e"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/real-duplicate-profile.json",
+      "sha256": "10b58de8ed2c35388088b4a5f8c310b93458c8569be7071c7f47251ffdee31ae"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/root-tests.log",
+      "sha256": "f02817276d05f5c555aa57705d787aa2a1a2a935fe79ab153d24059f316f00f5"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/typed-interface-and-wiring.json",
+      "sha256": "38e42ed3dc678c8b3516345c948f9c24ff189a94b05e24ebc427da553c7e2f33"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/typed-interface-and-wiring.log",
+      "sha256": "38e42ed3dc678c8b3516345c948f9c24ff189a94b05e24ebc427da553c7e2f33"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/typed-interface-and-wiring.mjs",
+      "sha256": "4618d4b88eb63eaed4f7d6879c9a4fc2f05bc9e00f31e0fd39faa060f6192417"
+    }
+  ],
+  "manifestExcludesSelf": true
+}

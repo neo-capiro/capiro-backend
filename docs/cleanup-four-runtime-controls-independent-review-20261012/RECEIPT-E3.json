@@ -1,0 +1,72 @@
+{
+  "source": "e3abe0ab9257d6734fc88e81b49e05717fa5c33b",
+  "tree": "9ea935dd0a2e72346564c4ba5143da64db93c95d",
+  "reviewScope": "Root generic/data/runner/package/CI only; authored Tango application excluded from acceptance",
+  "sourcePaths": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "sha256": "cae6f04eaa53075c350ef0f38e65b71100fbc4898ec61589ea757e180006b4c1"
+    },
+    {
+      "path": "package.json",
+      "sha256": "2384cad9cd99bf2b6af903144593198b3bd9110f627c86ed1eaa7e78764f2ccf"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.test.mjs",
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "sha256": "36bbac9707e78fb75f8041b65df06f58c6845b8b1d1ac619bc6640452f1fe99f"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "sha256": "ca727cc614baca1d7d067df9c3ed725a63ade418163adf79da0e37bad5889da4"
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "sha256": "f465c9783334023d1bc4a68ed507e606dbec7eafd8cb9403cc0165ab354d986c"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "sha256": "821e862128f46374b7345cfae3bb71240e11f4d5aa67ed0c8efab53c8922d6df"
+    }
+  ],
+  "sourcePathsCount": 9,
+  "sourceEdits": false,
+  "baselineControls": {
+    "passed": 123,
+    "failed": 0
+  },
+  "baselineFiles": 2047,
+  "baselineHelpers": 3,
+  "baselineProfiles": 2,
+  "fixtureProbeCases": 25,
+  "fixtureUnexpectedAccepts": 10,
+  "wholeMapProbes": 4,
+  "wholeMapUnexpectedAccepts": 3,
+  "typedInterfaceProbes": 1,
+  "typedInterfaceUnexpectedAccepts": 1,
+  "runnerAndPackageCiWiring": "PASS static check; no PM or app suite run",
+  "independentAcceptance": "WITHHELD pending bounded repairs",
+  "mutantExecution": false,
+  "providerNativeDatabaseOperations": false,
+  "distinctLeads": [
+    "prototype assignment",
+    "require callee alias"
+  ],
+  "requiredBoundedRepairs": [
+    "computed constant declarations",
+    "static computed owner module operands",
+    "bounded RateReadProfile type carrier",
+    "const compatibility alias binding"
+  ]
+}
