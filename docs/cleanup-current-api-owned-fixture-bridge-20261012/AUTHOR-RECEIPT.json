@@ -1,0 +1,70 @@
+{
+  "classification": "Author source-only exact current-input bridge; independent review pending",
+  "source": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+  "tree": "22b5cb735fda84bda5be9e7b2d10029d59fbca6a",
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "publishedSeam": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "sourcePaths": 3,
+  "sourceBindings": [
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "git": "100644 blob 2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "sha256": "39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac",
+      "bytes": 183851
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "git": "100644 blob 3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4",
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a",
+      "bytes": 5055
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "git": "100644 blob e06d65453c36ff43e285a480be97bf00cb161fc5",
+      "sha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+      "bytes": 7070
+    }
+  ],
+  "sourceEquivalenceChecksPassed": 13,
+  "sixExistingApiCasesPreservedByInverseByteProof": true,
+  "sixExistingApiCasesExecuted": false,
+  "pureOwnedSourceControls": {
+    "before": {
+      "passed": 0,
+      "failed": 4,
+      "exitCode": 1,
+      "classification": "Expected source-adoption baseline: API-owned copy absent and old reader path retained",
+      "stdout": "evidence/before-owned-fixture-controls.tap",
+      "stderr": "evidence/before-owned-fixture-controls.log"
+    },
+    "after": {
+      "passed": 4,
+      "failed": 0,
+      "exitCode": 0,
+      "stdout": "evidence/after-owned-fixture-controls.tap",
+      "stderr": "evidence/after-owned-fixture-controls.log"
+    }
+  },
+  "currentWebFixtureUntouched": true,
+  "apiApplicationJestGraphExecuted": false,
+  "providerDatabaseSqlNativeGeneratorInstallOrActualCliExecution": false,
+  "rootWrapperHelperPackageCISharedFrontendSchemaReportingChanges": false,
+  "independentReviewOwner": "/root/integration_review",
+  "publicationOwner": "/root",
+  "scope": "Six API/Jest cases are preserved by complete inverse byte proof, not executed. Only four standalone Node source/input controls were executed separately. No application/native/provider/SQL/CLI graph.",
+  "whitespaceQualification": {
+    "sourcePathsCheckExitCode": 0,
+    "allEvidenceCheckExitCode": 2,
+    "warnings": 2,
+    "warningPath": "evidence/before-owned-fixture-controls.tap",
+    "warningLines": [
+      53,
+      55
+    ],
+    "rawWarnings": "evidence/raw-baseline-whitespace.red.log",
+    "rawBytesPreserved": true,
+    "rawWarningReceiptEchoCheckExitCode": 2,
+    "rawWarningReceiptEchoWarnings": "evidence/raw-warning-receipt-whitespace.red.json",
+    "authoredFileCheckScope": "Explicit authored Markdown, JSON and Python files only; no blanket raw-evidence whitespace pass or rootCI waiver"
+  }
+}

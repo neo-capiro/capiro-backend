@@ -1,0 +1,88 @@
+✖ backend-owned fixture preserves the complete immutable Core blob and byte identity (1.077956ms)
+✖ the exact Core JSON workload, route ownership and classifications remain present (0.283368ms)
+✖ existing API reader changes exactly one literal while preserving all six case identities and all assertions (1.440481ms)
+✖ qualification rejects fixture bytes, case bodies and reader-path drift without importing the API suite (0.317423ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 123.720684
+
+✖ failing tests:
+
+test at apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:49:1
+✖ backend-owned fixture preserves the complete immutable Core blob and byte identity (1.077956ms)
+  Error: ENOENT: no such file or directory, open '/tmp/capirov2-four-runtime-controls-review/apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at TestContext.<anonymous> (file:///tmp/capirov2-four-runtime-controls-review/apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:50:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/capirov2-four-runtime-controls-review/apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'
+  }
+
+test at apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:53:1
+✖ the exact Core JSON workload, route ownership and classifications remain present (0.283368ms)
+  Error: ENOENT: no such file or directory, open '/tmp/capirov2-four-runtime-controls-review/apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at TestContext.<anonymous> (file:///tmp/capirov2-four-runtime-controls-review/apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:54:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/capirov2-four-runtime-controls-review/apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'
+  }
+
+test at apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:78:1
+✖ existing API reader changes exactly one literal while preserving all six case identities and all assertions (1.440481ms)
+  AssertionError [ERR_ASSERTION]: one backend-owned fixture path
+  
+  0 !== 1
+  
+      at assertReaderOnlyRelocated (file:///tmp/capirov2-four-runtime-controls-review/apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:42:10)
+      at TestContext.<anonymous> (file:///tmp/capirov2-four-runtime-controls-review/apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:80:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:87:1
+✖ qualification rejects fixture bytes, case bodies and reader-path drift without importing the API suite (0.317423ms)
+  Error: ENOENT: no such file or directory, open '/tmp/capirov2-four-runtime-controls-review/apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at TestContext.<anonymous> (file:///tmp/capirov2-four-runtime-controls-review/apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs:88:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/capirov2-four-runtime-controls-review/apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json'
+  }

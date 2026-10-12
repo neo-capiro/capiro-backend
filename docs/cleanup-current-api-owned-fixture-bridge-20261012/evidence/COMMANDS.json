@@ -1,0 +1,32 @@
+{
+  "commands": [
+    {
+      "command": "node --test apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs before copy/literal mutation",
+      "exitCode": 1,
+      "raw": "evidence/before-owned-fixture-controls.tap"
+    },
+    {
+      "command": "node --test apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs after copy/literal mutation",
+      "exitCode": 0,
+      "raw": "evidence/after-owned-fixture-controls.tap"
+    },
+    {
+      "command": "python3 docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/source-equivalence-proof.py",
+      "exitCode": 0,
+      "raw": "evidence/source-equivalence-proof.json"
+    },
+    {
+      "command": "git diff --cached --check including immutable raw baseline Node stdout",
+      "exitCode": 2,
+      "raw": "evidence/raw-baseline-whitespace.red.log",
+      "classification": "Two trailing-space blank lines in raw assertion stdout only; preserved"
+    },
+    {
+      "command": "git diff --cached --check excluding only raw baseline Node stdout",
+      "exitCode": 2,
+      "classification": "Verbatim first whitespace-warning receipt itself echoes two trailing-space lines; source warning count0",
+      "toolStdout": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log:2: trailing whitespace.\n++  \ndocs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log:4: trailing whitespace.\n++  \n"
+    }
+  ],
+  "applicationSuiteOrActualVerifierCommands": 0
+}
