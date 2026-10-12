@@ -46,6 +46,7 @@ const attachmentId = '28d5a267-0b3c-4f16-af62-880cf2b3f79f';
 function attachmentRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: attachmentId,
+    prospectId: null,
     tenantId,
     supersededByAttachmentId: null,
     clientId: authorizedClientId,
