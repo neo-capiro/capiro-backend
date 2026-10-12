@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from '@jest/globals';
+import * as ts from 'typescript';
 
 function apiRoot(): string {
   const cwd = process.cwd();
@@ -27,7 +28,9 @@ const dispatcher = read('src/memory/memory-review-notification-dispatcher.servic
 const notificationHelpers = read('src/memory/memory-review-notification.helpers.ts');
 const moduleSource = read('src/memory/memory.module.ts');
 const editor = readWeb('src/components/MemoryFileEditor.tsx');
+const editorShared = readWeb('src/components/memory-file-editor-shared.ts');
 const pendingPanel = readWeb('src/components/PendingMemoryReviewPanel.tsx');
+const pendingShared = readWeb('src/components/pending-memory-review-shared.ts');
 const reviewInbox = readWeb('src/components/MemoryReviewInbox.tsx');
 
 describe('memory administrator self-approval policy contract', () => {
@@ -89,9 +92,81 @@ describe('memory administrator self-approval policy contract', () => {
   });
 
   it('removes the independent-approver claim from every active shared-memory UI surface', () => {
-    expect(editor).toContain('Submitted for approval');
+    expect(editorShared).toContain('Submitted for approval');
+    expect(editorShared).not.toContain('Submitted for independent review');
+    // The editor delegates its success message to this existing UI-free owner.
+    // Parse opaque source data so comments cannot stand in for the live definition
+    // or renderer call. Neither fixture is imported or executed.
+    const sharedTree = ts.createSourceFile('memory-file-editor-shared.ts', editorShared, ts.ScriptTarget.Latest, true);
+    const successMessages = sharedTree.statements.filter(ts.isFunctionDeclaration)
+      .filter((node) => node.name?.text === 'settingsMemorySuccessMessage');
+    expect(successMessages).toHaveLength(1);
+    expect(successMessages[0]!.getText(sharedTree)).toBe(
+      "export function settingsMemorySuccessMessage(result: MemorySaveSectionsResp): string {\n" +
+      "  return result.status === 'pending_review' ? 'Submitted for approval' : 'Saved';\n}",
+    );
+    const editorTree = ts.createSourceFile('MemoryFileEditor.tsx', editor, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const successImports = editorTree.statements.filter(ts.isImportDeclaration)
+      .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './memory-file-editor-shared.js')
+      .filter((node) => node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+        node.importClause.namedBindings.elements.some((entry) => entry.name.text === 'settingsMemorySuccessMessage' &&
+          (entry.propertyName ?? entry.name).text === 'settingsMemorySuccessMessage'));
+    expect(successImports).toHaveLength(1);
+    const editorFunctions = editorTree.statements.filter(ts.isFunctionDeclaration)
+      .filter((node) => node.name?.text === 'MemoryFileEditor');
+    expect(editorFunctions).toHaveLength(1);
+    const mutations = editorFunctions[0]!.body!.statements.filter(ts.isVariableStatement)
+      .flatMap((node) => [...node.declarationList.declarations])
+      .filter((node) => ts.isIdentifier(node.name) && node.name.text === 'saveMutation');
+    expect(mutations).toHaveLength(1);
+    const mutation = mutations[0]!.initializer!;
+    expect(ts.isCallExpression(mutation)).toBe(true);
+    const mutationCall = mutation as ts.CallExpression;
+    expect(mutationCall.expression.getText(editorTree)).toBe('useMutation');
+    expect(mutationCall.arguments).toHaveLength(1);
+    expect(ts.isObjectLiteralExpression(mutationCall.arguments[0]!)).toBe(true);
+    const callbacks = (mutationCall.arguments[0]! as ts.ObjectLiteralExpression).properties.filter(ts.isPropertyAssignment)
+      .filter((node) => node.name.getText(editorTree) === 'onSuccess');
+    expect(callbacks).toHaveLength(1);
+    expect(ts.isArrowFunction(callbacks[0]!.initializer)).toBe(true);
+    const onSuccess = callbacks[0]!.initializer as ts.ArrowFunction;
+    expect(onSuccess.parameters.map((node) => node.name.getText(editorTree))).toEqual(['result']);
+    expect(ts.isBlock(onSuccess.body)).toBe(true);
+    expect((onSuccess.body as ts.Block).statements[0]?.getText(editorTree)).toBe(
+      'message.success(settingsMemorySuccessMessage(result));',
+    );
     expect(editor).not.toContain('Submitted for independent review');
-    expect(pendingPanel).toContain('Waiting for approval');
+    expect(pendingShared).toContain('Waiting for approval');
+    expect(pendingShared).not.toContain('independent reviewer');
+    const pendingSharedTree = ts.createSourceFile('pending-memory-review-shared.ts', pendingShared, ts.ScriptTarget.Latest, true);
+    const headlines = pendingSharedTree.statements.filter(ts.isFunctionDeclaration)
+      .filter((node) => node.name?.text === 'pendingReviewHeadline');
+    expect(headlines).toHaveLength(1);
+    expect(headlines[0]!.getText(pendingSharedTree)).toBe(
+      "export function pendingReviewHeadline(pending: PendingMemoryReviewState): string {\n" +
+      "  return pending.blocked ? 'Review blocked' : 'Waiting for approval';\n}",
+    );
+    const panelTree = ts.createSourceFile('PendingMemoryReviewPanel.tsx', pendingPanel, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const headlineImports = panelTree.statements.filter(ts.isImportDeclaration)
+      .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './pending-memory-review-shared.js')
+      .filter((node) => node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+        node.importClause.namedBindings.elements.some((entry) => entry.name.text === 'pendingReviewHeadline' &&
+          (entry.propertyName ?? entry.name).text === 'pendingReviewHeadline'));
+    expect(headlineImports).toHaveLength(1);
+    const panels = panelTree.statements.filter(ts.isFunctionDeclaration)
+      .filter((node) => node.name?.text === 'PendingMemoryReviewPanel');
+    expect(panels).toHaveLength(1);
+    const alerts: ts.JsxSelfClosingElement[] = [];
+    const collectAlerts = (node: ts.Node): void => {
+      if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(panelTree) === 'Alert') alerts.push(node);
+      ts.forEachChild(node, collectAlerts);
+    };
+    collectAlerts(panels[0]!);
+    expect(alerts).toHaveLength(1);
+    const messages = alerts[0]!.attributes.properties.filter(ts.isJsxAttribute)
+      .filter((node) => node.name.getText(panelTree) === 'message');
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.getText(panelTree)).toBe('message={pendingReviewHeadline(pending)}');
     expect(pendingPanel).not.toContain('independent reviewer');
     expect(reviewInbox).toContain('authorized administrator or reviewer approves it');
     expect(reviewInbox).not.toContain('independent reviewer approves it');
