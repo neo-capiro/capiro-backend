@@ -22,12 +22,21 @@ const cases = [
   },
   {
     file: 'verify-pe-phase-e-exact-sha.ts',
-    // The immutable candidate retains the parent strict refusal of this facade.
-    failuresExpected: [
-      'parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract',
-      'parse-defense-approps-public-law.ts: missing resolvePeDollarLoaderPosture',
-      'parse-defense-approps-public-law.ts: missing assertExactShaCommitAllowed',
-      'parse-defense-approps-public-law.ts: missing approved-sha256 wiring',
+    noArgsExit: 0,
+    loadersExpected: [
+      'sync-comptroller-jbooks.ts',
+      'sync-jbook-r2.ts',
+      'sync-jbook-performers.ts',
+      'parse-pdoc-army.ts',
+      'load-pdoc-enrichment.ts',
+      'load-om.ts',
+      'load-om-op5.ts',
+      'parse-hasc-sasc-reports.ts',
+      'parse-defense-approps-reports.ts',
+      'parse-ndaa-conference.ts',
+      'parse-defense-approps-public-law.ts',
+      'ingest-defense-budget-pdf.ts',
+      'load-defense-budget-package.ts',
     ],
     usage: 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]\n',
   },
@@ -87,25 +96,24 @@ for (const subject of cases) {
       MISSING_DATABASE_URL_SMOKE_CONTEXT,
     );
     assert.equal(contract.noArgs.documented, true, contract.evidence);
-    assert.equal(contract.noArgs.exit, 1, contract.evidence);
+    assert.equal(contract.noArgs.exit, subject.noArgsExit ?? 1, contract.evidence);
     assert.equal(contract.help.exit, 0, contract.evidence);
 
-    // This is a truthful CLI failure contract, never a passing policy gate.
-    // Existing verification imports/functions/predicates remain parent-exact;
-    // independent inert fixtures separately prove their success and refusal paths.
-    const normal = invoke(subject.file, [], 1);
-    assert.equal(normal.stdout, '', 'a refused policy gate emits no success output');
-    assert.ok(normal.stderr.startsWith(subject.usage), 'usage precedes the existing refusal');
+    const normal = invoke(subject.file, [], subject.noArgsExit ?? 1);
+    assert.ok(normal.stderr.startsWith(subject.usage), 'usage precedes the gate result');
     assert.doesNotMatch(normal.stderr, /AssertionError|node:internal|\n\s+at /u,
       'CLI renders a failure without an uncaught stack');
     if (subject.failure) {
+      assert.equal(normal.stdout, '', 'a refused policy gate emits no success output');
       assert.match(normal.stderr, subject.failure, 'strict migration-history refusal retained');
       assert.doesNotMatch(normal.stderr, /_OK\b/u, 'failed verifier never emits its success marker');
     } else {
-      const refusal = JSON.parse(normal.stderr.slice(subject.usage.length));
-      assert.equal(refusal.ok, false, 'exact-SHA verification remains refused');
-      assert.deepEqual(refusal.failures, subject.failuresExpected,
-        'all four distinct original facade violations remain in order');
+      assert.equal(normal.stderr, subject.usage);
+      assert.deepEqual(JSON.parse(normal.stdout), {
+        ok: true,
+        loadersChecked: 13,
+        loaders: subject.loadersExpected,
+      }, 'strict inspection containment and every unchanged write loader pass');
     }
 
     const help = invoke(subject.file, ['--help'], 0);
