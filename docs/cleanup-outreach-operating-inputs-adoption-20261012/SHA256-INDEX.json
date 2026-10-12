@@ -12,6 +12,11 @@
       "sha256": "5594931801a4718cf6135b6270fc7ae5a8f382c3f3fa22752d847e8d8239d7d4"
     },
     {
+      "path": "SHA256-INDEX-before-marker-correction.json",
+      "bytes": 4906,
+      "sha256": "7513a5d568976073ebfef3494ad1c73556ee191baa7e3f679f8fe2d8f3485eeb"
+    },
+    {
       "path": "evidence/BINDING-CHECKS.json",
       "bytes": 1096,
       "sha256": "08667f95954e1b797ba6a4a37aeef64c162a9ba06da0fb283243cfe9458336e9"
@@ -25,6 +30,11 @@
       "path": "evidence/CONTROL-ADAPTATION.json",
       "bytes": 662,
       "sha256": "776fcb2e5f9759ee4cdcef1221c91bb3420a7645849c388af84245219d12c2ea"
+    },
+    {
+      "path": "evidence/MARKER-CORRECTION-CHECKS.json",
+      "bytes": 4443,
+      "sha256": "ca65f492e0a50047a7a0825204f6172807105df89b951a7d60e72445fed4b0be"
     },
     {
       "path": "evidence/SOURCE-MANIFEST-BEFORE-CONTROL-ADAPTATION.json",
@@ -107,6 +117,16 @@
       "sha256": "aa4360f7fff650dc1d3d8c30cc71cdfc7f57134cc5d68c6e011b8e890b5b3433"
     },
     {
+      "path": "evidence/marker-binding-checks.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/marker-binding-checks.stdout",
+      "bytes": 183,
+      "sha256": "e0b59ac803d1cf09cfadf4369d8e695f9da37b7644a68cda35a61e88b46a3fd6"
+    },
+    {
       "path": "evidence/marker-corrected-controls.stderr",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -115,6 +135,11 @@
       "path": "evidence/marker-corrected-controls.stdout",
       "bytes": 13349,
       "sha256": "2c75569db23016757d9dede74064734e308834907b94d557d7d689d8aab8d49f"
+    },
+    {
+      "path": "evidence/marker-packet-preparation-failure.txt",
+      "bytes": 722,
+      "sha256": "ea9bb80d90ecb118707948f39fdc34d8f11a570ada367e0ea9d68fc5eb276428"
     },
     {
       "path": "evidence/no-external-ports.cjs",
@@ -195,6 +220,11 @@
       "path": "evidence/verify-bindings.py",
       "bytes": 3382,
       "sha256": "bf021039f576e5d807bfa4237b073b5b337768cf12338b09e44024014315bf9a"
+    },
+    {
+      "path": "evidence/verify-marker-correction.py",
+      "bytes": 4260,
+      "sha256": "da62e1eb816922c3eb183d16315acd244a442984944822938573c67f446267c7"
     }
   ],
   "selfExcluded": true,
