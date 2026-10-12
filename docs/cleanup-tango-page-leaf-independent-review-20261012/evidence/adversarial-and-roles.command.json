@@ -1,0 +1,7 @@
+{
+  "source": "34bd52b6f49393f49732cf1f918002ba0893574d",
+  "tree": "bde461631aea971158fdd5c9b287860aeff061e1",
+  "shellCommand": "node docs/cleanup-tango-page-leaf-independent-review-20261012/evidence/adversarial-and-roles.mjs > docs/cleanup-tango-page-leaf-independent-review-20261012/evidence/adversarial-and-roles.log 2>&1",
+  "exitCode": 0,
+  "providerDatabaseNativeOrPackageManagerOperations": false
+}
