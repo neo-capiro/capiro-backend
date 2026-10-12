@@ -19,7 +19,7 @@ node_modules/.bin/jest --ci --runInBand --forceExit \
   src/defense-budget/verification
 
 echo "[Phase 6] mandatory NC01-NC24 mutate/fail/restore controls"
-pnpm exec tsx scripts/verify-pe-budget-phase6-negative-controls.ts --run
+pnpm exec tsx scripts/verify-pe-budget-phase6-negative-controls.ts
 
 echo "[Phase 6] architecture + permanent safety"
 pnpm exec tsx scripts/verify-pe-budget-phase6-safety.ts
@@ -31,7 +31,7 @@ pnpm exec prettier --check \
   "apps/api/src/defense-budget/phase6/**/*.{ts,json}" \
   "apps/api/src/defense-budget/verification/**/*.ts" \
   "apps/api/scripts/phase6-stage-cycle.ts" \
-  "apps/api/scripts/verify-pe-budget-phase6-negative-controls.ts --run" \
+  "apps/api/scripts/verify-pe-budget-phase6-negative-controls.ts" \
   "apps/api/scripts/verify-pe-budget-phase6-safety.ts" \
   "apps/api/scripts/parse-defense-approps-public-law.ts" \
   "docs/defense-budget/CONGRESSIONAL-TO-ENACTED-INGESTION-V1.md" \
