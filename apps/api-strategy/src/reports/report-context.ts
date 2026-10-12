@@ -1,4 +1,10 @@
 import { parseFrontmatter } from "../context/frontmatter.js";
+import {
+  REPORT_SECTION_ORDER,
+  REPORT_SECTION_TITLES,
+  isOperationalReportTemplate,
+  reportFallbackSection,
+} from "../context/template-registry.js";
 import type { ReportAudience } from "./dto/report-export.dto.js";
 import type {
   ReportContextDocument,
@@ -33,13 +39,6 @@ export interface ReportContextDocumentInput {
  * (e.g. "working_draft") instead of being used to withhold the content. The
  * only deliberate exclusions are confidentiality scope and freshness below.
  */
-const SKIPPED_TEMPLATE_KEYS = new Set([
-  "00_context_manifest",
-  "07_current_plan",
-  "11_agent_mission",
-  "12_execution_playbook",
-  "13_agent_permissions",
-]);
 const PLACEHOLDER_ONLY =
   /^(?:-|—|null|n\/a|none|tbd|default|primary ask|yyyy-mm-dd|low\s*\/\s*medium\s*\/\s*high|yes\s*\/\s*no)$/i;
 const PLACEHOLDER_ID = /^(?:[a-z]+[_-])?(?:00*1|123|456|789)$/i;
@@ -52,19 +51,6 @@ const PLACEHOLDER_ID = /^(?:[a-z]+[_-])?(?:00*1|123|456|789)$/i;
  */
 const IMPORT_SCAFFOLDING =
   /^(?:imported on \d{4}-\d{2}-\d{2}\b|source excerpts are working context\b|this is the import date\b|they do not grant permissions\b|imported information \d+\b|source details\b|source\s*:\s*\S)/i;
-const SECTION_TITLES: Record<ReportNarrativeSectionKey, string> = {
-  situation: "Situation and stakes",
-  outcomes: "Objectives and definition of success",
-  ask: "Strategic ask and options",
-  stakeholders: "Stakeholder landscape",
-  constraints: "Constraints and decision rules",
-  timing: "Timing and external windows",
-  evidence: "Evidence and assumptions",
-  decisions: "Decisions and commitments",
-  intelligence: "Recent intelligence",
-  governance: "Internal operating guidance",
-};
-
 /**
  * Convert active context-pack documents into complete, audience-safe executive
  * briefing material. This is deliberately deterministic: it preserves authored
@@ -91,14 +77,14 @@ export function assembleReportContext(
     const metadata = contextMetadata(document);
     if (
       (audience === "client" &&
-        SKIPPED_TEMPLATE_KEYS.has(document.templateKey)) ||
+        isOperationalReportTemplate(document.templateKey)) ||
       !includeContextDocument(metadata, document.validUntil, audience, asOf)
     ) {
       excludedDocuments += 1;
       continue;
     }
 
-    const highlights = SKIPPED_TEMPLATE_KEYS.has(document.templateKey)
+    const highlights = isOperationalReportTemplate(document.templateKey)
       ? []
       : extractHighlights(document.content, document.templateKey, audience);
     included.push({
@@ -164,25 +150,14 @@ export function assembleReportContext(
     }
   }
 
-  const orderedKeys: ReportNarrativeSectionKey[] = [
-    "situation",
-    "outcomes",
-    "ask",
-    "stakeholders",
-    "constraints",
-    "timing",
-    "decisions",
-    "intelligence",
-    "evidence",
-    "governance",
-  ];
+  const orderedKeys: ReportNarrativeSectionKey[] = [...REPORT_SECTION_ORDER];
   return {
     documents: included,
     facts,
     sections: orderedKeys.flatMap((key) => {
       const sectionItems = items.get(key) ?? [];
       return sectionItems.length
-        ? [{ key, title: SECTION_TITLES[key], items: sectionItems }]
+        ? [{ key, title: REPORT_SECTION_TITLES[key], items: sectionItems }]
         : [];
     }),
     excludedDocuments,
@@ -419,16 +394,7 @@ function categoryFor(
   )
     return "intelligence";
 
-  if (templateKey.startsWith("01_")) return "situation";
-  if (templateKey.startsWith("02_") || templateKey.startsWith("06_"))
-    return "constraints";
-  if (templateKey.startsWith("03_")) return "ask";
-  if (templateKey.startsWith("04_")) return "stakeholders";
-  if (templateKey.startsWith("05_")) return "timing";
-  if (templateKey.startsWith("08_")) return "evidence";
-  if (templateKey.startsWith("09_")) return "intelligence";
-  if (templateKey.startsWith("10_")) return "decisions";
-  return "governance";
+  return reportFallbackSection(templateKey);
 }
 
 function sectionTitleForTemplate(templateKey: string): string {
