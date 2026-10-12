@@ -115,7 +115,11 @@ function canonicalModule(file, module) {
   if (typeof module !== 'string' || !module.startsWith('.')) return null;
   const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(file), module));
   if (!safePath(resolved)) return null;
-  return resolved.replace(/\.js$/, '.ts');
+  if (!path.posix.extname(resolved)) return `${resolved}.ts`;
+  return resolved
+    .replace(/\.js$/, '.ts')
+    .replace(/\.mjs$/, '.mts')
+    .replace(/\.cjs$/, '.cts');
 }
 
 function inspectEdge(sf, file, edge, owner) {
@@ -258,16 +262,15 @@ export function inspectRegistryOwnership(files, config) {
     // finite contract and fail instead of hiding an additional consumer.
     for (const [file, { sf }] of scoped) {
       function visit(node) {
-        if (
-          t.isImportDeclaration(node) &&
-          canonicalModule(file, node.moduleSpecifier.text) === profile.owner
-        ) {
+        if (t.isImportDeclaration(node)) {
           const clause = node.importClause;
+          const ownerModule = canonicalModule(file, node.moduleSpecifier.text) === profile.owner;
           if (!clause?.isTypeOnly) {
             if (
-              !clause ||
-              clause.name ||
-              (clause.namedBindings && !t.isNamedImports(clause.namedBindings))
+              ownerModule &&
+              (!clause ||
+                clause.name ||
+                (clause.namedBindings && !t.isNamedImports(clause.namedBindings)))
             )
               errors.push(`${profile.id}: unsupported owner import in ${file}`);
             if (clause?.namedBindings && t.isNamedImports(clause.namedBindings))
@@ -276,17 +279,35 @@ export function inspectRegistryOwnership(files, config) {
                 if (
                   !item.isTypeOnly &&
                   symbolNames.has(imported) &&
-                  !profile.edges.some(
-                    (edge) =>
-                      edge.file === file &&
-                      edge.imported === imported &&
-                      edge.module === node.moduleSpecifier.text,
-                  )
+                  (!ownerModule ||
+                    !profile.edges.some(
+                      (edge) =>
+                        edge.file === file &&
+                        edge.imported === imported &&
+                        edge.module === node.moduleSpecifier.text,
+                    ))
                 )
                   errors.push(`${profile.id}: unlisted owner import ${file}/${imported}`);
               }
           }
         }
+        if (
+          t.isImportEqualsDeclaration(node) &&
+          !node.isTypeOnly &&
+          t.isExternalModuleReference(node.moduleReference) &&
+          node.moduleReference.expression &&
+          t.isStringLiteralLike(node.moduleReference.expression) &&
+          canonicalModule(file, node.moduleReference.expression.text) === profile.owner
+        )
+          errors.push(`${profile.id}: unsupported import-equals owner reference in ${file}`);
+        if (
+          t.isExportDeclaration(node) &&
+          !node.isTypeOnly &&
+          node.moduleSpecifier &&
+          t.isStringLiteralLike(node.moduleSpecifier) &&
+          canonicalModule(file, node.moduleSpecifier.text) === profile.owner
+        )
+          errors.push(`${profile.id}: unsupported owner re-export in ${file}`);
         if (
           t.isCallExpression(node) &&
           (node.expression.kind === t.SyntaxKind.ImportKeyword ||

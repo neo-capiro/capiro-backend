@@ -340,6 +340,36 @@ for (const [label, change] of [
       ),
   ],
   [
+    'owned symbol imported from an unknown barrel',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "import {canonicalRoute as other} from './barrel.js'; other('extra');",
+      ),
+  ],
+  [
+    'extensionless unlisted owner import',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "import {canonicalRoute as other} from './registry'; other('extra');",
+      ),
+  ],
+  [
+    'import-equals owner reference',
+    ({ files }) =>
+      files.set('apps/example/src/extra.cts', "import other = require('./registry.js');"),
+  ],
+  [
+    'named owner re-export',
+    ({ files }) =>
+      files.set('apps/example/src/extra.ts', "export {canonicalRoute} from './registry.js';"),
+  ],
+  [
+    'star owner re-export',
+    ({ files }) => files.set('apps/example/src/extra.ts', "export * from './registry.js';"),
+  ],
+  [
     'default owner import',
     ({ files }) => files.set('apps/example/src/extra.ts', "import other from './registry.js';"),
   ],
