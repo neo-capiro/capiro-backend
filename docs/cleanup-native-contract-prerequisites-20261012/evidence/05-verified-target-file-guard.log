@@ -1,0 +1,16 @@
+{
+  "target": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "socketDirectory": "/tmp/capiro-native-pg-socket-pr2429-20261012",
+    "port": 5432,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "driverLoaded": false,
+  "databaseConnections": 0,
+  "sqlExecuted": false
+}

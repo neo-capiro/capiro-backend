@@ -1,0 +1,184 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "target": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "socketDirectory": "/tmp/capiro-native-pg-socket-pr2429-20261012",
+    "port": 5432,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "schema": "capiro_native_contract_pr2429_20261012",
+  "ownerRole": "capiro_native_contract_owner_20261012",
+  "appRole": "capiro_app",
+  "nativePostgres": true,
+  "nativePrisma": false,
+  "fullMigrationReplay": false,
+  "productionRoleHardening": false,
+  "loadedCanonicalFiles": [
+    "packages/shared/src/client-objective-destination.ts",
+    "packages/shared/src/workspace-saved-revision.ts",
+    "packages/shared/src/client-memory-wall.ts",
+    "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+    "apps/api/src/capabilities/capability-errors.ts",
+    "apps/api/src/outreach-v3/state/outreach-command.contract.ts",
+    "apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts",
+    "apps/api/src/capabilities/targets/outreach-target.contract.ts",
+    "apps/api/src/capabilities/context/outreach-context.contract.ts",
+    "apps/api/src/outreach-v3/state/outreach-style-sample.contract.ts",
+    "apps/api/src/outreach-v3/state/outreach-command-errors.ts",
+    "apps/api/src/outreach-v3/state/outreach-command-normalization.ts",
+    "apps/api/src/outreach-v3/state/outreach-command-reducer.ts",
+    "apps/api/src/outreach-v3/context/outreach-context-sponsor-policy.ts",
+    "apps/api/src/outreach-v3/persistence/outreach-state.repository.ts",
+    "apps/api/src/capabilities/capability-authorization.service.ts",
+    "apps/api/src/memory/memory-wall.helpers.ts",
+    "apps/api/src/federal-register/federal-register.service.ts",
+    "apps/api/src/federal-register/effective-date-evidence.ts"
+  ],
+  "results": [
+    {
+      "name": "strict synthetic application role has no owner membership or bypass",
+      "status": "PASS",
+      "details": {
+        "rolcanlogin": false,
+        "rolsuper": false,
+        "rolbypassrls": false,
+        "rolinherit": false,
+        "rolcreatedb": false,
+        "rolcreaterole": false,
+        "owner_member": false
+      }
+    },
+    {
+      "name": "Objective tenant RLS, missing GUC and foreign write",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "Objective constraints and immutable revision locking privileges",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "actual Objective owner requires live actor, same client and current revision",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "actual Workspace saved bytes/hash and immutable version",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "actual Outreach concurrent duplicate stages produce one durable mutation/receipt",
+      "status": "PASS",
+      "details": {
+        "receiptId": "d6cc826c-3686-4f9a-b955-57843722560c",
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "stage wrong hash and request reuse cannot write or reinterpret receipt",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "current grant revocation refuses Objective, Workspace and durable-stage replay",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "native reader client SHARE versus writer grant DELETE/client UPDATE deadlock",
+      "status": "PASS",
+      "details": {
+        "victim": "reader",
+        "sqlstate": "40P01",
+        "outcomes": [
+          "40P01",
+          "survived"
+        ],
+        "partialWritesCommitted": false
+      }
+    },
+    {
+      "name": "Core rich newsletter receipt RLS uses distinct legacy identifiers",
+      "status": "PASS",
+      "details": [
+        {
+          "relname": "newsletter_account_invitations",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true
+        },
+        {
+          "relname": "newsletter_invitation_email_deliveries",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true
+        },
+        {
+          "relname": "newsletter_recipient_access",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true
+        },
+        {
+          "relname": "newsletter_review_email_deliveries",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true
+        },
+        {
+          "relname": "newsletter_subscriptions",
+          "relrowsecurity": true,
+          "relforcerowsecurity": true
+        }
+      ]
+    },
+    {
+      "name": "actual global calendar evidence and Repeatable Read snapshot",
+      "status": "PASS",
+      "details": null
+    }
+  ],
+  "passed": 11,
+  "failed": 0,
+  "nativeCommandReceipt": {
+    "startedAt": "2026-10-12T23:19:21.637Z",
+    "finishedAt": "2026-10-12T23:19:25.086Z",
+    "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.cjs",
+      "--run",
+      "--verified-target",
+      "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/native-acceptance-pr2429-20261012/evidence/verified-isolated-target.json",
+      "--output",
+      "docs/cleanup-native-contract-prerequisites-20261012/evidence/native-run-attempt-0.json"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+    "envKeys": [
+      "PATH",
+      "LANG",
+      "TZ"
+    ],
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "rawLog": "evidence/06-native-run-attempt-0.log",
+    "noDatabaseRun": false
+  },
+  "cleanupReceipt": "evidence/AFTER-CLEANUP-TARGET.json",
+  "sourceHarnessHead": "b9dceb71e42d4e520760125d070542362dbaacdf",
+  "sourceHarnessTree": "ba7980ca621acbad577e7ad042442781963ee912",
+  "preparationPacketHead": "7818d85189a4551fa83a151c12299a7ffdbfd6b5",
+  "metadataErratum": "Wrapper noDatabaseRun is argument classification only. 07-after-cleanup-probe.json says true because probe has no --run argument; the actual probe performed FIVE read-only SQL SELECTs and zero mutation queries. Native fixture command06 correctly says false. Physical raw receipts remain unchanged.",
+  "scopeLimits": [
+    "Native PostgreSQL via pg8.23 adapter; actual19 canonical source owner modules, not PrismaClient or Prisma query extension runtime.",
+    "Minimal final-shape parent fixture plus21 exact/extracted source migration parts, not full historical replay.",
+    "Strict synthetic NOLOGIN app role has no owner membership; does not establish production role hardening.",
+    "Saved Workspace owner ACL and source triggers are qualified in implemented cases; absent ws_draft/version/collaborator RLS is not invented.",
+    "Rich Core account invitation RLS/checks and five receipt-table policy presence subset only; no review GET/account provider/send/asset/rich worker lifecycle acceptance.",
+    "Global calendar RepeatableRead and correction evidence exclusion; no external publisher call/full coverage/all-rules claim.",
+    "Only eleven named implemented groups passed; CASE-MATRIX additional desired cases remain unrun.",
+    "Whole committed whitespace qualification remains OPEN; all physical raw evidence retained."
+  ]
+}
