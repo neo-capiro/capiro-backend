@@ -12,10 +12,15 @@
         "pack",
         "--ignore-scripts",
         "--offline",
+        "--no-update-notifier",
+        "--userconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc",
+        "--globalconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc",
         "--cache",
-        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier",
         "--pack-destination",
-        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-1",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-4",
         "--json"
       ],
       "cwd": "/tmp/capiro-shared-newsletter-dist-fe50-20261012/packages/shared",
@@ -957,10 +962,15 @@
         "pack",
         "--ignore-scripts",
         "--offline",
+        "--no-update-notifier",
+        "--userconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc",
+        "--globalconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc",
         "--cache",
-        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier",
         "--pack-destination",
-        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-2",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-5",
         "--json"
       ],
       "cwd": "/tmp/capiro-shared-newsletter-dist-fe50-20261012/packages/shared",
@@ -2993,5 +3003,21 @@
   "lifecycleScriptsRun": false,
   "registryPublication": false,
   "networkRequired": false,
-  "repeatPackingByteExact": true
+  "repeatPackingByteExact": true,
+  "updateNotifierDisabled": true,
+  "originalArtifactBytesPreserved": true,
+  "debugLogs": [
+    {
+      "path": "evidence/npm-notifier-disabled-2026-10-12T22_22_41_544Z-debug-0.log",
+      "sha256": "a8d2b92332576a92a6aa5f94ef8b4ee4df6d3222e6f05a21a109af4f3626d4b4",
+      "httpFetchLines": 0
+    },
+    {
+      "path": "evidence/npm-notifier-disabled-2026-10-12T22_22_42_517Z-debug-0.log",
+      "sha256": "3af0230ca6acea61d072507a784408a992d02728216bb44d0392ceabcd2ba31c",
+      "httpFetchLines": 0
+    }
+  ],
+  "originalPackLimitation": "Pack 1 used --offline but npm update notifier made one official read-only registry metadata GET; original logs/manifest retained.",
+  "noGeneralNetworkTraceClaim": true
 }

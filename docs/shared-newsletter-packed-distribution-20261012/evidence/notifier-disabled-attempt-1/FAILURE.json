@@ -1,0 +1,4 @@
+{
+  "exitCode": 1,
+  "cause": "npm rejects loading identical /dev/null path as both user and global config, before config resolution or pack. Followup uses distinct own empty config files. No artifact bytes changed."
+}
