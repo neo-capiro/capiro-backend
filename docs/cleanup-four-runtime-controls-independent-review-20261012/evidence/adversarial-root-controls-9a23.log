@@ -1,0 +1,39 @@
+{
+  "baselineFiles": 2047,
+  "fixtureCases": 25,
+  "unexpectedAccepted": [],
+  "wholeMap": [
+    {
+      "label": "literal canonical copied method",
+      "source": "const extra={asCount(value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "binary computed canonical method",
+      "source": "const extra={['as'+'Count'](value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "lexical constant canonical method",
+      "source": "const KEY='asCount';const extra={[KEY](value:unknown){return 1;}};",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ]
+    },
+    {
+      "label": "constant dynamic canonical owner import",
+      "source": "import('./external/tango/tango-rest-'+'page.js');",
+      "rejected": true,
+      "errors": [
+        "tango-rest-page-leaves: unsupported dynamic owner import in apps/api/src/review-static-extra.ts"
+      ]
+    }
+  ]
+}
