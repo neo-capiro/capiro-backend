@@ -1,0 +1,33 @@
+{
+  "sourceHead": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "sourceTree": "f0530159db532171beba479da52615c759822086",
+  "startedAt": "2026-10-12T23:35:31.417714+00:00",
+  "finishedAt": "2026-10-12T23:35:34.145252+00:00",
+  "command": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG=C.UTF-8",
+    "TZ=UTC",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/native-prisma-owner-harness.cjs",
+    "--run",
+    "--verified-target",
+    "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/native-acceptance-pr2429-20261012/evidence/verified-isolated-target.json",
+    "--output",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/evidence/native-prisma-attempt-0.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "exitCode": 0,
+  "launcherEnvKeys": [
+    "PATH",
+    "LANG",
+    "TZ"
+  ],
+  "childAddedControlledEnv": [
+    "PRISMA_QUERY_ENGINE_LIBRARY"
+  ],
+  "stdout": "evidence/01-native-prisma-attempt-0.stdout.log",
+  "stderr": "evidence/01-native-prisma-attempt-0.stderr.log",
+  "databaseExecuted": true
+}
