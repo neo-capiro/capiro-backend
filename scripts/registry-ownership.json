@@ -2,10 +2,12 @@
   "version": 1,
   "profiles": [
     {
-      "id": "strategy-existing-template-vocabulary",
-      "status": "existing canonical vocabulary only; report metadata conversion remains pending",
-      "owner": "apps/api-strategy/src/context/frontmatter.ts",
-      "roots": ["apps/api-strategy/src"],
+      "id": "strategy-context-template-metadata",
+      "status": "17 existing template types with bounded deterministic report metadata; validation, audience, heading precedence, freshness and renderers remain canonical existing owners",
+      "owner": "apps/api-strategy/src/context/template-registry.ts",
+      "roots": [
+        "apps/api-strategy/src"
+      ],
       "symbols": [
         {
           "name": "DOCUMENT_TYPES",
@@ -14,9 +16,69 @@
         {
           "name": "TEMPLATE_KEY_BY_TYPE",
           "kind": "variable"
+        },
+        {
+          "name": "OPERATIONAL_REPORT_TEMPLATE_KEYS",
+          "kind": "variable"
+        },
+        {
+          "name": "REPORT_SECTION_TITLES",
+          "kind": "variable"
+        },
+        {
+          "name": "REPORT_SECTION_ORDER",
+          "kind": "variable"
+        },
+        {
+          "name": "REPORT_PREFIX_FALLBACKS",
+          "kind": "variable"
+        },
+        {
+          "name": "isOperationalReportTemplate",
+          "kind": "function"
+        },
+        {
+          "name": "reportFallbackSection",
+          "kind": "function"
         }
       ],
       "edges": [
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "module": "./template-registry.js",
+          "imported": "DOCUMENT_TYPES",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "module": "./template-registry.js",
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "REPORT_SECTION_ORDER",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "REPORT_SECTION_TITLES",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "isOperationalReportTemplate",
+          "uses": 2
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "module": "../context/template-registry.js",
+          "imported": "reportFallbackSection",
+          "uses": 1
+        },
         {
           "file": "apps/api-strategy/src/context/context-import.service.ts",
           "module": "./frontmatter.js",
@@ -44,16 +106,76 @@
       ],
       "carriers": [
         {
-          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "file": "apps/api-strategy/src/context/template-registry.ts",
           "name": "DOCUMENT_TYPES",
           "kind": "variable",
           "sha256": "acb6d11b65700793f099ac20f6196dee28eb8c44a24d40a1fba6f0856790f1c1"
         },
         {
-          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "file": "apps/api-strategy/src/context/template-registry.ts",
           "name": "TEMPLATE_KEY_BY_TYPE",
           "kind": "variable",
           "sha256": "99f60cff678bd1e17647714fc67dac0ba0ef4535c6b17618a6a4b72eff75f004"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "OPERATIONAL_REPORT_TEMPLATE_KEYS",
+          "kind": "variable",
+          "sha256": "10cf6cce9a45f76b7b19ded7156d20d0b9f5c3405c97d5b23dc172063a288a49"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "REPORT_SECTION_TITLES",
+          "kind": "variable",
+          "sha256": "3657f6c8d91af3bb67ea828e491594b4f3afd9111789b6a0f64624e36cf864f2"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "REPORT_SECTION_ORDER",
+          "kind": "variable",
+          "sha256": "7148b9d8d4f32ab05b99a41626f9d6661ade9ff0b1829d290c7f6dfffd1480b2"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "REPORT_PREFIX_FALLBACKS",
+          "kind": "variable",
+          "sha256": "0caef4f8ccc1173afcf7318c9a02100e282219975207df852234fc055dd90962"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "isOperationalReportTemplate",
+          "kind": "function",
+          "sha256": "9eac48b0f226912dbd9480e2b2d9c7a39c866b102d69bf7a836b68788ac61cb6"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "reportFallbackSection",
+          "kind": "function",
+          "sha256": "f3b1261dc407e750d1845dc74699cff15516068a007b9341812e5da7f7272551"
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "name": "assembleReportContext",
+          "kind": "function",
+          "sha256": "88dd4331840554c0c3769d89f39c31c7bca197b8a3e4960896b6f1351ceaea44"
+        },
+        {
+          "file": "apps/api-strategy/src/reports/report-context.ts",
+          "name": "categoryFor",
+          "kind": "function",
+          "sha256": "bcd76e33e5da8f396b6c805452ed247980cf9dc1e621b8ee0c8571825ec35fa2"
+        }
+      ],
+      "aliases": [
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "DOCUMENT_TYPES",
+          "sha256": "61e46507c0d5ada863fff8938f37e9f3c64f4453f20057a7ea8616bafeac64ec"
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "TEMPLATE_KEY_BY_TYPE",
+          "sha256": "4090749b4c6b486978d575b607e2153624fddacc27e3816eca2aaa6cd3703d7f"
         }
       ]
     },
@@ -61,7 +183,9 @@
       "id": "tango-rest-page-leaves",
       "status": "bounded REST count/page/rate leaf adoption; transport/security/retry remain canonical client owners",
       "owner": "apps/api/src/external/tango/tango-rest-page.ts",
-      "roots": ["apps/api/src"],
+      "roots": [
+        "apps/api/src"
+      ],
       "symbols": [
         {
           "name": "asCount",

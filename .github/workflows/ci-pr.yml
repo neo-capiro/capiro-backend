@@ -225,6 +225,9 @@ jobs:
       - name: Test reviewed Tango REST page leaves
         run: pnpm gate:cleanup4:tango-page-leaves
 
+      - name: Test reviewed Strategy template metadata
+        run: pnpm gate:cleanup4:strategy-template-metadata
+
       - name: Test apps/api
         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: pnpm --filter @capiro/api test

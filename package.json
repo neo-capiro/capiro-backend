@@ -115,7 +115,8 @@
     "gate:cleanup4:strategy-time": "node scripts/check-strategy-time-bypasses.mjs && node --test scripts/check-strategy-time-bypasses.test.mjs",
     "gate:cleanup4:registry-ownership": "node scripts/check-registry-ownership.mjs && node --test scripts/check-registry-ownership.test.mjs",
     "gate:cleanup4:duplicate-helpers": "node scripts/check-duplicate-helpers.mjs && node --test scripts/check-duplicate-helpers.test.mjs",
-    "gate:cleanup4:tango-page-leaves": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/external/tango/tango-rest-page.spec.ts src/external/tango/tango-sbir.client.spec.ts src/external/tango/tango-subaward.client.spec.ts"
+    "gate:cleanup4:tango-page-leaves": "pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/external/tango/tango-rest-page.spec.ts src/external/tango/tango-sbir.client.spec.ts src/external/tango/tango-subaward.client.spec.ts",
+    "gate:cleanup4:strategy-template-metadata": "pnpm --filter @capiro/api-strategy exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/context/template-registry.spec.ts src/context/frontmatter.spec.ts src/reports/report-context.spec.ts"
   },
   "devDependencies": {
     "prettier": "^3.9.9",
