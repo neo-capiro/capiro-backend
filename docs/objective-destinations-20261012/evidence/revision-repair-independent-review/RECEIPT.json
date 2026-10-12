@@ -1,0 +1,123 @@
+{
+  "acceptedSourceHead": "3f5a879efc06174f77231706244c1ba5e33810fa",
+  "acceptedSourceTree": "1f94bbde87da5f996b17ec074b849c97452a769e",
+  "publishedSourcePreserved": "30fa58467238542ff2b98137844ea02a3225e545",
+  "publishedSourceTree": "32142bbbc0ba12d7f973520c626d4a8167f612d8",
+  "reviewWorktree": "/workspace/objective-revision-repair-review",
+  "reviewBranch": "codex/objective-revision-repair-independent-review-20261012",
+  "previousReviewPreserved": "1ab782519bc48ecf0b9b977876c334d165822552",
+  "repairDeltaPaths": [
+    "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+    "apps/api/src/clients/objectives/objective-destination.spec.ts",
+    "apps/api/src/clients/objectives/objectives.service.ts",
+    "docs/objective-destinations-20261012/CONTRACT.md"
+  ],
+  "repairDeltaHashes": {
+    "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts": {
+      "sha256": "01a6e4aaf88febb41367f2b14b9eb89501a1aec3e5d12baaf0cbda85206b28d1",
+      "gitBlob": "c01ee3cbf26986dd44c2b03dbfe4b80447c59b45",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/clients/objectives/objective-destination.spec.ts": {
+      "sha256": "b0e6da10d4097afb97ffa8800240b954947475f1590152947ab07bdae5b4a4bd",
+      "gitBlob": "bb1b59d9a5bb5104890a59dd060154f04c8a1724",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/clients/objectives/objectives.service.ts": {
+      "sha256": "779976e1e3a3b59722b0204f15f84fb0ebfa1d964b77bffd369a93b22a2c7c78",
+      "gitBlob": "fb403a5c1fe0c58906400b3b64548a1a8dae9163",
+      "workingCopyIdentical": true
+    },
+    "docs/objective-destinations-20261012/CONTRACT.md": {
+      "sha256": "4f25a58da7f6434c1f4dce039519e7f24c2e6e3479427fa36181c926704d7b87",
+      "gitBlob": "a9506eabf63084500939974d6f703efb49065fb8",
+      "workingCopyIdentical": true
+    }
+  },
+  "criticalUnchangedPathHashes": {
+    "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql": {
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/services/outreach-session.service.ts": {
+      "sha256": "e7c8144ba2084f4ab41c90f42695a745e6cd9f005f3dff893386ca47c9b571e4",
+      "gitBlob": "0f2f43d1841e0cbf8d6271fa47cdc3a26a1c5e88",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/outreach-v3/persistence/outreach-state.repository.ts": {
+      "sha256": "5dc7f853d51e532871a8a1568cb871cb8ea82be302a113934650ed8c0323ecad",
+      "gitBlob": "44ed37514140f99bb777841b0ac81d83576f4dca",
+      "workingCopyIdentical": true
+    },
+    "apps/api/src/prisma/prisma.service.ts": {
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "gitBlob": "677810b805210533034bf268a6c26014311cda1d",
+      "workingCopyIdentical": true
+    },
+    "apps/api/prisma/migrations/20260502020000_capiro_app_role/migration.sql": {
+      "sha256": "7e5de5cb4f050f20ba81f5e0d49ba7e28f874226915e99e2cd2fb721dc7ce755",
+      "gitBlob": "1a320b44d18e0b6c81957ee40e57552cba16e884",
+      "workingCopyIdentical": true
+    },
+    "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql": {
+      "sha256": "4198b1fc80c801f0c2b0ff1a7ad8f72916e3d68502731abd78a0e0f0ee5db8c7",
+      "gitBlob": "e8f9b0ab74eb8ee7324e34d00cae3c85ca837d4f",
+      "workingCopyIdentical": true
+    }
+  },
+  "productionDelta": "Only removes FOR SHARE from immutable client_objective_revisions read. Mutable authority/grant/Objective locks and Outreach owner/session lock unchanged.",
+  "officialEvidence": [
+    {
+      "url": "https://www.postgresql.org/docs/current/sql-select.html",
+      "readDate": "2026-10-12",
+      "finding": "A locking SELECT requires UPDATE privilege on at least one column of every locked table."
+    },
+    {
+      "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+      "readDate": "2026-10-12",
+      "finding": "FOR SHARE blocks UPDATE and DELETE of locked rows until transaction end."
+    }
+  ],
+  "cascadeAnalysis": "Existing revision FK cascades from exact tenant/client/Objective parent. Objective FOR SHARE plus tenant/client authority FOR SHARE retains protection against parent updates/deletes; direct revision UPDATE/DELETE denied under intended original nonowner application grants. Source inference only; native permissions/inheritance/ownership/MVCC remain unrun.",
+  "targetedTests": {
+    "result": "repair-independent-initial.json",
+    "log": "repair-independent-initial.log",
+    "passed": 11,
+    "suites": 2,
+    "newIndependentTests": 10,
+    "authorPrivilegeRegression": 1
+  },
+  "repairHarness": "Real service with canned tagged SQL boundary denying locking revision SELECT; source equivalence and immutable migration assertions. No database.",
+  "noMutationOrGrantChange": true,
+  "noNativePrismaGenerationOrDownloadsInReview": true,
+  "excludedSuites": [
+    "objectives.pg.spec.ts",
+    "objectives.authorization.spec.ts"
+  ],
+  "nativeQualification": "unrun",
+  "unrun": [
+    "PostgreSQL",
+    "RLS",
+    "migration execution",
+    "effective database grants/role inheritance/ownership",
+    "MVCC/cascade concurrency",
+    "native engines",
+    "providers",
+    "AWS",
+    "paid models",
+    "customer mutation",
+    "security/credential/network changes"
+  ],
+  "scope": "Append-only repair of one existing Outreach Objective destination resolver, no generic navigation/link/creation/generation/send/frontend activation",
+  "firstReviewLimitation": "Earlier source acceptance missed locking SELECT privilege incompatibility; this repair review explicitly supersedes that privilege conclusion without deleting earlier evidence.",
+  "combinedTests": {
+    "result": "repair-combined-final.json",
+    "log": "repair-combined-final.log",
+    "passed": 130,
+    "suites": 11,
+    "newIndependentTests": 10,
+    "retainedIndependentTests": 39,
+    "authorSelectedTests": 81
+  }
+}
