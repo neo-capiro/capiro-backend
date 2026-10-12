@@ -1,0 +1,39 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "publishedCandidate": "d09429a509d5b3cc2501f3736e619723e4b2c4c0",
+  "paths": [
+    {
+      "path": "apps/api/scripts/lib/meri-durable-research-contract-client.ts",
+      "bytes": 14149,
+      "sha256": "f3f061fae8e4fbbad9f0703d1a597444beed9949793e629d5c36551d87901bc4",
+      "publishedBlob": "a1b644000df0aef365e4a12d393be1871b556245"
+    },
+    {
+      "path": "apps/api/scripts/meri-durable-controls.http.integration.spec.ts",
+      "bytes": 10625,
+      "sha256": "ad9b9ccaebf40e5a82f8b167202e783f306b1e8bd60817b64fdfdae95dd60fb4",
+      "publishedBlob": "e897b40d8a15472613930242cea3d8ee99178b71"
+    },
+    {
+      "path": "scripts/ci/meri-durable-http-client-contract.spec.mjs",
+      "bytes": 35621,
+      "sha256": "f8a3dd1d90d70a384ee47aae1f195b6a003fa1c26aecd9722b6117538d3b1430",
+      "publishedBlob": "2cadf834ec433d0a9bf1fb8a172016b35326284c"
+    }
+  ],
+  "integrationImportOnlyInverseExact": true,
+  "commands": [
+    {
+      "command": "node --test scripts/ci/meri-durable-http-client-contract.spec.mjs",
+      "exitCode": 0,
+      "tests": 48,
+      "skips": 0
+    },
+    {
+      "command": "node /workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc --project docs/cleanup-retirement-import-free-http-client-20261012/tsconfig.client.json",
+      "exitCode": 0
+    }
+  ],
+  "nativeApiFixtureRun": false,
+  "realTransportOrDatabase": false
+}
