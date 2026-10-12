@@ -26,8 +26,8 @@ const REFRESH_EFFECTIVE_DATES = process.argv.includes('--refresh-effective-dates
 // Default historical window when no DB checkpoint exists.
 const DEFAULT_START_DATE = '2021-01-01';
 const PER_PAGE = 100;
-// Incremental: read max(publication_date) from DB and use it as the floor.
-// Saves the 4–6 hour full backfill on daily syncs.
+// Incremental: use only complete protocol-qualified SyncRun receipts.
+// Partial document upserts never move the publication floor past an unseen tail.
 const INCREMENTAL =
   process.argv.includes('--incremental') || process.env.FR_SYNC_INCREMENTAL === '1';
 const SINCE_OVERRIDE = (() => {
@@ -237,21 +237,28 @@ async function main() {
   const prisma = new PrismaClient();
   const t0 = Date.now();
 
-  // Resolve the start date: --since flag > DB max(publication_date) if
-  // --incremental > DEFAULT_START_DATE. The format is YYYY-MM-DD.
+  // Only a proven complete ordinary source window may advance automatic ingestion.
+  // Partial upserts and legacy/explicit --since runs cannot become a checkpoint.
   let startDate: string = DEFAULT_START_DATE;
   if (SINCE_OVERRIDE) {
     const valid = dateOnly(SINCE_OVERRIDE);
     if (!valid) throw new Error('--since must be an exact YYYY-MM-DD date');
     startDate = valid;
   } else if (INCREMENTAL) {
-    const latest = await prisma.federalRegisterDocument.findFirst({
-      orderBy: { publicationDate: 'desc' },
-      select: { publicationDate: true },
+    const checkpoint = await prisma.syncRun.findFirst({
+      where: {
+        source: 'sync-federal-register',
+        status: 'success',
+        AND: [
+          { stats: { path: ['schemaVersion'], equals: 1 } },
+          { stats: { path: ['scope'], equals: 'publication_window' } },
+          { stats: { path: ['incrementalCheckpointEligible'], equals: true } },
+        ],
+      },
+      orderBy: { startedAt: 'desc' },
+      select: { startedAt: true },
     });
-    if (latest?.publicationDate) {
-      startDate = latest.publicationDate.toISOString().slice(0, 10);
-    }
+    if (checkpoint?.startedAt) startDate = checkpoint.startedAt.toISOString().slice(0, 10);
   }
   console.log('[fr-sync] starting Federal Register sync from', startDate);
 
@@ -365,6 +372,7 @@ async function main() {
           stats: {
             schemaVersion: 1,
             scope: 'publication_window',
+            incrementalCheckpointEligible: !SINCE_OVERRIDE,
             publicationFrom: startDate,
             expectedDocuments: totalDocs,
             observedDocuments: observedNumbers.size,
