@@ -1,0 +1,6 @@
+Transcription of the original executor output; actual test output files were unchanged:
+Traceback (most recent call last):
+  File "<stdin>", line 8, in <module>
+AssertionError
+
+Cause: the collector expected '# tests/pass/fail' TAP counters while actual Node24 default reporter emitted 'ℹ tests/pass/fail'. The original test commands already exited0. The corrected collector accepts either actual format and compares the immutable existing outputs; no test expectations or source were changed.

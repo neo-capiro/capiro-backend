@@ -1,0 +1,20 @@
+PASS src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts
+  a skeleton survives every representation boundary
+    ✓ is accepted by the authoring validator, the template schema and the command schema alike (6 ms)
+    ✓ round-trips through JSON unchanged, which is what the wire and spec_jsonb do (3 ms)
+    ✓ the command schema rejects a skeleton with an invalid slot key (11 ms)
+    ✓ the command schema accepts null, because clearing a template is a real action (1 ms)
+    ✓ the command schema enforces the same slot ceiling as the authoring side (2 ms)
+  the browser and server slot-token syntax agree
+    ✓ uses the identical double-brace token pattern (1 ms)
+    ✓ uses the identical slot-key shape
+    ✓ collapses 3+ newlines exactly as the server assembler does (1 ms)
+    ✓ drops a token-only line exactly as the server assembler does
+    ✓ declares the same limits the server schemas enforce
+
+Test Suites: 1 passed, 1 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        1.079 s
+Ran all test suites within paths "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts".
+Test results written to: ../../docs/cleanup-outreach-skeleton-owned-input-adoption-20261012/evidence/web-refused-results.json

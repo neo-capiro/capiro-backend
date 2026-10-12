@@ -1,0 +1,88 @@
+/** Pure scope planning: importing this module does not load or run a verifier. */
+const PHASES = new Set(['phase1', 'phase3', 'phase4']);
+const SCOPES = new Set(['full', 'backend-only', 'frontend-only']);
+const PHASE4_ARCHITECTURE = 'src/outreach-v3/targets/outreach-v3-phase4-architecture.spec.ts';
+const INHERITED_FRONTEND = {
+  phase1: 'Phase 3 regression',
+  phase3: 'Engagement Phase 3 current-product regression',
+  phase4: 'Phase 3 reasoning regression',
+};
+const SHARED_SOURCE_CONTROLS = {
+  phase1: new Set(['Phase 1 whitespace']),
+  phase3: new Set(['Phase 3 committed-diff whitespace']),
+  phase4: new Set(['Diff whitespace', 'Current PR whitespace']),
+};
+
+export function outreachV3Scope(args) {
+  const backend = args.includes('--backend-only');
+  const frontend = args.includes('--frontend-only');
+  if (backend && frontend) {
+    throw new Error('Choose exactly one Outreach V3 scope: --backend-only or --frontend-only');
+  }
+  // Existing wrappers ignore other arguments. Strict --run/--help adoption
+  // requires a separate migration of root aliases and nested callers.
+  return backend ? 'backend-only' : frontend ? 'frontend-only' : 'full';
+}
+
+function requirePlan(phase, scope) {
+  if (!PHASES.has(phase)) throw new Error(`Unknown Outreach V3 phase: ${phase}`);
+  if (!SCOPES.has(scope)) throw new Error(`Unknown Outreach V3 scope: ${scope}`);
+}
+
+export function outreachV3RunsLocalContracts(phase, scope) {
+  requirePlan(phase, scope);
+  // Phase 1 ownership/catalog/callback controls and Phase 4 targets/catalog/
+  // historical source-scope checks use backend inputs. Engagement Phase 3's
+  // inherited UI/prototype guards remain in its scoped prerequisite; this
+  // planner does not reclassify or remove their positive frontend context.
+  return scope !== 'frontend-only';
+}
+
+export function outreachV3QualificationPlan(phase, scope, fullSteps) {
+  requirePlan(phase, scope);
+  if (scope === 'full') return fullSteps;
+
+  const inherited = INHERITED_FRONTEND[phase];
+  const planned = [];
+  for (const step of fullSteps) {
+    const [label, command, args, ...options] = step;
+    if (label === inherited) {
+      const suffix = scope === 'backend-only' ? ':backend' : ':frontend';
+      const scopedArgs = phase === 'phase4'
+        ? [...args, `--${scope}`]
+        : [args[0] + suffix, ...args.slice(1)];
+      planned.push([label, command, scopedArgs, ...options]);
+    } else if (phase === 'phase4' && label === 'Phase 4 focused tests') {
+      const [settings = {}, ...rest] = options;
+      if (!args.includes(PHASE4_ARCHITECTURE)) throw new Error('Phase 4 architecture selector is required');
+      const scopedArgs = scope === 'backend-only' ? args : args.filter((arg) =>
+        !(arg.startsWith('src/') || arg.startsWith('scripts/') || arg.endsWith('.spec.ts')) || arg === PHASE4_ARCHITECTURE);
+      planned.push([label, command, scopedArgs, { ...settings, env: {
+        ...settings.env, OUTREACH_V3_ARCHITECTURE_SCOPE: scope,
+      } }, ...rest]);
+    } else if (scope === 'backend-only' || SHARED_SOURCE_CONTROLS[phase].has(label)) {
+      // Every application/native/API/source-control command stays byte-for-
+      // byte equivalent in backend scope. Frontend scope owns the inherited
+      // browser qualification and the same whitespace controls only.
+      planned.push(step);
+    }
+  }
+  return planned;
+}
+
+export function outreachV3CompletionMarker(phase, scope) {
+  requirePlan(phase, scope);
+  const number = phase.slice('phase'.length);
+  const qualifier = scope === 'full' ? '' : `_${scope === 'backend-only' ? 'BACKEND' : 'FRONTEND'}`;
+  return `OUTREACH_V3_PHASE${number}${qualifier}_DB_FREE_COMPLETE`;
+}
+
+export function outreachV3FailureMarker(phase, scope) {
+  requirePlan(phase, scope);
+  if (scope === 'full') return undefined;
+  return outreachV3CompletionMarker(phase, scope).replace(/COMPLETE$/, 'FAILED');
+}
+
+export function executeOutreachV3Plan(steps, run) {
+  for (const step of steps) run(...step);
+}

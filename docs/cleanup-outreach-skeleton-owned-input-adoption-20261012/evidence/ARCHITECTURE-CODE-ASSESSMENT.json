@@ -1,0 +1,63 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "published": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "sourceOnlyNoDeniedReportRead": true,
+  "paths": [
+    {
+      "path": "apps/api/src/outreach-v3/outreach-architecture-source-files.ts",
+      "publishedSha256": "64993c4037f7be3af03657c0756aeb9c7ed92432e0207db21845b3001288feb1",
+      "publishedBlob": "939511d401df1c7d72301a545b5a1923021f327b",
+      "baselineExists": false,
+      "adopted": false
+    },
+    {
+      "path": "apps/api/src/outreach-v3/targets/outreach-v3-phase4-architecture.spec.ts",
+      "publishedSha256": "efec4d7a0dca101f66b3476c4bc2b54f60e1affd637a02bcb68f678cf8d9b0b7",
+      "publishedBlob": "a862111a53c0a5c686e111da846c3fae6e414534",
+      "baselineExists": true,
+      "adopted": false,
+      "baselineSha256": "5fcf976ed61b1e3d2a8f47fb627ad2349917d4c10dc09fdc520cf86e497ded09",
+      "same": false,
+      "describeBodiesExactOriginal": true,
+      "describeBodySha256": "21309b0f1ed26ef0313ff9faac904f30f6a18804deeff69e492408e8cb465e81"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/context/outreach-v3-phase5-architecture.spec.ts",
+      "publishedSha256": "b5cc753316f1d0074d01ab4a59b80de23e887c337c43556cfccf9e992fe4b276",
+      "publishedBlob": "c1468c028d07e825ba4337cdb061788c51d44a18",
+      "baselineExists": true,
+      "adopted": false,
+      "baselineSha256": "d159f8658ddef45667c9e511285481076d63647c2498e4665645037c75fff564",
+      "same": false,
+      "describeBodiesExactOriginal": true,
+      "describeBodySha256": "8e0a3a622b715432c506cfd3b8b4ecfd946cdc21ff1a7470c510f191c318fcb2"
+    },
+    {
+      "path": "scripts/ci/outreach-architecture-source-files.contract.spec.mjs",
+      "publishedSha256": "9156b15a87705be0a1cfdd4f702354971fe8c398c13a727e284688026fb9e2a1",
+      "publishedBlob": "5aae43dfce81ea3989fad9a095ee6895f2692cbf",
+      "baselineExists": false,
+      "adopted": false
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.mjs",
+      "publishedSha256": "7aecdaa9793d5a4b4ec0e44ea2d8aea5343ce2c2d38d2f0d340e4efcd78ef8a6",
+      "publishedBlob": "abef41593a55d117b3b24f61f4a3f6d05d4de1ac",
+      "baselineExists": true,
+      "adopted": false,
+      "baselineSha256": "bdb9ba82c78b05a26e7aeef9eec013d2e562b0318ee44b7ed3725e3bfd0e546a",
+      "same": false
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "publishedSha256": "6e6901cf9bb3d5a975915924a95fd85ee86d4f82b687c45ead7385620a07caf1",
+      "publishedBlob": "9df685cb6c0e8b9ed4a962c5ff95d03ee5d7f56b",
+      "baselineExists": true,
+      "adopted": false,
+      "baselineSha256": "88bf833d405f42befdc7f6df3ba187db7092dcbcbf1ef74d4b3bd04ce6c43c10",
+      "same": false
+    }
+  ],
+  "architectureSourceImplemented": false,
+  "reasonHeld": "Published CI requires caller/marker changes absent from destination; preserve current full/default and 20-qualified wrapper policy until a bounded reconciled slice is selected."
+}

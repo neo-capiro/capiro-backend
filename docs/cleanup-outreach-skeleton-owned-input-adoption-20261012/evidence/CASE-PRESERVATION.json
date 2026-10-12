@@ -1,0 +1,64 @@
+{
+  "source": "2d88ac7063e0e5b75c0490411a3758cb655beb01",
+  "actualOriginalBeforeAndAfterAndWebRefusedCases": [
+    {
+      "name": "a skeleton survives every representation boundary is accepted by the authoring validator, the template schema and the command schema alike",
+      "status": "passed",
+      "passingAssertions": 3
+    },
+    {
+      "name": "a skeleton survives every representation boundary round-trips through JSON unchanged, which is what the wire and spec_jsonb do",
+      "status": "passed",
+      "passingAssertions": 2
+    },
+    {
+      "name": "a skeleton survives every representation boundary the command schema rejects a skeleton with an invalid slot key",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "a skeleton survives every representation boundary the command schema accepts null, because clearing a template is a real action",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "a skeleton survives every representation boundary the command schema enforces the same slot ceiling as the authoring side",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "the browser and server slot-token syntax agree uses the identical double-brace token pattern",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "the browser and server slot-token syntax agree uses the identical slot-key shape",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "the browser and server slot-token syntax agree collapses 3+ newlines exactly as the server assembler does",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "the browser and server slot-token syntax agree drops a token-only line exactly as the server assembler does",
+      "status": "passed",
+      "passingAssertions": 1
+    },
+    {
+      "name": "the browser and server slot-token syntax agree declares the same limits the server schemas enforce",
+      "status": "passed",
+      "passingAssertions": 5
+    }
+  ],
+  "casesAndPassingAssertionCountsIdentical": true,
+  "caseCount": 10,
+  "allPass": true,
+  "skippedTodo": 0,
+  "nodeControlCountWithExplicitFrontendSourceParity": 16,
+  "nodeDefaultControlCountWithWebReadsRefused": 8,
+  "architecturePureDesignOnlyFakeChecks": 17,
+  "architectureAdopted": false,
+  "nativeServiceUiOrProviderAcceptance": false
+}
