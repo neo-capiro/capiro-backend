@@ -1,0 +1,93 @@
+{
+  "names": [
+    "White paper",
+    "Appropriations Justification",
+    "NDAA Authorization Request",
+    "Meeting Brief & Advocacy",
+    "CDS / Earmark Application",
+    "Authorization Bill Language",
+    "Report Language Request",
+    "Member letter",
+    "Strategy memo",
+    "Written testimony",
+    "One-pager"
+  ],
+  "orders": {
+    "metadata": [
+      "White paper",
+      "Appropriations Justification",
+      "NDAA Authorization Request",
+      "Meeting Brief & Advocacy",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request",
+      "Member letter",
+      "Strategy memo",
+      "Written testimony",
+      "One-pager"
+    ],
+    "sections": [
+      "NDAA Authorization Request",
+      "Appropriations Justification",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request",
+      "Meeting Brief & Advocacy",
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "Strategy memo",
+      "White paper"
+    ],
+    "pages": [
+      "White paper",
+      "Appropriations Justification",
+      "NDAA Authorization Request",
+      "Meeting Brief & Advocacy",
+      "Strategy memo",
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request"
+    ],
+    "canonical": [
+      "NDAA Authorization Request",
+      "Appropriations Justification",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request",
+      "Meeting Brief & Advocacy",
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "Strategy memo"
+    ],
+    "universal": [
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "Strategy memo"
+    ],
+    "funding": [
+      "White paper",
+      "Appropriations Justification",
+      "NDAA Authorization Request",
+      "CDS / Earmark Application"
+    ]
+  },
+  "namesToDescriptorKeys": {
+    "White paper": "whitePaper",
+    "Appropriations Justification": "appropriationsJustification",
+    "NDAA Authorization Request": "ndaaAuthorizationRequest",
+    "Meeting Brief & Advocacy": "meetingBriefAdvocacy",
+    "CDS / Earmark Application": "cdsEarmarkApplication",
+    "Authorization Bill Language": "authorizationBillLanguage",
+    "Report Language Request": "reportLanguageRequest",
+    "Member letter": "memberLetter",
+    "Strategy memo": "strategyMemo",
+    "Written testimony": "writtenTestimony",
+    "One-pager": "onePager"
+  }
+}

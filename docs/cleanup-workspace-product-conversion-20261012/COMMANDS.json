@@ -1,0 +1,70 @@
+{
+  "cwd": "/tmp/capirov2-cleanup-workspace-product-conversion",
+  "commands": [
+    {
+      "command": "node docs/cleanup-workspace-product-conversion-20261012/evidence/capture-before.cjs",
+      "exit": 0,
+      "receipt": "evidence/capture-before.json",
+      "scope": "Frozen original snapshots only, before app edits, refuses fixture overwrite"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-baseline.jest.cjs --runInBand --no-cache --json --outputFile docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-before-red.json",
+      "exit": 1,
+      "receipt": "evidence/cascade-before-red.json",
+      "scope": "Original7 cases,6pass1stale11vs10fail"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-baseline.jest.cjs --runInBand --no-cache --json --outputFile docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-after-red.json",
+      "exit": 1,
+      "receipt": "evidence/cascade-after-red.json",
+      "scope": "Byte-exact original7 cases, same6pass1fail"
+    },
+    {
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization.jest.cjs --runInBand --no-cache --json --outputFile docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-accepted.json",
+      "exit": 0,
+      "receipt": "evidence/product-characterization-accepted.json",
+      "scope": "115pure/golden checks; cached transform diagnosticsfalse paired with separate real semantic strict check"
+    },
+    {
+      "command": "node /workspace/capirov2/node_modules/typescript/bin/tsc --noEmit --strict --noUncheckedIndexedAccess --target ES2022 --module Node16 --moduleResolution Node16 --experimentalDecorators --emitDecoratorMetadata --esModuleInterop --skipLibCheck --types node,jest --typeRoots /workspace/capirov2/apps/api/node_modules/@types --incremental false apps/workspace/src/cascade/cascade.config.ts apps/workspace/src/cascade/workspace-product.registry.ts apps/workspace/src/cascade/cascade.service.ts apps/workspace/test/product-registry-characterization.spec.ts",
+      "exit": 0,
+      "stdout": "evidence/focused-strict-accepted.log",
+      "stderr": "evidence/focused-strict-accepted.stderr.log",
+      "scope": "Real cached semantic checker, strict/noUnchecked fourfilesonly"
+    },
+    {
+      "command": "node docs/cleanup-workspace-product-conversion-20261012/evidence/product-differential.cjs",
+      "exit": 0,
+      "receipt": "evidence/product-differential.json",
+      "scope": "Fixedbefore5b9golden; expectationsnotregenerated"
+    },
+    {
+      "command": "node docs/cleanup-workspace-product-conversion-20261012/evidence/source-preservation-check.cjs",
+      "exit": 0,
+      "receipt": "evidence/source-preservation-check.json",
+      "scope": "Exact reversalofallowededits/sourcehashes"
+    }
+  ],
+  "retainedEarlierStrictFailures": [
+    {
+      "stdout": "evidence/focused-strict-first.log",
+      "exit": 2,
+      "reason": "missingcachedtypeRoots"
+    },
+    {
+      "stdout": "evidence/focused-strict-second.log",
+      "exit": 2,
+      "reason": "fourtestfixtureindexguardsneeded"
+    },
+    {
+      "stdout": "evidence/focused-strict-final.log",
+      "exit": 2,
+      "reason": "oneclosureindexnarrowingneeded"
+    }
+  ],
+  "retainedEarlierCharacterizationPasses": [
+    "evidence/product-characterization-first.json",
+    "evidence/product-characterization-final.json"
+  ],
+  "nativeAcceptance": false
+}

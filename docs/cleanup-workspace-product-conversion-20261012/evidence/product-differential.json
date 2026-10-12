@@ -1,0 +1,3457 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "tree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "beforeFixtureSha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c",
+  "currentConfigSha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620",
+  "currentRegistrySha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732",
+  "comparedProductProfiles": 21,
+  "comparedIndustryProfiles": 11,
+  "comparedSectionProfiles": 78,
+  "allSerializedValuesOrdersFallbacksFailuresExact": true,
+  "identityMutationAndCommonJsAliasSemanticsExact": true,
+  "beforeFixtureNotRegenerated": true,
+  "observedProfile": {
+    "serializedExports": {
+      "CASCADE": "[{\"industry\":\"Defense & Aerospace\",\"products\":[{\"name\":\"NDAA Authorization Request\",\"pathways\":[\"NDAA Authorization\"]},{\"name\":\"Meeting Brief & Advocacy\",\"pathways\":[\"NDAA Authorization\",\"Defense Appropriations\"]},{\"name\":\"Appropriations Justification\",\"pathways\":[\"Defense Appropriations\"]},{\"name\":\"CDS / Earmark Application\",\"pathways\":[\"Defense Appropriations\"]}],\"pathways\":{\"NDAA Authorization\":[\"HASC\",\"SASC\"],\"Defense Appropriations\":[\"HAC-D\",\"SAC-D\"]}},{\"industry\":\"Health & Pharma\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"Labor-HHS Appropriations\"]},{\"name\":\"Meeting Brief & Advocacy\",\"pathways\":[\"Labor-HHS Appropriations\",\"HELP Authorization\"]},{\"name\":\"Authorization Bill Language\",\"pathways\":[\"HELP Authorization\"]}],\"pathways\":{\"Labor-HHS Appropriations\":[\"L-HHS\"],\"HELP Authorization\":[\"HELP\"]}},{\"industry\":\"Energy & Resources\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"Energy & Water Appropriations\"]},{\"name\":\"Authorization Bill Language\",\"pathways\":[\"ENR Authorization\"]}],\"pathways\":{\"Energy & Water Appropriations\":[\"E&W\"],\"ENR Authorization\":[\"ENR\"]}},{\"industry\":\"Agriculture\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"Agriculture Appropriations\"]},{\"name\":\"Authorization Bill Language\",\"pathways\":[\"Farm Bill Authorization\"]}],\"pathways\":{\"Agriculture Appropriations\":[\"HAC-Ag\"],\"Farm Bill Authorization\":[\"Senate Ag\"]}},{\"industry\":\"Transportation\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"T-HUD Appropriations\"]},{\"name\":\"CDS / Earmark Application\",\"pathways\":[\"T-HUD Appropriations\"]}],\"pathways\":{\"T-HUD Appropriations\":[\"T-HUD\",\"T&I\"]}},{\"industry\":\"Homeland Security\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"Homeland Security Appropriations\"]},{\"name\":\"Authorization Bill Language\",\"pathways\":[\"Homeland Security Appropriations\"]}],\"pathways\":{\"Homeland Security Appropriations\":[\"HAC-HS\",\"SAC-HS\"]}},{\"industry\":\"Environment\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"Interior & Environment Appropriations\"]},{\"name\":\"CDS / Earmark Application\",\"pathways\":[\"Interior & Environment Appropriations\"]}],\"pathways\":{\"Interior & Environment Appropriations\":[\"Int/Env\",\"EPW\"]}},{\"industry\":\"Commerce & Tech\",\"products\":[{\"name\":\"Appropriations Justification\",\"pathways\":[\"CJS Appropriations\"]},{\"name\":\"Report Language Request\",\"pathways\":[\"CJS Appropriations\"]}],\"pathways\":{\"CJS Appropriations\":[\"CJS\",\"Commerce\",\"Science\"]}}]",
+      "CANONICAL_PRODUCTS": "[\"NDAA Authorization Request\",\"Appropriations Justification\",\"CDS / Earmark Application\",\"Authorization Bill Language\",\"Report Language Request\",\"Meeting Brief & Advocacy\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]",
+      "UNIVERSAL_PRODUCTS": "[\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]",
+      "FUNDING_PRODUCTS": "[\"White paper\",\"Appropriations Justification\",\"NDAA Authorization Request\",\"CDS / Earmark Application\"]",
+      "PRODUCT_META": "{\"White paper\":{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"Narrative program paper supporting authorization, appropriations, or policy asks.\"},\"Appropriations Justification\":{\"icon\":\"Coins\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"Detail a program's funding need and justification.\"},\"NDAA Authorization Request\":{\"icon\":\"TrendingUp\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"Request program authorization or a budget adjustment.\"},\"Meeting Brief & Advocacy\":{\"icon\":\"Users\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"Leave-behind brief for a member or staff meeting.\"},\"CDS / Earmark Application\":{\"icon\":\"Landmark\",\"personalize\":true,\"office\":true,\"cover\":true,\"desc\":\"Community project funding application.\"},\"Authorization Bill Language\":{\"icon\":\"Scale\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Amendatory statutory / authorizing text.\"},\"Report Language Request\":{\"icon\":\"FileSignature\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Directive or encouraging committee report language.\"},\"Member letter\":{\"icon\":\"Mail\",\"personalize\":true,\"office\":true,\"cover\":false,\"desc\":\"Cosponsor request, support letter, or consolidated sign-on letter to a Member.\"},\"Strategy memo\":{\"icon\":\"ClipboardList\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Internal brief covering situation analysis and strategic recommendation.\"},\"Written testimony\":{\"icon\":\"Mic\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Statement for the record before a committee or agency.\"},\"One-pager\":{\"icon\":\"File\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"Meeting leave-behind or fact sheet summarizing the program and ask.\"}}",
+      "SUGGESTED_SECTIONS": "{\"NDAA Authorization Request\":[\"Problem statement\",\"Solution\",\"Current status\",\"Funding history & request\",\"National security impact\",\"Economic & district impact\",\"The ask\"],\"Appropriations Justification\":[\"Executive summary\",\"Account & program line\",\"Program description\",\"Funding history\",\"Justification & impact\",\"Performance & outcomes\",\"The ask\"],\"CDS / Earmark Application\":[\"Requesting entity & recipient information\",\"Project title\",\"Project description\",\"Requested amount & total cost\",\"Federal nexus statement\",\"Evidence of community support\",\"Financial disclosure certification\",\"Outcomes & metrics\"],\"Authorization Bill Language\":[\"Short title\",\"Findings & purpose\",\"Definitions\",\"Main operative provision\",\"Exceptions & special rules\",\"Conforming & transitional provisions\",\"Authorization of appropriations\",\"Effective date\"],\"Report Language Request\":[\"Requesting entity & contact\",\"Bill, account & subcommittee\",\"Background & problem\",\"Proposed report language\",\"Justification\",\"Relationship to existing law & PBR\"],\"Meeting Brief & Advocacy\":[\"Meeting logistics\",\"Member profile\",\"Background\",\"Objectives & the ask\",\"Talking points\",\"Anticipated questions & responses\",\"Leave-behind summary\",\"Follow-up plan\"],\"Member letter\":[\"Opening\",\"Program description\",\"Request\",\"Closing\"],\"Written testimony\":[\"Disclosure & witness intro\",\"Opening statement\",\"Background\",\"Position\",\"Recommendations\",\"Closing\"],\"One-pager\":[\"Header & title\",\"Background\",\"Key facts & data\",\"Our position & the ask\",\"Contact information\"],\"Strategy memo\":[\"Situation\",\"Background\",\"Analysis\",\"Recommendation\",\"Next steps\"],\"White paper\":[\"Problem statement\",\"Solution\",\"Current status\",\"Funding history & request\",\"National security impact\",\"Economic & district impact\",\"The ask\"]}",
+      "SUGGESTED_PAGES": "{\"White paper\":2,\"Appropriations Justification\":2,\"NDAA Authorization Request\":2,\"Meeting Brief & Advocacy\":1,\"Strategy memo\":2,\"Member letter\":1,\"Written testimony\":5,\"One-pager\":1,\"CDS / Earmark Application\":2,\"Authorization Bill Language\":3,\"Report Language Request\":1}",
+      "INDUSTRY_DATA": "{\"Defense & Aerospace\":[{\"label\":\"Program Element (PE)\",\"value\":\"0603563N\",\"icon\":\"Database\"},{\"label\":\"R-1 budget line\",\"value\":\"098\",\"icon\":\"FileText\"},{\"label\":\"Navy UPL listing\",\"value\":\"FY27 #21\",\"icon\":\"ListOrdered\"}],\"Health & Pharma\":[{\"label\":\"Budget account\",\"value\":\"Labor-HHS\",\"icon\":\"Database\"},{\"label\":\"Authorizing authority\",\"value\":\"PHSA\",\"icon\":\"Scale\"}],\"Energy & Resources\":[{\"label\":\"DOE program office\",\"value\":\"EERE\",\"icon\":\"Database\"}],\"Agriculture\":[{\"label\":\"USDA program code\",\"value\":\"\",\"icon\":\"Database\"}],\"Transportation\":[{\"label\":\"DOT program\",\"value\":\"\",\"icon\":\"Database\"}]}",
+      "SECTION_LIBRARY": "[\"BLUF\",\"Operational need\",\"Strategy & COCOM alignment\",\"UPL / UFR status\",\"Execution rationale\",\"Endorsements & attachments\",\"Precedent\",\"Certifications\",\"Contact block\"]"
+    },
+    "projectionKeys": {
+      "PRODUCT_META": [
+        "White paper",
+        "Appropriations Justification",
+        "NDAA Authorization Request",
+        "Meeting Brief & Advocacy",
+        "CDS / Earmark Application",
+        "Authorization Bill Language",
+        "Report Language Request",
+        "Member letter",
+        "Strategy memo",
+        "Written testimony",
+        "One-pager"
+      ],
+      "SUGGESTED_SECTIONS": [
+        "NDAA Authorization Request",
+        "Appropriations Justification",
+        "CDS / Earmark Application",
+        "Authorization Bill Language",
+        "Report Language Request",
+        "Meeting Brief & Advocacy",
+        "Member letter",
+        "Written testimony",
+        "One-pager",
+        "Strategy memo",
+        "White paper"
+      ],
+      "SUGGESTED_PAGES": [
+        "White paper",
+        "Appropriations Justification",
+        "NDAA Authorization Request",
+        "Meeting Brief & Advocacy",
+        "Strategy memo",
+        "Member letter",
+        "Written testimony",
+        "One-pager",
+        "CDS / Earmark Application",
+        "Authorization Bill Language",
+        "Report Language Request"
+      ]
+    },
+    "allLibraryProducts": [
+      "White paper",
+      "NDAA Authorization Request",
+      "Appropriations Justification",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request",
+      "Meeting Brief & Advocacy",
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "Strategy memo"
+    ],
+    "products": [
+      {
+        "product": "White paper",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"Narrative program paper supporting authorization, appropriations, or policy asks.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Problem statement\",\"Solution\",\"Current status\",\"Funding history & request\",\"National security impact\",\"Economic & district impact\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "true"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"White paper\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Problem statement\",\"Solution\",\"Current status\",\"Funding history & request\",\"National security impact\",\"Economic & district impact\",\"The ask\"],\"pages\":2,\"funding\":true,\"icon\":\"FileText\",\"description\":\"Narrative program paper supporting authorization, appropriations, or policy asks.\"}"
+        }
+      },
+      {
+        "product": "Appropriations Justification",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"Coins\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"Detail a program's funding need and justification.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Executive summary\",\"Account & program line\",\"Program description\",\"Funding history\",\"Justification & impact\",\"Performance & outcomes\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "true"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Appropriations Justification\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Executive summary\",\"Account & program line\",\"Program description\",\"Funding history\",\"Justification & impact\",\"Performance & outcomes\",\"The ask\"],\"pages\":2,\"funding\":true,\"icon\":\"Coins\",\"description\":\"Detail a program's funding need and justification.\"}"
+        }
+      },
+      {
+        "product": "NDAA Authorization Request",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"TrendingUp\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"Request program authorization or a budget adjustment.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Problem statement\",\"Solution\",\"Current status\",\"Funding history & request\",\"National security impact\",\"Economic & district impact\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "true"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"NDAA Authorization Request\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Problem statement\",\"Solution\",\"Current status\",\"Funding history & request\",\"National security impact\",\"Economic & district impact\",\"The ask\"],\"pages\":2,\"funding\":true,\"icon\":\"TrendingUp\",\"description\":\"Request program authorization or a budget adjustment.\"}"
+        }
+      },
+      {
+        "product": "Meeting Brief & Advocacy",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"Users\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"Leave-behind brief for a member or staff meeting.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Meeting logistics\",\"Member profile\",\"Background\",\"Objectives & the ask\",\"Talking points\",\"Anticipated questions & responses\",\"Leave-behind summary\",\"Follow-up plan\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "1"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Meeting Brief & Advocacy\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Meeting logistics\",\"Member profile\",\"Background\",\"Objectives & the ask\",\"Talking points\",\"Anticipated questions & responses\",\"Leave-behind summary\",\"Follow-up plan\"],\"pages\":1,\"funding\":false,\"icon\":\"Users\",\"description\":\"Leave-behind brief for a member or staff meeting.\"}"
+        }
+      },
+      {
+        "product": "CDS / Earmark Application",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"Landmark\",\"personalize\":true,\"office\":true,\"cover\":true,\"desc\":\"Community project funding application.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Requesting entity & recipient information\",\"Project title\",\"Project description\",\"Requested amount & total cost\",\"Federal nexus statement\",\"Evidence of community support\",\"Financial disclosure certification\",\"Outcomes & metrics\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "true"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"CDS / Earmark Application\",\"personalize\":true,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Requesting entity & recipient information\",\"Project title\",\"Project description\",\"Requested amount & total cost\",\"Federal nexus statement\",\"Evidence of community support\",\"Financial disclosure certification\",\"Outcomes & metrics\"],\"pages\":2,\"funding\":true,\"icon\":\"Landmark\",\"description\":\"Community project funding application.\"}"
+        }
+      },
+      {
+        "product": "Authorization Bill Language",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"Scale\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Amendatory statutory / authorizing text.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Short title\",\"Findings & purpose\",\"Definitions\",\"Main operative provision\",\"Exceptions & special rules\",\"Conforming & transitional provisions\",\"Authorization of appropriations\",\"Effective date\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "3"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Authorization Bill Language\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Short title\",\"Findings & purpose\",\"Definitions\",\"Main operative provision\",\"Exceptions & special rules\",\"Conforming & transitional provisions\",\"Authorization of appropriations\",\"Effective date\"],\"pages\":3,\"funding\":false,\"icon\":\"Scale\",\"description\":\"Amendatory statutory / authorizing text.\"}"
+        }
+      },
+      {
+        "product": "Report Language Request",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileSignature\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Directive or encouraging committee report language.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Requesting entity & contact\",\"Bill, account & subcommittee\",\"Background & problem\",\"Proposed report language\",\"Justification\",\"Relationship to existing law & PBR\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "1"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Report Language Request\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Requesting entity & contact\",\"Bill, account & subcommittee\",\"Background & problem\",\"Proposed report language\",\"Justification\",\"Relationship to existing law & PBR\"],\"pages\":1,\"funding\":false,\"icon\":\"FileSignature\",\"description\":\"Directive or encouraging committee report language.\"}"
+        }
+      },
+      {
+        "product": "Member letter",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"Mail\",\"personalize\":true,\"office\":true,\"cover\":false,\"desc\":\"Cosponsor request, support letter, or consolidated sign-on letter to a Member.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Opening\",\"Program description\",\"Request\",\"Closing\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "1"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Member letter\",\"personalize\":true,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Opening\",\"Program description\",\"Request\",\"Closing\"],\"pages\":1,\"funding\":false,\"icon\":\"Mail\",\"description\":\"Cosponsor request, support letter, or consolidated sign-on letter to a Member.\"}"
+        }
+      },
+      {
+        "product": "Strategy memo",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"ClipboardList\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Internal brief covering situation analysis and strategic recommendation.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Situation\",\"Background\",\"Analysis\",\"Recommendation\",\"Next steps\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Strategy memo\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Situation\",\"Background\",\"Analysis\",\"Recommendation\",\"Next steps\"],\"pages\":2,\"funding\":false,\"icon\":\"ClipboardList\",\"description\":\"Internal brief covering situation analysis and strategic recommendation.\"}"
+        }
+      },
+      {
+        "product": "Written testimony",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"Mic\",\"personalize\":false,\"office\":false,\"cover\":false,\"desc\":\"Statement for the record before a committee or agency.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Disclosure & witness intro\",\"Opening statement\",\"Background\",\"Position\",\"Recommendations\",\"Closing\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "5"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Written testimony\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Disclosure & witness intro\",\"Opening statement\",\"Background\",\"Position\",\"Recommendations\",\"Closing\"],\"pages\":5,\"funding\":false,\"icon\":\"Mic\",\"description\":\"Statement for the record before a committee or agency.\"}"
+        }
+      },
+      {
+        "product": "One-pager",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"File\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"Meeting leave-behind or fact sheet summarizing the program and ask.\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Header & title\",\"Background\",\"Key facts & data\",\"Our position & the ask\",\"Contact information\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "1"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"One-pager\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":false,\"sections\":[\"Header & title\",\"Background\",\"Key facts & data\",\"Our position & the ask\",\"Contact information\"],\"pages\":1,\"funding\":false,\"icon\":\"File\",\"description\":\"Meeting leave-behind or fact sheet summarizing the program and ask.\"}"
+        }
+      },
+      {
+        "product": "",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Summary\",\"Background\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Summary\",\"Background\",\"The ask\"],\"pages\":2,\"funding\":false,\"icon\":\"FileText\",\"description\":\"\"}"
+        }
+      },
+      {
+        "product": "Unknown work product",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Summary\",\"Background\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"Unknown work product\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Summary\",\"Background\",\"The ask\"],\"pages\":2,\"funding\":false,\"icon\":\"FileText\",\"description\":\"\"}"
+        }
+      },
+      {
+        "product": "white paper",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Summary\",\"Background\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"white paper\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Summary\",\"Background\",\"The ask\"],\"pages\":2,\"funding\":false,\"icon\":\"FileText\",\"description\":\"\"}"
+        }
+      },
+      {
+        "product": " White paper ",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Summary\",\"Background\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\" White paper \",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Summary\",\"Background\",\"The ask\"],\"pages\":2,\"funding\":false,\"icon\":\"FileText\",\"description\":\"\"}"
+        }
+      },
+      {
+        "product": "toString",
+        "meta": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "toString"
+        },
+        "sections": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        },
+        "pages": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "toString"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        }
+      },
+      {
+        "product": "__proto__",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{}"
+        },
+        "sections": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        },
+        "pages": {
+          "ok": true,
+          "type": "object",
+          "json": "{}"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        }
+      },
+      {
+        "product": "constructor",
+        "meta": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "Object"
+        },
+        "sections": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        },
+        "pages": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "Object"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        }
+      },
+      {
+        "product": "hasOwnProperty",
+        "meta": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "hasOwnProperty"
+        },
+        "sections": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        },
+        "pages": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "hasOwnProperty"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        }
+      },
+      {
+        "product": "prototype",
+        "meta": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"icon\":\"FileText\",\"personalize\":false,\"office\":true,\"cover\":true,\"desc\":\"\"}"
+        },
+        "sections": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Summary\",\"Background\",\"The ask\"]"
+        },
+        "pages": {
+          "ok": true,
+          "type": "number",
+          "json": "2"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": true,
+          "type": "object",
+          "json": "{\"product\":\"prototype\",\"personalize\":false,\"officeAssociated\":false,\"coverLetter\":true,\"sections\":[\"Summary\",\"Background\",\"The ask\"],\"pages\":2,\"funding\":false,\"icon\":\"FileText\",\"description\":\"\"}"
+        }
+      },
+      {
+        "product": "valueOf",
+        "meta": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "valueOf"
+        },
+        "sections": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        },
+        "pages": {
+          "ok": true,
+          "type": "function",
+          "json": null,
+          "functionName": "valueOf"
+        },
+        "funding": {
+          "ok": true,
+          "type": "boolean",
+          "json": "false"
+        },
+        "defaults": {
+          "ok": false,
+          "errorName": "TypeError",
+          "error": "(exports.SUGGESTED_SECTIONS[product] || [\"Summary\",\"Background\",\"The ask\"]).slice is not a function"
+        }
+      }
+    ],
+    "industries": [
+      {
+        "industry": "Defense & Aerospace",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"NDAA Authorization Request\",\"Meeting Brief & Advocacy\",\"Appropriations Justification\",\"CDS / Earmark Application\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[{\"label\":\"Program Element (PE)\",\"value\":\"0603563N\",\"icon\":\"Database\"},{\"label\":\"R-1 budget line\",\"value\":\"098\",\"icon\":\"FileText\"},{\"label\":\"Navy UPL listing\",\"value\":\"FY27 #21\",\"icon\":\"ListOrdered\"}]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"NDAA Authorization\",\"Defense Appropriations\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"HASC\",\"SASC\"]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"HAC-D\",\"SAC-D\",\"HASC\",\"SASC\"]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Health & Pharma",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"Meeting Brief & Advocacy\",\"Authorization Bill Language\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[{\"label\":\"Budget account\",\"value\":\"Labor-HHS\",\"icon\":\"Database\"},{\"label\":\"Authorizing authority\",\"value\":\"PHSA\",\"icon\":\"Scale\"}]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Labor-HHS Appropriations\",\"HELP Authorization\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Energy & Resources",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"Authorization Bill Language\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[{\"label\":\"DOE program office\",\"value\":\"EERE\",\"icon\":\"Database\"}]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Energy & Water Appropriations\",\"ENR Authorization\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Agriculture",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"Authorization Bill Language\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[{\"label\":\"USDA program code\",\"value\":\"\",\"icon\":\"Database\"}]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Agriculture Appropriations\",\"Farm Bill Authorization\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Transportation",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"CDS / Earmark Application\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[{\"label\":\"DOT program\",\"value\":\"\",\"icon\":\"Database\"}]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"T-HUD Appropriations\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Homeland Security",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"Authorization Bill Language\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Homeland Security Appropriations\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Environment",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"CDS / Earmark Application\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"Interior & Environment Appropriations\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Commerce & Tech",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[\"Appropriations Justification\",\"Report Language Request\",\"Member letter\",\"Written testimony\",\"One-pager\",\"Strategy memo\"]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[\"CJS Appropriations\"]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": false,
+              "errorName": "TypeError",
+              "error": "(ind.pathways[pw] || []).forEach is not a function"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "Unknown industry",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          }
+        ]
+      },
+      {
+        "industry": "__proto__",
+        "products": {
+          "ok": true,
+          "type": "object",
+          "json": "[]"
+        },
+        "data": {
+          "ok": true,
+          "type": "object",
+          "json": "{}"
+        },
+        "pathways": [
+          {
+            "product": "White paper",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Appropriations Justification",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "NDAA Authorization Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Meeting Brief & Advocacy",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "CDS / Earmark Application",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Authorization Bill Language",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Report Language Request",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Member letter",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Strategy memo",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Written testimony",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "One-pager",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "Unknown work product",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "product": "__proto__",
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          }
+        ],
+        "committees": [
+          {
+            "input": [],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "NDAA Authorization"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "Defense Appropriations",
+              "NDAA Authorization",
+              "Defense Appropriations"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "unknown"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          },
+          {
+            "input": [
+              "__proto__"
+            ],
+            "result": {
+              "ok": true,
+              "type": "object",
+              "json": "[]"
+            }
+          }
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "name": "Problem statement",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Solution",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Current status",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Funding history & request",
+        "value": {
+          "goal": "Present the budget figures by fiscal year.",
+          "format": "table",
+          "targetWords": [
+            20,
+            90
+          ]
+        }
+      },
+      {
+        "name": "National security impact",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Economic & district impact",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "The ask",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Executive summary",
+        "value": {
+          "goal": "Summarize the core message up front.",
+          "format": "prose",
+          "targetWords": [
+            80,
+            140
+          ]
+        }
+      },
+      {
+        "name": "Account & program line",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Program description",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Funding history",
+        "value": {
+          "goal": "Present the budget figures by fiscal year.",
+          "format": "table",
+          "targetWords": [
+            20,
+            90
+          ]
+        }
+      },
+      {
+        "name": "Justification & impact",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Performance & outcomes",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Requesting entity & recipient information",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Project title",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Project description",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Requested amount & total cost",
+        "value": {
+          "goal": "Present the budget figures by fiscal year.",
+          "format": "table",
+          "targetWords": [
+            20,
+            90
+          ]
+        }
+      },
+      {
+        "name": "Federal nexus statement",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Evidence of community support",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Financial disclosure certification",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Outcomes & metrics",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Short title",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Findings & purpose",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Definitions",
+        "value": {
+          "goal": "Draft in precise legislative/statutory drafting register.",
+          "format": "prose",
+          "targetWords": [
+            60,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Main operative provision",
+        "value": {
+          "goal": "Draft in precise legislative/statutory drafting register.",
+          "format": "prose",
+          "targetWords": [
+            60,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Exceptions & special rules",
+        "value": {
+          "goal": "Draft in precise legislative/statutory drafting register.",
+          "format": "prose",
+          "targetWords": [
+            60,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Conforming & transitional provisions",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Authorization of appropriations",
+        "value": {
+          "goal": "Draft in precise legislative/statutory drafting register.",
+          "format": "prose",
+          "targetWords": [
+            60,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Effective date",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Requesting entity & contact",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Bill, account & subcommittee",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Background & problem",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Proposed report language",
+        "value": {
+          "goal": "Draft in precise legislative/statutory drafting register.",
+          "format": "prose",
+          "targetWords": [
+            60,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Justification",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Relationship to existing law & PBR",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Meeting logistics",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Member profile",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Background",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Objectives & the ask",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Talking points",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Anticipated questions & responses",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Leave-behind summary",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Follow-up plan",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Opening",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Request",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Closing",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Disclosure & witness intro",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Opening statement",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Position",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Recommendations",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Header & title",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Key facts & data",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Our position & the ask",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Contact information",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Situation",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Analysis",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Recommendation",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "Next steps",
+        "value": {
+          "goal": "List the key points concisely.",
+          "format": "bullets",
+          "targetWords": [
+            40,
+            150
+          ]
+        }
+      },
+      {
+        "name": "BLUF",
+        "value": {
+          "goal": "Summarize the core message up front.",
+          "format": "prose",
+          "targetWords": [
+            80,
+            140
+          ]
+        }
+      },
+      {
+        "name": "Operational need",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Strategy & COCOM alignment",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "UPL / UFR status",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Execution rationale",
+        "value": {
+          "goal": "Develop the argument with specifics and supporting evidence.",
+          "format": "prose",
+          "targetWords": [
+            150,
+            280
+          ]
+        }
+      },
+      {
+        "name": "Endorsements & attachments",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Precedent",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Certifications",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "Contact block",
+        "value": {
+          "goal": "Provide the specific factual details, briefly.",
+          "format": "short",
+          "targetWords": [
+            15,
+            70
+          ]
+        }
+      },
+      {
+        "name": "",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "unmatched custom heading",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "Summary background",
+        "value": {
+          "goal": "Summarize the core message up front.",
+          "format": "prose",
+          "targetWords": [
+            80,
+            140
+          ]
+        }
+      },
+      {
+        "name": "Q&A budget",
+        "value": {
+          "goal": "Present the budget figures by fiscal year.",
+          "format": "table",
+          "targetWords": [
+            20,
+            90
+          ]
+        }
+      },
+      {
+        "name": "Requested amount title",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Summary report language",
+        "value": {
+          "goal": "Draft in precise legislative/statutory drafting register.",
+          "format": "prose",
+          "targetWords": [
+            60,
+            220
+          ]
+        }
+      },
+      {
+        "name": "opening recommendations",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "  Opening",
+        "value": {
+          "goal": "Develop this section clearly and specifically.",
+          "format": "prose",
+          "targetWords": [
+            120,
+            220
+          ]
+        }
+      },
+      {
+        "name": "THE ASK",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      },
+      {
+        "name": "Funding history background",
+        "value": {
+          "goal": "Present the budget figures by fiscal year.",
+          "format": "table",
+          "targetWords": [
+            20,
+            90
+          ]
+        }
+      },
+      {
+        "name": "Effective date funding history",
+        "value": {
+          "goal": "State this directly and briefly.",
+          "format": "short",
+          "targetWords": [
+            10,
+            40
+          ]
+        }
+      }
+    ],
+    "referenceSemantics": {
+      "knownMetaShared": true,
+      "unknownMetaFresh": true,
+      "sectionsFresh": true,
+      "knownDataShared": true,
+      "knownPathwaysShared": true,
+      "unknownPathwaysFresh": true,
+      "libraryFresh": true,
+      "sameWhiteAndNdaaSectionValues": true,
+      "distinctWhiteAndNdaaSectionArrays": true,
+      "sectionSpecFresh": true,
+      "sectionWordTupleFresh": true,
+      "unboundReceiver": {
+        "ok": false,
+        "errorName": "TypeError",
+        "error": "Cannot read properties of undefined (reading '_ind')"
+      }
+    }
+  },
+  "mutationSemantics": {
+    "metaMutationVisible": true,
+    "returnedSectionMutationIsolated": true,
+    "exportedSectionMutationVisible": true,
+    "exportedFundingMutationVisible": true,
+    "zeroPagesOrFallbackPreserved": 2,
+    "cjsExportReplacementBehavior": {
+      "ok": true,
+      "type": "object",
+      "json": "{\"icon\":\"probe\",\"personalize\":false,\"office\":true,\"cover\":false,\"desc\":\"probe\"}"
+    },
+    "cjsConstAliasDescriptor": {
+      "enumerable": true,
+      "writable": true,
+      "getter": false
+    }
+  },
+  "nativeAcceptance": false
+}

@@ -1,0 +1,124 @@
+PASS apps/workspace/test/product-registry-characterization.spec.ts
+  Workspace product registry preconversion characterization
+    ✓ before fixture remains the exact captured original (3 ms)
+    ✓ all exported data, independent key orders and eleven library entries remain exact (3 ms)
+    ✓ original product/default profile: White paper (1 ms)
+    ✓ original product/default profile: Appropriations Justification
+    ✓ original product/default profile: NDAA Authorization Request (1 ms)
+    ✓ original product/default profile: Meeting Brief & Advocacy
+    ✓ original product/default profile: CDS / Earmark Application (1 ms)
+    ✓ original product/default profile: Authorization Bill Language
+    ✓ original product/default profile: Report Language Request (1 ms)
+    ✓ original product/default profile: Member letter
+    ✓ original product/default profile: Strategy memo (1 ms)
+    ✓ original product/default profile: Written testimony
+    ✓ original product/default profile: One-pager
+    ✓ original product/default profile: 
+    ✓ original product/default profile: Unknown work product
+    ✓ original product/default profile: white paper
+    ✓ original product/default profile:  White paper 
+    ✓ original product/default profile: toString
+    ✓ original product/default profile: __proto__
+    ✓ original product/default profile: constructor (1 ms)
+    ✓ original product/default profile: hasOwnProperty
+    ✓ original product/default profile: prototype
+    ✓ original product/default profile: valueOf
+    ✓ original industry/pathway/committee profile: Defense & Aerospace (1 ms)
+    ✓ original industry/pathway/committee profile: Health & Pharma (1 ms)
+    ✓ original industry/pathway/committee profile: Energy & Resources (1 ms)
+    ✓ original industry/pathway/committee profile: Agriculture
+    ✓ original industry/pathway/committee profile: Transportation (2 ms)
+    ✓ original industry/pathway/committee profile: Homeland Security
+    ✓ original industry/pathway/committee profile: Environment (1 ms)
+    ✓ original industry/pathway/committee profile: Commerce & Tech
+    ✓ original industry/pathway/committee profile: Unknown industry (1 ms)
+    ✓ original industry/pathway/committee profile: 
+    ✓ original industry/pathway/committee profile: __proto__ (1 ms)
+    ✓ original ordered section specification: Problem statement
+    ✓ original ordered section specification: Solution (1 ms)
+    ✓ original ordered section specification: Current status
+    ✓ original ordered section specification: Funding history & request
+    ✓ original ordered section specification: National security impact
+    ✓ original ordered section specification: Economic & district impact
+    ✓ original ordered section specification: The ask (1 ms)
+    ✓ original ordered section specification: Executive summary (1 ms)
+    ✓ original ordered section specification: Account & program line
+    ✓ original ordered section specification: Program description (1 ms)
+    ✓ original ordered section specification: Funding history
+    ✓ original ordered section specification: Justification & impact
+    ✓ original ordered section specification: Performance & outcomes
+    ✓ original ordered section specification: Requesting entity & recipient information
+    ✓ original ordered section specification: Project title
+    ✓ original ordered section specification: Project description
+    ✓ original ordered section specification: Requested amount & total cost
+    ✓ original ordered section specification: Federal nexus statement (1 ms)
+    ✓ original ordered section specification: Evidence of community support
+    ✓ original ordered section specification: Financial disclosure certification (1 ms)
+    ✓ original ordered section specification: Outcomes & metrics
+    ✓ original ordered section specification: Short title (1 ms)
+    ✓ original ordered section specification: Findings & purpose
+    ✓ original ordered section specification: Definitions
+    ✓ original ordered section specification: Main operative provision
+    ✓ original ordered section specification: Exceptions & special rules
+    ✓ original ordered section specification: Conforming & transitional provisions
+    ✓ original ordered section specification: Authorization of appropriations (1 ms)
+    ✓ original ordered section specification: Effective date
+    ✓ original ordered section specification: Requesting entity & contact (1 ms)
+    ✓ original ordered section specification: Bill, account & subcommittee
+    ✓ original ordered section specification: Background & problem
+    ✓ original ordered section specification: Proposed report language (2 ms)
+    ✓ original ordered section specification: Justification (1 ms)
+    ✓ original ordered section specification: Relationship to existing law & PBR
+    ✓ original ordered section specification: Meeting logistics
+    ✓ original ordered section specification: Member profile
+    ✓ original ordered section specification: Background
+    ✓ original ordered section specification: Objectives & the ask
+    ✓ original ordered section specification: Talking points
+    ✓ original ordered section specification: Anticipated questions & responses (1 ms)
+    ✓ original ordered section specification: Leave-behind summary
+    ✓ original ordered section specification: Follow-up plan (1 ms)
+    ✓ original ordered section specification: Opening
+    ✓ original ordered section specification: Request (1 ms)
+    ✓ original ordered section specification: Closing
+    ✓ original ordered section specification: Disclosure & witness intro
+    ✓ original ordered section specification: Opening statement
+    ✓ original ordered section specification: Position
+    ✓ original ordered section specification: Recommendations
+    ✓ original ordered section specification: Header & title (1 ms)
+    ✓ original ordered section specification: Key facts & data
+    ✓ original ordered section specification: Our position & the ask (1 ms)
+    ✓ original ordered section specification: Contact information
+    ✓ original ordered section specification: Situation
+    ✓ original ordered section specification: Analysis (1 ms)
+    ✓ original ordered section specification: Recommendation
+    ✓ original ordered section specification: Next steps (1 ms)
+    ✓ original ordered section specification: BLUF
+    ✓ original ordered section specification: Operational need (1 ms)
+    ✓ original ordered section specification: Strategy & COCOM alignment
+    ✓ original ordered section specification: UPL / UFR status (1 ms)
+    ✓ original ordered section specification: Execution rationale
+    ✓ original ordered section specification: Endorsements & attachments
+    ✓ original ordered section specification: Precedent (1 ms)
+    ✓ original ordered section specification: Certifications
+    ✓ original ordered section specification: Contact block
+    ✓ original ordered section specification:  (1 ms)
+    ✓ original ordered section specification: unmatched custom heading
+    ✓ original ordered section specification: Summary background
+    ✓ original ordered section specification: Q&A budget (1 ms)
+    ✓ original ordered section specification: Requested amount title
+    ✓ original ordered section specification: Summary report language (1 ms)
+    ✓ original ordered section specification: opening recommendations
+    ✓ original ordered section specification:   Opening
+    ✓ original ordered section specification: THE ASK (1 ms)
+    ✓ original ordered section specification: Funding history background
+    ✓ original ordered section specification: Effective date funding history
+    ✓ reference, copy, prototype and detached receiver behavior remain original (1 ms)
+    ✓ fresh module preserves metadata/export mutations, zero-page fallback and writable CommonJS const aliases (67 ms)
+    ✓ legacy aliases retain one-time canonical projection references (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       115 passed, 115 total
+Snapshots:   0 total
+Time:        1.202 s
+Ran all test suites.
+Test results written to: docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-final.json

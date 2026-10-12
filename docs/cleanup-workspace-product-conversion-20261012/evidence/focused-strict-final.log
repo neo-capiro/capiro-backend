@@ -1,0 +1,1 @@
+apps/workspace/test/product-registry-characterization.spec.ts(153,70): error TS2538: Type 'undefined' cannot be used as an index type.

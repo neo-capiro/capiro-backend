@@ -1,0 +1,4 @@
+apps/workspace/test/product-registry-characterization.spec.ts(151,66): error TS2538: Type 'undefined' cannot be used as an index type.
+apps/workspace/test/product-registry-characterization.spec.ts(210,19): error TS2532: Object is possibly 'undefined'.
+apps/workspace/test/product-registry-characterization.spec.ts(211,17): error TS2532: Object is possibly 'undefined'.
+apps/workspace/test/product-registry-characterization.spec.ts(212,17): error TS2532: Object is possibly 'undefined'.
