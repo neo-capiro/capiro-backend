@@ -1,0 +1,157 @@
+{
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "phase": "baseline-red",
+  "helperSha256": "d1d5e0d06afb5b4675d33089b7895106c21341906eb2c8b51b86eb29bf31fba1",
+  "compilerVersion": "5.9.3",
+  "sourceCases": 82,
+  "sourceMatched": 77,
+  "sourceMismatches": [
+    "exact LF snapshots",
+    "exact trio supplied in reverse order",
+    "CRLF normalization only",
+    "mixed platform newline snapshots",
+    "missing snapshot scripts/entrypoint.sh"
+  ],
+  "generic": [
+    {
+      "name": "safe unknown deployment",
+      "expected": true,
+      "actual": true,
+      "matches": true,
+      "findings": []
+    },
+    {
+      "name": "educational unknown comments",
+      "expected": true,
+      "actual": true,
+      "matches": true,
+      "findings": []
+    },
+    {
+      "name": "unknown manual looking source",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "unreviewed.sh: contains prisma migrate resolve",
+          "path": "unreviewed.sh"
+        }
+      ]
+    },
+    {
+      "name": "history edit unknown source",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "hand_edit_prisma_migrations_table",
+          "severity": "blocker",
+          "message": "unreviewed.sh: references _prisma_migrations (hand-edit / auto-resolve hazard)",
+          "path": "unreviewed.sh"
+        },
+        {
+          "code": "auto_rolled_back_at",
+          "severity": "blocker",
+          "message": "unreviewed.sh: auto-sets rolled_back_at = NOW()",
+          "path": "unreviewed.sh"
+        }
+      ]
+    },
+    {
+      "name": "resolve unknown source",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "unreviewed.sh: contains prisma migrate resolve",
+          "path": "unreviewed.sh"
+        }
+      ]
+    }
+  ],
+  "replay": [
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "upgradeReplayExitCode": 0
+      },
+      "expected": true,
+      "actual": true,
+      "matches": true,
+      "findings": []
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "usedMigrateResolve": true
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "migrate_resolve_used_during_replay",
+          "severity": "blocker",
+          "message": "migrate resolve must not be used during permanent gate replay"
+        }
+      ]
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "mutatedPrismaMigrationsTable": true
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrations_table_hand_mutated",
+          "severity": "blocker",
+          "message": "direct _prisma_migrations mutation is forbidden"
+        }
+      ]
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 1
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "clean_migrate_replay_failed",
+          "severity": "blocker",
+          "message": "clean migrate replay exited 1"
+        }
+      ]
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "upgradeReplayExitCode": 1
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "upgrade_migrate_replay_failed",
+          "severity": "blocker",
+          "message": "upgrade migrate replay exited 1"
+        }
+      ]
+    }
+  ],
+  "shellMutantsExecuted": false,
+  "nativeOperations": false,
+  "runtimeAuthenticationClaim": false
+}

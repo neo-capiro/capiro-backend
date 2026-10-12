@@ -1,0 +1,2470 @@
+{
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "phase": "baseline-red",
+  "helperSha256": "d1d5e0d06afb5b4675d33089b7895106c21341906eb2c8b51b86eb29bf31fba1",
+  "compilerVersion": "5.9.3",
+  "sourceCases": 82,
+  "sourceMatched": 77,
+  "sourceMismatches": [
+    "exact LF snapshots",
+    "exact trio supplied in reverse order",
+    "CRLF normalization only",
+    "mixed platform newline snapshots",
+    "missing snapshot scripts/entrypoint.sh"
+  ],
+  "generic": [
+    {
+      "name": "safe unknown deployment",
+      "expected": true,
+      "actual": true,
+      "matches": true,
+      "findings": []
+    },
+    {
+      "name": "educational unknown comments",
+      "expected": true,
+      "actual": true,
+      "matches": true,
+      "findings": []
+    },
+    {
+      "name": "unknown manual looking source",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "unreviewed.sh: contains prisma migrate resolve",
+          "path": "unreviewed.sh"
+        }
+      ]
+    },
+    {
+      "name": "history edit unknown source",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "hand_edit_prisma_migrations_table",
+          "severity": "blocker",
+          "message": "unreviewed.sh: references _prisma_migrations (hand-edit / auto-resolve hazard)",
+          "path": "unreviewed.sh"
+        },
+        {
+          "code": "auto_rolled_back_at",
+          "severity": "blocker",
+          "message": "unreviewed.sh: auto-sets rolled_back_at = NOW()",
+          "path": "unreviewed.sh"
+        }
+      ]
+    },
+    {
+      "name": "resolve unknown source",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "unreviewed.sh: contains prisma migrate resolve",
+          "path": "unreviewed.sh"
+        }
+      ]
+    }
+  ],
+  "replay": [
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "upgradeReplayExitCode": 0
+      },
+      "expected": true,
+      "actual": true,
+      "matches": true,
+      "findings": []
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "usedMigrateResolve": true
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "migrate_resolve_used_during_replay",
+          "severity": "blocker",
+          "message": "migrate resolve must not be used during permanent gate replay"
+        }
+      ]
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "mutatedPrismaMigrationsTable": true
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrations_table_hand_mutated",
+          "severity": "blocker",
+          "message": "direct _prisma_migrations mutation is forbidden"
+        }
+      ]
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 1
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "clean_migrate_replay_failed",
+          "severity": "blocker",
+          "message": "clean migrate replay exited 1"
+        }
+      ]
+    },
+    {
+      "input": {
+        "cleanReplayExitCode": 0,
+        "upgradeReplayExitCode": 1
+      },
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "upgrade_migrate_replay_failed",
+          "severity": "blocker",
+          "message": "upgrade migrate replay exited 1"
+        }
+      ]
+    }
+  ],
+  "results": [
+    {
+      "name": "exact LF snapshots",
+      "expected": true,
+      "actual": false,
+      "matches": false,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "exact trio supplied in reverse order",
+      "expected": true,
+      "actual": false,
+      "matches": false,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        }
+      ]
+    },
+    {
+      "name": "CRLF normalization only",
+      "expected": true,
+      "actual": false,
+      "matches": false,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "63620e15646302d9d29477a1e28eaa18b9433a6c2abe0141c2f32ec1800fe2ea"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "612b1c7705bb55613abebfd8695a73b3d223dc37ed57f89cb77d964bd469c7d4"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "f0d3b280da77458bf1e01b20f6f2690076b486c13a95d1eeb6820238b3518195"
+        }
+      ]
+    },
+    {
+      "name": "mixed platform newline snapshots",
+      "expected": true,
+      "actual": false,
+      "matches": false,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "63620e15646302d9d29477a1e28eaa18b9433a6c2abe0141c2f32ec1800fe2ea"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "missing snapshot scripts/entrypoint.sh",
+      "expected": false,
+      "actual": true,
+      "matches": false,
+      "findings": [],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "duplicate snapshot scripts/entrypoint.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        },
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        },
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        }
+      ]
+    },
+    {
+      "name": "changed raw comment scripts/entrypoint.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "4c3f28aa5b61d7d549bbde72b9299141b71c2ab14e6b0ffe6d861cc4f02cce67"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "changed whitespace scripts/entrypoint.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "b0387dda04d851fdb5223baa0e7cbcf09de82f3e140463dc2a7cf53c1f975b09"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "raw BOM scripts/entrypoint.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "06805f26ec2790becdd5b5450440ec4a8a53068b74d83a9b70187ee0487756bd"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "missing snapshot scripts/entrypoint-legacy.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "duplicate snapshot scripts/entrypoint-legacy.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        }
+      ]
+    },
+    {
+      "name": "changed raw comment scripts/entrypoint-legacy.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "5eca42c641d8f95d093c1a6f86e54d5386e4966989297db7bd15d403b5c03d5d"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "changed whitespace scripts/entrypoint-legacy.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "e43374ebdaf757db971be65835f66c133fa3738f438622c25cd5ecfbd099320f"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "raw BOM scripts/entrypoint-legacy.sh",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "c219fd75876574693a7af8bd3b8237dcfbade3a9fd222bcac758872031c8b9a6"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "missing snapshot scripts/entrypoint-dispatcher.inc",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        }
+      ]
+    },
+    {
+      "name": "duplicate snapshot scripts/entrypoint-dispatcher.inc",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "changed raw comment scripts/entrypoint-dispatcher.inc",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "317c1a3c3817386bb7bef513391e3be7438dfcedb4beb630af14405cac402cf6"
+        }
+      ]
+    },
+    {
+      "name": "changed whitespace scripts/entrypoint-dispatcher.inc",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "91e5b235a09975564dc61531003d01af66593677f0a00fd87a0d6b552c9ae6cc"
+        }
+      ]
+    },
+    {
+      "name": "raw BOM scripts/entrypoint-dispatcher.inc",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "c7f785f7ba2193d7650002dcf1c2883e86e6046f6a0af345850a056ddc1de664"
+        }
+      ]
+    },
+    {
+      "name": "extra clean snapshot",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        },
+        {
+          "path": "scripts/other.sh",
+          "sha256": "c69864416d638b5c33bc940ff6f3083fd98ae11745380f8b5821c232eb308841"
+        }
+      ]
+    },
+    {
+      "name": "swapped path/source identities",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint-legacy.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint-legacy.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"entrypoint.sh\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "entrypoint.sh: contains prisma migrate resolve",
+          "path": "entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"./scripts/entrypoint.sh\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "./scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "./scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "./scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"scripts/../scripts/entrypoint.sh\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/../scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/../scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/../scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"SCRIPTS/entrypoint.sh\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "SCRIPTS/entrypoint.sh: contains prisma migrate resolve",
+          "path": "SCRIPTS/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "SCRIPTS/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"scripts\\\\entrypoint.sh\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts\\entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts\\entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts\\entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"/app/apps/api/scripts/entrypoint.sh\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "/app/apps/api/scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "/app/apps/api/scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "/app/apps/api/scripts/entrypoint.sh",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "unsupported active identity \"scripts/entrypoint.sh​\"",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh​: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh​"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh​",
+          "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "pre-stripped whole trio",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "1ed8f988578e1d19b26c495a6873183bb9905b16d1a28d57e04f7e4561aa7923"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "9e88f1888a4883a8d5eaec10c615d0d2ab82c6b625fb8b01b50f8f6eb36cc5b3"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "94d08d89974ed309c85e7d9cb6ab098cc37032a303f2fe06081b2690795c4f15"
+        }
+      ]
+    },
+    {
+      "name": "stray carriage return is not CRLF",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "f05eac4f7bf7799fdc89e110c32acf5a221f1bc58bce9d86b085f88900db5519"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "changed default selector",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "2088e4e7b84db34294c3bbea07402053278e3e5172f3220a13d8ff5e1504854e"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "disabled fail closed envelope",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "7228c8bc1007f39480679de1b114b99989b40b23b79706b8ac300ac506f9c82f"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "manual resolver before case",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "df86e6fd04fa33395dae8742eb6176cc5a8dca585071bf2e3dda243e9942c2b0"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "nested selector envelope",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "355aabb2647da5ef33caf86c717ba4d24a8dd9b9eba56e098bb36ce7b90a9e39"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "resolve in normal deploy arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "b13ea442abaca8eb068a8bfe4146a5a4514c10b2c6cec536d0797a8c448f3a46"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "automatic recovery token",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "22bffedb65972f2a952d03d9f8927f56cb8fd1b26f6462714e76d66fc8dd4c99"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "history table in operator arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "hand_edit_prisma_migrations_table",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: references _prisma_migrations (hand-edit / auto-resolve hazard)",
+          "path": "scripts/entrypoint.sh"
+        },
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "7dcdaaf87b1958f3da928b5615bcc5f6ba81f2ec940fe661cd5e58de6ce0b706"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rollback timestamp in operator arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        },
+        {
+          "code": "auto_rolled_back_at",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: auto-sets rolled_back_at = NOW()",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "690d2dbe5dd0a68014e74e66f288abc194feb3262e64bc8f2344e14544ebeb7a"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: duplicate canonical arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "78121d754971a4aeda866d08c95fe10ba694e1112fe880f715f39165c791b437"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: remove arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "172e8beaf51f1e85c31dfc57ce4bd5b7090a55ce016fa69a7be3ea16430488b9"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: selector alternative",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "be53d9524d129d30e980a3ddb77517f11463652f4caa3d20d8fe85b07986b81a"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: selector nested indentation",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "255437d6fe56246c44cba96cd792f9ac04fbb73796c1c210aa7571188725305d"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: remove shift",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "bd3fc460efe7710079cd919386f1572f7434b5da88dad4c2dbc44fba0edc12c2"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: shift two arguments",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "26501e231a22c1488d602ff6f54a3feeef0de34ada53927354a8e6c62cc0bddd"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: remove missing-name check",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "4f390780a351c13a958aea01a5a50a32435f5a4859948e28a2e52efe0bf1a9fb"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: empty-name check inverted",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "fd74e907957f4e836aa2da6ce6d2a5ddef5018c8f46864d0feaaedb732b0eda6"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: remove composition",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "8f29caf8a8f16a655af2de49dcadfad9370ff9ea43f55d03a2c4a51518da2e65"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: changed diagnostic",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "94ff4187c0ff68b0e5a5b286fbffbf4ffa48287b910d025cadf50cd00778b975"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: missing exec",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "61fcd8b3a41efba34f93ae25387081a152acfe9b5080fd00a1a4ae253d463fcc"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: different binary",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "d3821a292f8f4cbf74b978febdc222f1c2714617639aba5f58afd8b4169900f6"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: different schema",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "88f6838642eb464612498ee482bb1bc6a977e393778e08a437f9b289760d7c57"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: other resolution mode",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "3083b820f51dfa6b7edb4c1c3690098b4aedbd2c8adcccf10b95c840085caf98"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: unquoted migration argument",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "13fc21bc9562085d1a8f8fb9dbfae741f04201aba8c424c4c8e8801491aea09d"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: extra argument forwarding",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "ee710bbc7645b2e207a82459735799711922c74a492b9d0b7ce3c31b20f280c6"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: extra shell token",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "1242cae3e31892227dfbc52af09ae7d4d9906c55f0a092075ee8eed1aa3073e9"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: pipe before terminator",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "eb81877feccd39b6e8ee59438c0042306b1691b6f2fd926e155f49ba3333e7e8"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: semicolon after exec",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "9f3bcfef33fd7f91d310634a7675cef1fd8937391d505edf85d003fb4f4a8923"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: fallthrough terminator",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "edb6c42847e37ce4ff613a31a64f137af0fc13bb4950a452e0325b2fcc735203"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: continued fallthrough terminator",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "0d657131e756f3e58078a573eb5bab44cd46e885840e9c65cedfc808a6ccb554"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "applied: continuation hides trailing command",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "b73428c1b85f204f97edf79e1aeb3b68c21ce43056e3e5e9d17ffa4711efea96"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: duplicate canonical arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "33e38bc4f294e30e8f825141566189d0cd7dd8a7f2ccc84dd11def6fc51e89fe"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: remove arm",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "b1f82ee8e6f30efa8fb04fd4de8583ea4b63b33d7e36c8ff899beb9a08f3d536"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: selector alternative",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "ea4770f5bf15fe31fca3fe72e09627e680488f737d17c4c6e638ce73b9e05fe2"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: selector nested indentation",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "7f181b7d4a3515e2611ecc3c184b00380d240b5e18b1497ccae22e7902d7e671"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: remove shift",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "f09b94af7b78199da1dbfaceabd6ee44eae6296936e903610e322b58efbce761"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: shift two arguments",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "97e4033f6c211152a5e21fdc4eb353cb4d774ad78a33f1dc93ce99adb391077b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: remove missing-name check",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "fbbbfbeaaa16ea6c1b93d8deee3117dac19861d64c517e869dbf245b2f086ee3"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: empty-name check inverted",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "7725e96c7131007c4b4c0113d5f273c110944d838d6ed5d472c4e68c46b7ca93"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: remove composition",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "092345e0ede451234fbc648944b3dc47b3e52dc6c6fbc9b3599a547e7caca3db"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: changed diagnostic",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "c1830f0b94015f75b443039c9867cf0159f38587990898ff98e07cdfc057ce96"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: missing exec",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "3017b98993a566c60578d3c836859b7d4de1f2b37364eb28b034ba02d7fc7548"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: different binary",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "65561dbcc4a86eefadb711acabac39dd61e7f60852eed7b1739b74f1341cc980"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: different schema",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "05d49ea244115fe2e28b12ff4fcf650caf4e2c1dd545f303253d05690c7f956b"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: other resolution mode",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "74ad56b184db5e8e3d1ef6210f87763d2523808685e3c9d632978a6289303a83"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: unquoted migration argument",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "3a48013b4acb28d9dff09399bc1bcbb6badbbca4f8fdb0c17050d8881c521a8f"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: extra argument forwarding",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "9c00158b2b963f18bc7a59e05f217b95474277e60df3144552adc965578dcc93"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: extra shell token",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "d920d1766b6a253e7851680a4a7adcd1a3e1467a63fa1895ebcf9fe7661da9e4"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: pipe before terminator",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "9df0e2d1647201fc0864336fae80266a591f456b7a786542ddd7ee2b9da0a8e1"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: semicolon after exec",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "0383e90bdcec793296a9740c6b212fbb139ca0abd0d24a463227fd79de486dea"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: fallthrough terminator",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "ca2542a185c453cd0fe256ab86219e023a4a0aae882b442fb19d0a8e90937876"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: continued fallthrough terminator",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "ec1a5bcce3bf113a40d5d2786b154bba2d6c78d8e422e38b85352f6cebe585e3"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    },
+    {
+      "name": "rolled-back: continuation hides trailing command",
+      "expected": false,
+      "actual": false,
+      "matches": true,
+      "findings": [
+        {
+          "code": "prisma_migrate_resolve",
+          "severity": "blocker",
+          "message": "scripts/entrypoint.sh: contains prisma migrate resolve",
+          "path": "scripts/entrypoint.sh"
+        }
+      ],
+      "sourceHashes": [
+        {
+          "path": "scripts/entrypoint.sh",
+          "sha256": "cf371d673926bea7b3f132defa7462cb3337acf2c3952232757552cd2e47a417"
+        },
+        {
+          "path": "scripts/entrypoint-legacy.sh",
+          "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+        },
+        {
+          "path": "scripts/entrypoint-dispatcher.inc",
+          "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+        }
+      ]
+    }
+  ],
+  "shellMutantsExecuted": false,
+  "nativeOperations": false,
+  "runtimeAuthenticationClaim": false
+}
