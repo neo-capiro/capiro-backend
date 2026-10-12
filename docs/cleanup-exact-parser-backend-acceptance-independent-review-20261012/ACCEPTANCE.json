@@ -1,0 +1,93 @@
+{
+  "accepted": true,
+  "scope": "Exact locked parser retrieval/runtime and cached full source typing only",
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "productSourceEdits": false,
+  "packageLockSchemaMigrationEdits": false,
+  "lockedRegistryActualIntegrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+  "tarballSha256": "7913fb842d292726d2b1b1fdd0ca8fb86be41c63efe06a15064c728353274966",
+  "tarballBytes": 38519,
+  "extractedFilesExact": 36,
+  "cachedDirectDependencyVersionsExact": 4,
+  "actualParserCjsEsmNotMocked": true,
+  "runtimeTests": {
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "independentAssertions": 33
+  },
+  "typing": [
+    {
+      "scope": "workspace",
+      "exitCode": 0,
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "docs/cleanup-workspace-parser-local-acceptance-20261012/tsconfig.workspace-with-parser.json"
+      ],
+      "configSha256": "2de8da626f0e9cbd330b0d2715f0318ee7a3143f33e5e94915a3d24eb8b3185c",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "logBytes": 0,
+      "canonicalSourceFiles": 217,
+      "completeCanonicalSourceFileListRetained": true,
+      "noNewDiagnosticSuppression": true,
+      "existingSkipLibCheckRetained": true,
+      "strict": true,
+      "noImplicitAny": true,
+      "strictNullChecks": true,
+      "actualCompilerRunOwner": "/root",
+      "independentCompilerReexecution": false
+    },
+    {
+      "scope": "core",
+      "exitCode": 0,
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.core-source.json"
+      ],
+      "configSha256": "8f08a05483283dbf21583f3755a73f7704afe65f45960d0a5b8469a0b4d59551",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "logBytes": 0,
+      "canonicalSourceFiles": 3626,
+      "completeCanonicalSourceFileListRetained": true,
+      "noNewDiagnosticSuppression": true,
+      "existingSkipLibCheckRetained": true,
+      "strict": true,
+      "noImplicitAny": true,
+      "strictNullChecks": true,
+      "actualCompilerRunOwner": "/root",
+      "independentCompilerReexecution": false
+    }
+  ],
+  "compilerRerunByReviewer": false,
+  "workspacePreviousSixDiagnosticsClosedWithinCachedSourceTyping": true,
+  "allOldFailureReceiptsAndPriorSourcePreserved": true,
+  "nodeVersion": "v24.19.0",
+  "typescriptVersion": "5.9.3",
+  "sourceTrackedDiffOutsideDocs": [],
+  "baselineTreeEntries": 22301,
+  "realTransportProviderModelDatabaseSqlMigrationPrismaSharpAwsCustomerCalls": 0,
+  "retrievalOwner": "/root",
+  "runtimeReviewOwner": "/root/integration_review",
+  "packageManagerInstallLifecyclePrepareOrNativeDownload": false,
+  "rootHttpReceiptBoundNotReviewerRepeatedNetworkRetrieval": true,
+  "registrySignatureVerificationClaim": false,
+  "remainingLimits": [
+    "Clean install and Node22/CI execution not qualified",
+    "No native Prisma/Sharp ABI/database/RLS/MVCC/migration/provider acceptance",
+    "No real page preview or invitation GET/customer operation",
+    "Full Cleanup/native release/frontend/reporting integration remain separate/open",
+    "Existing skipLibCheck retained; no new diagnostic suppression; Jest ignoreCodes do not qualify types",
+    "Root other mocked runtime/gate results remain separate",
+    "123 deferred clock samples unchanged"
+  ],
+  "typingRootReceiptSha256": "7edea06aace6d876b8372c0ccd1b496d8a1f778599c7fdb1e3a7dac54112e925",
+  "initialTypingReceiptAndProofRetained": true,
+  "additionalTypeDiagnosticSuppression": false,
+  "canonicalSkipLibCheck": true,
+  "ownPacketWhitespaceExit": 0
+}

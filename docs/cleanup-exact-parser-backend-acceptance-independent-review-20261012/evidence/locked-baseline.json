@@ -1,0 +1,136 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "importer": {
+    "specifier": "8.0.2",
+    "version": "8.0.2"
+  },
+  "package": {
+    "resolution": {
+      "integrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA=="
+    }
+  },
+  "snapshot": {
+    "dependencies": {
+      "domelementtype": "2.3.0",
+      "domhandler": "5.0.3",
+      "domutils": "3.2.2",
+      "entities": "4.5.0"
+    }
+  },
+  "transitiveSnapshots": {
+    "domelementtype@2.3.0": {
+      "package": {
+        "resolution": {
+          "integrity": "sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw=="
+        }
+      },
+      "snapshot": {}
+    },
+    "domhandler@5.0.3": {
+      "package": {
+        "resolution": {
+          "integrity": "sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w=="
+        },
+        "engines": {
+          "node": ">= 4"
+        }
+      },
+      "snapshot": {
+        "dependencies": {
+          "domelementtype": "2.3.0"
+        }
+      }
+    },
+    "domutils@3.2.2": {
+      "package": {
+        "resolution": {
+          "integrity": "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw=="
+        }
+      },
+      "snapshot": {
+        "dependencies": {
+          "dom-serializer": "2.0.0",
+          "domelementtype": "2.3.0",
+          "domhandler": "5.0.3"
+        }
+      }
+    },
+    "entities@4.5.0": {
+      "package": {
+        "resolution": {
+          "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="
+        },
+        "engines": {
+          "node": ">=0.12"
+        }
+      },
+      "snapshot": {}
+    },
+    "dom-serializer@2.0.0": {
+      "package": {
+        "resolution": {
+          "integrity": "sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg=="
+        }
+      },
+      "snapshot": {
+        "dependencies": {
+          "domelementtype": "2.3.0",
+          "domhandler": "5.0.3",
+          "entities": "4.5.0"
+        }
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 728135,
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+      "entry": "100644 blob 08d78e3dbca937f82ada2eb344b961477e9dfc58"
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "bytes": 1818,
+      "sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417",
+      "entry": "100644 blob c4ef8a3c3a39f2877e759141c987929ff785ca51"
+    },
+    {
+      "path": "apps/workspace/jest.config.cjs",
+      "bytes": 2932,
+      "sha256": "b3e3b78ec78fd51120beb65faf93c603803f900dd16a7618a8669e90a6e2a670",
+      "entry": "100644 blob de20edec8f91ec8ce2af7d5f7e987937194cd937"
+    },
+    {
+      "path": "apps/workspace/tsconfig.json",
+      "bytes": 626,
+      "sha256": "8240ffdc525253c6308877e4b4206976e9c86fd5671012528c453caff2689118",
+      "entry": "100644 blob 410e389b6dc669e990526cdb19154a52373d2461"
+    },
+    {
+      "path": "apps/workspace/tsconfig.build.json",
+      "bytes": 174,
+      "sha256": "a136f4dc65f97c3f09e33b975fceb13684ca28210c6f2ba591bc2934cbb586b9",
+      "entry": "100644 blob 6c73a30dc6d6c173b563da558bb498f03b28f84f"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "bytes": 3006,
+      "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881",
+      "entry": "100644 blob b110a94680d9ee51d33f093efd1b5c0b0580c18d"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "bytes": 3890,
+      "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093",
+      "entry": "100644 blob 7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89"
+    }
+  ],
+  "existingJestIgnoredDiagnosticsNotChanged": [
+    151002,
+    2307,
+    7006
+  ],
+  "fullWorkspaceTypesAndActualExactParserRuntimeAcceptancePending": true,
+  "actualApplicationNativeDatabaseSqlProviderParserExecution": false
+}

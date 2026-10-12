@@ -1,0 +1,30 @@
+{
+  "package": "htmlparser2",
+  "version": "8.0.2",
+  "metadataUrl": "https://registry.npmjs.org/htmlparser2/8.0.2",
+  "metadataHttpStatus": 200,
+  "metadataFinalUrl": "https://registry.npmjs.org/htmlparser2/8.0.2",
+  "tarballUrl": "https://registry.npmjs.org/htmlparser2/-/htmlparser2-8.0.2.tgz",
+  "tarballHttpStatus": 200,
+  "tarballFinalUrl": "https://registry.npmjs.org/htmlparser2/-/htmlparser2-8.0.2.tgz",
+  "lockedIntegrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+  "registryIntegrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+  "actualIntegrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+  "registrySha1": "f002151705b383e62433b5cf466f5b716edaec21",
+  "tarballBytes": 38519,
+  "tarballSha256": "7913fb842d292726d2b1b1fdd0ca8fb86be41c63efe06a15064c728353274966",
+  "metadataSha256": "c19e498a98ef6a0e8af665cfd1c30746f78e9041ff5c09b975399eda42244a28",
+  "lockSha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+  "extractedFiles": 36,
+  "extractedPackage": "/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package",
+  "dependencies": {
+    "domelementtype": "^2.3.0",
+    "domhandler": "^5.0.3",
+    "domutils": "^3.0.1",
+    "entities": "^4.4.0"
+  },
+  "lifecycleScriptsExecuted": false,
+  "packageManagerInstall": false,
+  "productionSourceOrLockChanged": false,
+  "networkPath": "Public official registry HTTPS through existing environment network; no proxy, checksum, credential or permission changes"
+}

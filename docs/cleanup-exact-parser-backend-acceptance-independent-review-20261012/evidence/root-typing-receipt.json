@@ -1,0 +1,47 @@
+{
+  "sourceHead": "61e9b467295235829e7d8097368ce41b0434818a",
+  "sourceTree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "nodeVersion": "v24.19.0",
+  "typescriptVersion": "5.9.3",
+  "checks": [
+    {
+      "scope": "workspace",
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "docs/cleanup-workspace-parser-local-acceptance-20261012/tsconfig.workspace-with-parser.json"
+      ],
+      "NODE_OPTIONS": "--max-old-space-size=8192",
+      "exitCode": 0,
+      "toolSessionId": 24004,
+      "stdoutStderrFile": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/workspace-full-types.log",
+      "logBytes": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "configSha256": "2de8da626f0e9cbd330b0d2715f0318ee7a3143f33e5e94915a3d24eb8b3185c",
+      "productionSourceEdited": false
+    },
+    {
+      "scope": "core",
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.core-source.json"
+      ],
+      "NODE_OPTIONS": "--max-old-space-size=8192",
+      "exitCode": 0,
+      "toolSessionId": 29690,
+      "stdoutStderrFile": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/core-full-types.log",
+      "logBytes": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "configSha256": "8f08a05483283dbf21583f3755a73f7704afe65f45960d0a5b8469a0b4d59551",
+      "productionSourceEdited": false
+    }
+  ],
+  "workspaceEarlierSixDiagnosticsClearedWithoutProductEdits": true,
+  "lockedParserVersion": "8.0.2",
+  "nativeDbOrApplicationBootstrapAcceptance": false,
+  "additionalTypeDiagnosticSuppression": false,
+  "canonicalSkipLibCheck": true
+}

@@ -1,0 +1,51 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const assert = require('node:assert/strict');
+const ts = require('/workspace/capirov2/node_modules/typescript');
+const root = '/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion';
+const packet = 'docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/';
+const receiptFile = path.join(root, 'docs/cleanup-workspace-parser-local-acceptance-20261012/TYPING-RECEIPT.json');
+const receiptBytes = fs.readFileSync(receiptFile);
+const receipt = JSON.parse(receiptBytes);
+const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+assert.equal(receipt.sourceHead, '61e9b467295235829e7d8097368ce41b0434818a');
+assert.equal(receipt.sourceTree, '6b49311aae5c26e31101c31a07ae2fc7865af3df');
+assert.equal(receipt.typescriptVersion, ts.version);
+assert.equal(receipt.additionalTypeDiagnosticSuppression, false);
+assert.equal(receipt.canonicalSkipLibCheck, true);
+const parse = file => {
+  const json = ts.readConfigFile(file, ts.sys.readFile);
+  assert.equal(json.error, undefined);
+  const result = ts.parseJsonConfigFileContent(json.config, ts.sys, path.dirname(file));
+  assert.deepEqual(result.errors, []);
+  return result;
+};
+const checks = receipt.checks.map(check => {
+  assert.equal(check.exitCode, 0);
+  assert.deepEqual(check.argv.slice(0, 3), ['node', '/workspace/capirov2/node_modules/typescript/bin/tsc', '-p']);
+  assert.equal(check.argv.length, 4);
+  const configFile = path.join(root, check.argv[3]);
+  const configBytes = fs.readFileSync(configFile);
+  assert.equal(hash(configBytes), check.configSha256);
+  const log = fs.readFileSync(path.join(root, check.stdoutStderrFile));
+  assert.equal(log.length, check.logBytes);
+  assert.equal(hash(log), check.logSha256);
+  assert.equal(log.length, 0);
+  const canonical = parse(path.join(root, check.scope === 'workspace' ? 'apps/workspace/tsconfig.json' : 'apps/api/tsconfig.json'));
+  const configured = parse(configFile);
+  for (const flag of ['strict', 'noImplicitAny', 'strictNullChecks', 'skipLibCheck', 'module', 'moduleResolution', 'target', 'experimentalDecorators', 'emitDecoratorMetadata', 'useDefineForClassFields', 'esModuleInterop', 'resolveJsonModule']) {
+    assert.equal(configured.options[flag], canonical.options[flag], `${check.scope} unchanged ${flag}`);
+  }
+  assert.equal(configured.options.strict, true);
+  assert.equal(configured.options.noImplicitAny, true);
+  assert.equal(configured.options.strictNullChecks, true);
+  assert.equal(configured.options.noEmit, true);
+  assert.equal(configured.options.incremental, false);
+  assert.deepEqual(configured.fileNames.filter(file => file.startsWith(path.join(root, check.scope === 'workspace' ? 'apps/workspace/src/' : 'apps/api/src/'))).sort(), canonical.fileNames.sort());
+  if (check.scope === 'workspace') assert.deepEqual(configured.options.paths.htmlparser2, ['/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package/lib/index.d.ts']);
+  return { scope: check.scope, exitCode: check.exitCode, argv: check.argv, configSha256: check.configSha256, logSha256: check.logSha256, logBytes: 0, canonicalSourceFiles: canonical.fileNames.length, completeCanonicalSourceFileListRetained: true, noNewDiagnosticSuppression: true, existingSkipLibCheckRetained: configured.options.skipLibCheck, strict: true, noImplicitAny: true, strictNullChecks: true, actualCompilerRunOwner: '/root', independentCompilerReexecution: false };
+});
+const result = { source: receipt.sourceHead, tree: receipt.sourceTree, rootReceiptSha256: hash(receiptBytes), rootToolCompletedZeroExitReceiptsBound: true, checks, parserMissingModuleAndFiveContextualParameterDiagnosticsClosed: true, previouslyPublishedRedReceiptsPreserved: true, nodeVersion: receipt.nodeVersion, typescriptVersion: ts.version, compilerOrApplicationExecutionByThisVerifier: false, nativeDatabaseProviderAcceptance: false };
+fs.writeFileSync(packet + 'evidence/typing-proof.json', JSON.stringify(result, null, 2) + '\n');
+console.log(JSON.stringify({ source: receipt.sourceHead, checks: checks.map(({scope, exitCode, canonicalSourceFiles}) => ({scope, exitCode, canonicalSourceFiles})), noCompilerRerun: true }));

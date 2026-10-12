@@ -1,0 +1,16 @@
+✔ actual exact8 package CJS Parser and five cached transitive runtime bindings match locked versions (3.592561ms)
+✔ actual Parser decodes chunked HTML and preserves ordered lower-case callback/attribute behavior (3.228813ms)
+✔ actual Parser explicit XML options retain case and CDATA without a surrogate parser (1.125147ms)
+✔ original metadata leaves with real Parser: precedence, first-entry preservation, encoded markup and final-URL images (11.1571ms)
+✔ real Parser metadata leaves ignore post-head/body metadata, base, scripts and rich markup (1.60732ms)
+✔ real Parser original bounds and host fallback remain deterministic (4.465513ms)
+✔ real Parser preserves text while current URL policy refuses unsafe images and source URLs without transport (3.527786ms)
+✔ actual ESM Parser entry matches exact8 CJS metadata behavior on the same synthetic owners (41.071671ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 741.442281
