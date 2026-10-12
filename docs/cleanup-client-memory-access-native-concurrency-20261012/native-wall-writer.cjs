@@ -342,11 +342,12 @@ async function runNative(targetReceipt, output) {
         assert.equal((await rows('SELECT nspname FROM pg_namespace WHERE nspname=$1',[SCHEMA])).length,0);
         assert.equal((await rows('SELECT rolname FROM pg_roles WHERE rolname=ANY($1::text[])',[[APP,OWNER]])).length,0);
         assert.equal((await rows("SELECT count(*)::int AS n FROM pg_tables WHERE schemaname='public'"))[0].n,0);
+        assert.equal((await rows("SELECT pid FROM pg_stat_activity WHERE application_name LIKE 'capiro-wall-writer-%' AND pid<>pg_backend_pid()")).length,0);
       }catch(error){cleanupErrors.push(error.message);}finally{try{await close(admin);}catch(error){cleanupErrors.push(error.message);}}
     }
   }
   const result={sourceHead:binding.sourceHead,target:TARGET,schema:SCHEMA,appRole:APP,ownerRole:OWNER,nativePostgres:true,nativePrisma:false,fullClientAuditLogSchema:false,fullMigrationReplay:false,productionRlsAcceptance:false,results,passed:results.filter(x=>x.status==='PASS').length,failed:results.filter(x=>x.status==='FAIL').length,cleanupErrors,cleanupVerified:cleanupErrors.length===0&&schemaCreated};
-  fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');if(result.failed||cleanupErrors.length)process.exitCode=1;return result;
+  fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n',{flag:'wx'});if(result.failed||cleanupErrors.length)process.exitCode=1;return result;
 }
 async function main(args) {
   if(args.length===1&&args[0]==='--plan'){
