@@ -164,6 +164,16 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/18-index-tracked-buffer-red.log",
+      "bytes": 764,
+      "sha256": "acf2de0c9bf347f8d301dba7a37bafa4ec12b0eb3e5fc346b5ad8898397a348b"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/19-curated-index-verification.log",
+      "bytes": 90,
+      "sha256": "c1fa5a17238375cdeec0b30a731a93e004b9db27f7d285525ee0740b96db2886"
+    },
+    {
       "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/before-dispatch-oracle.json",
       "bytes": 37817,
       "sha256": "202fe3b9ac9e78c634ea778118d4d4510c683afcf7dcb4fe0d724b4bbd8d6a2a"

@@ -1,0 +1,12 @@
+Error: spawnSync git ENOBUFS
+    at Object.spawnSync (node:internal/child_process:1160:20)
+    at spawnSync (node:child_process:928:24)
+    at Object.execFileSync (node:child_process:971:15)
+    at [stdin]:1:42
+    at runScriptInThisContext (node:internal/vm:219:10)
+    at node:internal/process/execution:451:12
+    at [stdin]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:449:60)
+    at evalFunction (node:internal/process/execution:283:30)
+    at evalTypeScript (node:internal/process/execution:295:3)
+{"code":"ENOBUFS","errno":-105,"syscall":"spawnSync git","status":null,"signal":"SIGTERM","command":["git","ls-files"],"scope":"read-only tracked-file enumeration exceeded default1MB buffer; no application/source check was reached"}
