@@ -1,0 +1,14 @@
+{
+  "reason": "Shared /workspace filesystem had only 23 MB free; new worktrees are in /tmp.",
+  "action": "Moved only this root-owned, completed PR2416 worktree into /tmp, repaired its Git worktree registration, and retained the original /workspace path as a symlink.",
+  "originalPath": "/workspace/capirov2-cleanup-reviewed-controls-composition",
+  "currentPath": "/tmp/capirov2-cleanup-reviewed-controls-composition",
+  "beforeAndAfterHead": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "beforeAndAfterTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "beforeAndAfterStatus": "only existing untracked node_modules symlink",
+  "workspaceFreeAfter": "522 MB",
+  "tmpFreeAfter": "4.8 GB",
+  "deletedWorktrees": [],
+  "deletedBranchesOrEvidence": [],
+  "protectedReportingOwnerTouched": false
+}
