@@ -1,4 +1,5 @@
-import { TangoNotConfiguredError, type TangoRateMetadata } from './tango.errors.js';
+import { TangoNotConfiguredError } from './tango.errors.js';
+import { asCount, nextPageOf, rateOf } from './tango-rest-page.js';
 import type {
   TangoSubawardGateway,
   TangoSubawardListOptions,
@@ -48,48 +49,6 @@ interface RawPage {
   count?: unknown;
   next?: unknown;
   results?: unknown;
-}
-
-function asCount(value: unknown): number | null {
-  const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : null;
-}
-
-function nextPageOf(next: unknown, baseUrl: string): number | null {
-  if (typeof next !== 'string' || !next.trim()) return null;
-  try {
-    const raw = new URL(next, baseUrl).searchParams.get('page');
-    const page = raw == null ? NaN : Number(raw);
-    return Number.isInteger(page) && page > 0 ? page : null;
-  } catch {
-    return null;
-  }
-}
-
-function rateOf(headers: Headers): TangoRateMetadata | null {
-  const remainingRaw = headers.get('x-ratelimit-remaining');
-  const limitRaw = headers.get('x-ratelimit-limit');
-  const resetRaw = headers.get('x-ratelimit-reset-in');
-  const retryRaw = headers.get('retry-after');
-  const asInteger = (value: string | null): number | null => {
-    const n = value == null ? NaN : Number(value);
-    return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
-  };
-  const remaining = asInteger(remainingRaw);
-  const limit = asInteger(limitRaw);
-  const resetIn = asInteger(resetRaw);
-  const retryAfter = asInteger(retryRaw);
-  const limitType = headers.get('x-ratelimit-type');
-  if (
-    remaining == null &&
-    limit == null &&
-    resetIn == null &&
-    retryAfter == null &&
-    limitType == null
-  ) {
-    return null;
-  }
-  return { remaining, limit, resetIn, retryAfter, limitType };
 }
 
 export class TangoSubawardClient implements TangoSubawardGateway {
@@ -158,7 +117,7 @@ export class TangoSubawardClient implements TangoSubawardGateway {
         items,
         totalCount: asCount(parsed.count),
         nextPage: nextPageOf(parsed.next, this.baseUrl),
-        rate: rateOf(response.headers),
+        rate: rateOf(response.headers, 'captured'),
       };
     } catch (error) {
       if (error instanceof TangoSubawardHttpError || error instanceof TangoNotConfiguredError) {

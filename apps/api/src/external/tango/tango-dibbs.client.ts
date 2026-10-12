@@ -1,4 +1,5 @@
 import { TangoNotConfiguredError, type TangoRateMetadata } from './tango.errors.js';
+import { asCount, nextPageOf, rateOf } from './tango-rest-page.js';
 
 /**
  * Funding Opportunities P40 part 3 — the DIBBS REST surface.
@@ -132,52 +133,6 @@ interface RawPage {
   results?: unknown;
 }
 
-function asCount(value: unknown): number | null {
-  const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : null;
-}
-
-/**
- * The `next` link reduced to its page number.
- *
- * A `next` this code cannot parse becomes null, which ENDS the walk. That is
- * the safe direction only because the caller reports completeness separately:
- * a short page ends a walk legitimately, and the sync's summary states how many
- * pages it actually read, so a truncated walk is visible rather than implied.
- */
-function nextPageOf(next: unknown, baseUrl: string): number | null {
-  if (typeof next !== 'string' || !next.trim()) return null;
-  try {
-    const raw = new URL(next, baseUrl).searchParams.get('page');
-    const page = raw == null ? NaN : Number(raw);
-    return Number.isInteger(page) && page > 0 ? page : null;
-  } catch {
-    return null;
-  }
-}
-
-function rateOf(headers: Headers): TangoRateMetadata | null {
-  const asInteger = (value: string | null): number | null => {
-    const n = value == null ? NaN : Number(value);
-    return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
-  };
-  const remaining = asInteger(headers.get('x-ratelimit-remaining'));
-  const limit = asInteger(headers.get('x-ratelimit-limit'));
-  const resetIn = asInteger(headers.get('x-ratelimit-reset-in'));
-  const retryAfter = asInteger(headers.get('retry-after'));
-  const limitType = headers.get('x-ratelimit-type');
-  if (
-    remaining == null &&
-    limit == null &&
-    resetIn == null &&
-    retryAfter == null &&
-    limitType == null
-  ) {
-    return null;
-  }
-  return { remaining, limit, resetIn, retryAfter, limitType };
-}
-
 export class TangoDibbsClient implements TangoDibbsGateway {
   private readonly apiKey: string | null;
   private readonly baseUrl: string;
@@ -244,7 +199,7 @@ export class TangoDibbsClient implements TangoDibbsGateway {
         throw new TangoDibbsHttpError(
           response.status,
           `Tango DIBBS request failed (${response.status})${bounded ? `: ${bounded}` : ''}`,
-          rateOf(response.headers),
+          rateOf(response.headers, 'interleaved'),
         );
       }
 
@@ -276,7 +231,7 @@ export class TangoDibbsClient implements TangoDibbsGateway {
         items,
         totalCount: asCount(parsed.count),
         nextPage: nextPageOf(parsed.next, this.baseUrl),
-        rate: rateOf(response.headers),
+        rate: rateOf(response.headers, 'interleaved'),
       };
     } catch (error) {
       if (
