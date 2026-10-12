@@ -1,0 +1,32 @@
+{
+  "source": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+  "sourceTree": "795f12489bd8006de7cab5fe66dfbd939deae332",
+  "command": [
+    "node",
+    "--require",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/strict-source-read-refusal.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/after-results.json"
+  ],
+  "envKeys": [
+    "CI",
+    "LANG",
+    "PATH",
+    "TZ"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review",
+  "exit": 0,
+  "protectedUnselectedImplementationReadExplicitlyRefused": true,
+  "noApplicationSetupBootstrap": true,
+  "noNativeDbProviderAction": true,
+  "transformDiagnostics": false
+}

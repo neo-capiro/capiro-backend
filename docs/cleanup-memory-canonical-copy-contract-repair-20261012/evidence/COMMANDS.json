@@ -1,0 +1,69 @@
+{
+  "source": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+  "semanticCheck": {
+    "argv": [
+      "node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "--strict",
+      "--noUncheckedIndexedAccess",
+      "--skipLibCheck",
+      "--target",
+      "ES2022",
+      "--module",
+      "CommonJS",
+      "--moduleResolution",
+      "Node",
+      "--esModuleInterop",
+      "--typeRoots",
+      "apps/api/node_modules/@types",
+      "--types",
+      "node,jest",
+      "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts"
+    ],
+    "exit": 0
+  },
+  "initialSemanticCheck": {
+    "sameArgsExceptTypeRootsMissing": true,
+    "exit": 2,
+    "rawRetained": true
+  },
+  "sourceControls": {
+    "argv": [
+      "node",
+      "docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/adversarial-source-controls.cjs"
+    ],
+    "exit": 0,
+    "controls": 49
+  },
+  "originalIndependentProbe": {
+    "pass": 1,
+    "fail": 3,
+    "source": "2322ed5f9d467e83eaa49b331921f981dc342eaf",
+    "rawRetained": true
+  },
+  "correctedSameIndependentProbe": {
+    "argv": [
+      "node",
+      "docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/replay-independent-opaque-probe.cjs"
+    ],
+    "exit": 0,
+    "pass": 4,
+    "fail": 0
+  },
+  "fixtureCodeExecuted": false,
+  "sourceWhitespace": 0,
+  "originalNineInputProbe": {
+    "source": "8048a314ecedc605f565f4650152b45b3454c07d",
+    "rawRetained": true
+  },
+  "correctedNineInputProbe": {
+    "argv": [
+      "node",
+      "docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/replay-independent-nine-probe.cjs"
+    ],
+    "exit": 0,
+    "pass": 9,
+    "fail": 0
+  }
+}

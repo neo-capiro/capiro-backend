@@ -1,0 +1,31 @@
+{
+  "probes": [
+    {
+      "name": "protected unselected source",
+      "refusedBeforeAction": true
+    },
+    {
+      "name": "Web source",
+      "refusedBeforeAction": true
+    },
+    {
+      "name": "network socket",
+      "refusedBeforeAction": true
+    },
+    {
+      "name": "DNS lookup",
+      "refusedBeforeAction": true
+    },
+    {
+      "name": "fetch",
+      "refusedBeforeAction": true
+    },
+    {
+      "name": "child process",
+      "refusedBeforeAction": true
+    }
+  ],
+  "count": 6,
+  "actualProtectedOrWebBytesRead": false,
+  "actualNetworkOrChildCreated": false
+}

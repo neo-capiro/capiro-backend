@@ -1,0 +1,48 @@
+{
+  "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "source": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+  "sourceTree": "795f12489bd8006de7cab5fe66dfbd939deae332",
+  "sourcePaths": [
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/memory-file-editor-shared.ts.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/pending-memory-review-shared.ts.txt",
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts"
+  ],
+  "identities": [
+    {
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/memory-file-editor-shared.ts.txt",
+      "producer": "apps/web/src/components/memory-file-editor-shared.ts",
+      "sha256": "72905cd3aa59a1a9bf415926f99111ec7f9d8b94fc78da6263ebe83812de0c4f",
+      "bytes": 2037,
+      "originalSourceExact": true
+    },
+    {
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/pending-memory-review-shared.ts.txt",
+      "producer": "apps/web/src/components/pending-memory-review-shared.ts",
+      "sha256": "c6b715f984064ba51ecbe969b3948ffe4bd3535de443ea360994268c14d7de31",
+      "bytes": 2440,
+      "originalSourceExact": true
+    }
+  ],
+  "wholeReaderInverseExactOutsideSoleCaseAndTwoReadsCompilerImport": true,
+  "allSevenOwnerCaseNamesUnchanged": true,
+  "sixOtherOwnerCaseBodiesExact": true,
+  "allOriginalNegativeAndInboxAssertionsRetained": true,
+  "full60NamesAndOther59StatusesAssertionsExact": true,
+  "before": {
+    "pass": 59,
+    "fail": 1
+  },
+  "after": {
+    "pass": 60,
+    "fail": 0
+  },
+  "webRefused": {
+    "pass": 60,
+    "fail": 0
+  },
+  "sourceControlCount": 49,
+  "parseOnlyFixtureData": true,
+  "newParserDependency": false,
+  "nativeAcceptance": false,
+  "independentReviewPending": true
+}

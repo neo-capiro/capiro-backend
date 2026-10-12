@@ -1,0 +1,188 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, App, Button, Empty, Input, Select, Space, Spin, Tag, Typography } from 'antd';
+import { SaveOutlined } from '@ant-design/icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useApi } from '../lib/use-api.js';
+import { PendingMemoryReviewPanel } from './PendingMemoryReviewPanel.js';
+
+const { Text, Paragraph } = Typography;
+
+// Types + helpers extracted to memory-file-editor-shared.ts (UI-free) so the
+// vNext Settings module shares them. Re-exported to keep this file's public
+// API unchanged.
+export {
+  memorySaveErrorMessage,
+  settingsMemorySuccessMessage,
+} from './memory-file-editor-shared.js';
+import {
+  defaultMemoryFileType as defaultFileType,
+  memorySaveErrorMessage,
+  settingsMemorySuccessMessage,
+  type MemoryFileDef as FileDef,
+  type MemoryItemSection as ItemSection,
+  type MemoryItemSectionsResp as ItemSectionsResp,
+  type MemorySaveSectionsResp as SaveSectionsResp,
+} from './memory-file-editor-shared.js';
+
+export function MemoryFileEditor({
+  scope,
+  slug,
+  ready,
+  canEdit,
+}: {
+  scope: 'firm' | 'client' | 'user';
+  slug: string;
+  ready: boolean;
+  canEdit: boolean;
+}) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { message } = App.useApp();
+  const [fileType, setFileType] = useState<string>(() => defaultFileType(scope));
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const catalogQuery = useQuery<FileDef[]>({
+    queryKey: ['memory-catalog'],
+    queryFn: async () => (await api.get<FileDef[]>('/api/memory/catalog')).data,
+    staleTime: 60 * 60 * 1000,
+  });
+  const filesForScope = useMemo(
+    () => (catalogQuery.data ?? []).filter((f) => f.scope === scope),
+    [catalogQuery.data, scope],
+  );
+
+  useEffect(() => {
+    setFileType(defaultFileType(scope));
+    setDrafts({});
+  }, [scope]);
+  useEffect(() => {
+    setDrafts({});
+  }, [slug]);
+
+  const itemQuery = useQuery<ItemSectionsResp>({
+    queryKey: ['memory-item', fileType, slug],
+    queryFn: async () =>
+      (await api.get<ItemSectionsResp>(`/api/memory/items/${fileType}/${slug}/sections`)).data,
+    enabled: ready && !!fileType && !!slug,
+    retry: 1,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (sections: { key: string; body: string }[]) =>
+      (
+        await api.put<SaveSectionsResp>(`/api/memory/items/${fileType}/${slug}/sections`, {
+          sections,
+        })
+      ).data,
+    onSuccess: (result) => {
+      message.success(settingsMemorySuccessMessage(result));
+      setDrafts({});
+      qc.invalidateQueries({ queryKey: ['memory-item', fileType, slug] });
+      qc.invalidateQueries({ queryKey: ['memory-review-summary'] });
+      qc.invalidateQueries({ queryKey: ['memory-own-proposals'] });
+      qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
+    },
+    onError: (error: unknown) => message.error(memorySaveErrorMessage(error)),
+  });
+
+  const bodyFor = (section: ItemSection): string => drafts[section.key] ?? section.body;
+  const onSave = () => {
+    const human = (itemQuery.data?.sections ?? []).filter((section) => section.owner === 'human');
+    saveMutation.mutate(human.map((section) => ({ key: section.key, body: bodyFor(section) })));
+  };
+
+  const sharedPending = scope !== 'user' && !!itemQuery.data?.pendingReview;
+  const canSave = canEdit && !!itemQuery.data && !saveMutation.isPending && !sharedPending;
+
+  const saveButton = (
+    <Button
+      type="primary"
+      icon={<SaveOutlined />}
+      onClick={onSave}
+      loading={saveMutation.isPending}
+      disabled={!canSave}
+    >
+      {sharedPending
+        ? 'Waiting for review'
+        : scope === 'user'
+          ? 'Save changes'
+          : 'Submit for review'}
+    </Button>
+  );
+
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space wrap>
+        <Select
+          style={{ width: 200 }}
+          value={fileType}
+          onChange={(value) => {
+            setFileType(value);
+            setDrafts({});
+          }}
+          options={filesForScope.map((file) => ({ label: file.label, value: file.type }))}
+        />
+        {saveButton}
+      </Space>
+
+      {!canEdit && (
+        <Alert
+          type="info"
+          showIcon
+          message="You can view this file. Editing requires an admin role."
+        />
+      )}
+
+      {ready && itemQuery.isLoading && <Spin />}
+      {ready && itemQuery.isError && <Empty description="Couldn't load this file. Try again." />}
+
+      {ready && itemQuery.data && (
+        <>
+          {itemQuery.data.pendingReview && (
+            <PendingMemoryReviewPanel
+              activeExists={itemQuery.data.exists}
+              activeSections={itemQuery.data.sections}
+              pending={itemQuery.data.pendingReview}
+            />
+          )}
+
+          {!sharedPending && (
+            <>
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                {itemQuery.data.sections.map((section) => (
+                  <div key={section.key}>
+                    <Space>
+                      <Text strong>{section.heading}</Text>
+                      {section.owner === 'engine' && <Tag color="default">Auto-generated</Tag>}
+                    </Space>
+                    <Paragraph type="secondary" style={{ margin: '2px 0', fontSize: 12 }}>
+                      {section.prompt}{' '}
+                      {section.example && (
+                        <Text type="secondary" italic>
+                          e.g. “{section.example}”
+                        </Text>
+                      )}
+                    </Paragraph>
+                    <Input.TextArea
+                      value={bodyFor(section)}
+                      autoSize={{ minRows: section.key === 'samples' ? 6 : 2, maxRows: 16 }}
+                      readOnly={section.owner === 'engine' || !canEdit}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [section.key]: event.target.value,
+                        }))
+                      }
+                      style={section.owner === 'engine' ? { background: '#f5f5f5' } : undefined}
+                    />
+                  </div>
+                ))}
+              </Space>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{saveButton}</div>
+            </>
+          )}
+        </>
+      )}
+    </Space>
+  );
+}
