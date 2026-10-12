@@ -1,0 +1,33 @@
+{
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "authorEvidence": "8b08c4ac4a127bb083c9aa90ae028861bfb2aeeb",
+  "copiedByteExact": [
+    {
+      "name": "jest.safe.cjs",
+      "sha256": "b6b030c4492c4ccee453b01a190370b488bc9b52480254975abe97019341d003",
+      "bytes": 1799
+    },
+    {
+      "name": "jest.environment.cjs",
+      "sha256": "af9f24e64e5132aa2c6ed2d92f4fc8cefc3e23cbef8df577a14f92acdcfc5b29",
+      "bytes": 2304
+    },
+    {
+      "name": "jest.resolver.cjs",
+      "sha256": "ca5fd6827918ff8fcd66fedee770ef2e083c132ff3f5aff2059ac6af7be664f5",
+      "bytes": 659
+    },
+    {
+      "name": "collaborator-tokens.cjs",
+      "sha256": "093cd3171a27816109cd071e832ffe89abf9d4ca094e9fd371714023eafbfd71",
+      "bytes": 651
+    },
+    {
+      "name": "native-sanitizer.cjs",
+      "sha256": "9acecb37304b984a4aebb2241b6a0741621ce21b9662c82c9401456467eebbfb",
+      "bytes": 271
+    }
+  ],
+  "authorWorktreeEdited": false,
+  "actualCopiesUsedFromOwnPacket": true
+}

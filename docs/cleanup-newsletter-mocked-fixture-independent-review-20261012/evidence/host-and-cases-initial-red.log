@@ -1,0 +1,880 @@
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  [
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'newsletter destination and HTML boundaries normalizes addresses, rejects duplicates and shared recipient capabilities'
+    ],
+...
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+-     'newsletter invitation email delivery does not poll or send when disabled (false)'
+-   ],
+-   [
+-     'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery does not retry ambiguous provider outcomes or expose provider error details'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery prevents overlapping ticks from sending twice'
+...
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+-     'newsletter comment email delivery does not poll or send when disabled (false)'
+-   ],
+-   [
+-     'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery does not retry ambiguous provider outcomes or expose provider error details'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery prevents overlapping ticks from sending twice'
+...
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+-     'bounded HTML page download rejects unsupported or oversized HTML responses'
+-   ],
+-   [
+-     'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+-     'bounded HTML page download rejects unsupported or oversized HTML responses'
+-   ],
+-   [
+-     'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+-     'bounded HTML page download rejects unsupported or oversized HTML responses'
+-   ],
+-   [
+-     'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+-     'bounded HTML page download rejects unsupported or oversized HTML responses'
+-   ],
+-   [
+-     'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download uses the pinned public transport and keeps the final URL for relative metadata'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download bounds streamed bytes and the full deadline'
+
+    at Object.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/verify-host-and-cases.cjs:48:8)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'newsletter destination and HTML boundaries normalizes addresses, rejects duplicates and shared recipient capabilities'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'newsletter destination and HTML boundaries scripts, event handlers, embedded pages and unsafe URLs cannot enter a delivered fragment'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff a lost send receipt can be recovered by the original request without creating deliveries'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff a test uses one current reviewed version and never sets the real send intent'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff cannot send a stale or browser-chosen draft version'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff checks Cc and Bcc opt-outs when preparing the preview'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff excludes an unsubscribed destination before creating any delivery draft'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff invalid headers and incomplete firm details fail before draft import'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff personalizes authoritative saved content and records recipient capabilities'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff previewing never publishes a private recipient archive'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff reads a stage with verified tenant and Clerk owner rather than browser content'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff rechecks the ethical wall before importing a client-scoped source'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff refuses concurrent preparation or sending before importing or queuing content'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff requires the complete reviewed destination set and the same sending mailbox'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff restores only current tests belonging to the campaign owner and reviewed mailbox'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff unsubscribe GET is read-only and the confirmed POST suppresses only that sender'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-account-provider.spec.ts',
+      'NewsletterAccountProvider transport does not retry a create request after a lost transport response'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-account-provider.spec.ts',
+      'NewsletterAccountProvider transport makes one create request on a provider 503 and sends only authoritative invitation fields'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-account-provider.spec.ts',
+      'NewsletterAccountProvider transport uses the existing firm role operation to promote an active member'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery cancels requests when current grant, membership or invitation is unavailable'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery derives an escaped email from authoritative records and sends once with an audited receipt'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery does not poll or send when disabled (false)'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery does not retry ambiguous provider outcomes or expose provider error details'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery prevents overlapping ticks from sending twice'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery records an explicit provider rejection without an automatic resend'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery recovers interrupted receipt persistence without another provider call'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery retains original client checks after an edit and cancels a revoked client wall'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery cancels requests when current grant, membership or subscription is unavailable'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery derives an escaped email from authoritative records and sends once with an audited receipt'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery does not poll or send when disabled (false)'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery does not retry ambiguous provider outcomes or expose provider error details'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery prevents overlapping ticks from sending twice'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery records an explicit provider rejection without an automatic resend'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery recovers interrupted receipt persistence without another provider call'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery retains original client checks after an edit and cancels a revoked client wall'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders creates a folder and moves a deduplicated selection in the same transaction'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders lists scoped folder metadata and filters image rows and totals by an owned folder or Unfiled'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders locks only an owned destination and rejects missing images or folders without a partial result'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders renames and deletes a scoped folder without changing or deleting its asset bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders stores an upload or import directly in a locked folder and never creates an image for an unavailable folder'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects private DNS answers, private redirects, peer mismatch and a stalled page'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects unsupported or oversized HTML responses'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download uses the pinned public transport and keeps the final URL for relative metadata'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download bounds streamed bytes and the full deadline'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download pins the public provider, follows only approved hosts and sends no credentials'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download refuses private DNS answers and a different connected peer'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects a provider redirect to another public host before resolving it'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects incompatible/oversized JSON response 0'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects incompatible/oversized JSON response 1'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects incompatible/oversized JSON response 2'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import accepts only public unicast literals and removes the URL fragment'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import caps redirects and detects a redirect loop'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import checks every redirect before following it'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import pins a public-only DNS answer while retaining the original TLS host and stores no URL query in the name'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses compressed response without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses HTML content without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses HTTP failure without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses invalid bytes without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses MIME mismatch without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses oversized header without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses oversized stream without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects a hostname with mixed public/private answers and refuses a different TCP peer'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination file:///image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination http://public.example/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://[::ffff:169.254.169.254]/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://[2001:db8::1]/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://[2002:7f00:1::]/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://169.254.169.254/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://2130706433/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://a:b@public.example/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://localhost/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://public.example:8443/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://service.internal/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import uses one deadline for DNS and stalled downloads'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets copies imported image bytes through the existing scoped upload path'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets does not persist a failed import or unsupported image, and does not retry the download'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets paginates beyond the old 200-image limit while scoping both rows and totals to the owner and tenant'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"page":0}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"page":1.5}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"page":100001}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"pageSize":200}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"search":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"sort":"random"}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets renames only active scoped images without modifying bytes or URLs'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets returns scoped details without exposing stored bytes or separate capability tokens'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets soft-deletes a bounded deduplicated selection, fails mixed batches and keeps public reads immutable'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit applies primary logo and button to new builtin documents and keeps a font snapshot'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit keeps custom fonts on saved sections after kit removal and prevents CSS injection'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit rejects a foreign asset before saving and rejects stale revisions without returning a success'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit scopes the kit and every selected asset to tenant and owner and derives asset URLs'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit validates font container bounds and rejects arbitrary files before storing bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-fonts.spec.ts',
+      'newsletter catalog typography loads inline rich text typography after a safe round trip without placing client text in a font request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-fonts.spec.ts',
+      'newsletter catalog typography requests only catalog faces and sorts and deduplicates requested variants'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-fonts.spec.ts',
+      'newsletter catalog typography retains a named weight/italic variant in validated designs and exported HTML'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-html-check.spec.ts',
+      'newsletter Mailtrap HTML compatibility check does not make requests without a valid server-side sandbox connection'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-html-check.spec.ts',
+      'newsletter Mailtrap HTML compatibility check does not report a successful check for pending, failed or malformed analysis'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-html-check.spec.ts',
+      'newsletter Mailtrap HTML compatibility check preserves a successful empty analysis as a report, without claiming client screenshots'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-html-check.spec.ts',
+      'newsletter Mailtrap HTML compatibility check reports allowance limits without retrying the submission or exposing provider details'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-html-check.spec.ts',
+      'newsletter Mailtrap HTML compatibility check submits only to the sandbox and analyzes the message identified by this request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts',
+      'immutable newsletter image revisions does not save an edit when the image moves folders while its root lock is pending'
+    ],
+    ... 185 more items
+  ],
+  expected: [
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'newsletter destination and HTML boundaries normalizes addresses, rejects duplicates and shared recipient capabilities'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'newsletter destination and HTML boundaries scripts, event handlers, embedded pages and unsafe URLs cannot enter a delivered fragment'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff a lost send receipt can be recovered by the original request without creating deliveries'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff a test uses one current reviewed version and never sets the real send intent'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff cannot send a stale or browser-chosen draft version'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff checks Cc and Bcc opt-outs when preparing the preview'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff excludes an unsubscribed destination before creating any delivery draft'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff invalid headers and incomplete firm details fail before draft import'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff personalizes authoritative saved content and records recipient capabilities'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff previewing never publishes a private recipient archive'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff reads a stage with verified tenant and Clerk owner rather than browser content'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff rechecks the ethical wall before importing a client-scoped source'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff refuses concurrent preparation or sending before importing or queuing content'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff requires the complete reviewed destination set and the same sending mailbox'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff restores only current tests belonging to the campaign owner and reviewed mailbox'
+    ],
+    [
+      'apps/api/src/engagement/newsletter-outreach.service.spec.ts',
+      'Workspace newsletter Outreach handoff unsubscribe GET is read-only and the confirmed POST suppresses only that sender'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-account-provider.spec.ts',
+      'NewsletterAccountProvider transport does not retry a create request after a lost transport response'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-account-provider.spec.ts',
+      'NewsletterAccountProvider transport makes one create request on a provider 503 and sends only authoritative invitation fields'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-account-provider.spec.ts',
+      'NewsletterAccountProvider transport uses the existing firm role operation to promote an active member'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery cancels requests when current grant, membership or invitation is unavailable'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery derives an escaped email from authoritative records and sends once with an audited receipt'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery does not poll or send when disabled (false)'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery does not poll or send when disabled (false)'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery does not retry ambiguous provider outcomes or expose provider error details'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery prevents overlapping ticks from sending twice'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery records an explicit provider rejection without an automatic resend'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery recovers interrupted receipt persistence without another provider call'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts',
+      'newsletter invitation email delivery retains original client checks after an edit and cancels a revoked client wall'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery cancels requests when current grant, membership or subscription is unavailable'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery derives an escaped email from authoritative records and sends once with an audited receipt'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery does not poll or send when disabled (false)'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery does not poll or send when disabled (false)'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery does not retry ambiguous provider outcomes or expose provider error details'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery prevents overlapping ticks from sending twice'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery records an explicit provider rejection without an automatic resend'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery recovers interrupted receipt persistence without another provider call'
+    ],
+    [
+      'apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts',
+      'newsletter comment email delivery retains original client checks after an edit and cancels a revoked client wall'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders creates a folder and moves a deduplicated selection in the same transaction'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders lists scoped folder metadata and filters image rows and totals by an owned folder or Unfiled'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders locks only an owned destination and rejects missing images or folders without a partial result'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders renames and deletes a scoped folder without changing or deleting its asset bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts',
+      'image-library folders stores an upload or import directly in a locked folder and never creates an image for an unavailable folder'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects private DNS answers, private redirects, peer mismatch and a stalled page'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects unsupported or oversized HTML responses'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects unsupported or oversized HTML responses'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects unsupported or oversized HTML responses'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects unsupported or oversized HTML responses'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download rejects unsupported or oversized HTML responses'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded HTML page download uses the pinned public transport and keeps the final URL for relative metadata'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download bounds streamed bytes and the full deadline'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download pins the public provider, follows only approved hosts and sends no credentials'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download refuses private DNS answers and a different connected peer'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects a provider redirect to another public host before resolving it'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects incompatible/oversized JSON response 0'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects incompatible/oversized JSON response 1'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'bounded provider JSON download rejects incompatible/oversized JSON response 2'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import accepts only public unicast literals and removes the URL fragment'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import caps redirects and detects a redirect loop'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import checks every redirect before following it'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import pins a public-only DNS answer while retaining the original TLS host and stores no URL query in the name'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses compressed response without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses HTML content without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses HTTP failure without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses invalid bytes without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses MIME mismatch without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses oversized header without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import refuses oversized stream without returning bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects a hostname with mixed public/private answers and refuses a different TCP peer'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination file:///image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination http://public.example/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://[::ffff:169.254.169.254]/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://[2001:db8::1]/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://[2002:7f00:1::]/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://169.254.169.254/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://2130706433/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://a:b@public.example/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://localhost/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://public.example:8443/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import rejects forbidden destination https://service.internal/image.png before DNS or a request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-asset-import.spec.ts',
+      'image URL import uses one deadline for DNS and stalled downloads'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets copies imported image bytes through the existing scoped upload path'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets does not persist a failed import or unsupported image, and does not retry the download'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets paginates beyond the old 200-image limit while scoping both rows and totals to the owner and tenant'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"page":0}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"page":1.5}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"page":100001}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"pageSize":200}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"search":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets rejects invalid pagination/filter bounds {"sort":"random"}'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets renames only active scoped images without modifying bytes or URLs'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets returns scoped details without exposing stored bytes or separate capability tokens'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-assets.spec.ts',
+      'stored newsletter assets soft-deletes a bounded deduplicated selection, fails mixed batches and keeps public reads immutable'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit applies primary logo and button to new builtin documents and keeps a font snapshot'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit keeps custom fonts on saved sections after kit removal and prevents CSS injection'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit rejects a foreign asset before saving and rejects stale revisions without returning a success'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit scopes the kit and every selected asset to tenant and owner and derives asset URLs'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-brand.spec.ts',
+      'newsletter Brand Kit validates font container bounds and rejects arbitrary files before storing bytes'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-fonts.spec.ts',
+      'newsletter catalog typography loads inline rich text typography after a safe round trip without placing client text in a font request'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-fonts.spec.ts',
+      'newsletter catalog typography requests only catalog faces and sorts and deduplicates requested variants'
+    ],
+    [
+      'apps/workspace/src/newsletters/newsletter-fonts.spec.ts',
+      'newsletter catalog typography retains a named weight/italic variant in validated designs and exported HTML'
+    ],
+    ... 191 more items
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

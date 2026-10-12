@@ -1,0 +1,4 @@
+// Actual installed sanitizer with its own ESM parser closure; not a mock.
+const sanitizer=globalThis.__NEWSLETTER_ACTUAL_SANITIZER__;
+if(typeof sanitizer!=='function')throw Error('Actual installed sanitizer was not supplied by the test host');
+module.exports=sanitizer;

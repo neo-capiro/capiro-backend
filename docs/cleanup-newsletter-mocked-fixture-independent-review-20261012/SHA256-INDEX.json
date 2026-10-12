@@ -1,0 +1,132 @@
+{
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "tree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+  "authorEvidence": "8b08c4ac4a127bb083c9aa90ae028861bfb2aeeb",
+  "packet": [
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 1108,
+      "sha256": "cbc9bb194e5ebabc12d0953a3522b6877ec0168a705e484e8d1a9918552c2a24"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/CACHE-RELOCATION.json",
+      "bytes": 18288,
+      "sha256": "29dc69a3de9e14b571c5a48a4b3bd96c43f9f7679944f5bf02ba16f8efe1918a"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/COMMANDS.json",
+      "bytes": 1981,
+      "sha256": "9cb56a57b37997c1e56a37f4ac80f804d820f67338b37e013a8a85ea4871977b"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/HANDOFF.md",
+      "bytes": 3735,
+      "sha256": "529ef864125af7fbcc65405c225567bcff0d8655971a03ded8804f48024aa13a"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/REVIEW-PLAN.md",
+      "bytes": 1905,
+      "sha256": "334dfd5d327ce132f45c0b755514c1505bf2d45602b0021bdee314ac7efc612d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/collaborator-tokens.cjs",
+      "bytes": 651,
+      "sha256": "093cd3171a27816109cd071e832ffe89abf9d4ca094e9fd371714023eafbfd71"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/08-parser-requester-resolution.jsonl",
+      "bytes": 262,
+      "sha256": "a010d28d4fe628010703301b6ad6ddffcf0c7c801094086ec2639f3888ff037f"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/focused-independent-final.json",
+      "bytes": 21860,
+      "sha256": "5d22b96ea593d22d7540801372ca7680f58b9ec9461cb4072652c60b4e8fce16"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/focused-independent-final.log",
+      "bytes": 666,
+      "sha256": "71d09cea28f363c1df21aa3ed4c689c599aa6dd1092559d01db5cd5bad610ffe"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/focused-independent.log",
+      "bytes": 43,
+      "sha256": "a9de9722a3180391c59c3d4fcf6eae079855f41f1442c930c95b7c3787ac4e07"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/frozen-host-inputs.json",
+      "bytes": 989,
+      "sha256": "ff7bd992ff7e2c141f7664c4f6d33bcbf222e92934bbac32d578c5453ef3711f"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/host-and-cases-initial-red.log",
+      "bytes": 42231,
+      "sha256": "bdbbdc5775b19f23be19e9ec82018807da16ca43d44dd4ab0fd70216ed783fd7"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/host-and-cases-proof.json",
+      "bytes": 839,
+      "sha256": "3c2482e9ffb1019ebe0163e82fe469968752c36f7d169cded1afee68942a2409"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/host-and-cases-proof.log",
+      "bytes": 208,
+      "sha256": "57109358c8c27f556cc3f668a3b6d8772a40998230024e8afc94b46c80fe4002"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/packet-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/proposal-before-freeze.patch",
+      "bytes": 3933,
+      "sha256": "1fac8e81de96299cc5ca3506a4723878171602e100ccbc0067d152ef710fee02"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/source-proof.cjs",
+      "bytes": 6112,
+      "sha256": "462f1df4f7fe901fb7eb323cd650350568af570f0ad1e601b3ddfd5ca19154b9"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/source-proof.json",
+      "bytes": 7113,
+      "sha256": "b511bc4f41b371765b14b5e38199e007552736aa8b85f4f4dfdfece20d5d7edf"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/source-proof.log",
+      "bytes": 201,
+      "sha256": "6d21678f61c6f99e0ab2304a32f28f7deba938b55e695a9a400fe6f35c4d8297"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/verify-host-and-cases-initial.cjs",
+      "bytes": 5268,
+      "sha256": "8897d64622804cbc5b625d79534856cc1671de8ebc9b5fe1b220320be91254a0"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/verify-host-and-cases.cjs",
+      "bytes": 5640,
+      "sha256": "190b4cb5e812d916e4effe588358168f9c973c0ba084633d67192324b0f9928d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/jest.environment.cjs",
+      "bytes": 2304,
+      "sha256": "af9f24e64e5132aa2c6ed2d92f4fc8cefc3e23cbef8df577a14f92acdcfc5b29"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/jest.resolver.cjs",
+      "bytes": 659,
+      "sha256": "ca5fd6827918ff8fcd66fedee770ef2e083c132ff3f5aff2059ac6af7be664f5"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/jest.safe.cjs",
+      "bytes": 1799,
+      "sha256": "b6b030c4492c4ccee453b01a190370b488bc9b52480254975abe97019341d003"
+    },
+    {
+      "path": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/native-sanitizer.cjs",
+      "bytes": 271,
+      "sha256": "9acecb37304b984a4aebb2241b6a0741621ce21b9662c82c9401456467eebbfb"
+    }
+  ]
+}
