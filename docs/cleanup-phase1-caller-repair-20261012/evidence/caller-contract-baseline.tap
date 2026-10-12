@@ -1,0 +1,30 @@
+✖ package, local wrapper, and operator commands still select the closeout (6.597373ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 385.267711
+
+✖ failing tests:
+
+test at scripts/cleanup-script-smoke/api-closeout-runner-cli-contracts.test.mjs:127:1
+✖ package, local wrapper, and operator commands still select the closeout (6.597373ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /scripts\/verify-engagement-phase1-runtime\.ts --run &&/u. Input:
+  
+  'pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs'
+  
+      at TestContext.<anonymous> (file:///workspace/capirov2-phase1-caller-repair/scripts/cleanup-script-smoke/api-closeout-runner-cli-contracts.test.mjs:129:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs',
+    expected: /scripts\/verify-engagement-phase1-runtime\.ts --run &&/u,
+    operator: 'match',
+    diff: 'simple'
+  }

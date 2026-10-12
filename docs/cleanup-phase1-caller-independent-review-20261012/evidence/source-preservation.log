@@ -1,0 +1,71 @@
+{
+  "acceptedSource": "2496e57b4193cdd4d004232711a77ef707ae6b98",
+  "acceptedTree": "ed4f162b3b59dbc27b3757170073e88be0181f35",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "onlyChangedPath": [
+    "package.json"
+  ],
+  "oldNewPackageAndThreeCanonicalCallerEntries": [
+    {
+      "path": "package.json",
+      "baseEntry": "100644 blob 994c9476414cd4f66b13cc52f16100a72a8cfddc",
+      "candidateEntry": "100644 blob 7ae18e455b84013937e68ccf83a01c6725cb58cb",
+      "baseSha256": "91d180ac38e42ab6168bcf1c8e6c55dc3ce6e04243ee5229a32cf845ee7692d2",
+      "candidateSha256": "be21ca472ec8e321e1b610203f019904ce9cb10751bcf3a03ef5a0645254111b"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "baseEntry": "100644 blob 5783ca130796576e70d5292b2920af4f2803e984",
+      "candidateEntry": "100644 blob 5783ca130796576e70d5292b2920af4f2803e984",
+      "baseSha256": "516cdee5c9fb35bfdf35b04b03523e9eec827e860d1554c269858d8bc845bf0a",
+      "candidateSha256": "516cdee5c9fb35bfdf35b04b03523e9eec827e860d1554c269858d8bc845bf0a"
+    },
+    {
+      "path": "scripts/run-engagement-phase1-local.mjs",
+      "baseEntry": "100644 blob 9979683f5af584c86989b08db890304a3279f3db",
+      "candidateEntry": "100644 blob 9979683f5af584c86989b08db890304a3279f3db",
+      "baseSha256": "994ed14d2ee976a1aace8ee1e799fe8f1a6b29f597a0b17203ccbacb19b27215",
+      "candidateSha256": "994ed14d2ee976a1aace8ee1e799fe8f1a6b29f597a0b17203ccbacb19b27215"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.sh",
+      "baseEntry": "100755 blob e7cf3aa2706fcde600759379ff5fd0e95d654f8c",
+      "candidateEntry": "100755 blob e7cf3aa2706fcde600759379ff5fd0e95d654f8c",
+      "baseSha256": "5c78919a1aefae5bf9c985aedd627c1580ea989bb3e319d23d2ab4c4ea3c472c",
+      "candidateSha256": "5c78919a1aefae5bf9c985aedd627c1580ea989bb3e319d23d2ab4c4ea3c472c"
+    }
+  ],
+  "unchangedBaselinePathsOutsidePackage": 21044,
+  "unchangedApplicationPaths": 10506,
+  "unchangedSchemaMigrationPaths": 603,
+  "unchangedPriorDocumentationAndReceiptPaths": 9364,
+  "allOtherPackageValuesUnchanged": true,
+  "oneRequiredRunArgumentAddedOnce": true,
+  "oldHelperArgv": [
+    "pnpm",
+    "--filter",
+    "@capiro/api",
+    "exec",
+    "tsx",
+    "scripts/verify-engagement-phase1-runtime.ts"
+  ],
+  "newHelperArgv": [
+    "pnpm",
+    "--filter",
+    "@capiro/api",
+    "exec",
+    "tsx",
+    "scripts/verify-engagement-phase1-runtime.ts",
+    "--run"
+  ],
+  "sixFollowingSyntaxCheckCommandsPreserved": [
+    "node --check scripts/run-engagement-phase1-local.mjs",
+    "node --check scripts/verify-engagement-phase1-local.mjs",
+    "node --check scripts/run-engagement-phase1-post-acceptance.mjs",
+    "node --check scripts/verify-engagement-phase1-background-final.mjs",
+    "node --check apps/web/scripts/engagement-phase1-browser-parity.mjs",
+    "node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs"
+  ],
+  "allAndOperatorsAndRemainingCommandBytesPreserved": true,
+  "nativeOrRealCloseoutExecuted": false
+}

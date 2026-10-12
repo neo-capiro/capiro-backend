@@ -1,0 +1,9 @@
+{
+  "source": "2496e57b4193cdd4d004232711a77ef707ae6b98",
+  "tree": "ed4f162b3b59dbc27b3757170073e88be0181f35",
+  "shellCommand": "node --test --test-name-pattern '^package, local wrapper, and operator commands still select the closeout$' scripts/cleanup-script-smoke/api-closeout-runner-cli-contracts.test.mjs > docs/cleanup-phase1-caller-independent-review-20261012/evidence/unchanged-memory-documentation-red.tap 2>&1",
+  "exitCode": 1,
+  "expectedExitCode": 1,
+  "expected": true,
+  "nativeOrRealCloseoutExecuted": false
+}

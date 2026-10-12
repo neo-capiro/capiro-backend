@@ -1,0 +1,27 @@
+{
+  "rawFullStagedDiff": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exitCode": 2,
+    "classification": "Preserved original raw TAP indentation whitespace; no source or authored documentation whitespace defect"
+  },
+  "authoredSourceDocumentationAndPrograms": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check",
+      "--",
+      ".",
+      ":(exclude)**/*.tap",
+      ":(exclude)docs/cleanup-phase1-caller-independent-review-20261012/evidence/staged-raw-diff-check.log"
+    ],
+    "exitCode": 0
+  },
+  "rawTapBytesTrimmed": false,
+  "noTestAssertionsModified": true
+}
