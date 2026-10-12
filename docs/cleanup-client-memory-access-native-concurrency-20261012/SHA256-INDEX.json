@@ -1,0 +1,146 @@
+{
+  "sourceHead": "cf30727ad5dfba61d2d153b2983eae8163a73ffd",
+  "sourceTree": "f751283cbcff8e22cd49ae1dbf03c537be04534a",
+  "applicationSource": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "applicationDeltaSince926": 0,
+  "sqlExecutedAtPreparationCheckpoint": false,
+  "files": [
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/PREPARATION.md",
+      "sha256": "fe9bab62c27ad26fd0380fa05e01e42130d9289f5461a9943e6b53421ece07f7",
+      "bytes": 6243
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/01-source-controls-command.json",
+      "sha256": "d138cf59e92b7cc3e092f11b4390b07fe60e58ad69e5e55e50c26a7878112108",
+      "bytes": 499
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/01-source-controls.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/01-source-controls.stdout",
+      "sha256": "034029430038af04d304cc6c2dc427a73c2d0f0de5100e24036a24b1fd224c4c",
+      "bytes": 2106
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/02-plan-command.json",
+      "sha256": "9f5eecd2899776da3a00f9f930c65f102fe0f26ba077e963dffbdd05f4767e60",
+      "bytes": 508
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/02-plan.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/02-plan.stdout",
+      "sha256": "85673b1ad77517d117a52471961684aa9085199fcdde0c810891b9671156a64d",
+      "bytes": 1827
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/04-final-source-controls-command.json",
+      "sha256": "d138cf59e92b7cc3e092f11b4390b07fe60e58ad69e5e55e50c26a7878112108",
+      "bytes": 499
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/04-final-source-controls.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/04-final-source-controls.stdout",
+      "sha256": "41a9185dc43e9dcaa3a87e68634adc55826ca4a162b865a8c58d0888530833e7",
+      "bytes": 2107
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/05-final-plan-command.json",
+      "sha256": "9f5eecd2899776da3a00f9f930c65f102fe0f26ba077e963dffbdd05f4767e60",
+      "bytes": 508
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/05-final-plan.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/05-final-plan.stdout",
+      "sha256": "fda20b159219399642a980ef67df9fece49c894cf9939472373a75d1d5537ce7",
+      "bytes": 1827
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/ROOT-VERIFIED-TARGET.json",
+      "sha256": "9eda06c130bc85a25e91c6fce79cdfdc7fd835d0237d5d9771b8aa08251a2d13",
+      "bytes": 361
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/baseline-harness.cjs.txt",
+      "sha256": "f13f2b8086f6b4899d594fbec73489cbf3f123824e11770ffb038603368cd5be",
+      "bytes": 27068
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/fixture.sql",
+      "sha256": "5042c6508e551f6c37ca878a43789691c62af7671c141a387a2e9aa91bfd70a7",
+      "bytes": 3205
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/native-wall-writer.cjs",
+      "sha256": "8e48fd323695bcce8a8ec319f8c95662567128d3e16d3b016d39ccae1d7b852a",
+      "bytes": 28252
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/native-wall-writer.test.cjs",
+      "sha256": "067d81182bdd7ea0958a7ac082314ead8f1b3ca34340ea7208d6c890d7c6c395",
+      "bytes": 6920
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/preparation-refusal.cjs",
+      "sha256": "2ee77dff00e27813ac190f9577dccbf26f134bf8c9c6912e29271d998f7648f6",
+      "bytes": 367
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/source-bindings.json",
+      "sha256": "71e74585657af4a05f985468bae401adbb69d3a6c312f2f7ccd2b8bf94da41b1",
+      "bytes": 1178
+    }
+  ],
+  "runnerSourceFiles": [
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/ROOT-VERIFIED-TARGET.json",
+      "blob": "fcc7827d1e09394d263c1000a6b4461bbb4bd055",
+      "sha256": "9eda06c130bc85a25e91c6fce79cdfdc7fd835d0237d5d9771b8aa08251a2d13"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/baseline-harness.cjs.txt",
+      "blob": "82f91705cf23c8704e1fbe841dc26be200bd3250",
+      "sha256": "f13f2b8086f6b4899d594fbec73489cbf3f123824e11770ffb038603368cd5be"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/fixture.sql",
+      "blob": "7aa5361223d493a04ee4848ea56af29783d709a1",
+      "sha256": "5042c6508e551f6c37ca878a43789691c62af7671c141a387a2e9aa91bfd70a7"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/native-wall-writer.cjs",
+      "blob": "e11e37980077c236041e85b318d421212b0111b5",
+      "sha256": "8e48fd323695bcce8a8ec319f8c95662567128d3e16d3b016d39ccae1d7b852a"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/native-wall-writer.test.cjs",
+      "blob": "187932a91cf458265df04d7239cde5929fc053fa",
+      "sha256": "067d81182bdd7ea0958a7ac082314ead8f1b3ca34340ea7208d6c890d7c6c395"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/preparation-refusal.cjs",
+      "blob": "b9b007c8ab278d67a807e5fcc18f9d2ca09c0b08",
+      "sha256": "2ee77dff00e27813ac190f9577dccbf26f134bf8c9c6912e29271d998f7648f6"
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-native-concurrency-20261012/source-bindings.json",
+      "blob": "48cec929bfbb9140a21b2afa675d58d473f9121f",
+      "sha256": "71e74585657af4a05f985468bae401adbb69d3a6c312f2f7ccd2b8bf94da41b1"
+    }
+  ]
+}
