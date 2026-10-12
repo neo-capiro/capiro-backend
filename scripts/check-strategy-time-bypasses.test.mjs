@@ -303,6 +303,7 @@ test('only data-owned lazy provider values are permitted, never invocation or ca
   const owner = {
     file: provider,
     binding: 'STRATEGY_TIME_PROVIDERS',
+    module: '@capiro/shared',
     values: [
       { provide: 'STRATEGY_WALL_CLOCK', hook: 'systemWallClock' },
       { provide: 'STRATEGY_CONTEXT_RETRY', member: 'random', hook: 'systemRandom' },
@@ -357,6 +358,11 @@ test('only data-owned lazy provider values are permitted, never invocation or ca
     source.replace('random:systemRandom', 'random:systemRandom,fallback:systemWallClock'),
     source.replace('const STRATEGY_WALL_CLOCK', 'let STRATEGY_WALL_CLOCK'),
     source + '\nconst Object={freeze:(value:unknown)=>value};',
+    source.replace("from '@capiro/shared'", "from './review-noncanonical-time'"),
+    source.replace("from '@capiro/shared'", "from '@capiro/shared/time'"),
+    source.replace('import {systemWallClock,', 'import {otherClock as systemWallClock,'),
+    source.replace('import {systemWallClock,', 'import type {systemWallClock,'),
+    source.replace('import {systemWallClock,', 'import {type systemWallClock,'),
   ])
     assert.notDeepEqual(
       checkTimeSources(

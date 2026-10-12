@@ -743,6 +743,7 @@
     {
       "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
       "binding": "STRATEGY_TIME_PROVIDERS",
+      "module": "@capiro/shared",
       "values": [
         { "provide": "STRATEGY_WALL_CLOCK", "hook": "systemWallClock" },
         { "provide": "STRATEGY_CONTEXT_RETRY", "member": "random", "hook": "systemRandom" },

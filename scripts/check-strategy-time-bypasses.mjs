@@ -327,6 +327,27 @@ function lexicalInventory(sf) {
     hooks,
     unshadowed: (node, name) =>
       t.isIdentifier(node) && node.text === name && !symbol(node)?.declarations?.length,
+    canonicalHookImport: (node, hook, module) => {
+      const declarations = symbol(node)?.declarations;
+      if (declarations?.length !== 1) return false;
+      const specifier = declarations[0];
+      if (
+        !t.isImportSpecifier(specifier) ||
+        specifier.isTypeOnly ||
+        specifier.name.text !== hook ||
+        (specifier.propertyName ?? specifier.name).text !== hook
+      )
+        return false;
+      const clause = specifier.parent.parent;
+      const declaration = clause.parent;
+      return (
+        t.isImportClause(clause) &&
+        !clause.isTypeOnly &&
+        t.isImportDeclaration(declaration) &&
+        t.isStringLiteral(declaration.moduleSpecifier) &&
+        declaration.moduleSpecifier.text === module
+      );
+    },
   };
 }
 
@@ -453,7 +474,8 @@ export function analyzeTimeSource(file, source, policy = {}) {
         value &&
         t.isIdentifier(value) &&
         value.text === role.hook &&
-        inventory.resolve(value).has(`hook:${role.hook}`)
+        inventory.resolve(value).has(`hook:${role.hook}`) &&
+        inventory.canonicalHookImport(value, role.hook, owner.module)
       )
         providerReferences.add(value);
     }
@@ -568,6 +590,7 @@ export function checkTimeSources(sources, data) {
       !/^[A-Za-z_$][\w$]*$/.test(owner.binding) ||
       !owner.reason ||
       uniqueProviders.has(key) ||
+      owner.module !== '@capiro/shared' ||
       !Array.isArray(owner.values) ||
       !owner.values.length
     )
