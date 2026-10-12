@@ -1,0 +1,157 @@
+{
+  "frozenSource": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "frozenTree": "d3ede11cd213151b244853e39bb7fab30610d2d9",
+  "readOnlySourceInvestigation": true,
+  "sourceModified": false,
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "show",
+        "--format=fuller",
+        "f06cdcedfd140dcc6be760f4ea4270ee9ef039bd",
+        "--",
+        "apps/api/scripts/entrypoint.sh"
+      ],
+      "exitCode": 0,
+      "stdout": "read-only-trace-0.stdout",
+      "stderr": "read-only-trace-0.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "a966a2636438302bd940d21935f4a4b821bafd30",
+        "--",
+        "apps/api/scripts/verify-pe-phase-a-safety.ts"
+      ],
+      "exitCode": 0,
+      "stdout": "read-only-trace-1.stdout",
+      "stderr": "read-only-trace-1.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "migrate-resolve",
+        "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+        "--",
+        ":(glob)apps/*/scripts/**",
+        ":(glob)apps/*/package.json",
+        ":(glob)packages/*/package.json",
+        "scripts",
+        ".github",
+        "infra",
+        "docs",
+        ":!docs/cleanup-executable-prereqs-20261012/evidence/**",
+        ":!docs/cleanup-source-gates-20261012/evidence/**"
+      ],
+      "exitCode": 0,
+      "stdout": "read-only-trace-2.stdout",
+      "stderr": "read-only-trace-2.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "show",
+        "-s",
+        "--format=%H %ad %s",
+        "--date=iso-strict",
+        "e8124cc8ea96185ddb810e381e4a80bc45e19d00",
+        "f06cdcedfd140dcc6be760f4ea4270ee9ef039bd",
+        "a966a2636438302bd940d21935f4a4b821bafd30"
+      ],
+      "exitCode": 0,
+      "stdout": "read-only-trace-3.stdout",
+      "stderr": "read-only-trace-3.stderr"
+    }
+  ],
+  "sourceHashes": [
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-legacy.sh",
+      "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "sha256": "d1d5e0d06afb5b4675d33089b7895106c21341906eb2c8b51b86eb29bf31fba1"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "sha256": "43f11bd2806d3984c3f00c29381694edb586e397c8a7d50c17d92228d1cb1192"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "sha256": "7f830d9a0d1df4add7576c797f77e6b65abb9f540a9a7817ae3cef88c0bd488e"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "sha256": "dcff2d0eaf3deaa142c0cee11fe0accd974cef400d8609b129ae92a184ba454e"
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "sha256": "a6ca24471ffbdd30e4397a8357296b8fd714faa2d06bcd23c705e5e6c4266974"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "sha256": "71d0bbbe598f744eda51094f578074679385cb5992adcb1d82eec88c1471190e"
+    },
+    {
+      "path": "apps/api/Dockerfile",
+      "sha256": "caa3fd95bb4f51ac41904f872e79e92ee80462d5d476e7dd78eb17baae09f69c"
+    },
+    {
+      "path": "docs/runbooks/program-elements-trust-gates.md",
+      "sha256": "01ac78656570d0c932585685eaca5bddaf676ee995815896b99a5ec588eeebca"
+    },
+    {
+      "path": "docs/runbooks/prisma-failed-migration-recovery.md",
+      "sha256": "7c3b768da5c8fc57a742c04eb99e46130c4df5300e9222bf52b3f3c827c118b5"
+    },
+    {
+      "path": "docs/runbooks/prisma-migrate-commands.md",
+      "sha256": "a4fa5bdf7c7102dc2801f386f192af92e2eb01c336887250bf8c96fa45edf718"
+    },
+    {
+      "path": "docs/plans/CleanUp1.md",
+      "sha256": "dded1ec8bd8f1727aa229ab4fbf04756c622c44731e8a2fb7b74fef7c31c754f"
+    },
+    {
+      "path": "docs/plans/CleanUp2.md",
+      "sha256": "020c69304d63eefed205487d41bd35e857e401ef591640c7e1a9c55f1818d2f9"
+    },
+    {
+      "path": "docs/plans/CleanUp3.md",
+      "sha256": "99eaf8382a6be3324a75f9bc0b750f140a335a1c6ab446f14a6ec501c26e3b63"
+    },
+    {
+      "path": "docs/plans/CleanUp4.md",
+      "sha256": "eccda8048174bf51100be10dd6cda0c0ee94062fb47b3890e21915a6d89bf130"
+    }
+  ],
+  "callerLimits": "tracked source only; no live/deployed task or database verification",
+  "exploratoryCorrections": [
+    "apps/api/entrypoint.sh is absent; canonical owner is apps/api/scripts/entrypoint.sh",
+    "pe-entrypoint-safety.ts and pe-ingestion-mode.ts exploratory aliases were absent; existing owner is verify-pe-phase-a-safety.ts and actual pure migration helper",
+    "initial :glob: pathspec spelling did not enumerate application roots; rerun used exact :(glob) source pathspecs, capturing owner plus historical record and PhaseAcontract"
+  ],
+  "rawWhitespaceCheck": {
+    "argv": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exitCode": 2,
+    "log": "raw-evidence-whitespace-check.log",
+    "reason": "Unmodified git show output retains historical commit-body indentation on a blank line; raw bytes preserved. Authored Markdown/JSON checked separately."
+  }
+}

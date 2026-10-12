@@ -1,0 +1,3 @@
+e8124cc8ea96185ddb810e381e4a80bc45e19d00 2026-07-30T21:26:16-04:00 build(program-elements): permanent trust and SOC 2 release gates
+f06cdcedfd140dcc6be760f4ea4270ee9ef039bd 2026-08-07T18:52:45-04:00 feat(api): add migrate-resolve verbs for controlled failed-migration recovery
+a966a2636438302bd940d21935f4a4b821bafd30 2026-09-10T13:30:09-04:00 feat(legiwatch): add gated folder tracker and import backend (#1591)

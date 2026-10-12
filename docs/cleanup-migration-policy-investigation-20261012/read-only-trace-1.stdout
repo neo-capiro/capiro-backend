@@ -1,0 +1,50 @@
+commit a966a2636438302bd940d21935f4a4b821bafd30
+Author: CapiroHQ <neo@capiro.ai>
+Date:   Thu Sep 10 13:30:09 2026 -0400
+
+    feat(legiwatch): add gated folder tracker and import backend (#1591)
+
+diff --git a/apps/api/scripts/verify-pe-phase-a-safety.ts b/apps/api/scripts/verify-pe-phase-a-safety.ts
+index 4b206d277..cc4edd3d4 100644
+--- a/apps/api/scripts/verify-pe-phase-a-safety.ts
++++ b/apps/api/scripts/verify-pe-phase-a-safety.ts
+@@ -47,7 +47,13 @@ function verifyPostures(): void {
+   assert.equal(resolveDefenseBudgetIngestPosture(['--path', 'x.pdf']), 'preflight');
+   assert.equal(resolveDefenseBudgetIngestPosture(['--extract-only']), 'extract_only');
+   assert.equal(resolveDefenseBudgetIngestPosture(['--dry-run']), 'extract_only');
+-  assert.equal(resolveDefenseBudgetIngestPosture(['--commit']), 'commit');
++  expectThrow(
++    () => resolveDefenseBudgetIngestPosture(['--commit'], { environment: {} }),
++    'legacy-write kill switch',
++  );
++  assert.equal(resolveDefenseBudgetIngestPosture(['--commit'], {
++    environment: { PE_LEGACY_BUDGET_WRITES: 'allow', PE_SNAPSHOT_READ_MODE: 'legacy' },
++  }), 'commit');
+   assert.equal(resolveDefenseBudgetIngestPosture(['--allow-vendor-parse']), 'preflight');
+   assert.equal(usesDeprecatedDryRunAlias(['--dry-run']), true);
+   assert.equal(usesDeprecatedDryRunAlias(['--extract-only']), false);
+@@ -82,10 +88,24 @@ function verifyMigrationGuard(): void {
+   const active = apiFile('scripts/entrypoint.sh');
+   const compatibility = apiFile('scripts/entrypoint-legacy.sh');
+   const dispatcher = apiFile('scripts/entrypoint-dispatcher.inc');
++  // Recovery is an explicit operator verb. Only these two branches may resolve
++  // history; migrate/serve and the legacy dispatchers must never do so.
++  let automaticPaths = active;
++  for (const mode of ['rolled-back', 'applied']) {
++    const pattern = new RegExp(`^  migrate-resolve-${mode}\\)\\n[\\s\\S]*?^    ;;`, 'gm');
++    const branches = automaticPaths.match(pattern) ?? [];
++    assert.equal(branches.length, 1, `exactly one explicit ${mode} recovery branch`);
++    const branch = branches[0]!;
++    assert.match(branch, /shift\n\s+if \[ -z "\$\{1:-\}" \]; then[\s\S]*?exit 1\n\s+fi/);
++    assert(branch.includes(`exec node ./node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --${mode} "$1"`));
++    automaticPaths = automaticPaths.replace(pattern, '');
++  }
+   for (const source of [active, compatibility, dispatcher]) {
+     assert.equal(source.includes('_prisma_migrations'), false);
+     assert.equal(source.includes('rolled_back_at = NOW()'), false);
+     assert.equal(source.includes('Resolving failed migration:'), false);
++  }
++  for (const source of [automaticPaths, compatibility, dispatcher]) {
+     assert.equal(/prisma[^\n]*migrate\s+resolve/.test(source), false);
+   }
+   assert.match(active, /node .*prisma.* migrate deploy/);

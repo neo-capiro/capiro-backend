@@ -1,0 +1,13 @@
+{
+  "EVIDENCE.json": "e3e6b7cb4dca1883bdfc6e3ddeab5f5e3215e7ab67f083170b456f1cd980ded7",
+  "INVESTIGATION.md": "5e827d8adee16fdc0f42e0501e89d95a1d99280c8d25f743cd6ca54d94c20890",
+  "raw-evidence-whitespace-check.log": "47b0b1247b747667fdbf7ec8078c9a573d0bc271bde0f0aca421bb8de83bec65",
+  "read-only-trace-0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "read-only-trace-0.stdout": "06fcf5f02baae213b9f4244dbcb39514d00cb826a971bf7f396288920d0153c5",
+  "read-only-trace-1.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "read-only-trace-1.stdout": "47c37b7f62052031eefcc8ef3b4e3042fbad94f37a06828d2476edd5c44151aa",
+  "read-only-trace-2.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "read-only-trace-2.stdout": "c84f49963dab5819822ea01d1adb092abb87f839110e26cbe8add1e86a781d12",
+  "read-only-trace-3.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "read-only-trace-3.stdout": "bf3773ca7d37c46b927e9488dbe5c4092d4d454c9d1f813549a5fdbbe2090dbd"
+}
