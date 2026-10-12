@@ -1,0 +1,209 @@
+{
+  "accepted": true,
+  "classification": "Bounded source/configuration composition and pure/fake controls only",
+  "source": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+  "tree": "38641eb7379661a551c5f29c287ed2e2d74c5a99",
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "baseTree": "613e54b654bc30dcebd09c955c58a2e8940abf30",
+  "reviewerSourceHead": "d2537a542c5bfd56cdc93783f4ef1e0b148f3416",
+  "reviewerSourceTree": "38641eb7379661a551c5f29c287ed2e2d74c5a99",
+  "declaredSourcePaths": 20,
+  "protectedExistingBaselinePaths": 22133,
+  "protectedBaselineDocs": 10387,
+  "protectedFrontendPaths": 2388,
+  "protectedSchemaPrismaAndMigrationDirectoryPaths": 611,
+  "sourceEntries": [
+    {
+      "path": "package.json",
+      "owner": "27755f153efc5b027eb37687540b428f910e8f11",
+      "entry": "100644 blob 564a9b83c0e92a0aa27998565cf6c3e1543aa160",
+      "bytes": 13793,
+      "sha256": "cdf66b87a4aee12a9363a5e2a8ee7438e652257e5d8213518f23fbd3c965e7c7"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "owner": "27755f153efc5b027eb37687540b428f910e8f11",
+      "entry": "100644 blob 2890d40278d4987b8cced7333397d435a3902da4",
+      "bytes": 17465,
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "owner": "27755f153efc5b027eb37687540b428f910e8f11",
+      "entry": "100644 blob 4da28e295150897e9e3219f72de63bf44bbaef35",
+      "bytes": 7848,
+      "sha256": "757091e36c347f890295d7d414536f33d4a65d82878a6c8017692b5e87a3783e"
+    },
+    {
+      "path": "scripts/ci/__fixtures__/rebuild-verification-frontend.job.yml",
+      "owner": "27755f153efc5b027eb37687540b428f910e8f11",
+      "entry": "100644 blob a99d3277d0b48e062720e218254dc9e5afbe7e34",
+      "bytes": 1418,
+      "sha256": "e5ff8a1351470580bc2333fbed358f3d584a368126073d3c1035c86a175b256c"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob 6771d57177d20846394a1eab8263272628df249c",
+      "bytes": 4688,
+      "sha256": "4eefd0212439c021fdbca7fa3025442b3f2d5b766943421c929dee4dfd8416de"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob 7dc95ea85b0cf9a1476cefa4eae7488818acdabd",
+      "bytes": 6666,
+      "sha256": "9f0a674f11767dec8bb4c87c2a690b51793527ffe467bbefe51aa58eb18978a9"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob 9dff1de2265bea2b1646c43050d54b3d8c34d172",
+      "bytes": 7905,
+      "sha256": "385b31449f270d1c0fe386cea98f1c76a6afae46fbb78ac0fc1b32b50c74ad8c"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob 347f03d8b21a9d61f3cf534303473b1afb84752c",
+      "bytes": 5730,
+      "sha256": "d204addc0fa4db86ce9acbeb0049a41ec76f978e4906b2b6e8211b783f3339dd"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob ec9e0cc0be1bc38bb75b69d3e87e9f715edfffa8",
+      "bytes": 9377,
+      "sha256": "b587e424428c75cead5b114143d74b673b1b69195176a265a9a00b0e9995fec3"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob fe75410cf49b043f62cff3237af488e9a88caa9a",
+      "bytes": 12703,
+      "sha256": "ffc6d371b4cd0f1d44266b25a387fd0a8a1e94342c96c8126a46f23c9fb86cdd"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.sh",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100755 blob 31c94f1a2a4cbb5748f0aeaff53d178617a961d0",
+      "bytes": 17334,
+      "sha256": "f79da59c632447150a6ba5bd2c4d4b4b9b877aec235660fdf51dcf743e61e96b"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "owner": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "entry": "100644 blob 8e006ea5a7da244ee957180a9b89d68d407512ee",
+      "bytes": 9581,
+      "sha256": "2029f17a3ad869a1448f8fd7aa68c565f9ab501884c776bc356bada7c98d1188"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.mjs",
+      "owner": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+      "entry": "100644 blob a25921c87ac1ba5d52bae7844ac97bf75106b67b",
+      "bytes": 3598,
+      "sha256": "bdb9ba82c78b05a26e7aeef9eec013d2e562b0318ee44b7ed3725e3bfd0e546a"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "owner": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+      "entry": "100644 blob b081dd08a3d38538ee2f367e3f6e1f7d2e29d190",
+      "bytes": 15230,
+      "sha256": "e49066994c994f39c91fdfdf096084e6faded1e684423fbafb299fa3a034ccfb"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "owner": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+      "entry": "100755 blob 7fcdaf9356629488248e42a59ff31f7bbaec77a9",
+      "bytes": 5060,
+      "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "owner": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+      "entry": "100644 blob 252dcec68c240df3ccadaadb54d6e8ab4f315337",
+      "bytes": 5782,
+      "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "owner": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+      "entry": "100644 blob 0871e0c5f4f2df3b500e014f7e58cb5fc18a77b4",
+      "bytes": 7252,
+      "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5"
+    },
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "owner": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+      "entry": "100644 blob 2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "bytes": 183851,
+      "sha256": "39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "owner": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+      "entry": "100644 blob e06d65453c36ff43e285a480be97bf00cb161fc5",
+      "bytes": 7070,
+      "sha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "owner": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+      "entry": "100644 blob 3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4",
+      "bytes": 5055,
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a"
+    }
+  ],
+  "allBaselineOutsideOverlayModeBlobExact": true,
+  "existingAliasesExact": 107,
+  "newAliases": 15,
+  "parsedWorkflowExactDeclaredHunkUnion": true,
+  "checks": {
+    "composedPureFake": {
+      "passed": 136,
+      "failed": 0,
+      "skipped": 0
+    },
+    "independentPlanAndReceipt": {
+      "passed": 104,
+      "failed": 0
+    },
+    "immutableMixedMarkerReplay": {
+      "beforePassed": 5,
+      "beforeFailed": 3,
+      "afterPassed": 8,
+      "afterFailed": 0
+    }
+  },
+  "originalRealFailurePreserved": "ec726 backend-selected P2 gate accepted selected+full/sibling completion or full failure; repaired scoped-only e35 exact-line foreign refusal",
+  "allComponentHeadsActualAncestors": true,
+  "retainedOriginalFullPlans": true,
+  "apiOwnedFixtureExactDestinationCopy": true,
+  "sixApiJestCasesPreservedByFullInverseBytesNotExecuted": true,
+  "permanentRootGuardUsesCheckedInFrontendJobNoForeignGitObject": true,
+  "fullQualificationAccepted": false,
+  "nativeAcceptance": false,
+  "windowsNativeAcceptance": false,
+  "pnpmAliasesOrCIInvoked": false,
+  "actualApplicationDbSqlMigrationEngineProviderModelCredentialAwsDockerFrontendOperation": false,
+  "sourceNeutralLaterDocsCarryRequiresExactNonDocEquality": true,
+  "remainingLimits": [
+    "Preserved full Windows monitor COMPLETE-before-FAILED / nonzero-exit / substring weakness; only new scopes have stricter receipt checks",
+    "Preserved Outreach nested subprocess exit-only acceptance and inherited stdout; no nested stdout validation claim",
+    "Phase3 mixed inventory/prototype/scope readers still depend on retained frontend; no workspace retirement or consumer migration",
+    "Current full committed-whitespace gate remains OPEN on archived original raw-format warnings; raw bytes/exclusions/guards unchanged",
+    "Native/full Cleanup qualification unrun; no exact parser8 cache, Workspace six dependent type diagnostics remain open",
+    "Frontend port/preservation and unpublished reporting future integration remain separate owners/open",
+    "123 existing deferred clock samples unchanged; no wider clock adoption",
+    "Node22/pnpm clean install/actual CI and native Windows process qualification not executed"
+  ],
+  "excludedReportingBranchesAndBodyAccessed": false,
+  "publicationOwner": "/root",
+  "reviewOwner": "/root/integration_review",
+  "whitespace": {
+    "declaredSourcePathsExit": 0,
+    "ownEvidenceStagedExit": 0,
+    "rootOriginalFullGateStillOpen": true,
+    "rawHistoricalBytesTrimmed": false
+  }
+}

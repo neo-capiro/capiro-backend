@@ -1,0 +1,383 @@
+{
+  "sourceHead": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+  "sourceTree": "38641eb7379661a551c5f29c287ed2e2d74c5a99",
+  "packet": [
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 9463,
+      "sha256": "503a3da7fa7a965b15255739a1368717376046e3fccab4ef963fb2e3fe1b5efa"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/COMMANDS.json",
+      "bytes": 5768,
+      "sha256": "dd4a658a5f5aab4aa26a4d27cb1ccc773889412e5571d47981389e2605ef035d"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/HANDOFF.md",
+      "bytes": 6163,
+      "sha256": "774f735dc0f1db256044163c496dfdb11b6e33688407276cb96895b52dc4eade"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/OVERLAP-MATRIX.json",
+      "bytes": 1789,
+      "sha256": "7c4e43093f2323bf175e66b157376d5da5b7c09791aaf1f2fa47da20835be0c2"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/REVIEW-PLAN.md",
+      "bytes": 5013,
+      "sha256": "ab6708fd99fd8bbaaa7d147c38a9a59e99e3cf0939bd44be103a6b9bc6f12fb3"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/capture-destination.cjs",
+      "bytes": 2903,
+      "sha256": "207e4efca658be1593d1fbd6b422b5b9f9c7cf816156e3d6ab62e1c6a435b949"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/capture-full-phase1-plan.cjs",
+      "bytes": 3036,
+      "sha256": "74262466cf8081897de75085dc23542c7409c1e3d348a6376aaf045730027017"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/composed-pure-136.log",
+      "bytes": 12080,
+      "sha256": "b2bb9e2117a99556622d2b186898857a0fe6cec17b4b8eed3aaf35291afa87b0"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof-initial-red.log",
+      "bytes": 5057,
+      "sha256": "0e4e99f38b60c797cc7c71acf3cb69c9d60536a74351c4cd892670c3f175a7e4"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof-initial.cjs",
+      "bytes": 10456,
+      "sha256": "50fcee7b18d726bae4e019d0dfd2bce0c154a2c72a634e5752b91c876fc9c020"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof.cjs",
+      "bytes": 11317,
+      "sha256": "442421eb01b3579599d212553c10ed771c0c8d17ef6c8914d87c4171e8564559"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof.json",
+      "bytes": 8450,
+      "sha256": "cae6a99da161c906b189fad196dfea55ad10e86c91e3088d1e69956538d458e0"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof.log",
+      "bytes": 227,
+      "sha256": "0d304a838f960f0f4b2009f538cdea93255cd5d83567019b635c36fedf597351"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/destination-before-golden.json",
+      "bytes": 4925,
+      "sha256": "005a0f4ea91f184cf896e92048cee63d8445033221c02dc15a1b3b187922acb2"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/destination-before-golden.log",
+      "bytes": 143,
+      "sha256": "655992547be17584ccf1ac326104bb457dcb0e23a7bb7ac3d11820826334ea54"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/engagement-author-pure-100.log",
+      "bytes": 8309,
+      "sha256": "2b891cb8461d66e2f0802f93d25d7a966063974a5ad748a5426241b29e1b14ab"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/full-phase1-before-golden.json",
+      "bytes": 7634,
+      "sha256": "d6f332f37f19ecf345299e97ce14019873cf1479569f5a267bfce90df5373a1f"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/full-phase1-before-golden.log",
+      "bytes": 135,
+      "sha256": "c02dae5a2789733e330c3d4e9373ad0001118d9163bcc66984a7a933533a831e"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls-initial-red.log",
+      "bytes": 1063,
+      "sha256": "e7484e597b6b3148ad1032a78ba0b6546db690a0e2501c87eb9c8b28483982cd"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls-initial.mjs",
+      "bytes": 10945,
+      "sha256": "b5f660086278d0e17e2bce0a1adb322bba8b29baf09978c1e26692352e154214"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls.json",
+      "bytes": 13473,
+      "sha256": "3f5c8796290d0e2c29cca81c4e1b7ab9961ad813d8278285d6dcef85de1a463d"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls.log",
+      "bytes": 106,
+      "sha256": "b15195cb8c51d5252c0a31ff3559cc5ad753c0fcb7d17aa5324adbf3bcacab7a"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls.mjs",
+      "bytes": 10960,
+      "sha256": "2869095cb30a6cb0a69f50411c9ab885ffded92d05fb5a4bbbabca36120185e9"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/outreach-author-pure-21.log",
+      "bytes": 2341,
+      "sha256": "7ae867a9453b0768516817edef94b47c973971aae9a86433fdbf52656261cdb8"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-0.synthetic.log",
+      "bytes": 37,
+      "sha256": "4202e768bc062b00bbf8698ad4d548f56bc33e72c405bbec8854c4d32bcc3075"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-1.synthetic.log",
+      "bytes": 35,
+      "sha256": "d6af8af58b72228113f901f8be6385c61be23b90124905a96e484ef8e2bd278c"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-2.synthetic.log",
+      "bytes": 72,
+      "sha256": "bb5c639dd2d240e363dac195af496a73b75ab2d5a8bfe7174ebbf324ab81ac6c"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-3.synthetic.log",
+      "bytes": 75,
+      "sha256": "04de0a0695a67bc43fcd7c732df634d74ef59b8f74e2a77f0980f4d7168bd7f8"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-4.synthetic.log",
+      "bytes": 70,
+      "sha256": "e53f7896623a65ef86552d1b39a1a435d5c634e35bf3e52f21a27686d1359205"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-5.synthetic.log",
+      "bytes": 72,
+      "sha256": "1be125b8bb498dad0d5fde032ef6c3dbedce574d5ea8ff22a2241aaf0c44413e"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-6.synthetic.log",
+      "bytes": 37,
+      "sha256": "4202e768bc062b00bbf8698ad4d548f56bc33e72c405bbec8854c4d32bcc3075"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-7.synthetic.log",
+      "bytes": 37,
+      "sha256": "4202e768bc062b00bbf8698ad4d548f56bc33e72c405bbec8854c4d32bcc3075"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-probe-red.cjs",
+      "bytes": 2624,
+      "sha256": "2006c2763613af234d61ae54c0770b6fa1385dd86f7f17887498b3e0e3fa2c72"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-probe-repaired.cjs",
+      "bytes": 2630,
+      "sha256": "fda6c42fd3db2e0b2f8cc8d652a5b0bd7250ed64c824a150d0ee81f414ace48b"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-probe.cjs",
+      "bytes": 2624,
+      "sha256": "2006c2763613af234d61ae54c0770b6fa1385dd86f7f17887498b3e0e3fa2c72"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-red.json",
+      "bytes": 3511,
+      "sha256": "d4706040beae2768790d575002cc09d8fe85e5d8d213cf38317433089e90ef5e"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-red.log",
+      "bytes": 3511,
+      "sha256": "d4706040beae2768790d575002cc09d8fe85e5d8d213cf38317433089e90ef5e"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-0.synthetic.log",
+      "bytes": 37,
+      "sha256": "4202e768bc062b00bbf8698ad4d548f56bc33e72c405bbec8854c4d32bcc3075"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-1.synthetic.log",
+      "bytes": 35,
+      "sha256": "d6af8af58b72228113f901f8be6385c61be23b90124905a96e484ef8e2bd278c"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-2.synthetic.log",
+      "bytes": 72,
+      "sha256": "bb5c639dd2d240e363dac195af496a73b75ab2d5a8bfe7174ebbf324ab81ac6c"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-3.synthetic.log",
+      "bytes": 75,
+      "sha256": "04de0a0695a67bc43fcd7c732df634d74ef59b8f74e2a77f0980f4d7168bd7f8"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-4.synthetic.log",
+      "bytes": 70,
+      "sha256": "e53f7896623a65ef86552d1b39a1a435d5c634e35bf3e52f21a27686d1359205"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-5.synthetic.log",
+      "bytes": 72,
+      "sha256": "1be125b8bb498dad0d5fde032ef6c3dbedce574d5ea8ff22a2241aaf0c44413e"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-6.synthetic.log",
+      "bytes": 37,
+      "sha256": "4202e768bc062b00bbf8698ad4d548f56bc33e72c405bbec8854c4d32bcc3075"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-7.synthetic.log",
+      "bytes": 37,
+      "sha256": "4202e768bc062b00bbf8698ad4d548f56bc33e72c405bbec8854c4d32bcc3075"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-green.log",
+      "bytes": 2554,
+      "sha256": "6cbbade61e13f5fd164d01219af80b5bd38caa8cbd39391394099b4ae7a2e458"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-repaired-marker-red.json",
+      "bytes": 2554,
+      "sha256": "6cbbade61e13f5fd164d01219af80b5bd38caa8cbd39391394099b4ae7a2e458"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/review-cache-resolution-red.log",
+      "bytes": 884,
+      "sha256": "e65d9883dfd915c96ca1c508fe55f5a8802c17b2e5c8e2283664127fe90f4578"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/review-packet-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/source-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-verification-independent-review-20261012/evidence/verify-index.cjs",
+      "bytes": 1568,
+      "sha256": "e688f9af13ed6748d0778238d79165d7ced7e59909b568fbe7d838c3e2a17c67"
+    }
+  ],
+  "source": [
+    {
+      "path": "package.json",
+      "bytes": 13793,
+      "sha256": "cdf66b87a4aee12a9363a5e2a8ee7438e652257e5d8213518f23fbd3c965e7c7",
+      "gitEntry": "100644 blob 564a9b83c0e92a0aa27998565cf6c3e1543aa160"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "bytes": 17465,
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128",
+      "gitEntry": "100644 blob 2890d40278d4987b8cced7333397d435a3902da4"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "bytes": 7848,
+      "sha256": "757091e36c347f890295d7d414536f33d4a65d82878a6c8017692b5e87a3783e",
+      "gitEntry": "100644 blob 4da28e295150897e9e3219f72de63bf44bbaef35"
+    },
+    {
+      "path": "scripts/ci/__fixtures__/rebuild-verification-frontend.job.yml",
+      "bytes": 1418,
+      "sha256": "e5ff8a1351470580bc2333fbed358f3d584a368126073d3c1035c86a175b256c",
+      "gitEntry": "100644 blob a99d3277d0b48e062720e218254dc9e5afbe7e34"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "bytes": 4688,
+      "sha256": "4eefd0212439c021fdbca7fa3025442b3f2d5b766943421c929dee4dfd8416de",
+      "gitEntry": "100644 blob 6771d57177d20846394a1eab8263272628df249c"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs",
+      "bytes": 6666,
+      "sha256": "9f0a674f11767dec8bb4c87c2a690b51793527ffe467bbefe51aa58eb18978a9",
+      "gitEntry": "100644 blob 7dc95ea85b0cf9a1476cefa4eae7488818acdabd"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "bytes": 7905,
+      "sha256": "385b31449f270d1c0fe386cea98f1c76a6afae46fbb78ac0fc1b32b50c74ad8c",
+      "gitEntry": "100644 blob 9dff1de2265bea2b1646c43050d54b3d8c34d172"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "bytes": 5730,
+      "sha256": "d204addc0fa4db86ce9acbeb0049a41ec76f978e4906b2b6e8211b783f3339dd",
+      "gitEntry": "100644 blob 347f03d8b21a9d61f3cf534303473b1afb84752c"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "bytes": 9377,
+      "sha256": "b587e424428c75cead5b114143d74b673b1b69195176a265a9a00b0e9995fec3",
+      "gitEntry": "100644 blob ec9e0cc0be1bc38bb75b69d3e87e9f715edfffa8"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "bytes": 12703,
+      "sha256": "ffc6d371b4cd0f1d44266b25a387fd0a8a1e94342c96c8126a46f23c9fb86cdd",
+      "gitEntry": "100644 blob fe75410cf49b043f62cff3237af488e9a88caa9a"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.sh",
+      "bytes": 17334,
+      "sha256": "f79da59c632447150a6ba5bd2c4d4b4b9b877aec235660fdf51dcf743e61e96b",
+      "gitEntry": "100755 blob 31c94f1a2a4cbb5748f0aeaff53d178617a961d0"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "bytes": 9581,
+      "sha256": "2029f17a3ad869a1448f8fd7aa68c565f9ab501884c776bc356bada7c98d1188",
+      "gitEntry": "100644 blob 8e006ea5a7da244ee957180a9b89d68d407512ee"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.mjs",
+      "bytes": 3598,
+      "sha256": "bdb9ba82c78b05a26e7aeef9eec013d2e562b0318ee44b7ed3725e3bfd0e546a",
+      "gitEntry": "100644 blob a25921c87ac1ba5d52bae7844ac97bf75106b67b"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "bytes": 15230,
+      "sha256": "e49066994c994f39c91fdfdf096084e6faded1e684423fbafb299fa3a034ccfb",
+      "gitEntry": "100644 blob b081dd08a3d38538ee2f367e3f6e1f7d2e29d190"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "bytes": 5060,
+      "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd",
+      "gitEntry": "100755 blob 7fcdaf9356629488248e42a59ff31f7bbaec77a9"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "bytes": 5782,
+      "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3",
+      "gitEntry": "100644 blob 252dcec68c240df3ccadaadb54d6e8ab4f315337"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "bytes": 7252,
+      "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5",
+      "gitEntry": "100644 blob 0871e0c5f4f2df3b500e014f7e58cb5fc18a77b4"
+    },
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "bytes": 183851,
+      "sha256": "39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac",
+      "gitEntry": "100644 blob 2f8a2cb0f733016078b2f9f54418f77962f1d069"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "bytes": 7070,
+      "sha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+      "gitEntry": "100644 blob e06d65453c36ff43e285a480be97bf00cb161fc5"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "bytes": 5055,
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a",
+      "gitEntry": "100644 blob 3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4"
+    }
+  ]
+}

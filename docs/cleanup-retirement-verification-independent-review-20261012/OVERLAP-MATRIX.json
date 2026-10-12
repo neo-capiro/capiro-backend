@@ -1,0 +1,39 @@
+{
+  "source": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+  "components": {
+    "27755f153efc5b027eb37687540b428f910e8f11": [
+      "package.json",
+      ".github/workflows/ci-pr.yml",
+      "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "scripts/ci/__fixtures__/rebuild-verification-frontend.job.yml"
+    ],
+    "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2": [
+      "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs",
+      "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "scripts/engagement-phase3-qualification-plan.mjs",
+      "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "scripts/verify-engagement-phase2-code.sh",
+      "scripts/verify-engagement-phase3-code.mjs"
+    ],
+    "4060915ebfa55db4a8fb805c1e25281359c46a5d": [
+      "scripts/outreach-v3-qualification-plan.mjs",
+      "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "scripts/verify-outreach-v3-phase1-code.mjs",
+      "scripts/verify-outreach-v3-phase3-code.mjs",
+      "scripts/verify-outreach-v3-phase4-code.mjs"
+    ],
+    "133c868ea596cccb05525d1249ddf32c97fe1a54": [
+      "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs"
+    ]
+  },
+  "componentPairPathOverlaps": 0,
+  "rootAliasesAndCIRequireEngagementAndOutreachAdaptersInSameComposition": true,
+  "fixtureRequiresOnlyCurrentDestinationReaderAndExactCurrentWebCopy": true,
+  "originalFrontendTreeHeld": true,
+  "protectedDestinationSourceRemainsCanonical": true,
+  "fullOlderPR2423TreeNotAdopted": true
+}

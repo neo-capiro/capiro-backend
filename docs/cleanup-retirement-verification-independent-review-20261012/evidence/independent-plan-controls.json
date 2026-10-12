@@ -1,0 +1,431 @@
+{
+  "source": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "checks": 104,
+  "results": [
+    {
+      "name": "Phase1 original immutable 24-step golden equals candidate full plan in order/argv/env/assertions",
+      "passed": true
+    },
+    {
+      "name": "Phase1 backend is original21 steps; frontend is original3 steps; no target/floor drift",
+      "passed": true
+    },
+    {
+      "name": "All five existing non-main Phase1 top-level function declarations remain byte exact",
+      "passed": true
+    },
+    {
+      "name": "Actual Phase1 ordered TEST_TARGETS declaration is byte exact",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv []",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--backend-only\",\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--backend-only\",\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--frontend-only\",\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--unknown\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--help\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",\"--backend-only=true\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--RUN\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 refuses strict argv [\"--run\",null]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 exact intended argv [\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 exact intended argv [\"--run\",\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase1 exact intended argv [\"--frontend-only\",\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv []",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--backend-only\",\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--backend-only\",\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--frontend-only\",\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--unknown\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--help\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",\"--backend-only=true\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--RUN\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 refuses strict argv [\"--run\",null]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 exact intended argv [\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 exact intended argv [\"--run\",\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 exact intended argv [\"--frontend-only\",\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv []",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--backend-only\",\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--backend-only\",\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--frontend-only\",\"--frontend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--unknown\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--help\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",\"--backend-only=true\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--RUN\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach refuses strict argv [\"--run\",null]",
+      "passed": true
+    },
+    {
+      "name": "Outreach exact intended argv [\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach exact intended argv [\"--run\",\"--backend-only\"]",
+      "passed": true
+    },
+    {
+      "name": "Outreach exact intended argv [\"--frontend-only\",\"--run\"]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only accepts exact selected line \"[engagement-phase1] BACKEND COMPLETE\"",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only accepts exact selected line \"[engagement-phase1] BACKEND COMPLETE\\n\"",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only accepts exact selected line \"[engagement-phase1] BACKEND COMPLETE\\r\\n\"",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only retains active-child completion",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\",1]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\",7]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\\n[engagement-phase1] BACKEND FAILED\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND FAILED\\n[engagement-phase1] BACKEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"prefix [engagement-phase1] BACKEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE suffix\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\\u0000\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"ENGAGEMENT_PHASE1_DB_FREE_COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\\nENGAGEMENT_PHASE1_DB_FREE_FAILED\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\\n[engagement-phase1] FRONTEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\\n[engagement-phase1] FRONTEND FAILED\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only incomplete active child stays pending",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only accepts exact selected line \"[engagement-phase1] FRONTEND COMPLETE\"",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only accepts exact selected line \"[engagement-phase1] FRONTEND COMPLETE\\n\"",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only accepts exact selected line \"[engagement-phase1] FRONTEND COMPLETE\\r\\n\"",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only retains active-child completion",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\",1]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\",7]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\\n[engagement-phase1] FRONTEND FAILED\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND FAILED\\n[engagement-phase1] FRONTEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"prefix [engagement-phase1] FRONTEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE suffix\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\\u0000\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"ENGAGEMENT_PHASE1_DB_FREE_COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\\nENGAGEMENT_PHASE1_DB_FREE_FAILED\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] BACKEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\\n[engagement-phase1] BACKEND COMPLETE\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only refusal [\"[engagement-phase1] FRONTEND COMPLETE\\n[engagement-phase1] BACKEND FAILED\",0]",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only incomplete active child stays pending",
+      "passed": true
+    },
+    {
+      "name": "Full Windows known original COMPLETE-before-FAILED/nonzero/substring weakness is preserved, not accepted as scoped behavior",
+      "passed": true
+    },
+    {
+      "name": "Phase3 full returns original26 step array by reference",
+      "passed": true
+    },
+    {
+      "name": "Phase3 backend-only nested exact aliases and source options remain",
+      "passed": true
+    },
+    {
+      "name": "Phase3 frontend-only nested exact aliases and source options remain",
+      "passed": true
+    },
+    {
+      "name": "phase1 full array unchanged reference, arbitrary current backend control retained",
+      "passed": true
+    },
+    {
+      "name": "phase1 backend-only exact nested argv preserves options",
+      "passed": true
+    },
+    {
+      "name": "phase1 frontend-only exact nested argv preserves options",
+      "passed": true
+    },
+    {
+      "name": "phase3 full array unchanged reference, arbitrary current backend control retained",
+      "passed": true
+    },
+    {
+      "name": "phase3 backend-only exact nested argv preserves options",
+      "passed": true
+    },
+    {
+      "name": "phase3 frontend-only exact nested argv preserves options",
+      "passed": true
+    },
+    {
+      "name": "phase4 full array unchanged reference, arbitrary current backend control retained",
+      "passed": true
+    },
+    {
+      "name": "phase4 backend-only exact nested argv preserves options",
+      "passed": true
+    },
+    {
+      "name": "phase4 frontend-only exact nested argv preserves options",
+      "passed": true
+    },
+    {
+      "name": "OutreachPhase4 rejects malformed nested args [] before fake executor",
+      "passed": true
+    },
+    {
+      "name": "OutreachPhase4 rejects malformed nested args [\"scripts/verify-outreach-v3-phase3-code.mjs\"] before fake executor",
+      "passed": true
+    },
+    {
+      "name": "OutreachPhase4 rejects malformed nested args [\"wrong.mjs\",\"--run\"] before fake executor",
+      "passed": true
+    },
+    {
+      "name": "OutreachPhase4 rejects malformed nested args [\"scripts/verify-outreach-v3-phase3-code.mjs\",\"--run\",\"--run\"] before fake executor",
+      "passed": true
+    },
+    {
+      "name": "OutreachPhase4 rejects malformed nested args [\"scripts/verify-outreach-v3-phase3-code.mjs\",\"--run\",\"--frontend-only\"] before fake executor",
+      "passed": true
+    },
+    {
+      "name": "Nine Outreach full/backend/frontend completion markers are distinct and scoped failure cannot claim complete",
+      "passed": true
+    }
+  ],
+  "actualQualifierCommands": 0,
+  "applicationGraphImported": false,
+  "sourceExecuted": "pure helper functions and immutable array expression only; all command execution ports are fake/recorded",
+  "scopeLimits": [
+    "Full Windows monitor baseline weakness deliberately remains",
+    "Outreach nested subprocess acceptance remains exit-only; no new stdout marker validation claimed",
+    "Phase3 mixed source controls still read retained frontend source"
+  ]
+}

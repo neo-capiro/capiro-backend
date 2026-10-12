@@ -1,0 +1,119 @@
+{
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "baseTree": "613e54b654bc30dcebd09c955c58a2e8940abf30",
+  "incoming": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "incomingTree": "3312abb3d381d05ab5b499b48bbb8870de6f158a",
+  "entries": [
+    {
+      "path": "package.json",
+      "entry": "100644 blob b5e74ae3d6341c2c371a7366f00957cae35f12ee",
+      "bytes": 11632,
+      "sha256": "ea94b791a19e08886d6bfb42174074b4c7e882f71a3dad3902fd8eb476c0d869"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "entry": "100644 blob a6af5a8a530b627295f7cb82a0584944e576fefc",
+      "bytes": 16111,
+      "sha256": "ac548187c71bd5de607dcd6f06caee8fd512d6d9d35b800fbd76f347acba684a"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "entry": "100644 blob a04e37e5fb1774c83b3d8007b60f69cf44d769d5",
+      "bytes": 54,
+      "sha256": "d60a0f353c3a1ad1909e928324a367b956c573178eba98e8004342d43517ab4d"
+    },
+    {
+      "path": "apps/api/package.json",
+      "entry": "100644 blob 982391287e8ff83cef048a7d2e98ae169bdbb133",
+      "bytes": 28581,
+      "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "entry": "100644 blob 5783ca130796576e70d5292b2920af4f2803e984",
+      "bytes": 9709,
+      "sha256": "516cdee5c9fb35bfdf35b04b03523e9eec827e860d1554c269858d8bc845bf0a"
+    },
+    {
+      "path": "apps/api/scripts/lib/engagement-verifier-process.ts",
+      "entry": "100644 blob 92189ad242604483600f0d1b1916436c085cfde3",
+      "bytes": 7588,
+      "sha256": "4cda8db8b11110de2a6a11e4b88e86ff489065cf618e0f40839afd98d3c06d78"
+    },
+    {
+      "path": "apps/api/scripts/lib/engagement-verifier-process.spec.ts",
+      "entry": "100644 blob be1031e3e25c2af253610e2252216d85732e3f43",
+      "bytes": 10725,
+      "sha256": "0e5dc32be661eb54175983830ef68ab3c3627a296bdd883f3e916b98bd73cd9a"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.sh",
+      "entry": "100755 blob e7cf3aa2706fcde600759379ff5fd0e95d654f8c",
+      "bytes": 13274,
+      "sha256": "5c78919a1aefae5bf9c985aedd627c1580ea989bb3e319d23d2ab4c4ea3c472c"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "entry": "100644 blob 081a25f6f330f5b05cda0052763cdf23c2a8ad95",
+      "bytes": 9131,
+      "sha256": "56f89a1f87f841afafd415c6568a40cd8f2326efd4391a7f955f75d7c794e8e8"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "entry": "100755 blob 3598882bf63ca2ac8ec6c6bd29d5d7c83882c8a1",
+      "bytes": 4707,
+      "sha256": "65b3a56ae33dd3c5cc495128cd74f8e845a9b35ffa230aa2dacd6f75c89774be"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "entry": "100644 blob 989c911d29045c3464cf0d5546dec16dba578207",
+      "bytes": 5459,
+      "sha256": "70252704632578ab4b3b4fc7f26d23aa1af649ef59a5e7b96096162c1ce16055"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "entry": "100644 blob e5432e8b8b06180d7ffed99fdbe0e3b43c87a981",
+      "bytes": 6576,
+      "sha256": "1c9aa164be2a3e3b824d8c0e07387a6c27aaa3ac54fa69d77e171e66473d3c2e"
+    }
+  ],
+  "phase1Targets": [
+    "scripts/lib/engagement-verifier-process.spec.ts",
+    "src/bootstrap/configure-api-http-app.spec.ts",
+    "src/engagement-api.app.module.spec.ts",
+    "src/engagement-api/engagement-api-health.controller.spec.ts",
+    "src/engagement/engagement-route-manifest.spec.ts",
+    "src/engagement/engagement-dependency-manifest.spec.ts",
+    "src/engagement/engagement-side-effect-registry.spec.ts",
+    "src/engagement/runtime",
+    "src/engagement/ai-credential-resolver.service.spec.ts",
+    "src/engagement/governed-engagement.factory.spec.ts",
+    "src/engagement/engagement-sync-scheduler.service.spec.ts",
+    "src/engagement/outreach-job.spec.ts",
+    "src/engagement/outreach-send-intent.service.spec.ts",
+    "src/engagement/notetaker/notetaker.service.spec.ts",
+    "src/engagement/mail-sender.service.spec.ts",
+    "src/engagement/llm-completion.service.spec.ts"
+  ],
+  "documents": [
+    {
+      "path": "docs/backend-cleanup/20261012/ROOT-INTEGRATION.md",
+      "bytes": 4560,
+      "sha256": "4f953fb0ea8c2e65193e3c28c1ff0fefeca37b6dfd73c7b929f7d4d56a23fbbf"
+    },
+    {
+      "path": "docs/backend-cleanup/20261012/VERIFICATION-MODES.md",
+      "bytes": 2761,
+      "sha256": "17349b6665121e353a149d15ce886b8fd872887b9d4a06bac2c2238f4c6a774f"
+    }
+  ],
+  "strictFullMarkers": [
+    "ENGAGEMENT_PHASE1_DB_FREE_COMPLETE",
+    "ENGAGEMENT_PHASE1_DB_FREE_FAILED"
+  ],
+  "phase2LegacyFirstArgumentFast": true,
+  "unchangedFullWindowsBaselineLimit": "Phase3 currently checks COMPLETE before FAILED and lacks child-exit1 refusal after COMPLETE; new scoped branches must refuse these while default-full remains preserved per parent.",
+  "sourceExecuted": false,
+  "awaitingFrozenIntegration": true,
+  "acceptance": false
+}

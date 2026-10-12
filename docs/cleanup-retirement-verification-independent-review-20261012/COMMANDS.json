@@ -1,0 +1,115 @@
+{
+  "actualQualifiersInstallsBuildsAppGraphsNativeDatabaseSqlProviderAwsDockerCiRuns": 0,
+  "nodeVersion": "v24.19.0",
+  "cachedTypeScript": "/workspace/capirov2/node_modules/typescript",
+  "cachedYAML": "/workspace/capirov2/node_modules/.pnpm/yaml@2.9.1/node_modules/yaml",
+  "commands": [
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/capture-destination.cjs",
+      "pin": "5470c6df029c9553dd49e531229c3c91b26275ef",
+      "exit": 0,
+      "log": "evidence/destination-before-golden.log",
+      "kind": "read-only Git/AST before snapshot"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/capture-full-phase1-plan.cjs",
+      "pin": "5470c6df029c9553dd49e531229c3c91b26275ef",
+      "exit": 0,
+      "log": "evidence/full-phase1-before-golden.log",
+      "kind": "immutable selected-main fragment; synthetic command/assert/output/exit ports"
+    },
+    {
+      "command": "node --test scripts/outreach-v3-qualification-plan.spec.mjs",
+      "pin": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+      "exit": 0,
+      "passed": 21,
+      "log": "evidence/outreach-author-pure-21.log",
+      "kind": "initial component pure/inert controls"
+    },
+    {
+      "command": "node --test apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs scripts/engagement-phase3-qualification-plan.spec.mjs scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "pin": "ec7261b0689bef2bcec1be3beb9af7754c12dc30",
+      "exit": 0,
+      "passed": 100,
+      "log": "evidence/engagement-author-pure-100.log",
+      "kind": "initial component pure/inert controls; did not detect independent mixed-marker failures"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-probe-red.cjs",
+      "pin": "ec7261b0689bef2bcec1be3beb9af7754c12dc30",
+      "exit": 1,
+      "passed": 5,
+      "failed": 3,
+      "log": "evidence/phase2-mixed-marker-red.log",
+      "kind": "REAL new scoped source defect; Bash extracted block, synthetic child/tee"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/phase2-mixed-marker-probe-repaired.cjs",
+      "pin": "e35d37ec080bbfbc5fccc0affe543af5b31fc1e2",
+      "exit": 0,
+      "passed": 8,
+      "failed": 0,
+      "log": "evidence/phase2-repaired-marker-green.log",
+      "result": "evidence/phase2-repaired-marker-red.json",
+      "kind": "identical immutable case expectations and synthetic ports; result filename retains original suffix, content GREEN"
+    },
+    {
+      "command": "node --test apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs scripts/engagement-phase3-qualification-plan.spec.mjs scripts/verify-engagement-phase2-code.mode.spec.mjs scripts/outreach-v3-qualification-plan.spec.mjs apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "pin": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+      "exit": 0,
+      "passed": 136,
+      "failed": 0,
+      "skipped": 0,
+      "log": "evidence/composed-pure-136.log",
+      "kind": "105 Engagement +21 Outreach +4 fixture +6 root pure/fake controls"
+    },
+    {
+      "command": "node -e \"console.log(process.version);console.log(require.resolve('yaml'));console.log(require.resolve('typescript'))\"",
+      "exit": 1,
+      "log": "evidence/review-cache-resolution-red.log",
+      "kind": "environment-only absent top-level yaml link; no install"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof-initial.cjs",
+      "pin": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+      "exit": 1,
+      "log": "evidence/composition-proof-initial-red.log",
+      "kind": "review expectation error: older proposal frontend job needs exact moved destination Web step"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls-initial.mjs",
+      "pin": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+      "exit": 1,
+      "log": "evidence/independent-plan-controls-initial-red.log",
+      "kind": "review expectation error: baseline has5, not8 top-level non-main declarations"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof.cjs",
+      "pin": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+      "exit": 0,
+      "log": "evidence/composition-proof.log",
+      "kind": "read-only exact20-path union/all other baseline modes/blobs, package/parsedYAML/fixture source proof; repeated after adding exact8ac fixture-seam assertion"
+    },
+    {
+      "command": "node docs/cleanup-retirement-verification-independent-review-20261012/evidence/independent-plan-controls.mjs",
+      "pin": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+      "exit": 0,
+      "passed": 104,
+      "failed": 0,
+      "log": "evidence/independent-plan-controls.log",
+      "kind": "independent pure helper/array comparisons and fake executor refusal controls"
+    },
+    {
+      "command": "git diff --check 5470c6df029c9553dd49e531229c3c91b26275ef b877e03c5710bfc347568c7bbd1197f7caedbcde -- .github/workflows/ci-pr.yml apps/api/scripts package.json scripts",
+      "exit": 0,
+      "log": "evidence/source-whitespace.log",
+      "kind": "declared source-path whitespace only, not original full qualification gate"
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit": 0,
+      "log": "evidence/review-packet-whitespace.log",
+      "kind": "reviewer newly staged evidence files only; not unchanged inherited raw author evidence"
+    }
+  ]
+}
