@@ -30,13 +30,13 @@
     },
     {
       "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/ACCEPTANCE.json",
-      "bytes": 3070,
-      "sha256": "edac9c97d62a3d5d57ecd6e0b85f81fffcedf7dab547e5250735b87193d0b967"
+      "bytes": 3436,
+      "sha256": "275b2ebd138cea7c29ddfea88743d40441f97c584e918d70ee80d301ea9f03f7"
     },
     {
       "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/REVIEW.md",
-      "bytes": 3976,
-      "sha256": "eea7aff538802e7c5df4888a918d57ca16aecd9aff656762936fe0aa3a4bc3e9"
+      "bytes": 4311,
+      "sha256": "656ff98105ac58f88c3934b8cdeccfe507fc06bcb3bca202a81342cf0a33259c"
     },
     {
       "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/SOURCE-BINDINGS.json",
@@ -97,6 +97,11 @@
       "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/07-actual-duplicate-helpers.log",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/08-raw-log-whitespace-red.log",
+      "bytes": 585,
+      "sha256": "38a3765bfa307968e25751db6aa7fe41576d5d0f202e4e8696089af02e8ef0ce"
     },
     {
       "path": "docs/cleanup-workspace-root-adoption-independent-review-20261012/evidence/workspace-profile-adversaries.mjs",

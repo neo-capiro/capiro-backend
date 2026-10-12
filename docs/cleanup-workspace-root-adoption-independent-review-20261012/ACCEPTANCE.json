@@ -72,6 +72,12 @@
       "exitCode": 0,
       "stdout": "evidence/07-actual-duplicate-helpers.json",
       "stderr": "evidence/07-actual-duplicate-helpers.log"
+    },
+    {
+      "command": "git diff --check HEAD^ HEAD -- docs/cleanup-workspace-root-adoption-independent-review-20261012",
+      "exitCode": 2,
+      "log": "evidence/08-raw-log-whitespace-red.log",
+      "classification": "three trailing-space warnings only in verbatim Jest fixture-name output; bytes preserved; not application/source whitespace acceptance"
     }
   ]
 }
