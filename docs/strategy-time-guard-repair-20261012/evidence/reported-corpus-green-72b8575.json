@@ -1,0 +1,187 @@
+{
+  "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "testedSource": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "phase": "green-72b8575",
+  "sourceFiles": 169,
+  "baseline": [],
+  "deferredIdentities": 116,
+  "deferredSamples": 123,
+  "cases": 21,
+  "rejected": 21,
+  "unexpectedlyAccepted": [],
+  "results": [
+    {
+      "name": "direct clock",
+      "addition": "function reviewProbe(){return Date.now();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Date.now (1 > 0)"
+      ]
+    },
+    {
+      "name": "global alias clock",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.Date.now();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Date.now (1 > 0)"
+      ]
+    },
+    {
+      "name": "computed global clock",
+      "addition": "function reviewProbe(){return globalThis['Da'+'te']['now']();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Date.now (1 > 0)"
+      ]
+    },
+    {
+      "name": "global alias random",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.Math.random();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Math.random (1 > 0)"
+      ]
+    },
+    {
+      "name": "computed global random",
+      "addition": "function reviewProbe(){return globalThis['Ma'+'th']['random']();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Math.random (1 > 0)"
+      ]
+    },
+    {
+      "name": "global alias constructor",
+      "addition": "function reviewProbe(){const ambient=globalThis;return new ambient.Date();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||new Date() (1 > 0)"
+      ]
+    },
+    {
+      "name": "computed global constructor",
+      "addition": "function reviewProbe(){return new (globalThis['Da'+'te'])();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||new Date() (1 > 0)"
+      ]
+    },
+    {
+      "name": "global alias timer",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.setTimeout(()=>{},1);}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||setTimeout (1 > 0)"
+      ]
+    },
+    {
+      "name": "computed global timer",
+      "addition": "function reviewProbe(){return globalThis['set'+'Timeout'](()=>{},1);}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||setTimeout (1 > 0)"
+      ]
+    },
+    {
+      "name": "system local alias",
+      "addition": "import { systemWallClock } from '@capiro/shared';function reviewProbe(){const clock=systemWallClock;return clock();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe|VariableDeclaration:clock|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||system time hook invoked outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "system namespace destructure",
+      "addition": "import * as sharedTime from '@capiro/shared';function reviewProbe(){const {systemWallClock:clock}=sharedTime;return clock();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||system time hook invoked outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "retry local alias",
+      "addition": "function reviewProbe(){const retry:any=withContextRetry;return retry(\"x\",()=>1);}",
+      "rejected": true,
+      "failures": [
+        "apps/api-strategy/src/meri/context-load.ts: retry reference/alias is outside the adopted boundary",
+        "apps/api-strategy/src/meri/context-load.ts: retry alias/namespace/member indirection is outside the adopted boundary",
+        "apps/api-strategy/src/meri/context-load.ts: new retry consumer needs explicit adoption and a data row"
+      ]
+    },
+    {
+      "name": "quoted canonical method",
+      "addition": "class ReviewProbe { \"withContextRetry\"() {return 1;} }",
+      "rejected": true,
+      "failures": [
+        "canonical helper withContextRetry must be defined only in apps/api-strategy/src/meri/context-load.ts"
+      ]
+    },
+    {
+      "name": "computed canonical method",
+      "addition": "class ReviewProbe { [\"withContextRetry\"]() {return 1;} }",
+      "rejected": true,
+      "failures": [
+        "canonical helper withContextRetry must be defined only in apps/api-strategy/src/meri/context-load.ts"
+      ]
+    },
+    {
+      "name": "timer module namespace",
+      "addition": "import * as timers from 'node:timers';function reviewProbe(){return timers.setTimeout(()=>{},1);}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||setTimeout (1 > 0)"
+      ]
+    },
+    {
+      "name": "direct system fallback",
+      "addition": "function reviewProbe(){return systemWallClock();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||system time hook invoked outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "hoisted imported RNG alias",
+      "addition": "function reviewHoistedAlias() { return rng(); }\nimport { systemRandom as rng } from '@capiro/shared';",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewHoistedAlias||system time hook invoked outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "object canonical function",
+      "addition": "const reviewDup = { withContextRetry: () => 1 };",
+      "rejected": true,
+      "failures": [
+        "canonical helper withContextRetry must be defined only in apps/api-strategy/src/meri/context-load.ts"
+      ]
+    },
+    {
+      "name": "computed canonical property",
+      "addition": "const reviewDup = { [\"withContextRetry\"]: () => 1 };",
+      "rejected": true,
+      "failures": [
+        "canonical helper withContextRetry must be defined only in apps/api-strategy/src/meri/context-load.ts"
+      ]
+    },
+    {
+      "name": "class canonical property",
+      "addition": "class ReviewDup { withContextRetry = () => 1; }",
+      "rejected": true,
+      "failures": [
+        "canonical helper withContextRetry must be defined only in apps/api-strategy/src/meri/context-load.ts"
+      ]
+    },
+    {
+      "name": "canonical getter",
+      "addition": "class ReviewDup { get withContextRetry() { return () => 1; } }",
+      "rejected": true,
+      "failures": [
+        "canonical helper withContextRetry must be defined only in apps/api-strategy/src/meri/context-load.ts"
+      ]
+    }
+  ],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

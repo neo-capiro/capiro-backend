@@ -1,0 +1,14 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "passed": true,
+  "controls": 4,
+  "results": [
+    "actual constructor requires clock token",
+    "actual constructor requires retry token",
+    "draft-job constructor requires retry token",
+    "overridden tokens reach actual constructor fields and defaults remain lazy"
+  ],
+  "fixtures": "unchanged constructor text evaluated with real Nest decorators/container and dummy dependency tokens; method bodies audited separately; full actual MeriModule not bootstrapped",
+  "noRealCollaboratorConstructed": true,
+  "nativeAcceptance": false
+}

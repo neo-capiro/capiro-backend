@@ -1,0 +1,77 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "passed": true,
+  "classifierBodySha256": "7a24049dc8cc01e3decdd3c6efa9547b6b4f0512d61d0494ddc59439fb742462",
+  "retryLoopExactExceptInjectedDelay": true,
+  "fiscalBodiesExact": [
+    "fyOf",
+    "currentFyWindow",
+    "axisStart",
+    "qToDate"
+  ],
+  "classes": [
+    {
+      "file": "apps/api-strategy/src/meri/meri.service.ts",
+      "changedMembers": [
+        "<constructor>",
+        "fiscalWindow",
+        "grounding",
+        "draft",
+        "stewardContext"
+      ],
+      "unchangedMembers": [
+        "logger",
+        "assistant",
+        "assertAssistantSnapshot",
+        "resolveOwnerNames",
+        "recordAssistantError",
+        "referenceAssist",
+        "applyEditSet",
+        "verifyAppliedPlan",
+        "callOrchestratorDraft",
+        "draftNode",
+        "applyEdit",
+        "resolveEditDeps",
+        "STEWARD_CONTEXT_FALLBACK",
+        "draftExecutionDocument",
+        "factCheckProvenance",
+        "verify",
+        "blockOnErrors",
+        "syncNodeContextNeeds",
+        "logVerification"
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/meri/draft-job.service.ts",
+      "changedMembers": [
+        "<constructor>",
+        "submit"
+      ],
+      "unchangedMembers": [
+        "get"
+      ]
+    }
+  ],
+  "otherSourceUntouched": [
+    "apps/api-strategy/src/meri/governed-strategy-meri.factory.ts",
+    "apps/api-strategy/src/reference/baseline.ts",
+    "pnpm-lock.yaml"
+  ],
+  "retryConsumers": [
+    {
+      "file": "apps/api-strategy/src/meri/meri.service.ts",
+      "calls": 5,
+      "runtime": "this.retryRuntime"
+    },
+    {
+      "file": "apps/api-strategy/src/meri/draft-job.service.ts",
+      "calls": 1,
+      "runtime": "this.retryRuntime"
+    }
+  ],
+  "requiredRetryToken": true,
+  "requiredClockToken": true,
+  "noRouteDtoSchemaDependencyLockChanges": true,
+  "nativeAcceptance": false
+}

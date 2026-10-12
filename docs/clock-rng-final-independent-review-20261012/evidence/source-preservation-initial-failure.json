@@ -1,0 +1,8 @@
+{
+  "source": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "exitCode": 1,
+  "failure": "assert len(regex_literal_top_level_test_names) == 84",
+  "classification": "Independent receipt helper incorrectly equated literal top-level test declarations with emitted parameterized test cases. Source equality and original data equality had passed before this assertion. Corrected named proof compares complete emitted case names and static name expressions without changing source or raw logs.",
+  "sourceChanged": false,
+  "nativeAcceptance": false
+}

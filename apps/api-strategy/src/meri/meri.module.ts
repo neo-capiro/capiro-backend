@@ -13,6 +13,7 @@ import { StrategyConversationService } from './strategy-conversation.service.js'
 import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
 import { DraftJobService } from './draft-job.service.js';
 import { DraftJobWorkerService } from './draft-job-worker.service.js';
+import { STRATEGY_TIME_PROVIDERS } from './strategy-time.providers.js';
 import {
   createGovernedStrategyMeriService,
   RAW_STRATEGY_MERI_SERVICE,
@@ -28,6 +29,7 @@ import {
   imports: [FirmPhasesModule, ReferenceModule, ContextModule],
   controllers: [MeriController],
   providers: [
+    ...STRATEGY_TIME_PROVIDERS,
     VersioningService,
     StrategyAiCredentialResolver,
     StrategyAttachmentResolver,

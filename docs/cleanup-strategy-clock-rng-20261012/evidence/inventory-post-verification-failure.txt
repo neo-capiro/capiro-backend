@@ -1,0 +1,7 @@
+Read-only post-run baseline source verification attempted after parent integrated author source.
+Traceback (most recent call last):
+  File "<stdin>", line 11, in <module>
+AssertionError
+
+Follow-up confirmed all four parent specs advanced from preserved2408; parent HEAD abb22da7e is the cherry-picked app implementation.
+Original pre-run byte verification succeeded; repaired inventory contains all102 original full names. Final137 executed case names contain every original name. No source or test regression occurred; no parent writes were made by this agent.

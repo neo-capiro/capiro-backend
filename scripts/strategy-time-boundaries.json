@@ -1,0 +1,775 @@
+{
+  "version": 1,
+  "sourceRoots": ["apps/api-strategy/src"],
+  "originalSource": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "originalProductionFileCount": 167,
+  "requiredFiles": [
+    "apps/api-strategy/src/meri/context-load.ts",
+    "apps/api-strategy/src/meri/meri.service.ts",
+    "apps/api-strategy/src/meri/draft-job.service.ts",
+    "apps/api-strategy/src/fiscal/fiscal.ts",
+    "apps/api-strategy/src/meri/strategy-time.providers.ts",
+    "packages/shared/src/time.ts"
+  ],
+  "retryConsumers": [
+    {
+      "file": "apps/api-strategy/src/meri/meri.service.ts",
+      "calls": 5,
+      "runtime": "this.retryRuntime"
+    },
+    {
+      "file": "apps/api-strategy/src/meri/draft-job.service.ts",
+      "calls": 1,
+      "runtime": "this.retryRuntime"
+    }
+  ],
+  "existingAmbient": [
+    {
+      "key": "apps/api-strategy/src/agents/change-sets.service.ts|ChangeSetsService.approve|PropertyAssignment:approvedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/change-sets.service.ts|ChangeSetsService.reject|PropertyAssignment:rejectedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/change-sets.service.ts|ChangeSetsService.apply|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/change-sets.service.ts|ChangeSetsService.apply|PropertyAssignment:appliedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/change-sets.service.ts|ChangeSetsService.undo|PropertyAssignment:undoneAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution-artifact.client.ts|ExecutionArtifactClient.doFetch|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.preflight|PropertyAssignment:checkedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.runPlanning|VariableDeclaration:phaseStart|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.evaluateG0|PropertyAssignment:checkedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.runExecuting|VariableDeclaration:phaseStart|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.recordArtifact|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.approve|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.rejectApproval|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.persistInvalidation|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/execution.service.ts|ExecutionService.settlePhase|PropertyAssignment:latencyMs|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/outbox-consumer.service.ts|OutboxConsumerService.drainOnce|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/run-reconciler.service.ts|RunReconcilerService.reconcileRun|PropertyAssignment:nowMs|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/run-reconciler.service.ts|RunReconcilerService.reconcileRun|PropertyAssignment:at|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/run-reconciler.service.ts|RunReconcilerService.stampReconciled|PropertyAssignment:reconciledAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/runs.service.ts|RunsService.transition|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/runs.service.ts|RunsService.heartbeat|PropertyAssignment:heartbeatAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/runs.service.ts|RunsService.retry|PropertyAssignment:heartbeatAt|new Date()",
+      "maximum": 2,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/runs.service.ts|RunsService.retry|PropertyAssignment:finishedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.revalidate|VariableDeclaration:t0|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.revalidate|VariableDeclaration:today|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.revalidate|PropertyAssignment:elapsedMs|Date.now",
+      "maximum": 3,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.revalidate||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.dismiss|PropertyAssignment:dismissedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.dismiss|PropertyAssignment:rejectedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.acceptOne|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.acceptOne|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.acceptAll|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watch-review.service.ts|WatchReviewService.acceptAll|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watcher.service.ts|WatcherService.configureMonitoring|VariableDeclaration:nextRunAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watcher.service.ts|WatcherService.runCheckNow|VariableDeclaration:today|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watcher.service.ts|WatcherService.runCheckNow|VariableDeclaration:phaseStart|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/agents/watcher.service.ts|WatcherService.runCheckNow|PropertyAssignment:latencyMs|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/auth/org-tenant-resolver.provider.ts|read||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/auth/org-tenant-resolver.provider.ts|write|PropertyAssignment:at|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-documents.service.ts|ContextDocumentsService.list|PropertyAssignment:gte|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-documents.service.ts|ContextDocumentsService.availability|VariableDeclaration:today|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-documents.service.ts|isStale|VariableDeclaration:todayUtcMidnight|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-import.service.ts|ContextImportService.resolve|PropertyAssignment:expires|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-import.service.ts|ContextImportService.analyze|PropertyAssignment:expires|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-import.service.ts|ContextImportService.eligibleFactsInTransaction|PropertyAssignment:gte|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-import.service.ts|ContextImportService.sourceRequest|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-import.service.ts|ContextImportService.readToken||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/context-import.service.ts|buildImportMarkdown|VariableDeclaration:importedOn|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/current-plan-export.service.ts|CurrentPlanExportService.exportCurrentPlan|VariableDeclaration:today|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/steward.service.ts|StewardService.resolveConflict|PropertyAssignment:resolvedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/steward.service.ts|StewardService.dismissConflict|PropertyAssignment:resolvedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/steward.service.ts|StewardService.health|VariableDeclaration:todayUtcMidnight|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/context/steward.service.ts|StewardService.factsForOrchestrator|VariableDeclaration:today|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/flags/strategy-flags.service.ts|StrategyFlagsService.isEnabled|VariableDeclaration:now|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/flags/strategy-flags.service.ts|StrategyFlagsService.isMeriEnabled|VariableDeclaration:now|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/flags/strategy-flags.service.ts|StrategyFlagsService.isAgenticFlagEnabled|VariableDeclaration:now|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.failExpired|PropertyAssignment:lte|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.reclaimStale|VariableDeclaration:cutoff|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.reclaimStale|PropertyAssignment:gt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.processJob|PropertyAssignment:timeoutMs|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.processJob|VariableDeclaration:now|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.processJob||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job-worker.service.ts|DraftJobWorkerService.errorMessageFor||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/draft-job.service.ts|DraftJobService.submit|VariableDeclaration:deadlineAt|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/meri.service.ts|MeriService.draft|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/meri.service.ts|MeriService.assistant|VariableDeclaration:startedAt|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/meri.service.ts|MeriService.assistant||Date.now",
+      "maximum": 2,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/meri.service.ts|MeriService.assistant|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/meri.service.ts|MeriService.applyEdit|VariableDeclaration:archivedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-ai-credential.resolver.ts|StrategyAiCredentialResolver.resolve||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-ai-credential.resolver.ts|StrategyAiCredentialResolver.resolve|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-ai-credential.resolver.ts|StrategyAiCredentialResolver.resolve|PropertyAssignment:expiresAt|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-attachment.resolver.ts|StrategyAttachmentResolver.resolve|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-context-plane.client.ts|StrategyContextPlaneClient.compile|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-orchestrator.client.ts|StrategyOrchestratorClient.draftStreaming|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/meri/strategy-orchestrator.client.ts|StrategyOrchestratorClient.post|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner-scheduler.service.ts|PlannerSchedulerService.tickOnce|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner-time-policy.ts|plannerTimeDateNotice|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner-time-review.ts|plannerTimeSubmissionDue|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner-timesheets.ts|plannerTimeDetails|PropertyAssignment:workedOn|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.persistTask|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.runScheduledWork|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.timer||new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.startTimer|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.stopTimer|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.discardTimer|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.runScheduledGoalWork|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.runScheduledTimeWork|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.runScheduledBudgetWork|Parameter:_now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.submitPublicForm|PropertyAssignment:gte|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.publicFormQuota|PropertyAssignment:gte|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/planner/planner.service.ts|PlannerService.createFormTask|PropertyAssignment:completedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/prisma/prisma.service.ts|PrismaService.withTenantRetry||setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reference/baseline.ts|buildBaselineEntries|Parameter:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reference-ops.ts|loadRows|PropertyAssignment:rows|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/member-office.reader.ts|DirectoryMemberOfficeReader.resolveOne||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/member-office.reader.ts|DirectoryMemberOfficeReader.resolveOne|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/member-office.reader.ts|DirectoryMemberOfficeReader.resolveOne|PropertyAssignment:expiresAt|Date.now",
+      "maximum": 2,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/member-office.reader.ts|DirectoryMemberOfficeReader.photo||Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/member-office.reader.ts|DirectoryMemberOfficeReader.photo|VariableDeclaration:timer|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/member-office.reader.ts|DirectoryMemberOfficeReader.photo|PropertyAssignment:expiresAt|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/pdf-browser.driver.ts|PdfBrowserDriver.print|VariableDeclaration:watchdog|setTimeout",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/report-narrative.service.ts|ReportNarrativeService.generate||Date.now",
+      "maximum": 3,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/report-narrative.service.ts|ReportNarrativeService.generate|VariableDeclaration:started|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/report-narrative.service.ts|ReportNarrativeService.generate|PropertyAssignment:expiresAt|Date.now",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/report-narrative.service.ts|normalizeEnvelope|PropertyAssignment:generatedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/reports/report-snapshot.service.ts|ReportSnapshotService.build|VariableDeclaration:asOf|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/seed.ts|main|VariableDeclaration:rows|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/node.service.ts|NodeService.remove|VariableDeclaration:archivedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/node.service.ts|NodeService.bump|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/strategy.service.ts|StrategyService.create|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/strategy.service.ts|StrategyService.patchMeta||new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/strategy.service.ts|StrategyService.archive|VariableDeclaration:archivedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/version.service.ts|VersionService.restore|PropertyAssignment:lastEditedAt|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/version.service.ts|VersionService.restore|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "apps/api-strategy/src/strategy/versioning.service.ts|VersioningService.cutVersion|VariableDeclaration:now|new Date()",
+      "maximum": 1,
+      "status": "existing-unconverted",
+      "reason": "Existing wall time/timer outside grounding/retry/fiscal conversion; no addition or relocation allowed."
+    },
+    {
+      "key": "packages/shared/src/time.ts|systemWallClock||Date.now",
+      "maximum": 1,
+      "status": "canonical-system-default",
+      "reason": "Single lazy system default in the canonical time utility; injected only by Strategy providers."
+    },
+    {
+      "key": "packages/shared/src/time.ts|systemRandom||Math.random",
+      "maximum": 1,
+      "status": "canonical-system-default",
+      "reason": "Single lazy system default in the canonical time utility; injected only by Strategy providers."
+    },
+    {
+      "key": "packages/shared/src/time.ts|systemDelay||setTimeout",
+      "maximum": 1,
+      "status": "canonical-system-default",
+      "reason": "Single lazy system default in the canonical time utility; injected only by Strategy providers."
+    }
+  ],
+  "systemHookValueOwners": [
+    {
+      "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+      "binding": "STRATEGY_TIME_PROVIDERS",
+      "module": "@capiro/shared",
+      "values": [
+        { "provide": "STRATEGY_WALL_CLOCK", "hook": "systemWallClock" },
+        { "provide": "STRATEGY_CONTEXT_RETRY", "member": "random", "hook": "systemRandom" },
+        { "provide": "STRATEGY_CONTEXT_RETRY", "member": "delay", "hook": "systemDelay" }
+      ],
+      "reason": "Lazy shared system defaults are values only in the canonical Nest provider registration; calls and fallback references elsewhere are refused."
+    }
+  ],
+  "retryDefinition": "apps/api-strategy/src/meri/context-load.ts",
+  "extraSourceFiles": ["packages/shared/src/time.ts"],
+  "canonicalDefinitions": [
+    {
+      "name": "systemWallClock",
+      "file": "packages/shared/src/time.ts"
+    },
+    {
+      "name": "systemRandom",
+      "file": "packages/shared/src/time.ts"
+    },
+    {
+      "name": "systemDelay",
+      "file": "packages/shared/src/time.ts"
+    },
+    {
+      "name": "withContextRetry",
+      "file": "apps/api-strategy/src/meri/context-load.ts"
+    }
+  ]
+}

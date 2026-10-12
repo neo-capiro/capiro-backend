@@ -1,0 +1,12 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "argv": [
+    "node",
+    "scripts/check-strategy-time-bypasses.mjs"
+  ],
+  "exitCode": 0,
+  "seconds": 1.891,
+  "sourceOnly": true,
+  "nativeAcceptance": false,
+  "limits": "author controls pass but independent bypass corpus remains RED"
+}

@@ -40,4 +40,21 @@ describe('fiscal calendar helpers', () => {
     expect(a.getFullYear()).toBe(2027);
     expect(a.getMonth()).toBe(1); // February
   });
+
+  it('does not mutate the explicitly sampled date while deriving fiscal and quarter coordinates', () => {
+    const now = new Date(2026, 8, 30, 23, 59, 59);
+    const sampled = now.getTime();
+    expect(currentFyWindow(now)).toEqual([2026, 2027, 2028]);
+    expect(axisStart(now).getFullYear()).toBe(2025);
+    expect(qToDate(0, now).getMonth()).toBe(9);
+    expect(now.getTime()).toBe(sampled);
+  });
+
+  it('retains fractional-quarter and leap-month arithmetic with an explicit date', () => {
+    const now = new Date(2024, 0, 15);
+    const date = qToDate(4 / 3 + 0.1, now);
+    expect(date.getFullYear()).toBe(2024);
+    expect(date.getMonth()).toBe(1);
+    expect(date.getDate()).toBe(10);
+  });
 });

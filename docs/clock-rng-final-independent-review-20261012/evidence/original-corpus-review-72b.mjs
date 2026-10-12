@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {sourceFiles,checkTimeSources} from '../../../scripts/check-strategy-time-bypasses.mjs';
+const base='docs/clock-rng-final-independent-review-20261012/evidence';
+const inputNames=['adversarial-guard-review.json','hoisted-alias-adversarial-red.json','canonical-member-adversarial-red.json'];
+const inputs=inputNames.map(name=>{const bytes=readFileSync(base+'/original-red/'+name);return {name,sha256:createHash('sha256').update(bytes).digest('hex'),data:JSON.parse(bytes)};});
+const cases=[...inputs[0].data.results.map(x=>({name:x.name,addition:x.addition})),{name:'hoisted aliased import',addition:inputs[1].data.addition},...inputs[2].data.results.map(x=>({name:x.name,addition:x.addition}))];assert.equal(cases.length,21);
+const data=JSON.parse(readFileSync('scripts/strategy-time-boundaries.json','utf8'));
+const sources=sourceFiles(process.cwd(),data.sourceRoots);for(const file of data.extraSourceFiles??[])sources.set(file,readFileSync(file,'utf8'));
+const baseline=checkTimeSources(sources,data);assert.deepEqual(baseline,[]);const file='apps/api-strategy/src/meri/context-load.ts';
+const shadows=JSON.parse(readFileSync(base+'/provider-shadow-aa1-red.json','utf8')).results.map(x=>({name:x.name,addition:x.addition,file:'apps/api-strategy/src/meri/strategy-time.providers.ts'}));
+const results=[...cases,...shadows].map(x=>{const target=x.file??file;const mutated=new Map(sources);mutated.set(target,sources.get(target)+'\n'+x.addition+'\n');const failures=checkTimeSources(mutated,data);return {...x,rejected:failures.length>0,failures};});
+const result={source:'72b85754840cf73b484631cb27dd73a48c0e68bd',tree:'a638542193201a11c44b5595e45ac96a187e0196',sourceFiles:sources.size,inputs:inputs.map(({name,sha256})=>({name,sha256})),baseline,results,mutantsExecuted:false,nativeAcceptance:false};
+writeFileSync(base+'/original-corpus-72b.json',JSON.stringify(result,null,2)+'\n');assert(results.every(x=>x.rejected));console.log(JSON.stringify({source:result.source,cases:results.length,rejected:results.filter(x=>x.rejected).length,sourceFiles:sources.size,mutantsExecuted:false},null,2));

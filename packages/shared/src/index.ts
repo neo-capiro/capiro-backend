@@ -5760,3 +5760,5 @@ export * from './prospect-resource-scope.js';
 export * from './workspace-saved-revision.js';
 
 export * from './client-objective-destination.js';
+
+export * from './time.js';

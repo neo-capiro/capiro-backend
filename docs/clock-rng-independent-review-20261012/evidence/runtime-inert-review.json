@@ -1,0 +1,118 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "passed": true,
+  "controls": 16,
+  "actualRuntimeConsumers": 6,
+  "sourceClassMethodsExtractedWithoutBodyEdits": true,
+  "dependencyHooks": "inert fake lookups/logger; actual retry/fiscal/versioning source; no actual DB/SQL/Prisma/provider/native dependencies loaded",
+  "nestInjectionAcceptance": false,
+  "receipts": [
+    {
+      "case": "bounded retries u=0",
+      "attempts": 3,
+      "delays": [
+        200,
+        400
+      ]
+    },
+    {
+      "case": "bounded retries u=0.5",
+      "attempts": 3,
+      "delays": [
+        237,
+        437
+      ]
+    },
+    {
+      "case": "bounded retries u=0.999999",
+      "attempts": 3,
+      "delays": [
+        274,
+        474
+      ]
+    },
+    {
+      "case": "nontransient refusal",
+      "attempts": 1,
+      "hookCalls": 0
+    },
+    {
+      "case": "exhaustion",
+      "attempts": 3,
+      "hookCalls": 4,
+      "finalSleep": false
+    },
+    {
+      "case": "injected random failure",
+      "attempts": 1,
+      "noFallback": true
+    },
+    {
+      "case": "injected delay failure",
+      "attempts": 1,
+      "noFallback": true
+    },
+    {
+      "case": "classifier ordering unchanged",
+      "contradictoryTimeoutRemainsTransient": true
+    },
+    {
+      "case": "both actual grounding consumers",
+      "delays": [
+        237,
+        237
+      ],
+      "clockSamples": 1
+    },
+    {
+      "case": "fiscal crossing and next invocation refresh",
+      "fiscalYears": [
+        2027,
+        2028,
+        2029
+      ],
+      "clockSamples": 2
+    },
+    {
+      "case": "clock samples after asynchronous grounding loads",
+      "samplesBeforeRelease": 0,
+      "samplesAfterRelease": 1
+    },
+    {
+      "case": "injected clock refusal",
+      "ambientFallback": false
+    },
+    {
+      "case": "Meri client lookup",
+      "syntheticLookupCalls": 2,
+      "deniedBeforePersistenceOrModel": true,
+      "delays": [
+        237
+      ]
+    },
+    {
+      "case": "DraftJob client lookup",
+      "syntheticLookupCalls": 2,
+      "deniedBeforePersistenceOrModel": true,
+      "delays": [
+        237
+      ]
+    },
+    {
+      "case": "both actual Steward consumers",
+      "delays": [
+        237,
+        237
+      ]
+    },
+    {
+      "case": "Steward retries then original fail-soft fallback",
+      "attempts": 3,
+      "delays": [
+        200,
+        400
+      ]
+    }
+  ],
+  "nativeAcceptance": false
+}

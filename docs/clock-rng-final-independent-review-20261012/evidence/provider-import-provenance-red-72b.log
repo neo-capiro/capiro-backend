@@ -1,0 +1,42 @@
+{
+  "source": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "tree": "a638542193201a11c44b5595e45ac96a187e0196",
+  "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+  "mutant": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from './review-noncanonical-time';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+  "analysis": {
+    "events": [],
+    "retryCalls": [],
+    "retryDefinitions": [],
+    "definitions": [
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_WALL_CLOCK"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_CONTEXT_RETRY"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "STRATEGY_TIME_PROVIDERS"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "useValue"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "random"
+      },
+      {
+        "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+        "name": "delay"
+      }
+    ],
+    "problems": []
+  },
+  "unexpectedlyAccepted": true,
+  "mutantsExecuted": false,
+  "moduleGraphLoaded": false,
+  "nativeAcceptance": false
+}

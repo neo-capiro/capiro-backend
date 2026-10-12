@@ -1,0 +1,37 @@
+✔ explicit runtime boundary permits deterministic date math, types, comments and strings (257.770394ms)
+✔ rejects new ambient or indirect boundary: new date (1.929796ms)
+✔ rejects new ambient or indirect boundary: date call (2.112455ms)
+✔ rejects new ambient or indirect boundary: clock (1.539319ms)
+✔ rejects new ambient or indirect boundary: random (1.329278ms)
+✔ rejects new ambient or indirect boundary: bracket clock (1.335652ms)
+✔ rejects new ambient or indirect boundary: bracket random (1.354969ms)
+✔ rejects new ambient or indirect boundary: global clock (1.491458ms)
+✔ rejects new ambient or indirect boundary: global bracket clock (2.698278ms)
+✔ rejects new ambient or indirect boundary: global random (2.103031ms)
+✔ rejects new ambient or indirect boundary: spread constructor (1.148372ms)
+✔ rejects new ambient or indirect boundary: date alias (1.264548ms)
+✔ rejects new ambient or indirect boundary: random alias (1.624696ms)
+✔ rejects new ambient or indirect boundary: clock destructuring (1.57924ms)
+✔ rejects new ambient or indirect boundary: math destructuring (0.914525ms)
+✔ rejects new ambient or indirect boundary: dynamic member (0.943856ms)
+✔ rejects new ambient or indirect boundary: timer (0.977518ms)
+✔ rejects new ambient or indirect boundary: global timer (1.701334ms)
+✔ rejects new ambient or indirect boundary: timer alias (0.668112ms)
+✔ rejects new ambient or indirect boundary: system fallback call (0.721417ms)
+✔ rejects new ambient or indirect boundary: aliased system fallback (1.150523ms)
+✔ rejects new ambient or indirect boundary: namespace system fallback (0.839792ms)
+✔ rejects new ambient or indirect boundary: retry namespace bypass (0.632619ms)
+✔ rejects new ambient or indirect boundary: retry import alias (0.679728ms)
+✔ existing sample allowance cannot grow or move to another owner (4.075337ms)
+✔ required runtime cannot become optional, defaulted, omitted or replaced (4.434754ms)
+✔ missing source, parse failures and malformed inventory fail closed (5.175596ms)
+✔ canonical helper ownership rejects function, variable and method copies (2.374939ms)
+✔ system defaults sample only on invocation and pass delay unchanged (80.120689ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 555.810274

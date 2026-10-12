@@ -4,6 +4,7 @@ import { DraftJobService } from './draft-job.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import type { DraftStrategyDto } from './dto/meri.dto.js';
+import type { ContextRetryRuntime } from './strategy-time.providers.js';
 
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 const CTX: AuthTenantContext = {
@@ -56,14 +57,52 @@ function makeTx(opts: {
   };
 }
 
-function service(tx: ReturnType<typeof makeTx>) {
+function service(
+  tx: ReturnType<typeof makeTx>,
+  retryRuntime: ContextRetryRuntime = { random: () => 0, delay: async () => undefined },
+) {
   const prisma = {
     withTenant: jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaService;
-  return { svc: new DraftJobService(prisma), prisma };
+  return { svc: new DraftJobService(prisma, retryRuntime), prisma };
 }
 
 describe('DraftJobService.submit', () => {
+  it('uses the injected retry hooks for the client lookup while retaining unknown-client denial', async () => {
+    const findUnique = dbMock<JobRow | null>();
+    const create = dbMock<JobRow>();
+    const tx = makeTx({ clientRows: [], findUnique, create });
+    tx.$queryRaw.mockRejectedValueOnce({ code: 'P2024' });
+    const random = jest.fn(() => 0.5);
+    const delay = jest.fn<(ms: number) => Promise<void>>(async () => undefined);
+    const { svc } = service(tx, { random, delay });
+
+    await expect(svc.submit(CTX, 'token', dto())).rejects.toBeInstanceOf(BadRequestException);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(random).toHaveBeenCalledTimes(1);
+    expect(delay.mock.calls).toEqual([[237]]);
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke retry hooks or job persistence after a non-transient client lookup denial', async () => {
+    const findUnique = dbMock<JobRow | null>();
+    const create = dbMock<JobRow>();
+    const tx = makeTx({ findUnique, create });
+    const error = { status: 403, message: 'Forbidden' };
+    tx.$queryRaw.mockRejectedValueOnce(error);
+    const random = jest.fn(() => 0.5);
+    const delay = jest.fn<(ms: number) => Promise<void>>(async () => undefined);
+    const { svc } = service(tx, { random, delay });
+
+    await expect(svc.submit(CTX, 'token', dto())).rejects.toBe(error);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(random).not.toHaveBeenCalled();
+    expect(delay).not.toHaveBeenCalled();
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('rejects an unknown client before ever touching sp_draft_job', async () => {
     const findUnique = dbMock<JobRow | null>();
     const create = dbMock<JobRow>();

@@ -1,0 +1,9 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "exitCode": 1,
+  "classification": "review fixture assumed two microtasks were enough for cross-realm Promise assimilation; delay not entered yet",
+  "failure": "expected injected wait [237], observed []",
+  "sourceChange": false,
+  "correction": "synchronize explicitly on injected fake-delay entry; retain exact original script/log",
+  "realTimersUsed": false
+}

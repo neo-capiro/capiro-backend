@@ -1,0 +1,44 @@
+{
+  "recordedAtUTC": "2026-10-12T15:55:18.937942+00:00",
+  "scope": "read-only Git/hash/JSON/receipt/documentation audit; evidence writes only in independent new docs directory",
+  "attempts": [
+    {
+      "stdout": "interim-612-audit.json",
+      "stderr": "interim-612-audit.log",
+      "exit": 1,
+      "reason": "reviewer harness assumed retention added/removed were numeric; original fields are arrays"
+    },
+    {
+      "stdout": "interim-612-validated.json",
+      "stderr": "interim-612-validated.log",
+      "exit": 1,
+      "reason": "reviewer harness Counter assumed retained was an array; original retained field is integer102"
+    },
+    {
+      "stdout": "interim-612-final.json",
+      "stderr": "interim-612-final.log",
+      "exit": 0,
+      "scope": "interim source612; awaiting final packet and review"
+    },
+    {
+      "stdout": "final-packet-audit-attempt1.json",
+      "stderr": "final-packet-audit-attempt1.log",
+      "exit": 130,
+      "reason": "reviewer deliberately interrupted inefficient repeated full-tree reads; added pure memoization only"
+    },
+    {
+      "stdout": "final-packet-audit-attempt2.json",
+      "stderr": "final-packet-audit-attempt2.log",
+      "exit": 0,
+      "argv": [
+        "python3",
+        "docs/clock-handoff-audit-20261012/audit-final-packet.py"
+      ],
+      "sourceTestsExecuted": false
+    }
+  ],
+  "laterAuditorOnlyChange": "optional --packet-root argument added for reproducing against an isolated c958 worktree; audit predicates/results unchanged",
+  "parentPacketChanged": false,
+  "runtimeSourceChanged": false,
+  "nativeAcceptance": false
+}

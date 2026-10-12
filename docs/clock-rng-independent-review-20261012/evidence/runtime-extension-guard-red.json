@@ -1,0 +1,17 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "guardCopiedByteExact": true,
+  "argv": [
+    "node",
+    "scripts/check-strategy-time-bypasses.mjs"
+  ],
+  "exitCode": 0,
+  "stdout": "Strategy time ratchet passed (1 production files; explicit retry and ambient-read inventory).\n",
+  "unexpectedlyAccepted": true,
+  "hiddenSource": "src/hidden.cts",
+  "hiddenCode": "export function sample(){return Date.now();}",
+  "sourceRoot": "src",
+  "reason": "collector endsWith .ts skips supported runtime .cts module",
+  "mutantExecuted": false,
+  "nativeAcceptance": false
+}

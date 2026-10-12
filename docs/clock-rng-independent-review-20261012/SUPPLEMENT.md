@@ -1,0 +1,5 @@
+The original frozen f86 guard also accepted all four canonical object/property/getter duplicates recorded in `canonical-member-adversarial-red.json`. Together with the original sixteen cases and hoisted-import case, nineteen of twenty-one intended refusal cases were accepted. Mutant strings were parsed only.
+
+The original production-source collector skipped runtime `.cts` source. The preserved minimal fixture resolved `./hidden.cjs` to `hidden.cts` using installed TypeScript 5.9.3, while the original exact guard scanned only `main.ts` and exited zero. This initial fixture was a parser/discovery control, not a successful strict compiler check: its class omitted a declaration for `retryRuntime`. A separate strictly typed fixture is being retained in the repaired independent review packet; these original bytes remain unchanged.
+
+No runtime, native database, provider, CI or security operation was executed. This supplement records additional refusal failures and grants no acceptance to original f86 or any repaired source.

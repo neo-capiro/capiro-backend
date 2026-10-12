@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { WallClock } from '@capiro/shared';
 import {
   repairDependencyOrder,
   verifyPlan,
@@ -21,8 +23,13 @@ import { loadStrategyDetail } from '../strategy/detail.js';
 import { isoDate } from '../strategy/versioning.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { lockStrategyForMutation } from '../strategy/mutation-lock.js';
-import { fyOf } from '../fiscal/fiscal.js';
+import { currentFyWindow } from '../fiscal/fiscal.js';
 import { withContextRetry } from './context-load.js';
+import {
+  STRATEGY_CONTEXT_RETRY,
+  STRATEGY_WALL_CLOCK,
+  type ContextRetryRuntime,
+} from './strategy-time.providers.js';
 import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.dto.js';
 import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
 import { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
@@ -170,6 +177,8 @@ export class MeriService {
     private readonly attachments: StrategyAttachmentResolver,
     private readonly steward: StewardService,
     private readonly conversations: StrategyConversationService,
+    @Inject(STRATEGY_WALL_CLOCK) private readonly clock: WallClock,
+    @Inject(STRATEGY_CONTEXT_RETRY) private readonly retryRuntime: ContextRetryRuntime,
   ) {}
 
   /**
@@ -179,9 +188,8 @@ export class MeriService {
    */
   /** The live 3-FY window (no DB) — grounds date reasoning in every Meri call. */
   private fiscalWindow() {
-    const now = new Date();
-    const curFy = fyOf(now);
-    const fys = [curFy, curFy + 1, curFy + 2];
+    const now = new Date(this.clock());
+    const fys = currentFyWindow(now);
     const fyLabels = fys.map((y) => `FY${String(y).slice(2)}`);
     return { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] };
   }
@@ -193,8 +201,8 @@ export class MeriService {
     // draft" sources — bounded retry on a transient load, never on a genuine
     // absence (an unconfigured tenant's empty list is not an error to retry).
     const [phases, ref] = await Promise.all([
-      withContextRetry('firm-phases', () => this.firmPhases.list(tenantId)),
-      withContextRetry('reference-calendars', () => this.reference.getCalendars(tenantId)),
+      withContextRetry('firm-phases', () => this.firmPhases.list(tenantId), this.retryRuntime),
+      withContextRetry('reference-calendars', () => this.reference.getCalendars(tenantId), this.retryRuntime),
     ]);
     const lite = (rows: ReferenceRow[]) =>
       rows.map((r) => ({
@@ -244,6 +252,7 @@ export class MeriService {
         tx.$queryRaw<Array<{ ok: number }>>`
         SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
       ),
+      this.retryRuntime,
     );
     if (clientRows.length === 0) {
       throw new BadRequestException('Unknown client for this tenant');
@@ -1059,8 +1068,8 @@ export class MeriService {
       // retry sits INSIDE this fail-soft try so a transient hiccup gets its
       // retries before this method's own degraded-fallback gives up on it.
       const [stewardFacts, health] = await Promise.all([
-        withContextRetry('steward-facts', () => this.steward.factsForOrchestrator(tenantId, clientId, opts)),
-        withContextRetry('steward-health', () => this.steward.health(tenantId, clientId)),
+        withContextRetry('steward-facts', () => this.steward.factsForOrchestrator(tenantId, clientId, opts), this.retryRuntime),
+        withContextRetry('steward-health', () => this.steward.health(tenantId, clientId), this.retryRuntime),
       ]);
       return {
         stewardFacts,

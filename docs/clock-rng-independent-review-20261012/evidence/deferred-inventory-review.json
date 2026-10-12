@@ -1,0 +1,53 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "passed": true,
+  "originalProductionFiles": 167,
+  "currentStrategyProductionFiles": 168,
+  "currentWithSharedProviderFiles": 169,
+  "originalAmbientSamples": 129,
+  "removedConvertedSamples": [
+    {
+      "key": "apps/api-strategy/src/fiscal/fiscal.ts|currentFyWindow|Parameter:now|new Date()",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "key": "apps/api-strategy/src/fiscal/fiscal.ts|axisStart|Parameter:now|new Date()",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "key": "apps/api-strategy/src/fiscal/fiscal.ts|qToDate|Parameter:now|new Date()",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "key": "apps/api-strategy/src/meri/context-load.ts|jitteredDelay||Math.random",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "key": "apps/api-strategy/src/meri/context-load.ts|sleep||setTimeout",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "key": "apps/api-strategy/src/meri/meri.service.ts|MeriService.fiscalWindow|VariableDeclaration:now|new Date()",
+      "before": 1,
+      "after": 0
+    }
+  ],
+  "deferredStaticSamples": 123,
+  "deferredIdentities": 116,
+  "canonicalProviderStaticSamples": [
+    "packages/shared/src/time.ts|systemWallClock||Date.now",
+    "packages/shared/src/time.ts|systemRandom||Math.random",
+    "packages/shared/src/time.ts|systemDelay||setTimeout"
+  ],
+  "manifestRows": 119,
+  "allCurrentDeferredCountsAndOwnersExactToOriginal": true,
+  "allDeferredRowsHaveExactPositiveCountsStatusReason": true,
+  "deferredDateClocksAcceptedAsFullyConverted": false,
+  "nativeAcceptance": false
+}

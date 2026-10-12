@@ -1,0 +1,37 @@
+{
+  "base": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "originalDataFieldsPreserved": [
+    "version",
+    "sourceRoots",
+    "originalSource",
+    "originalProductionFileCount",
+    "requiredFiles",
+    "retryConsumers",
+    "existingAmbient",
+    "retryDefinition",
+    "extraSourceFiles",
+    "canonicalDefinitions"
+  ],
+  "existingAmbientSha256": "9f2c2ef37f7159d96d4a9900a3c3cca70557d48957d0ff7f0d05cca7318de7a1",
+  "originalNamedTestsRetained": [
+    "explicit runtime boundary permits deterministic date math, types, comments and strings",
+    "existing sample allowance cannot grow or move to another owner",
+    "required runtime cannot become optional, defaulted, omitted or replaced",
+    "missing source, parse failures and malformed inventory fail closed",
+    "canonical helper ownership rejects function, variable and method copies",
+    "system defaults sample only on invocation and pass delay unchanged"
+  ],
+  "originalMutationCasesRetained": 23,
+  "deferredIdentities": 116,
+  "deferredSamples": 123,
+  "providerDefaultSamples": 3,
+  "explicitConsumerCalls": 6,
+  "addedDataField": "systemHookValueOwners",
+  "sourcePaths": [
+    "scripts/check-strategy-time-bypasses.mjs",
+    "scripts/check-strategy-time-bypasses.test.mjs",
+    "scripts/strategy-time-boundaries.json"
+  ],
+  "nativeAcceptance": false,
+  "mutantsExecuted": false
+}

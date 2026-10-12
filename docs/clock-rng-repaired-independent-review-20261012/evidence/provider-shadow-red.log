@@ -1,0 +1,27 @@
+{
+  "source": "aa1ce11fd480cf664f5b3d1902a61751368d238d",
+  "tree": "8f97dc2a55aa837115d43f9d2a38a443ee914afb",
+  "sourceFiles": 169,
+  "results": [
+    {
+      "name": "function-local same-name owner",
+      "addition": "export function reviewShadowProvider(){const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};return STRATEGY_TIME_PROVIDERS;} export function reviewShadowCall(){return reviewShadowProvider().clock();}",
+      "failures": [],
+      "rejected": false
+    },
+    {
+      "name": "block-local same-name owner",
+      "addition": "{const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};const reviewGet=()=>STRATEGY_TIME_PROVIDERS;exportedReviewSink(reviewGet);} declare function exportedReviewSink(x:unknown):void;",
+      "failures": [],
+      "rejected": false
+    },
+    {
+      "name": "callback same-name owner",
+      "addition": "export const reviewFactory=()=>{const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};return STRATEGY_TIME_PROVIDERS;}; export function reviewShadowCall(){return reviewFactory().clock();}",
+      "failures": [],
+      "rejected": false
+    }
+  ],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

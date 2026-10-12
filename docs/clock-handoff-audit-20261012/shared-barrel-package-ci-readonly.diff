@@ -1,0 +1,38 @@
+diff --git a/.github/workflows/ci-pr.yml b/.github/workflows/ci-pr.yml
+index 608e5e6f0..f9931af2d 100644
+--- a/.github/workflows/ci-pr.yml
++++ b/.github/workflows/ci-pr.yml
+@@ -213,6 +213,9 @@ jobs:
+       # DB-backed specs follow the repo's disposable-Postgres contract
+       # (guarded specs self-skip; intel-api is unguarded and fails) and are
+       # tracked as baseline setup packets — not hidden or skipped here.
++      - name: Guard Strategy grounding time and retry adoption
++        run: pnpm gate:cleanup4:strategy-time
++
+       - name: Test apps/api
+         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
+         run: pnpm --filter @capiro/api test
+diff --git a/package.json b/package.json
+index 809606b04..994c94764 100644
+--- a/package.json
++++ b/package.json
+@@ -111,7 +111,8 @@
+     "gate:cleanup1:python": "node scripts/cleanup-gates/gate.mjs --phase python",
+     "gate:cleanup1:e2e": "node scripts/cleanup-gates/gate.mjs --phase e2e",
+     "gate:cleanup1:test": "node --test scripts/cleanup-gates/guard-config.test.mjs",
+-    "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure"
++    "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure",
++    "gate:cleanup4:strategy-time": "node scripts/check-strategy-time-bypasses.mjs && node --test scripts/check-strategy-time-bypasses.test.mjs"
+   },
+   "devDependencies": {
+     "prettier": "^3.9.9",
+diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
+index 7cd14e664..39ed5db53 100644
+--- a/packages/shared/src/index.ts
++++ b/packages/shared/src/index.ts
+@@ -5760,3 +5760,5 @@ export * from './prospect-resource-scope.js';
+ export * from './workspace-saved-revision.js';
+ 
+ export * from './client-objective-destination.js';
++
++export * from './time.js';

@@ -111,7 +111,8 @@
     "gate:cleanup1:python": "node scripts/cleanup-gates/gate.mjs --phase python",
     "gate:cleanup1:e2e": "node scripts/cleanup-gates/gate.mjs --phase e2e",
     "gate:cleanup1:test": "node --test scripts/cleanup-gates/guard-config.test.mjs",
-    "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure"
+    "coverage:cleanup1": "node scripts/cleanup-gates/coverage.mjs --measure",
+    "gate:cleanup4:strategy-time": "node scripts/check-strategy-time-bypasses.mjs && node --test scripts/check-strategy-time-bypasses.test.mjs"
   },
   "devDependencies": {
     "prettier": "^3.9.9",

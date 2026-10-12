@@ -1,0 +1,41 @@
+{
+  "source": "ddb1c38375f44f5daa1443cba56a0299469b3ffb",
+  "tree": "8e4904ea1ba045f1d66fbb670d450d24e431c07a",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "sourcePathCount": 18,
+  "sourcePaths": [
+    ".github/workflows/ci-pr.yml",
+    "apps/api-strategy/src/fiscal/fiscal.spec.ts",
+    "apps/api-strategy/src/fiscal/fiscal.ts",
+    "apps/api-strategy/src/meri/context-load.spec.ts",
+    "apps/api-strategy/src/meri/context-load.ts",
+    "apps/api-strategy/src/meri/draft-job.service.spec.ts",
+    "apps/api-strategy/src/meri/draft-job.service.ts",
+    "apps/api-strategy/src/meri/meri.module.ts",
+    "apps/api-strategy/src/meri/meri.service.spec.ts",
+    "apps/api-strategy/src/meri/meri.service.ts",
+    "apps/api-strategy/src/meri/strategy-time.providers.spec.ts",
+    "apps/api-strategy/src/meri/strategy-time.providers.ts",
+    "package.json",
+    "packages/shared/src/index.ts",
+    "packages/shared/src/time.ts",
+    "scripts/check-strategy-time-bypasses.mjs",
+    "scripts/check-strategy-time-bypasses.test.mjs",
+    "scripts/strategy-time-boundaries.json"
+  ],
+  "sibling": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+  "siblingPaths": [
+    "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+    "apps/api/scripts/lib/pe-public-law-facade-containment.ts",
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "overlap": [],
+  "repairSource": "aa1ce11fd480cf664f5b3d1902a61751368d238d",
+  "repairThreeBlobsExact": true,
+  "otherFifteenSourcePathsExactInitial": true,
+  "allOriginalDataFieldsAnd119RowsExact": true,
+  "protectedSchemasMigrationsAndPriorPacketPaths": 1393,
+  "protectedAllByteExact": true,
+  "nativeAcceptance": false
+}

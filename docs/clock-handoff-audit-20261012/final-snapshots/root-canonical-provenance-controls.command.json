@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "scripts/check-strategy-time-bypasses.test.mjs"
+  ],
+  "source": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+  "tree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+  "exit": 0,
+  "elapsedSeconds": 1.305,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,13 @@
+{
+  "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "phase": "green",
+  "sourceFiles": 169,
+  "baseline": [],
+  "deferredIdentities": 116,
+  "deferredSamples": 123,
+  "cases": 21,
+  "rejected": 21,
+  "unexpectedlyAccepted": [],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

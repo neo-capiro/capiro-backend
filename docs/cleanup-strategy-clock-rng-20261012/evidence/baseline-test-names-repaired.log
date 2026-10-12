@@ -1,0 +1,10 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-cleanup-clock-source/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+
+Test Suites: 4 skipped, 0 of 4 total
+Tests:       102 skipped, 102 total
+Snapshots:   0 total
+Time:        2.524 s
+Ran all test suites within paths "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/meri/context-load.spec.ts", "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/meri/meri.service.spec.ts", "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/meri/draft-job.service.spec.ts", "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/fiscal/fiscal.spec.ts".
+Test results written to: ../../docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.json

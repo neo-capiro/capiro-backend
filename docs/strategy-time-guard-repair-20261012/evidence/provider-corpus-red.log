@@ -1,0 +1,8 @@
+{
+  "testedSource": "aa1ce11fd480cf664f5b3d1902a61751368d238d",
+  "phase": "red",
+  "sourceFiles": 169,
+  "rejected": 0,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,13 @@
+{
+  "source": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "tree": "c7ccd8cb80528c3cedaeead92e5c3babcfbdf158",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/check-strategy-time-bypasses.test.mjs"
+  ],
+  "cwd": "/workspace/capirov2-clock-rng-final-review",
+  "exitCode": 0,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}
