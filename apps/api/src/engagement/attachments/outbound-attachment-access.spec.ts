@@ -85,9 +85,11 @@ function harness(rows = [row()]) {
     meeting: { findFirst: jest.fn().mockResolvedValue({ id: 'meeting-1', clientId: 'client-1' }) },
     mailMessage: {
       findFirst: jest.fn().mockResolvedValue({ id: 'mail-1' }),
-      upsert: jest.fn().mockResolvedValue({ id: 'sent-1' }),
+      upsert: jest.fn().mockResolvedValue({ id: 'sent-1', connectionId: 'connection-1' }),
     },
-    mailThread: { upsert: jest.fn().mockResolvedValue({ id: 'thread-1' }) },
+    mailThread: {
+      upsert: jest.fn().mockResolvedValue({ id: 'thread-1', connectionId: 'connection-1' }),
+    },
   };
   const readAttachmentBytes = jest.fn().mockResolvedValue(bytes);
   const sendMail = jest.fn().mockResolvedValue({
@@ -107,9 +109,12 @@ function harness(rows = [row()]) {
     scanner: { scanRequired: false },
     readAttachmentBytes,
     mailSender: { sendMail },
-    findCampaignSendConnection: jest
-      .fn()
-      .mockResolvedValue({ id: 'connection-1', provider: 'google_workspace' }),
+    findCampaignSendConnection: jest.fn().mockResolvedValue({
+      id: 'connection-1',
+      provider: 'google_workspace',
+      accountEmail: 'actor@example.test',
+      displayName: 'Actor',
+    }),
     resolveSenderSignatureHtml: jest.fn().mockResolvedValue({
       signatureHtml: '',
       senderEmail: 'actor@example.test',

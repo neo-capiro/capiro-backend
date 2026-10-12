@@ -39,6 +39,7 @@ import {
   Min,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import { AssociationEntityType, EngagementProvider, EngagementTaskStatus } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -346,6 +347,10 @@ class SingleMailRecipientDto {
 }
 
 class SendSingleMailDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsUUID()
+  senderConnectionId?: string;
+
   @IsOptional()
   @IsUUID()
   clientId?: string;
@@ -2013,6 +2018,11 @@ export class EngagementController {
   @Roles('standard_user')
   integrations(@CurrentTenant() ctx: TenantContext) {
     return this.service.listIntegrations(ctx);
+  }
+
+  @Get('mail/mailboxes')
+  mailboxes(@CurrentTenant() ctx: TenantContext) {
+    return this.service.listSendingMailboxes(ctx);
   }
 
   @Post('integrations')

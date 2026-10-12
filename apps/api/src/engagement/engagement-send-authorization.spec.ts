@@ -12,11 +12,16 @@ const ctx: TenantContext = {
 };
 const resolving = <T>(value: T) =>
   jest.fn<(...args: unknown[]) => Promise<T>>().mockResolvedValue(value);
-function harness(thread: { id: string } | null) {
+function harness(thread: { id: string; connectionId: string } | null) {
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
   const findFirst = resolving(thread);
-  const connect = resolving({ id: 'connection-test', provider: 'microsoft_365' });
+  const connect = resolving({
+    id: 'connection-test',
+    provider: 'microsoft_365',
+    accountEmail: 'sender@example.test',
+    displayName: 'Test',
+  });
   const attachments = resolving(undefined);
   const send = jest
     .fn<(...args: unknown[]) => Promise<never>>()
@@ -54,14 +59,14 @@ describe('sendSingleMail pre-send reply authorization', () => {
         connection: { createdByUserId: ctx.userId },
         messages: { some: { removedAt: null } },
       },
-      select: { id: true },
+      select: { id: true, connectionId: true },
     });
     expect(h.connect).not.toHaveBeenCalled();
     expect(h.attachments).not.toHaveBeenCalled();
     expect(h.send).not.toHaveBeenCalled();
   });
   test('an accessible reply reaches the provider only after the ownership read', async () => {
-    const h = harness({ id: 'owned-thread' });
+    const h = harness({ id: 'owned-thread', connectionId: 'connection-test' });
     await expect(
       h.service.sendSingleMail(ctx, { ...input, threadId: 'owned-thread' }),
     ).rejects.toThrow();

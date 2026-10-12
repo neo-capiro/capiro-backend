@@ -29,7 +29,8 @@ const ctx: TenantContext = {
 
 /** jest.fn() with no generic infers `never` for mockResolvedValue under this
  *  repo's strictness; this keeps each stub's resolved type explicit. */
-const resolving = <T>(value: T) => jest.fn<(...args: unknown[]) => Promise<T>>().mockResolvedValue(value);
+const resolving = <T>(value: T) =>
+  jest.fn<(...args: unknown[]) => Promise<T>>().mockResolvedValue(value);
 
 type UpsertArgs = {
   where: { tenantId_source_externalId: { tenantId: string; source: string; externalId: string } };
@@ -43,17 +44,25 @@ type UpsertArgs = {
  * write and the attachment back-link are stubbed to whatever shape the code
  * needs to keep running.
  */
-function makeService(provider: 'microsoft_365' | 'google_workspace', sendResult: EngagementMailSendResult) {
+function makeService(
+  provider: 'microsoft_365' | 'google_workspace',
+  sendResult: EngagementMailSendResult,
+) {
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
 
   const threadUpsert = jest
-    .fn<(args: UpsertArgs) => Promise<{ id: string }>>()
-    .mockResolvedValue({ id: 'thread-1' });
-  const messageUpsert = resolving({ id: 'message-1' });
+    .fn<(args: UpsertArgs) => Promise<{ id: string; connectionId: string }>>()
+    .mockResolvedValue({ id: 'thread-1', connectionId: CONNECTION });
+  const messageUpsert = resolving({ id: 'message-1', connectionId: CONNECTION });
   const attachmentUpdateMany = resolving({ count: 0 });
 
-  patch.findCampaignSendConnection = resolving({ id: CONNECTION, provider });
+  patch.findCampaignSendConnection = resolving({
+    id: CONNECTION,
+    provider,
+    accountEmail: 'jordan@capiro.ai',
+    displayName: 'Jordan',
+  });
   patch.resolveSenderSignatureHtml = resolving({
     signatureHtml: null,
     senderEmail: 'jordan@capiro.ai',
