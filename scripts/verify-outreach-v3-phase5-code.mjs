@@ -1,7 +1,18 @@
 #!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+const usage = 'Usage: node scripts/verify-outreach-v3-phase5-code.mjs (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
 
 const root = process.cwd();
 const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
