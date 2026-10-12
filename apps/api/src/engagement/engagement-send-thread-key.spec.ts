@@ -54,7 +54,11 @@ function makeService(
   const threadUpsert = jest
     .fn<(args: UpsertArgs) => Promise<{ id: string; connectionId: string }>>()
     .mockResolvedValue({ id: 'thread-1', connectionId: CONNECTION });
-  const messageUpsert = resolving({ id: 'message-1', connectionId: CONNECTION });
+  const messageUpsert = resolving({
+    id: 'message-1',
+    connectionId: CONNECTION,
+    threadId: 'thread-1',
+  });
   const attachmentUpdateMany = resolving({ count: 0 });
 
   patch.findCampaignSendConnection = resolving({

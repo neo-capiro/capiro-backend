@@ -9424,7 +9424,7 @@ export class EngagementService {
         create: { tenantId: ctx.tenantId, source: messageSource, externalId, ...messageData },
         update: sentWithAttachments ? { hasAttachments: true } : {},
       });
-      if (message.connectionId !== connection.id) {
+      if (message.connectionId !== connection.id || message.threadId !== thread.id) {
         throw new NotFoundException('Mail message not found');
       }
       // Back-link the attachments to the message they were sent on, inside the

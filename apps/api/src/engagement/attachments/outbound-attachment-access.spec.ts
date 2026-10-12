@@ -85,7 +85,9 @@ function harness(rows = [row()]) {
     meeting: { findFirst: jest.fn().mockResolvedValue({ id: 'meeting-1', clientId: 'client-1' }) },
     mailMessage: {
       findFirst: jest.fn().mockResolvedValue({ id: 'mail-1' }),
-      upsert: jest.fn().mockResolvedValue({ id: 'sent-1', connectionId: 'connection-1' }),
+      upsert: jest
+        .fn()
+        .mockResolvedValue({ id: 'sent-1', connectionId: 'connection-1', threadId: 'thread-1' }),
     },
     mailThread: {
       upsert: jest.fn().mockResolvedValue({ id: 'thread-1', connectionId: 'connection-1' }),
