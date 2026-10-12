@@ -1,0 +1,1097 @@
+{
+  "sourceHead": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+  "sourceTree": "1fee6de079b59ecc3947109bb897f31d963a235b",
+  "baseHead": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "result": "PASS six inert before/new scope pairs: original explicit-run guards refuse scopes, candidate deliberately accepts scopes",
+  "scope": "Actual wrapper text via VM/fake ports only, no real verifier/process/provider/file fixture/native execution",
+  "rows": [
+    {
+      "phase": "phase1",
+      "scope": "backend-only",
+      "original": {
+        "status": 2,
+        "commands": [],
+        "reads": [],
+        "stdout": [],
+        "stderr": [
+          "Usage: node scripts/verify-outreach-v3-phase1-code.mjs (--run | --help)"
+        ],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      },
+      "candidate": {
+        "status": 0,
+        "commands": [
+          {
+            "command": "git",
+            "argv": [
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "origin/main"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": [
+                "ignore",
+                "ignore",
+                "ignore"
+              ]
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "merge-base",
+              "origin/main",
+              "HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "--test",
+              "scripts/engagement-runtime-ownership.spec.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "--test",
+              "scripts/verify-outreach-v3-p1-architecture.spec.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "--test",
+              "scripts/verify-outreach-v3-p1-route-parity.spec.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "scripts/engagement-runtime-ownership.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "scripts/verify-outreach-v3-p1-route-parity.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "scripts/verify-outreach-v3-p1-architecture.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "scripts/run-outreach-v3-p1-owner-rehearsal.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "-C",
+              "apps/api",
+              "exec",
+              "jest",
+              "--runInBand",
+              "--forceExit",
+              "src/engagement-api.app.module.spec.ts",
+              "src/engagement/engagement-dependency-manifest.spec.ts",
+              "src/engagement/ai-credential-resolver.service.spec.ts",
+              "src/engagement/internal-ai-credentials.controller.spec.ts",
+              "src/client-documents/client-document-writer.service.spec.ts",
+              "src/capabilities/capability-authorization.service.spec.ts",
+              "src/capabilities/capability-registry.spec.ts",
+              "src/capabilities/proof-capabilities.spec.ts",
+              "src/meeting-capture/meeting-capture-persistence.service.spec.ts",
+              "src/outreach-review/outreach-review-transactions.service.spec.ts",
+              "src/engagement-workers/engagement-workers.spec.ts",
+              "src/engagement/runtime",
+              "src/engagement/engagement-sync-scheduler.service.spec.ts",
+              "src/engagement/outreach-job.spec.ts",
+              "src/engagement/outreach-send-intent.service.spec.ts",
+              "src/engagement/notetaker/notetaker.service.spec.ts",
+              "src/intelligence/alert-memo/alert-memo.service.spec.ts",
+              "src/intelligence/alert-memo/district-brief.service.spec.ts",
+              "src/intelligence/alert-memo/hearing-recap.service.spec.ts"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "-C",
+              "apps/api",
+              "exec",
+              "tsc",
+              "-p",
+              "tsconfig.outreach-v3-phase1.json",
+              "--noEmit"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "verify:engagement-phase-3:backend"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/api",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "synthetic-base..HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          }
+        ],
+        "reads": [],
+        "stdout": [
+          "\n==> ownership negative controls",
+          "\n==> architecture negative controls",
+          "\n==> route-parser controls",
+          "\n==> runtime ownership contract",
+          "\n==> callback route parity",
+          "\n==> architecture and scope gate",
+          "\n==> owner rehearsals",
+          "\n==> focused Phase 1 tests",
+          "\n==> Phase 1 TypeScript project",
+          "\n==> Phase 3 regression",
+          "\n==> API production build",
+          "\n==> Phase 1 whitespace",
+          "\nOUTREACH_V3_PHASE1_BACKEND_DB_FREE_COMPLETE"
+        ],
+        "stderr": [],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      }
+    },
+    {
+      "phase": "phase1",
+      "scope": "frontend-only",
+      "original": {
+        "status": 2,
+        "commands": [],
+        "reads": [],
+        "stdout": [],
+        "stderr": [
+          "Usage: node scripts/verify-outreach-v3-phase1-code.mjs (--run | --help)"
+        ],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      },
+      "candidate": {
+        "status": 0,
+        "commands": [
+          {
+            "command": "git",
+            "argv": [
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "origin/main"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": [
+                "ignore",
+                "ignore",
+                "ignore"
+              ]
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "merge-base",
+              "origin/main",
+              "HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "verify:engagement-phase-3:frontend"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "synthetic-base..HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          }
+        ],
+        "reads": [],
+        "stdout": [
+          "\n==> Phase 3 regression",
+          "\n==> Phase 1 whitespace",
+          "\nOUTREACH_V3_PHASE1_FRONTEND_DB_FREE_COMPLETE"
+        ],
+        "stderr": [],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      }
+    },
+    {
+      "phase": "phase3",
+      "scope": "backend-only",
+      "original": {
+        "status": 2,
+        "commands": [],
+        "reads": [],
+        "stdout": [],
+        "stderr": [
+          "Usage: node scripts/verify-outreach-v3-phase3-code.mjs (--run | --help)"
+        ],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      },
+      "candidate": {
+        "status": 0,
+        "commands": [
+          {
+            "command": "git",
+            "argv": [
+              "rev-parse",
+              "origin/main"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            },
+            "execFile": true
+          },
+          {
+            "command": "git",
+            "argv": [
+              "rev-parse",
+              "HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            },
+            "execFile": true
+          },
+          {
+            "command": "git",
+            "argv": [
+              "merge-base",
+              "synthetic-base",
+              "synthetic-base"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            },
+            "execFile": true
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/shared",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/meriv2-core",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/defense-contracts",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/defense-domain",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "-C",
+              "apps/api",
+              "exec",
+              "prisma",
+              "generate",
+              "--schema",
+              "prisma/schema.prisma"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic",
+                "DATABASE_URL": "postgresql://phase3:phase3@127.0.0.1:1/phase3?schema=public"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "-C",
+              "apps/api",
+              "exec",
+              "jest",
+              "--runInBand",
+              "--forceExit",
+              "src/outreach-v3/reasoning/outreach-v3-reasoning.guard.spec.ts",
+              "src/outreach-v3/reasoning/outreach-v3-phase3-architecture.spec.ts",
+              "src/outreach-v3/reasoning/outreach-v3-phase3-migration.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-runtime-boundary.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-credential-boundary.spec.ts",
+              "src/outreach-v3/reasoning/openai-outreach-reasoning.provider.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-turn-claim.service.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-history.service.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-contract-eval.spec.ts"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic",
+                "NODE_OPTIONS": "--max-old-space-size=6144"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "-C",
+              "apps/api",
+              "exec",
+              "tsc",
+              "-p",
+              "tsconfig.outreach-v3-phase3.json",
+              "--noEmit"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "-C",
+              "apps/api",
+              "exec",
+              "prisma",
+              "validate",
+              "--schema",
+              "prisma/outreach-v3-phase3/schema.prisma"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic",
+                "DATABASE_URL": "postgresql://phase3:phase3@127.0.0.1:1/phase3?schema=public"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "--check",
+              "scripts/verify-outreach-v3-phase3-db.mjs"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "verify:outreach-v3-phase-2"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "verify:engagement-phase-3:backend"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/api",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "synthetic-base..HEAD",
+              "--",
+              ".",
+              ":(exclude)docs/plans/**/*.md",
+              ":(exclude).github/**/*.yml",
+              ":(exclude).github/**/*.yaml"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          }
+        ],
+        "reads": [],
+        "stdout": [
+          "\n==> Build shared API dependency",
+          "\n==> Build Meri core API dependency",
+          "\n==> Build Defense contracts API dependency",
+          "\n==> Build Defense domain API dependency",
+          "\n==> Canonical API Prisma client generation",
+          "\n==> Phase 3 focused reasoning/runtime tests + 100-case contract eval",
+          "\n==> Phase 3 focused TypeScript project",
+          "\n==> Phase 3 focused Prisma projection validation",
+          "\n==> Phase 3 DB rehearsal syntax",
+          "\n==> Phase 2 state-substrate regression",
+          "\n==> Engagement Phase 3 current-product regression",
+          "\n==> API production build",
+          "\n==> Phase 3 committed-diff whitespace",
+          "\nOUTREACH_V3_PHASE3_BACKEND_DB_FREE_COMPLETE"
+        ],
+        "stderr": [],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      }
+    },
+    {
+      "phase": "phase3",
+      "scope": "frontend-only",
+      "original": {
+        "status": 2,
+        "commands": [],
+        "reads": [],
+        "stdout": [],
+        "stderr": [
+          "Usage: node scripts/verify-outreach-v3-phase3-code.mjs (--run | --help)"
+        ],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      },
+      "candidate": {
+        "status": 0,
+        "commands": [
+          {
+            "command": "git",
+            "argv": [
+              "rev-parse",
+              "origin/main"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            },
+            "execFile": true
+          },
+          {
+            "command": "git",
+            "argv": [
+              "rev-parse",
+              "HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            },
+            "execFile": true
+          },
+          {
+            "command": "git",
+            "argv": [
+              "merge-base",
+              "synthetic-base",
+              "synthetic-base"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8"
+            },
+            "execFile": true
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "verify:engagement-phase-3:frontend"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "synthetic-base..HEAD",
+              "--",
+              ".",
+              ":(exclude)docs/plans/**/*.md",
+              ":(exclude).github/**/*.yml",
+              ":(exclude).github/**/*.yaml"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              },
+              "shell": false,
+              "stdio": "inherit"
+            }
+          }
+        ],
+        "reads": [],
+        "stdout": [
+          "\n==> Engagement Phase 3 current-product regression",
+          "\n==> Phase 3 committed-diff whitespace",
+          "\nOUTREACH_V3_PHASE3_FRONTEND_DB_FREE_COMPLETE"
+        ],
+        "stderr": [],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      }
+    },
+    {
+      "phase": "phase4",
+      "scope": "backend-only",
+      "original": {
+        "status": 2,
+        "commands": [],
+        "reads": [],
+        "stdout": [],
+        "stderr": [
+          "Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)"
+        ],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      },
+      "candidate": {
+        "status": 0,
+        "commands": [
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--name-only",
+              "b043a995928314f7085b7f9df94bdba02cee9640...208dae611d9f5636f3b7507f8782ff7cc864c4ed"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "encoding": "utf8",
+              "shell": false
+            }
+          },
+          {
+            "command": "node",
+            "argv": [
+              "scripts/verify-outreach-v3-phase3-code.mjs",
+              "--run",
+              "--backend-only"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic",
+                "ENGAGEMENT_PHASE3_SCOPE_END": "b043a995928314f7085b7f9df94bdba02cee9640"
+              }
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/api",
+              "exec",
+              "tsc",
+              "-p",
+              "tsconfig.outreach-v3-phase4.json"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              }
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/api",
+              "exec",
+              "jest",
+              "--runInBand",
+              "src/capabilities/targets/outreach-target.contract.spec.ts",
+              "src/capabilities/targets/search-targets.capability.spec.ts",
+              "src/outreach-v3/state/outreach-campaign-state.spec.ts",
+              "src/outreach-v3/services/outreach-command-engine.service.spec.ts",
+              "src/outreach-v3/targets/outreach-target-coverage.service.spec.ts",
+              "src/outreach-v3/targets/outreach-v3-targets.guard.spec.ts",
+              "src/outreach-v3/targets/outreach-v3-targets.service.spec.ts",
+              "src/outreach-v3/targets/outreach-v3-phase4-architecture.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts",
+              "src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts",
+              "--forceExit"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic",
+                "ENGAGEMENT_PHASE3_SCOPE_END": "b043a995928314f7085b7f9df94bdba02cee9640"
+              }
+            }
+          },
+          {
+            "command": "pnpm",
+            "argv": [
+              "--filter",
+              "@capiro/api",
+              "build"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              }
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "b043a995928314f7085b7f9df94bdba02cee9640...208dae611d9f5636f3b7507f8782ff7cc864c4ed"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              }
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "origin/main...HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              }
+            }
+          }
+        ],
+        "reads": [
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/capabilities/targets/outreach-target.contract.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/capabilities/targets/outreach-target-reference.service.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/capabilities/targets/search-targets.capability.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/capabilities/targets/get-target-profile.capability.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/capabilities/targets/analyze-relationships.capability.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/targets/outreach-target-coverage.service.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/targets/outreach-v3-targets.controller.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/targets/outreach-v3-targets.guard.ts"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json"
+          },
+          {
+            "kind": "exists",
+            "file": "/synthetic/root/apps/api/tsconfig.outreach-v3-phase4.json"
+          },
+          {
+            "kind": "read",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/targets/synthetic.ts"
+          },
+          {
+            "kind": "read",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/targets/synthetic.ts"
+          },
+          {
+            "kind": "read",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/reasoning/outreach-reasoning.service.ts"
+          },
+          {
+            "kind": "read",
+            "file": "/synthetic/root/apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json"
+          },
+          {
+            "kind": "read",
+            "file": "/synthetic/root/apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json"
+          }
+        ],
+        "stdout": [
+          "\n== Phase 3 reasoning regression ==\nnode scripts/verify-outreach-v3-phase3-code.mjs --run --backend-only\n",
+          "\n== Phase 4 TypeScript project ==\npnpm --filter @capiro/api exec tsc -p tsconfig.outreach-v3-phase4.json\n",
+          "\n== Phase 4 focused tests ==\npnpm --filter @capiro/api exec jest --runInBand src/capabilities/targets/outreach-target.contract.spec.ts src/capabilities/targets/search-targets.capability.spec.ts src/outreach-v3/state/outreach-campaign-state.spec.ts src/outreach-v3/services/outreach-command-engine.service.spec.ts src/outreach-v3/targets/outreach-target-coverage.service.spec.ts src/outreach-v3/targets/outreach-v3-targets.guard.spec.ts src/outreach-v3/targets/outreach-v3-targets.service.spec.ts src/outreach-v3/targets/outreach-v3-phase4-architecture.spec.ts src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts --forceExit\n",
+          "\n== API build ==\npnpm --filter @capiro/api build\n",
+          "\n== Diff whitespace ==\ngit diff --check b043a995928314f7085b7f9df94bdba02cee9640...208dae611d9f5636f3b7507f8782ff7cc864c4ed\n",
+          "\n== Current PR whitespace ==\ngit diff --check origin/main...HEAD\n",
+          "\nOUTREACH_V3_PHASE4_BACKEND_DB_FREE_COMPLETE\n"
+        ],
+        "stderr": [],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      }
+    },
+    {
+      "phase": "phase4",
+      "scope": "frontend-only",
+      "original": {
+        "status": 2,
+        "commands": [],
+        "reads": [],
+        "stdout": [],
+        "stderr": [
+          "Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)"
+        ],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      },
+      "candidate": {
+        "status": 0,
+        "commands": [
+          {
+            "command": "node",
+            "argv": [
+              "scripts/verify-outreach-v3-phase3-code.mjs",
+              "--run",
+              "--frontend-only"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic",
+                "ENGAGEMENT_PHASE3_SCOPE_END": "b043a995928314f7085b7f9df94bdba02cee9640"
+              }
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "b043a995928314f7085b7f9df94bdba02cee9640...208dae611d9f5636f3b7507f8782ff7cc864c4ed"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              }
+            }
+          },
+          {
+            "command": "git",
+            "argv": [
+              "diff",
+              "--check",
+              "origin/main...HEAD"
+            ],
+            "options": {
+              "cwd": "/synthetic/root",
+              "stdio": "inherit",
+              "shell": false,
+              "env": {
+                "CURRENT_SENTINEL": "synthetic"
+              }
+            }
+          }
+        ],
+        "reads": [],
+        "stdout": [
+          "\n== Phase 3 reasoning regression ==\nnode scripts/verify-outreach-v3-phase3-code.mjs --run --frontend-only\n",
+          "\n== Diff whitespace ==\ngit diff --check b043a995928314f7085b7f9df94bdba02cee9640...208dae611d9f5636f3b7507f8782ff7cc864c4ed\n",
+          "\n== Current PR whitespace ==\ngit diff --check origin/main...HEAD\n",
+          "\nOUTREACH_V3_PHASE4_FRONTEND_DB_FREE_COMPLETE\n"
+        ],
+        "stderr": [],
+        "env": {
+          "CURRENT_SENTINEL": "synthetic"
+        }
+      }
+    }
+  ]
+}

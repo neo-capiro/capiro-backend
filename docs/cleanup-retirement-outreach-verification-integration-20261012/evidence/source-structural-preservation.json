@@ -1,0 +1,133 @@
+{
+  "sourceHead": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+  "sourceTree": "1fee6de079b59ecc3947109bb897f31d963a235b",
+  "baseHead": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "checks": [
+    {
+      "name": "Original function/process policy 1/resolvePhase1WhitespaceBase",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 1/run",
+      "passed": true
+    },
+    {
+      "name": "cleanup noargs/help metadata preserved 1",
+      "passed": true
+    },
+    {
+      "name": "Current source equals frozen committedblob 1",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 3/resolveWhitespaceBase",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 3/run",
+      "passed": true
+    },
+    {
+      "name": "cleanup noargs/help metadata preserved 3",
+      "passed": true
+    },
+    {
+      "name": "Current source equals frozen committedblob 3",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 4/run",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 4/output",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 4/assert",
+      "passed": true
+    },
+    {
+      "name": "Original function/process policy 4/isProductionSource",
+      "passed": true
+    },
+    {
+      "name": "cleanup noargs/help metadata preserved 4",
+      "passed": true
+    },
+    {
+      "name": "All six currentPhase4 calls andenvironment operands exact",
+      "passed": true
+    },
+    {
+      "name": "Current source equals frozen committedblob 4",
+      "passed": true
+    },
+    {
+      "name": "New helper/test equals frozen source scripts/outreach-v3-qualification-plan.mjs",
+      "passed": true
+    },
+    {
+      "name": "New helper/test equals frozen source scripts/outreach-v3-qualification-plan.spec.mjs",
+      "passed": true
+    },
+    {
+      "name": "Every export has an actual wrapper call outreachV3Scope",
+      "passed": true
+    },
+    {
+      "name": "Every export has an actual wrapper call outreachV3RunsLocalContracts",
+      "passed": true
+    },
+    {
+      "name": "Every export has an actual wrapper call outreachV3QualificationPlan",
+      "passed": true
+    },
+    {
+      "name": "Every export has an actual wrapper call outreachV3CompletionMarker",
+      "passed": true
+    },
+    {
+      "name": "Every export has an actual wrapper call outreachV3FailureMarker",
+      "passed": true
+    },
+    {
+      "name": "Every export has an actual wrapper call executeOutreachV3Plan",
+      "passed": true
+    },
+    {
+      "name": "No dead matcher export introduced",
+      "passed": true
+    }
+  ],
+  "passed": 24,
+  "total": 24,
+  "sourceManifest": [
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd",
+      "frozenBlob": "7fcdaf9356629488248e42a59ff31f7bbaec77a9"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3",
+      "frozenBlob": "252dcec68c240df3ccadaadb54d6e8ab4f315337"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5",
+      "frozenBlob": "0871e0c5f4f2df3b500e014f7e58cb5fc18a77b4"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.mjs",
+      "sha256": "bdb9ba82c78b05a26e7aeef9eec013d2e562b0318ee44b7ed3725e3bfd0e546a",
+      "frozenBlob": "a25921c87ac1ba5d52bae7844ac97bf75106b67b"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "sha256": "e49066994c994f39c91fdfdf096084e6faded1e684423fbafb299fa3a034ccfb",
+      "frozenBlob": "b081dd08a3d38538ee2f367e3f6e1f7d2e29d190"
+    }
+  ],
+  "scope": "AST/hash only, no verifier/provider/native/package/SQL/DB/application execution"
+}
