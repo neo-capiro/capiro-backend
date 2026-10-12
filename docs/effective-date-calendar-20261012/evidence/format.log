@@ -1,0 +1,9 @@
+apps/api/src/federal-register/effective-date-evidence.spec.ts 567ms
+apps/api/src/federal-register/effective-date-evidence.ts 326ms
+apps/api/src/federal-register/federal-register-calendar.spec.ts 100ms
+apps/api/src/federal-register/federal-register-observation.spec.ts 47ms
+apps/api/src/federal-register/federal-register-observation.ts 62ms
+apps/api/src/federal-register/federal-register.controller.ts 55ms (unchanged)
+apps/api/src/federal-register/federal-register.module.ts 7ms (unchanged)
+apps/api/src/federal-register/federal-register.service.ts 140ms
+apps/api/scripts/sync-federal-register.ts 307ms

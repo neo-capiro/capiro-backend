@@ -1,0 +1,8 @@
+src/federal-register/effective-checkpoint-independent-review.spec.ts(40,18): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ schemaVersion: number; scope: string; incrementalCheckpointEligible: boolean; }'.
+src/federal-register/effective-checkpoint-independent-review.spec.ts(148,92): error TS2345: Argument of type '(argv: "--incremental" | undefined) => Promise<void>' is not assignable to parameter of type '(...args: [] | ["--incremental"]) => any'.
+  Types of parameters 'argv' and 'args' are incompatible.
+    Type '[] | ["--incremental"]' is not assignable to type '[argv: "--incremental" | undefined]'.
+      Type '[]' is not assignable to type '[argv: "--incremental" | undefined]'.
+        Source has 0 element(s) but target requires 1.
+src/federal-register/effective-checkpoint-independent-review.spec.ts(149,41): error TS2488: Type '"--incremental" | undefined' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/federal-register/effective-checkpoint-independent-review.spec.ts(152,10): error TS18048: 'argv' is possibly 'undefined'.

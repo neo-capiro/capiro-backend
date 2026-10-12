@@ -1,0 +1,91 @@
+{
+  "verdict": "accepted_source_only",
+  "reviewedHead": "f2b4cf3d733bf3cbb84dd8c453c037848d82ea82",
+  "reviewedTree": "08519d0fa4fc14da9116b3f299d0d9d5c4e0c685",
+  "equivalentReviewImportHead": "811cca9ad",
+  "generatedAt": "2026-10-12T07:00:46.813Z",
+  "independentTests": 82,
+  "retainedAuthorAndHelperTests": 72,
+  "combinedTests": 154,
+  "combinedSuites": 7,
+  "failedTests": 0,
+  "passedChecks": [
+    {
+      "command": "NODE_OPTIONS=--max-old-space-size=3072 apps/api/node_modules/.bin/jest --config docs/effective-date-calendar-20261012/evidence/independent/review-jest.cjs --runInBand --runTestsByPath <seven paths recorded in review-final.log> --json --outputFile docs/effective-date-calendar-20261012/evidence/independent/review-final.json",
+      "exitCode": 0,
+      "log": "review-final.log",
+      "result": "review-final.json"
+    },
+    {
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 node_modules/.bin/tsc --noEmit --skipLibCheck --strict --esModuleInterop --target ES2022 --module Node16 --moduleResolution Node16 --experimentalDecorators --emitDecoratorMetadata --types jest,node src/federal-register/effective-independent-review.spec.ts src/federal-register/effective-script-independent-review.spec.ts scripts/sync-federal-register.ts",
+      "cwd": "apps/api",
+      "exitCode": 0,
+      "log": "review-types-with-script-final.log"
+    },
+    {
+      "command": "node docs/effective-date-calendar-20261012/evidence/independent/source-review.mjs",
+      "exitCode": 0,
+      "log": "source-review.log",
+      "result": "source-review.json"
+    },
+    {
+      "command": "git diff --check f2b4cf3d733bf3cbb84dd8c453c037848d82ea82 HEAD -- apps packages scripts",
+      "exitCode": 0,
+      "scope": "source and independent tests",
+      "log": "review-diff-check-source.log",
+      "result": "review-diff-check-source-exit.json"
+    },
+    {
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 node_modules/.bin/tsc --noEmit --skipLibCheck --strict --noUncheckedIndexedAccess --esModuleInterop --target ES2022 --module Node16 --moduleResolution Node16 --experimentalDecorators --emitDecoratorMetadata --types jest,node src/federal-register/effective-independent-review.spec.ts src/federal-register/effective-script-independent-review.spec.ts scripts/sync-federal-register.ts",
+      "cwd": "apps/api",
+      "exitCode": 0,
+      "log": "review-types-no-unchecked-final.log"
+    },
+    {
+      "command": "independent seven-suite synthetic rerun after fixture repair",
+      "exitCode": 0,
+      "log": "review-fixture-repair-final.log",
+      "result": "review-fixture-repair-final.json"
+    }
+  ],
+  "retainedFailedEvidence": [
+    {
+      "log": "review-initial.log",
+      "outcome": "3GB default semantic ts-jest transform OOM before assertions; exact exit not captured"
+    },
+    {
+      "log": "review-types-initial.log",
+      "exitCode": 2,
+      "outcome": "wrong root cwd for ambient Jest/Node type resolution"
+    },
+    {
+      "log": "review-types-app.log",
+      "exitCode": 2,
+      "outcome": "one reviewer fixture tuple typing issue, subsequently corrected"
+    },
+    {
+      "command": "git diff --check f2b4cf3d733bf3cbb84dd8c453c037848d82ea82 HEAD",
+      "log": "review-diff-check-raw.log",
+      "result": "review-diff-check-raw-exit.json",
+      "exitCode": 2,
+      "outcome": "Exact raw ts-jest warning output contains trailing whitespace; source/test formatting check passes. No raw tool-output bytes edited."
+    },
+    {
+      "log": "review-repository-types-adopted-red.log",
+      "exitCode": 2,
+      "fixtureErrors": 8
+    }
+  ],
+  "runtimeSourceChangesByReviewer": false,
+  "sourceOnly": true,
+  "databaseOrMigrationExecuted": false,
+  "providerRequestsPerformed": false,
+  "nativePrismaPostgresRlsAcceptance": false,
+  "blockersToSourcePublication": [],
+  "remainingQualification": [
+    "native PostgreSQL advisory-lock/MVCC/rollback/concurrency",
+    "migration and native Prisma acceptance",
+    "provider evidence interoperability and integrated deployment qualification"
+  ],
+  "testFixtureRepairReceipt": "FIXTURE-REPAIR-RECEIPT.json"
+}

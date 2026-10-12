@@ -1,0 +1,42 @@
+{
+  "verifiedAt": "2026-10-12T09:06:05.361159+00:00",
+  "scope": "Docs/evidence reconciliation only. No test repetition, DB or provider operations.",
+  "retainedReaderFailure": "final-reconciliation-initial-error.log",
+  "preservedManifestChecks": [
+    {
+      "sourceHead": "f5a043c2558c1073b46bbeab81e60c403830d299",
+      "manifest": "SHA256SUMS.json",
+      "filesVerified": 66,
+      "failures": []
+    },
+    {
+      "sourceHead": "762aea0004dba51643ff370e7029de266966b74e",
+      "manifest": "SHA256SUMS-at-762aea.json",
+      "filesVerified": 98,
+      "failures": []
+    },
+    {
+      "sourceHead": "7b6fdae2b9ff1fa6d3fbe594ff1a5a0084f6fa5f",
+      "manifest": "SHA256SUMS-at-7b6fdae.json",
+      "filesVerified": 105,
+      "failures": []
+    }
+  ],
+  "workspacePublished": {
+    "pr": 2405,
+    "head": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e",
+    "tree": "cb0a9d47c0328e2d9b31e9b2e47dbcc08517bf5e",
+    "acceptedSource": "490076ab8a9a5db72eda97b0d576a81e87f81cbb",
+    "acceptedSourcePathsVerified": 6,
+    "publishedSeamIdentitiesVerified": 2,
+    "publishedEvidenceFilesVerified": 25,
+    "runtimeChangesAfterReview": [],
+    "independentCases": 82,
+    "combinedCases": 133
+  },
+  "originalHeadsVerified": 15,
+  "newCandidateStatesVerified": 5,
+  "sourcePairIntersections": 10,
+  "originalCandidateIntersections": 75,
+  "noCombinedRuntimeOrNativeAcceptance": true
+}

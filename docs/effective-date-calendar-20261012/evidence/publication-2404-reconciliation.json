@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-10-12T08:31:13.036338+00:00",
+  "scope": "Docs/evidence reconciliation only. No test repetition, DB or provider operations.",
+  "preservedManifestChecks": [
+    {
+      "sourceHead": "f5a043c2558c1073b46bbeab81e60c403830d299",
+      "manifest": "SHA256SUMS.json",
+      "filesVerified": 66,
+      "failures": []
+    },
+    {
+      "sourceHead": "762aea0004dba51643ff370e7029de266966b74e",
+      "manifest": "SHA256SUMS-at-762aea.json",
+      "filesVerified": 98,
+      "failures": []
+    }
+  ],
+  "pr2404": {
+    "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+    "tree": "207657e1ae89de5790816e07b5fa149512381955",
+    "acceptedSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+    "acceptedSourcePathsVerified": 17,
+    "runtimeChangesAfterReview": [],
+    "draft": true,
+    "open": true,
+    "merged": false,
+    "mergeable": true
+  },
+  "workspace": "Separate exact-PR2401 worktree implementation underway; unpublished."
+}

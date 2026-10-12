@@ -1,0 +1,37 @@
+{
+  "sourceOnly": true,
+  "acceptedRuntimeSource": "f2b4cf3d733bf3cbb84dd8c453c037848d82ea82",
+  "acceptedRuntimeTree": "08519d0fa4fc14da9116b3f299d0d9d5c4e0c685",
+  "acceptedTestEvidenceHead": "84e0d719c6447d24319899838a846af9fe3a02c4",
+  "acceptedTestEvidenceTree": "f9d5950eb141a85e466b9f7fbd989725f739855a",
+  "checks": [
+    {
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 node_modules/.bin/tsc --noEmit --rootDir .",
+      "cwd": "apps/api",
+      "exitCode": 0,
+      "log": "author-typecheck-final-pass.log"
+    },
+    {
+      "command": "NODE_OPTIONS=--max-old-space-size=6144 node_modules/.bin/nest build",
+      "cwd": "apps/api",
+      "exitCode": 0,
+      "log": "author-nest-build.log"
+    },
+    {
+      "command": "node validate-schema.cjs <installed pinned @prisma/internals@5.22.0>",
+      "exitCode": 0,
+      "log": "schema-wasm.log"
+    },
+    {
+      "command": "node independent/source-review.mjs",
+      "exitCode": 0,
+      "log": "author-reviewed-source-equivalence-final.json"
+    },
+    {
+      "command": "git diff --check <main> HEAD -- apps packages scripts",
+      "exitCode": 0,
+      "log": "source-diff-check.log"
+    }
+  ],
+  "nativeDatabaseOrProviderAcceptance": false
+}

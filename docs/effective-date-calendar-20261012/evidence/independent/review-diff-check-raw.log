@@ -1,0 +1,12 @@
+docs/effective-date-calendar-20261012/evidence/independent/review-combined.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/effective-date-calendar-20261012/evidence/independent/review-combined.log:3: trailing whitespace.
++  
+docs/effective-date-calendar-20261012/evidence/independent/review-final.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/effective-date-calendar-20261012/evidence/independent/review-final.log:3: trailing whitespace.
++  
+docs/effective-date-calendar-20261012/evidence/independent/review-isolated.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/effective-date-calendar-20261012/evidence/independent/review-isolated.log:3: trailing whitespace.
++  

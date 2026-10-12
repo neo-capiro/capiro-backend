@@ -1,0 +1,389 @@
+{
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "verifiedAt": "2026-10-12T08:26:00Z",
+  "pathScope": "Source/package/schema/test paths only; docs/evidence excluded. Incremental bases denote each assigned implementation; actual PR base heads and whole candidates are distinct.",
+  "currentSourceCandidates": [
+    {
+      "pr": 2401,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2401",
+      "head": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "tree": "188d94ee4cda563a6543468544fd7d1f9885b3f8",
+      "prBaseBranch": "codex/prospect-resource-origin-20261012",
+      "prBaseHead": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "incrementalBase": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "draft": true,
+      "merged": false,
+      "incrementalSourcePaths": [
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+        "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+        "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+        "apps/workspace/src/collaborators/role-policy.ts",
+        "apps/workspace/src/documents/meri-import-text.ts",
+        "apps/workspace/src/versions/versions.controller.ts",
+        "apps/workspace/src/versions/versions.service.ts",
+        "packages/shared/src/index.ts",
+        "packages/shared/src/workspace-saved-revision.ts"
+      ],
+      "wholeCandidateSourcePaths": [
+        "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+        "apps/api/src/clients/client-activity.service.ts",
+        "apps/api/src/clients/client-files.controller.ts",
+        "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+        "apps/api/src/clients/client-profile-fill.service.ts",
+        "apps/api/src/common/tenant-flags.ts",
+        "apps/api/src/embeddings/client-kb-access.spec.ts",
+        "apps/api/src/embeddings/client-kb.service.ts",
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+        "apps/api/src/engagement/engagement-document-read.spec.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/generation/evidence-source.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "apps/api/src/engagement/outreach-send-intent.service.ts",
+        "apps/api/src/memory/memory-wall.helpers.ts",
+        "apps/api/src/meri/meri-job-deliverables.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+        "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+        "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+        "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+        "apps/workspace/prisma/schema.prisma",
+        "apps/workspace/src/checks/checks.controller.ts",
+        "apps/workspace/src/checks/checks.service.ts",
+        "apps/workspace/src/collaborators/collaborators.controller.ts",
+        "apps/workspace/src/collaborators/collaborators.service.ts",
+        "apps/workspace/src/collaborators/role-policy.ts",
+        "apps/workspace/src/comments/comments.controller.ts",
+        "apps/workspace/src/comments/comments.service.ts",
+        "apps/workspace/src/context/context.service.ts",
+        "apps/workspace/src/delivery/approval.service.ts",
+        "apps/workspace/src/delivery/delivery.spec.ts",
+        "apps/workspace/src/delivery/share-link.service.ts",
+        "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+        "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+        "apps/workspace/src/document-agent/document-agent.service.ts",
+        "apps/workspace/src/documents/documents.controller.ts",
+        "apps/workspace/src/documents/documents.service.ts",
+        "apps/workspace/src/documents/meri-import-text.ts",
+        "apps/workspace/src/drafts/drafts.controller.ts",
+        "apps/workspace/src/drafts/drafts.service.ts",
+        "apps/workspace/src/drafts/dto/draft.dto.ts",
+        "apps/workspace/src/edit-lock/edit-lock.service.ts",
+        "apps/workspace/src/export/export.service.ts",
+        "apps/workspace/src/generation/generation.service.ts",
+        "apps/workspace/src/generation/memory-promotion.service.ts",
+        "apps/workspace/src/hillday/hillday-document.service.ts",
+        "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+        "apps/workspace/src/notifications/notifications.service.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+        "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+        "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+        "apps/workspace/src/quick-draft/quick-draft.service.ts",
+        "apps/workspace/src/quick-draft/source-resolver.service.ts",
+        "apps/workspace/src/template-studio/template-studio.service.ts",
+        "apps/workspace/src/versions/versions.controller.ts",
+        "apps/workspace/src/versions/versions.service.ts",
+        "packages/shared/src/client-memory-wall.ts",
+        "packages/shared/src/index.ts",
+        "packages/shared/src/prospect-resource-scope.ts",
+        "packages/shared/src/tenant-feature.ts",
+        "packages/shared/src/workspace-saved-revision.ts"
+      ]
+    },
+    {
+      "pr": 2402,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2402",
+      "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "tree": "3e04cc68d00373632d4bc86c935d37e672b2d221",
+      "prBaseBranch": "main",
+      "prBaseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "incrementalBase": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+      "draft": true,
+      "merged": false,
+      "incrementalSourcePaths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+        "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+        "apps/api/src/outreach-v3/services/outreach-session.service.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ],
+      "wholeCandidateSourcePaths": [
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+        "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+        "apps/api/src/outreach-v3/services/outreach-session.service.ts"
+      ]
+    },
+    {
+      "pr": 2403,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2403",
+      "head": "762aea0004dba51643ff370e7029de266966b74e",
+      "tree": "c349623a48a16b8f4d197c66706f06fb95b04de2",
+      "prBaseBranch": "main",
+      "prBaseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "incrementalBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "merged": false,
+      "incrementalSourcePaths": [
+        "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/scripts/sync-federal-register.ts",
+        "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+        "apps/api/src/federal-register/effective-date-evidence.spec.ts",
+        "apps/api/src/federal-register/effective-date-evidence.ts",
+        "apps/api/src/federal-register/effective-independent-review.spec.ts",
+        "apps/api/src/federal-register/effective-script-independent-review.spec.ts",
+        "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+        "apps/api/src/federal-register/federal-register-observation.spec.ts",
+        "apps/api/src/federal-register/federal-register-observation.ts",
+        "apps/api/src/federal-register/federal-register.controller.ts",
+        "apps/api/src/federal-register/federal-register.service.ts",
+        "apps/api/src/ingestion/embed-watermark.ts",
+        "apps/api/src/ingestion/sync-run.helper.ts"
+      ],
+      "wholeCandidateSourcePaths": [
+        "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/scripts/sync-federal-register.ts",
+        "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+        "apps/api/src/federal-register/effective-date-evidence.spec.ts",
+        "apps/api/src/federal-register/effective-date-evidence.ts",
+        "apps/api/src/federal-register/effective-independent-review.spec.ts",
+        "apps/api/src/federal-register/effective-script-independent-review.spec.ts",
+        "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+        "apps/api/src/federal-register/federal-register-observation.spec.ts",
+        "apps/api/src/federal-register/federal-register-observation.ts",
+        "apps/api/src/federal-register/federal-register.controller.ts",
+        "apps/api/src/federal-register/federal-register.service.ts",
+        "apps/api/src/ingestion/embed-watermark.ts",
+        "apps/api/src/ingestion/sync-run.helper.ts"
+      ]
+    },
+    {
+      "pr": 2404,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2404",
+      "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+      "tree": "207657e1ae89de5790816e07b5fa149512381955",
+      "prBaseBranch": "main",
+      "prBaseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "incrementalBase": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "draft": true,
+      "merged": false,
+      "incrementalSourcePaths": [
+        "apps/api-strategy/Dockerfile",
+        "apps/api-strategy/package.json",
+        "apps/api-strategy/src/planner/planner.controller.ts",
+        "apps/api-strategy/src/planner/planner.service.ts",
+        "apps/api-strategy/src/strategy/objective-destination.controller.spec.ts",
+        "apps/api-strategy/src/strategy/objective-destination.service.spec.ts",
+        "apps/api-strategy/src/strategy/objective-destination.ts",
+        "apps/api-strategy/src/strategy/strategy.controller.ts",
+        "apps/api-strategy/src/strategy/strategy.service.ts",
+        "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "packages/shared/src/client-objective-destination.ts",
+        "packages/shared/src/index.ts",
+        "pnpm-lock.yaml"
+      ],
+      "wholeCandidateSourcePaths": [
+        "apps/api-strategy/Dockerfile",
+        "apps/api-strategy/package.json",
+        "apps/api-strategy/src/planner/planner.controller.ts",
+        "apps/api-strategy/src/planner/planner.service.ts",
+        "apps/api-strategy/src/strategy/objective-destination.controller.spec.ts",
+        "apps/api-strategy/src/strategy/objective-destination.service.spec.ts",
+        "apps/api-strategy/src/strategy/objective-destination.ts",
+        "apps/api-strategy/src/strategy/strategy.controller.ts",
+        "apps/api-strategy/src/strategy/strategy.service.ts",
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+        "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+        "apps/api/src/outreach-v3/services/outreach-session.service.ts",
+        "packages/shared/src/client-objective-destination.ts",
+        "packages/shared/src/index.ts",
+        "pnpm-lock.yaml"
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "prs": [
+        2401,
+        2402
+      ],
+      "incrementalSourceIntersection": [
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts"
+      ],
+      "wholeCandidateSourceIntersection": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts"
+      ]
+    },
+    {
+      "prs": [
+        2401,
+        2403
+      ],
+      "incrementalSourceIntersection": [],
+      "wholeCandidateSourceIntersection": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "prs": [
+        2401,
+        2404
+      ],
+      "incrementalSourceIntersection": [
+        "packages/shared/src/index.ts"
+      ],
+      "wholeCandidateSourceIntersection": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "packages/shared/src/index.ts"
+      ]
+    },
+    {
+      "prs": [
+        2402,
+        2403
+      ],
+      "incrementalSourceIntersection": [],
+      "wholeCandidateSourceIntersection": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "prs": [
+        2402,
+        2404
+      ],
+      "incrementalSourceIntersection": [
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts"
+      ],
+      "wholeCandidateSourceIntersection": [
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+        "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+        "apps/api/src/outreach-v3/services/outreach-session.service.ts"
+      ]
+    },
+    {
+      "prs": [
+        2403,
+        2404
+      ],
+      "incrementalSourceIntersection": [],
+      "wholeCandidateSourceIntersection": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    }
+  ],
+  "sharedHelper": {
+    "publishedPR": 2404,
+    "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+    "acceptedSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+    "path": "packages/shared/src/client-objective-destination.ts",
+    "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+    "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+    "workspaceConsumption": "Only exact helper bytes plus additive export; no mixed-owner source merge. Workspace review/publication pending."
+  },
+  "preservedSnapshots": [
+    "initial-published-source-matrix.json",
+    "published-source-matrix-at-762aea.json"
+  ]
+}

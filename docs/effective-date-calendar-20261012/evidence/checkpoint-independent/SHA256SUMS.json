@@ -1,0 +1,82 @@
+[
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/CHECKPOINT-RECEIPT.json",
+    "sha256": "d9bc22927b0742038cb517eebdaa6a34a793cfc9c3e958031fd387423df19465"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/REVIEW.md",
+    "sha256": "f412cc01c075ed3b2d37e26334635c3a67bd79de68e4a4ad67475018a7015496"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-final.json",
+    "sha256": "cab8d1b9a11a4e83abe3a4ca2bca51be4d6e0dce7f746dae920fe02d51824660"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-final.log",
+    "sha256": "d50ba40dd9b54cd590124cd8a19c76463477769274ad15889a3fa0f71bdfd73d"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-repaired-final.json",
+    "sha256": "53626ca125f7b9668371da4f7f8025364675660dd6e500a218f4f7a2f20a029d"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-repaired-final.log",
+    "sha256": "9b4e535442bbdaf104561aebfb594446e2bef55d2f2bc05a108119f4045e5175"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-terminal-final.json",
+    "sha256": "b469d6b75f7fcc8fb96bb41d8914e26b989515c0b0a6a9e9eaf23d807bb5cc90"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-terminal-final.log",
+    "sha256": "3799af76aef793bc0b5a4c09c179d5963e16bfb69011cd8c9b4b76b25e33efab"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-red-final-fixture.json",
+    "sha256": "0e02a1a28dfa05ced9d252144a7b62becd94902be7e05abbc7d7ab2a90ca85ba"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-red-final-fixture.log",
+    "sha256": "b27c29e9b461f18087ef8bf11622a35cd0881bf56cf3579ab5d4633e92787c53"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-red-original.json",
+    "sha256": "cd3eb16d2ae1150a4349b65ac73432b8a3a73d9b261597ea25f0a4b0716cfacb"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-red-original.log",
+    "sha256": "984dd6935fad78a531d177ad238d2b16be308dcc2a4343844bd5cfe84b817304"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-types-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-types-initial.log",
+    "sha256": "ff8e862ba5e114ed8049da47ebfb898a4a6588474cc4b8c7d10188719e839e0e"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-types-terminal-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/previous-sync-source.txt",
+    "sha256": "8bfae15564551ad8c41b5180d3a1ac82a6d7a3d0a42b46615e67a1798048f26c"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/source-snapshot.json",
+    "sha256": "09bde80b11edb9d5798c546ae822b04796bf039885fac3917f770109bc522a19"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/source-snapshot.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/checkpoint-independent/source-snapshot.mjs",
+    "sha256": "658cbcb5d9c42f58a3140c143380f57ba1de9016ec12417e3bf809a6ee67444c"
+  },
+  {
+    "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+    "sha256": "d53cd0bbd092e036f9421a78d6735efff969f00fdaca806fb13e0d21155b2170"
+  }
+]

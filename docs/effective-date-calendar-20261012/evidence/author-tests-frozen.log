@@ -1,0 +1,76 @@
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/federal-register/federal-register-calendar.spec.ts (43.983 s)
+PASS src/ingestion/sync-run.helper.spec.ts
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":5,"rows_updated":2,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-new","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":3,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-sam-opportunities","rows_inserted":5000,"rows_updated":0,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"geocode-facilities","rows_inserted":1,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":0,"rows_updated":0,"error_count":1,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_SKIP {"source":"sync-congress","reason":"already_running","running_since":"2026-10-12T06:52:01.429Z"}
+
+      at runWithSyncRun (src/ingestion/sync-run.helper.ts:185:17)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/federal-register/federal-register-observation.spec.ts
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/federal-register/effective-date-evidence.spec.ts
+PASS src/ingestion/embed-watermark.spec.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       72 passed, 72 total
+Snapshots:   0 total
+Time:        49.875 s, estimated 129 s
+Ran all test suites matching /src\/federal-register|src\/ingestion\/sync-run.helper.spec.ts|src\/ingestion\/embed-watermark.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

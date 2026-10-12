@@ -5842,6 +5842,9 @@ model FederalRegisterDocument {
   publicationDate DateTime  @map("publication_date")
   commentEndDate  DateTime? @map("comment_end_date")
   effectiveDate   DateTime? @map("effective_date")
+  /// Publisher effective_on evidence. Legacy dates are not calendar-qualified.
+  effectiveDateEvidence Json? @map("effective_date_evidence")
+  effectiveDateObservedAt DateTime? @map("effective_date_observed_at") @db.Timestamptz(6)
   docketIds       String[]  @map("docket_ids")
   cfrReferences   String[]  @map("cfr_references")
   htmlUrl         String?   @map("html_url")
@@ -5852,6 +5855,7 @@ model FederalRegisterDocument {
 
   @@index([type, publicationDate])
   @@index([commentEndDate])
+  @@index([type, effectiveDate])
   @@map("federal_register_document")
 }
 

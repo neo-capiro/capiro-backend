@@ -1,0 +1,67 @@
+{
+  "reviewedHead": "f2b4cf3d733bf3cbb84dd8c453c037848d82ea82",
+  "reviewedTree": "08519d0fa4fc14da9116b3f299d0d9d5c4e0c685",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "localSourceMatchesReviewedBlobs": true,
+  "migrationInspectionOnly": true,
+  "migrationExecuted": false,
+  "providerRequestsPerformed": false,
+  "nativeDatabaseQualification": false,
+  "staticChecks": [
+    "all changed source/test paths match exact reviewed Git blobs",
+    "nullable migration evidence predicates require IS TRUE",
+    "additive existing-owner migration without data backfill or permissions changes",
+    "schema evidence fields/index align with migration source",
+    "detail refresh refuses redirects and retains incomplete-correction coverage"
+  ],
+  "hashes": [
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "sha256": "f5e7183dc1bbe6bc53905bf4a734e861f873ab6d272b92518b7a9d2d20646b28"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-register.ts",
+      "sha256": "8bfae15564551ad8c41b5180d3a1ac82a6d7a3d0a42b46615e67a1798048f26c"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.spec.ts",
+      "sha256": "6e67db33140de9ddfa2b5713eb9b29a2c5527f285bebd675844598a2f52c1e8c"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.ts",
+      "sha256": "a096290eb51c61949ebec5881444fe3cb905d08360d4ebc5ada7aeb23b2d51f2"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+      "sha256": "c11cb3152df0bd98fb3e9dbaa9876135f7f98e83ca75e6dad050a30d79992aeb"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-observation.spec.ts",
+      "sha256": "b3fd6f8287df793d6bea83b45d683ab3d014cf6bc067c5bb1578ff1678cbeb45"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-observation.ts",
+      "sha256": "75693ec3a30fe4be73ebc864981553ad4d3724a53705921225ff2ee3bd563d34"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.controller.ts",
+      "sha256": "20474e7e025decb888f841e3f69f65141145c8915b88157dde865353be6bbcbf"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.service.ts",
+      "sha256": "162fd15142de696fe9036776077c48964089e695979311efa81a474b288cef92"
+    },
+    {
+      "path": "apps/api/src/ingestion/embed-watermark.ts",
+      "sha256": "80ee29afe9b4b478b570d206199992ebcc12f2be1d520d0114ec72d8d1e50c77"
+    },
+    {
+      "path": "apps/api/src/ingestion/sync-run.helper.ts",
+      "sha256": "90bccac08a061a68f5b23503ce3f6867677ccc31b5552c20a90ab869ee63e7cd"
+    }
+  ]
+}

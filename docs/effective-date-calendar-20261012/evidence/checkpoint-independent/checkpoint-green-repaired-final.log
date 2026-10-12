@@ -1,0 +1,99 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/effective-calendar-checkpoint-review/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts
+  ● independent actual-script automatic-checkpoint regressions › never acknowledges an eligible window when the first page fails
+
+    expect(received).toContainEqual(expected) // deep equality
+
+    Expected value: ["exit", 1]
+    Received array: [["log", "[fr-sync] starting Federal Register sync from", "2021-01-01"], ["error", "[fr-sync] page 1 failed after 5 attempts:", "503 synthetic"]]
+
+      185 |     const r = await execute({ response: () => null });
+      186 |     expect(r.runs[0]).toMatchObject({ status: 'error' });
+    > 187 |     expect(r.runs[0].counts).toBeUndefined(); expect(r.logs).toContainEqual(['exit', 1]);
+          |                                                              ^
+      188 |   });
+      189 |   it('rejects invalid explicit date before provider requests or receipt queries', async () => {
+      190 |     const r = await execute({ argv: ['--incremental', '--since', '2026-02-30'] });
+
+      at Object.<anonymous> (src/federal-register/effective-checkpoint-independent-review.spec.ts:187:62)
+
+PASS apps/api/src/federal-register/effective-independent-review.spec.ts
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-federal-register","rows_inserted":0,"rows_updated":1,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+PASS apps/api/src/federal-register/federal-register-calendar.spec.ts
+PASS apps/api/src/federal-register/effective-script-independent-review.spec.ts
+PASS apps/api/src/ingestion/sync-run.helper.spec.ts
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":5,"rows_updated":2,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-new","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":3,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-sam-opportunities","rows_inserted":5000,"rows_updated":0,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"geocode-facilities","rows_inserted":1,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":0,"rows_updated":0,"error_count":1,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_SKIP {"source":"sync-congress","reason":"already_running","running_since":"2026-10-12T07:39:16.873Z"}
+
+      at runWithSyncRun (src/ingestion/sync-run.helper.ts:185:17)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+PASS apps/api/src/federal-register/federal-register-observation.spec.ts
+PASS apps/api/src/federal-register/effective-date-evidence.spec.ts
+PASS apps/api/src/ingestion/embed-watermark.spec.ts
+
+Test Suites: 1 failed, 7 passed, 8 total
+Tests:       1 failed, 180 passed, 181 total
+Snapshots:   0 total
+Time:        8.972 s, estimated 9 s
+Ran all test suites within paths "apps/api/src/federal-register/effective-independent-review.spec.ts", "apps/api/src/federal-register/effective-script-independent-review.spec.ts", "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts", "apps/api/src/federal-register/effective-date-evidence.spec.ts", "apps/api/src/federal-register/federal-register-calendar.spec.ts", "apps/api/src/federal-register/federal-register-observation.spec.ts", "apps/api/src/ingestion/sync-run.helper.spec.ts", "apps/api/src/ingestion/embed-watermark.spec.ts".
+Test results written to: docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-repaired-final.json

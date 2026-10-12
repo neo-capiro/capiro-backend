@@ -1,0 +1,11 @@
+src/federal-register/effective-date-evidence.spec.ts(42,7): error TS2352: Conversion of type '{ effective_on: null; publication_date: string; comments_close_on: string; document_number: string; type: string; pdf_url: string; correction_of: null; corrections: never[]; }' to type '{ document_number: string; type: string; publication_date: string; effective_on: string; pdf_url: string; correction_of: null; corrections: never[]; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Types of property 'effective_on' are incompatible.
+    Type 'null' is not comparable to type 'string'.
+src/federal-register/federal-register-calendar.spec.ts(65,12): error TS2532: Object is possibly 'undefined'.
+src/federal-register/federal-register-observation.spec.ts(56,12): error TS2532: Object is possibly 'undefined'.
+src/federal-register/federal-register-observation.spec.ts(89,12): error TS2532: Object is possibly 'undefined'.
+src/federal-register/federal-register.service.ts(143,37): error TS18048: 'count' is possibly 'undefined'.
+src/federal-register/federal-register.service.ts(146,62): error TS18048: 'count' is possibly 'undefined'.
+src/federal-register/federal-register.service.ts(156,34): error TS18048: 'catalog' is possibly 'undefined'.
+src/federal-register/federal-register.service.ts(157,37): error TS18048: 'catalog' is possibly 'undefined'.
+src/federal-register/federal-register.service.ts(158,41): error TS18048: 'catalog' is possibly 'undefined'.

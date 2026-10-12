@@ -1,0 +1,27 @@
+{
+  "checks": [
+    {
+      "at": "2026-10-12T07:44:47Z",
+      "command": "date -u",
+      "exitCode": 0
+    },
+    {
+      "at": "2026-10-12T07:53:43Z",
+      "command": "read-only preserved worktree/head/status/type-log verification",
+      "exitCode": 0
+    }
+  ],
+  "priorTransportError": "exec-server transport disconnected; recovery timed out after25s",
+  "publishedHeads": {
+    "2401": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+    "2402": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+    "2403_original": "f5a043c2558c1073b46bbeab81e60c403830d299"
+  },
+  "quotaBlock": "Newsletter owner and shared-helper independent reviewer returned usage-limit error; dependent source/publication stopped without model/environment bypass",
+  "preservedUnpublished": {
+    "calendarReviewedSource": "35abc148e301b5b0b0baa4f5b284757079d9d91d",
+    "calendarEvidenceAdoption": "178fad95e51eb1f962d2bf4bf8503eae597fb4fb",
+    "strategyPlannerReviewSource": "b5e61175eff7cebe28a70a79da41e12d8f584b28",
+    "strategyPlannerAuthorHead": "d198733d66ea6b6b29eaafbccb6a76b6a174b239"
+  }
+}

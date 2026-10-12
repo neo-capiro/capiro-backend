@@ -60,6 +60,30 @@ class AgencyQueryDto {
   limit?: number;
 }
 
+export class EffectiveCalendarQueryDto {
+  @IsString()
+  @MaxLength(10)
+  dateFrom!: string;
+
+  @IsString()
+  @MaxLength(10)
+  dateTo!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}
+
 /**
  * Federal Register documents API. Read-only, global data.
  */
@@ -85,6 +109,11 @@ export class FederalRegisterController {
   @Get('upcoming-deadlines')
   upcomingDeadlines() {
     return this.service.getUpcomingDeadlines(30);
+  }
+
+  @Get('effective-date-calendar')
+  effectiveDateCalendar(@Query() query: EffectiveCalendarQueryDto) {
+    return this.service.getEffectiveDateCalendar(query);
   }
 
   @Get('by-agency/:agencyName')
