@@ -162,8 +162,11 @@ jobs:
       # exclusion is dropped and every PR type-gates apps/api directly, not just
       # via the slower image build. (The direct full apps/api Jest step below supplies this source prerequisite;
       # real database/native acceptance remains independently required.)
-      - name: Typecheck (turbo)
-        run: pnpm turbo run typecheck --concurrency=1
+      - name: Guard rebuild verification scope composition
+        run: pnpm gate:cleanup4:verification-scopes
+
+      - name: Typecheck backend workspaces (turbo)
+        run: pnpm typecheck:backend
 
       # Unit tests for the new orchestrator core (DB-free). The api/workspace
       # suites need a live Postgres and run via their own image/e2e paths; the
@@ -238,11 +241,6 @@ jobs:
         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: pnpm --filter @capiro/api test
 
-      # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer
-      # depend on one unrelated workflow.
-      - name: Test apps/web
-        run: pnpm --filter @capiro/web test
-
       # CleanUp1 §5.3.3 — apps/defense-api uses `tsx --test` (node:test) and its
       # CLI specs spawn scripts/job.mjs, which requires the package's own dist
       # output. Build it first (turbo `test` dependsOn `^build` — dependencies,
@@ -259,7 +257,7 @@ jobs:
       # the API build that produces both dist/main.js and dist/engagement-main.js.
       # Does NOT connect to a database, call AWS, or call any external provider.
       - name: Engagement API Phase 1 local-runtime contract
-        run: pnpm verify:engagement-phase-1
+        run: pnpm verify:engagement-phase-1:backend
 
   engagement-phase-2:
     # A SEPARATE job, not a step in `verify` above: the existing "Typecheck
@@ -310,7 +308,7 @@ jobs:
       # drift gate self-skips loudly rather than failing when it is absent,
       # the same convention DB-backed suites use for a missing DATABASE_URL.
       - name: Engagement API Phase 2 — code-complete verification (2.0-2.12)
-        run: pnpm verify:engagement-phase-2
+        run: pnpm verify:engagement-phase-2:backend
 
       - name: Retain Engagement verification diagnostics
         if: always()
@@ -320,3 +318,38 @@ jobs:
           path: .artifacts/engagement-phase2-code/
           include-hidden-files: true
           if-no-files-found: ignore
+
+  frontend:
+    # Retain all former frontend typecheck/test/route/header inputs in a sibling
+    # job. A failing backend step cannot silently suppress these checks.
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build retained frontend shared prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
+      - name: Typecheck retained frontend workspaces (turbo)
+        run: pnpm typecheck:frontend
+      # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer
+      # depend on one unrelated workflow.
+      - name: Test apps/web
+        run: pnpm --filter @capiro/web test
+
+      - name: Engagement Phase1 retained frontend regression and routing contract
+        run: pnpm verify:engagement-phase-1:frontend
+      - name: Engagement Phase2 retained frontend header contract
+        run: pnpm verify:engagement-phase-2:frontend
