@@ -1,0 +1,24 @@
+{
+  "acceptedProducerPacket": "0180fd0b6564444cf029446cce56da652b1644fb",
+  "acceptedProducerTree": "21347c88d26eb5aa45c4431b9c1cf86fac7dc0f6",
+  "initialPacketPreserved": "23e3d3a68cf57062482e3cc4ca9b53e9cb249796",
+  "producerMasterBindingsVerified": 133,
+  "completeProducerPacketCensus": true,
+  "artifactAndAll182EntryModesBytesUnchanged": true,
+  "allPreviousConsumerResultsExact": true,
+  "initialMetadataGETRetained": true,
+  "initialNoHTTPClaimWithdrawn": true,
+  "finalTwoDebugLogsHttpFetchLines": 0,
+  "finalFlagsVerified": [
+    "--offline",
+    "--ignore-scripts",
+    "--no-update-notifier"
+  ],
+  "effectiveConfig": {
+    "offline": true,
+    "ignoreScripts": true,
+    "updateNotifier": false
+  },
+  "generalProcessNetworkTraceClaim": false,
+  "nonDocDelta": []
+}

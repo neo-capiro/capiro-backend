@@ -1,0 +1,1 @@
+types-negative-platform.ts(2,7): error TS2322: Type '"unlisted-provider"' is not assignable to type '"forward" | "facebook" | "twitter" | "pinterest" | "linkedin" | "instapaper"'.

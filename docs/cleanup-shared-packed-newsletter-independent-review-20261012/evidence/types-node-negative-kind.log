@@ -1,0 +1,1 @@
+types-negative-kind.ts(2,7): error TS2322: Type '"authorization-stage"' is not assignable to type '"code" | "button" | "product" | "columns" | "footer" | "video" | "spacer" | "image" | "heading" | "paragraph" | "divider" | "social" | "logo" | "survey" | "apps" | "product-rec"'.

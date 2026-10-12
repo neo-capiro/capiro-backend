@@ -1,0 +1,74 @@
+{
+  "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "tree": "00ca67ae1f2cacc1ae0b51fff25cb33d58954f67",
+  "packageName": "@capiro/shared",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "newsletter": {
+      "types": "./dist/newsletter.d.ts",
+      "require": "./dist/newsletter.js",
+      "import": "./dist/newsletter.js",
+      "default": "./dist/newsletter.js"
+    },
+    "newsletterRender": {
+      "types": "./dist/newsletter-render.d.ts",
+      "require": "./dist/newsletter-render.js",
+      "import": "./dist/newsletter-render.js",
+      "default": "./dist/newsletter-render.js"
+    }
+  },
+  "sourceEntries": [
+    {
+      "path": "packages/shared/package.json",
+      "bytes": 3761,
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+      "entry": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "bytes": 686,
+      "sha256": "89278950647f196ac9ae3c088f96a35f83e2fa45a7c28c563af3b2e2c059dab5",
+      "entry": "100644 blob cff5b3a8506d1a290987883f0ed773b2118da169"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "bytes": 36470,
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+      "entry": "100644 blob c1b58fbc64883f6794a2928e9ee89613aea42742"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "bytes": 30096,
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "entry": "100644 blob 75b44244e401b767a5a646d81da486279a2af9e0"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "bytes": 5766,
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "entry": "100644 blob 98286f542da05527fb124a16dd1e831ae40cf558"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "bytes": 94631,
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "entry": "100644 blob 897e9519b35b2d1da0eafc6c0f4baffa1b868c32"
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "bytes": 2068,
+      "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0",
+      "entry": "100644 blob a6c3eaa591e9499ad800b8a934573ca678bd0fb8"
+    }
+  ],
+  "frontendHandoff": {
+    "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+    "tree": "67aabd83e9f129c1fdb25fbe254f41edd99394e7",
+    "file": "docs/newsletter-port-20261012/HANDOVER.md",
+    "bytes": 4649,
+    "sha256": "02e04e44bc9ec8a14c4d72b6a740dbd6bf38ac9b27761ff1a6deca3c2f3b8ded"
+  },
+  "producerArtifactAcceptancePending": true,
+  "privateSourceConsumerImports": false
+}

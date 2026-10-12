@@ -1,0 +1,301 @@
+[
+  {
+    "name": "public-cjs",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--test",
+      "public-consumer.cjs"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "log": "public-cjs.log",
+    "logSha256": "43a2d7cb3f1ddfaade9baa399b8a64517bbb5c2134c5f86d3b5f656c47bee8ea"
+  },
+  {
+    "name": "public-esm",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "public-consumer.mjs"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "log": "public-esm.log",
+    "logSha256": "1880f85337e23e83c35370443f470050c8636406a90cda90a79d00172cf3062a"
+  },
+  {
+    "name": "types-node-positive",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "NodeNext",
+      "--moduleResolution",
+      "NodeNext",
+      "types-positive.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "log": "types-node-positive.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "types-node-negative-kind",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "NodeNext",
+      "--moduleResolution",
+      "NodeNext",
+      "types-negative-kind.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "log": "types-node-negative-kind.log",
+    "logSha256": "84354482abdbf1caba833b3053874fe3114f9dac91f40f24cfb5b864b03c26f5"
+  },
+  {
+    "name": "types-node-negative-stage",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "NodeNext",
+      "--moduleResolution",
+      "NodeNext",
+      "types-negative-stage.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "log": "types-node-negative-stage.log",
+    "logSha256": "6191c7af4fea6426fe0eb291523ca28e655bb9b826fedb5bdd4d2e7a516ae1c5"
+  },
+  {
+    "name": "types-node-negative-platform",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "NodeNext",
+      "--moduleResolution",
+      "NodeNext",
+      "types-negative-platform.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "log": "types-node-negative-platform.log",
+    "logSha256": "0b7054b4294580948256527776d77e6a66bb5ef5415a2b30eec32554fb3075aa"
+  },
+  {
+    "name": "types-browser-positive",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "ESNext",
+      "--moduleResolution",
+      "Bundler",
+      "types-positive.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "log": "types-browser-positive.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "types-browser-negative-kind",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "ESNext",
+      "--moduleResolution",
+      "Bundler",
+      "types-negative-kind.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "log": "types-browser-negative-kind.log",
+    "logSha256": "84354482abdbf1caba833b3053874fe3114f9dac91f40f24cfb5b864b03c26f5"
+  },
+  {
+    "name": "types-browser-negative-stage",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "ESNext",
+      "--moduleResolution",
+      "Bundler",
+      "types-negative-stage.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "log": "types-browser-negative-stage.log",
+    "logSha256": "6191c7af4fea6426fe0eb291523ca28e655bb9b826fedb5bdd4d2e7a516ae1c5"
+  },
+  {
+    "name": "types-browser-negative-platform",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "--strict",
+      "--noEmit",
+      "--target",
+      "ES2022",
+      "--lib",
+      "ES2022,DOM",
+      "--skipLibCheck",
+      "false",
+      "--module",
+      "ESNext",
+      "--moduleResolution",
+      "Bundler",
+      "types-negative-platform.ts"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 2,
+    "expectedExitCode": 2,
+    "log": "types-browser-negative-platform.log",
+    "logSha256": "0b7054b4294580948256527776d77e6a66bb5ef5415a2b30eec32554fb3075aa"
+  },
+  {
+    "name": "browser-build",
+    "argv": [
+      "/workspace/capirov2/node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild/bin/esbuild",
+      "browser-entry.mjs",
+      "--bundle",
+      "--platform=browser",
+      "--format=iife",
+      "--global-name=PackedNewsletter",
+      "--target=es2022",
+      "--outfile=browser-bundle.js",
+      "--metafile=browser-metafile.json"
+    ],
+    "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+    "environment": {
+      "PATH": "/usr/bin:/bin",
+      "LANG": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "log": "browser-build.log",
+    "logSha256": "31208b166c90353956739d7e6316c6f0b242e3e199e82ca08d2641f4802a0762"
+  }
+]

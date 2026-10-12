@@ -1,0 +1,21 @@
+✔ consumer resolves only immutable public package exports (2.77758ms)
+✔ private source, dist and undeclared font subpaths stay refused (1.245626ms)
+✔ default rich and code renderers escape rather than sanitize HTML (2.085923ms)
+✔ caller sanitizer output is an explicit trusted boundary (0.521211ms)
+✔ URL helper refuses invalid protocols, credentials and image SVG data (0.657068ms)
+✔ invalid original links do not invoke rewrite; trusted rewrites are not revalidated (0.447899ms)
+✔ visibility is recipient-specific and editor mode deliberately shows hidden blocks (0.360193ms)
+✔ hosted survey rendering defaults disabled and callback rendering is not stage eligibility (0.574587ms)
+✔ share target never exports recipient public action capabilities or merge tags (0.615377ms)
+✔ social share configuration is explicit and unresolved targets remain disabled (0.83999ms)
+✔ rendered bundled asset links are strings and do not retrieve assets (0.512688ms)
+✔ nested render/plain text traversal and fresh clone ownership survive packing (2.026922ms)
+✔ canonical font catalog runtime is reachable without fetching fonts (0.123531ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 115.610573

@@ -1,0 +1,1 @@
+types-negative-stage.ts(2,34): error TS2353: Object literal may only specify known properties, and 'savedWsDocVersionId' does not exist in type 'NewsletterStage'.

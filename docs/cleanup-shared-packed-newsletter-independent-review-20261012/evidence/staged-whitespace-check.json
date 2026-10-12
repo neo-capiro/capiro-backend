@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "exitCode": 0,
+  "checkedPaths": 65,
+  "onlyOwnEvidence": true,
+  "rawLog": "staged-whitespace-check.log"
+}

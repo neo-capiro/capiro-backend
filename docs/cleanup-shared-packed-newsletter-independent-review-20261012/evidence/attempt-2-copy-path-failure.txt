@@ -1,0 +1,1 @@
+Evidence-copy command was invoked from the isolated consumer instead of reviewer checkout. Relative docs path raised FileNotFoundError before any copy. The subsequent independent cached esbuild 0.21.5 browser command succeeded. Original attempt-1 logs/input/metafile were untouched and then copied from the correct checkout. No source or artifact changes occurred.

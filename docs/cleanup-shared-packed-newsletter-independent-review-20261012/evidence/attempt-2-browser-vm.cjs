@@ -1,0 +1,13 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const context = vm.createContext({ URL, structuredClone });
+vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), context, { timeout: 1000 });
+const result = vm.runInContext('PackedNewsletter.run()', context, { timeout: 1000 });
+assert.equal(result.template, 'bp_weekly_newsletter');
+assert.equal(result.escaped, true);
+assert.equal(result.refusedPublicCapability, true);
+assert.equal(result.missingNodeGlobals, true);
+assert.ok(result.fontCount > 100);
+for (const name of ['process', 'Buffer', 'require', 'fetch', 'XMLHttpRequest', 'WebSocket']) assert.equal(vm.runInContext('typeof ' + name, context), 'undefined');
+console.log(JSON.stringify({ browserPlatformBundleExecuted: true, actualBrowserPageExecuted: false, nodeAndNetworkGlobalsAbsent: true, assertions: 11, result }));

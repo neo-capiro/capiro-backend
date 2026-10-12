@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capiro-shared-independent-emission-20261012/packages/shared/tsconfig.json",
+    "--tsBuildInfoFile",
+    "/tmp/capiro-shared-independent-emission-20261012/shared.tsbuildinfo"
+  ],
+  "cwd": "/tmp/capiro-shared-independent-emission-20261012",
+  "exitCode": 0,
+  "sourceInputs": "all 36 source files extracted from immutable tarball",
+  "rootConfigSource": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "rootConfigSha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7",
+  "cachedCompilerTypesOnlyLink": "/workspace/capirov2/node_modules",
+  "publicConsumerSourceAliases": false
+}

@@ -1,0 +1,337 @@
+{
+  "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "producerPacket": "0180fd0b6564444cf029446cce56da652b1644fb",
+  "files": [
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 9982,
+      "sha256": "f3e2a1f1556390acccc6d3725f4a4e6c4cc42d83c108cfe07ff9e83ebd29234a"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/FINAL-REVIEW.md",
+      "bytes": 6161,
+      "sha256": "479c50428c76f8fdcaf6b6346b59cf81819824ca7eef0fd6ea6db684b41eb42d"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/REVIEW-PLAN.md",
+      "bytes": 2386,
+      "sha256": "66531db205778f142d19d21339e9f98278edd5bdd6d797d6da5d10a94b362c2c"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/EVIDENCE-LIMITS.md",
+      "bytes": 1301,
+      "sha256": "ac395d4cfcfeaeea2fa81a42d6bc1d5e946eef8d1afbff2bfacc06dcf416bac2"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-audit-corrected-packet.py",
+      "bytes": 3657,
+      "sha256": "8ce4e06fe4051f03916702b6d5a2d1e2aca6623aa9af96a090b8a92d001f4b40"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-browser-bundle.js",
+      "bytes": 180026,
+      "sha256": "be0ac11a79899233e492a4703958fb693bc5102073994d0f8a77d32c3ce18a2a"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-browser-metafile.json",
+      "bytes": 3548,
+      "sha256": "4f8371f5b06b9bf2aec65a32e04d7f0a276aa563368c6fd173cf15f531d28b1f"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-corrected-packet-audit.log",
+      "bytes": 577,
+      "sha256": "35536e78d6962af4e48d0400bbb4bf3ceb8f45ebf270d026ef14d70c4950b543"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-independent-commands.json",
+      "bytes": 8156,
+      "sha256": "3198a0fd0a6c222a59ced51ed55432127d0b69f8124a19f9b883ce8cdb626011"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-public-cjs-captured-tool-output.log",
+      "bytes": 1268,
+      "sha256": "43a2d7cb3f1ddfaade9baa399b8a64517bbb5c2134c5f86d3b5f656c47bee8ea"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-1-run-independent-controls.py",
+      "bytes": 3206,
+      "sha256": "242044c137658b42b387120c60fd02e75dfd31d880540c0023edc4f7b9a93f1b"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-browser-bundle-021.js",
+      "bytes": 179889,
+      "sha256": "8a9b7bd0fc9142d1ff6fcdedb1db700806497361b90917cd65da603c4e6ca763"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-browser-entry.mjs",
+      "bytes": 886,
+      "sha256": "d180870ec5c70348015c570bbc5b65a10cf80b8d3c45fec18f0132b0c44443f6"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-browser-metafile-021.json",
+      "bytes": 3552,
+      "sha256": "6f5a2b5804c982b8df4f2e4ed7da6b2efb5cef2fdcbbe89d0874b5c46110d07f"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-browser-vm.cjs",
+      "bytes": 893,
+      "sha256": "c57326bd6a69da41ead4af8a29e07c67e8eedd0c64e48086677d495e91bae491"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-browser-vm.command.json",
+      "bytes": 415,
+      "sha256": "f3eb316a476d14e657a4f29f63089a30f53f2eec29d40de7d84aaf908e418ee8"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-browser-vm.log",
+      "bytes": 929,
+      "sha256": "276fc7092b1f7a606df552e9938defb0b2428b64fdfb8a8a9a73b3b1f5569ca5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/attempt-2-copy-path-failure.txt",
+      "bytes": 365,
+      "sha256": "95b82bf61064db0dbb25ff807e91972fe8ee6d2d8697d864ae5b2ed65d6a9d17"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/audit-corrected-packet.py",
+      "bytes": 3719,
+      "sha256": "2c8350c41d103a0a27e02e856471199d0af84ae5cbbbc960abbe48607d05db68"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/audit-frozen-packet.py",
+      "bytes": 4199,
+      "sha256": "579a04dad094620f222cc4aaf85660f15144cb46fa7a453c3728a61f07600164"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/audit-receiving-contract.py",
+      "bytes": 2755,
+      "sha256": "b01f6287a1755af576b52060a5ed6448fb9f16b4d8343c1a558715ae5a74d47e"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-build.log",
+      "bytes": 48,
+      "sha256": "7cb4c242f4a89f82299f4334341845707131d788249df246bbd8b338c13ffc69"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-bundle.js",
+      "bytes": 179390,
+      "sha256": "c4d57a04d712d37a8470394504cd52f6eb40eb9ab2a2639cb58969aeb3c6e0e8"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-entry.mjs",
+      "bytes": 767,
+      "sha256": "bd4f64ca5a3f1dc19b506ebb9ab8eca922978c052bfc1bf9462f4fb4791e12a3"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-metafile.json",
+      "bytes": 3430,
+      "sha256": "ba905b85432ec49445cd338784cc5f5243fab7208a18d7bab04c510965901a5c"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-vm.cjs",
+      "bytes": 846,
+      "sha256": "26ffa4323f53e95d1cb7d814667069949a6df8ed59aaf8bb269f7af1a478acb8"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-vm.log",
+      "bytes": 232,
+      "sha256": "2e558d03706d86dc045ca81cd7886af4a71478e74cddcb76b4e703cafb5da795"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/capture-source.cjs",
+      "bytes": 2505,
+      "sha256": "47e3e42bf9794e5fa29a5de855b16eec6f4d41f0ed803048c4f0cdff6cb80fb5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/corrected-packet-audit.json",
+      "bytes": 779,
+      "sha256": "7095143c4c0506a9ccf6d0b48b93296eddc587cabe24c5dec24f2cb0ec413f2b"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/corrected-packet-audit.log",
+      "bytes": 717,
+      "sha256": "f636c459235f0f97bc3503aa1d849486f1d23b3dd3cc75f7170f6064a2e2c01c"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/extract-immutable-package.py",
+      "bytes": 2847,
+      "sha256": "ed634698355fbd5613443506882a76eec3b660f74e7521791416eb7993d213bb"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/frozen-packet-audit.json",
+      "bytes": 808,
+      "sha256": "78b3c8c891d997ffa17c735e4e7394ac1e73cf073b6f26c14235fb04253f1f05"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/frozen-packet-audit.log",
+      "bytes": 774,
+      "sha256": "578204d1f938ba25e27517c9a6b50a9c9ba59b7da8cbe8a47fd78e1325e01844"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/independent-commands.json",
+      "bytes": 8800,
+      "sha256": "94ade8088c497e5e663d5e34f2fb768c75527605b9c994eb167afdca2ed60a09"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/independent-run-attempt-1.log",
+      "bytes": 471,
+      "sha256": "f708b3697d1413600ce09fa77c9dba90cabf65256048b23e5b8eabee4e4851f4"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/independent-run-final.log",
+      "bytes": 407,
+      "sha256": "051d8ba7def3d83ba52b7c94b1fa981f20ee3f58a3b7429e0bdd170bcafce0d8"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/packed-extraction.log",
+      "bytes": 511,
+      "sha256": "87f2151d044d5cea30e424307607ca3ad7cd9e87d90a75a85b0e2dc9e955fcba"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/packed-inventory.json",
+      "bytes": 35805,
+      "sha256": "76b47c1c8e10d3e48ba85c650e7908c1ad66b155ab77b429c21b01136bcbc9fb"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/public-cjs.log",
+      "bytes": 1267,
+      "sha256": "360b9f58dce18b03686e64a448a6d35bc59b9b3bd84494de61a9f8849e81c019"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/public-consumer.cjs",
+      "bytes": 7378,
+      "sha256": "cba554a0f23dcda877d797daac378c4b2295524daf579cea3e53aaeb172e9e4e"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/public-consumer.mjs",
+      "bytes": 844,
+      "sha256": "bb95c3b686d8746e43c02dd22e236f8571feac6616973499d6f2f9ed01303581"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/public-esm.log",
+      "bytes": 65,
+      "sha256": "1880f85337e23e83c35370443f470050c8636406a90cda90a79d00172cf3062a"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/receiving-contract-audit.json",
+      "bytes": 7420,
+      "sha256": "9668d68103eff0ebb45b0a86cc2d5c06b909b99ea41bdb340df71fc0cf8e56e6"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/receiving-contract-audit.log",
+      "bytes": 858,
+      "sha256": "b28697d547248c262afcd7510af53d0a77a2fdaa9a18c673df52aa068fa4c131"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/reemit-packed-source-command.json",
+      "bytes": 767,
+      "sha256": "8217398861730b6a4023939e5420d41d5e9f032132e55bbd30cb75c373293cd2"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/reemit-packed-source-equality.json",
+      "bytes": 23618,
+      "sha256": "54a9d4cebef7b821dab99599a6596d069c7f26d46fee24effd00cf5f378a7475"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/reemit-packed-source-result.log",
+      "bytes": 70,
+      "sha256": "422f56c1eea47571a856003971247b1adcfae2f5cf2bda5f8618d444a73180a6"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/reemit-packed-source.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/reemit-packed-source.py",
+      "bytes": 2516,
+      "sha256": "caaceb172ef914b4d080795674e7b8edac55755802af449c8984962d79f37fb8"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/run-independent-controls.py",
+      "bytes": 3285,
+      "sha256": "29252b658303457dc01943d2aed7233ef54fc4b39bb21faca28d3d1c4f4b696f"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/source-before.json",
+      "bytes": 2736,
+      "sha256": "45eb840bad2694e8ae4c71feae28492c1d3ba1f0fb688fae680f5171e77f2856"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/source-before.log",
+      "bytes": 202,
+      "sha256": "ce11739880e8771759404688bf2906c4ce4ce959a75190db94627ae6a1499c9b"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/staged-whitespace-check.json",
+      "bytes": 182,
+      "sha256": "7f0a522f225b64a0d1fc64f2df3a0d5670aa796a2a45c717983094826f5ec7d5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/staged-whitespace-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-browser-negative-kind.log",
+      "bytes": 279,
+      "sha256": "84354482abdbf1caba833b3053874fe3114f9dac91f40f24cfb5b864b03c26f5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-browser-negative-platform.log",
+      "bytes": 180,
+      "sha256": "0b7054b4294580948256527776d77e6a66bb5ef5415a2b30eec32554fb3075aa"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-browser-negative-stage.log",
+      "bytes": 163,
+      "sha256": "6191c7af4fea6426fe0eb291523ca28e655bb9b826fedb5bdd4d2e7a516ae1c5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-browser-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-negative-kind.ts",
+      "bytes": 140,
+      "sha256": "c4b83cc74ed1ca2ba4c2d1c937667a1027b396ed3b18348b5f967142b06dbbea"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-negative-platform.ts",
+      "bytes": 158,
+      "sha256": "5244333a59cf44f6ac6ea7e227476d038dc0b9b32900e3e2b1f82e0102f1b2f6"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-negative-stage.ts",
+      "bytes": 157,
+      "sha256": "d9a63ee7cb2c1adb07b31d6c4f806ec7e446bd5047271b8c44298eace215d92a"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-node-negative-kind.log",
+      "bytes": 279,
+      "sha256": "84354482abdbf1caba833b3053874fe3114f9dac91f40f24cfb5b864b03c26f5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-node-negative-platform.log",
+      "bytes": 180,
+      "sha256": "0b7054b4294580948256527776d77e6a66bb5ef5415a2b30eec32554fb3075aa"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-node-negative-stage.log",
+      "bytes": 163,
+      "sha256": "6191c7af4fea6426fe0eb291523ca28e655bb9b826fedb5bdd4d2e7a516ae1c5"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-node-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/types-positive.ts",
+      "bytes": 1070,
+      "sha256": "dd67c7949887343ab3c51be72a9b5517294e436afd7e253ec0736b0591aea5f7"
+    }
+  ],
+  "indexExcludesItself": true
+}
