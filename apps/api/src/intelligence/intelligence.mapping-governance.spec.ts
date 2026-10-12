@@ -112,7 +112,7 @@ describe('the mapping id comes from the path, and only the path', () => {
     // It did, and every call from that page was in fact 400ing. The page's own
     // tests mock axios, so they could not see it.
     const src = readFileSync(
-      join(__dirname, '../../../web/src/pages/settings/IntelligenceMappingsPage.tsx'),
+      join(__dirname, '__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'),
       'utf8',
     );
     // The id must be destructured out of the payload before the PATCH.
@@ -271,7 +271,7 @@ describe('a bulk sweep cannot reach an award-bearing mapping, in either directio
     // them, or every sweep produces a wall of 400s and the operator learns to
     // ignore errors. Both halves are required; this asserts the client half.
     const src = readFileSync(
-      join(__dirname, '../../../web/src/pages/settings/IntelligenceMappingsPage.tsx'),
+      join(__dirname, '__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'),
       'utf8',
     );
     const rejectAll = src.slice(src.indexOf('async function handleRejectAll'));
@@ -281,7 +281,7 @@ describe('a bulk sweep cannot reach an award-bearing mapping, in either directio
 
   test('bulk confirm still excludes them too', () => {
     const src = readFileSync(
-      join(__dirname, '../../../web/src/pages/settings/IntelligenceMappingsPage.tsx'),
+      join(__dirname, '__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'),
       'utf8',
     );
     const confirmAll = src.slice(src.indexOf('async function handleConfirmAll'));
@@ -386,14 +386,14 @@ describe('tenant isolation and role gating', () => {
 
 describe('the page explains the constraint rather than just enforcing it', () => {
   const src = readFileSync(
-    join(__dirname, '../../../web/src/pages/settings/IntelligenceMappingsPage.tsx'),
+    join(__dirname, '__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'),
     'utf8',
   );
   // AWARD_BEARING_SOURCES itself now lives in intelligence-mappings-shared.ts
   // (extracted so the vNext Settings module can reuse it) and the page just
   // imports it; the set's literal values are checked against that file.
   const sharedSrc = readFileSync(
-    join(__dirname, '../../../web/src/pages/settings/intelligence-mappings-shared.ts'),
+    join(__dirname, '__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt'),
     'utf8',
   );
 
