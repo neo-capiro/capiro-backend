@@ -1,0 +1,78 @@
+[
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/FINAL-RECEIPT.json",
+    "sha256": "59b440839d6fa7c1d2bf6de277b50c8fbc4ee153e3ef39d19f3b854a51de1887"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/REVIEW.md",
+    "sha256": "ff5f05c3a809463281a5a1f507bd2ac34d1f765de70d4212d07d361b20c48237"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cjs-final.json",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cjs-final.log",
+    "sha256": "8bbe09abfe4cbb7653d28a763eda20d1f83f75c5c7db5bf2269b436ef69f65ea"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cli-review.mjs",
+    "sha256": "ac59982edd1f9caf73da57ebe86fa9e9b1f8bf2b0876bd19e784e9ac35ce3627"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-final.json",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-final.log",
+    "sha256": "fdcc30b4a355d8a4a28044700f6d7aea6f86ad9cebb703d95d1a2317e1d80016"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-initial.json",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-initial.log",
+    "sha256": "60471949eeb5b59c27e5e967e9d50edc09a2c52dd49857aa875c918373a5e6f2"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-interop-final.json",
+    "sha256": "be3149a503a320eb65478882f811ea5ae2dda6f2c0c49d4a3a151ee9e42bcc17"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-interop-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-owner-debug.json",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-owner-debug.log",
+    "sha256": "860ab3d778193b930c5b5cc2ac192d03490bab8b8d4b15b2feaf93f59aacb312"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-repaired.json",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-repaired.log",
+    "sha256": "22046a0815421c54a1cd8297a95dc5267a5225bb9b2fccad4385b145595a585b"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/selected-source-manifest.json",
+    "sha256": "15a9496ac85f6e5dc75694b0e7f8c6f1638737d25d6cb414ee42f1d79684fcce"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/source-body-caller-review.mjs",
+    "sha256": "ad2827e517d1221d1ade315b5b2e89f50950c3669b592dbe1efa02da484a858c"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/source-body-initial.json",
+    "sha256": "7309276699bce1575eb8c918b9c32f0bb1e9500376c03acb81b175c356eb0e03"
+  },
+  {
+    "path": "docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/source-body-initial.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

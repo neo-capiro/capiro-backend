@@ -1,0 +1,670 @@
+{
+  "sourceOnly": true,
+  "checks": 49,
+  "subjects": 14,
+  "realDependencyImport": false,
+  "databaseProviderBootstrapOrChildExecuted": false,
+  "rows": [
+    {
+      "relative": "apps/api/scripts/bootstrap-roles.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/bootstrap-roles.ts --run"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/bootstrap-roles.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/bootstrap-roles.ts --run"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/bootstrap-roles.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/bootstrap-roles.ts --run"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/prepopulate-all.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/prepopulate-all.ts --run [--tenant UUID]"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/prepopulate-all.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/prepopulate-all.ts --run [--tenant UUID]"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/prepopulate-all.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/prepopulate-all.ts --run [--tenant UUID]"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/import-stanford-dow-directory.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/import-stanford-dow-directory.ts --import"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/import-stanford-dow-directory.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/import-stanford-dow-directory.ts --import"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/import-stanford-dow-directory.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/import-stanford-dow-directory.ts --import"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/import-dow-directory-v6.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/import-dow-directory-v6.ts --import [path-to-dow_v6_people.json] (or provide a path explicitly)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/import-dow-directory-v6.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/import-dow-directory-v6.ts --import [path-to-dow_v6_people.json] (or provide a path explicitly)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/import-dow-directory-v6.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/import-dow-directory-v6.ts --import [path-to-dow_v6_people.json] (or provide a path explicitly)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/verify-defense-budget-packages.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/verify-defense-budget-packages.ts --verify [--domain DOMAIN] [--fy YEAR] (filters may also be used alone)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/verify-defense-budget-packages.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/verify-defense-budget-packages.ts --verify [--domain DOMAIN] [--fy YEAR] (filters may also be used alone)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/verify-defense-budget-packages.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: tsx scripts/verify-defense-budget-packages.ts --verify [--domain DOMAIN] [--fy YEAR] (filters may also be used alone)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api-strategy/src/seed.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node dist/seed.js --run"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api-strategy/src/seed.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: node dist/seed.js --run"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api-strategy/src/seed.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node dist/seed.js --run"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-engagement-phase3-code.mjs",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-engagement-phase3-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-engagement-phase3-code.mjs",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-engagement-phase3-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-engagement-phase3-code.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-engagement-phase3-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase5-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase5-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase5-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase6-code.mjs",
+      "argv": [],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase6-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase6-code.mjs",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase6-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "scripts/verify-outreach-v3-phase6-code.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/verify-outreach-v3-phase6-code.mjs (--run | --help)"
+      ],
+      "errors": [],
+      "expectation": "refusal/help before dependency, file, DB, provider, bootstrap, child effects"
+    },
+    {
+      "relative": "apps/api/scripts/diag-ingestion-health.ts",
+      "argv": [],
+      "configured": false,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-ingestion-health.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-ingestion-health.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-ingestion-health.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-ingestion-health.ts",
+      "argv": [
+        "--run"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-ingestion-health.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-ingestion-health.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-ingestion-health.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-ingestion-health.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 1,
+      "events": [
+        "DATABASE:construct"
+      ],
+      "output": [
+        "INGEST_ERR inert boundary DATABASE:construct"
+      ],
+      "errors": [],
+      "expectation": "configured legacy no-args reaches only inert DB construction boundary"
+    },
+    {
+      "relative": "apps/api/scripts/diag-auditor-shadow.ts",
+      "argv": [],
+      "configured": false,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-auditor-shadow.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-auditor-shadow.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-auditor-shadow.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-auditor-shadow.ts",
+      "argv": [
+        "--run"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-auditor-shadow.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-auditor-shadow.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-auditor-shadow.ts requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-auditor-shadow.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 1,
+      "events": [
+        "DATABASE:construct"
+      ],
+      "output": [
+        "AUDITOR_SHADOW ERROR Error: inert boundary DATABASE:construct"
+      ],
+      "errors": [],
+      "expectation": "configured legacy no-args reaches only inert DB construction boundary"
+    },
+    {
+      "relative": "apps/api/scripts/diag-blueprint-qa.ts",
+      "argv": [],
+      "configured": false,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-blueprint-qa.ts [tenant-slug] requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-blueprint-qa.ts",
+      "argv": [
+        "--help"
+      ],
+      "configured": true,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-blueprint-qa.ts [tenant-slug] requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-blueprint-qa.ts",
+      "argv": [
+        "--run"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-blueprint-qa.ts [tenant-slug] requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-blueprint-qa.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": true,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: apps/api/scripts/diag-blueprint-qa.ts [tenant-slug] requires DATABASE_URL (database configuration is required)"
+      ],
+      "errors": [],
+      "expectation": "configured no-args remains legitimate; added --run would be refused"
+    },
+    {
+      "relative": "apps/api/scripts/diag-blueprint-qa.ts",
+      "argv": [],
+      "configured": true,
+      "exitCode": 1,
+      "events": [
+        "DATABASE:construct"
+      ],
+      "output": [
+        "QA_ERR Error: inert boundary DATABASE:construct\n    at file:///workspace/capirov2-cleanup-cli-caller-review/docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cli-review.mjs:34:65\n    at new PrismaClient (file:///workspace/capirov2-cleanup-cli-caller-review/docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cli-review.mjs:47:89)\n    at main (evalmachine.<anonymous>:53:20)\n    at evalmachine.<anonymous>:296:10\n    at evalmachine.<anonymous>:302:3\n    at Script.runInContext (node:vm:149:12)\n    at Script.runInNewContext (node:vm:154:17)\n    at runInNewContext (node:vm:310:38)\n    at probe (file:///workspace/capirov2-cleanup-cli-caller-review/docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cli-review.mjs:71:11)\n    at file:///workspace/capirov2-cleanup-cli-caller-review/docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cli-review.mjs:94:17"
+      ],
+      "errors": [],
+      "expectation": "configured legacy no-args reaches only inert DB construction boundary"
+    },
+    {
+      "relative": "scripts/meri-release.mjs",
+      "argv": [],
+      "configured": false,
+      "exitCode": 2,
+      "events": [],
+      "output": [
+        "Usage: node scripts/meri-release.mjs <inspect|prepare|promote|rollback> [action options]; inspect --service <service>; prepare --qualification <file> --out <file>; promote|rollback --manifest <file> --approve <file> --confirm <token> --receipt <file>"
+      ],
+      "errors": [],
+      "expectation": "canonical positional-action parser preserved; invalid advertised legacy --action form rejected"
+    },
+    {
+      "relative": "scripts/meri-release.mjs",
+      "argv": [
+        "--help"
+      ],
+      "configured": false,
+      "exitCode": 0,
+      "events": [],
+      "output": [
+        "Usage: node scripts/meri-release.mjs <inspect|prepare|promote|rollback> [action options]; inspect --service <service>; prepare --qualification <file> --out <file>; promote|rollback --manifest <file> --approve <file> --confirm <token> --receipt <file>"
+      ],
+      "errors": [],
+      "expectation": "canonical positional-action parser preserved; invalid advertised legacy --action form rejected"
+    },
+    {
+      "relative": "scripts/meri-release.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "configured": false,
+      "exitCode": 1,
+      "events": [],
+      "output": [
+        "Use inspect, prepare, promote, or rollback; see docs/meri/deployment-prerequisite.md"
+      ],
+      "errors": [],
+      "expectation": "canonical positional-action parser preserved; invalid advertised legacy --action form rejected"
+    },
+    {
+      "relative": "scripts/meri-release.mjs",
+      "argv": [
+        "--action",
+        "inspect",
+        "--service",
+        "api"
+      ],
+      "configured": false,
+      "exitCode": 1,
+      "events": [],
+      "output": [
+        "Use inspect, prepare, promote, or rollback; see docs/meri/deployment-prerequisite.md"
+      ],
+      "errors": [],
+      "expectation": "canonical positional-action parser preserved; invalid advertised legacy --action form rejected"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "verdict": "accepted_bounded_cli_source_caller_scope",
+  "reviewedHead": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "reviewedTree": "725acfb0db38db8b62e79b9f3fba7823d5b88bff",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "equivalentReviewerImportHead": "69c4e07aee9804b43c1fc56284ecdcf859e8b3a8",
+  "selectedPaths": 450,
+  "inertChecks": 49,
+  "inertSubjects": 14,
+  "baselineSqlLikeProjectionsRetained": 1011,
+  "lostSqlProjections": [],
+  "extraSqlPatternMatchDisposition": "L2 usage text starts With no arguments; not an added database query",
+  "explicitAliasFlagAdditions": 47,
+  "allOriginalAliasTokensPreserved": true,
+  "strictParentPhase3RulesPreserved": true,
+  "canonicalMeriOwnerPreserved": true,
+  "sourceChangesByReviewer": false,
+  "nativeSmokeAcceptance": false,
+  "actualOperationalDbProviderBootstrapCloudChildBrowserExecution": false,
+  "passedChecks": [
+    {
+      "command": "node docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/source-body-caller-review.mjs",
+      "exitCode": 0,
+      "result": "source-body-initial.json",
+      "log": "source-body-initial.log"
+    },
+    {
+      "command": "node docs/cleanup-executable-prereqs-20261012/evidence/cli-caller-independent/inert-cli-review.mjs",
+      "exitCode": 0,
+      "result": "inert-interop-final.json",
+      "log": "inert-interop-final.log"
+    },
+    {
+      "command": "git diff --check -- apps scripts packages .github",
+      "exitCode": 0
+    }
+  ],
+  "retainedProbeFailures": [
+    "inert-initial.log",
+    "inert-repaired.log",
+    "inert-final.log",
+    "inert-cjs-final.log",
+    "inert-owner-debug.log"
+  ],
+  "withdrawnConjectures": [
+    "configured diagnostics require --run: false; bare mode preserved and --run refused",
+    "phase6 closeout shell child missing --run: false; original unsafe runner ignores added marker and original shell retained"
+  ],
+  "missingDatabaseSmokeContext": "DATABASE_URL unset; help only where supported; staged source excludes ignored credential/env artifacts",
+  "unsafeMarkerDisposition": "ignored compatibility tokens do not create guards or native acceptance",
+  "blockersWithinReviewedSourceCallerScope": [],
+  "independentCarrierAndNativeAcceptanceRequired": true,
+  "generatedAt": "2026-10-12T13:06:30.152Z"
+}
