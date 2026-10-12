@@ -1,0 +1,60 @@
+{
+  "environmentKeys": [
+    "PATH"
+  ],
+  "preload": "./docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/no-external-ports.cjs",
+  "commands": [
+    {
+      "phase": "original",
+      "source": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+      "argv": [
+        "node",
+        "--require",
+        "<preload>",
+        "scripts/verify-outreach-v3-p1-architecture.spec.mjs"
+      ],
+      "exit": 0,
+      "cases": 6
+    },
+    {
+      "phase": "published-unadapted-destination",
+      "sourceFilesBoundBy": "SOURCE-MANIFEST-BEFORE-CONTROL-ADAPTATION.json + original published-controls.mjs.txt",
+      "argv": [
+        "node",
+        "--require",
+        "<preload>",
+        "scripts/ci/outreach-operating-inputs.spec.mjs"
+      ],
+      "exit": 1,
+      "cases": 112,
+      "pass": 111,
+      "fail": 1
+    },
+    {
+      "phase": "candidate",
+      "source": "1ed986c092b4b0998c82007e895463255d6f4901",
+      "argv": [
+        "node",
+        "--require",
+        "<preload>",
+        "scripts/ci/outreach-operating-inputs.spec.mjs"
+      ],
+      "exit": 0,
+      "cases": 112
+    },
+    {
+      "phase": "candidate-six",
+      "source": "1ed986c092b4b0998c82007e895463255d6f4901",
+      "argv": [
+        "node",
+        "--require",
+        "<preload>",
+        "scripts/verify-outreach-v3-p1-architecture.spec.mjs"
+      ],
+      "exit": 0,
+      "cases": 6
+    }
+  ],
+  "configuredArchitectureCliExecuted": false,
+  "fakeFsGitVmOnlyForCompleteArchitectureControls": true
+}

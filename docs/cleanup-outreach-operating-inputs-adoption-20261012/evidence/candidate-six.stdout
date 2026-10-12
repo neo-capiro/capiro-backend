@@ -1,0 +1,14 @@
+✔ closed shared capability catalog passes (2.160616ms)
+✔ duplicate capability fails (0.361002ms)
+✔ Meri-specific duplicate implementation fails (0.185239ms)
+✔ reverse dependency missing tenant-neutral target metadata fails (0.314105ms)
+✔ current catalog permits later entries while retaining authority checks (0.272163ms)
+✔ current catalog extensions cannot bypass duplicate, metadata or consumer checks (0.15453ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11.853616
