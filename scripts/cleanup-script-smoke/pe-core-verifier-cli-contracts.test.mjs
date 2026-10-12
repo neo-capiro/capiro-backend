@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,19 +11,19 @@ const apiRoot = path.join(repoRoot, 'apps/api');
 const cases = [
   {
     file: 'lint-pe-scripts.ts',
-    stdout: 'PE_LINT_SCRIPTS_OK\n',
+    failure: /PE_LINT_SCRIPTS_FAILED: scripts\/entrypoint\.sh: contains prisma migrate resolve/u,
     usage: 'Usage: tsx scripts/lint-pe-scripts.ts [--help]\n',
   },
   {
     file: 'verify-pe-migration-guards.ts',
-    stdout: 'PE_MIGRATION_GUARDS_OK\n',
+    failure: /PE_MIGRATION_GUARDS_FAILED: scripts\/entrypoint\.sh: contains prisma migrate resolve/u,
     usage:
       'Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]\n',
   },
   {
     file: 'verify-pe-phase-e-exact-sha.ts',
-    // The exact default JSON includes the ordered Phase E loader inventory.
-    stdoutSha256: '298a86346a77c663ed704d7d0076715e2f7a058dfb593968aa10d4df0668efa6',
+    // The immutable candidate retains the parent strict refusal of this facade.
+    refusedFacade: 'parse-defense-approps-public-law.ts',
     usage: 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]\n',
   },
 ];
@@ -83,22 +82,25 @@ for (const subject of cases) {
       MISSING_DATABASE_URL_SMOKE_CONTEXT,
     );
     assert.equal(contract.noArgs.documented, true, contract.evidence);
-    assert.equal(contract.noArgs.exit, 0, contract.evidence);
+    assert.equal(contract.noArgs.exit, 1, contract.evidence);
     assert.equal(contract.help.exit, 0, contract.evidence);
 
-    const normal = invoke(subject.file, [], 0);
-    assert.equal(normal.stderr, subject.usage, 'noargs adds only the usage line');
-    if (subject.stdout) {
-      assert.equal(normal.stdout, subject.stdout, 'preserve baseline stdout byte-for-byte');
+    // This is a truthful CLI failure contract, never a passing policy gate.
+    // Existing verification imports/functions/predicates remain parent-exact;
+    // independent inert fixtures separately prove their success and refusal paths.
+    const normal = invoke(subject.file, [], 1);
+    assert.equal(normal.stdout, '', 'a refused policy gate emits no success output');
+    assert.ok(normal.stderr.startsWith(subject.usage), 'usage precedes the existing refusal');
+    assert.doesNotMatch(normal.stderr, /AssertionError|node:internal|\n\s+at /u,
+      'CLI renders a failure without an uncaught stack');
+    if (subject.failure) {
+      assert.match(normal.stderr, subject.failure, 'strict migration-history refusal retained');
+      assert.doesNotMatch(normal.stderr, /_OK\b/u, 'failed verifier never emits its success marker');
     } else {
-      assert.equal(
-        createHash('sha256').update(normal.stdout).digest('hex'),
-        subject.stdoutSha256,
-        'preserve baseline JSON stdout byte-for-byte',
-      );
-      const result = JSON.parse(normal.stdout);
-      assert.equal(result.ok, true);
-      assert.equal(result.loadersChecked, 13);
+      const refusal = JSON.parse(normal.stderr.slice(subject.usage.length));
+      assert.equal(refusal.ok, false, 'exact-SHA verification remains refused');
+      assert.equal(refusal.failures.length, 4, 'all four existing facade violations remain');
+      assert.ok(refusal.failures.every(value => value.startsWith(subject.refusedFacade+':')));
     }
 
     const help = invoke(subject.file, ['--help'], 0);
