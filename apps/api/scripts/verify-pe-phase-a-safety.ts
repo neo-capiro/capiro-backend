@@ -18,6 +18,7 @@ import {
   classifyUnitRatio,
   requireApprovedSha256,
 } from './lib/defense-budget-commit.js';
+import { assertNoMigrationHistoryMutation } from './lib/pe-migration-guards.js';
 
 function apiRoot(): string {
   const cwd = process.cwd();
@@ -88,25 +89,20 @@ function verifyMigrationGuard(): void {
   const active = apiFile('scripts/entrypoint.sh');
   const compatibility = apiFile('scripts/entrypoint-legacy.sh');
   const dispatcher = apiFile('scripts/entrypoint-dispatcher.inc');
-  // Recovery is an explicit operator verb. Only these two branches may resolve
-  // history; migrate/serve and the legacy dispatchers must never do so.
-  let automaticPaths = active;
-  for (const mode of ['rolled-back', 'applied']) {
-    const pattern = new RegExp(`^  migrate-resolve-${mode}\\)\\n[\\s\\S]*?^    ;;`, 'gm');
-    const branches = automaticPaths.match(pattern) ?? [];
-    assert.equal(branches.length, 1, `exactly one explicit ${mode} recovery branch`);
-    const branch = branches[0]!;
-    assert.match(branch, /shift\n\s+if \[ -z "\$\{1:-\}" \]; then[\s\S]*?exit 1\n\s+fi/);
-    assert(branch.includes(`exec node ./node_modules/prisma/build/index.js migrate resolve --schema=./prisma/schema.prisma --${mode} "$1"`));
-    automaticPaths = automaticPaths.replace(pattern, '');
-  }
+  // The canonical owner proves the complete raw source envelope before confining
+  // the exact two approved operator arms. Familiar branch text alone cannot hide
+  // extra commands, nesting, rebinding or automatic recovery. Source attestation
+  // does not authenticate the runbook's ticket/operator/separate approver.
+  const migrationGuard = assertNoMigrationHistoryMutation([
+    { path: 'scripts/entrypoint.sh', source: active },
+    { path: 'scripts/entrypoint-legacy.sh', source: compatibility },
+    { path: 'scripts/entrypoint-dispatcher.inc', source: dispatcher },
+  ]);
+  assert.equal(migrationGuard.ok, true, migrationGuard.findings.map((f) => f.message).join('; '));
   for (const source of [active, compatibility, dispatcher]) {
     assert.equal(source.includes('_prisma_migrations'), false);
     assert.equal(source.includes('rolled_back_at = NOW()'), false);
     assert.equal(source.includes('Resolving failed migration:'), false);
-  }
-  for (const source of [automaticPaths, compatibility, dispatcher]) {
-    assert.equal(/prisma[^\n]*migrate\s+resolve/.test(source), false);
   }
   assert.match(active, /node .*prisma.* migrate deploy/);
   assert.match(compatibility, /Refusing legacy migrate dispatch/);

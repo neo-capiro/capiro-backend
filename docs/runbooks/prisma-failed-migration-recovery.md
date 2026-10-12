@@ -112,6 +112,17 @@ pnpm --filter @capiro/api exec prisma migrate resolve \
 
 Never issue both commands for the same recovery. Never update `_prisma_migrations` with ad hoc SQL.
 
+The approved API container also retains the explicit PR816 operator aliases:
+
+```bash
+/usr/local/bin/entrypoint.sh migrate-resolve-rolled-back <migration_name>
+/usr/local/bin/entrypoint.sh migrate-resolve-applied <migration_name>
+```
+
+Choose exactly one posture after the same ticket, operator, separate-approver and database-state evidence above. These aliases record the verified outcome through Prisma; they do not reverse DDL/DML, inspect its effects, obtain approval, serialize operators, or make recovery part of startup/deployment/scheduling. Do not invoke them from any automated path or permanent gate replay. The existing alias bodies and normal deploy behavior remain unchanged.
+
+The canonical source guard checks the complete reviewed raw entrypoint trio and exact operator-arm protocol before accepting those two resolution sites. The attestation proves source identity and confinement within that finite envelope, not current deployed callers, external helper/environment behavior or authorization to execute recovery. Any changed source envelope requires review; do not strip comments, broaden branch matching, add a path-name exemption or silence an unproven-source refusal to pass the gate. Native recovery/replay remains a separately authorized operator action.
+
 ## 5. Record approval and execution
 
 The ticket must contain:

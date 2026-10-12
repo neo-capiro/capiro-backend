@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from '@jest/globals';
+import { assertNoMigrationHistoryMutation } from './pe-migration-guards.js';
 
 function apiFile(relativePath: string): string {
   const cwd = process.cwd();
@@ -19,8 +20,13 @@ describe('Program Elements operational safety guards', () => {
       expect(source).not.toContain('_prisma_migrations');
       expect(source).not.toContain('rolled_back_at = NOW()');
       expect(source).not.toContain('Resolving failed migration:');
-      expect(source).not.toMatch(/prisma[^\n]*migrate\s+resolve/);
     }
+    const migrationGuard = assertNoMigrationHistoryMutation([
+      { path: 'scripts/entrypoint.sh', source: active },
+      { path: 'scripts/entrypoint-legacy.sh', source: compatibility },
+      { path: 'scripts/entrypoint-dispatcher.inc', source: dispatcher },
+    ]);
+    expect(migrationGuard).toEqual({ ok: true, findings: [] });
     expect(active).toMatch(/node .*prisma.* migrate deploy/);
     expect(compatibility).toContain('Refusing legacy migrate dispatch');
     expect(dispatcher).toContain('Refusing legacy migrate dispatch');

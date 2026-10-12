@@ -53,7 +53,7 @@ Independent adversarial REVIEW is still required; implementer markers are not PA
 | Script | Coverage |
 |---|---|
 | `typecheck:pe-scripts` | Bounded TypeScript project `tsconfig.pe-scripts.json` (gate modules + metrics + catalog helpers). Catalog file list is exact — no globs. |
-| `lint:pe-scripts` | Every production script path exists; no `_prisma_migrations` hand-edit; no `migrate resolve`; exact-SHA loaders registered; package scripts name exact tokens. |
+| `lint:pe-scripts` | Every production script path exists; no `_prisma_migrations` hand-edit or automatic `migrate resolve`; only the exact source-attested manual recovery arms below; exact-SHA loaders registered; package scripts name exact tokens. |
 | `test:pe-trust` | Jest: accuracy metrics (incl. grounded field + separated precision/recall/coverage/FP/FN), diagnostics fail-closed sizes, migration guard pure logic, metric/alarm catalog bounds, production script catalog honesty. |
 | `verify:pe-phase-k` | DB-free executable chain: synthetic alarm events, diagnostic fixtures, grounded golden provenance (synthetic-loud). |
 
@@ -78,7 +78,9 @@ do not point at production without Neo authorization).
 ## Migration guards
 
 - Entrypoints must not reference `_prisma_migrations` in executable lines.
-- Entrypoints must not run `prisma migrate resolve`.
+- Deploy, serve, startup, scheduled and replay paths must not run `prisma migrate resolve`.
+- The existing `migrate-resolve-rolled-back` and `migrate-resolve-applied` container verbs are explicit operator recovery only, introduced by PR816 (`f06cdced`) and required by the later Phase A contract (`a966a263`). They require the incident/change ticket, operator, separate approver and verified database state in `prisma-failed-migration-recovery.md`. Their source does not authenticate those human approvals.
+- The existing canonical migration guard attests the raw LF-normalized source of all three supported entrypoint files at the reviewed `d70bb972` envelope and then proves the exact two top-level arms: literal argv selector, shift, nonempty name rejection, configured URL composition, exact log and Prisma schema/mode/quoted-name argv, and terminating `exec`/`;;`. All other source regions, helper definitions, deployment/default paths and both legacy refusals remain pinned. Missing, duplicate, aliased, extra or changed raw snapshots fail closed; callers must pass raw source without pre-stripping comments. This is a finite source protocol, not a general shell parser or proof about arbitrary runtime/module code, deployed task commands, environment/helper overrides, or operator authorization. Every envelope update requires source review; no pattern-wide/path-name waiver is granted.
 - Exactly one active `migrate deploy` path among the entrypoint trio.
 - Offline: `prisma validate` + `prisma generate` via `--validate-generate`.
 - Clean migrate replay and upgrade replay: **disposable Postgres only**. Record exit codes;
