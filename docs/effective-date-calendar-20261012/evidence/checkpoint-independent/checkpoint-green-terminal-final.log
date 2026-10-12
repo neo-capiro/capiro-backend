@@ -1,0 +1,82 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/effective-calendar-checkpoint-review/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts
+PASS apps/api/src/federal-register/effective-independent-review.spec.ts
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-federal-register","rows_inserted":0,"rows_updated":1,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+PASS apps/api/src/federal-register/federal-register-calendar.spec.ts
+PASS apps/api/src/federal-register/effective-script-independent-review.spec.ts
+PASS apps/api/src/ingestion/sync-run.helper.spec.ts
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":5,"rows_updated":2,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-new","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":3,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-sam-opportunities","rows_inserted":5000,"rows_updated":0,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"geocode-facilities","rows_inserted":1,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":0,"rows_updated":0,"error_count":1,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_SKIP {"source":"sync-congress","reason":"already_running","running_since":"2026-10-12T07:41:13.213Z"}
+
+      at runWithSyncRun (src/ingestion/sync-run.helper.ts:185:17)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+PASS apps/api/src/federal-register/effective-date-evidence.spec.ts
+PASS apps/api/src/federal-register/federal-register-observation.spec.ts
+PASS apps/api/src/ingestion/embed-watermark.spec.ts
+
+Test Suites: 8 passed, 8 total
+Tests:       181 passed, 181 total
+Snapshots:   0 total
+Time:        2.583 s, estimated 9 s
+Ran all test suites within paths "apps/api/src/federal-register/effective-independent-review.spec.ts", "apps/api/src/federal-register/effective-script-independent-review.spec.ts", "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts", "apps/api/src/federal-register/effective-date-evidence.spec.ts", "apps/api/src/federal-register/federal-register-calendar.spec.ts", "apps/api/src/federal-register/federal-register-observation.spec.ts", "apps/api/src/ingestion/sync-run.helper.spec.ts", "apps/api/src/ingestion/embed-watermark.spec.ts".
+Test results written to: docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-green-terminal-final.json

@@ -1,0 +1,73 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/effective-calendar-checkpoint-review/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts
+  independent actual-script automatic-checkpoint regressions
+    ✕ does not let a partial catalog max skip the unseen older publication tail (41 ms)
+    ✕ does not trust legacy successful receipts or their newer local catalog max (4 ms)
+    ○ skipped asks the canonical receipt owner for only successful protocol-qualified ordinary windows
+    ○ skipped ignores newer partial receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer error receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer row_errors receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer legacy receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer old_protocol receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer string_protocol receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer missing_eligibility receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer string_eligibility receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer manual_override receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer refresh_scope receipt and falls back without catalog-derived authority
+    ○ skipped ignores newer other_source receipt and falls back without catalog-derived authority
+    ○ skipped uses the newest qualified complete receipt despite later partial/manual/legacy attempts
+    ○ skipped marks exhausted ordinary window %p eligible
+    ○ skipped marks exhausted ordinary window "--incremental" eligible
+    ○ skipped explicit cli since override wins and can never become an automatic checkpoint
+    ○ skipped explicit environment since override wins and can never become an automatic checkpoint
+    ○ skipped cannot mark row_failure source window checkpoint-eligible
+    ○ skipped cannot mark duplicate source window checkpoint-eligible
+    ○ skipped cannot mark missing_identity source window checkpoint-eligible
+    ○ skipped cannot mark count_drift source window checkpoint-eligible
+    ○ skipped keeps checkpoint eligibility false when an older page fails after a newer page was persisted
+    ○ skipped refuses checkpoint read failure before fetching or opening a publication run
+    ○ skipped never acknowledges an eligible window when the first page fails
+    ○ skipped rejects invalid explicit date before provider requests or receipt queries
+
+  ● independent actual-script automatic-checkpoint regressions › does not let a partial catalog max skip the unseen older publication tail
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "2021-01-01"
+    Received: "2026-10-12"
+
+      107 |       response: url => url.searchParams.get('conditions[publication_date][gte]')! <= unseen.publication_date
+      108 |         ? { count: 1, results: [unseen] } : { count: 0, results: [] } });
+    > 109 |     expect(floor(r)).toBe('2021-01-01');
+          |                      ^
+      110 |     expect(r.observations.map(doc => doc.document_number)).toEqual([unseen.document_number]);
+      111 |     expect(r.catalogQueries).toEqual([]);
+      112 |   });
+
+      at Object.<anonymous> (src/federal-register/effective-checkpoint-independent-review.spec.ts:109:22)
+
+  ● independent actual-script automatic-checkpoint regressions › does not trust legacy successful receipts or their newer local catalog max
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "2021-01-01"
+    Received: "2026-10-12"
+
+      114 |     const r = await execute({ argv: ['--incremental'], catalogMaximum: new Date('2026-10-12'),
+      115 |       receipts: [receipt({ stats: {}, startedAt: NOW })] });
+    > 116 |     expect(floor(r)).toBe('2021-01-01'); expect(r.catalogQueries).toEqual([]);
+          |                      ^
+      117 |   });
+      118 |   it('asks the canonical receipt owner for only successful protocol-qualified ordinary windows', async () => {
+      119 |     const r = await execute({ argv: ['--incremental'] });
+
+      at Object.<anonymous> (src/federal-register/effective-checkpoint-independent-review.spec.ts:116:22)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 25 skipped, 27 total
+Snapshots:   0 total
+Time:        1.555 s
+Ran all test suites within paths "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts".
+Test results written to: docs/effective-date-calendar-20261012/evidence/checkpoint-independent/checkpoint-red-original.json
