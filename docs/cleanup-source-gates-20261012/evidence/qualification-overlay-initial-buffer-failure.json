@@ -1,0 +1,15 @@
+{
+  "measuredSource": "1970606297c589b3e259e27f5e7f9fe91fe03a20",
+  "measuredTree": "05b1685ff7a2c726645e5b28ea87b0b763f8af19",
+  "action": "node evidence/verify-qualification-overlay.cjs",
+  "exitCode": 1,
+  "error": "spawnSync git ENOBUFS",
+  "operation": [
+    "git",
+    "show",
+    "HEAD:docs/cleanup-source-gates-20261012/evidence/web-full-source-unit.json"
+  ],
+  "cause": "Node execFileSync default1MiB buffer shorter than retained full Web JSON receipt",
+  "correction": "Read-only Git reader buffer64MiB; hash assertions/source scope unchanged. Original failure retained; separate verifier run pending.",
+  "gateOrProductChange": false
+}

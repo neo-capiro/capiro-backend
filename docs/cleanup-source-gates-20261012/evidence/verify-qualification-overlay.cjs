@@ -6,7 +6,7 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '../../..');
 const packet = 'docs/cleanup-source-gates-20261012';
 const target = process.argv[2] || 'HEAD';
-const git = (...args) => execFileSync('git', args, { cwd: root });
+const git = (...args) => execFileSync('git', args, { cwd: root, maxBuffer: 64 * 1024 * 1024 });
 const text = (...args) => git(...args).toString().trim();
 const bytes = (file) => git('show', `${target}:${file}`);
 const json = (file) => JSON.parse(bytes(file).toString());
