@@ -1,0 +1,7 @@
+{
+  "initialShortRef": "bfd81",
+  "initialReadExit": 128,
+  "cause": "prefix ambiguous between one commit and two tree objects",
+  "resolvedExactCommit": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "sourceOrWorkflowMutation": false
+}

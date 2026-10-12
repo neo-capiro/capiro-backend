@@ -1,0 +1,498 @@
+{
+  "acceptedSource": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "acceptedTree": "8988b19a56da936adb82f12173f3c2dfbd589833",
+  "base": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "nonDocFiles": [
+    ".github/workflows/cleanup1-gate.yml",
+    ".github/workflows/ci-pr.yml"
+  ],
+  "allOtherParsedWorkflowPropertiesAndStepsUnchanged": true,
+  "allOriginalCiStepsRemainUnconditionalOrKeepOriginalConditions": true,
+  "newPureWebStepUnchanged": true,
+  "defaultPRTypesPreservedAndReadyAdded": true,
+  "originalBranchAndPathFiltersPreserved": true,
+  "permissionsAndServicesEnvTimeoutCommandsBudgetsPreserved": true,
+  "protectedSteps": [
+    {
+      "job": "verify",
+      "name": "Test apps/api",
+      "run": "pnpm --filter @capiro/api test"
+    },
+    {
+      "job": "verify",
+      "name": "Test apps/defense-api",
+      "run": "pnpm turbo run build --filter=@capiro/defense-api\npnpm --filter @capiro/defense-api test\n"
+    }
+  ],
+  "payloadCases": 27,
+  "conditionChecks": 81,
+  "passed": 81,
+  "results": [
+    {
+      "name": "ready boolean false opened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": true,
+      "defenseNativeStepAllowed": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true opened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "ready boolean false synchronize",
+      "event": {
+        "event_name": "pull_request",
+        "action": "synchronize",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": true,
+      "defenseNativeStepAllowed": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true synchronize",
+      "event": {
+        "event_name": "pull_request",
+        "action": "synchronize",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "ready boolean false reopened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "reopened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": true,
+      "defenseNativeStepAllowed": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true reopened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "reopened",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "ready boolean false ready_for_review",
+      "event": {
+        "event_name": "pull_request",
+        "action": "ready_for_review",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": true,
+      "defenseNativeStepAllowed": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true ready_for_review",
+      "event": {
+        "event_name": "pull_request",
+        "action": "ready_for_review",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft null",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": null
+        }
+      },
+      "serializedDraft": "null",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft number0",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": 0
+        }
+      },
+      "serializedDraft": "0",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft number1",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": 1
+        }
+      },
+      "serializedDraft": "1",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft negative-zero",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": 0
+        }
+      },
+      "serializedDraft": "0",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft stringfalse",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": "false"
+        }
+      },
+      "serializedDraft": "\"false\"",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft stringFALSE",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": "FALSE"
+        }
+      },
+      "serializedDraft": "\"FALSE\"",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft empty-string",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": ""
+        }
+      },
+      "serializedDraft": "\"\"",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft array",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": []
+        }
+      },
+      "serializedDraft": "[]",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft object",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": {}
+        }
+      },
+      "serializedDraft": "{}",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "missing draft property",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {}
+      },
+      "serializedDraft": "\"\"",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "missing pull_request payload",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened"
+      },
+      "serializedDraft": "\"\"",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": true,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "unrelated push event",
+      "event": {
+        "event_name": "push",
+        "action": "opened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": false,
+      "gateAllowed": false,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "pull_request_target event",
+      "event": {
+        "event_name": "pull_request_target",
+        "action": "opened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": false,
+      "gateAllowed": false,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "explicit dispatch without PR payload",
+      "event": {
+        "event_name": "workflow_dispatch"
+      },
+      "serializedDraft": "\"\"",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "explicit dispatch with draft true",
+      "event": {
+        "event_name": "workflow_dispatch",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "unselected edited activity",
+      "event": {
+        "event_name": "pull_request",
+        "action": "edited",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": false,
+      "gateAllowed": false,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "unselected converted_to_draft",
+      "event": {
+        "event_name": "pull_request",
+        "action": "converted_to_draft",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": false,
+      "gateAllowed": false,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "feature-base draft publication",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "base": "codex/reviewed-parent",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "serializedDraft": "true",
+      "gateTriggered": true,
+      "gateAllowed": false,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    },
+    {
+      "name": "feature-base ready PR does not trigger main-only ci-pr",
+      "event": {
+        "event_name": "pull_request",
+        "action": "ready_for_review",
+        "base": "codex/reviewed-parent",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "serializedDraft": "false",
+      "gateTriggered": true,
+      "gateAllowed": true,
+      "ciTriggered": false,
+      "apiNativeStepAllowed": false,
+      "defenseNativeStepAllowed": false,
+      "passed": true
+    }
+  ],
+  "workflowHashes": [
+    {
+      "path": ".github/workflows/cleanup1-gate.yml",
+      "sha256": "d147dffe5145bfa5573c06f48661c9ea86640a3ff01d5f0463088618ba26fc4d"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "sha256": "21d296578e55db1fd5c9532316000d2b62ee411226b378fec4f4a2bbb1787c23"
+    }
+  ],
+  "scope": "new cleanup native job and exactly two newly authored native-capable ci-pr steps; no all-CI-native-free claim",
+  "newNativeDraftBoundaryAccepted": true,
+  "actualWorkflowNativeDatabaseProviderSecurityExecution": false,
+  "nativeOrFullCleanupAcceptance": false,
+  "limit": "Pure documented JSON/trigger model and exact parsed-source comparison, not an actual GitHub Actions invocation."
+}

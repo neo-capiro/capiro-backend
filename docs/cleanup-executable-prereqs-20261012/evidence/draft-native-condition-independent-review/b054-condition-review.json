@@ -1,0 +1,399 @@
+{
+  "source": "b054c7bf842f963256848758e32cf568f680d5a4",
+  "tree": "4ff190fc8c43c0606be8ebd16810def562b748ca",
+  "base": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "file": ".github/workflows/cleanup1-gate.yml",
+  "beforeSha256": "36da0eda3c63e92a05fc3ae61d323e80ea9987224c1608e7b74aae64762356e2",
+  "afterSha256": "d147dffe5145bfa5573c06f48661c9ea86640a3ff01d5f0463088618ba26fc4d",
+  "exactCondition": "${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && toJSON(github.event.pull_request.draft) == 'false') }}",
+  "defaultTriggerActivitiesPreserved": true,
+  "readyEventAdded": true,
+  "allOtherParsedWorkflowPropertiesAndStepsUnchanged": true,
+  "nonDocsOnlyWorkflowChanged": true,
+  "pureCases": 25,
+  "passed": 25,
+  "results": [
+    {
+      "name": "ready boolean false opened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": true,
+      "triggered": true,
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true opened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "ready boolean false synchronize",
+      "event": {
+        "event_name": "pull_request",
+        "action": "synchronize",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": true,
+      "triggered": true,
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true synchronize",
+      "event": {
+        "event_name": "pull_request",
+        "action": "synchronize",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "ready boolean false reopened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "reopened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": true,
+      "triggered": true,
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true reopened",
+      "event": {
+        "event_name": "pull_request",
+        "action": "reopened",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "ready boolean false ready_for_review",
+      "event": {
+        "event_name": "pull_request",
+        "action": "ready_for_review",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": true,
+      "triggered": true,
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "draft boolean true ready_for_review",
+      "event": {
+        "event_name": "pull_request",
+        "action": "ready_for_review",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft null",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": null
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft number0",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": 0
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft number1",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": 1
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft negative-zero",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": 0
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft stringfalse",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": "false"
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft stringFALSE",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": "FALSE"
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft empty-string",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": ""
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft array",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": []
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "malformed draft object",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {
+          "draft": {}
+        }
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "missing draft property",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened",
+        "pull_request": {}
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "missing pull_request payload",
+      "event": {
+        "event_name": "pull_request",
+        "action": "opened"
+      },
+      "eligible": false,
+      "triggered": true,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "unrelated push event",
+      "event": {
+        "event_name": "push",
+        "action": "opened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": false,
+      "triggered": false,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "pull_request_target event",
+      "event": {
+        "event_name": "pull_request_target",
+        "action": "opened",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": false,
+      "triggered": false,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "explicit dispatch without PR payload",
+      "event": {
+        "event_name": "workflow_dispatch"
+      },
+      "eligible": true,
+      "triggered": true,
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "explicit dispatch with draft true",
+      "event": {
+        "event_name": "workflow_dispatch",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "eligible": true,
+      "triggered": true,
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "unselected edited activity",
+      "event": {
+        "event_name": "pull_request",
+        "action": "edited",
+        "pull_request": {
+          "draft": false
+        }
+      },
+      "eligible": true,
+      "triggered": false,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "unselected converted_to_draft",
+      "event": {
+        "event_name": "pull_request",
+        "action": "converted_to_draft",
+        "pull_request": {
+          "draft": true
+        }
+      },
+      "eligible": false,
+      "triggered": false,
+      "expected": false,
+      "actual": false,
+      "passed": true
+    }
+  ],
+  "scopeLimit": "Protects cleanup1-gate job only; new native-capable ci-pr steps remain unconditional",
+  "newNativeSteps": [
+    {
+      "job": "verify",
+      "name": "Test apps/api",
+      "condition": null,
+      "run": "pnpm --filter @capiro/api test"
+    },
+    {
+      "job": "verify",
+      "name": "Test apps/defense-api",
+      "condition": null,
+      "run": "pnpm turbo run build --filter=@capiro/defense-api\npnpm --filter @capiro/defense-api test\n"
+    }
+  ],
+  "actualWorkflowNativeDatabaseProviderExecution": false,
+  "publicationBoundaryComplete": false
+}

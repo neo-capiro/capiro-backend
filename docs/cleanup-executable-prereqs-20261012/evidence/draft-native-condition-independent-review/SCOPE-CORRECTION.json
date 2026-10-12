@@ -1,0 +1,10 @@
+{
+  "initialSource": "b054c7bf842f963256848758e32cf568f680d5a4",
+  "initialPublicationBoundaryCompleteFalseMeaning": "general main-target draft protection incomplete for two newly inserted native-capable ci-pr steps; actual stack target not included in initial model",
+  "actualAuthorizedTarget": "PR2407 feature branch",
+  "unchangedCiPrMainFilterExcludesActualStack": true,
+  "newFinalSource": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "futureMainDraftGapClosed": true,
+  "existingCiNativeGenerationSuppressionClaim": false,
+  "observedUnsafeWorkflowRun": false
+}
