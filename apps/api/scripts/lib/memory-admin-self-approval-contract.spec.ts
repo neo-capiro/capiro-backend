@@ -124,7 +124,7 @@ describe('memory administrator self-approval policy contract', () => {
     const editorTree = ts.createSourceFile('MemoryFileEditor.tsx', editor, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const successImports = editorTree.statements.filter(ts.isImportDeclaration)
       .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './memory-file-editor-shared.js')
-      .filter((node) => node.importClause && !node.importClause.isTypeOnly && node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+      .filter((node) => node.importClause && !node.importClause.isTypeOnly && node.importClause.phaseModifier === undefined && node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
         node.importClause.namedBindings.elements.some((entry) => !entry.isTypeOnly && entry.name.text === 'settingsMemorySuccessMessage' &&
           (entry.propertyName ?? entry.name).text === 'settingsMemorySuccessMessage'));
     expect(successImports).toHaveLength(1);
@@ -132,11 +132,11 @@ describe('memory administrator self-approval policy contract', () => {
       .filter((node) => node.name?.text === 'MemoryFileEditor');
     expect(editorFunctions).toHaveLength(1);
     expect(ts.getModifiers(editorFunctions[0]!)?.some((node) => node.kind === ts.SyntaxKind.ExportKeyword)).toBe(true);
-    assertNoRebinding(editorFunctions[0]!, 'settingsMemorySuccessMessage');
-    assertNoRebinding(editorFunctions[0]!, 'useMutation');
+    assertNoRebinding(editorTree, 'settingsMemorySuccessMessage');
+    assertNoRebinding(editorTree, 'useMutation');
     const mutationImports = editorTree.statements.filter(ts.isImportDeclaration)
       .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === '@tanstack/react-query')
-      .filter((node) => node.importClause && !node.importClause.isTypeOnly && node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+      .filter((node) => node.importClause && !node.importClause.isTypeOnly && node.importClause.phaseModifier === undefined && node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
         node.importClause.namedBindings.elements.some((entry) => !entry.isTypeOnly && entry.name.text === 'useMutation' &&
           (entry.propertyName ?? entry.name).text === 'useMutation'));
     expect(mutationImports).toHaveLength(1);
@@ -150,9 +150,14 @@ describe('memory administrator self-approval policy contract', () => {
     expect(mutationCall.expression.getText(editorTree)).toBe('useMutation');
     expect(mutationCall.arguments).toHaveLength(1);
     expect(ts.isObjectLiteralExpression(mutationCall.arguments[0]!)).toBe(true);
-    expect((mutationCall.arguments[0]! as ts.ObjectLiteralExpression).properties.filter(ts.isSpreadAssignment)).toHaveLength(0);
-    const callbacks = (mutationCall.arguments[0]! as ts.ObjectLiteralExpression).properties.filter(ts.isPropertyAssignment)
-      .filter((node) => node.name.getText(editorTree) === 'onSuccess');
+    const mutationProperties = (mutationCall.arguments[0]! as ts.ObjectLiteralExpression).properties;
+    expect(mutationProperties.every((node) => ts.isPropertyAssignment(node) &&
+      (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)))).toBe(true);
+    const mutationNames = mutationProperties.map((node) =>
+      ((node as ts.PropertyAssignment).name as ts.Identifier | ts.StringLiteral).text);
+    expect(new Set(mutationNames).size).toBe(mutationProperties.length);
+    const callbacks = mutationProperties.filter(ts.isPropertyAssignment)
+      .filter((node) => (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && node.name.text === 'onSuccess');
     expect(callbacks).toHaveLength(1);
     expect(ts.isArrowFunction(callbacks[0]!.initializer)).toBe(true);
     const onSuccess = callbacks[0]!.initializer as ts.ArrowFunction;
@@ -176,7 +181,7 @@ describe('memory administrator self-approval policy contract', () => {
     const panelTree = ts.createSourceFile('PendingMemoryReviewPanel.tsx', pendingPanel, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const headlineImports = panelTree.statements.filter(ts.isImportDeclaration)
       .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './pending-memory-review-shared.js')
-      .filter((node) => node.importClause && !node.importClause.isTypeOnly && node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
+      .filter((node) => node.importClause && !node.importClause.isTypeOnly && node.importClause.phaseModifier === undefined && node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings) &&
         node.importClause.namedBindings.elements.some((entry) => !entry.isTypeOnly && entry.name.text === 'pendingReviewHeadline' &&
           (entry.propertyName ?? entry.name).text === 'pendingReviewHeadline'));
     expect(headlineImports).toHaveLength(1);
@@ -184,7 +189,7 @@ describe('memory administrator self-approval policy contract', () => {
       .filter((node) => node.name?.text === 'PendingMemoryReviewPanel');
     expect(panels).toHaveLength(1);
     expect(ts.getModifiers(panels[0]!)?.some((node) => node.kind === ts.SyntaxKind.ExportKeyword)).toBe(true);
-    assertNoRebinding(panels[0]!, 'pendingReviewHeadline');
+    assertNoRebinding(panelTree, 'pendingReviewHeadline');
     expect(panels[0]!.body!.statements.every((node) => ts.isVariableStatement(node) || ts.isReturnStatement(node))).toBe(true);
     const returns = panels[0]!.body!.statements.filter(ts.isReturnStatement);
     expect(returns).toHaveLength(1);
