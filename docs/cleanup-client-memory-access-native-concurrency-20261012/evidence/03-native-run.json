@@ -1,0 +1,1473 @@
+{
+  "sourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "target": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "socketDirectory": "/tmp/capiro-native-pg-socket-pr2429-20261012",
+    "port": 5432,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "schema": "capiro_wall_writer_20261012",
+  "appRole": "capiro_wall_writer_app_20261012",
+  "ownerRole": "capiro_wall_writer_owner_20261012",
+  "nativePostgres": true,
+  "nativePrisma": false,
+  "fullClientAuditLogSchema": false,
+  "fullMigrationReplay": false,
+  "productionRlsAcceptance": false,
+  "results": [
+    {
+      "name": "original two-writer negative schedule leaves a union, not the last complete roster",
+      "status": "PASS",
+      "details": {
+        "eventsA": [
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000008",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000008\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "eventsB": [
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000009",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 0
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000009\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "final": [
+          "00000000-0000-4000-8000-000000000008",
+          "00000000-0000-4000-8000-000000000009"
+        ],
+        "audit": [
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            }
+          },
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            }
+          }
+        ],
+        "expectedOldDefectObserved": true
+      }
+    },
+    {
+      "name": "candidate serializes complete writers 00000000-0000-4000-8000-000000000008 then 00000000-0000-4000-8000-000000000009",
+      "status": "PASS",
+      "details": {
+        "blocked": {
+          "waiter": 519794,
+          "blocker": 519793,
+          "observed": true
+        },
+        "eventsA": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000008",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000008\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "eventsB": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000009",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000008\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000009\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "audit": [
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            }
+          },
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            }
+          }
+        ],
+        "final": [
+          "00000000-0000-4000-8000-000000000009"
+        ]
+      }
+    },
+    {
+      "name": "candidate serializes complete writers 00000000-0000-4000-8000-000000000009 then 00000000-0000-4000-8000-000000000008",
+      "status": "PASS",
+      "details": {
+        "blocked": {
+          "waiter": 519796,
+          "blocker": 519795,
+          "observed": true
+        },
+        "eventsA": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000009",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000009\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "eventsB": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000008",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000009\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000008\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "audit": [
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            }
+          },
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            }
+          }
+        ],
+        "final": [
+          "00000000-0000-4000-8000-000000000008"
+        ]
+      }
+    },
+    {
+      "name": "reader finishes before the blocked client-first writer; fresh reader denies revocation",
+      "status": "PASS",
+      "details": {
+        "blocked": {
+          "waiter": 519798,
+          "blocker": 519797,
+          "observed": true
+        },
+        "readerEvents": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n    SELECT m.user_id::text AS \"userId\", c.memory_wall AS \"memoryWall\"\n    FROM tenants t\n    JOIN tenant_memberships m ON m.tenant_id=t.id\n    JOIN users u ON u.id=m.user_id\n    JOIN clients c ON c.tenant_id=t.id\n    WHERE t.id=$1::uuid AND t.status::text='active'\n      AND m.user_id=COALESCE($2::uuid,u.id) AND m.status::text='active'\n      AND m.role::text IN ('standard_user','user_admin','capiro_admin')\n      AND u.clerk_user_id=$3\n      AND c.id=$4::uuid AND c.status::text<>'archived'\n    FOR SHARE OF t,m,u,c\n  ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000003",
+              "user_wall_reader",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n      SELECT id FROM client_memory_access\n      WHERE tenant_id=$1::uuid AND client_id=$2::uuid\n        AND user_id=$3::uuid FOR SHARE\n    ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000003"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n    SELECT version FROM client_objectives\n    WHERE tenant_id=$1::uuid AND client_id=$2::uuid\n      AND id=$3::uuid AND deleted_at IS NULL FOR SHARE\n  ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000010"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n    SELECT id FROM client_objective_revisions\n    WHERE tenant_id=$1::uuid AND client_id=$2::uuid\n      AND objective_id=$3::uuid AND version=$4\n  ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000010",
+              1
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "writerEvents": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              []
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 0
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "audit": [
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            },
+            "after": {
+              "memoryWall": true,
+              "grantedUserIds": []
+            }
+          }
+        ],
+        "freshReaderDenied": true,
+        "sqlstates": []
+      }
+    },
+    {
+      "name": "foreign and absent client return404 before membership/grant/audit work",
+      "status": "PASS",
+      "details": [
+        {
+          "clientId": "00000000-0000-4000-8000-000000000006",
+          "events": [
+            {
+              "stage": "raw",
+              "phase": "issued",
+              "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+              "values": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000006"
+              ]
+            },
+            {
+              "stage": "raw",
+              "phase": "completed",
+              "rowCount": 0
+            }
+          ]
+        },
+        {
+          "clientId": "00000000-0000-4000-8000-000000000999",
+          "events": [
+            {
+              "stage": "raw",
+              "phase": "issued",
+              "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+              "values": [
+                "00000000-0000-4000-8000-000000000001",
+                "00000000-0000-4000-8000-000000000999"
+              ]
+            },
+            {
+              "stage": "raw",
+              "phase": "completed",
+              "rowCount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "membership failure rolls back without changes and releases the client lock",
+      "status": "PASS",
+      "details": {
+        "events": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000999"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 0
+          }
+        ],
+        "released": true,
+        "audit": [
+          {
+            "actor": "00000000-0000-4000-8000-000000000004",
+            "role": "user_admin",
+            "before": {
+              "memoryWall": true,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            },
+            "after": {
+              "memoryWall": false,
+              "grantedUserIds": [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "another same-tenant client can finish while the first client remains locked",
+      "status": "PASS",
+      "details": {
+        "eventsA": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000008",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000008\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "eventsB": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000007"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000007",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000009"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000007"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 0
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000007",
+              "00000000-0000-4000-8000-000000000009",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000007",
+              "{\"memoryWall\":true,\"grantedUserIds\":[]}",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000009\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "peerCompletedBeforeFirst": true
+      }
+    },
+    {
+      "name": "post-audit adapter error rolls back all native writes and releases the client lock",
+      "status": "PASS",
+      "details": {
+        "events": [
+          {
+            "stage": "raw",
+            "phase": "issued",
+            "text": "\n        SELECT id FROM clients\n        WHERE tenant_id = $1::uuid AND id = $2::uuid\n        FOR UPDATE\n      ",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "raw",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "client",
+            "phase": "issued",
+            "text": "SELECT id,memory_wall AS \"memoryWall\" FROM clients WHERE id=$1::uuid AND tenant_id=$2::uuid LIMIT 1",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "stage": "client",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "members",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM tenant_memberships WHERE tenant_id=$1::uuid AND user_id=ANY($2::uuid[])",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              [
+                "00000000-0000-4000-8000-000000000008"
+              ]
+            ]
+          },
+          {
+            "stage": "members",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "roster",
+            "phase": "issued",
+            "text": "SELECT user_id AS \"userId\" FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid ORDER BY created_at,id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005"
+            ]
+          },
+          {
+            "stage": "roster",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "add",
+            "phase": "issued",
+            "text": "INSERT INTO client_memory_access(tenant_id,client_id,user_id,granted_by) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              "00000000-0000-4000-8000-000000000008",
+              "00000000-0000-4000-8000-000000000004"
+            ]
+          },
+          {
+            "stage": "add",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "remove",
+            "phase": "issued",
+            "text": "DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=ANY($3::uuid[]) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000005",
+              [
+                "00000000-0000-4000-8000-000000000003"
+              ]
+            ]
+          },
+          {
+            "stage": "remove",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "update",
+            "phase": "issued",
+            "text": "UPDATE clients SET memory_wall=$2 WHERE id=$1::uuid RETURNING id,memory_wall AS \"memoryWall\"",
+            "values": [
+              "00000000-0000-4000-8000-000000000005",
+              false
+            ]
+          },
+          {
+            "stage": "update",
+            "phase": "completed",
+            "rowCount": 1
+          },
+          {
+            "stage": "audit",
+            "phase": "issued",
+            "text": "INSERT INTO audit_logs(tenant_id,actor_user_id,actor_role,action,entity_type,entity_id,before_json,after_json) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::jsonb,$8::jsonb) RETURNING id",
+            "values": [
+              "00000000-0000-4000-8000-000000000001",
+              "00000000-0000-4000-8000-000000000004",
+              "user_admin",
+              "client.memory_wall.update",
+              "client",
+              "00000000-0000-4000-8000-000000000005",
+              "{\"memoryWall\":true,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000003\"]}",
+              "{\"memoryWall\":false,\"grantedUserIds\":[\"00000000-0000-4000-8000-000000000008\"]}"
+            ]
+          },
+          {
+            "stage": "audit",
+            "phase": "completed",
+            "rowCount": 1
+          }
+        ],
+        "injectedAdapterFault": true,
+        "originalStateRestored": true,
+        "released": true
+      }
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "cleanupErrors": [],
+  "cleanupVerified": true
+}

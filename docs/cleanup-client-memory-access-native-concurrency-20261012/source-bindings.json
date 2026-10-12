@@ -1,0 +1,33 @@
+{
+  "sourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "sourceTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "originalSourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "entries": [
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "sha256": "1d854d3fa4080d2ff613741d3a607285a2e88e28a13f55358a8c508cfddc9dec",
+      "bytes": 70294,
+      "blob": "dbc180fe215e58b64f2d101f4aba56b20095309f"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+      "bytes": 4318,
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac"
+    }
+  ],
+  "originalServiceSha256": "0b04f5e819b86c68993627520cf41dd03524b7f66c3c4dd3751f537c630f352b",
+  "baselineGuardSource": "3c28ed933722ce896d6ba421236219001bea9ae5",
+  "runnerFiles": [
+    {
+      "path": "fixture.sql",
+      "sha256": "5042c6508e551f6c37ca878a43789691c62af7671c141a387a2e9aa91bfd70a7",
+      "bytes": 3205
+    },
+    {
+      "path": "native-wall-writer.cjs",
+      "sha256": "8e48fd323695bcce8a8ec319f8c95662567128d3e16d3b016d39ccae1d7b852a",
+      "bytes": 28252
+    }
+  ]
+}

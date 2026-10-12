@@ -1,0 +1,34 @@
+✔ two actual owner source hashes and original writer snapshot verify without driver loading (8.916577ms)
+✔ baseline validateTarget and boundTag protocol bodies are byte-exact (283.603414ms)
+✔ exact root target protocol accepts the pinned receipt without connecting (0.806879ms)
+✔ target mismatch refuses dataDirectory (0.536983ms)
+✔ target mismatch refuses user (0.145889ms)
+✔ target mismatch refuses database (0.341872ms)
+✔ target mismatch refuses systemIdentifier (0.122125ms)
+✔ target mismatch refuses listenAddresses (0.18601ms)
+✔ target mismatch refuses inetServerAddr (0.398053ms)
+✔ target mismatch refuses version (0.397165ms)
+✔ target mismatch refuses publicTables (0.217696ms)
+✔ credential/URL input refuses password (0.180235ms)
+✔ credential/URL input refuses connectionString (0.120132ms)
+✔ credential/URL input refuses url (0.091487ms)
+✔ target protocol refuses a symlinked data/socket envelope (0.726616ms)
+✔ CLI refuses before native driver/SQL: [] (0.446285ms)
+✔ CLI refuses before native driver/SQL: ["--run"] (0.175452ms)
+✔ CLI refuses before native driver/SQL: ["--run","--run"] (0.098879ms)
+✔ CLI refuses before native driver/SQL: ["--plan","--run"] (0.053038ms)
+✔ CLI refuses before native driver/SQL: ["--unknown"] (0.052826ms)
+✔ CLI refuses before native driver/SQL: ["--run","--verified-target","not-read","--output","/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-native-concurrency-20261012/fixture.sql"] (0.063681ms)
+✔ tagged SQL separates hostile values from static SQL (0.849252ms)
+✔ adapter preserves actual current argument shapes and binds every model operation (1.174019ms)
+✔ adapter refuses unexpected ORM shapes before fake query (2.18976ms)
+✔ same-realm actual original/candidate fragments execute through fake adapter; only candidate starts with bound lock (337.173937ms)
+✔ runner performs no native Prisma/client/installer or blanket cleanup (0.500031ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 653.049175

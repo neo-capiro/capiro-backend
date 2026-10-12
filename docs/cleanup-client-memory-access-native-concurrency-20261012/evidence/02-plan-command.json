@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "--require",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-native-concurrency-20261012/preparation-refusal.cjs",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-native-concurrency-20261012/native-wall-writer.cjs",
+    "--plan"
+  ],
+  "envKeys": [
+    "PATH",
+    "NODE_OPTIONS",
+    "TZ",
+    "LANG"
+  ],
+  "exit": 0,
+  "sqlExecuted": false,
+  "databaseDriverRefused": true
+}
