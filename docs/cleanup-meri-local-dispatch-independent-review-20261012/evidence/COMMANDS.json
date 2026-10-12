@@ -1,0 +1,142 @@
+{
+  "node": "24.19.0",
+  "typescript": "5.9.3",
+  "cacheOnly": true,
+  "packageManagerInvoked": false,
+  "commands": [
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "source-proof-first",
+      "argv": [
+        "node",
+        "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/source-proof.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 1,
+      "programSavedAs": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/source-proof-first.cjs",
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/source-proof-first.log"
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "source-proof-corrected",
+      "argv": [
+        "node",
+        "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/source-proof.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/source-proof-corrected.log"
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "independent-replay-first",
+      "argv": [
+        "node",
+        "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/independent-replay.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 1,
+      "programSavedAs": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/independent-replay-first.cjs",
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/independent-replay-first.log"
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "independent-replay-corrected",
+      "argv": [
+        "node",
+        "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/independent-replay.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/independent-replay-corrected.log"
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "oracle-887",
+      "argv": [
+        "node",
+        "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+        "--config",
+        "docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs",
+        "--runInBand"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/oracle-887.log"
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "focused-strict",
+      "argv": [
+        "node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "docs/cleanup-meri-local-dispatch-conversion-20261012/tsconfig.focused.json"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/focused-strict.log"
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "name": "full-core-cached-types",
+      "argv": [
+        "node",
+        "--max-old-space-size=8192",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "apps/api/tsconfig.json",
+        "--noEmit",
+        "--incremental",
+        "false",
+        "--typeRoots",
+        "/workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules/@types"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/full-core-cached-types.log",
+      "unifiedExecSession": 90144
+    },
+    {
+      "source": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+      "name": "adoption-wiring-review",
+      "argv": [
+        "node",
+        "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/adoption-wiring-review.mjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/adoption-wiring-review.log",
+      "unifiedExecSession": 38903
+    },
+    {
+      "source": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+      "name": "adopted-alias-direct-node-887",
+      "argv": [
+        "node",
+        "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+        "--config",
+        "../../scripts/cleanup-runtime-equivalence.jest.cjs",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/meri/meri-local-dispatch.equivalence.spec.ts"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/adopted-alias-direct-node-887.log",
+      "unifiedExecSession": 13787
+    },
+    {
+      "source": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+      "name": "adoption-refusals",
+      "argv": [
+        "node",
+        "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/adoption-refusals.mjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "exitCode": 0,
+      "rawLog": "docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/adoption-refusals.log",
+      "unifiedExecSession": 84716
+    }
+  ]
+}
