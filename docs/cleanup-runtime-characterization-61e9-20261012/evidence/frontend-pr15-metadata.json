@@ -1,0 +1,47 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Action completed."
+    }
+  ],
+  "structuredContent": {
+    "url": "https://github.com/neo-capiro/capiro-frontend/pull/15",
+    "number": 15,
+    "state": "open",
+    "merged": false,
+    "mergeable": true,
+    "draft": true,
+    "body": "## Changes\nIntegrates the bounded source/presentation facets of 18 remaining findings across client intake/profile/facilities/activity/files, Calendar lifecycle and selected-artifact sharing, rich mail composition, capabilities, shared meetings, task grouping and public forms. Preserves one Next application, original meaningful assertions, common session/client lifetime, distinct Core/Intel transports, fixed Modules gateway and Meri public contracts.\n\nSource: `adbc84b2251fe6b06cb7f75030026fba5b4ff498`; root tree `6c68390b07a62f22d017fdfe690fc8001a55123d`; app tree `d7c5735280ee9af18c57059425ccef169db390c2`. This draft succeeds frozen PR14 without changing PR13/14 or owner branches.\n\nThe Docker context correction narrows `**/work` to root `work`, restoring all12 tracked Work files in this successor. Real Docker scratch exports reproduce the original12-file failure and pass33/33 corrected checks. Independent review accepted the fix, CLI guards and retained negative evidence. Dockerfile and security pins are unchanged. Attendance helpers now deliberately navigate to Information after upcoming meetings enter Preparation; all12 original test bodies survive exactly.\n\n## Qualification checkpoint — not shipping-ready\nOn exact source adbc84b: clean install,1472 combined package/type/root/transport/unit checks,15 Elements checks, production build, actual standalone11HTTP/4renders/2history checks and33Docker context checks passed. The first Elements capture-path setup failure is preserved; the unchanged-source fresh-path retry passed. Existing76lint warnings and24inherited architecture findings remain visible. Full208Modules and1118Portfolio browser runs are in progress.\n\nActual Linux container builds stop at Dockerfile line5: Alpine APKINDEX retrieval fails with transient DNS errors, followed by package-selection errors. Default networking and existing host/proxy configurations were tried and preserved. No application image was produced; container smoke/image scan are unrun. This is an environment build blocker, not proof that the full image qualifies.\n\nThe source archive contains all9191tracked Git files,841124429bytes; SHA256 `5a631ef2f6d7500c947fafa85ed22731214b37bc2f587da29db6f1b272f0784a`. Every file was independently checked against its Git blob. Original shipping Library attachments were read, but local byte materialization is blocked by proxy403; local custody is not claimed.\n\nFinal evidence commit and browser results will follow. Preserve the failed104495d checkpoint:163passed,7failed,3interrupted,945unrun. Do not infer qualification from this draft or mergeability.\n\nAll337native Portfolio rows remain unaccepted. Native identity/service/provider/durability gates, full Meri workspace/browser acceptance, full Figma fidelity/accessibility and shipping remain open. No complete immutable Figma backup in GitHub has been verified: Neo may edit a duplicate; retain original file Zc2dEN5aLU47dVdsewDmiJ, node411:40601, referenced nodes and linked libraries unchanged.\n\nNo merge, deployment, AWS action, third shipping attempt, cloud resources/credentials/security/database changes, real provider messages, billing or paid model workload.",
+    "title": "Integrate remaining frontend repairs and preserve Work in Docker context",
+    "base": "integration/capiro-followup-20261012",
+    "base_sha": "7aca86e7d64cfdb85d09d424a07e6186339fc24c",
+    "head": "integration/capiro-remaining-20261012",
+    "head_sha": "adbc84b2251fe6b06cb7f75030026fba5b4ff498",
+    "head_repo_id": 1413425685,
+    "head_repo_full_name": "neo-capiro/capiro-frontend",
+    "merge_commit_sha": "affee0120907c9de3625586758ff33c503840a26",
+    "user": {
+      "login": "neo-capiro",
+      "name": "neo-capiro",
+      "email": null,
+      "avatar_url": "https://avatars.githubusercontent.com/u/276034435?v=4",
+      "id": 276034435
+    },
+    "requested_reviewers": null,
+    "requested_team_reviewers": null,
+    "diff": null,
+    "comments": null,
+    "created_at": "2026-10-12T20:27:54Z",
+    "updated_at": "2026-10-12T21:04:14Z",
+    "closed_at": null,
+    "merged_at": null,
+    "commits": 20,
+    "changed_files": 273,
+    "additions": 27079,
+    "deletions": 1152,
+    "display_url": "https://github.com/neo-capiro/capiro-frontend/pull/15",
+    "display_title": "Integrate remaining frontend repairs and preserve Work in Docker context"
+  },
+  "isError": false
+}

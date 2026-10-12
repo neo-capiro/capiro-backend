@@ -1,0 +1,13 @@
+
+> capiro@0.0.0 gate:cleanup4:strategy-template-metadata /tmp/capirov2-four-runtime-controls-review
+> pnpm --filter @capiro/api-strategy exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/context/template-registry.spec.ts src/context/frontmatter.spec.ts src/reports/report-context.spec.ts
+
+PASS src/reports/report-context.spec.ts
+PASS src/context/frontmatter.spec.ts
+PASS src/context/template-registry.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       128 passed, 128 total
+Snapshots:   0 total
+Time:        1.155 s
+Ran all test suites within paths "src/context/template-registry.spec.ts", "src/context/frontmatter.spec.ts", "src/reports/report-context.spec.ts".
