@@ -1,0 +1,37 @@
+{
+  "controls": [
+    {
+      "name": "Web read",
+      "refused": true
+    },
+    {
+      "name": "net connection",
+      "refused": true
+    },
+    {
+      "name": "socket connection",
+      "refused": true
+    },
+    {
+      "name": "http request",
+      "refused": true
+    },
+    {
+      "name": "https request",
+      "refused": true
+    },
+    {
+      "name": "DNS lookup",
+      "refused": true
+    },
+    {
+      "name": "fetch",
+      "refused": true
+    },
+    {
+      "name": "child process",
+      "refused": true
+    }
+  ],
+  "actualSocketOrChildCreated": false
+}

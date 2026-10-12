@@ -1,0 +1,166 @@
+{
+  "checks": 39,
+  "controls": [
+    {
+      "name": "candidate changes exactly the seven fixtures and three readers",
+      "passed": true
+    },
+    {
+      "name": "exact frozen fixtures and original inverse reader bodies pass",
+      "passed": true
+    },
+    {
+      "name": "backend identity verifies with no Web input in the checked map",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture byte mutation refused: apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "passed": true
+    },
+    {
+      "name": "missing fixture refused: apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "passed": true
+    },
+    {
+      "name": "fixture exact current Web and published proposal: apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "passed": true
+    },
+    {
+      "name": "original AST statement count and bodies retained: apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "assertion drift refused: apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "case drift refused: apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "original Web operand restored drift refused: apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "duplicate reader operand drift refused: apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "original AST statement count and bodies retained: apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "assertion drift refused: apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "case drift refused: apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "original Web operand restored drift refused: apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "duplicate reader operand drift refused: apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "original AST statement count and bodies retained: apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "assertion drift refused: apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "case drift refused: apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "original Web operand restored drift refused: apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "duplicate reader operand drift refused: apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "passed": true
+    }
+  ],
+  "candidate": "44eda40f7951e73722566862649939e51a8f151a",
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "mutationInputs": "in-memory maps only",
+  "nativeRuntimeQualification": false,
+  "fixtureServedUiQualification": false
+}

@@ -1,0 +1,37 @@
+{
+  "source": "44eda40f7951e73722566862649939e51a8f151a",
+  "beforeAfterAndWebRefusedCasesAndAssertionCountsIdentical": true,
+  "summaries": {
+    "before": {
+      "numTotalTests": 60,
+      "numPassedTests": 59,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "after": {
+      "numTotalTests": 60,
+      "numPassedTests": 59,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "web-refused": {
+      "numTotalTests": 60,
+      "numPassedTests": 59,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3
+    }
+  },
+  "inheritedFailure": [
+    "memory administrator self-approval policy contract removes the independent-approver claim from every active shared-memory UI surface"
+  ],
+  "failureBoundary": "Current exact Web MemoryFileEditor delegates copy to an existing helper; the original static assertion expects literal Submitted for approval in the editor file. The fixture deliberately preserves that same source and refusal. No source/fixture/assertion repair is part of this slice.",
+  "structuralControls": 39,
+  "refusalControls": 8,
+  "fullFloorOrNativeUiAcceptance": false
+}
