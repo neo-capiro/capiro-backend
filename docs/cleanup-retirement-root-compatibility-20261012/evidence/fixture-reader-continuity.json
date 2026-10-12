@@ -1,0 +1,11 @@
+{
+  "destination": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "incomingPublished": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "reader": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+  "destinationReaderBytes": 7101,
+  "destinationReaderSha256": "e2a7d26bbc33bbd8140aba1194dca04990619ce28be159a1ac434e729fb7bcff",
+  "incomingOwnedReaderBytes": 7070,
+  "incomingOwnedReaderSha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+  "inverseSingleLiteralMatchesCompleteCurrentReader": true,
+  "sourceOrTestExecuted": false
+}

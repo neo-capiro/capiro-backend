@@ -1,0 +1,46 @@
+{
+  "classification": "Read-only compatibility/overlap matrix and destination-specific root contract proposal; not candidate implementation acceptance",
+  "destination": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "destinationTree": "613e54b654bc30dcebd09c955c58a2e8940abf30",
+  "incoming": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "incomingTree": "3312abb3d381d05ab5b499b48bbb8870de6f158a",
+  "inertInventoryChecksPassed": 25,
+  "newAliases": 14,
+  "currentScripts": 107,
+  "oldWholePackageAliasDrops": 14,
+  "oldWholePackageCommandChanges": 34,
+  "currentWorkflowRunBlocks": {
+    "verify": 30,
+    "engagement-phase-2": 4
+  },
+  "typedWorkspaces": 19,
+  "backendOtherWorkspaces": 17,
+  "frontendWorkspaces": 2,
+  "Core1146FloorAtDestination": {
+    "exact": 833,
+    "missing": 280,
+    "different": 33
+  },
+  "APICurrentFixtureBridgeExplicitlyAuthorized": true,
+  "currentFixtureReaderInverseProof": {
+    "destination": "5470c6df029c9553dd49e531229c3c91b26275ef",
+    "incomingPublished": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+    "reader": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+    "destinationReaderBytes": 7101,
+    "destinationReaderSha256": "e2a7d26bbc33bbd8140aba1194dca04990619ce28be159a1ac434e729fb7bcff",
+    "incomingOwnedReaderBytes": 7070,
+    "incomingOwnedReaderSha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+    "inverseSingleLiteralMatchesCompleteCurrentReader": true,
+    "sourceOrTestExecuted": false
+  },
+  "holds": [
+    "Scoped aliases until reviewed current-owner run/marker/plan adaptations",
+    "Core/shared wholesale replacement and unchanged157-based root contract",
+    "Broader Web/Onboard positive consumer or workspace retirement",
+    "Core1146floor and Intel/domain workflow transition until owner reconciliation"
+  ],
+  "implementationEdits": 0,
+  "sourceExecution": false,
+  "unpublishedReportingBranchesOrBodiesInspected": false,
+  "parentAuthorOwnership": "Root package/CI/shared; current Engagement1/2/3 owner; current Outreach1/3/4 owner; retirement owner for broader consumers. Three API-owned fixture paths separately authorized and will be frozen on a different source branch."
+}
