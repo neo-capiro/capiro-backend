@@ -81,7 +81,9 @@ PDF reference is not a claim of downloaded/interpreted PDF content.
 | Outreach destination2402 | Objective2362 `72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e` + refreshed main | With2401 preserve BOTH state controller routes and route-manifest entries; Core schema includes inherited Objective persistence |
 | Effective calendar2403 | Refreshed main; independent of other new slices | Core schema additions beside preserved Objective/activity/owner/prospect blocks; Cleanup2392 sync entry guard/main wrapper must survive composition; Core migration60000 |
 
-The raw `initial-published-source-matrix.json` records incremental and full-candidate
+The raw `current-published-source-matrix.json` records corrected current candidate
+heads and incremental intersections; the preserved `initial-published-source-matrix.json`
+records original incremental and full-candidate
 path intersections distinctly. PR2401 vs2402 overlaps the Outreach state controller
 and route manifest incrementally, plus Core schema through their required bases.
 Calendar2403 has no incremental2401 intersection; full candidates share schema.

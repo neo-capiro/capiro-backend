@@ -101,6 +101,7 @@
     "apps/api/src/federal-register/federal-register.controller.ts": "20474e7e025decb888f841e3f69f65141145c8915b88157dde865353be6bbcbf",
     "apps/api/src/federal-register/federal-register.service.ts": "162fd15142de696fe9036776077c48964089e695979311efa81a474b288cef92",
     "apps/api/src/ingestion/embed-watermark.ts": "80ee29afe9b4b478b570d206199992ebcc12f2be1d520d0114ec72d8d1e50c77",
-    "apps/api/src/ingestion/sync-run.helper.ts": "90bccac08a061a68f5b23503ce3f6867677ccc31b5552c20a90ab869ee63e7cd"
+    "apps/api/src/ingestion/sync-run.helper.ts": "90bccac08a061a68f5b23503ce3f6867677ccc31b5552c20a90ab869ee63e7cd",
+    "docs/effective-date-calendar-20261012/evidence/current-published-source-matrix.json": "f6abf389dfec851fb3a639af4a3db3f8125362aef85d55c86622aaaddbe7ce64"
   }
 }
