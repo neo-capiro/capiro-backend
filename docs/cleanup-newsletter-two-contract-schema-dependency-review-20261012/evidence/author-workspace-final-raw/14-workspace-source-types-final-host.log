@@ -1,0 +1,6 @@
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(2,24): error TS2307: Cannot find module 'htmlparser2' or its corresponding type declarations.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(10,16): error TS7006: Parameter 'text' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(32,17): error TS7006: Parameter 'name' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(32,23): error TS7006: Parameter 'attrs' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(41,14): error TS7006: Parameter 'text' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(44,18): error TS7006: Parameter 'name' implicitly has an 'any' type.

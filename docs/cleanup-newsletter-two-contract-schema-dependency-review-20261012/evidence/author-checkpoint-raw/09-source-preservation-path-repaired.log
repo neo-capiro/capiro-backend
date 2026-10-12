@@ -1,0 +1,22 @@
+node:fs:484
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open 'apps/api/src/engagement/outreach-v3/outreach-session.service.ts'
+    at Object.readFileSync (node:fs:484:20)
+    at read (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.cjs:3:117)
+    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.cjs:25:86
+    at check (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.cjs:4:44)
+    at Object.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.cjs:25:26)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'apps/api/src/engagement/outreach-v3/outreach-session.service.ts'
+}
+
+Node.js v24.19.0

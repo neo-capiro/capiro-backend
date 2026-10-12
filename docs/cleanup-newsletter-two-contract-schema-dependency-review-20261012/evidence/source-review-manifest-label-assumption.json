@@ -1,0 +1,4058 @@
+{
+  "scope": "Independent SOURCE/SCHEMA/DEPENDENCY review only. No application/SQL/provider/native/client/generator execution. Canonical auth/runtime/GET fakechecks separately owned.",
+  "pins": {
+    "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+    "base": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+    "source": "a247f7a02a9b94d95e9ee5a516b396202aea994b"
+  },
+  "trees": {
+    "C": "ce817706a72b7f096cf3e112f28ec355153e5653",
+    "W": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+    "base": "d5a1acd33391ae681159c271f6a72602c6338055",
+    "source": "b87c85a0fc0ae57f876b86a8018a953adbddb71c"
+  },
+  "original58": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "038cbd5db39bb9ce6235ec85c586542310b1f506",
+        "W": "038cbd5db39bb9ce6235ec85c586542310b1f506",
+        "base": null,
+        "source": "038cbd5db39bb9ce6235ec85c586542310b1f506"
+      },
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "recordedSha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "0ea45aed85acb24431e0f806462af59f3e1c6b5c",
+        "W": "0ea45aed85acb24431e0f806462af59f3e1c6b5c",
+        "base": null,
+        "source": "0ea45aed85acb24431e0f806462af59f3e1c6b5c"
+      },
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7",
+      "recordedSha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "65d908f0b0b5cd50058012f9e8f72d153cfa8c34",
+        "W": "65d908f0b0b5cd50058012f9e8f72d153cfa8c34",
+        "base": null,
+        "source": "65d908f0b0b5cd50058012f9e8f72d153cfa8c34"
+      },
+      "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3",
+      "recordedSha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "d8bc80304699cd7747ed24ab9ce3ecc753e8bae9",
+        "W": "d8bc80304699cd7747ed24ab9ce3ecc753e8bae9",
+        "base": null,
+        "source": "d8bc80304699cd7747ed24ab9ce3ecc753e8bae9"
+      },
+      "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b",
+      "recordedSha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "4a80be20a3c7a95cf830695c87a99ea65799cf5e",
+        "W": "4a80be20a3c7a95cf830695c87a99ea65799cf5e",
+        "base": null,
+        "source": "4a80be20a3c7a95cf830695c87a99ea65799cf5e"
+      },
+      "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945",
+      "recordedSha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "b0a576b2b1d761c1f914961cfae68a4f15112d85",
+        "W": "b0a576b2b1d761c1f914961cfae68a4f15112d85",
+        "base": null,
+        "source": "b0a576b2b1d761c1f914961cfae68a4f15112d85"
+      },
+      "sha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96",
+      "recordedSha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "b919b3a89a6ca034f05b164405868c5559a0bfd4",
+        "W": "b919b3a89a6ca034f05b164405868c5559a0bfd4",
+        "base": null,
+        "source": "b919b3a89a6ca034f05b164405868c5559a0bfd4"
+      },
+      "sha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243",
+      "recordedSha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "0edbc9a5e1eb90b7cf74de80c168b46e38fed645",
+        "W": "0edbc9a5e1eb90b7cf74de80c168b46e38fed645",
+        "base": null,
+        "source": "0edbc9a5e1eb90b7cf74de80c168b46e38fed645"
+      },
+      "sha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851",
+      "recordedSha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "7b1323a017930ae74fc3111325ca8e594f99b989",
+        "W": "7b1323a017930ae74fc3111325ca8e594f99b989",
+        "base": null,
+        "source": "7b1323a017930ae74fc3111325ca8e594f99b989"
+      },
+      "sha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac",
+      "recordedSha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "8252083e78852bceac1dc1d7918df60c598feead",
+        "W": "8252083e78852bceac1dc1d7918df60c598feead",
+        "base": null,
+        "source": "8252083e78852bceac1dc1d7918df60c598feead"
+      },
+      "sha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967",
+      "recordedSha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "896772e65fc8d80b5e10a28e1e40571d0e9ad1b2",
+        "W": "896772e65fc8d80b5e10a28e1e40571d0e9ad1b2",
+        "base": null,
+        "source": "896772e65fc8d80b5e10a28e1e40571d0e9ad1b2"
+      },
+      "sha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd",
+      "recordedSha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "70a2ab5ffc67298d7557734cbc47cb19f40dcd09",
+        "W": "70a2ab5ffc67298d7557734cbc47cb19f40dcd09",
+        "base": null,
+        "source": "70a2ab5ffc67298d7557734cbc47cb19f40dcd09"
+      },
+      "sha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e",
+      "recordedSha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "b110a94680d9ee51d33f093efd1b5c0b0580c18d",
+        "W": "b110a94680d9ee51d33f093efd1b5c0b0580c18d",
+        "base": null,
+        "source": "b110a94680d9ee51d33f093efd1b5c0b0580c18d"
+      },
+      "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881",
+      "recordedSha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "d0a28edd13499739bf288b3ff71f119e3fd68398",
+        "W": "d0a28edd13499739bf288b3ff71f119e3fd68398",
+        "base": null,
+        "source": "d0a28edd13499739bf288b3ff71f119e3fd68398"
+      },
+      "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d",
+      "recordedSha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "8f13e22a5444d4b57781983552a5a8c64a7353cf",
+        "W": "8f13e22a5444d4b57781983552a5a8c64a7353cf",
+        "base": null,
+        "source": "8f13e22a5444d4b57781983552a5a8c64a7353cf"
+      },
+      "sha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27",
+      "recordedSha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "e70ed0b7ca98167d6c2915280d6959cb9f16d851",
+        "W": "e70ed0b7ca98167d6c2915280d6959cb9f16d851",
+        "base": null,
+        "source": "e70ed0b7ca98167d6c2915280d6959cb9f16d851"
+      },
+      "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d",
+      "recordedSha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "b90810a16009654a4d51ff72eaa060d8d1184431",
+        "W": "b90810a16009654a4d51ff72eaa060d8d1184431",
+        "base": null,
+        "source": "b90810a16009654a4d51ff72eaa060d8d1184431"
+      },
+      "sha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30",
+      "recordedSha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725",
+        "W": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725",
+        "base": null,
+        "source": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725"
+      },
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "recordedSha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "d0ae07fcee88285fc165f0bafe065b1270073f55",
+        "W": "d0ae07fcee88285fc165f0bafe065b1270073f55",
+        "base": null,
+        "source": "d0ae07fcee88285fc165f0bafe065b1270073f55"
+      },
+      "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6",
+      "recordedSha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+        "W": "95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+        "base": null,
+        "source": "95be4d637e3cfbeaaaea6455f80aefdb21db9923"
+      },
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583",
+      "recordedSha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+        "W": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+        "base": null,
+        "source": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32"
+      },
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "recordedSha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "98286f542da05527fb124a16dd1e831ae40cf558",
+        "W": "98286f542da05527fb124a16dd1e831ae40cf558",
+        "base": null,
+        "source": "98286f542da05527fb124a16dd1e831ae40cf558"
+      },
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "recordedSha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "75b44244e401b767a5a646d81da486279a2af9e0",
+        "W": "75b44244e401b767a5a646d81da486279a2af9e0",
+        "base": null,
+        "source": "75b44244e401b767a5a646d81da486279a2af9e0"
+      },
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "recordedSha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8",
+        "W": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8",
+        "base": null,
+        "source": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8"
+      },
+      "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0",
+      "recordedSha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "kind": "original-runtime",
+      "blobs": {
+        "C": "c1b58fbc64883f6794a2928e9ee89613aea42742",
+        "W": "c1b58fbc64883f6794a2928e9ee89613aea42742",
+        "base": null,
+        "source": "c1b58fbc64883f6794a2928e9ee89613aea42742"
+      },
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+      "recordedSha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "223004e13f7e0aa0f2dd637952972fa9eb58f612",
+        "W": "223004e13f7e0aa0f2dd637952972fa9eb58f612",
+        "base": null,
+        "source": "223004e13f7e0aa0f2dd637952972fa9eb58f612"
+      },
+      "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052",
+      "recordedSha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "e6899c8911882971b82315c54e4d4dd510145475",
+        "W": "e6899c8911882971b82315c54e4d4dd510145475",
+        "base": null,
+        "source": "e6899c8911882971b82315c54e4d4dd510145475"
+      },
+      "sha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea",
+      "recordedSha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "f186e230eaa03aca0c9cc6f9fa335586ed4cbf4c",
+        "W": "f186e230eaa03aca0c9cc6f9fa335586ed4cbf4c",
+        "base": null,
+        "source": "f186e230eaa03aca0c9cc6f9fa335586ed4cbf4c"
+      },
+      "sha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6",
+      "recordedSha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "ddcf9bbea3b898d7f7ae50e3e63a2f13f6c74358",
+        "W": "ddcf9bbea3b898d7f7ae50e3e63a2f13f6c74358",
+        "base": null,
+        "source": "ddcf9bbea3b898d7f7ae50e3e63a2f13f6c74358"
+      },
+      "sha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2",
+      "recordedSha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "8607b64eab56bf98285f25f41e29693b042b6e72",
+        "W": "8607b64eab56bf98285f25f41e29693b042b6e72",
+        "base": null,
+        "source": "8607b64eab56bf98285f25f41e29693b042b6e72"
+      },
+      "sha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04",
+      "recordedSha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "dfa53b8276dc980f80095aad9e804f3b0658dca9",
+        "W": "dfa53b8276dc980f80095aad9e804f3b0658dca9",
+        "base": null,
+        "source": "dfa53b8276dc980f80095aad9e804f3b0658dca9"
+      },
+      "sha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6",
+      "recordedSha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "9a8086c6f6a614c991e1e2c3384d1511d4755506",
+        "W": "9a8086c6f6a614c991e1e2c3384d1511d4755506",
+        "base": null,
+        "source": "9a8086c6f6a614c991e1e2c3384d1511d4755506"
+      },
+      "sha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f",
+      "recordedSha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "68fd261f676b1f47a224abd883ef769ce798ac55",
+        "W": "68fd261f676b1f47a224abd883ef769ce798ac55",
+        "base": null,
+        "source": "68fd261f676b1f47a224abd883ef769ce798ac55"
+      },
+      "sha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965",
+      "recordedSha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-fonts.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "8ab3a56f56a6579012dd032fbea35e2ed3ac3efa",
+        "W": "8ab3a56f56a6579012dd032fbea35e2ed3ac3efa",
+        "base": null,
+        "source": "8ab3a56f56a6579012dd032fbea35e2ed3ac3efa"
+      },
+      "sha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533",
+      "recordedSha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "0eebc5e773c1589c6904e3576dfb05347938120f",
+        "W": "0eebc5e773c1589c6904e3576dfb05347938120f",
+        "base": null,
+        "source": "0eebc5e773c1589c6904e3576dfb05347938120f"
+      },
+      "sha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241",
+      "recordedSha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "e5479196260458df5df3d40a6b25eb81ea83516e",
+        "W": "e5479196260458df5df3d40a6b25eb81ea83516e",
+        "base": null,
+        "source": "e5479196260458df5df3d40a6b25eb81ea83516e"
+      },
+      "sha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4",
+      "recordedSha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "13332f56469c6aa3bb1f974e85a74d8da3d1ab85",
+        "W": "13332f56469c6aa3bb1f974e85a74d8da3d1ab85",
+        "base": null,
+        "source": "13332f56469c6aa3bb1f974e85a74d8da3d1ab85"
+      },
+      "sha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0",
+      "recordedSha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89",
+        "W": "7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89",
+        "base": null,
+        "source": "7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89"
+      },
+      "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093",
+      "recordedSha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "20c0bce02c988ea427948327366dd66968605783",
+        "W": "20c0bce02c988ea427948327366dd66968605783",
+        "base": null,
+        "source": "20c0bce02c988ea427948327366dd66968605783"
+      },
+      "sha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b",
+      "recordedSha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-social.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "4075873fe83e36708730b7b8600d356e630c2804",
+        "W": "4075873fe83e36708730b7b8600d356e630c2804",
+        "base": null,
+        "source": "4075873fe83e36708730b7b8600d356e630c2804"
+      },
+      "sha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705",
+      "recordedSha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "ffec0efbab0c58e5b4df1b5a379a67fa92ee2d13",
+        "W": "ffec0efbab0c58e5b4df1b5a379a67fa92ee2d13",
+        "base": null,
+        "source": "ffec0efbab0c58e5b4df1b5a379a67fa92ee2d13"
+      },
+      "sha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a",
+      "recordedSha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "1f116df7b7468a4ccd2cd5eeef800137683f6ae5",
+        "W": "1f116df7b7468a4ccd2cd5eeef800137683f6ae5",
+        "base": null,
+        "source": "1f116df7b7468a4ccd2cd5eeef800137683f6ae5"
+      },
+      "sha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de",
+      "recordedSha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "6e1a6cfc5e3dd0beb01f6492fe83ee416dcca5ae",
+        "W": "6e1a6cfc5e3dd0beb01f6492fe83ee416dcca5ae",
+        "base": null,
+        "source": "6e1a6cfc5e3dd0beb01f6492fe83ee416dcca5ae"
+      },
+      "sha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a",
+      "recordedSha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.spec.ts",
+      "kind": "original-spec",
+      "blobs": {
+        "C": "b8ccfef719c438c3c60e913c9fead548ee627299",
+        "W": "b8ccfef719c438c3c60e913c9fead548ee627299",
+        "base": null,
+        "source": "b8ccfef719c438c3c60e913c9fead548ee627299"
+      },
+      "sha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d",
+      "recordedSha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+        "W": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+        "base": null,
+        "source": "13c949e8d93891f773bd106a196ec70cd60d87e7"
+      },
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+      "recordedSha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+        "W": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+        "base": null,
+        "source": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b"
+      },
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+      "recordedSha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+        "W": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+        "base": null,
+        "source": "dc5192bb724734e0b8b70215c22772bb5a4323fc"
+      },
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+      "recordedSha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+        "W": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+        "base": null,
+        "source": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222"
+      },
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+      "recordedSha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+        "W": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+        "base": null,
+        "source": "91bea1bec0c64bbef5dbabe4c0b29022a0759662"
+      },
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+      "recordedSha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+        "W": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+        "base": null,
+        "source": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14"
+      },
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+      "recordedSha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+        "W": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+        "base": null,
+        "source": "deacbeed51dfde4bec78b4df2de761f2db92fed1"
+      },
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+      "recordedSha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+        "W": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+        "base": null,
+        "source": "8a30956522af8ddcabac33f74cab80a63e71a75f"
+      },
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+      "recordedSha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+        "W": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+        "base": null,
+        "source": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf"
+      },
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+      "recordedSha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "8a132af2d73079082d089c611e450005d6a5e090",
+        "W": "8a132af2d73079082d089c611e450005d6a5e090",
+        "base": null,
+        "source": "8a132af2d73079082d089c611e450005d6a5e090"
+      },
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+      "recordedSha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+        "W": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+        "base": null,
+        "source": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee"
+      },
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+      "recordedSha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+        "W": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+        "base": null,
+        "source": "1380ded8bccfac90fe05eb2101b6d57a0387b092"
+      },
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+      "recordedSha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+        "W": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+        "base": null,
+        "source": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f"
+      },
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+      "recordedSha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "blobs": {
+        "C": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+        "W": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+        "base": null,
+        "source": "3cc3d59fe37b41a8a94c9fd65869970c122eb129"
+      },
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+      "recordedSha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719"
+    }
+  ],
+  "schemas": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "baseBlocks": 494,
+      "sourceBlocks": 499,
+      "baseModelCount": 459,
+      "sourceModelCount": 464,
+      "added": [
+        "NewsletterRecipientAccess",
+        "NewsletterReviewEmailDelivery",
+        "NewsletterSubscription",
+        "NewsletterAccountInvitation",
+        "NewsletterInvitationEmailDelivery"
+      ],
+      "changedExisting": [
+        "OutreachDraftVersion"
+      ],
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "baseBlocks": 40,
+      "sourceBlocks": 51,
+      "baseModelCount": 26,
+      "sourceModelCount": 37,
+      "added": [
+        "WsNewsletterDocument",
+        "WsNewsletterBrandKit",
+        "WsNewsletterReviewer",
+        "WsNewsletterLibraryItem",
+        "WsNewsletterInvitation",
+        "WsNewsletterComment",
+        "WsNewsletterThreadWatcher",
+        "WsNewsletterReviewEmailRequest",
+        "WsNewsletterAsset",
+        "WsNewsletterAssetFolder",
+        "WsNewsletterStage"
+      ],
+      "changedExisting": [
+        "WsNotificationKind",
+        "WsNotification"
+      ],
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    }
+  ],
+  "preexistingMigrationCount": 574,
+  "preservedSources": [
+    "packages/shared/src/index.ts",
+    "apps/api/src/engagement/engagement.service.ts",
+    "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+    "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+    "apps/workspace/src/versions/versions.controller.ts",
+    "apps/workspace/src/versions/versions.service.ts",
+    "packages/shared/src/workspace-saved-revision.ts",
+    "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+    "apps/api/src/meri/meri-tools.service.ts",
+    "apps/api/src/meri/meri-local-dispatch.ts",
+    "apps/api/src/external/tango/tango-rest-page.ts",
+    "apps/workspace/src/cascade/cascade.config.ts",
+    "apps/workspace/src/cascade/workspace-product.registry.ts",
+    "apps/api-strategy/src/context/frontmatter.ts",
+    "apps/api-strategy/src/context/template-registry.ts",
+    "apps/api-strategy/src/reports/report-context.ts"
+  ],
+  "classReports": [
+    {
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "baseMembers": 9,
+      "sourceMembers": 15,
+      "addedMembers": [
+        "globalOpenai",
+        "newsletterImageModel",
+        "newsletterAltTextModel",
+        "resolveNewsletterImage",
+        "resolveNewsletterAltText",
+        "tryNewsletterTenantCredential"
+      ]
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "baseMembers": 23,
+      "sourceMembers": 26,
+      "addedMembers": [
+        "newsletterMembers",
+        "newsletterMember",
+        "newsletterMemberByEmail"
+      ]
+    }
+  ],
+  "lock": {
+    "yamlCachedVersion": "2.9.1",
+    "traversedSnapshots": 60,
+    "allSnapshotKeys": [
+      "@emnapi/runtime@1.11.3",
+      "@img/colour@1.1.0",
+      "@img/sharp-darwin-arm64@0.35.5",
+      "@img/sharp-darwin-x64@0.35.5",
+      "@img/sharp-freebsd-wasm32@0.35.5",
+      "@img/sharp-libvips-darwin-arm64@1.3.4",
+      "@img/sharp-libvips-darwin-x64@1.3.4",
+      "@img/sharp-libvips-linux-arm64@1.3.4",
+      "@img/sharp-libvips-linux-arm@1.3.4",
+      "@img/sharp-libvips-linux-ppc64@1.3.4",
+      "@img/sharp-libvips-linux-riscv64@1.3.4",
+      "@img/sharp-libvips-linux-s390x@1.3.4",
+      "@img/sharp-libvips-linux-x64@1.3.4",
+      "@img/sharp-libvips-linuxmusl-arm64@1.3.4",
+      "@img/sharp-libvips-linuxmusl-x64@1.3.4",
+      "@img/sharp-linux-arm64@0.35.5",
+      "@img/sharp-linux-arm@0.35.5",
+      "@img/sharp-linux-ppc64@0.35.5",
+      "@img/sharp-linux-riscv64@0.35.5",
+      "@img/sharp-linux-s390x@0.35.5",
+      "@img/sharp-linux-x64@0.35.5",
+      "@img/sharp-linuxmusl-arm64@0.35.5",
+      "@img/sharp-linuxmusl-x64@0.35.5",
+      "@img/sharp-wasm32@0.35.5",
+      "@img/sharp-webcontainers-wasm32@0.35.5",
+      "@img/sharp-win32-arm64@0.35.5",
+      "@img/sharp-win32-ia32@0.35.5",
+      "@img/sharp-win32-x64@0.35.5",
+      "@types/node@20.19.39",
+      "@types/sanitize-html@2.16.1",
+      "dayjs@1.11.23",
+      "deepmerge@4.3.1",
+      "detect-libc@2.1.2",
+      "dom-serializer@2.0.0",
+      "dom-serializer@3.1.1",
+      "domelementtype@2.3.0",
+      "domelementtype@3.0.0",
+      "domhandler@5.0.3",
+      "domhandler@6.0.1",
+      "domutils@3.2.2",
+      "domutils@4.0.2",
+      "entities@4.5.0",
+      "entities@7.0.1",
+      "entities@8.1.0",
+      "escape-string-regexp@4.0.0",
+      "htmlparser2@10.1.0",
+      "htmlparser2@12.0.0",
+      "htmlparser2@8.0.2",
+      "is-plain-object@5.1.0",
+      "launder@1.7.1",
+      "nanoid@3.3.19",
+      "parse-srcset@1.0.2",
+      "picocolors@1.1.1",
+      "postcss@8.5.28",
+      "sanitize-html@2.17.7",
+      "semver@7.8.5",
+      "sharp@0.35.5(@types/node@20.19.39)",
+      "source-map-js@1.2.2",
+      "tslib@2.8.1",
+      "undici-types@6.21.0"
+    ],
+    "edges": [
+      {
+        "from": "@types/sanitize-html@2.16.1",
+        "to": "htmlparser2@10.1.0",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@10.1.0",
+        "to": "domelementtype@2.3.0",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@10.1.0",
+        "to": "domhandler@5.0.3",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@10.1.0",
+        "to": "domutils@3.2.2",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@10.1.0",
+        "to": "entities@7.0.1",
+        "kind": "required"
+      },
+      {
+        "from": "domutils@3.2.2",
+        "to": "dom-serializer@2.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "domutils@3.2.2",
+        "to": "domelementtype@2.3.0",
+        "kind": "required"
+      },
+      {
+        "from": "domutils@3.2.2",
+        "to": "domhandler@5.0.3",
+        "kind": "required"
+      },
+      {
+        "from": "domhandler@5.0.3",
+        "to": "domelementtype@2.3.0",
+        "kind": "required"
+      },
+      {
+        "from": "dom-serializer@2.0.0",
+        "to": "domelementtype@2.3.0",
+        "kind": "required"
+      },
+      {
+        "from": "dom-serializer@2.0.0",
+        "to": "domhandler@5.0.3",
+        "kind": "required"
+      },
+      {
+        "from": "dom-serializer@2.0.0",
+        "to": "entities@4.5.0",
+        "kind": "required"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/colour@1.1.0",
+        "kind": "required"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "detect-libc@2.1.2",
+        "kind": "required"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "semver@7.8.5",
+        "kind": "required"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-darwin-arm64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-darwin-x64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-freebsd-wasm32@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-darwin-arm64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-darwin-x64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linux-arm@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linux-arm64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linux-ppc64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linux-riscv64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linux-s390x@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linux-x64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linuxmusl-arm64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-libvips-linuxmusl-x64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linux-arm@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linux-arm64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linux-ppc64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linux-riscv64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linux-s390x@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linux-x64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linuxmusl-arm64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-linuxmusl-x64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-webcontainers-wasm32@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-win32-arm64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-win32-ia32@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@img/sharp-win32-x64@0.35.5",
+        "kind": "optional"
+      },
+      {
+        "from": "sharp@0.35.5(@types/node@20.19.39)",
+        "to": "@types/node@20.19.39",
+        "kind": "optional"
+      },
+      {
+        "from": "@types/node@20.19.39",
+        "to": "undici-types@6.21.0",
+        "kind": "required"
+      },
+      {
+        "from": "@img/sharp-webcontainers-wasm32@0.35.5",
+        "to": "@img/sharp-wasm32@0.35.5",
+        "kind": "required"
+      },
+      {
+        "from": "@img/sharp-wasm32@0.35.5",
+        "to": "@emnapi/runtime@1.11.3",
+        "kind": "required"
+      },
+      {
+        "from": "@emnapi/runtime@1.11.3",
+        "to": "tslib@2.8.1",
+        "kind": "required"
+      },
+      {
+        "from": "@img/sharp-linuxmusl-x64@0.35.5",
+        "to": "@img/sharp-libvips-linuxmusl-x64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linuxmusl-arm64@0.35.5",
+        "to": "@img/sharp-libvips-linuxmusl-arm64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linux-x64@0.35.5",
+        "to": "@img/sharp-libvips-linux-x64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linux-s390x@0.35.5",
+        "to": "@img/sharp-libvips-linux-s390x@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linux-riscv64@0.35.5",
+        "to": "@img/sharp-libvips-linux-riscv64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linux-ppc64@0.35.5",
+        "to": "@img/sharp-libvips-linux-ppc64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linux-arm64@0.35.5",
+        "to": "@img/sharp-libvips-linux-arm64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-linux-arm@0.35.5",
+        "to": "@img/sharp-libvips-linux-arm@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-freebsd-wasm32@0.35.5",
+        "to": "@img/sharp-wasm32@0.35.5",
+        "kind": "required"
+      },
+      {
+        "from": "@img/sharp-darwin-x64@0.35.5",
+        "to": "@img/sharp-libvips-darwin-x64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "@img/sharp-darwin-arm64@0.35.5",
+        "to": "@img/sharp-libvips-darwin-arm64@1.3.4",
+        "kind": "optional"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "deepmerge@4.3.1",
+        "kind": "required"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "escape-string-regexp@4.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "htmlparser2@12.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "is-plain-object@5.1.0",
+        "kind": "required"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "launder@1.7.1",
+        "kind": "required"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "parse-srcset@1.0.2",
+        "kind": "required"
+      },
+      {
+        "from": "sanitize-html@2.17.7",
+        "to": "postcss@8.5.28",
+        "kind": "required"
+      },
+      {
+        "from": "postcss@8.5.28",
+        "to": "nanoid@3.3.19",
+        "kind": "required"
+      },
+      {
+        "from": "postcss@8.5.28",
+        "to": "picocolors@1.1.1",
+        "kind": "required"
+      },
+      {
+        "from": "postcss@8.5.28",
+        "to": "source-map-js@1.2.2",
+        "kind": "required"
+      },
+      {
+        "from": "launder@1.7.1",
+        "to": "dayjs@1.11.23",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@12.0.0",
+        "to": "domelementtype@3.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@12.0.0",
+        "to": "domhandler@6.0.1",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@12.0.0",
+        "to": "domutils@4.0.2",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@12.0.0",
+        "to": "entities@8.1.0",
+        "kind": "required"
+      },
+      {
+        "from": "domutils@4.0.2",
+        "to": "dom-serializer@3.1.1",
+        "kind": "required"
+      },
+      {
+        "from": "domutils@4.0.2",
+        "to": "domelementtype@3.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "domutils@4.0.2",
+        "to": "domhandler@6.0.1",
+        "kind": "required"
+      },
+      {
+        "from": "domhandler@6.0.1",
+        "to": "domelementtype@3.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "dom-serializer@3.1.1",
+        "to": "domelementtype@3.0.0",
+        "kind": "required"
+      },
+      {
+        "from": "dom-serializer@3.1.1",
+        "to": "domhandler@6.0.1",
+        "kind": "required"
+      },
+      {
+        "from": "dom-serializer@3.1.1",
+        "to": "entities@8.1.0",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@8.0.2",
+        "to": "domelementtype@2.3.0",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@8.0.2",
+        "to": "domhandler@5.0.3",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@8.0.2",
+        "to": "domutils@3.2.2",
+        "kind": "required"
+      },
+      {
+        "from": "htmlparser2@8.0.2",
+        "to": "entities@4.5.0",
+        "kind": "required"
+      }
+    ],
+    "optionalDiffs": [
+      {
+        "section": "snapshots",
+        "key": "@img/colour@1.1.0",
+        "before": {
+          "optional": true
+        },
+        "after": {}
+      }
+    ],
+    "changes": {
+      "importers": [
+        "apps/workspace"
+      ],
+      "packages": [
+        "htmlparser2@8.0.2"
+      ],
+      "snapshots": [
+        "@img/colour@1.1.0",
+        "sharp@0.35.5(@types/node@20.19.39)",
+        "htmlparser2@8.0.2"
+      ]
+    },
+    "mutants": [
+      {
+        "name": "Remove restored importer",
+        "refused": true
+      },
+      {
+        "name": "Alter original parser version",
+        "refused": true
+      },
+      {
+        "name": "Drop restoredSharp snapshot",
+        "refused": true
+      },
+      {
+        "name": "Alter old unrelated importer",
+        "refused": true
+      },
+      {
+        "name": "Change original integrity",
+        "refused": true
+      },
+      {
+        "name": "Retain incorrect optional marker",
+        "refused": true
+      },
+      {
+        "name": "Remove unrelated optional marker",
+        "refused": true
+      },
+      {
+        "name": "Widen old package native configuration",
+        "refused": true
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "Original exactC/W source apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/engagement/newsletter-outreach.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/engagement/newsletter-source-access.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-validation.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter.module.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source packages/shared/src/newsletter-fonts.catalog.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source packages/shared/src/newsletter-fonts.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source packages/shared/src/newsletter-render.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source packages/shared/src/newsletter-social-share.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source packages/shared/src/newsletter.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-account-provider.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-asset-import.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-fonts.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-html-check.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-image.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-social.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter-video.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/src/newsletters/newsletter.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Original exactC/W source apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Exactly58original25runtime19spec14SQL",
+      "passed": false,
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    'original-runtime': 25,\n    'original-spec': 19,\n+   'original-sql': 0\n-   'original-sql': 14\n  }\n"
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/client",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/db",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantRole",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MembershipStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementProvider",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementConnectionStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AssociationEntityType",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingPrepStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingVisibility",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingDebriefStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementTaskStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BillingStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Tenant",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CanonicalEntity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EntityAlias",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EntityIdentifier",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EntityResolution",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CanonicalEntityMerge",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EntityIdentityGovernanceEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CanonicalEntityBackfillCheckpoint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/User",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantMembership",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AdminBroadcastAudience",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AdminBroadcast",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AdminBroadcastRecipient",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/UserIdentityConflict",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/IdentityOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClerkEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StripeEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantUsageMeter",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Client",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientMemoryAccess",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientObjective",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientObjectiveRevision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientOrderedOwner",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientTeamMember",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SavedOpportunitySearch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DirectoryContactNote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DirectoryContactFavorite",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/IntegrationConnection",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/IntegrationConnectionToken",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementContact",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Meeting",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingAttendee",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MailThread",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MailMessage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MobileDeviceToken",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementAttachment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingNote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingPrepJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingPrepMondayMapping",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingPrep",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingDebrief",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientNotetakerPreference",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeetingBotSession",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementTask",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementReportTargetOffice",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementReportTargetOverride",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachRecord",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachTemplate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachAudience",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachAudienceMember",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachAiTemplate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientAssociationOverride",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ContextEmbedding",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ImpersonationSession",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DemoRequest",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioConversation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriSavedPrompt",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriWorkspace",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriVnextPreference",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioMessage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioArtifact",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioAttachment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioResearchSession",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioNote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioMemory",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriActionApproval",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriPendingAction",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriActionProposal",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioScheduledTask",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioMcpServer",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioMcpOAuthCredential",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioFirmSkill",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AiUsageEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AiRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriAuditLedger",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ReviewRequest",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AlertGenerationRecord",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutcomeEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ContextPacket",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachJobItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachDraftArtifact",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachDraftVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachSendIntent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OutreachDelivery",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantAiCredential",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClioProactiveAlert",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AuditLog",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientCapability",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientSubmissionHistory",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientPerson",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientActivity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientFacility",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientTarget",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientTargetRecommendation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientCapabilityFitRecommendation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ActionRecommendation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementCampaign",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EngagementCampaignRecipient",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LobbyIntel",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LobbyIssueRef",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LobbyTrendingTopic",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalContractor",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalAgency",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalIndustry",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaFiling",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaClient",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaRegistrant",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaLobbyist",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaContribution",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaIssueCode",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LdaGovernmentEntity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MeriAnalyticsQueryLog",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FecCommittee",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FecContribution",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FecPacContribution",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FecPacSyncState",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressBill",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CboCostEstimate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressMember",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressBillCosponsor",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressCommittee",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressCommitteeMembership",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EntityCrosswalk",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/RollCallVote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemberVote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BillRuleLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BillText",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceRevision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidencePassage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceObservation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceMention",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceMentionEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceChangeOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceCheckpoint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceInventoryMember",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalEvidenceCoverageGap",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressBillAction",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressBillCommittee",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CongressBillSubject",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElement",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementProject",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementYear",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProcurementLine",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProcurementLineYear",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProcurementLineSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementBudgetPosition",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementProjectBudgetPosition",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementDelta",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementMilestone",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementMilestoneSchedulePeriod",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementQuarantine",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementIngestRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementYearSourceValue",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementChangeOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SourceDocument",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommunityFundingRequest",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommunityFundingRequestSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommunityFundingDiscoveryCrawl",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommunityFundingDiscoveryCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommunityFundingIngestRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DocumentParseJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ReconciliationReviewQueue",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementWatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetClientWatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetClientWatchEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementDataIssue",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PeAlertEmailPref",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionPersonnel",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionPersonnelSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionPersonnelQuarantine",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionPersonnelMergeCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementPersonCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ConferenceProbability",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalRegisterDocument",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/IntelligenceInsight",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientIntelMapping",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TrackedBill",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AlertState",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientBrief",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientWatchlist",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AlertPreference",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TrackerFeedback",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/NotificationLog",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DistrictNexusAlertPayload",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AlertDigestQueue",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SmsVerification",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/IntelligenceChange",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/RegulatoryDocket",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SecFiling",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FaraRegistration",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/RegulatoryComment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BlsSeries",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BlsDataPoint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CensusDistrict",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegislativeDistrict",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegistormTrip",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeMembershipWatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BeaData",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CaliforniaGrantOpportunity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalGrant",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/GaoReport",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBill",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateLegislator",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillPublishedRecord",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillAction",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillSponsor",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateRollCallVote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateMemberVote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillCalendarEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateSession",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateCommittee",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateCommitteeMembership",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateSyncCursor",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateRule",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CrsReport",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/IntelArticle",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemberPressItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeHearing",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegislativeAgendaItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegislativeCalendarTransition",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegislativeObservationRevision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegislativeCalendarCoverage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/StateBillCalendarSnapshot",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeHearingBill",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OfficialHearingTranscript",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeSourceException",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/HearingSourceObservation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/HearingStreamCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PublicHearingCapture",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PublicHearingCaptureAttempt",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PublicHearingTranscriptSegment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PublicHearingSpeaker",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeSiteUpdate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/HearingSubscription",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/HearingFollow",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegiWatchCommitteeFollow",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegiWatchSavedItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegiWatchNotificationEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegiWatchCommitteeEmailPreference",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/HearingAutoRecordRule",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PublicHearingInsight",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PublicHearingIntelligenceJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantHearingRelevance",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TenantHearingRelevanceJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SyncRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/GovInfoCache",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementProcurementLine",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalAward",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalAssistanceAward",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientGrantNexus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientFundingOpportunity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OpportunityBookmark",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoResourceSnapshot",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoResourceLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoSyncCheckpoint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoApiUsage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoWebhookDelivery",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoEventOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoEventAlert",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientProfileEnrichmentCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientRelevantVehicle",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoProcurementForecast",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoBudgetAccount",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoBudgetVendorFlow",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoProcurementProtest",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoEntityExclusion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoDibbsSolicitation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoDibbsAward",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoSbirSolicitation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoSbirTopic",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoOpportunityParity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoOpportunityNotice",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OpportunityAttachment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OpportunityDocumentText",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OpportunityRequirement",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/OpportunityRequirementReview",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FundingOpportunityStageTransition",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementAcquisitionProgram",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementPerformer",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Program",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramAlias",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramIdentityCrosswalk",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionRecordRevision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionAwardTransactionRevision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramAcquisitionRelationship",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AcquisitionCoverageGap",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PeProgramMatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SamOpportunity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/SamOpportunityMatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CommitteeReportProvision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProvisionPeLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramOffice",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/PersonRole",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramOfficeProgramLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryEdge",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryIngestRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryAccessGrant",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryTransitionAudit",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/MemoryCleanupOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LearningSignal",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LearningSignalCandidateOutcome",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/QualityTelemetryEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/QualityTelemetryMemoryItemUse",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/EvaluationRecord",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Claim",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Evidence",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ComplianceCheck",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetAction",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetLineRelationship",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/Capability",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CapabilityBudgetLineMatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProgramElementIntelligenceCache",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BillBudgetLineLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetPackage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetPackageVehicle",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FundingPosition",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetInterimFundingPeriod",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CompliancePolicyPack",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CompliancePolicyPackEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/CompliancePolicyDecision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AssuranceEvalRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AssuranceEvalResult",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AssuranceEvalDomainGate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AssuranceFeedbackCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/AssuranceEvalFixture",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetExtractionCandidateV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetVerificationRunV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetVerificationCheckV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetVerificationProofV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetVerificationDiscrepancyV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetReviewDecisionV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetScopedFactReviewV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetCandidateCorrectionV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetCanonicalSnapshot",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetActiveSnapshot",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionPlan",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetProjectionPlan",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionEligibility",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetManualOverride",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionAuthorization",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionActivation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetRollbackRecord",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetSideEffectDrainPause",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetCanonicalDelta",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetCompatibilityProjectionRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetCanonicalRow",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionAudit",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/XTrackedAccount",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/XPostCache",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/XFeedSubscription",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeAssertion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEvidence",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeMailboxJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeMailboxExtractionJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEpisode",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeAssertion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeEntity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeProjectionJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingMeasure",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingProvision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingAllocation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingSourceEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingCertification",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingPublication",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingReconciliationResidual",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/FederalFundingPublicationCheckpoint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetCycle",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetExpectedSource",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetSourceBundleMember",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetGovernedImportAudit",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetSourceObservation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetWatcherAdapter",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetWatcherRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetIngestionOutbox",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BudgetReextractionOperationV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetIngestionManifestV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetIngestionManifestItemV1",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetLifecycleSignal",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetDiscoveryCrawl",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetDiscoveryCandidate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetDiscoveryHostBudget",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseProviderInvocation",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetScheduleTick",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetReviewResolution",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseBudgetCycleManifestRegistry",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegiWatchDigestRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/LegiWatchDigestSchedule",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/GsaRealProperty",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/GsaRealPropertySourceRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DistrictNexusChange",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentProspect",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentProspectActivity",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentPreference",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentJevDecision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentBrief",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentBriefVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentWatch",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentWatchSourceState",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentAlert",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/BusinessDevelopmentAlertDelivery",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioMode",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioLifecycle",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioGrantRole",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioMemberKind",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioMemberDisposition",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioMemberOrigin",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioEventKind",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolio",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioGrant",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioClientLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioMember",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioRecomputeStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewTrigger",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewTargetKind",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioDecisionType",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioContinuityStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportJobStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportWorksheetKind",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportRowOutcome",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportRowPreviewClassification",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchTaxonomyVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchTaxonomyConcept",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioTemplate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioTemplateVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioRuleVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioRulePreview",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioRecomputeJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioReview",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioDecision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioContinuityLedger",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportRow",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportMappingVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportAttempt",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportEffect",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportCompensationReceipt",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioDeliveryStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioEventRecipientState",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioSubscription",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioSubscriptionDelivery",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioSnapshot",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputRequest",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputAttempt",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputArtifact",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputClientFileReceipt",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioBookmark",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioTourState",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewNote",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseContextDocument",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseContextDocumentRevision",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseContextSection",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseReferenceOccurrence",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioFitVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseSavedComparison",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseSavedComparisonVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/DefenseSavedComparisonEvent",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioClientFilingStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ResearchPortfolioClientFilingJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoSubaward",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/TangoSubawardSyncCheckpoint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KrispNotetakerPreference",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/KrispMeetingImport",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ClientActivityCommand",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/api/prisma/schema.prisma/ProspectAttachmentUploadIntent",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/api/prisma/schema.prisma/NewsletterRecipientAccess",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/api/prisma/schema.prisma/NewsletterReviewEmailDelivery",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/api/prisma/schema.prisma/NewsletterSubscription",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/api/prisma/schema.prisma/NewsletterAccountInvitation",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/api/prisma/schema.prisma/NewsletterInvitationEmailDelivery",
+      "passed": true
+    },
+    {
+      "name": "Exactly intended additive schema names apps/api/prisma/schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "Whole originalQ schema restored by inverse additive delta apps/api/prisma/schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/client",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/db",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsDocStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsRole",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsDraft",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsAgentMessageRole",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsAgentMessage",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsBlueprintScope",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsBlueprintVersionStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsBlueprint",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsBlueprintVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsAgentProposalStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsAgentProposal",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsApprovalStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsApprovalRequest",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsShareLink",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsGuestComment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsCollaboratorStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsNotificationKind",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsCollaborator",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsNotification",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsDocument",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsTemplate",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsComment",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsAuthorKind",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsDocVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsEditLock",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsContextItem",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsIntake",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsGenerationRun",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsThemeVersionStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsTheme",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsThemeVersion",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsBrandAsset",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsHillDayDocStatus",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsHillDayDocument",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsHillDayMeeting",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsHillDayJob",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsHillDayExport",
+      "passed": true
+    },
+    {
+      "name": "Retained originalQ schema block apps/workspace/prisma/schema.prisma/WsProspectDraftReceipt",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterDocument",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterBrandKit",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterReviewer",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterLibraryItem",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterInvitation",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterComment",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterThreadWatcher",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterReviewEmailRequest",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterAsset",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterAssetFolder",
+      "passed": true
+    },
+    {
+      "name": "OriginalC new schema model apps/workspace/prisma/schema.prisma/WsNewsletterStage",
+      "passed": true
+    },
+    {
+      "name": "Exactly intended additive schema names apps/workspace/prisma/schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "Whole originalQ schema restored by inverse additive delta apps/workspace/prisma/schema.prisma",
+      "passed": true
+    },
+    {
+      "name": "Every preexisting migration path/blob retained",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob packages/shared/src/index.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api/src/engagement/engagement.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/workspace/src/versions/versions.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/workspace/src/versions/versions.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob packages/shared/src/workspace-saved-revision.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api/src/meri/meri-tools.service.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api/src/meri/meri-local-dispatch.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api/src/external/tango/tango-rest-page.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/workspace/src/cascade/cascade.config.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/workspace/src/cascade/workspace-product.registry.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api-strategy/src/context/frontmatter.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api-strategy/src/context/template-registry.ts",
+      "passed": true
+    },
+    {
+      "name": "Protected currentQ source blob apps/api-strategy/src/reports/report-context.ts",
+      "passed": true
+    },
+    {
+      "name": "No frontend source delta",
+      "passed": true
+    },
+    {
+      "name": "Exact original newsletter exports newsletter",
+      "passed": true
+    },
+    {
+      "name": "Exact original newsletter exports newsletter-render",
+      "passed": true
+    },
+    {
+      "name": "All existing shared package fields unchanged",
+      "passed": true
+    },
+    {
+      "name": "OriginalWorkspace package source version htmlparser2",
+      "passed": true
+    },
+    {
+      "name": "OriginalWorkspace package source version sanitize-html",
+      "passed": true
+    },
+    {
+      "name": "OriginalWorkspace package source version sharp",
+      "passed": true
+    },
+    {
+      "name": "OriginalWorkspace package source version @types/sanitize-html",
+      "passed": true
+    },
+    {
+      "name": "All originalWorkspace package fields/scripts unchanged",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/logger",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/encryptionKey",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/globalAnthropic",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/workspaceModel",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/constructor",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/tenantKeysEnabled",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/defaultModel",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/resolveAnthropic",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member AiCredentialService/tryTenantCredential",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/logger",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/constructor",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/withTenant",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/resolveUserId",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/userDisplays",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/tenantName",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/tenantMemberEmails",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listClients",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/getClient",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/objectiveCounts",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/clientPeopleEmails",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listStrategies",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listClientTargetStaffers",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listClientEngagementContacts",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listConnections",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listEvents",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/eventsByIds",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/eventColumns",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/upcomingEventAt",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/priorMeetings",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/listThreads",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/threadMessages",
+      "passed": true
+    },
+    {
+      "name": "OriginalQ class member HillDaySourceService/upsertEngagementContact",
+      "passed": true
+    },
+    {
+      "name": "OriginalC member helper newsletterMembers",
+      "passed": true
+    },
+    {
+      "name": "OriginalC member helper newsletterMember",
+      "passed": true
+    },
+    {
+      "name": "OriginalC member helper newsletterMemberByEmail",
+      "passed": true
+    },
+    {
+      "name": "Lock complete60originalSnapshot closure",
+      "passed": true
+    },
+    {
+      "name": "Lock only4originalImporter additions/full60closure/justifiedmarker",
+      "passed": true
+    },
+    {
+      "name": "Single original required colour reachability marker justified",
+      "passed": true
+    },
+    {
+      "name": "Exactly1newpackage2newSnapshots",
+      "passed": true
+    },
+    {
+      "name": "All8lockfault controlsrefuse",
+      "passed": true
+    }
+  ],
+  "passed": 678,
+  "total": 679
+}

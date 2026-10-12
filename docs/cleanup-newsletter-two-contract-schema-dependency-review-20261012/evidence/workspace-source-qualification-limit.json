@@ -1,0 +1,71 @@
+{
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "authorWorkspaceReceiptHead": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+  "authorWorkspaceReceiptTree": "f5bade2106a2cfc283f84c6eb1259c9a231beb6d",
+  "sourceDeltaSinceFrozen": 0,
+  "attemptExits": [
+    2,
+    2,
+    2
+  ],
+  "finalDiagnosticCount": 6,
+  "missingParserDiagnostics": 1,
+  "callbackContextDiagnostics": 5,
+  "missingDependency": "htmlparser2@8.0.2",
+  "noSubstitutionInstallDownload": true,
+  "fullWorkspaceTypingAccepted": false,
+  "sharpRuntimeInvokedByReviewer": false,
+  "raw": [
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/12-workspace-source-types.log",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 17499,
+      "sha256": "7ac6214b0355f00ff36706a2f72a6cea5c8aff14dfb0a73b036d640b3aeca11c",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/12-workspace-source-types.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/13-workspace-source-types-host-repaired.log",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 13381,
+      "sha256": "68473dddada811ae1fa9db9a06364467b0eb591fb84689cb78e22bd0eff4b566",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/13-workspace-source-types-host-repaired.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/14-workspace-source-types-final-host.log",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 836,
+      "sha256": "be3240c237f23787fc8246a8f0086658ef56b05c5acdccb17ea58f000c389563",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/14-workspace-source-types-final-host.log"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/14-workspace-source-types-final-receipt.json",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 1311,
+      "sha256": "386d6575458cf17216bae1c8ce159550e89c76c3e5a171da2d00512485c25c7b",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/14-workspace-source-types-final-receipt.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.json",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 824,
+      "sha256": "f320e77c5a7246d174c1e2620ba2ce6780f3e036b91dc05dc784590477a0861e",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/tsconfig.workspace-source.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.host-repaired.json",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 841,
+      "sha256": "2a5ab0726354d05c78213d666d20e2a569fb43104ec108672bc1ac501abdb1a8",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/tsconfig.workspace-source.host-repaired.json"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.final-host.json",
+      "sourceCommit": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+      "bytes": 629,
+      "sha256": "5add158c1799f2c52125e869e49c473712cab3548e620d3cecfae361958fdca2",
+      "copy": "docs/cleanup-newsletter-two-contract-schema-dependency-review-20261012/evidence/author-workspace-final-raw/tsconfig.workspace-source.final-host.json"
+    }
+  ],
+  "scope": "Verified immutable author exit/diagnostic/source/config receipts only; compiler/generatedclient/parser/Sharp never invoked by reviewer."
+}

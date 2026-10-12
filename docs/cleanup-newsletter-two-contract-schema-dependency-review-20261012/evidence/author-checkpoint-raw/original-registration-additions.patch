@@ -1,0 +1,166 @@
+diff --git a/apps/api/src/app.module.ts b/apps/api/src/app.module.ts
+index d57f876f1..b7cf77041 100644
+--- a/apps/api/src/app.module.ts
++++ b/apps/api/src/app.module.ts
+@@ -165,6 +165,8 @@ export class AppModule implements NestModule {
+         { path: 'api/clio/mcp-oauth/callback', method: RequestMethod.GET },
+         { path: '/api/insights', method: RequestMethod.GET },
+         { path: 'api/insights', method: RequestMethod.GET },
++        { path: 'api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
++        { path: '/api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
+         { path: '/api/internal/(.*)', method: RequestMethod.ALL },
+         { path: 'api/internal/(.*)', method: RequestMethod.ALL },
+       )
+diff --git a/apps/api/src/config/config.schema.ts b/apps/api/src/config/config.schema.ts
+index 3a83291c4..847185f17 100644
+--- a/apps/api/src/config/config.schema.ts
++++ b/apps/api/src/config/config.schema.ts
+@@ -1109,6 +1109,17 @@ export const configSchema = z.object({
+   // From-address for Workspace collaborator-invite emails (E-19). capiro.ai is a
+   // verified SES domain identity, so any @capiro.ai sender works without new infra.
+   WORKSPACE_INVITE_EMAIL_FROM: z.string().email().default('notifications@capiro.ai'),
++  // Newsletter comment emails are dormant until both newsletter migrations
++  // and the verified SES sender are configured in this environment.
++  NEWSLETTER_REVIEW_EMAIL_ENABLED: z
++    .enum(['true', 'false'])
++    .default('false')
++    .transform((v) => v === 'true'),
++  NEWSLETTER_REVIEW_APP_URL: z.string().url().default('https://app.capiro.ai'),
++  NEWSLETTER_INVITATION_EMAIL_ENABLED: z
++    .enum(['true', 'false'])
++    .default('false')
++    .transform((v) => v === 'true'),
+   // Base URL used to build deep links in alert emails/SMS back to the client
+   // profile Tracker tab.
+   TRACKER_APP_BASE_URL: z.string().url().default('https://app.capiro.ai'),
+diff --git a/apps/api/src/engagement-api.app.module.ts b/apps/api/src/engagement-api.app.module.ts
+index 496fc2491..74b1f4400 100644
+--- a/apps/api/src/engagement-api.app.module.ts
++++ b/apps/api/src/engagement-api.app.module.ts
+@@ -71,6 +71,8 @@ export class EngagementApiAppModule implements NestModule {
+         { path: 'api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
+         { path: '/api/engagement/integrations/google/callback', method: RequestMethod.GET },
+         { path: 'api/engagement/integrations/google/callback', method: RequestMethod.GET },
++        { path: 'api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
++        { path: '/api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
+         { path: '/api/internal/(.*)', method: RequestMethod.ALL },
+         { path: 'api/internal/(.*)', method: RequestMethod.ALL },
+       )
+diff --git a/apps/api/src/engagement/engagement.module.ts b/apps/api/src/engagement/engagement.module.ts
+index 037dc2d4b..43eb9579b 100644
+--- a/apps/api/src/engagement/engagement.module.ts
++++ b/apps/api/src/engagement/engagement.module.ts
+@@ -20,6 +20,8 @@ import { MeetingCapturePersistenceService } from '../meeting-capture/meeting-cap
+ import { NotetakerModule, RAW_MEETING_BOT_PROVIDER } from './notetaker/notetaker.module.js';
+ import { MEETING_BOT_PROVIDER, type MeetingBotProvider } from './notetaker/meeting-bot.provider.js';
+ import { EngagementController } from './engagement.controller.js';
++import { NewsletterOutreachController, NewsletterPublicController } from './newsletter-outreach.controller.js';
++import { NewsletterOutreachService } from './newsletter-outreach.service.js';
+ import { ClientAssociationService } from './client-association.service.js';
+ import { EngagementAiService } from './engagement-ai.service.js';
+ import { EngagementService } from './engagement.service.js';
+@@ -104,7 +106,7 @@ import {
+     QualityTelemetryModule,
+     EvaluationModule,
+   ],
+-  controllers: [EngagementController, OutcomeController, KrispNotetakerController],
++  controllers: [EngagementController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
+   providers: [
+     KrispNotetakerService,
+     {
+@@ -227,6 +229,7 @@ import {
+     EngagementMailSender,
+     TokenCryptoService,
+     OutreachDraftService,
++    NewsletterOutreachService,
+     OutreachDraftAuditService,
+     { provide: OutreachSendIntentService, useClass: RaceSafeOutreachSendIntentService },
+     {
+diff --git a/apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts b/apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts
+index a364de7d4..104cf85ae 100644
+--- a/apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts
++++ b/apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts
+@@ -53,6 +53,10 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
+     sendSingleMail: { action: 'outreach_send' },
+     rewriteEmail: { action: 'outreach_generate' },
+   },
++  NewsletterOutreachController: {
++    send: { action: 'outreach_send' },
++    test: { action: 'outreach_test_send', testMode: true },
++  },
+   OutreachV3GenerationController: {
+     generateSamples: { action: 'outreach_v3_generate' },
+     startFullGeneration: { action: 'outreach_v3_generate' },
+diff --git a/apps/api/src/tenant/tenant-context.middleware.ts b/apps/api/src/tenant/tenant-context.middleware.ts
+index fece0915d..10e2eee46 100644
+--- a/apps/api/src/tenant/tenant-context.middleware.ts
++++ b/apps/api/src/tenant/tenant-context.middleware.ts
+@@ -91,6 +91,9 @@ export class TenantContextMiddleware implements NestMiddleware {
+       '/api/clio/runtime',
+       '/api/clio/mcp-oauth/callback',
+       '/api/insights',
++      // Recipient capabilities authorize these routes; no private newsletter
++      // authoring endpoint is covered by this distinct public prefix.
++      '/api/engagement/newsletter-public',
+       // BYOK3 service-to-service endpoints: intel-api resolves a tenant AI
+       // credential for live-hearing extraction. These authenticate via
+       // InternalServiceGuard (shared INTERNAL_SERVICE_SECRET header), NOT a
+@@ -101,7 +104,7 @@ export class TenantContextMiddleware implements NestMiddleware {
+       '/api/internal',
+     ];
+     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {
+-      this.logger.log(
++      if (!originalUrl.includes('/newsletter-public/')) this.logger.log(
+         `Bypassing tenant context for public/external route (path=${path}, originalUrl=${originalUrl}, baseUrl=${baseUrl})`,
+       );
+       next();
+diff --git a/apps/api/src/workspace-collab/workspace-collab.module.ts b/apps/api/src/workspace-collab/workspace-collab.module.ts
+index 91db83263..cb643ef0d 100644
+--- a/apps/api/src/workspace-collab/workspace-collab.module.ts
++++ b/apps/api/src/workspace-collab/workspace-collab.module.ts
+@@ -1,10 +1,23 @@
+ import { Module } from '@nestjs/common';
+ import { WorkspaceCollabController } from './workspace-collab.controller.js';
+ import { WorkspaceCollabEmailService } from './workspace-collab-email.service.js';
++import { NewsletterReviewEmailWorker } from './newsletter-review-email.worker.js';
++import { NewsletterInvitationEmailWorker } from './newsletter-invitation-email.worker.js';
++import { TenantAdminModule } from '../tenant-admin/tenant-admin.module.js';
++import { NewsletterAccountInvitationService } from './newsletter-account-invitation.service.js';
++import { NewsletterAccountInvitationController } from './newsletter-account-invitation.controller.js';
++import { NewsletterAccountProvider } from './newsletter-account-provider.js';
+ 
+ /** Workspace collaborator-invite email delivery (E-19). */
+ @Module({
+-  controllers: [WorkspaceCollabController],
+-  providers: [WorkspaceCollabEmailService],
++  imports: [TenantAdminModule],
++  controllers: [WorkspaceCollabController, NewsletterAccountInvitationController],
++  providers: [
++    WorkspaceCollabEmailService,
++    NewsletterReviewEmailWorker,
++    NewsletterInvitationEmailWorker,
++    NewsletterAccountInvitationService,
++    NewsletterAccountProvider,
++  ],
+ })
+ export class WorkspaceCollabModule {}
+diff --git a/apps/workspace/src/app.module.ts b/apps/workspace/src/app.module.ts
+index 7e72f6f24..f8510b072 100644
+--- a/apps/workspace/src/app.module.ts
++++ b/apps/workspace/src/app.module.ts
+@@ -23,6 +23,7 @@ import { DocumentAgentModule } from './document-agent/document-agent.module.js';
+ import { DeliveryModule } from './delivery/delivery.module.js';
+ import { QuickDraftModule } from './quick-draft/quick-draft.module.js';
+ import { HillDayModule } from './hillday/hillday.module.js';
++import { NewsletterModule } from './newsletters/newsletter.module.js';
+ 
+ @Module({
+   imports: [
+@@ -60,6 +61,7 @@ import { HillDayModule } from './hillday/hillday.module.js';
+     // ── Hill Day workflow (Workspace vNext, 2026-09) ──────────────────────
+     // /workspace-api/hillday/*: six-step wizard backend + document editor API.
+     HillDayModule,
++    NewsletterModule,
+   ],
+ })
+ export class AppModule {}

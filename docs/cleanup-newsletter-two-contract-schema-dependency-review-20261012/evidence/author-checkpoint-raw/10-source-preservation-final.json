@@ -1,0 +1,2837 @@
+{
+  "result": "PASS source preservation only",
+  "base": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "checks": [
+    {
+      "label": "original byte/blob apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/engagement/newsletter-outreach.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/engagement/newsletter-source-access.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-validation.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter.module.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob packages/shared/src/newsletter-fonts.catalog.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob packages/shared/src/newsletter-fonts.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob packages/shared/src/newsletter-render.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob packages/shared/src/newsletter-social-share.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob packages/shared/src/newsletter.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-account-provider.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-asset-import.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-fonts.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-html-check.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-image.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-social.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter-video.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/src/newsletters/newsletter.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "original byte/blob apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/logger",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/encryptionKey",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/globalAnthropic",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/workspaceModel",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/tenantKeysEnabled",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/defaultModel",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/resolveAnthropic",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact AiCredentialService/tryTenantCredential",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/logger",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/<constructor>",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/withTenant",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/resolveUserId",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/userDisplays",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/tenantName",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/tenantMemberEmails",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listClients",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/getClient",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/objectiveCounts",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/clientPeopleEmails",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listStrategies",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listClientTargetStaffers",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listClientEngagementContacts",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listConnections",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listEvents",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/eventsByIds",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/eventColumns",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/upcomingEventAt",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/priorMeetings",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/listThreads",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/threadMessages",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact HillDaySourceService/upsertEngagementContact",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact NotificationsService/<constructor>",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact NotificationsService/list",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact NotificationsService/markRead",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact NotificationsService/markAllRead",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact NotificationsService/resolveInvite",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/logger",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/<constructor>",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/upsertGeneratedVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/createEditedVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/upsertGeneratedVersionOrCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/acceptCandidateVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/ensureArtifact",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/getVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/getVersionForReviewerUnchecked",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/listForOutreach",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/readinessForOutreachRecords",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/approveVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/rejectVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/decideWithinTx",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/auditAndReload",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/recordVersionTelemetry",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/computeVersionEditMetrics",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/forceUnavailable",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/assertRecordOwned",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/findOrCreateArtifactId",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/lockAndBumpArtifact",
+      "result": "PASS"
+    },
+    {
+      "label": "current owner member byte-exact OutreachDraftService/loadArtifact",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob packages/shared/src/index.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/engagement/engagement.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/src/versions/versions.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/src/versions/versions.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob packages/shared/src/workspace-saved-revision.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob packages/shared/src/client-objective-destination.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/outreach-v3/services/outreach-session.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/meri/meri-tools.service.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/meri/meri-local-dispatch.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/src/cascade/cascade.config.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/src/cascade/workspace-product.registry.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/test/product-registry-characterization.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/workspace/test/fixtures/product-registry-before.json",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/external/tango/tango-dibbs.client.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/external/tango/tango-sbir.client.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/external/tango/tango-subaward.client.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/external/tango/tango-rest-page.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api/src/external/tango/tango-rest-page.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api-strategy/src/context/frontmatter.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api-strategy/src/context/frontmatter.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api-strategy/src/context/template-registry.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api-strategy/src/context/template-registry.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api-strategy/src/reports/report-context.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob apps/api-strategy/src/reports/report-context.spec.ts",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob scripts/registry-ownership.json",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob scripts/duplicate-helper-names.txt",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob scripts/check-registry-ownership.mjs",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob scripts/check-registry-ownership.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob scripts/cleanup-runtime-equivalence.jest.cjs",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob package.json",
+      "result": "PASS"
+    },
+    {
+      "label": "protected base source byte/blob .github/workflows/ci-pr.yml",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterDocument",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterBrandKit",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterReviewer",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterLibraryItem",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterInvitation",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterComment",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterThreadWatcher",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterReviewEmailRequest",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterAsset",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterAssetFolder",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model WsNewsletterStage",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model NewsletterRecipientAccess",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model NewsletterReviewEmailDelivery",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model NewsletterSubscription",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model NewsletterAccountInvitation",
+      "result": "PASS"
+    },
+    {
+      "label": "original exact schema model NewsletterInvitationEmailDelivery",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/client",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/db",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantRole",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MembershipStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementProvider",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementConnectionStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AssociationEntityType",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingPrepStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingVisibility",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingDebriefStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementTaskStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BillingStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Tenant",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CanonicalEntity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EntityAlias",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EntityIdentifier",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EntityResolution",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CanonicalEntityMerge",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EntityIdentityGovernanceEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CanonicalEntityBackfillCheckpoint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/User",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantMembership",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AdminBroadcastAudience",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AdminBroadcast",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AdminBroadcastRecipient",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/UserIdentityConflict",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/IdentityOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClerkEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StripeEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantUsageMeter",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Client",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientMemoryAccess",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientObjective",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientObjectiveRevision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientOrderedOwner",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientTeamMember",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SavedOpportunitySearch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DirectoryContactNote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DirectoryContactFavorite",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/IntegrationConnection",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/IntegrationConnectionToken",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementContact",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Meeting",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingAttendee",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MailThread",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MailMessage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MobileDeviceToken",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementAttachment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingNote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingPrepJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingPrepMondayMapping",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingPrep",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingDebrief",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientNotetakerPreference",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeetingBotSession",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementTask",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementReportTargetOffice",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementReportTargetOverride",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachRecord",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachTemplate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachAudience",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachAudienceMember",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachAiTemplate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientAssociationOverride",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ContextEmbedding",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ImpersonationSession",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DemoRequest",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioConversation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriSavedPrompt",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriWorkspace",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriVnextPreference",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioMessage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioArtifact",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioAttachment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioResearchSession",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioNote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioMemory",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriActionApproval",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriPendingAction",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriActionProposal",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioScheduledTask",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioMcpServer",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioMcpOAuthCredential",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioFirmSkill",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AiUsageEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AiRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriAuditLedger",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ReviewRequest",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AlertGenerationRecord",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutcomeEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ContextPacket",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachJobItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachDraftArtifact",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachSendIntent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OutreachDelivery",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantAiCredential",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClioProactiveAlert",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AuditLog",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientCapability",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientSubmissionHistory",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientPerson",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientActivity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientFacility",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientTarget",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientTargetRecommendation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientCapabilityFitRecommendation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ActionRecommendation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementCampaign",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EngagementCampaignRecipient",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LobbyIntel",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LobbyIssueRef",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LobbyTrendingTopic",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalContractor",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalAgency",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalIndustry",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaFiling",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaClient",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaRegistrant",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaLobbyist",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaContribution",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaIssueCode",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LdaGovernmentEntity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MeriAnalyticsQueryLog",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FecCommittee",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FecContribution",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FecPacContribution",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FecPacSyncState",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressBill",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CboCostEstimate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressMember",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressBillCosponsor",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressCommittee",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressCommitteeMembership",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EntityCrosswalk",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/RollCallVote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemberVote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BillRuleLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BillText",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceRevision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidencePassage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceObservation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceMention",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceMentionEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceChangeOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceCheckpoint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceInventoryMember",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalEvidenceCoverageGap",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressBillAction",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressBillCommittee",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CongressBillSubject",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElement",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementProject",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementYear",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProcurementLine",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProcurementLineYear",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProcurementLineSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementBudgetPosition",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementProjectBudgetPosition",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementDelta",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementMilestone",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementMilestoneSchedulePeriod",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementQuarantine",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementIngestRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementYearSourceValue",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementChangeOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SourceDocument",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommunityFundingRequest",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommunityFundingRequestSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommunityFundingDiscoveryCrawl",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommunityFundingDiscoveryCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommunityFundingIngestRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DocumentParseJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ReconciliationReviewQueue",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementWatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetClientWatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetClientWatchEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementDataIssue",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PeAlertEmailPref",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionPersonnel",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionPersonnelSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionPersonnelQuarantine",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionPersonnelMergeCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementPersonCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ConferenceProbability",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalRegisterDocument",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/IntelligenceInsight",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientIntelMapping",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TrackedBill",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AlertState",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientBrief",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientWatchlist",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AlertPreference",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TrackerFeedback",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/NotificationLog",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DistrictNexusAlertPayload",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AlertDigestQueue",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SmsVerification",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/IntelligenceChange",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/RegulatoryDocket",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SecFiling",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FaraRegistration",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/RegulatoryComment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BlsSeries",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BlsDataPoint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CensusDistrict",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegislativeDistrict",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegistormTrip",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeMembershipWatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BeaData",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CaliforniaGrantOpportunity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalGrant",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/GaoReport",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBill",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateLegislator",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillPublishedRecord",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillAction",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillSponsor",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateRollCallVote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateMemberVote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillCalendarEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateSession",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateCommittee",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateCommitteeMembership",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateSyncCursor",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateRule",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CrsReport",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/IntelArticle",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemberPressItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeHearing",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegislativeAgendaItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegislativeCalendarTransition",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegislativeObservationRevision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegislativeCalendarCoverage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/StateBillCalendarSnapshot",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeHearingBill",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OfficialHearingTranscript",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeSourceException",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/HearingSourceObservation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/HearingStreamCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PublicHearingCapture",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PublicHearingCaptureAttempt",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PublicHearingTranscriptSegment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PublicHearingSpeaker",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeSiteUpdate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/HearingSubscription",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/HearingFollow",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegiWatchCommitteeFollow",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegiWatchSavedItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegiWatchNotificationEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegiWatchCommitteeEmailPreference",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/HearingAutoRecordRule",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PublicHearingInsight",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PublicHearingIntelligenceJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantHearingRelevance",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TenantHearingRelevanceJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SyncRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/GovInfoCache",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementProcurementLine",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalAward",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalAssistanceAward",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientGrantNexus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientFundingOpportunity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OpportunityBookmark",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoResourceSnapshot",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoResourceLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoSyncCheckpoint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoApiUsage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoWebhookDelivery",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoEventOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoEventAlert",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientProfileEnrichmentCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientRelevantVehicle",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoProcurementForecast",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoBudgetAccount",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoBudgetVendorFlow",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoProcurementProtest",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoEntityExclusion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoDibbsSolicitation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoDibbsAward",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoSbirSolicitation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoSbirTopic",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoOpportunityParity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoOpportunityNotice",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OpportunityAttachment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OpportunityDocumentText",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OpportunityRequirement",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/OpportunityRequirementReview",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FundingOpportunityStageTransition",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementAcquisitionProgram",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementPerformer",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Program",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramAlias",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramIdentityCrosswalk",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionRecordRevision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionAwardTransactionRevision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramAcquisitionRelationship",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AcquisitionCoverageGap",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PeProgramMatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SamOpportunity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/SamOpportunityMatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CommitteeReportProvision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProvisionPeLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramOffice",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/PersonRole",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramOfficeProgramLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryEdge",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryIngestRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryAccessGrant",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryTransitionAudit",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/MemoryCleanupOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LearningSignal",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LearningSignalCandidateOutcome",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/QualityTelemetryEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/QualityTelemetryMemoryItemUse",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/EvaluationRecord",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Claim",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Evidence",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ComplianceCheck",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetAction",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetLineRelationship",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/Capability",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CapabilityBudgetLineMatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProgramElementIntelligenceCache",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BillBudgetLineLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetPackage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetPackageVehicle",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FundingPosition",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetInterimFundingPeriod",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CompliancePolicyPack",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CompliancePolicyPackEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/CompliancePolicyDecision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AssuranceEvalRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AssuranceEvalResult",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AssuranceEvalDomainGate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AssuranceFeedbackCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/AssuranceEvalFixture",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetExtractionCandidateV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetVerificationRunV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetVerificationCheckV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetVerificationProofV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetVerificationDiscrepancyV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetReviewDecisionV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetScopedFactReviewV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetCandidateCorrectionV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetCanonicalSnapshot",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetActiveSnapshot",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionPlan",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetProjectionPlan",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionEligibility",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetManualOverride",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionAuthorization",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionActivation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetRollbackRecord",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetSideEffectDrainPause",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetCanonicalDelta",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetCompatibilityProjectionRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetCanonicalRow",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetPromotionAudit",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/XTrackedAccount",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/XPostCache",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/XFeedSubscription",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeAssertion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEvidence",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeMailboxJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeMailboxExtractionJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEpisode",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeAssertion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeEntity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KnowledgeEpisodeProjectionJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingMeasure",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingProvision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingAllocation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingSourceEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingCertification",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingPublication",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingReconciliationResidual",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/FederalFundingPublicationCheckpoint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetCycle",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetExpectedSource",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetSourceBundleMember",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetGovernedImportAudit",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetSourceObservation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetWatcherAdapter",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetWatcherRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetIngestionOutbox",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BudgetReextractionOperationV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetIngestionManifestV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetIngestionManifestItemV1",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetLifecycleSignal",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetDiscoveryCrawl",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetDiscoveryCandidate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetDiscoveryHostBudget",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseProviderInvocation",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetScheduleTick",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetReviewResolution",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseBudgetCycleManifestRegistry",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegiWatchDigestRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/LegiWatchDigestSchedule",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/GsaRealProperty",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/GsaRealPropertySourceRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DistrictNexusChange",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentProspect",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentProspectActivity",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentPreference",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentJevDecision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentBrief",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentBriefVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentWatch",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentWatchSourceState",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentAlert",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/BusinessDevelopmentAlertDelivery",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioMode",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioLifecycle",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioGrantRole",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioMemberKind",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioMemberDisposition",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioMemberOrigin",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioEventKind",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolio",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioGrant",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioClientLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioMember",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioRecomputeStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewTrigger",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewTargetKind",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioDecisionType",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioContinuityStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportJobStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportWorksheetKind",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportRowOutcome",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportRowPreviewClassification",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchTaxonomyVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchTaxonomyConcept",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioTemplate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioTemplateVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioRuleVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioRulePreview",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioRecomputeJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioReview",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioDecision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioContinuityLedger",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportRow",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportMappingVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportAttempt",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportEffect",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioImportCompensationReceipt",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioDeliveryStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioEventRecipientState",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioSubscription",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioSubscriptionDelivery",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioSnapshot",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputRequest",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputAttempt",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputArtifact",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioOutputClientFileReceipt",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioBookmark",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioTourState",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioReviewNote",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseContextDocument",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseContextDocumentRevision",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseContextSection",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseReferenceOccurrence",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioFitVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseSavedComparison",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseSavedComparisonVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/DefenseSavedComparisonEvent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioClientFilingStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ResearchPortfolioClientFilingJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoSubaward",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/TangoSubawardSyncCheckpoint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KrispNotetakerPreference",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/KrispMeetingImport",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ClientActivityCommand",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/api/prisma/schema.prisma/ProspectAttachmentUploadIntent",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/client",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/db",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsDocStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsRole",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsDraft",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsAgentMessageRole",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsAgentMessage",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsBlueprintScope",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsBlueprintVersionStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsBlueprint",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsBlueprintVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsAgentProposalStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsAgentProposal",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsApprovalStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsApprovalRequest",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsShareLink",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsGuestComment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsCollaboratorStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsCollaborator",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsDocument",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsTemplate",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsComment",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsAuthorKind",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsDocVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsEditLock",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsContextItem",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsIntake",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsGenerationRun",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsThemeVersionStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsTheme",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsThemeVersion",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsBrandAsset",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsHillDayDocStatus",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsHillDayDocument",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsHillDayMeeting",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsHillDayJob",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsHillDayExport",
+      "result": "PASS"
+    },
+    {
+      "label": "current schema block apps/workspace/prisma/schema.prisma/WsProspectDraftReceipt",
+      "result": "PASS"
+    },
+    {
+      "label": "prospect visibility source read/readAll/unread hooks retained",
+      "result": "PASS"
+    },
+    {
+      "label": "two current sender prospect-free predicates remain",
+      "result": "PASS"
+    },
+    {
+      "label": "original sender additions equal C except retained prospect-free predicates",
+      "result": "PASS"
+    },
+    {
+      "label": "no group sender repair or hidden normalizer change",
+      "result": "PASS"
+    },
+    {
+      "label": "all Q package exports retained; only two original subpaths added",
+      "result": "PASS"
+    },
+    {
+      "label": "Workspace all current scripts retained",
+      "result": "PASS"
+    },
+    {
+      "label": "lock only original importer closure and reachability marker changes",
+      "result": "PASS"
+    }
+  ],
+  "protectedQContracts": true,
+  "original58Exact": true,
+  "noBridge": true,
+  "noGroupRepair": true,
+  "noWholeBarrelReplacement": true,
+  "noSourceExecution": true
+}

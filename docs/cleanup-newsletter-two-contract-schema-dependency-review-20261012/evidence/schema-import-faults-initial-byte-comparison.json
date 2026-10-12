@@ -1,0 +1,607 @@
+{
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "scope": "Inert source-string faults exercise exact-schema/source preservation boundary, no source/schema/SQL/client/provider code execution. Not general Prisma/native validator acceptance.",
+  "relativeImports": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "../tenant/current-tenant.decorator.js",
+      "resolved": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "../auth/roles.decorator.js",
+      "resolved": "apps/api/src/auth/roles.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "../auth/roles.guard.js",
+      "resolved": "apps/api/src/auth/roles.guard.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "./runtime/engagement-runtime-action.decorator.js",
+      "resolved": "apps/api/src/engagement/runtime/engagement-runtime-action.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "module": "./newsletter-outreach.service.js",
+      "resolved": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./engagement.service.js",
+      "resolved": "apps/api/src/engagement/engagement.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./outreach-draft.service.js",
+      "resolved": "apps/api/src/engagement/outreach-draft.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./outreach-send-intent.service.js",
+      "resolved": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "module": "./runtime/engagement-runtime-policy.service.js",
+      "resolved": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "../auth/roles.decorator.js",
+      "resolved": "apps/api/src/auth/roles.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "../auth/roles.guard.js",
+      "resolved": "apps/api/src/auth/roles.guard.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "../tenant/current-tenant.decorator.js",
+      "resolved": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "module": "./newsletter-account-invitation.service.js",
+      "resolved": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "../config/config.schema.js",
+      "resolved": "apps/api/src/config/config.schema.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "module": "./newsletter-account-provider.js",
+      "resolved": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "../auth/clerk.service.js",
+      "resolved": "apps/api/src/auth/clerk.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "module": "../tenant-admin/tenant-admin.service.js",
+      "resolved": "apps/api/src/tenant-admin/tenant-admin.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "../config/config.schema.js",
+      "resolved": "apps/api/src/config/config.schema.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "../config/config.schema.js",
+      "resolved": "apps/api/src/config/config.schema.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/api/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "module": "../generation/ai-credential.service.js",
+      "resolved": "apps/workspace/src/generation/ai-credential.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "../auth/tenant.guard.js",
+      "resolved": "apps/workspace/src/auth/tenant.guard.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "../auth/current-tenant.decorator.js",
+      "resolved": "apps/workspace/src/auth/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "../auth/tenant-context.js",
+      "resolved": "apps/workspace/src/auth/tenant-context.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "./newsletter.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "module": "./newsletter-stock-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "module": "./newsletter-brand-validation.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "../auth/tenant.guard.js",
+      "resolved": "apps/workspace/src/auth/tenant.guard.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "../auth/current-tenant.decorator.js",
+      "resolved": "apps/workspace/src/auth/current-tenant.decorator.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "../auth/tenant-context.js",
+      "resolved": "apps/workspace/src/auth/tenant-context.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "module": "./newsletter.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "../hillday/hillday-source.service.js",
+      "resolved": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "../generation/ai-credential.service.js",
+      "resolved": "apps/workspace/src/generation/ai-credential.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-html-check.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-stock-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-link-preview.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-video.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter-stock-image.controller.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "./newsletter.controller.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "module": "../notifications/notifications.module.js",
+      "resolved": "apps/workspace/src/notifications/notifications.module.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../prisma/prisma.service.js",
+      "resolved": "apps/workspace/src/prisma/prisma.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../../generated/prisma-client/index.js",
+      "resolved": "apps/workspace/generated/prisma-client/index.ts",
+      "typeOnly": true,
+      "tracked": false,
+      "generatedBoundary": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../hillday/hillday-source.service.js",
+      "resolved": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../generation/ai-credential.service.js",
+      "resolved": "apps/workspace/src/generation/ai-credential.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-image.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-html-check.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-link-preview.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-video.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-asset-import.service.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../notifications/notifications.service.js",
+      "resolved": "apps/workspace/src/notifications/notifications.service.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-validation.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "./newsletter-brand-validation.js",
+      "resolved": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "module": "./newsletter-fonts.catalog.js",
+      "resolved": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "module": "./newsletter.js",
+      "resolved": "packages/shared/src/newsletter.ts",
+      "typeOnly": true,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "module": "./newsletter.js",
+      "resolved": "packages/shared/src/newsletter.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "module": "./newsletter-fonts.js",
+      "resolved": "packages/shared/src/newsletter-fonts.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "module": "./newsletter-social-share.js",
+      "resolved": "packages/shared/src/newsletter-social-share.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "module": "./newsletter.js",
+      "resolved": "packages/shared/src/newsletter.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "module": "./newsletter-fonts.js",
+      "resolved": "packages/shared/src/newsletter-fonts.ts",
+      "typeOnly": false,
+      "tracked": true,
+      "generatedBoundary": false
+    }
+  ],
+  "unresolvedRuntimeImports": 0,
+  "generatedTypeOnly": 1,
+  "schemaMutants": [
+    {
+      "name": "Remove currentQ prospectId",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Remove currentQ prospect index",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Drop stage author uniqueness",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Drop asset retainedBytes",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Weaken original image scoped relation",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Invent stageWsDocVersion association",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Alter recipient public token length",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Alter sender suppression identity",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Drop original newsletterFormat default",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    },
+    {
+      "name": "Rebind attempt/request identity",
+      "refusedByExactCurrentBlockOrOriginalModelIdentity": true,
+      "notExecuted": true
+    }
+  ],
+  "passed": 10,
+  "total": 10
+}

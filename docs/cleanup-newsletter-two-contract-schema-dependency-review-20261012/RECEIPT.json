@@ -1,0 +1,79 @@
+{
+  "result": "ACCEPT bounded source/schema/dependency restoration; fullWorkspace/native/runtime/frontend acceptance remains unqualified",
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "baseHead": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "baseTree": "d5a1acd33391ae681159c271f6a72602c6338055",
+  "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+  "authorReceiptHeads": {
+    "generatorCore": "7659366f6c8353abe91aae302375d7b6553043e4",
+    "workspace": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+    "final": "509e560e1d3b528ff84b63915f235a8a124febcc"
+  },
+  "evidenceCounts": {
+    "sourceAssertions": 679,
+    "generationImportAssertions": 21,
+    "originalFiles": 58,
+    "newModels": 16,
+    "preexistingPrismaMigrationBlobsPreserved": 574,
+    "lockSnapshots": 60,
+    "lockFaultRefusals": 8,
+    "schemaFaultRefusals": 10,
+    "generationRecipeFingerprintDrifts": 6,
+    "existingGeneratedOutputHashes": 38,
+    "relativeImports": 68,
+    "typeOnlyGeneratedEdges": 1,
+    "finalAuthorIndexEntriesVerified": 131
+  },
+  "coreTyping": {
+    "authorExecutor": 26263,
+    "exit": 0,
+    "observedImmutableReceipt": true,
+    "independentCompilerRun": false,
+    "noEmit": true,
+    "isolatedEngineFreeDeclarations": true,
+    "nativeAcceptance": false
+  },
+  "workspaceTyping": {
+    "authorExecutor": 94864,
+    "exit": 2,
+    "finalDiagnostics": 6,
+    "missingExactParser": "htmlparser2@8.0.2",
+    "substitution": false,
+    "fullTypingAccepted": false
+  },
+  "reviewerExecution": {
+    "readOnlyGitSourceCacheAndPureInspection": true,
+    "productionImports": false,
+    "generatedClientOrGeneratorExecution": false,
+    "actualGETOrProvider": false,
+    "SharpOrNativePrisma": false,
+    "SQLOrDatabase": false,
+    "dependencyInstallOrDownload": false,
+    "AWSOrPermissions": false,
+    "applicationSourceEdits": 0,
+    "unpublishedReportingSourceInspection": false
+  },
+  "scopeSeparation": "Independent integration_review owns authorization/version/token/replay/concurrency/GET fakechecks; root owns guard/publication/final source-neutral manifests. This receipt accepts neither their unfinished work nor native/full/live gates.",
+  "rootHandoffCorrections": [
+    "Reviewer invitation/grant activation, not Workspace tenant membership",
+    "Sanitized launcher2keys with controlledofficialNode generator child marker; no nativeengine/.wasm binary artifacts, emittedJSwrappers unexecuted",
+    "Workspace6missing-parser/context diagnostics explicit; frozenfrontend noport/deployedclaims"
+  ],
+  "remainingLimits": [
+    "Full Workspace exacthtmlparser8 type/parser/build acceptance unrun/unaccepted",
+    "Native PG/RLS/roles/FK/index/MVCC/locking/data/worker/provider/customer/config/asset-origin/deployment unrun",
+    "Frontend originalrichUI/static ownership handoff separate; no port or UUIDbridge/grouprepair",
+    "Wider11full/native gaps123clock/RNG historicalfailures unchanged",
+    "Finalrootpublicationpacket binding and separate auth/runtime review remain root-owned"
+  ],
+  "retainedFailures": [
+    "Reviewer initial syntax failure",
+    "Reviewer manifest SQL kind label678/679",
+    "Reviewer noPrismaClientInstantiation receipt marker falsepositive20/21",
+    "Initial byte-onlyschemafault supplement retained; final explicitmodel/fieldvalidator used",
+    "WrongCOMMANDS.md path guess/reproduction; actualevidence/COMMANDS.json used",
+    "Every copied original author RED plus3Workspaceexit2 raw/config receipts preserved"
+  ]
+}

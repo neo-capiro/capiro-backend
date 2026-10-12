@@ -1,0 +1,933 @@
+{
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "authorFinalReceiptHead": "509e560e1d3b528ff84b63915f235a8a124febcc",
+  "authorFinalReceiptTree": "ee5cca9c408e023d41f29a11f642d9280e2658b7",
+  "packetEntries": 55,
+  "sourceEntries": 76,
+  "all131Verified": true,
+  "sourceIdenticalToFrozenA247": true,
+  "indexSha256": "a5b52d09b3950d96cdb9fff9822981638d763e943e39fd7ddcdd63ba85880e2f",
+  "workspaceFinalExecutorSession": 94864,
+  "workspaceFinalExit": 2,
+  "scope": "Read/hash indexed source/evidence only; source guard/auth fake tests/provider/native/generator/clients not executed; runtime/auth acceptance separately owned.",
+  "rows": [
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/AUTHOR-CHECKPOINT.md",
+      "sha256": "8786da858bbf7623839257f12e5e4abd5d92a786bb6b99a088c701af2e1d5985",
+      "bytes": 2686,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/CONTRACT.md",
+      "sha256": "bdcf6ff12d8899f0926df191281c7f38f74b74de1630a0cbe0b964de0d735f6f",
+      "bytes": 2502,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/ENGINEFREE-CLARIFICATION.md",
+      "sha256": "c4f171cfb8657f699b79ce9b65598ab94ae42e2b7c4a8e60c6bc4100dd885a65",
+      "bytes": 1326,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/HANDOFF.md",
+      "sha256": "9e136f863fd10d3d0badee0139d0f87e0b01b00a4b67c20ae811953177b62f9a",
+      "bytes": 5677,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/SOURCE-BINDINGS.json",
+      "sha256": "88e04902934ec48a0b974b440ca7bf6d63490bfa762ce90ca8e818c1cde4ac0d",
+      "bytes": 37056,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/SOURCE-QUALIFICATION.md",
+      "sha256": "b15974cb54eee0a2fb6106dd388b379099e6a6458522a3521e565f4a6e4d7fc9",
+      "bytes": 3288,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/01-source-composition.log",
+      "sha256": "348eaaaa4fe9bc850dfbefa12e95eab99e525f50a2947258f186ded78430fa19",
+      "bytes": 227,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/02-lock-source-composition.log",
+      "sha256": "b987e627c6867ee84b86a0d22731c46db445f201beab1415b488441545326224",
+      "bytes": 991,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/03-lock-source-composition-repaired.log",
+      "sha256": "62377b57b26a3e0e061b6258ee24afa3f49c9d291f5da06ba7e13fac8cadd09b",
+      "bytes": 1800539,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/04-lock-source-composition-final.log",
+      "sha256": "dad00e3a38b79b53328cd670c60c9055ac8a52c5a42da02b1533a91cdae56d99",
+      "bytes": 135,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/05-source-whitespace-initial.log",
+      "sha256": "60d2cb86601c79e529c186e4dcfa28c686da8bec03a74a960d65c474ca1f016c",
+      "bytes": 45,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/06-source-whitespace-repaired.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/07-enginefree-schema-generation.log",
+      "sha256": "e326c79ee9a341aa94ad7d94ecf25676cc7a9d58363187d8ef71792c67f5a9d9",
+      "bytes": 118,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/08-source-preservation.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/08-source-preservation.log",
+      "sha256": "2a532b94436734bd42102ec8cdefc348b65e818543c3c0884cbcf24e8afb4218",
+      "bytes": 1422,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/09-source-preservation-path-repaired.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/09-source-preservation-path-repaired.log",
+      "sha256": "a2b685309fa1565ff57ffb6093420ddf51ecb00a5aa0e2cddda35105987ef06a",
+      "bytes": 1444,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/10-source-preservation-final.json",
+      "sha256": "0c9c8c73209f372d62b1b633d19e019c51ea0adb3b7860c85afd19ac905305f3",
+      "bytes": 90292,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/10-source-preservation-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/11-core-source-types-receipt.json",
+      "sha256": "7aae97e6579b69aea85b1af437563e8daf540efd2418ad96553ff108f867fd43",
+      "bytes": 631,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/11-core-source-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/12-workspace-source-types.log",
+      "sha256": "7ac6214b0355f00ff36706a2f72a6cea5c8aff14dfb0a73b036d640b3aeca11c",
+      "bytes": 17499,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/13-workspace-source-types-host-repaired.log",
+      "sha256": "68473dddada811ae1fa9db9a06364467b0eb591fb84689cb78e22bd0eff4b566",
+      "bytes": 13381,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/14-workspace-source-types-final-host.log",
+      "sha256": "be3240c237f23787fc8246a8f0086658ef56b05c5acdccb17ea58f000c389563",
+      "bytes": 836,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/14-workspace-source-types-final-receipt.json",
+      "sha256": "386d6575458cf17216bae1c8ce159550e89c76c3e5a171da2d00512485c25c7b",
+      "bytes": 1311,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/15-owner-seams-inert.log",
+      "sha256": "ee2ab460329b8d122ce27cf761254f633b2f34a23d8c98aa13f687ebd802f9da",
+      "bytes": 5668,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/16-raw-evidence-whitespace.log",
+      "sha256": "739afc2f5bb8e3880517bf17e6810f9fbd2d3957c95124c7013d54003379ea6c",
+      "bytes": 442,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/17-publication-source-neutral-merge.log",
+      "sha256": "d06d561af3b71a86c9765a895dcb05165914d67bba92d39a8e2fa9ae91e7f98c",
+      "bytes": 348,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/18-current-registry-owner-guard.json",
+      "sha256": "3407eb1383582d14ed57c05901fd5709a496ebe1601eb1829718344ce118433e",
+      "bytes": 53,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/18-current-registry-owner-guard.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/19-current-duplicate-helper-guard.json",
+      "sha256": "c27aef0cc47b8713dbff72b4e5097a534b18c275633382cae302406cff48f3e8",
+      "bytes": 69,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/19-current-duplicate-helper-guard.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/20-frozen-source-whitespace.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/COMMANDS.json",
+      "sha256": "fa2b1629d772185bdc0d444ae67f1f7a5c01783b1946259a4feb2386b1844018",
+      "bytes": 3669,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/ORIGINAL-SOURCE-MANIFEST.json",
+      "sha256": "756a29422da59f25a115a8e3b7f275eae2c65b93f8a18c6598a49bf7da75bf0d",
+      "bytes": 30926,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-canonical-source.cjs",
+      "sha256": "78965cb536049ae784ab676ac22a411e14fb3262ede1e0941056947d7e7a655e",
+      "bytes": 5730,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-lock-source.cjs",
+      "sha256": "6537576d601a493414e7c03ee53503059f3109c84c062ec12d44b5d852ad0627",
+      "bytes": 6431,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-lock-source.initial.cjs",
+      "sha256": "e570b788fa6fca9cd45966f76dbd0ec739fd6c48adbfb81125a338adbcdf20d8",
+      "bytes": 5043,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/compose-lock-source.reachability-repaired.cjs",
+      "sha256": "000b82672ded4ff22b4825a86af9e065ecf6eb4954953e5389f99f4ef64e3886",
+      "bytes": 5923,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/enginefree-generation-receipt.json",
+      "sha256": "ebdc01c10f3bcdb1b3c1a1e901b2471ecdd5d409acf49818daad121a2873c0bf",
+      "bytes": 9496,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/freeze-checksum-index.cjs",
+      "sha256": "9d3ec6b83adf8461500ad1d17923bc53e089cb9d870252149842056669657511",
+      "bytes": 1450,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/freeze-source-bindings.cjs",
+      "sha256": "5d74d2f12193965120274e6b1c86a8081b65fb7f101c5e5167141eee59ab3c0b",
+      "bytes": 2430,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/lock-source-closure.json",
+      "sha256": "db56a75bac3acc2196c18639290bbf3f20fabb8a028a46d804f73e16562a7f08",
+      "bytes": 1422,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/newsletter-sender-additions-preserving-prospect.patch",
+      "sha256": "1f3618b2d3782b7d0c28cb5590d205194a4086f8dd3edb2e7b20b85889ac077b",
+      "bytes": 7785,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/original-registration-additions.patch",
+      "sha256": "39f239ee68486d0581e0c64d28f88544766eba40f3c808838b02f17fbf622fca",
+      "bytes": 9159,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/owner-fragment-hashes.json",
+      "sha256": "1161459f2f5457b1dedbfe82e9770fc7c34d73d69878f6a2ce8858b397f9c309",
+      "bytes": 4491,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/owner-seams.inert.test.cjs",
+      "sha256": "f4c8beab6ffe7e40f5421a3ce52ab0f8ee5461c1f7e9cda8b906cb71f913d74d",
+      "bytes": 20448,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/validate-and-generate-enginefree.cjs",
+      "sha256": "323f70fea1af159c9b35c2e07d389ac851b265ca0ed00781795cba473be586a4",
+      "bytes": 3911,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.cjs",
+      "sha256": "27cfe4e741769557f2f8bb1861e511a3639ccd5d93f3aa233df9435359663bca",
+      "bytes": 8315,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.initial.cjs",
+      "sha256": "754e2302552fb9d643f7de8b0f97a1a0219163bb2aea64f17419225ec4ce5ccd",
+      "bytes": 8064,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/verify-source-preservation.path-guess-repaired.cjs",
+      "sha256": "b5cd059ad51e1c69a7e89d36027280363cbffcd49f7e958c1590b43a1fcdc90a",
+      "bytes": 8086,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.core-source.json",
+      "sha256": "8f08a05483283dbf21583f3755a73f7704afe65f45960d0a5b8469a0b4d59551",
+      "bytes": 490,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.final-host.json",
+      "sha256": "5add158c1799f2c52125e869e49c473712cab3548e620d3cecfae361958fdca2",
+      "bytes": 629,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.host-repaired.json",
+      "sha256": "2a5ab0726354d05c78213d666d20e2a569fb43104ec108672bc1ac501abdb1a8",
+      "bytes": 841,
+      "verified": true
+    },
+    {
+      "kind": "packet",
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.json",
+      "sha256": "f320e77c5a7246d174c1e2620ba2ce6780f3e036b91dc05dc784590477a0861e",
+      "bytes": 824,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+      "bytes": 2048,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+      "bytes": 1421,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+      "bytes": 1289,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+      "bytes": 1656,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/prisma/schema.prisma",
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "bytes": 979560,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/app.module.ts",
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc",
+      "bytes": 9137,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/config/config.schema.ts",
+      "sha256": "b4f96e0700a883e5d98cab2307fe1c1081d1afec4dff1b823040f53b336cb039",
+      "bytes": 76323,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement-api.app.module.ts",
+      "sha256": "4cbde413677717948e1404ea591df64d41db31e733a7a80dc145d03ef90dd95e",
+      "bytes": 4412,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/engagement.module.ts",
+      "sha256": "3fccedc262de3619749d53c187d401488166858829ea6e78967be66c0f78aea7",
+      "bytes": 12222,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "bytes": 5292,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052",
+      "bytes": 14420,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7",
+      "bytes": 24560,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3",
+      "bytes": 1748,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "sha256": "9bf390c4072fdeff2e424e5ab012efd06caffbcf5cbe0dc0edd43344b5d199bb",
+      "bytes": 42497,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "sha256": "6a9b291e8eecf2a7b1685469b1b345cfa5a3411a77c453a2ad6e4df5fbea3658",
+      "bytes": 68344,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts",
+      "sha256": "0e24effe12ea407d7a44650724b86c34324fc81ddbb9a12ec0559e478b317ae5",
+      "bytes": 5752,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "25f51b1d894370b6d735822001e06345360f213475eaece21d1c1fd403d61b1f",
+      "bytes": 23173,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b",
+      "bytes": 1184,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945",
+      "bytes": 18800,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.spec.ts",
+      "sha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea",
+      "bytes": 3068,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "sha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96",
+      "bytes": 2303,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts",
+      "sha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6",
+      "bytes": 8201,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "sha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243",
+      "bytes": 12863,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts",
+      "sha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2",
+      "bytes": 8093,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "sha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851",
+      "bytes": 13298,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/api/src/workspace-collab/workspace-collab.module.ts",
+      "sha256": "f7d23a87591a80c4be68613d11d8406401124db2ff0f9f8a270b21e0f14e0229",
+      "bytes": 1151,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/package.json",
+      "sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417",
+      "bytes": 1818,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+      "bytes": 3625,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+      "bytes": 1050,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+      "bytes": 435,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+      "bytes": 235,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+      "bytes": 1135,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+      "bytes": 1536,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+      "bytes": 2074,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+      "bytes": 758,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+      "bytes": 1495,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+      "bytes": 139,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/prisma/schema.prisma",
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+      "bytes": 41761,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/app.module.ts",
+      "sha256": "0b59032e19a24df33bddd32f69d2e04fc65281b8000209abb2d77f1836688800",
+      "bytes": 3192,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "sha256": "c1181e3710a7105152eaa8294eba1a49558b2201868e51188547e593b3f84946",
+      "bytes": 6835,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "sha256": "87674714c36948cf1ae2d508deccd9ca9a39d98f0b7a7b5cd912a530bf863676",
+      "bytes": 24325,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts",
+      "sha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04",
+      "bytes": 6876,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "sha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac",
+      "bytes": 11931,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.spec.ts",
+      "sha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6",
+      "bytes": 11558,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+      "sha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f",
+      "bytes": 8251,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "sha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967",
+      "bytes": 7029,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+      "sha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965",
+      "bytes": 7658,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-fonts.spec.ts",
+      "sha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533",
+      "bytes": 2785,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "sha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd",
+      "bytes": 4286,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.spec.ts",
+      "sha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241",
+      "bytes": 4971,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "sha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4",
+      "bytes": 6367,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "sha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e",
+      "bytes": 7900,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-image.spec.ts",
+      "sha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0",
+      "bytes": 7641,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093",
+      "bytes": 3890,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881",
+      "bytes": 3006,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+      "sha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b",
+      "bytes": 6057,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-social.spec.ts",
+      "sha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705",
+      "bytes": 3004,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d",
+      "bytes": 1568,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "sha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27",
+      "bytes": 5816,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "sha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a",
+      "bytes": 9684,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "sha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de",
+      "bytes": 15787,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d",
+      "bytes": 27451,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "sha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30",
+      "bytes": 4550,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter-video.spec.ts",
+      "sha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a",
+      "bytes": 10762,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "bytes": 16288,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6",
+      "bytes": 1459,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583",
+      "bytes": 86320,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/newsletters/newsletter.spec.ts",
+      "sha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d",
+      "bytes": 38553,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "sha256": "0f4e6672c15dade7b08ee26347491ba456a7e279c9c748c4f4ff8349ed423ce1",
+      "bytes": 4333,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "packages/shared/package.json",
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+      "bytes": 3761,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "bytes": 94631,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "bytes": 5766,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "packages/shared/src/newsletter-render.ts",
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "bytes": 30096,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0",
+      "bytes": 2068,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "packages/shared/src/newsletter.ts",
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+      "bytes": 36470,
+      "verified": true
+    },
+    {
+      "kind": "source",
+      "path": "pnpm-lock.yaml",
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+      "bytes": 728135,
+      "verified": true
+    }
+  ]
+}

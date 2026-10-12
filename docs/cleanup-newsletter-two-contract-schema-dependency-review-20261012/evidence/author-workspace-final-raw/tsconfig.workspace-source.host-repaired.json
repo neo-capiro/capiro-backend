@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.workspace-source.json",
+  "compilerOptions": {
+    "typeRoots": ["/workspace/capirov2/apps/api/node_modules/@types", "/workspace/capirov2/apps/workspace/node_modules/@types"],
+    "paths": {
+      "@capiro/shared": ["packages/shared/src/index.ts"],
+      "@capiro/shared/*": ["packages/shared/src/*"],
+      "@capiro/auth": ["packages/auth/src/index.ts"],
+      "@capiro/meriv2-core": ["packages/meriv2-core/src/index.ts"],
+      "@capiro/meriv2-core/*": ["packages/meriv2-core/src/*"],
+      "zod": ["/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/index.d.ts"],
+      "pdfkit": ["/workspace/capirov2/apps/workspace/node_modules/@types/pdfkit/index.d.ts"],
+      "sharp": ["/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.d.ts"]
+    }
+  }
+}

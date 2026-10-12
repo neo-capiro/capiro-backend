@@ -1,0 +1,28 @@
+{
+  "passed": 678,
+  "total": 679,
+  "original58": 58,
+  "models": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "base": 459,
+      "source": 464,
+      "added": 5
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "base": 26,
+      "source": 37,
+      "added": 11
+    }
+  ],
+  "lockSnapshots": 60,
+  "lockFaults": 8,
+  "failures": [
+    {
+      "name": "Exactly58original25runtime19spec14SQL",
+      "passed": false,
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    'original-runtime': 25,\n    'original-spec': 19,\n+   'original-sql': 0\n-   'original-sql': 14\n  }\n"
+    }
+  ]
+}

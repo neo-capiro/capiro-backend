@@ -1,0 +1,21 @@
+{
+  "frozenSourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "frozenSourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "sourceOnly": true,
+  "checks": [
+    {"command": "node evidence/verify-source-preservation.cjs", "result": "PASS", "checks": 706, "receipt": "10-source-preservation-final.json", "exitCode": 0},
+    {"command": "env -i PATH=/usr/bin:/bin XDG_CACHE_HOME=<own-worktree>/.enginefree/tool-cache <cached-node> evidence/validate-and-generate-enginefree.cjs", "result": "PASS cached official WASM schema/DMMF and isolated noEngine output", "receipt": "enginefree-generation-receipt.json", "exitCode": 0, "launcherEnvironmentKeys": ["PATH", "XDG_CACHE_HOME"], "officialGeneratorChildAdds": "PRISMA_GENERATOR_INVOCATION=true"},
+    {"command": "NODE_OPTIONS=--max-old-space-size=8192 node <cached-typescript>/bin/tsc -p tsconfig.core-source.json", "result": "PASS", "receipt": "11-core-source-types-receipt.json", "executorSession": 26263, "exitCode": 0},
+    {"command": "NODE_OPTIONS=--max-old-space-size=8192 node <cached-typescript>/bin/tsc -p tsconfig.workspace-source.json", "result": "RED dependency-host resolution/parser absence", "rawLog": "12-workspace-source-types.log", "executorSession": 34989, "exitCode": 2},
+    {"command": "NODE_OPTIONS=--max-old-space-size=8192 node <cached-typescript>/bin/tsc -p tsconfig.workspace-source.host-repaired.json", "result": "RED remaining host/module condition resolution/parser absence", "rawLog": "13-workspace-source-types-host-repaired.log", "executorSession": 93494, "exitCode": 2},
+    {"command": "NODE_OPTIONS=--max-old-space-size=8192 node <cached-typescript>/bin/tsc -p tsconfig.workspace-source.final-host.json", "result": "RED missing exact htmlparser2@8.0.2 and five dependent contextual types", "rawLog": "14-workspace-source-types-final-host.log", "executorSession": 94864, "exitCode": 2},
+    {"command": "node --test evidence/owner-seams.inert.test.cjs", "result": "PASS 67/67", "rawLog": "15-owner-seams-inert.log", "exitCode": 0},
+    {"command": "git diff --check 7659366f6^ 7659366f6", "result": "RED three raw original patch diff-context whitespace warnings; retained verbatim", "rawLog": "16-raw-evidence-whitespace.log", "exitCode": 2},
+    {"command": "node evidence/freeze-source-bindings.cjs", "result": "PASS whole non-doc source equals frozen source and all76 overlay blobs unchanged after actual publication merge", "rawLog": "17-publication-source-neutral-merge.log", "exitCode": 0},
+    {"command": "node scripts/check-registry-ownership.mjs", "result": "PASS actual current five bounded source profiles/2219 files", "receipt": "18-current-registry-owner-guard.json", "executorSession": 67961, "exitCode": 0},
+    {"command": "node scripts/check-duplicate-helpers.mjs", "result": "PASS actual current seven bounded helper rows/five profiles/2219 files", "receipt": "19-current-duplicate-helper-guard.json", "executorSession": 31512, "exitCode": 0},
+    {"command": "git diff --check a247f7a02^ a247f7a02 -- . ':!docs'", "result": "PASS frozen source whitespace", "rawLog": "20-frozen-source-whitespace.log", "exitCode": 0}
+  ],
+  "retainedEarlierFailures": ["02-lock-source-composition.log", "03-lock-source-composition-repaired.log", "05-source-whitespace-initial.log", "08-source-preservation.log", "09-source-preservation-path-repaired.log"],
+  "excludedExecution": ["package-manager install", "native Prisma CLI/engines", "native Sharp", "production class constructors/import graph", "actual API GET", "SQL/migrations/database", "provider/mail/models/uploads", "live credentials or permission operations", "AWS", "frontend consumer/build", "deployment"]
+}
