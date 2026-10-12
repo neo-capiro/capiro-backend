@@ -1,0 +1,545 @@
+{
+  "planPin": "6d89253b4db7c2a1d792a9ff5605c61a84c6300a",
+  "prefrozenPin": "13c316d6765dcc22765dcadf8c10be33c1bb9aa4",
+  "manifestSha256": "756a29422da59f25a115a8e3b7f275eae2c65b93f8a18c6598a49bf7da75bf0d",
+  "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "Ctree": "ce817706a72b7f096cf3e112f28ec355153e5653",
+  "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+  "Wtree": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+  "fourSourceBase": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "fourSourceTree": "d5a1acd33391ae681159c271f6a72602c6338055",
+  "counts": {
+    "runtime": 25,
+    "specs": 19,
+    "sql": 14
+  },
+  "verifiedEntries": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "kind": "original-runtime",
+      "Cblob": "038cbd5db39bb9ce6235ec85c586542310b1f506",
+      "Wblob": "038cbd5db39bb9ce6235ec85c586542310b1f506",
+      "bytes": 5292,
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "0ea45aed85acb24431e0f806462af59f3e1c6b5c",
+      "Wblob": "0ea45aed85acb24431e0f806462af59f3e1c6b5c",
+      "bytes": 24560,
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "kind": "original-runtime",
+      "Cblob": "65d908f0b0b5cd50058012f9e8f72d153cfa8c34",
+      "Wblob": "65d908f0b0b5cd50058012f9e8f72d153cfa8c34",
+      "bytes": 1748,
+      "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts",
+      "kind": "original-runtime",
+      "Cblob": "d8bc80304699cd7747ed24ab9ce3ecc753e8bae9",
+      "Wblob": "d8bc80304699cd7747ed24ab9ce3ecc753e8bae9",
+      "bytes": 1184,
+      "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-invitation.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "4a80be20a3c7a95cf830695c87a99ea65799cf5e",
+      "Wblob": "4a80be20a3c7a95cf830695c87a99ea65799cf5e",
+      "bytes": 18800,
+      "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.ts",
+      "kind": "original-runtime",
+      "Cblob": "b0a576b2b1d761c1f914961cfae68a4f15112d85",
+      "Wblob": "b0a576b2b1d761c1f914961cfae68a4f15112d85",
+      "bytes": 2303,
+      "sha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts",
+      "kind": "original-runtime",
+      "Cblob": "b919b3a89a6ca034f05b164405868c5559a0bfd4",
+      "Wblob": "b919b3a89a6ca034f05b164405868c5559a0bfd4",
+      "bytes": 12863,
+      "sha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.ts",
+      "kind": "original-runtime",
+      "Cblob": "0edbc9a5e1eb90b7cf74de80c168b46e38fed645",
+      "Wblob": "0edbc9a5e1eb90b7cf74de80c168b46e38fed645",
+      "bytes": 13298,
+      "sha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "7b1323a017930ae74fc3111325ca8e594f99b989",
+      "Wblob": "7b1323a017930ae74fc3111325ca8e594f99b989",
+      "bytes": 11931,
+      "sha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand-validation.ts",
+      "kind": "original-runtime",
+      "Cblob": "8252083e78852bceac1dc1d7918df60c598feead",
+      "Wblob": "8252083e78852bceac1dc1d7918df60c598feead",
+      "bytes": 7029,
+      "sha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "896772e65fc8d80b5e10a28e1e40571d0e9ad1b2",
+      "Wblob": "896772e65fc8d80b5e10a28e1e40571d0e9ad1b2",
+      "bytes": 4286,
+      "sha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "70a2ab5ffc67298d7557734cbc47cb19f40dcd09",
+      "Wblob": "70a2ab5ffc67298d7557734cbc47cb19f40dcd09",
+      "bytes": 7900,
+      "sha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "b110a94680d9ee51d33f093efd1b5c0b0580c18d",
+      "Wblob": "b110a94680d9ee51d33f093efd1b5c0b0580c18d",
+      "bytes": 3006,
+      "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.controller.ts",
+      "kind": "original-runtime",
+      "Cblob": "d0a28edd13499739bf288b3ff71f119e3fd68398",
+      "Wblob": "d0a28edd13499739bf288b3ff71f119e3fd68398",
+      "bytes": 1568,
+      "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "8f13e22a5444d4b57781983552a5a8c64a7353cf",
+      "Wblob": "8f13e22a5444d4b57781983552a5a8c64a7353cf",
+      "bytes": 5816,
+      "sha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-validation.ts",
+      "kind": "original-runtime",
+      "Cblob": "e70ed0b7ca98167d6c2915280d6959cb9f16d851",
+      "Wblob": "e70ed0b7ca98167d6c2915280d6959cb9f16d851",
+      "bytes": 27451,
+      "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "b90810a16009654a4d51ff72eaa060d8d1184431",
+      "Wblob": "b90810a16009654a4d51ff72eaa060d8d1184431",
+      "bytes": 4550,
+      "sha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "kind": "original-runtime",
+      "Cblob": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725",
+      "Wblob": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725",
+      "bytes": 16288,
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.module.ts",
+      "kind": "original-runtime",
+      "Cblob": "d0ae07fcee88285fc165f0bafe065b1270073f55",
+      "Wblob": "d0ae07fcee88285fc165f0bafe065b1270073f55",
+      "bytes": 1459,
+      "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "kind": "original-runtime",
+      "Cblob": "95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+      "Wblob": "95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+      "bytes": 86320,
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "kind": "original-runtime",
+      "Cblob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "Wblob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "bytes": 94631,
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "kind": "original-runtime",
+      "Cblob": "98286f542da05527fb124a16dd1e831ae40cf558",
+      "Wblob": "98286f542da05527fb124a16dd1e831ae40cf558",
+      "bytes": 5766,
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "kind": "original-runtime",
+      "Cblob": "75b44244e401b767a5a646d81da486279a2af9e0",
+      "Wblob": "75b44244e401b767a5a646d81da486279a2af9e0",
+      "bytes": 30096,
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "kind": "original-runtime",
+      "Cblob": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8",
+      "Wblob": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8",
+      "bytes": 2068,
+      "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "kind": "original-runtime",
+      "Cblob": "c1b58fbc64883f6794a2928e9ee89613aea42742",
+      "Wblob": "c1b58fbc64883f6794a2928e9ee89613aea42742",
+      "bytes": 36470,
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "223004e13f7e0aa0f2dd637952972fa9eb58f612",
+      "Wblob": "223004e13f7e0aa0f2dd637952972fa9eb58f612",
+      "bytes": 14420,
+      "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "e6899c8911882971b82315c54e4d4dd510145475",
+      "Wblob": "e6899c8911882971b82315c54e4d4dd510145475",
+      "bytes": 3068,
+      "sha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "f186e230eaa03aca0c9cc6f9fa335586ed4cbf4c",
+      "Wblob": "f186e230eaa03aca0c9cc6f9fa335586ed4cbf4c",
+      "bytes": 8201,
+      "sha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "ddcf9bbea3b898d7f7ae50e3e63a2f13f6c74358",
+      "Wblob": "ddcf9bbea3b898d7f7ae50e3e63a2f13f6c74358",
+      "bytes": 8093,
+      "sha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "8607b64eab56bf98285f25f41e29693b042b6e72",
+      "Wblob": "8607b64eab56bf98285f25f41e29693b042b6e72",
+      "bytes": 6876,
+      "sha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "dfa53b8276dc980f80095aad9e804f3b0658dca9",
+      "Wblob": "dfa53b8276dc980f80095aad9e804f3b0658dca9",
+      "bytes": 11558,
+      "sha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "9a8086c6f6a614c991e1e2c3384d1511d4755506",
+      "Wblob": "9a8086c6f6a614c991e1e2c3384d1511d4755506",
+      "bytes": 8251,
+      "sha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "68fd261f676b1f47a224abd883ef769ce798ac55",
+      "Wblob": "68fd261f676b1f47a224abd883ef769ce798ac55",
+      "bytes": 7658,
+      "sha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-fonts.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "8ab3a56f56a6579012dd032fbea35e2ed3ac3efa",
+      "Wblob": "8ab3a56f56a6579012dd032fbea35e2ed3ac3efa",
+      "bytes": 2785,
+      "sha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "0eebc5e773c1589c6904e3576dfb05347938120f",
+      "Wblob": "0eebc5e773c1589c6904e3576dfb05347938120f",
+      "bytes": 4971,
+      "sha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "e5479196260458df5df3d40a6b25eb81ea83516e",
+      "Wblob": "e5479196260458df5df3d40a6b25eb81ea83516e",
+      "bytes": 6367,
+      "sha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "13332f56469c6aa3bb1f974e85a74d8da3d1ab85",
+      "Wblob": "13332f56469c6aa3bb1f974e85a74d8da3d1ab85",
+      "bytes": 7641,
+      "sha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89",
+      "Wblob": "7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89",
+      "bytes": 3890,
+      "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "20c0bce02c988ea427948327366dd66968605783",
+      "Wblob": "20c0bce02c988ea427948327366dd66968605783",
+      "bytes": 6057,
+      "sha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-social.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "4075873fe83e36708730b7b8600d356e630c2804",
+      "Wblob": "4075873fe83e36708730b7b8600d356e630c2804",
+      "bytes": 3004,
+      "sha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "ffec0efbab0c58e5b4df1b5a379a67fa92ee2d13",
+      "Wblob": "ffec0efbab0c58e5b4df1b5a379a67fa92ee2d13",
+      "bytes": 9684,
+      "sha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "1f116df7b7468a4ccd2cd5eeef800137683f6ae5",
+      "Wblob": "1f116df7b7468a4ccd2cd5eeef800137683f6ae5",
+      "bytes": 15787,
+      "sha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "6e1a6cfc5e3dd0beb01f6492fe83ee416dcca5ae",
+      "Wblob": "6e1a6cfc5e3dd0beb01f6492fe83ee416dcca5ae",
+      "bytes": 10762,
+      "sha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.spec.ts",
+      "kind": "original-spec",
+      "Cblob": "b8ccfef719c438c3c60e913c9fead548ee627299",
+      "Wblob": "b8ccfef719c438c3c60e913c9fead548ee627299",
+      "bytes": 38553,
+      "sha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+      "Wblob": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+      "bytes": 2048,
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+      "Wblob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+      "bytes": 1421,
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+      "Wblob": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+      "bytes": 1289,
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+      "Wblob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+      "bytes": 1656,
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+      "Wblob": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+      "bytes": 3625,
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+      "Wblob": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+      "bytes": 1050,
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+      "Wblob": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+      "bytes": 435,
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+      "Wblob": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+      "bytes": 235,
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+      "Wblob": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+      "bytes": 1135,
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "8a132af2d73079082d089c611e450005d6a5e090",
+      "Wblob": "8a132af2d73079082d089c611e450005d6a5e090",
+      "bytes": 1536,
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+      "Wblob": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+      "bytes": 2074,
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+      "Wblob": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+      "bytes": 758,
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+      "Wblob": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+      "bytes": 1495,
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+      "absentFromFourSourceBase": true
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "kind": "original-SQL-source-never-run",
+      "Cblob": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+      "Wblob": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+      "bytes": 139,
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+      "absentFromFourSourceBase": true
+    }
+  ],
+  "supportInputsVerified": 33,
+  "sourceGraphExecuted": false,
+  "sqlExecuted": false,
+  "applicationAcceptance": false,
+  "awaitingFrozenSource": true
+}

@@ -1,0 +1,63 @@
+{
+  "source": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "helperByteExactQ": true,
+  "cases": [
+    [
+      "exact",
+      "/api/engagement/newsletter-public",
+      "/api/engagement/newsletter-public",
+      "",
+      true
+    ],
+    [
+      "archive",
+      "/api/engagement/newsletter-public/token/archive",
+      "/api/engagement/newsletter-public/token/archive",
+      "",
+      true
+    ],
+    [
+      "query",
+      "/api/engagement/newsletter-public",
+      "/api/engagement/newsletter-public?x=1",
+      "",
+      true
+    ],
+    [
+      "evil-prefix",
+      "/api/engagement/newsletter-publicevil",
+      "/api/engagement/newsletter-publicevil",
+      "",
+      false
+    ],
+    [
+      "private-rich",
+      "/api/engagement/newsletters/id",
+      "/api/engagement/newsletters/id",
+      "",
+      false
+    ],
+    [
+      "private-v3",
+      "/api/engagement/outreach-v3/sessions/id/newsletter-staging",
+      "/api/engagement/outreach-v3/sessions/id/newsletter-staging",
+      "",
+      false
+    ],
+    [
+      "private-workspace",
+      "/workspace-api/newsletters/documents/id",
+      "/workspace-api/newsletters/documents/id",
+      "",
+      false
+    ],
+    [
+      "mounted-exact",
+      "/newsletter-public",
+      "/unrelated",
+      "/api/engagement",
+      true
+    ]
+  ],
+  "actualMiddlewareOrAuthProviderOrGetInvoked": false
+}

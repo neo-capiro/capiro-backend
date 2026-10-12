@@ -1,0 +1,3211 @@
+{
+  "source": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "original": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "comparisons": 44,
+  "results": [
+    {
+      "label": "reviewRow existing reviewer",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow pending matching invitation",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantWrite",
+          {
+            "data": [
+              {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "userId": "recipient",
+                "role": "editor"
+              }
+            ],
+            "skipDuplicates": true
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "inviteWrite",
+          {
+            "where": {
+              "id": "invite"
+            },
+            "data": {
+              "recipientId": "recipient",
+              "activatedAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ],
+        [
+          "notify",
+          {
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "recipientId": "recipient",
+            "kind": "newsletter_review",
+            "newsletterId": "22222222-2222-4222-8222-222222222222",
+            "draftTitle": "",
+            "message": "Your newsletter invitation is ready in Workspace."
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow recipient removed",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow recipient lacks email",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow no pending invitation",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow author removed",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow wrong original author",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow admin role mismatch",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow recipient email lookup absent",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow source wall revoked",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow cancelled at live read",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow expired at live read",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow document lock missing",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow separately granted role wins",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantWrite",
+          {
+            "data": [
+              {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "userId": "recipient",
+                "role": "editor"
+              }
+            ],
+            "skipDuplicates": true
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "inviteWrite",
+          {
+            "where": {
+              "id": "invite"
+            },
+            "data": {
+              "cancelledAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow notification refuses after commit",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantWrite",
+          {
+            "data": [
+              {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "userId": "recipient",
+                "role": "editor"
+              }
+            ],
+            "skipDuplicates": true
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "inviteWrite",
+          {
+            "where": {
+              "id": "invite"
+            },
+            "data": {
+              "recipientId": "recipient",
+              "activatedAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ],
+        [
+          "notify",
+          {
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "recipientId": "recipient",
+            "kind": "newsletter_review",
+            "newsletterId": "22222222-2222-4222-8222-222222222222",
+            "draftTitle": "",
+            "message": "Your newsletter invitation is ready in Workspace."
+          }
+        ],
+        [
+          "warn",
+          "Newsletter saved; review notification could not be delivered"
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "reviewRow document absent",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "viewer cannot stage {\"existingGrant\":true}",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "viewer cannot stage {\"existingGrant\":true,\"raced\":true}",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "editor exact revision CAS {}",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantWrite",
+          {
+            "data": [
+              {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "userId": "recipient",
+                "role": "editor"
+              }
+            ],
+            "skipDuplicates": true
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "inviteWrite",
+          {
+            "where": {
+              "id": "invite"
+            },
+            "data": {
+              "recipientId": "recipient",
+              "activatedAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ],
+        [
+          "notify",
+          {
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "recipientId": "recipient",
+            "kind": "newsletter_review",
+            "newsletterId": "22222222-2222-4222-8222-222222222222",
+            "draftTitle": "",
+            "message": "Your newsletter invitation is ready in Workspace."
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "syntheticPreview"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "documentCAS",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "ownerId": "author",
+              "reviewers": {
+                "some": {
+                  "tenantId": "11111111-1111-4111-8111-111111111111",
+                  "userId": "recipient",
+                  "role": "editor"
+                }
+              },
+              "revision": 3
+            },
+            "data": {
+              "status": "staged"
+            }
+          }
+        ],
+        [
+          "stageWrite",
+          {
+            "where": {
+              "documentId_revision_ownerId": {
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "revision": 3,
+                "ownerId": "recipient"
+              }
+            },
+            "update": {},
+            "create": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "ownerId": "recipient",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "revision": 3,
+              "name": "newsletter",
+              "config": {
+                "clientId": "client"
+              },
+              "design": {
+                "sourceClientIds": [
+                  "client"
+                ],
+                "sections": []
+              },
+              "html": "<p>fake preview</p>",
+              "plainText": "fake preview"
+            }
+          }
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "editor exact revision CAS {\"raced\":true}",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantWrite",
+          {
+            "data": [
+              {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "userId": "recipient",
+                "role": "editor"
+              }
+            ],
+            "skipDuplicates": true
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "inviteWrite",
+          {
+            "where": {
+              "id": "invite"
+            },
+            "data": {
+              "recipientId": "recipient",
+              "activatedAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ],
+        [
+          "notify",
+          {
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "recipientId": "recipient",
+            "kind": "newsletter_review",
+            "newsletterId": "22222222-2222-4222-8222-222222222222",
+            "draftTitle": "",
+            "message": "Your newsletter invitation is ready in Workspace."
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "syntheticPreview"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "documentCAS",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "ownerId": "author",
+              "reviewers": {
+                "some": {
+                  "tenantId": "11111111-1111-4111-8111-111111111111",
+                  "userId": "recipient",
+                  "role": "editor"
+                }
+              },
+              "revision": 3
+            },
+            "data": {
+              "status": "staged"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "The design changed before staging. Save it and try again."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "stale stage revision",
+      "trace": [
+        [
+          "documentRead",
+          {
+            "where": {
+              "id": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            }
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "pendingRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              },
+              "email": "recipient@example.test"
+            },
+            "orderBy": {
+              "createdAt": "asc"
+            },
+            "take": 50
+          }
+        ],
+        [
+          "memberRead",
+          "author"
+        ],
+        [
+          "memberByEmail",
+          "recipient@example.test"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "prior-client"
+        ],
+        [
+          "resolveUser",
+          "author"
+        ],
+        [
+          "sourceWall",
+          "author",
+          "client"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ],
+        [
+          "fakeTransaction"
+        ],
+        [
+          "syntheticLock",
+          [
+            [
+              "SELECT id FROM ws_newsletter_document WHERE id=",
+              "::uuid AND tenant_id=",
+              "::uuid AND owner_id=",
+              " FOR UPDATE"
+            ],
+            "22222222-2222-4222-8222-222222222222",
+            "11111111-1111-4111-8111-111111111111",
+            "author"
+          ]
+        ],
+        [
+          "liveInviteRead",
+          {
+            "where": {
+              "id": "invite",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "activatedAt": null,
+              "cancelledAt": null,
+              "expiresAt": {
+                "gt": "2026-10-13T00:00:00.000Z"
+              }
+            }
+          }
+        ],
+        [
+          "grantWrite",
+          {
+            "data": [
+              {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "documentId": "22222222-2222-4222-8222-222222222222",
+                "userId": "recipient",
+                "role": "editor"
+              }
+            ],
+            "skipDuplicates": true
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "inviteWrite",
+          {
+            "where": {
+              "id": "invite"
+            },
+            "data": {
+              "recipientId": "recipient",
+              "activatedAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ],
+        [
+          "notify",
+          {
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "recipientId": "recipient",
+            "kind": "newsletter_review",
+            "newsletterId": "22222222-2222-4222-8222-222222222222",
+            "draftTitle": "",
+            "message": "Your newsletter invitation is ready in Workspace."
+          }
+        ],
+        [
+          "grantRead",
+          {
+            "where": {
+              "documentId": "22222222-2222-4222-8222-222222222222",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "recipient"
+            }
+          }
+        ],
+        [
+          "memberRead",
+          "recipient"
+        ],
+        [
+          "resolveUser",
+          "recipient"
+        ],
+        [
+          "sourceWall",
+          "recipient",
+          "client"
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "Save the latest design before staging."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "archive eligibility {}",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "archive eligibility {\"noAccess\":true}",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter link not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "archive eligibility {\"noVersion\":true}",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter link not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "archive eligibility {\"unpublished\":true}",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter link not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "malformed public token",
+      "trace": [],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Newsletter link not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "preferences confirmed false",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "preferences confirmed true",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "suppressionWrite",
+          {
+            "where": {
+              "tenantId_userId_email": {
+                "tenantId": "11111111-1111-4111-8111-111111111111",
+                "userId": "sender",
+                "email": "recipient@example.test"
+              }
+            },
+            "create": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "sender",
+              "email": "recipient@example.test",
+              "unsubscribedAt": "2026-10-13T00:00:00.000Z"
+            },
+            "update": {
+              "unsubscribedAt": "2026-10-13T00:00:00.000Z"
+            }
+          }
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "survey confirmed false",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "surveyStageRead"
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "survey confirmed true",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "surveyStageRead"
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "surveyWrite",
+          {
+            "where": {
+              "id": "access",
+              "tenantId": "11111111-1111-4111-8111-111111111111"
+            },
+            "data": {
+              "surveyAnswers": {
+                "prior": "kept",
+                "survey": "yes"
+              }
+            }
+          }
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "survey invalid choice",
+      "trace": [
+        [
+          "tokenRead",
+          {
+            "where": {
+              "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "deliveryEligibility",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "draftVersionId": "version",
+              "status": {
+                "in": [
+                  "pending",
+                  "sending",
+                  "sent",
+                  "unknown"
+                ]
+              },
+              "sendIntent": {
+                "testMode": false
+              }
+            }
+          }
+        ],
+        [
+          "tenantScope",
+          "11111111-1111-4111-8111-111111111111"
+        ],
+        [
+          "surveyStageRead"
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "Survey answer not found"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "original group refusal/empty array behavior",
+      "sameHostErrorRealm": true,
+      "error": "Newsletter destinations must be individual recipients. Expand groups into individual copies."
+    },
+    {
+      "label": "original group refusal/empty array behavior",
+      "sameHostErrorRealm": true,
+      "error": null
+    },
+    {
+      "label": "original group refusal/empty array behavior",
+      "sameHostErrorRealm": true,
+      "error": "Remove duplicate destinations before sending."
+    },
+    {
+      "label": "rich send exact durable replay",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send same key wrong sender",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "This send request key was already used for different content."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send same key wrong mode",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "This send request key was already used for different content."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send same key wrong content",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "This send request key was already used for different content."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send new partial selection",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "Review the current newsletter destinations before sending."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send new superseded selection",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "Review the current newsletter destinations before sending."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send new repeated version",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ]
+      ],
+      "error": {
+        "name": "ConflictException",
+        "message": "Review the current newsletter destinations before sending."
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send runtime refuses before receipt",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ]
+      ],
+      "error": {
+        "name": "ForbiddenException",
+        "message": "refusing fake runtime"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send current authority refuses replay",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ]
+      ],
+      "error": {
+        "name": "NotFoundException",
+        "message": "refusing fake record/source authority"
+      },
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "rich send new exact prepared selection",
+      "trace": [
+        [
+          "runtimeAction",
+          [
+            "outreach_send",
+            {
+              "testMode": false
+            }
+          ]
+        ],
+        [
+          "currentRecordAndSourceAuthority",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record"
+          ]
+        ],
+        [
+          "receiptRead",
+          {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "userId": "member-user",
+              "requestKey": "saved-request"
+            },
+            "select": {
+              "id": true,
+              "outreachRecordId": true,
+              "senderConnectionId": true,
+              "testMode": true,
+              "deliveries": {
+                "select": {
+                  "draftVersionId": true
+                }
+              }
+            }
+          }
+        ],
+        [
+          "fakeIntentCreate",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            {
+              "runtimeAction": "outreach_send",
+              "testMode": false,
+              "outreachRecordId": "record",
+              "requestKey": "saved-request",
+              "senderConnectionId": "sender",
+              "draftVersionIds": [
+                "version1",
+                "version2"
+              ],
+              "appendSignature": false
+            }
+          ]
+        ],
+        [
+          "fakeLegacyMetadataWrite",
+          [
+            {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "clerkUserId": "recipient",
+              "userId": "member-user"
+            },
+            "record",
+            {
+              "metadata": {
+                "newsletterVersionIds": [
+                  "version1",
+                  "version2"
+                ],
+                "newsletterSenderId": "sender",
+                "newsletterIntentId": "new-intent"
+              },
+              "lastStep": 3
+            }
+          ]
+        ]
+      ],
+      "error": null,
+      "sameHostErrorRealm": true
+    }
+  ],
+  "syntheticPortsOnly": true,
+  "sameHostErrorRealm": true,
+  "actualRouteGetOrApplicationGraphImported": false,
+  "sqlNativeProviderClientCalls": 0,
+  "limits": [
+    "Synthetic lock/query traces do not prove database predicates, RLS/MVCC or constraints",
+    "Preview is synthetic; exact parser dependency remains unavailable",
+    "No real rendering, provider, SDK, worker or client construction",
+    "Original notification failures are fail-soft after grant commit; GET activation writes are explicit",
+    "Multiple empty group arrays retain original duplicate-key behavior"
+  ],
+  "finalAcceptance": false
+}

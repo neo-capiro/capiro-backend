@@ -1,0 +1,1 @@
+{"models":16,"core":5,"workspace":11,"originalFormatFields":["  contentFormat     String   @default(\"outreach\") @map(\"content_format\") @db.VarChar(32)","  newsletterStageId String?  @map(\"newsletter_stage_id\") @db.Uuid"],"applicationAcceptance":false}

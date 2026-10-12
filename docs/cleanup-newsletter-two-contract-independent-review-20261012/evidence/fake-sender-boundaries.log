@@ -1,0 +1,15 @@
+/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries.cjs:15
+async function run(i,o={}){const trace=[],h={prisma:{withTenant:async(tenant,fn)=>{trace.push(['scope',tenant]);return fn({newsletterRecipientAccess:{findFirst:async args=>{trace.push(['accessRead',args]);return o.noAccess?null:{id:'access',stageId:'stage'};}},newsletterSubscription:{count:async args=>{trace.push(['subscriptionRead',args]);return o.subscribed===false?1:0;}});}},finishDelivery:async(...args)=>trace.push(['finish',...args])};const fn=gate[i](async(_p,ctx,id)=>{trace.push(['currentSourceAndMember',ctx,id]);if(o.sourceDenied)throw new Error('refused current source');},m=>m);const value=await fn.call(h,{tenantId:'tenant',userId:'sender'}, {generationKey:o.group?'group:legacy':o.ordinary?'manual:ordinary':'newsletter:access',draftVersionId:'version',id:'delivery',envelope:{to:[{email:'To@Example.test'}],cc:['Cc@Example.test'],bcc:['Bcc@Example.test']}},o.test?'outreach_test_send':'outreach_send');return{trace,value};}
+                                                                                                                                                                                                                                                                                                                                                                                        ^
+
+SyntaxError: Unexpected token ')'
+    at wrapSafe (node:internal/modules/cjs/loader:1804:18)
+    at Module._compile (node:internal/modules/cjs/loader:1846:20)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+Node.js v24.19.0

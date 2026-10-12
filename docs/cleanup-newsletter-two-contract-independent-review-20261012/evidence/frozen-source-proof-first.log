@@ -1,0 +1,123 @@
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: apps/api/prisma/schema.prisma/OutreachDraftVersion: prior declaration changed
++ actual - expected
+
+  'model OutreachDraftVersion {\n' +
++   '  /// Set only by the server-side Workspace newsletter importer. Generic edits\n' +
++   '  /// use the default outreach format and cannot inherit this authority.\n' +
+    '  id                String   @id @default(uuid()) @db.Uuid\n' +
+    '  tenantId          String   @map("tenant_id") @db.Uuid\n' +
+    '  artifactId        String   @map("artifact_id") @db.Uuid\n' +
+    '  version           Int\n' +
+    '  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.\n' +
+
+    at Object.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof.cjs:37:12)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'model OutreachDraftVersion {\n' +
+    '  /// Set only by the server-side Workspace newsletter importer. Generic edits\n' +
+    '  /// use the default outreach format and cannot inherit this authority.\n' +
+    '  id                String   @id @default(uuid()) @db.Uuid\n' +
+    '  tenantId          String   @map("tenant_id") @db.Uuid\n' +
+    '  artifactId        String   @map("artifact_id") @db.Uuid\n' +
+    '  version           Int\n' +
+    '  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.\n' +
+    '  sourceVersionId   String?  @map("source_version_id") @db.Uuid\n' +
+    '  subject           String   @db.Text\n' +
+    '  body              String   @db.Text\n' +
+    '  /// sha256 of subject+body — what the audit verdict and any approval attach to.\n' +
+    '  contentHash       String   @map("content_hash") @db.VarChar(80)\n' +
+    "  /// 'generated' | 'manually_authored' | 'generation_failed'\n" +
+    '  generationStatus  String   @map("generation_status") @db.VarChar(32)\n' +
+    "  /// 'not_required' | 'pending' | 'passed' | 'warning' | 'held' | 'unavailable'\n" +
+    '  auditStatus       String   @map("audit_status") @db.VarChar(32)\n' +
+    "  /// 'not_required' | 'pending' | 'approved' | 'rejected'\n" +
+    '  approvalStatus    String   @map("approval_status") @db.VarChar(32)\n' +
+    "  /// The AuditorMode this verdict ran under ('shadow' | 'annotate' | 'enforce').\n" +
+    '  auditMode         String?  @map("audit_mode") @db.VarChar(16)\n' +
+    "  /// runAuditor decision, or 'audit_unavailable' when a control itself failed.\n" +
+    '  auditDecision     String?  @map("audit_decision") @db.VarChar(32)\n' +
+    '  auditFindings     Json?    @map("audit_findings_jsonb")\n' +
+    '  /// The structured auditor ledger entries this exact text was judged against.\n' +
+    '  auditLedger       Json     @default("[]") @map("audit_ledger_jsonb")\n' +
+    '  reviewRequestId   String?  @map("review_request_id") @db.Uuid\n' +
+    '  contextPacketId   String?  @map("context_packet_id") @db.Uuid\n' +
+    '  provider          String?  @db.VarChar(32)\n' +
+    '  model             String?  @db.VarChar(160)\n' +
+    '  promptSpecVersion String?  @map("prompt_spec_version") @db.VarChar(32)\n' +
+    '  createdByUserId   String   @map("created_by_user_id") @db.Uuid\n' +
+    '  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)\n' +
+    '\n' +
+    '  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)\n' +
+    '  artifact        OutreachDraftArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)\n' +
+    '  sourceVersion   OutreachDraftVersion?  @relation("OutreachDraftVersionLineage", fields: [sourceVersionId], references: [id], onDelete: SetNull)\n' +
+    '  derivedVersions OutreachDraftVersion[] @relation("OutreachDraftVersionLineage")\n' +
+    '  reviewRequest   ReviewRequest?         @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)\n' +
+    '  contextPacket   ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)\n' +
+    '  createdBy       User                   @relation("OutreachDraftVersionAuthor", fields: [createdByUserId], references: [id], onDelete: Restrict)\n' +
+    '  deliveries      OutreachDelivery[]\n' +
+    '\n' +
+    '  @@unique([artifactId, version], map: "outreach_draft_versions_artifact_version")\n' +
+    '  @@index([tenantId, auditStatus, approvalStatus], map: "outreach_draft_versions_tenant_audit_approval_idx")\n' +
+    '  @@map("outreach_draft_versions")\n' +
+    '}',
+  expected: 'model OutreachDraftVersion {\n' +
+    '  id                String   @id @default(uuid()) @db.Uuid\n' +
+    '  tenantId          String   @map("tenant_id") @db.Uuid\n' +
+    '  artifactId        String   @map("artifact_id") @db.Uuid\n' +
+    '  version           Int\n' +
+    '  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.\n' +
+    '  sourceVersionId   String?  @map("source_version_id") @db.Uuid\n' +
+    '  subject           String   @db.Text\n' +
+    '  body              String   @db.Text\n' +
+    '  /// sha256 of subject+body — what the audit verdict and any approval attach to.\n' +
+    '  contentHash       String   @map("content_hash") @db.VarChar(80)\n' +
+    "  /// 'generated' | 'manually_authored' | 'generation_failed'\n" +
+    '  generationStatus  String   @map("generation_status") @db.VarChar(32)\n' +
+    "  /// 'not_required' | 'pending' | 'passed' | 'warning' | 'held' | 'unavailable'\n" +
+    '  auditStatus       String   @map("audit_status") @db.VarChar(32)\n' +
+    "  /// 'not_required' | 'pending' | 'approved' | 'rejected'\n" +
+    '  approvalStatus    String   @map("approval_status") @db.VarChar(32)\n' +
+    "  /// The AuditorMode this verdict ran under ('shadow' | 'annotate' | 'enforce').\n" +
+    '  auditMode         String?  @map("audit_mode") @db.VarChar(16)\n' +
+    "  /// runAuditor decision, or 'audit_unavailable' when a control itself failed.\n" +
+    '  auditDecision     String?  @map("audit_decision") @db.VarChar(32)\n' +
+    '  auditFindings     Json?    @map("audit_findings_jsonb")\n' +
+    '  /// The structured auditor ledger entries this exact text was judged against.\n' +
+    '  auditLedger       Json     @default("[]") @map("audit_ledger_jsonb")\n' +
+    '  reviewRequestId   String?  @map("review_request_id") @db.Uuid\n' +
+    '  contextPacketId   String?  @map("context_packet_id") @db.Uuid\n' +
+    '  provider          String?  @db.VarChar(32)\n' +
+    '  model             String?  @db.VarChar(160)\n' +
+    '  promptSpecVersion String?  @map("prompt_spec_version") @db.VarChar(32)\n' +
+    '  createdByUserId   String   @map("created_by_user_id") @db.Uuid\n' +
+    '  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)\n' +
+    '\n' +
+    '  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)\n' +
+    '  artifact        OutreachDraftArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)\n' +
+    '  sourceVersion   OutreachDraftVersion?  @relation("OutreachDraftVersionLineage", fields: [sourceVersionId], references: [id], onDelete: SetNull)\n' +
+    '  derivedVersions OutreachDraftVersion[] @relation("OutreachDraftVersionLineage")\n' +
+    '  reviewRequest   ReviewRequest?         @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)\n' +
+    '  contextPacket   ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)\n' +
+    '  createdBy       User                   @relation("OutreachDraftVersionAuthor", fields: [createdByUserId], references: [id], onDelete: Restrict)\n' +
+    '  deliveries      OutreachDelivery[]\n' +
+    '\n' +
+    '  @@unique([artifactId, version], map: "outreach_draft_versions_artifact_version")\n' +
+    '  @@index([tenantId, auditStatus, approvalStatus], map: "outreach_draft_versions_tenant_audit_approval_idx")\n' +
+    '  @@map("outreach_draft_versions")\n' +
+    '}',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

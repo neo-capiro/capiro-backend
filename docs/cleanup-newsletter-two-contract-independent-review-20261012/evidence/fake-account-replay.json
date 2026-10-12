@@ -1,0 +1,133 @@
+{
+  "source": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "original": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "comparisons": 17,
+  "results": [
+    {
+      "label": "unknown attempted is terminal",
+      "posts": 0,
+      "status": "outcome_unknown",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "provider receipt prevents repost",
+      "posts": 0,
+      "status": "invited",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "recent checking keeps current lease",
+      "posts": 0,
+      "status": "checking",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "organization changed after attempt",
+      "posts": 0,
+      "status": "outcome_unknown",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "overlapping email waits",
+      "posts": 0,
+      "status": "waiting",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "current author lacks admin",
+      "posts": 0,
+      "status": "admin_required",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "authority refuses before claim",
+      "posts": 0,
+      "error": "Invitation not found",
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "role revoked at provider actor read",
+      "posts": 0,
+      "status": "failed",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "cancelled on attempt recheck",
+      "posts": 0,
+      "status": "checking",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "lost attempt lease",
+      "posts": 0,
+      "status": "checking",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "successful create exact server role and immutable request",
+      "posts": 1,
+      "status": "invited",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "unknown create outcome never reposts",
+      "posts": 1,
+      "status": "outcome_unknown",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "mismatching remote receipt remains attempted",
+      "posts": 1,
+      "status": "outcome_unknown",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "promote unknown never repeats",
+      "posts": 1,
+      "status": "outcome_unknown",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "response withheld after final authority revoke",
+      "posts": 1,
+      "status": "invited",
+      "error": "Invitation not found",
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "two simultaneous dispatches one fake attempt",
+      "posts": 1,
+      "status": "invited",
+      "error": null,
+      "sameHostErrorRealm": true
+    },
+    {
+      "label": "stale unknown status reads but never creates",
+      "posts": 0,
+      "status": "outcome_unknown",
+      "error": null,
+      "sameHostErrorRealm": true
+    }
+  ],
+  "actualProviderClientSqlCalls": 0,
+  "applicationGraphImported": false,
+  "authorityRowPortSynthetic": true,
+  "deadlinePortSyntheticNoTimer": true,
+  "uuidPortSynthetic": true,
+  "scope": "Exact claim/beginAttempt/dispatch/status/receipt fragments with serialized synthetic transaction ports; source authority SQL is preserved but not evaluated",
+  "nativeMvccProviderReplicaDeadlineAcceptance": false,
+  "finalAcceptance": false
+}

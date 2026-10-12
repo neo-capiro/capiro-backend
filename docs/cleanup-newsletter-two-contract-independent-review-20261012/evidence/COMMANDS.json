@@ -1,0 +1,125 @@
+{
+  "reviewedSource": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "original": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "noApplicationGraphOrSqlProviderClientInvocation": true,
+  "checks": [
+    {
+      "name": "prefrozen-rebound",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/rebind-prefrozen.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/prefrozen-rebound.log",
+      "exitCode": 0
+    },
+    {
+      "name": "schema-before-golden",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/capture-schema-before.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/schema-before-golden.log",
+      "exitCode": 0
+    },
+    {
+      "name": "frozen-source-proof-initial",
+      "program": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-first.cjs",
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-first.log",
+      "exitCode": 1,
+      "classification": "Reviewer oracle missed exact original-C additive schema comment."
+    },
+    {
+      "name": "frozen-source-proof-schema-corrected",
+      "program": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-schema-corrected.cjs",
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-schema-corrected.log",
+      "exitCode": 1,
+      "classification": "Reviewer AST constructor has no name; explicit constructor AST kind corrected, source untouched."
+    },
+    {
+      "name": "frozen-source-proof-final",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-final.log",
+      "exitCode": 0
+    },
+    {
+      "name": "fake-authority-original-34",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review-34.log",
+      "exitCode": 0,
+      "comparisons": 34,
+      "note": "Later strictly additive rich replay cases retained separately."
+    },
+    {
+      "name": "fake-authority-rich-replay-44",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review-with-rich-replay.log",
+      "exitCode": 0,
+      "comparisons": 44
+    },
+    {
+      "name": "fake-account-replay",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-account-replay.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-account-replay.log",
+      "exitCode": 0,
+      "comparisons": 17
+    },
+    {
+      "name": "fake-sender-first",
+      "program": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-first.cjs",
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-first.log",
+      "exitCode": 1,
+      "classification": "Reviewer syntax brace typo before source execution."
+    },
+    {
+      "name": "fake-sender-type-prefix",
+      "program": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-type-prefix.cjs",
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-type-prefix.log",
+      "exitCode": 1,
+      "classification": "Reviewer token oracle included optional leading union-type pipe. Explicit ordered parameter AST type comparison added; actual body preservation strengthened."
+    },
+    {
+      "name": "fake-sender-template-scanner",
+      "program": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-template-scan.cjs",
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-template-scan.log",
+      "exitCode": 1,
+      "classification": "Reviewer raw scanner did not resume template interpolation; original added comment appeared in a false lexical token. Replaced with stricter exact byte inverse/body/member assertions."
+    },
+    {
+      "name": "fake-sender-final-exact",
+      "argv": [
+        "node",
+        "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries.cjs"
+      ],
+      "rawLog": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-sealed.log",
+      "exitCode": 0,
+      "comparisons": 8,
+      "classifierRefusals": 6
+    },
+    {
+      "name": "public-prefix",
+      "rawResult": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/public-prefix-refusals.json",
+      "exitCode": 0,
+      "cases": 8,
+      "note": "Pure existing-Q isBypassPath excerpt only; no middleware invocation."
+    },
+    {
+      "name": "author-packet-509",
+      "exitCode": 0,
+      "packetHashes": 55,
+      "sourceHashes": 76,
+      "note": "Immutable Git contents hash and byte readback, actual bcad ancestry and complete non-doc equality."
+    }
+  ]
+}
