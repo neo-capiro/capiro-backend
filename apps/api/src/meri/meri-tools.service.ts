@@ -2902,8 +2902,9 @@ export class MeriToolsService {
    * Phase 1 (1B): every save goes through a memory_candidate row first
    * (MemoryCandidateService.proposeSaveMemory). Personal-scope saves commit in
    * this same call. Firm- and client-scope saves ALWAYS become a pending
-   * candidate — including an administrator's own (closeout §2.2) — which a
-   * different authorized reviewer approves via GET/POST /memory/candidates.
+   * candidate — including an administrator's own (closeout §2.2). Approval is a
+   * separate operation under the existing policy, which permits an authorized
+   * administrator to approve their own pending proposal.
    */
   private async saveMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const content = requiredString(input, 'content', 4000);
@@ -2947,11 +2948,12 @@ export class MeriToolsService {
         saved: false,
         scope: pendingLabel,
         candidateId: result.candidateId,
-        // Says "another authorized reviewer", not "an admin": an administrator
-        // proposing shared memory also lands here and cannot approve their own
-        // candidate, so "an admin needs to approve it" would read as though the
-        // proposer could go do it themselves.
-        message: `I've proposed this as ${pendingLabel === 'client' ? 'client-scope' : 'firm-wide'} memory; another authorized reviewer needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.`,
+        // Pending creation is mandatory; subsequent administrator self-approval
+        // remains authorized by the existing review policy. Personal memory is
+        // only an offer here and requires a separate user request.
+        message: pendingLabel === 'client'
+          ? "I've proposed this as client-scope memory. It remains pending until authorized approval. An authorized administrator may approve their own proposal; other reviewers must be different from the proposer and satisfy the existing grant and assignment requirements. I can save it as your personal memory right now instead — just say so."
+          : "I've proposed this as firm-wide memory. It remains pending until an authorized administrator approves it; an authorized administrator may approve their own proposal. I can save it as your personal memory right now instead — just say so.",
       };
     }
 

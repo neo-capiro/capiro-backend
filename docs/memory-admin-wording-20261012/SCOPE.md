@@ -6,9 +6,8 @@ and the Core activity command candidate. No frontend or meri-greenfield edits.
 
 Neo approved retaining the existing administrator self-approval exception. The
 exact wording handoff is published in Meri PR12 at
-`at90b4dc8472da13cdee9f49cdc0b4c8306ecbdc73` as supplied by the coordinator
-(the supplied token has a non-hex prefix; the replacement text itself was supplied
-in full and is the source for this bounded edit). Descriptive policy reference is
+`90b4dc8472da13cdee9f49cdc0b4c8306ecbdc73`; the coordinator supplied the complete
+replacement text. Descriptive policy reference is
 Meri PR11 `5db2714b6dcbd3109c528e0afafcb654216133ca`, not enforcement authority.
 
 Rechecked both targeted capirov2 files: byte-identical between policy reference
