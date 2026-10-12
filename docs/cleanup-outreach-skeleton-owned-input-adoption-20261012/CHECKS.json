@@ -1,0 +1,21 @@
+{
+  "source": "2d88ac7063e0e5b75c0490411a3758cb655beb01",
+  "tree": "56645f11cfaef1f78cc370e41fa9a4fed074d198",
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "scope": [
+    "apps/api/src/outreach-v3/state/__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt",
+    "apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts",
+    "scripts/ci/outreach-skeleton-owned-input.spec.mjs"
+  ],
+  "exactThreePathScope": true,
+  "sourceWhitespace": 0,
+  "allOwnerCases": 10,
+  "ownerBeforeAfterAndWebRefusedExit": 0,
+  "nodeFrontendParityControls": 16,
+  "nodeDefaultWebRefusedControls": 8,
+  "architectureDesignFakeChecksOnly": 17,
+  "architectureSourceAdopted": false,
+  "independentReviewPending": true,
+  "deniedDetailedReportReadCopiedOrPublished": false,
+  "protectedReportingRead": false
+}

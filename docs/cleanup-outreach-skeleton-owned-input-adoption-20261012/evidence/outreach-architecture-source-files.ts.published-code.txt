@@ -1,0 +1,63 @@
+/** Pure traversal policy; callers supply filesystem/path operations explicitly. */
+export type OutreachArchitectureSourceScope = 'full' | 'backend-only' | 'frontend-only';
+
+export function outreachArchitectureSourceScope(value?: string): OutreachArchitectureSourceScope {
+  if (value === undefined) return 'full';
+  if (value !== 'full' && value !== 'backend-only' && value !== 'frontend-only') {
+    throw new Error(`Unknown Outreach architecture source scope: ${value}`);
+  }
+  return value;
+}
+
+type SourceFileSystem = {
+  existsSync(path: string): boolean;
+  readdirSync(path: string): string[];
+  statSync(path: string): { isDirectory(): boolean };
+};
+
+export function outreachArchitectureProductionFiles(
+  root: string,
+  options: {
+    repoRoot: string;
+    scope: OutreachArchitectureSourceScope;
+    fileSystem: SourceFileSystem;
+    resolve: (...parts: string[]) => string;
+    separator: string;
+  },
+): string[] {
+  const { fileSystem, resolve, separator } = options;
+  const scope = outreachArchitectureSourceScope(options.scope);
+  const appsRoot = resolve(options.repoRoot, 'apps');
+  const frontendRoots = ['web', 'onboard-web'].map((name) => resolve(appsRoot, name));
+  const within = (parent: string, filename: string): boolean =>
+    filename === parent || filename.startsWith(`${parent}${separator}`);
+  // The original tests also scan explicit API reasoning roots. Those inputs
+  // stay complete in every scope; partition only the cross-app module walk.
+  const scoped = root === appsRoot || frontendRoots.some((frontend) => within(frontend, root));
+  const skipped = (filename: string): boolean => {
+    if (!scoped || scope === 'full') return false;
+    if (scope === 'backend-only') return frontendRoots.some((frontend) => within(frontend, filename));
+    return !frontendRoots.some((frontend) => within(frontend, filename) || within(filename, frontend));
+  };
+  const walk = (directory: string): string[] => {
+    if (skipped(directory) || !fileSystem.existsSync(directory)) return [];
+    const out: string[] = [];
+    for (const entry of fileSystem.readdirSync(directory)) {
+      const filename = resolve(directory, entry);
+      // Refuse traversal before stat/exists/readdir reaches an excluded root.
+      if (skipped(filename)) continue;
+      if (fileSystem.statSync(filename).isDirectory()) out.push(...walk(filename));
+      else if (
+        (entry.endsWith('.ts') || entry.endsWith('.tsx')) &&
+        !entry.endsWith('.spec.ts') &&
+        !entry.endsWith('.spec.tsx') &&
+        !entry.endsWith('.test.ts') &&
+        !entry.endsWith('.test.tsx')
+      ) {
+        out.push(filename);
+      }
+    }
+    return out;
+  };
+  return walk(root);
+}
