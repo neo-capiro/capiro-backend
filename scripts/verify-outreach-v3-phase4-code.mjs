@@ -3,13 +3,23 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  outreachV3CompletionMarker,
+  outreachV3FailureMarker,
+  outreachV3QualificationPlan,
+  outreachV3RunsLocalContracts,
+  outreachV3Scope,
+} from './outreach-v3-qualification-plan.mjs';
 
-const usage = 'Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run | --help)';
+const usage = 'Usage: node scripts/verify-outreach-v3-phase4-code.mjs (--run [--backend-only | --frontend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(usage);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let SCOPE;
+try {
+  SCOPE = outreachV3Scope(process.argv.slice(2));
+} catch {
   console.error(usage);
   process.exit(2);
 }
@@ -20,6 +30,9 @@ const phase3Base = 'b043a995928314f7085b7f9df94bdba02cee9640';
 const phase4ScopeEnd = process.env.OUTREACH_V3_PHASE4_SCOPE_END ?? '208dae611d9f5636f3b7507f8782ff7cc864c4ed';
 
 function run(label, command, args, options = {}) {
+  const [planned] = outreachV3QualificationPlan('phase4', SCOPE, [[label, command, args, options]]);
+  if (!planned) return;
+  [label, command, args, options] = planned;
   process.stdout.write(`\n== ${label} ==\n${[command, ...args].join(' ')}\n`);
   const result = spawnSync(command, args, {
       cwd: options.cwd ?? root,
@@ -28,7 +41,7 @@ function run(label, command, args, options = {}) {
       env: { ...process.env, ...options.env },
     });
   if (result.status !== 0) {
-    process.stderr.write(`\nOUTREACH_V3_PHASE4_FAILED:${label}\n`);
+    process.stderr.write(`\n${outreachV3FailureMarker('phase4', SCOPE) ?? 'OUTREACH_V3_PHASE4_FAILED'}:${label}\n`);
     process.exit(result.status ?? 1);
   }
 }
@@ -64,84 +77,86 @@ function isProductionSource(path) {
   );
 }
 
-const required = [
-  'apps/api/src/capabilities/targets/outreach-target.contract.ts',
-  'apps/api/src/capabilities/targets/outreach-target-reference.service.ts',
-  'apps/api/src/capabilities/targets/search-targets.capability.ts',
-  'apps/api/src/capabilities/targets/get-target-profile.capability.ts',
-  'apps/api/src/capabilities/targets/analyze-relationships.capability.ts',
-  'apps/api/src/outreach-v3/targets/outreach-target-coverage.service.ts',
-  'apps/api/src/outreach-v3/targets/outreach-v3-targets.controller.ts',
-  'apps/api/src/outreach-v3/targets/outreach-v3-targets.guard.ts',
-  'apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json',
-  'apps/api/tsconfig.outreach-v3-phase4.json',
-];
-for (const path of required) assert(existsSync(resolve(root, path)), `missing:${path}`);
+if (outreachV3RunsLocalContracts('phase4', SCOPE)) {
+  const required = [
+    'apps/api/src/capabilities/targets/outreach-target.contract.ts',
+    'apps/api/src/capabilities/targets/outreach-target-reference.service.ts',
+    'apps/api/src/capabilities/targets/search-targets.capability.ts',
+    'apps/api/src/capabilities/targets/get-target-profile.capability.ts',
+    'apps/api/src/capabilities/targets/analyze-relationships.capability.ts',
+    'apps/api/src/outreach-v3/targets/outreach-target-coverage.service.ts',
+    'apps/api/src/outreach-v3/targets/outreach-v3-targets.controller.ts',
+    'apps/api/src/outreach-v3/targets/outreach-v3-targets.guard.ts',
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json',
+    'apps/api/tsconfig.outreach-v3-phase4.json',
+  ];
+  for (const path of required) assert(existsSync(resolve(root, path)), `missing:${path}`);
 
-const changed = output('git', ['diff', '--name-only', `${phase3Base}...${phase4ScopeEnd}`])
-  .split(/\r?\n/)
-  .filter(Boolean);
-assert(changed.length > 0, 'empty-phase4-diff');
-for (const path of changed) {
-  assert(!path.startsWith('apps/web/src/'), `web-ui-change:${path}`);
-  assert(!path.includes('/prisma/migrations/'), `phase4-migration:${path}`);
-  assert(!path.startsWith('infra/cdk/'), `phase4-infrastructure-change:${path}`);
-  assert(!path.startsWith('apps/outreach-api/'), `new-outreach-service:${path}`);
-}
+  const changed = output('git', ['diff', '--name-only', `${phase3Base}...${phase4ScopeEnd}`])
+    .split(/\r?\n/)
+    .filter(Boolean);
+  assert(changed.length > 0, 'empty-phase4-diff');
+  for (const path of changed) {
+    assert(!path.startsWith('apps/web/src/'), `web-ui-change:${path}`);
+    assert(!path.includes('/prisma/migrations/'), `phase4-migration:${path}`);
+    assert(!path.startsWith('infra/cdk/'), `phase4-infrastructure-change:${path}`);
+    assert(!path.startsWith('apps/outreach-api/'), `new-outreach-service:${path}`);
+  }
 
-const productionCombined = changed
-  .filter(isProductionSource)
-  .map((path) => readFileSync(resolve(root, path), 'utf8'))
-  .join('\n');
-assert(
-  !/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/.test(productionCombined),
-  'langgraph-or-langsmith',
-);
-assert(
-  !/SEND_EMAIL_NOW/.test(
-    changed
-      .filter(isProductionSource)
-      .filter((p) => !p.endsWith('commands/outreach-command-registry.ts'))
-      .map((path) => readFileSync(resolve(root, path), 'utf8'))
-      .join('\n'),
-  ),
-  'direct-send-command',
-);
-assert(
-  !/OutreachCommandEngineService/.test(
+  const productionCombined = changed
+    .filter(isProductionSource)
+    .map((path) => readFileSync(resolve(root, path), 'utf8'))
+    .join('\n');
+  assert(
+    !/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/.test(productionCombined),
+    'langgraph-or-langsmith',
+  );
+  assert(
+    !/SEND_EMAIL_NOW/.test(
+      changed
+        .filter(isProductionSource)
+        .filter((p) => !p.endsWith('commands/outreach-command-registry.ts'))
+        .map((path) => readFileSync(resolve(root, path), 'utf8'))
+        .join('\n'),
+    ),
+    'direct-send-command',
+  );
+  assert(
+    !/OutreachCommandEngineService/.test(
+      readFileSync(
+        resolve(root, 'apps/api/src/outreach-v3/reasoning/outreach-reasoning.service.ts'),
+        'utf8',
+      ),
+    ),
+    'reasoning-direct-engine',
+  );
+
+  const catalog = JSON.parse(
     readFileSync(
-      resolve(root, 'apps/api/src/outreach-v3/reasoning/outreach-reasoning.service.ts'),
+      resolve(root, 'apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json'),
       'utf8',
     ),
-  ),
-  'reasoning-direct-engine',
-);
-
-const catalog = JSON.parse(
-  readFileSync(
-    resolve(root, 'apps/api/src/capabilities/__fixtures__/capiro-capability-catalog.v1.json'),
-    'utf8',
-  ),
-);
-for (const name of ['search_targets', 'get_target_profile', 'analyze_relationships']) {
-  const entry = catalog.find((candidate) => candidate.name === name);
-  assert(entry?.status === 'implemented', `target-capability-not-implemented:${name}`);
-  assert(
-    entry?.meriConsumer === true && entry?.outreachConsumer === true,
-    `shared-capability-consumers:${name}`,
   );
-}
+  for (const name of ['search_targets', 'get_target_profile', 'analyze_relationships']) {
+    const entry = catalog.find((candidate) => candidate.name === name);
+    assert(entry?.status === 'implemented', `target-capability-not-implemented:${name}`);
+    assert(
+      entry?.meriConsumer === true && entry?.outreachConsumer === true,
+      `shared-capability-consumers:${name}`,
+    );
+  }
 
-const manifest = JSON.parse(
-  readFileSync(
-    resolve(root, 'apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json'),
-    'utf8',
-  ),
-);
-assert(manifest.runtime === 'engagement-api', 'wrong-target-runtime');
-assert(manifest.featureFlag === 'OUTREACH_V3_TARGETS_ENABLED', 'wrong-target-flag');
-assert(manifest.disabledBehavior === 404, 'target-flag-not-fail-closed');
-assert(manifest.routes.length === 4, 'target-route-count');
+  const manifest = JSON.parse(
+    readFileSync(
+      resolve(root, 'apps/api/src/outreach-v3/__fixtures__/outreach-v3-target-route-manifest.v1.json'),
+      'utf8',
+    ),
+  );
+  assert(manifest.runtime === 'engagement-api', 'wrong-target-runtime');
+  assert(manifest.featureFlag === 'OUTREACH_V3_TARGETS_ENABLED', 'wrong-target-flag');
+  assert(manifest.disabledBehavior === 404, 'target-flag-not-fail-closed');
+  assert(manifest.routes.length === 4, 'target-route-count');
+}
 
 run('Phase 3 reasoning regression', 'node', ['scripts/verify-outreach-v3-phase3-code.mjs', '--run'], {
   env: { ENGAGEMENT_PHASE3_SCOPE_END: phase3Base },
@@ -179,4 +194,4 @@ run('Diff whitespace', 'git', ['diff', '--check', `${phase3Base}...${phase4Scope
 
 run('Current PR whitespace', 'git', ['diff', '--check', 'origin/main...HEAD']);
 
-process.stdout.write('\nOUTREACH_V3_PHASE4_DB_FREE_COMPLETE\n');
+process.stdout.write(`\n${outreachV3CompletionMarker('phase4', SCOPE)}\n`);
