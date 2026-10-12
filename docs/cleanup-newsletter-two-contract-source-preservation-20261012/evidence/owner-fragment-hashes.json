@@ -1,0 +1,112 @@
+{
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "scope": "inert selected source fragments; no actual production imports/constructors/GET/SQL/providers",
+  "fragments": [
+    {
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "name": "resolveAnthropic",
+      "sha256": "61aced5f27776b4ebb1ac5fbe546342edac93c0a28aa4915aa1335f7f805b7da"
+    },
+    {
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "name": "tryTenantCredential",
+      "sha256": "d4737832b57d2c34b5ac0a4ee8b7744f92c08fad4db89a928224ef5f96fce0ae"
+    },
+    {
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "name": "resolveNewsletterImage",
+      "sha256": "d87a5b8609583fc002684ff5f5b4c05ed64bbd8fce0275249338f97dfc690e22"
+    },
+    {
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "name": "resolveNewsletterAltText",
+      "sha256": "f967afbd5e02b70d912cb3f3c05c73ad5f044b276367ddc3207d4cced0410a6c"
+    },
+    {
+      "path": "apps/workspace/src/generation/ai-credential.service.ts",
+      "name": "tryNewsletterTenantCredential",
+      "sha256": "55323abc44323436723d67ecd5cf33f40289462005589daa5da6cedc093f5d9b"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "name": "newsletterMembers",
+      "sha256": "06c3c8a8de2c781fa921ec12bf44e6657e09ece599d238a071c4cc0464d3ba31"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "name": "newsletterMember",
+      "sha256": "f40039347ea51777039bca9ade65ad075cc9789e0e74c33529adbf7e2439ae30"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "name": "newsletterMemberByEmail",
+      "sha256": "29afafe2fe05bdf2f154f46b1643b85b59bbc85bc62bfd2cd064d9c4ba954b96"
+    },
+    {
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "name": "create",
+      "sha256": "f9d596e5c2c2ee7d9b519372ec5428f8e4d6eeeb058fd4aa813a9313227961be"
+    },
+    {
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "name": "list",
+      "sha256": "d406d0c996384cd82c1b87a34e6046bbb203a02b3ea979f4a0c0f8704d05b6d7"
+    },
+    {
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "name": "markRead",
+      "sha256": "131a724dfdbee4ed1707dfaeda253906c0e2a9bc606c5b6134ad6e33baadfafe"
+    },
+    {
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "name": "markAllRead",
+      "sha256": "778bd49cb5267dbf8b354af5a878ddde54652cf7af63cb577ecfbeec640a059d"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "name": "visitNewsletterBlocks",
+      "sha256": "365c7f6acb659050f09e980e0c3d533a6ef135ddcb4c6725c39e6663b08613a2"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "name": "newsletterSourceClients",
+      "sha256": "c62b896313969d74caf2e18c152c71ffd01fb2cc2a2def2a7e9a1235bd5cd0ac"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "name": "reviewRow",
+      "sha256": "85f4f201741cbbb48f1543b550b75e693e45322d59f197d96beb5c44f5be7194"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "name": "activateInvitations",
+      "sha256": "530d7a628722d7115959ea5591c5e02421f4d9bcacc6617cf06e689651e934f1"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "name": "notify",
+      "sha256": "f401e0ad0d98bbf91130051f8f7b546af12ef6b68e83e4294f9bfbe6bbc881d7"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "name": "importNewsletterVersion",
+      "sha256": "54ea50a7266ec9fd7dc263679ced83617e272d1def73009d427686e01ab5567e"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "name": "assertNewsletterSourceAccess",
+      "sha256": "111414feb26f77471af1f419764e637a9dd55fbab080c01f8996336110a22e09"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "name": "normalizeNewsletterDestinations",
+      "sha256": "63a9685415815415edefb5e3633e2f2a0be13551b1c8617257b92ed9fe70afd8"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "name": "isWorkspaceNewsletterVersion",
+      "sha256": "b567e2b84ca8b4d36f261b26cbf6a0e18bf4c90184459c8c6d165286e1208668"
+    }
+  ]
+}
