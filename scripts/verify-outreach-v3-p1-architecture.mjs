@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { validateOwnershipFixture } from './engagement-runtime-ownership.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -51,6 +52,44 @@ function json(relative) {
 function exists(relative) {
   return fs.existsSync(path.join(ROOT, relative));
 }
+
+// Owned verification-input contract: preserve the complete original requirements
+// without requiring historical planning paths in the working tree.
+export const VERIFICATION_INPUTS_DOCUMENT = 'docs/contracts/outreach-v3-verification-inputs-v1.md';
+export function validateVerificationInputsDocument(source) {
+  const problems = [];
+  for (const required of [
+    '# Outreach V3 verification inputs v1',
+    'Historical implementation labels below are claims preserved from the original plans; they do not establish current completion or a passing gate.',
+    'The frozen Phase 1 catalog has nine entries; the current architecture verifier requires all thirteen current entries and their existing authority checks.',
+    'This contract grants no production ownership transfer, future-profile activation, frontend retirement, or waiver of executable acceptance gates.',
+  ]) {
+    if (!source.includes(required)) problems.push(`verification-input contract missing qualification: ${required}`);
+  }
+  for (const [id, expectedHash] of [
+    ['outreach-v3-phase1-foundations', '89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55'],
+    ['outreach-v3-phase2-readiness', '9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716'],
+  ]) {
+    const begin = `<!-- ${id}:begin -->\n`;
+    const end = `<!-- ${id}:end -->`;
+    const start = source.indexOf(begin);
+    const finish = source.indexOf(end);
+    if (
+      start < 0 || finish < start + begin.length ||
+      source.indexOf(begin, start + begin.length) >= 0 ||
+      source.indexOf(end, finish + end.length) >= 0
+    ) {
+      problems.push(`verification-input contract requires one complete ${id} block`);
+      continue;
+    }
+    const body = source.slice(start + begin.length, finish);
+    if (createHash('sha256').update(body, 'utf8').digest('hex') !== expectedHash) {
+      problems.push(`verification-input contract changed or omitted original ${id} requirements`);
+    }
+  }
+  return problems;
+}
+// End owned verification-input contract.
 
 export function validateCapabilityCatalog(
   catalog,
@@ -298,10 +337,12 @@ export function architectureProblems() {
     'docs/contracts/capiro-capabilities-v1.md',
     'docs/runbooks/capiro-capability-security.md',
     'docs/runbooks/engagement-runtime-ownership.md',
-    'docs/plans/outreach-v3/revised-phase-1-shared-foundations.md',
-    'docs/plans/outreach-v3/revised-phase-2-readiness.md',
+    VERIFICATION_INPUTS_DOCUMENT,
   ]) {
     if (!exists(requiredDoc)) problems.push(`missing required documentation ${requiredDoc}`);
+    else if (requiredDoc === VERIFICATION_INPUTS_DOCUMENT) {
+      problems.push(...validateVerificationInputsDocument(read(requiredDoc)));
+    }
   }
 
   return problems;
