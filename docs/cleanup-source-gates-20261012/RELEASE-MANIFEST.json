@@ -1,0 +1,26 @@
+{
+  "repository": "neo-capiro/capirov2",
+  "branch": "codex/rebuild-cleanup-source-gates-20261012",
+  "baseBranch": "codex/rebuild-integrated-source-rc-20261012",
+  "baseSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "baseTree": "d8f01afa7eca0e6571e7ed3669905fea3491bbdd",
+  "acceptedRepairSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "acceptedRepairTree": "d6c9d0b4c4a3836576576ebd12a90c30f0520d1f",
+  "independentReviewCommit": "6ee40ae49d1847f0664f93a31b031aafe0f17fa0",
+  "sourceDelta": [
+    "packages/shared/src/index.ts",
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "sourceDeltaOnlyFormatting": true,
+  "canonicalContractHandoff": "docs/rebuild-integrated-rc-20261012/HANDOFF.md",
+  "canonicalDependencyOverlapMatrix": "docs/rebuild-integrated-rc-20261012/OVERLAP-MATRIX.json",
+  "supplementHandoff": "docs/cleanup-source-gates-20261012/HANDOFF.md",
+  "originalFullCleanupReference": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "fullCleanupReferenceReadOnly": true,
+  "fullReleaseAcceptance": false,
+  "noMainMergeOrDeployment": true,
+  "publicationIdentity": "Resolve exact publication HEAD/tree from PR/remote readback; enclosing documentation commits are not runtime repair identities.",
+  "pendingClassification": "Separate full main Web run; do not claim exact artifact failing assertion baseline reproduction from focused passes.",
+  "diagnosticHarnessAndDocumentReviewCommit": "0328913a52836d39417f5ad4ea52c7356c25ba14",
+  "diagnosticHarnessAndDocumentReviewTree": "31c53b61827bb1d60a76b89524005e130571e859"
+}
