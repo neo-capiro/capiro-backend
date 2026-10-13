@@ -1,0 +1,297 @@
+✔ campaign exact deep preservation and detached snapshot (2.159338ms)
+✔ list direct envelope preserves complete documents (0.139154ms)
+✔ list accepts empty result (0.075291ms)
+✔ campaign create get save share one parser without defaults (0.069237ms)
+✔ preview keeps hostile HTML as untrusted wire text (0.081954ms)
+✔ checks preserve arbitrary check ids and optional node ids (0.063314ms)
+✔ html check preserves opaque bounded provider report (0.087286ms)
+✔ stage receipt exact canonical route and case-bound identities (0.062393ms)
+✔ stage read exact rich snapshot preserves spelling (0.12951ms)
+✔ rich record preserves server fact lifecycle fields targets and optional source note (0.159698ms)
+✔ sendable is a supplied server boolean never recomputed (0.07364ms)
+✔ record permits nullable sender and no tests (0.084044ms)
+✔ all current block kinds structurally supported (0.042241ms)
+✖ old video and social optional fields remain absent (1.191541ms)
+✔ old optional design and section provenance remain absent (0.182045ms)
+✔ nullable primary client remains valid without invented association (0.048751ms)
+✔ document node ids are plain strings distinct from resource UUIDs (0.03934ms)
+✔ valid JSON extra fields including inert prototype-looking keys survive (0.032195ms)
+✔ wire output above request-body cap is not silently truncated (0.055616ms)
+✔ campaign refuses missing design (0.054549ms)
+✔ campaign refuses missing nested config field (0.087455ms)
+✔ campaign refuses nonboolean tracking (0.033561ms)
+✔ campaign refuses nonfinite style (0.028073ms)
+✔ campaign refuses wrong design version (0.028993ms)
+✔ campaign refuses unknown block kind (0.026156ms)
+✔ campaign refuses wrong optional font shape (0.02571ms)
+✔ campaign refuses font resource is a node id (0.027158ms)
+✔ campaign refuses wrong provenance type (0.026226ms)
+✖ campaign refuses wrong nested saved survey shape (0.250357ms)
+✖ campaign refuses wrong legacy introduction type (0.107595ms)
+✖ campaign refuses wrong optional link preview shape (0.078962ms)
+✖ campaign refuses wrong optional social settings (0.14385ms)
+✖ campaign refuses wrong optional video settings (0.084945ms)
+✔ campaign refuses fractional document revision (0.033236ms)
+✔ campaign refuses unsafe document revision (0.181798ms)
+✔ campaign refuses invalid resource UUID version (0.037267ms)
+✔ campaign refuses invalid nullable primary client (0.023886ms)
+✔ campaign refuses non-ISO owner timestamp (0.045358ms)
+✔ campaign refuses campaign status is closed persisted vocabulary (0.023322ms)
+✔ campaign refuses string required body (0.026515ms)
+✖ campaign refuses wrong column child shape (0.113982ms)
+✔ campaign refuses a guessed data wrapper (0.025089ms)
+✔ document binding refuses a valid foreign resource (0.022133ms)
+✔ stage read binding refuses a valid foreign resource (0.028166ms)
+✔ stage receipt binding refuses a valid foreign resource (0.021247ms)
+✔ record binding refuses a valid foreign resource (0.021857ms)
+✔ campaign refuses wrong client binding (0.020692ms)
+✔ campaign refuses wrong revision binding (0.021042ms)
+✔ binding refuses malformed UUID and unsupported key (0.021038ms)
+✔ binding refuses own getter without invocation (0.021875ms)
+✔ record refuses wrong version parent (0.021158ms)
+✔ record refuses wrong version hash (0.02063ms)
+✔ record refuses wrong server sendable type (0.020553ms)
+✔ record refuses unknown audit state (0.020335ms)
+✔ record refuses unknown approval state (0.021711ms)
+✔ record refuses unknown generation state (0.020656ms)
+✔ record refuses missing version audit checks (0.019963ms)
+✔ record refuses wrong context note type (0.021237ms)
+✔ record refuses malformed recipient email field type (0.019985ms)
+✔ record refuses duplicate case-folded version id (0.020311ms)
+✔ record refuses nonobject target (0.019217ms)
+✔ record refuses wrong excluded field (0.397809ms)
+✔ record refuses test foreign version (0.228066ms)
+✔ record refuses test foreign sender (0.030962ms)
+✔ record refuses test nullable sender conflict (0.021133ms)
+✔ record refuses missing record status (0.043175ms)
+✔ receipt and stage-read shapes cannot substitute for each other (0.211862ms)
+✔ mixed receipt and stage-read shape refuses both (0.029729ms)
+✔ receipt refuses noncanonical route https://example.test/?newsletterStage=a1111111-1111-4111-8111-111111111111 (0.024065ms)
+✔ receipt refuses noncanonical route /engagement/outreach?newsletterStage=b2222222-2222-4222-8222-222222222222 (0.024249ms)
+✔ receipt refuses noncanonical route /engagement/outreach?newsletterStage=a1111111-1111-4111-8111-111111111111&extra=1 (0.021428ms)
+✔ receipt refuses noncanonical route /engagement/outreach?newsletterStage=bad (0.048498ms)
+✔ preview refuses malformed check severity and HTML field (0.024277ms)
+✔ html check refuses guessed report array and foreign revision (0.019647ms)
+✔ metadata absent null ordinary and unrelated values projected away (0.020378ms)
+✔ metadata preserves UUID case and positive safe integer (0.049202ms)
+✔ ordinary and valid rich metadata discriminator (0.022939ms)
+✔ reserved stage hint refuses "" (0.037633ms)
+✔ reserved stage hint refuses null (0.022368ms)
+✔ reserved stage hint refuses false (0.019236ms)
+✔ reserved stage hint refuses 7 (0.020752ms)
+✔ reserved stage hint refuses [] (0.019217ms)
+✔ reserved stage hint refuses {} (0.01952ms)
+✔ reserved stage hint refuses "n_node" (0.020354ms)
+✔ reserved stage hint refuses "a1111111-1111-7111-8111-111111111111" (0.021484ms)
+✔ reserved revision refuses 0 (0.030831ms)
+✔ reserved revision refuses -1 (0.023729ms)
+✔ reserved revision refuses 1.1 (0.034716ms)
+✔ reserved revision refuses 1 (0.021489ms)
+✔ reserved revision refuses null (0.061102ms)
+✔ reserved revision refuses 9007199254740992 (0.020522ms)
+✔ reserved revision refuses Infinity (0.01873ms)
+✔ reserved revision refuses false (0.020348ms)
+✔ wrong-type rich hint refuses before generic selection (0.093677ms)
+✔ nonobject metadata refuses (0.02233ms)
+✔ own accessor is refused without getter call (0.021204ms)
+✔ array accessor is refused without getter call (0.019903ms)
+✔ toJSON function is refused without invoking it (0.020095ms)
+✖ custom prototype is refused without inherited getter reads (0.331414ms)
+✔ null-prototype JSON is accepted with full shape validation (0.137731ms)
+✔ cyclic nested target is refused (0.040864ms)
+✔ shared acyclic JSON data is detached in both positions (0.024213ms)
+✔ deep generic JSON budget is refused (0.020777ms)
+✔ sparse array is refused (0.182555ms)
+✔ array extra property is refused (0.098783ms)
+✔ symbol key is refused (0.02344ms)
+✔ nonenumerable wire field is refused (0.02175ms)
+✔ primitive non-JSON values are refused (0.018619ms)
+✔ throwing reflection trap returns refusal instead of escaping (0.018577ms)
+✔ list count bound uses current owner max100 (0.018029ms)
+✔ owner collection bound section count (0.018479ms)
+✔ owner collection bound section block count (0.019059ms)
+✔ owner collection bound total block count (0.019577ms)
+✔ owner collection bound column count (0.022662ms)
+✔ owner collection bound column child count (0.02993ms)
+✔ owner collection bound source client count (0.021674ms)
+✔ owner collection bound font count (0.020046ms)
+✔ owner depth0 through6 remains accepted (0.019066ms)
+✔ owner depth7 is refused (0.020947ms)
+ℹ tests 119
+ℹ suites 0
+ℹ pass 111
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 626.099194
+
+✖ failing tests:
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ old video and social optional fields remain absent (1.191541ms)
+  AssertionError [ERR_ASSERTION]: Cannot read properties of undefined (reading '2')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ campaign refuses wrong nested saved survey shape (0.250357ms)
+  AssertionError [ERR_ASSERTION]: Cannot read properties of undefined (reading '0')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ campaign refuses wrong legacy introduction type (0.107595ms)
+  AssertionError [ERR_ASSERTION]: Cannot read properties of undefined (reading '0')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ campaign refuses wrong optional link preview shape (0.078962ms)
+  AssertionError [ERR_ASSERTION]: Cannot read properties of undefined (reading '3')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ campaign refuses wrong optional social settings (0.14385ms)
+  AssertionError [ERR_ASSERTION]: Cannot read properties of undefined (reading '1')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ campaign refuses wrong optional video settings (0.084945ms)
+  AssertionError [ERR_ASSERTION]: Cannot read properties of undefined (reading '2')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ campaign refuses wrong column child shape (0.113982ms)
+  AssertionError [ERR_ASSERTION]: Cannot set properties of undefined (setting '0')
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/ci/newsletter-receiving.test.cjs:8:37
+✖ custom prototype is refused without inherited getter reads (0.331414ms)
+  AssertionError [ERR_ASSERTION]: Cannot set property name of #<Object> which has only a getter
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/tmp/capirov2-four-runtime-controls-review/scripts/ci/newsletter-receiving.test.cjs:8:68)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

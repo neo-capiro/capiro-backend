@@ -1,0 +1,35 @@
+{
+  "extends": "/tmp/capirov2-four-runtime-controls-review/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "incremental": false,
+    "types": [
+      "node",
+      "jest"
+    ],
+    "typeRoots": [
+      "/workspace/capirov2/apps/api/node_modules/@types",
+      "/workspace/capirov2/node_modules/@types"
+    ],
+    "baseUrl": "/tmp/capirov2-four-runtime-controls-review",
+    "paths": {
+      "typescript": [
+        "/workspace/capirov2/node_modules/typescript"
+      ],
+      "@capiro/shared/newsletter": [
+        "packages/shared/src/newsletter.ts"
+      ]
+    },
+    "lib": [
+      "ES2022",
+      "DOM"
+    ]
+  },
+  "files": [
+    "/tmp/capirov2-four-runtime-controls-review/apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+    "/tmp/capirov2-four-runtime-controls-review/apps/api/src/engagement/outreach-draft.types.ts",
+    "/tmp/capirov2-four-runtime-controls-review/packages/shared/src/newsletter-receiving.ts"
+  ]
+}

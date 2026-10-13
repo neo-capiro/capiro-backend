@@ -1,0 +1,61 @@
+{
+  "base": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "source": "8f19f4d7c77c621f8ea3a2d1c3d9b551e0d60414",
+  "tree": "0d90dd28ec51050df39ab53494f253d67f40f1a6",
+  "changedPaths": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "git": "100644 blob f68c95ddc384854e40ac5595e014b7ce1cf0bf40",
+      "sha256": "1d91b1794aa00143bb114e36dc6f7313ccb4446fc2eae066595444ca1078280c"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "git": "100644 blob 15b6d76e025165264115c6081616311f7be639aa",
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "git": "100644 blob 1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.types.ts",
+      "git": "100644 blob aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "sha256": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "git": "100644 blob d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+      "git": "100644 blob a7ea0896ca17de7f1d9d0550c554244e5df87add",
+      "sha256": "ca5f18050e1dccd393e829c562d94fded2e0d9bb830eff98004a01a7d19663b6"
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "git": "100644 blob 6c2c71355f5db0e5ade916762034bb3badeb43a7",
+      "sha256": "a6713725166d43776e88ec83fb03c5b17b64ab0920e097b691b5f50d5a18ae33"
+    },
+    {
+      "path": "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "git": "100644 blob f854418e0c06cacd0e6a0a420449ea6446e1cc52",
+      "sha256": "5d65cab28ca546f24f3beb5dc499ea5d95fc8f9b2c93f18cbe3ed7c1991dc979"
+    },
+    {
+      "path": "scripts/ci/newsletter-receiving.test.cjs",
+      "git": "100644 blob 08dc197885812fb5c59aa48f074730da6c185790",
+      "sha256": "6b12a222bc446bcd26aef1409306eb892851aaa17d3b6006dd1ec2f8f658b317"
+    }
+  ],
+  "allOutsideSourcePathsExact": 23653,
+  "canonicalDtoFieldsExact": true,
+  "canonicalUnionTypesExact": true,
+  "canonicalPoliciesExact": true,
+  "otherCanonicalNewsletterMethodsExact": 14,
+  "oldNewsletterBodyExact": true,
+  "oldSpecSingleTypeFixtureInverseExact": true,
+  "protectedReportingBodyRead": false,
+  "nativeExecuted": false
+}
