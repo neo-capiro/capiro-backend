@@ -1,0 +1,25 @@
+{
+  "ownerDeclaredRun": {
+    "head": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+    "steps": 31,
+    "required": 29,
+    "exit": 0,
+    "durationSeconds": 379.36,
+    "install": "verified reuse, owner-declared",
+    "cleanMigrations": 469,
+    "upgrade": "458 baseline +11",
+    "rlsControls": 23,
+    "optionalFormatting": "122 unchanged warnings, owner-declared"
+  },
+  "providedDigestPointers": {
+    "machineSummarySHA256": "c336b2db23aa3e2430b8b889435c9e1c308753e21d5e04a8679282f874ce3202",
+    "reviewSHA256": "f9a35db06f6b51c062060d9375e5bce74ed07a38058a6058f6ee992ee4c8f3f9",
+    "priorDetailedResults": "dd82 (partial pointer)",
+    "priorReview": "f180 (partial pointer)",
+    "finalReceipt": "87e5 (partial pointer)"
+  },
+  "rawReceived": false,
+  "rawHashVerified": false,
+  "localReplay": false,
+  "claim": "Exact scoped source operands may be referenced with owner-source-qualified results. The entire native31-step qualification is not current ce14 acceptance because24 reviewed code/config deltas, notably auth/context/Meri runtime, lie outside this unchanged scope."
+}
