@@ -1,0 +1,1 @@
+{"passed": 4, "failed": 5, "failedNames": ["staged source bad whitespace cancelled in worktree", "staged raw bytes changed but cancelled in worktree", "attribute disables source whitespace", "fixture-local configuration disables whitespace", "committed archive mode changed with exact bytes"]}

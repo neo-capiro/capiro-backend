@@ -1,0 +1,35 @@
+✔ whole original Phase26 caller and exact16-error/two-suite baseline reconstruct (3.160102ms)
+✔ full default/typing-fast/legacy unknown/Windows traces and receipts remain exact (36.494509ms)
+✔ new source-only and malformed named modes require explicit valid scope before any effect (9.609769ms)
+✔ backend source and frontend scope run only exact scoped guard/whitespace with no typing baseline read (4.431831ms)
+✔ backend native and typing retain all original selectors/process options and distinct receipts (11.366229ms)
+✔ all16 attributed diagnostics and exacttwo attributed Jest failures remain allowed (7.174596ms)
+✔ new scoped typing refuses unmatched/increased diagnostics and failed compiler without attributed evidence (9.499665ms)
+✔ inherited full API compiler false-green remains characterized and scoped mode refuses it (5.904389ms)
+✔ new native mode cannot accept missing/unattributed Jest exit evidence or unknownfailed suite (6.628493ms)
+✔ guard and whitespace failures cannot produce any scoped completion (7.196995ms)
+✔ current package metadata/aliases survive the four exact scoped run aliases (11.535334ms)
+✔ strict run/help/noargs/unknown/base grammar fails before any process or baseline read (19.569746ms)
+✔ opt-in Docker consumes only an explicit validated rootfs using the frontend-owned runtime profile (0.595835ms)
+✔ default Web Docker, release operator, workspace, lock and Onboard default remain unchanged (43.16511ms)
+✔ missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify (4.288017ms)
+✔ destination package preserves all 107 existing aliases and all metadata (0.602793ms)
+✔ only the four reviewed Phase26 aliases extend the original package inverse (3.951417ms)
+✔ Phase1 scoped operands retain one explicit run and every current syntax check (0.228975ms)
+✔ all twelve scoped verification aliases bind one run and exactly one declared scope (0.671328ms)
+✔ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (7.407122ms)
+✔ CI is exactly the destination scope hunk union and retains every old guard/test/condition (5.672321ms)
+✔ source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (48.126963ms)
+✔ exact reviewed root manifest reconstructs every prior byte and retains its real entry points (15.675895ms)
+✔ root manifest mutations cannot turn this exact review into a general exemption (6.376083ms)
+✔ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (21.908324ms)
+✔ api manifest mutations cannot turn this exact review into a general exemption (8.263884ms)
+✔ unknown/coercible inputs refuse without executing application or coercion ports (0.355643ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 386.636391

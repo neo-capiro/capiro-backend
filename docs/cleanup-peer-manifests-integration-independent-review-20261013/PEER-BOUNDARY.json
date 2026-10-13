@@ -1,0 +1,163 @@
+{
+  "left": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "leftTree": "19ee55e0a411f68b2a7e239544786e7f9987b892",
+  "right": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "rightTree": "a89206d77ac4c46fefbfb81551f5596110bab4ae",
+  "mergeBase": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+  "peer2444NonDocPaths": [
+    {
+      "path": "apps/api/package.json",
+      "gitEntry": "100644 blob f8ab6fbcdcc14da45045ca163aa2a3e843f3412e\tapps/api/package.json",
+      "bytes": 28856,
+      "sha256": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts",
+      "gitEntry": "100644 blob c7085d212574e1f157fc542d6641cec2b1db2135\tapps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts",
+      "bytes": 12210,
+      "sha256": "351ea56d81fd723b752b2ea8c477c6bcf9006a6a7e9b905163480877f20d2869"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-backend-scope.ts",
+      "gitEntry": "100644 blob 584c3443ae7efd4ed6a1596e516f508cee81e649\tapps/api/scripts/lib/pe-phase-9-backend-scope.ts",
+      "bytes": 2663,
+      "sha256": "345875bb661ce19a4c6c6ff56c8291dfce7c2cd3cc8d8c66e111159e7676f24a"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-evidence.ts",
+      "gitEntry": "100644 blob 2bc2065ba86e0d33948a410864174f88aa930fa2\tapps/api/scripts/lib/pe-phase-9-evidence.ts",
+      "bytes": 3649,
+      "sha256": "03c5d23e79c890b2ac2b77f3f946526596cabf95dc3fb4691b0383804cdc7694"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+      "gitEntry": "100644 blob f51953f885d5a499867d3f3cef6d6d941c45d6fd\tapps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+      "bytes": 14849,
+      "sha256": "e8806b0248634488dd6e6f01658a7c9ad9cf18cb3ed52a2430b3d35b05237637"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-rehearsal.ts",
+      "gitEntry": "100644 blob 51a399f5d1c11089a5324214aa09ace154d0c338\tapps/api/scripts/lib/pe-phase-9-rehearsal.ts",
+      "bytes": 13250,
+      "sha256": "aaaba4aaeeae53e836d2510235e2f97603d9e7951a215900d5743499b9c7cf59"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-runner.spec.ts",
+      "gitEntry": "100644 blob ff76f888e151428d2e38921920ed7a17ef052f26\tapps/api/scripts/lib/pe-phase-9-runner.spec.ts",
+      "bytes": 13509,
+      "sha256": "be1e5faecfa454210f07319c150cb9a48b494c4a22993a35306dd68fbb2cd81b"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-runner.test-support.ts",
+      "gitEntry": "100644 blob f830b2f681428f0e837ca67ce6310380576fae1c\tapps/api/scripts/lib/pe-phase-9-runner.test-support.ts",
+      "bytes": 6242,
+      "sha256": "630448b4cf4f83edafb0b4028904a2b94d991f98347c2703810f2213ecdc4f4a"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-runner.ts",
+      "gitEntry": "100644 blob 46183c7a4fab5360ee2dd219529635038cb87efe\tapps/api/scripts/lib/pe-phase-9-runner.ts",
+      "bytes": 5451,
+      "sha256": "17cebcec40833f1e4cd783cb6dc74eb42a1122dc49baff6760db0456abd9a130"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "gitEntry": "100644 blob b26b8688edca0fd2153f0327307e32dd6a5f5be3\tapps/api/scripts/lib/pe-production-scripts.ts",
+      "bytes": 3136,
+      "sha256": "99b5dc45c401b230e9f8a40dc71783939d89d0e3b41e75c1dafc4ed1fb8a7d82"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-9.ts",
+      "gitEntry": "100644 blob 5c662ca843f4fcf909f090a0835937d2da452317\tapps/api/scripts/verify-pe-phase-9.ts",
+      "bytes": 14521,
+      "sha256": "22ee3487c5ac8fad1eed0e71acdfe5a30188c65720af9ec79512d5e5337301a1"
+    },
+    {
+      "path": "apps/api/tsconfig.pe-scripts.json",
+      "gitEntry": "100644 blob 61458916512b629a4399cb7cb466b4a5801e1d85\tapps/api/tsconfig.pe-scripts.json",
+      "bytes": 1917,
+      "sha256": "aa4d594a108d969114d93cca72d42324cf102dd95dee341e910d5bd4c714960b"
+    },
+    {
+      "path": "package.json",
+      "gitEntry": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102\tpackage.json",
+      "bytes": 14506,
+      "sha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824"
+    }
+  ],
+  "peer2445NonDocPathsBeyondCommonBase": [
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "gitEntry": "100644 blob d017fb9ee86999f6c18cd4867238134728c8b551\t.github/workflows/backend-cleanup-preservation.yml",
+      "bytes": 2368,
+      "sha256": "34a9024fc7d9384b5d7d74f2eb69f7f6e9ceafb60eff4e7398804b18a6d78167"
+    },
+    {
+      "path": "scripts/build-newsletter-release.sh",
+      "gitEntry": "100755 blob db7fea14bf7feff409d63a53c3373b3f82a6e97b\tscripts/build-newsletter-release.sh",
+      "bytes": 1038,
+      "sha256": "7e770ccf72b164b90594dc490fed9fca1db0e3d8fd7cb310aa02d6307c93259e"
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "gitEntry": "100644 blob 2ea9050b511aff6fa530d1a3959caa66050030ff\tscripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "bytes": 9284,
+      "sha256": "219e0b5ffd63e7ec6201380b388b43d21ce9a77790a2bb7aa8932ead4f633acd"
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "gitEntry": "100644 blob 9f70a4cfd0434a248440245ae63ee7552dcb3514\tscripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "bytes": 4581,
+      "sha256": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e"
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "gitEntry": "100644 blob 62760cd00b366294fb2f7debbf68f16a63bc1380\tscripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "bytes": 20472,
+      "sha256": "44dbd36e9dcb8f6dbd1354fcd250615afd84d151d150f9523955278d805e6f79"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "gitEntry": "100644 blob 6584b8c6596a262c74f83b146faa412dd0c3c784\tscripts/ci/rebuild-verification-scopes.spec.mjs",
+      "bytes": 9698,
+      "sha256": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "gitEntry": "100644 blob d9868f30a0e39acd2893c39643f606d56c2c80bf\tscripts/lib/frontend-standalone-artifact-contract.mjs",
+      "bytes": 17659,
+      "sha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816"
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "gitEntry": "100644 blob 4ade69f2bb34f8124b489883776b3c119525fdd2\tscripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "bytes": 17184,
+      "sha256": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461"
+    }
+  ],
+  "directNonDocOverlap": [],
+  "reviewedManifestDeltas": {
+    "package.json": {
+      "addedScripts": {
+        "verify:pe-phase-9:backend": "pnpm -C apps/api run verify:pe-phase-9:backend",
+        "verify:pe-phase-9:backend:dry-run": "pnpm -C apps/api run verify:pe-phase-9:backend:dry-run"
+      },
+      "changedScripts": {}
+    },
+    "apps/api/package.json": {
+      "addedScripts": {
+        "verify:pe-phase-9:backend": "tsx scripts/verify-pe-phase-9.ts --backend-only --run",
+        "verify:pe-phase-9:backend:dry-run": "tsx scripts/verify-pe-phase-9.ts --backend-only --dry-run"
+      },
+      "changedScripts": {
+        "test:pe-trust": {
+          "before": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts",
+          "after": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts"
+        }
+      }
+    }
+  },
+  "protectedReportingBodyRead": false,
+  "deniedReportRead": false,
+  "testOrEntrypointExecutionPerformed": false,
+  "note": "Initial PR2444 common-object lookup exit128; root fetched exact preserved ref, now all pins verified. Await frozen integration/source guards."
+}
