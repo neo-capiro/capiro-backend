@@ -1,0 +1,78 @@
+{
+  "source": "39093acbdf3e603f477b4e6e76e79e01f4e2beec",
+  "tree": "101bee48620c122dd39fe90c2e0f35d8cec5fa38",
+  "baseline": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "scope": "10 exact code/workflow/test blobs only; no document body",
+  "rows": [
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "candidateBlob": "923e171a34ee488bf0ee977257296985b6518375",
+      "bytes": 3506,
+      "sha256": "0d00e5971689247f76c2a61326e89a74ee2c97e41eaa6013b15d2ffb28f0ed59",
+      "baselinePresent": true
+    },
+    {
+      "path": "apps/api/scripts/extract-florida-legislative-directories.py",
+      "candidateBlob": "886de61512504cf10030a4a6dafe3a5f08065ef4",
+      "bytes": 59933,
+      "sha256": "dee0d5c3dadc7e75367d60c9e1415094863865c3919b317090b9328848eb8b27",
+      "baselinePresent": true
+    },
+    {
+      "path": "apps/intel-api/src/tracker/__fixtures__/email-cta-app-source.txt",
+      "candidateBlob": "24d75b1bd4d3e22d4eb0027b9412b33281a84c85",
+      "bytes": 30256,
+      "sha256": "a7b1ff2a7cb9945af55ba58c5849cfe18cf5f89a47c195d99e7edac1fcbfe2cc",
+      "baselinePresent": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/email-cta-route-input-parity.spec.mjs",
+      "candidateBlob": "e564ccb7944cce35e447a8c99b858d072863a96c",
+      "bytes": 2706,
+      "sha256": "a841e2fdda08565258e5f099bcade7d17141f1015a996a12f86f57a648c116b8",
+      "baselinePresent": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/email-cta-routes.spec.ts",
+      "candidateBlob": "bbf3b9d64a7ce1d699a3c2ead7eb8868868abc4f",
+      "bytes": 11576,
+      "sha256": "5cd9640c0cb659fa9f42b4edab0a4aa278dac443dfa43848e632c52e6bc381c0",
+      "baselinePresent": true
+    },
+    {
+      "path": "apps/intel-api/test/qualification/hearing-browser-run.ts",
+      "candidateBlob": "edcc1fde679c4956892c032073c80fe4dfcc1727",
+      "bytes": 21626,
+      "sha256": "864b075746d5f5179dbf3c7f8c3c5e929117b853fcbe611f1592e4cdf3ff43f1",
+      "baselinePresent": true
+    },
+    {
+      "path": "apps/intel-api/test/qualification/hearing-recording-transport-parity.spec.mjs",
+      "candidateBlob": "a6452915f0d88c7950a8db443d8cc468907f496d",
+      "bytes": 1363,
+      "sha256": "c479869115a3d62bb09720bc25728baced892d9affedda42376c71fd696422c1",
+      "baselinePresent": false
+    },
+    {
+      "path": "apps/intel-api/test/qualification/hearing-recording-transport.ts",
+      "candidateBlob": "d1a0a1640572db302a6bbb795392f3857a61216c",
+      "bytes": 4488,
+      "sha256": "7e7c755fb2ab2894a87509f525a194e88078425603c8d158322768460265fa04",
+      "baselinePresent": false
+    },
+    {
+      "path": "scripts/ci/backend-owned-qualification-inputs.spec.mjs",
+      "candidateBlob": "809df6ba5b8143a58df3fc15b79e571637d326c3",
+      "bytes": 10898,
+      "sha256": "48ab38b4624cc8766b1ec51966a1372e31cbacfb0b7e54a55a2610d931e6641e",
+      "baselinePresent": false
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "candidateBlob": "aff82f7e78f4014bd08f9f33c39515d27e1854f5",
+      "bytes": 10963,
+      "sha256": "a7744f52c4e7c452614a8498efd4a17a99b84989b56892b9d8841991d65e3588",
+      "baselinePresent": true
+    }
+  ]
+}

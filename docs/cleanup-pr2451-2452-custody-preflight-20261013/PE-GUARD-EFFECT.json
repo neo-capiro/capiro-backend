@@ -1,0 +1,172 @@
+{
+  "receiving": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "candidate": "f74aeef3f23f5dfe145058564e6b1665b0a0bfdd",
+  "candidateTree": "276bc0b5a5498e44acd7478b19a280bb0ec58048",
+  "sourcePaths": [
+    {
+      "path": "apps/api/src/program-element/program-element-read.service.ts",
+      "before": {
+        "entry": "100644 blob d507cb15aaf58744b32488f77cb4a0334ed99738\tapps/api/src/program-element/program-element-read.service.ts",
+        "bytes": 125497,
+        "sha256": "b4f4b51a5817ef600c94c1ce7de9feffd539dcddd90e5c7e9b185504c6bb75d0"
+      },
+      "after": {
+        "entry": "100644 blob 8e0dad9d17be67d5d73ae32a791ecbf94fe9bc9c\tapps/api/src/program-element/program-element-read.service.ts",
+        "bytes": 117143,
+        "sha256": "7ec01d70e23ba6cb52cb442719270b582fd876df2f4c51d69a495ea293e06453"
+      }
+    },
+    {
+      "path": "apps/api/src/program-element/program-element-read-provisions.spec.ts",
+      "before": {
+        "entry": "100644 blob e337972997cf8e0cf8cd70b469e217e65edd568b\tapps/api/src/program-element/program-element-read-provisions.spec.ts",
+        "bytes": 5170,
+        "sha256": "671a575a755229a7aaaf6b2ff7789ebc242dd7fabae0fb387bacdd560c2a0bf4"
+      },
+      "after": {
+        "entry": "100644 blob dcc522a756e709b78c90f529cd52c0e5ffe5a234\tapps/api/src/program-element/program-element-read-provisions.spec.ts",
+        "bytes": 7374,
+        "sha256": "0627e7ae7ad682bbe2acd24648458cd1239baca1b0594b6395b52a300e6f46ef"
+      }
+    },
+    {
+      "path": "apps/api/src/program-element/program-element-read-programs.spec.ts",
+      "before": null,
+      "after": {
+        "entry": "100644 blob 3c9ea1a9374691b4cfcfb6a7afb67281aec019a4\tapps/api/src/program-element/program-element-read-programs.spec.ts",
+        "bytes": 3053,
+        "sha256": "06c13ad516193638fc8394e479d4db07bcbb7a00e9106eeefbe64716edbdc285"
+      }
+    },
+    {
+      "path": "tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts",
+      "before": {
+        "entry": "100644 blob e6f266440a426b42126d32bb91cc449447d83db0\ttests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts",
+        "bytes": 10879,
+        "sha256": "829a4b8bcc41c893ef60be9643826c5c3e5bdfee7463541b261ae07490145e29"
+      },
+      "after": {
+        "entry": "100644 blob 4d8027c4a57d05ebb04c9a6e97d09be8be6da0b0\ttests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts",
+        "bytes": 11261,
+        "sha256": "8d7d0924478f42bbdc6ff48e1cf4e44ad12c13ef6fa7da0d282fac3ee0dcd853"
+      }
+    }
+  ],
+  "manifestGuardScope": "Only root and API package bytes; PE service is not a guard operand.",
+  "manifestOperands": [
+    {
+      "path": "package.json",
+      "receiving": {
+        "entry": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102\tpackage.json",
+        "bytes": 14506,
+        "sha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824"
+      },
+      "candidate": {
+        "entry": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102\tpackage.json",
+        "bytes": 14506,
+        "sha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/package.json",
+      "receiving": {
+        "entry": "100644 blob 75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a\tapps/api/package.json",
+        "bytes": 29061,
+        "sha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a"
+      },
+      "candidate": {
+        "entry": "100644 blob 75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a\tapps/api/package.json",
+        "bytes": 29061,
+        "sha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a"
+      },
+      "exact": true
+    }
+  ],
+  "existingCanonicalDependencies": [
+    {
+      "path": "packages/defense-domain/package.json",
+      "receiving": {
+        "entry": "100644 blob f35b337f65180b29a7072a41f2a0cff4d03e5b52\tpackages/defense-domain/package.json",
+        "bytes": 3462,
+        "sha256": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
+      },
+      "candidate": {
+        "entry": "100644 blob f35b337f65180b29a7072a41f2a0cff4d03e5b52\tpackages/defense-domain/package.json",
+        "bytes": 3462,
+        "sha256": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/src/pe-read/index.ts",
+      "receiving": {
+        "entry": "100644 blob 675246f923b2f7f89b9aa139f766095634c7777a\tpackages/defense-domain/src/pe-read/index.ts",
+        "bytes": 535,
+        "sha256": "a21d8ef50fc58051ab395fc4a66b9e338879408b4687bc3fd971e166e5499112"
+      },
+      "candidate": {
+        "entry": "100644 blob 675246f923b2f7f89b9aa139f766095634c7777a\tpackages/defense-domain/src/pe-read/index.ts",
+        "bytes": 535,
+        "sha256": "a21d8ef50fc58051ab395fc4a66b9e338879408b4687bc3fd971e166e5499112"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/src/pe-read/pe-list-projection.ts",
+      "receiving": {
+        "entry": "100644 blob 6d5715904b3ab4a2a57b608ca4b792034a3d6a78\tpackages/defense-domain/src/pe-read/pe-list-projection.ts",
+        "bytes": 5221,
+        "sha256": "2792ef524ab2cfbb5ec81cf1a7db73c77e421fe915b4a6d25bcba49e9b3798d2"
+      },
+      "candidate": {
+        "entry": "100644 blob 6d5715904b3ab4a2a57b608ca4b792034a3d6a78\tpackages/defense-domain/src/pe-read/pe-list-projection.ts",
+        "bytes": 5221,
+        "sha256": "2792ef524ab2cfbb5ec81cf1a7db73c77e421fe915b4a6d25bcba49e9b3798d2"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/src/pe-read/provisions.ts",
+      "receiving": {
+        "entry": "100644 blob 1740523cafb82b428113ee9c9fa0e24b8a55ee9b\tpackages/defense-domain/src/pe-read/provisions.ts",
+        "bytes": 4684,
+        "sha256": "356fdb0b44b3892a551f6696e9598db5558290049a61f85a1c5af66beff3f9a4"
+      },
+      "candidate": {
+        "entry": "100644 blob 1740523cafb82b428113ee9c9fa0e24b8a55ee9b\tpackages/defense-domain/src/pe-read/provisions.ts",
+        "bytes": 4684,
+        "sha256": "356fdb0b44b3892a551f6696e9598db5558290049a61f85a1c5af66beff3f9a4"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/src/pe-read/program-match.ts",
+      "receiving": {
+        "entry": "100644 blob 7427349bae98e05181547417333d9ee81a3ae3ea\tpackages/defense-domain/src/pe-read/program-match.ts",
+        "bytes": 3036,
+        "sha256": "c5992699dd71147808b9361e2e1d28ade181aa6fca2afc55663904dc3b0c818a"
+      },
+      "candidate": {
+        "entry": "100644 blob 7427349bae98e05181547417333d9ee81a3ae3ea\tpackages/defense-domain/src/pe-read/program-match.ts",
+        "bytes": 3036,
+        "sha256": "c5992699dd71147808b9361e2e1d28ade181aa6fca2afc55663904dc3b0c818a"
+      },
+      "exact": true
+    }
+  ],
+  "requiredGuardSourceChanges": [],
+  "requiredReceiptChanges": [
+    "Record explicit current PE service old/new SHA, retain original reviewed bindings.",
+    "Bind seven retired paths in root current custody summary; do not relabel unverified private bundles."
+  ],
+  "recommendedBoundedChecks": [
+    "Existing reviewed-pe-manifest-contract.spec.mjs five pure guard cases on composed tree; leave all strict pins/hashes/inverses unchanged.",
+    "New programs spec and retained provisions spec against actual current service and canonical helpers, no app/DB/providers.",
+    "Existing phase8 session3 parity corpus and the updated attribution-caveat case.",
+    "Materially affected API project types/build once after composition if current compiler result no longer byte-applicable."
+  ],
+  "noOld31OperatorReplay": true,
+  "sourceEdited": false,
+  "guardExecuted": false
+}

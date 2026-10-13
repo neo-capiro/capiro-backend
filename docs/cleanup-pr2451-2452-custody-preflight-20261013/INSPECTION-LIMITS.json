@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "candidate2452InitialLocalObjectMissing": {
+    "source": "39093acbdf3e603f477b4e6e76e79e01f4e2beec",
+    "gitShowExit": 128,
+    "gitDiffExit": 128,
+    "stderr": "fatal: bad object 39093acbdf3e603f477b4e6e76e79e01f4e2beec\n",
+    "resolution": "Exact GitHub commit/tree metadata and ten authorized code blobs verified; root subsequently fetched immutable ref."
+  },
+  "wrongCanonicalHelperPathLead": {
+    "path": "packages/defense-domain/src/pe-read/projections.ts",
+    "exit": 128,
+    "resolution": "Actual current owners are pe-list-projection.ts, provisions.ts and program-match.ts; exact source identities verified."
+  },
+  "finalFirstPreflightBatch": {
+    "status": "Failed to create unified exec process",
+    "reason": "exec-server transport disconnected",
+    "commandsActuallyExecuted": false,
+    "resolution": "Root reported executor recovery; resumed only bounded two-manifest custody and guard operand audit."
+  },
+  "privateCustodyUnverified": true,
+  "broadReportBodiesRead": false,
+  "nativeOrDatabaseOrApplicationTestsRun": false
+}
