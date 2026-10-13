@@ -1,0 +1,16 @@
+{
+  "capturedAtUtc": "2026-10-13T03:15:58.634304+00:00",
+  "repository": "neo-capiro/capirov2",
+  "sourceDraft": "PR2440",
+  "sourceHead": "89107485cd8432d0c7f29544c94c570acc32deda",
+  "path": "scripts/lib/newsletter-declared-edge-contract.mjs",
+  "gitBlob": "84db79bf4cbfa788e74f26672dc7c97a228ac665",
+  "bytes": 21218,
+  "sha256": "22a3ce1c93be70c181212f041b4fe7d6c36ddc87a1ab7112c08cdb1f0d55e56a",
+  "codeOnly": true,
+  "awsCalls": 0,
+  "liveTopologyEstablished": false,
+  "productionDefectEstablished": false,
+  "acceptance": "Exact runtimeAcceptanceRequirements source only; synthetic358requests/13backendcases are owner evidence, not independently rerun or live measurements here.",
+  "whenShippingRouteRestored": "Request explicitly read-only operator-supplied DNS/TLS, ordered actual HTTPS listener conditions/actions and target/deployed artifact identities; then qualify approved synthetic fixtures at actual API/Workspace/Web origins, all179GET+HEAD, native8080/healthz and browser flows separately. No live GET without approved qualified fixture scope."
+}

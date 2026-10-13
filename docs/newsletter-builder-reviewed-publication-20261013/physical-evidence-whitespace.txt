@@ -1,0 +1,10 @@
+docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch:28: trailing whitespace.
++ 
+docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch:49: trailing whitespace.
++ 
+docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch:362: trailing whitespace.
++ 
+docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout:23: trailing whitespace.
++  
+docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout:41: trailing whitespace.
++  

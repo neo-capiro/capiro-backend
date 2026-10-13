@@ -1,0 +1,25 @@
+{
+  "verifiedAtUtc": "2026-10-13T03:52:02.061437+00:00",
+  "url": "https://github.com/neo-capiro/capirov2/pull/2443",
+  "draft": true,
+  "state": "OPEN",
+  "head": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+  "tree": "ebc1248a4eead209816142791c09681980ecd148",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "remoteHeadTreeVerified": true,
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "componentHashes": [
+    {
+      "index": "docs/newsletter-declared-header-contract-adaptation-20261013/SHA256-INDEX.json",
+      "physicalEntriesVerified": 31
+    },
+    {
+      "index": "docs/newsletter-declared-header-contract-independent-review-20261013/SHA256-INDEX.json",
+      "physicalEntriesVerified": 48
+    }
+  ],
+  "sourcePathsOnly": 2,
+  "builderScopeIncludedInEdgeDraft": false,
+  "mainMergeDeployment": false,
+  "ghWarning": "six uncommitted root-worktree source handoff/dependency links existed; explicit --head isolated reviewed branch was verified to contain only the two CODEpaths and author/review docs."
+}

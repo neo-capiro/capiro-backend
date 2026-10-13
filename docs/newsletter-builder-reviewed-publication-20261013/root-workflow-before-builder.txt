@@ -1,0 +1,21 @@
+.FF...
+======================================================================
+FAIL: test_current_receiving_job_and_dependency_closure (__main__.SourceJobsContract.test_current_receiving_job_and_dependency_closure) (file='scripts/ci/newsletter-artifact-packaging-plan.spec.mjs')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/scripts/ci/backend-retirement-source-jobs.contract.spec.py", line 82, in test_current_receiving_job_and_dependency_closure
+    self.assertTrue((ROOT / file).is_file(), "missing source owner")
+AssertionError: False is not true : missing source owner
+
+======================================================================
+FAIL: test_current_receiving_job_and_dependency_closure (__main__.SourceJobsContract.test_current_receiving_job_and_dependency_closure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/scripts/ci/backend-retirement-source-jobs.contract.spec.py", line 86, in test_current_receiving_job_and_dependency_closure
+    self.assertTrue((ROOT / file).is_file(), file)
+AssertionError: False is not true : scripts/build-newsletter-release.sh
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.708s
+
+FAILED (failures=2)

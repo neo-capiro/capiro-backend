@@ -1,0 +1,22 @@
+{
+  "capturedAtUtc": "2026-10-13T03:19:03.626734+00:00",
+  "backendMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "frontendDraft": 16,
+  "frontendHead": "7c87678730538958ace9762f824dc3e588bf445b",
+  "frontendBranch": "integration/capiro-newsletter-port-20261012",
+  "frontendState": "open",
+  "frontendDraftState": true,
+  "healthSource": {
+    "path": "apps/web/src/app/healthz/route.ts",
+    "gitBlob": "41063cfff71a7d794b9e3996b725c78ee6ef9ca0",
+    "bytes": 68,
+    "sha256": "a748db71cb16ffa1d6f4e80dc6ab84ff6ced275817e768ad9a0837c8662b169c",
+    "sourceHasGetHandler": true,
+    "sourceResponse": "JSON {status:ok}, status200 by Response.json default",
+    "actualBuiltHealthzMeasured": false
+  },
+  "sourceReadOnly": true,
+  "frontendWrites": false,
+  "awsCalls": 0,
+  "nativeRuntimeAcceptance": false
+}

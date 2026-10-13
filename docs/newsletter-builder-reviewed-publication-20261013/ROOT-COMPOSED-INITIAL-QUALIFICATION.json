@@ -1,0 +1,39 @@
+{
+  "capturedAtUtc": "2026-10-13T03:33:48.598351+00:00",
+  "sourceHead": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+  "sourceTree": "e407e92c1fdc55f1fdb1adb1e349159e662abbb2",
+  "qualifiedBoundedCommands": [
+    {
+      "command": "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "cases": 75,
+      "passed": 75,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0,
+      "log": "root-current-builder-contracts.tap"
+    },
+    {
+      "command": "node --test scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0,
+      "log": "root-current-edge-model.tap"
+    },
+    {
+      "command": "python3 scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "log": "root-workflow-current-edge-closure.txt"
+    }
+  ],
+  "qualificationBoundary": "staticsource + physical labelledsynthetic artifact construction; canonicalrealassetconsumerrejectssyntheticfixture; no image/app/native/liveedge proof",
+  "knownReviewFindings": "seven credential-style paths admitted into synthetic FS ports; unlabelledcustomIO admission/durabilityscope; correction pending",
+  "actualRealArtifactMeasured": false,
+  "nativeImageBuilt": false,
+  "appServed": false,
+  "awsCalls": 0,
+  "productionChanged": false
+}

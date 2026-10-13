@@ -1,0 +1,42 @@
+{
+  "capturedAtUtc": "2026-10-13T03:19:42.080952+00:00",
+  "baseHead": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "workflowInitialHead": "6beee305b0c23ed3c51ed4cebb285559733480ed",
+  "correctedSourceHead": "56d565f8c698c526a05f822083ea616d09e81bb5",
+  "correctedSourceTree": "57ae9f8e7547d742fd094dc3f6dfcedc39046c18",
+  "sourcePaths": {
+    ".github/workflows/backend-cleanup-preservation.yml": "985d30cf0969bfae500b367691ee1298173758c792a2f6fd1ff0f4c77e832cb8",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py": "1a488a3ad6857df9cf9d401a6086472fb4f9b63d637da404467f47475cc59c24",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553"
+  },
+  "commands": [
+    {
+      "command": "python3 scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "result": "initial expected dependency RED: builder/packaging spec absent; four other checks passed",
+      "log": "root-workflow-before-builder.txt"
+    },
+    {
+      "command": "node --test scripts/ci/onboard-spa-artifact.contract.spec.mjs scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "result": "90PASS/0skip/0todo",
+      "log": "root-static-owner-guards.tap"
+    },
+    {
+      "command": "node --test scripts/ci/florida-owned-portrait-release.spec.mjs scripts/ci/defense-backend-workspace.contract.spec.mjs scripts/ci/engagement-resilience-recovery.contract.spec.mjs scripts/ci/context-plane-scope.contract.spec.mjs scripts/ci/context-plane-validation-scope.spec.mjs scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "result": "original89PASS/1RED, corrected91PASS/0skip/0todo; exactfour PR2435aliases inverse only",
+      "originalLog": "root-wired-backend-source-guards.tap",
+      "correctedLog": "root-wired-backend-source-guards-corrected.tap"
+    },
+    {
+      "command": "node --test scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "result": "7PASS/0skip/0todo; includes10bounded mutants",
+      "log": "root-rebuild-scope-alias-inverse.tap"
+    }
+  ],
+  "sourceOnly": true,
+  "fakeProcessCases": true,
+  "appProviderDatabaseDockerAwsExecuted": false,
+  "allFailuresPreserved": true,
+  "fullRetirementFloorQualified": false,
+  "fullDeployedReplacementQualified": false,
+  "builderAssemblyClosure": "PENDING I source freeze + independentreview"
+}

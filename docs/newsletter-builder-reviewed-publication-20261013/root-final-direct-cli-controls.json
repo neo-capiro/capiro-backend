@@ -1,0 +1,45 @@
+{
+  "testedAtUtc": "2026-10-13T03:51:27.034582+00:00",
+  "sourceHead": "b146f858504820f59d112ea8193c7678a40e8490",
+  "builderSource": "c26ae029e3c6319a265f735f687758b22093c401",
+  "actualCachedNode": true,
+  "cases": [
+    {
+      "label": "noargs",
+      "argv": [],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "{\"status\":\"FAIL\",\"assemblyCompleted\":false,\"shippingAuthorized\":false,\"usage\":\"Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS\",\"error\":\"Newsletter assembly refused: one explicit --plan/--run and all twelve flag values required\"}\n"
+    },
+    {
+      "label": "help",
+      "argv": [
+        "--help"
+      ],
+      "exit": 0,
+      "stdout": "Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS\n",
+      "stderr": ""
+    },
+    {
+      "label": "unknown",
+      "argv": [
+        "--unknown"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "{\"status\":\"FAIL\",\"assemblyCompleted\":false,\"shippingAuthorized\":false,\"usage\":\"Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS\",\"error\":\"Newsletter assembly refused: one explicit --plan/--run and all twelve flag values required\"}\n"
+    },
+    {
+      "label": "missingrun",
+      "argv": [
+        "--run"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "{\"status\":\"FAIL\",\"assemblyCompleted\":false,\"shippingAuthorized\":false,\"usage\":\"Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS\",\"error\":\"Newsletter assembly refused: one explicit --plan/--run and all twelve flag values required\"}\n"
+    }
+  ],
+  "inputOptionsSupplied": false,
+  "artifactInputIo": false,
+  "appProviderNativeDockerAwsOperations": false
+}

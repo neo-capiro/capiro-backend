@@ -1,0 +1,22 @@
+[
+  {
+    "index": "docs/cleanup-newsletter-canonical-builder-20261013/SHA256-INDEX.json",
+    "verified": {
+      "packet": 88,
+      "sourceBindings": 5
+    }
+  },
+  {
+    "index": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/SHA256-FINAL-INDEX.json",
+    "verified": {
+      "packet": 74,
+      "sourceBindings": 10
+    }
+  },
+  {
+    "index": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/SHA256-INITIAL-INDEX.json",
+    "verified": {
+      "packet": 31
+    }
+  }
+]

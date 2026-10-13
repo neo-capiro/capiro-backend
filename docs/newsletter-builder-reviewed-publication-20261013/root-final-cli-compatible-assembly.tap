@@ -1,0 +1,40 @@
+✔ physical synthetic assembly publishes complete bytes, links and durable receipt then independently revalidates (591.268584ms)
+✔ canonical inspector has no ports and rejects invalid declaration/pin grammar before input scans (70.480463ms)
+✔ assembly refuses unapproved source before filesystem calls (64.27268ms)
+✔ assembly refuses wrong repository before filesystem calls (49.73982ms)
+✔ assembly refuses old Node before filesystem calls (47.183815ms)
+✔ assembly refuses wrong libc before filesystem calls (62.520497ms)
+✔ assembly refuses unknown platform before filesystem calls (45.550723ms)
+✔ assembly refuses coerced pin before filesystem calls (84.132549ms)
+✔ assembly refuses manifest newline before filesystem calls (74.262565ms)
+✔ assembly refuses credential output before filesystem calls (68.207746ms)
+✔ parser and plan require explicit run mode and every literal option, with no I/O admission (74.909051ms)
+✔ argv pins and manifest checksum drift cannot create a lock or output (46.737231ms)
+✔ unlisted payloads, modified compiled bytes and changed internal link refuse before output writes (209.035085ms)
+✔ declared resource overrun refuses before any raw input enumeration (50.97077ms)
+✔ existing output, replay and input/output overlap preserve current bytes (400.591656ms)
+✔ cooperative same-output concurrency allows one immutable publication and cleans its lock (741.857758ms)
+✔ failed staged rename rolls back only owned scratch and leaves inputs untouched (345.578047ms)
+✔ unlabelled injected identity cannot pretend to be production assembly (77.133519ms)
+✔ actual canonical shell help/noargs/unknown/plan remain explicit and remove ambient Node loaders (211.042496ms)
+✔ physical assembly preserves0755 helper execute bits without authenticating modes or granting runtime admission (505.61713ms)
+✔ prepublication directory fsync failure never returns a success receipt and rolls back owned output (363.296845ms)
+✔ postrename directory fsync failure never returns a success receipt and rolls back owned output (413.423199ms)
+✔ canonical path owner refuses credentials.json manifest before filesystem callbacks (51.609744ms)
+✔ canonical path owner refuses envrc manifest before filesystem callbacks (45.288821ms)
+✔ canonical path owner refuses npmrc manifest before filesystem callbacks (58.205412ms)
+✔ canonical path owner refuses service account manifest before filesystem callbacks (55.902585ms)
+✔ canonical path owner refuses private key manifest before filesystem callbacks (42.797797ms)
+✔ canonical path owner refuses uppercase AWS output before filesystem callbacks (77.093932ms)
+✔ canonical path owner refuses env variant output before filesystem callbacks (54.864218ms)
+✔ unlabelled filesystem injection refuses before callbacks and extra labels cannot alter production mode (67.527392ms)
+✔ explicit filesystem model cannot attest atomic or durable native filesystem effects (375.800865ms)
+✔ stat/read growth consumes at most manifest budget+1 bytes and never calls whole-file readFile (66.231514ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5632.953947

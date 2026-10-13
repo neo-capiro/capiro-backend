@@ -1,0 +1,6 @@
+{
+  "command": "git ls-tree -r 1090322d9a4067b605e91afef10cef5f86900b61 -- .github/workflows/backend-cleanup-preservation.yml scripts/ci/backend-retirement-source-jobs.contract.spec.py scripts/lib/newsletter-artifact-packaging-plan.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+  "exit": 128,
+  "output": "fatal: not a tree object\n",
+  "resolution": "Read-only exact GitHub contents/blob code access; no complete donor/report retrieval or unsafe bypass."
+}

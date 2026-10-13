@@ -1,0 +1,18 @@
+{
+  "checkedAtUtc": "2026-10-13T03:30:43.328416+00:00",
+  "explicitCanonicalLocationsOnly": true,
+  "locations": [
+    {
+      "path": "/workspace/capirov2/release-artifacts/capiro-frontend",
+      "exists": false,
+      "isDirectory": false
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/release-artifacts/capiro-frontend",
+      "exists": false,
+      "isDirectory": false
+    }
+  ],
+  "broaderScanPerformed": false,
+  "actualApprovedArtifactQualified": false
+}

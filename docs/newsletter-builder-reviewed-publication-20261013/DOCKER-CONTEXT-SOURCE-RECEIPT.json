@@ -1,0 +1,13 @@
+{
+  "sourceHead": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "path": ".dockerignore",
+  "gitBlob": "ed20b648bdc2849a9d83d255138c90b4b467349f",
+  "sha256": "6274fffe695756dee355b6be67ba435e0f07d2a2354f3b0fb751b7b85c20a502",
+  "unchanged": true,
+  "inference": "Current root-only node_modules/dist ignore patterns do not match release-artifacts/capiro-frontend/rootfs nested payload; default Dockerignore preserved. This is source matching analysis, not an actual Docker context/build measurement.",
+  "primarySources": [
+    "https://docs.docker.com/build/concepts/context/#dockerignore-files",
+    "https://github.com/moby/patternmatcher/blob/main/patternmatcher.go"
+  ],
+  "dockerInvocations": 0
+}

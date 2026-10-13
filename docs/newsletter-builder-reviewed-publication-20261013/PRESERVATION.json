@@ -1,0 +1,43 @@
+{
+  "previousIndex": "docs/standalone-artifact-reviewed-publication-20261013/SHA256SUMS.json",
+  "previousEntries": 2923,
+  "unchangedPhysicalEntries": 2920,
+  "explicitSupersessions": [
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "preservedCopy": "docs/newsletter-builder-reviewed-publication-20261013/PR2441-HANDOFF.md.txt",
+      "priorSha256": "9ead4e76a4ff1d4bce6fa6555e2dc71bacc87b1b0f64264f403b52527b5df1d8"
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "preservedCopy": "docs/newsletter-builder-reviewed-publication-20261013/PR2441-frontend-artifact-docker.contract.spec.mjs.txt",
+      "priorSha256": "5f83948bcddd8fa77a22c568277c5c7073657d35f3aaca9c19a64f8917f9c72d"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "preservedCopy": "docs/newsletter-builder-reviewed-publication-20261013/PR2441-frontend-standalone-artifact-contract.mjs.txt",
+      "priorSha256": "5f7f5d8342184a7118e4ac009afd3732cb63dd20ef8fb78a44ec804ba5949feb"
+    }
+  ],
+  "previousIndexUnchanged": true,
+  "allNewCandidateHeadsPreservedAsAncestors": [
+    "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+    "6beee305b0c23ed3c51ed4cebb285559733480ed",
+    "56d565f8c698c526a05f822083ea616d09e81bb5",
+    "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+    "9647f297761020f8d8f51c8ebdc49d1a5f8e981f",
+    "df86e43aba9f16d0c28c68202ebd88f913aa2ce3",
+    "6d24ee5a210ee92ccaeaf6f465e0b3b69b32fd32",
+    "7ee13b8d26888a33377a29cf00637ca64b20bded",
+    "c26ae029e3c6319a265f735f687758b22093c401",
+    "e24e4693800c1eef4d68556bea4f63866a36f453",
+    "fccc2c94918c2de22c5f8a1ca7eb72260a98c5da",
+    "fc6c50532761cda6e9a8d12596e873db6afd7113",
+    "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+    "fd93f18f1f609e989706b8d19e0064ee63c84fa9",
+    "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"
+  ],
+  "oldPlansMigrationsProductContractsDefaultsPreserved": true,
+  "protectedReportingAndSeparatelyPendingNativePublication": "untouched",
+  "fullHistoricalWhitespace": "OPEN; no trimming/exclusion/waiver"
+}

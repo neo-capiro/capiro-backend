@@ -1,0 +1,31 @@
+{
+  "capturedAtUtc": "2026-10-13T03:54:10.180746+00:00",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "sourceHead": "b146f858504820f59d112ea8193c7678a40e8490",
+  "sourceTree": "fc684dda9b9ff4f2cb0e1bf3b4af4f5e2317cb8e",
+  "sourcePaths": {
+    ".github/workflows/backend-cleanup-preservation.yml": "34a9024fc7d9384b5d7d74f2eb69f7f6e9ceafb60eff4e7398804b18a6d78167",
+    "scripts/build-newsletter-release.sh": "7e770ccf72b164b90594dc490fed9fca1db0e3d8fd7cb310aa02d6307c93259e",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py": "219e0b5ffd63e7ec6201380b388b43d21ce9a77790a2bb7aa8932ead4f633acd",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs": "44dbd36e9dcb8f6dbd1354fcd250615afd84d151d150f9523955278d805e6f79",
+    "scripts/ci/newsletter-declared-edge.contract.spec.mjs": "e0294f1e1407a23fc296fb08c8a3ea5d1adfc7884443a4e0c927515b19f1ef36",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461",
+    "scripts/lib/newsletter-declared-edge-contract.mjs": "0c61e5902882fdc51e56559b3bb862c53be0aa03e8d08a0d024ebd3ee90c7bd6"
+  },
+  "nonDocumentPaths": 10,
+  "outsideAgreedClosureChanges": 0,
+  "prismaMigrationChanges": [],
+  "builderSource": "c26ae029e3c6319a265f735f687758b22093c401",
+  "builderSourceTree": "c23bf6bdc107734f5101eb1df4086e717b21546e",
+  "workflowSource": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+  "reviewedEdgeDraft": 2443,
+  "reviewedEdgeHead": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+  "rootCurrentTests": 354,
+  "directCliControls": 4,
+  "sourceOnly": true,
+  "actualArtifactNativeRuntimeBrowserDeployedQualified": false,
+  "mainMergeDeployAwsDatabaseProviderCredentialsPermissionOperations": false
+}

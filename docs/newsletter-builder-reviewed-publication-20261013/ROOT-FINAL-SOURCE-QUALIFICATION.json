@@ -1,0 +1,52 @@
+{
+  "capturedAtUtc": "2026-10-13T03:41:04.801361+00:00",
+  "composedSourceHead": "905d2af692918cad003ee4ff40f9da10c07f390e",
+  "composedSourceTree": "9746cc6de4448c9ae3e0eb245d0f6ef89ab530a5",
+  "builderSource": "7ee13b8d26888a33377a29cf00637ca64b20bded",
+  "builderSourceTree": "2232f700af2a46c613690be23ab050de2e734193",
+  "workflowSource": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+  "edgeSource": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "rootQualification": [
+    {
+      "cases": 85,
+      "scope": "32actualphysicalsyntheticassembly+50canonicalstandalone+3Docker sourcecontract",
+      "log": "root-final-builder-contracts.tap"
+    },
+    {
+      "cases": 5,
+      "scope": "workflowstructural/refusal/defaultidentity and six actualfaketoolfailurepositions",
+      "log": "root-final-workflow-contracts.txt"
+    },
+    {
+      "cases": 90,
+      "scope": "publishedstaticowner guards byteexact to523",
+      "log": "root-static-owner-guards.tap"
+    },
+    {
+      "cases": 91,
+      "scope": "reviewedbackendsource/scopes including exactfouraliasguard repair",
+      "log": "root-wired-backend-source-guards-corrected.tap"
+    },
+    {
+      "cases": 30,
+      "scope": "currentnine-sourceinertedgeprojection",
+      "log": "root-current-edge-model.tap"
+    },
+    {
+      "cases": 53,
+      "scope": "ownedloopbackfixturestransport underpreservedrefusalhost",
+      "stdout": "root-wired-loopback-fixtures.stdout",
+      "stderr": "root-wired-loopback-fixtures.stderr"
+    }
+  ],
+  "totalCurrentCases": 354,
+  "failed": 0,
+  "skipped": 0,
+  "todo": 0,
+  "realArtifactAssetsMeasured": false,
+  "nativeImageAbiRuntimeQualified": false,
+  "browserDeployedDnsTlsQualified": false,
+  "mainMergeDeploymentAwsDatabaseProviderOperations": false,
+  "fullHistoricalWhitespaceQualified": false,
+  "independentReview": "PENDING finalseals; authorreplaygreen doesnotreplaceindependentreview"
+}
