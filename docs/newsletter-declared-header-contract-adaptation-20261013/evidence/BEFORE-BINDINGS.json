@@ -1,0 +1,20 @@
+{
+  "head": "89107485cd8432d0c7f29544c94c570acc32deda",
+  "files": [
+    {
+      "path": "scripts/lib/newsletter-declared-edge-contract.mjs",
+      "blob": "84db79bf4cbfa788e74f26672dc7c97a228ac665",
+      "bytes": 21218,
+      "sha256": "22a3ce1c93be70c181212f041b4fe7d6c36ddc87a1ab7112c08cdb1f0d55e56a",
+      "raw": "pr2440-before-model.mjs"
+    },
+    {
+      "path": "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "blob": "fd50f7a8048400a4d4b57e073d53685b45d44963",
+      "bytes": 21605,
+      "sha256": "0b89262c2539853af083f1a0c547a74526c23fdb9b3e559ba64e064034ac5401",
+      "raw": "pr2440-before-spec.mjs"
+    }
+  ],
+  "scope": "Only exact two published code files retrieved, no report or runtime operator"
+}

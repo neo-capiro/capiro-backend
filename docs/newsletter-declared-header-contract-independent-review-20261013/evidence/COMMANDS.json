@@ -1,0 +1,95 @@
+{
+  "node": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "nodeVersion": "v24.19.0",
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "author": "fd93f18f1f609e989706b8d19e0064ee63c84fa9",
+  "invocations": [
+    {
+      "argv": [
+        "python3",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/prepare.py"
+      ],
+      "exitCode": 0
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host-attempt0.cjs",
+        "--test",
+        "--test-isolation=none",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/after/scripts/ci/newsletter-declared-edge.contract.spec.mjs"
+      ],
+      "exitCode": 7,
+      "raw": "candidate-attempt0"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host-attempt0.cjs",
+        "--test",
+        "--test-isolation=none",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/before/scripts/ci/newsletter-declared-edge.contract.spec.mjs"
+      ],
+      "exitCode": 7,
+      "raw": "before-attempt0"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host-attempt0.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/header-controls.mjs"
+      ],
+      "exitCode": 1,
+      "raw": "header-controls-attempt0"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/after/scripts/ci/newsletter-declared-edge.contract.spec.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "candidate"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/before/scripts/ci/newsletter-declared-edge.contract.spec.mjs"
+      ],
+      "exitCode": 1,
+      "raw": "before",
+      "genuineRegression": true
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/header-controls.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "header-controls"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/refusing-host.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/newsletter-declared-header-contract-independent-review-20261013/evidence/host-controls.cjs"
+      ],
+      "exitCode": 0,
+      "raw": "host-controls"
+    }
+  ]
+}

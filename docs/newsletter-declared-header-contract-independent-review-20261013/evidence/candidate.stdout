@@ -1,0 +1,38 @@
+✔ projection verifies nine exact source bytes and exposes the declared listener with provenance (3.105628ms)
+✔ publication origins reproduce distinct capability and web asset precedence without reading configuration (1.145188ms)
+✔ ordered API rule beats marketing and web hosts, including arbitrary hosts and ordinary recipient links (1.616217ms)
+✔ Workspace upload route precedes the web rule and remains distinct from workspace SPA paths (0.242243ms)
+✔ static assets follow explicit web hosts; unknown and vnext hosts do not silently join the managed listener (0.52926ms)
+✔ same app/root input suppresses the conditional marketing rule without inventing runtime hosts (4.571762ms)
+✔ other declared backend paths cannot be misreported as web by the newsletter subset (0.319462ms)
+✔ manual preview remains a separate exact default gate requiring both path and header (0.527983ms)
+✔ capability methods query and privacy are source-declared; edge forwarding grants no backend method (0.671761ms)
+✔ immutable uploads retain their exact declared public headers and current GET contract (0.282292ms)
+✔ nginx 8080 health and five static security headers remain declarations, separate from successor parity (0.233398ms)
+✔ source publication, local equivalents and direct Next failures cannot promote live acceptance flags (0.391977ms)
+✔ missing extra wrong-type and altered source bytes refuse before producing a contract (0.455832ms)
+✔ pinned source mutation refuses: API wrong path (1.399423ms)
+✔ pinned source mutation refuses: API priority shadows marketing (1.350519ms)
+✔ pinned source mutation refuses: Workspace routes to web (1.639412ms)
+✔ pinned source mutation refuses: preview header broadening (0.743345ms)
+✔ pinned source mutation refuses: private page cache leakage (1.027599ms)
+✔ pinned source mutation refuses: unexpected capability method (1.363841ms)
+✔ pinned source mutation refuses: survey drops exact answer query (0.726404ms)
+✔ pinned source mutation refuses: upload immutable policy removed (0.602933ms)
+✔ pinned source mutation refuses: origin precedence reversed (0.442093ms)
+✔ pinned source mutation refuses: background resolved through publicUrl (0.499107ms)
+✔ pinned source mutation refuses: health port changed (0.349232ms)
+✔ hosts must be supplied explicitly and request targets never pass through a URL normalizer (3.721644ms)
+✔ uppercase configuration hosts refuse instead of changing the source raw marketing comparison (6.179107ms)
+✔ canonical configuration preserves case-insensitive request Host selection for every newsletter target (0.303826ms)
+✔ special-name case-variant header duplicates refuse in ordinary and null-prototype inputs (0.604115ms)
+✔ a single special-name header remains payload metadata without changing routing or preview authorization scope (0.710177ms)
+✔ header ambiguity and forged projection objects refuse; frozen source contracts cannot be edited (0.596322ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 86.197998

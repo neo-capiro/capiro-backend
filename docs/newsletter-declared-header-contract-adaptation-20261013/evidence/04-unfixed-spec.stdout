@@ -1,0 +1,58 @@
+✔ projection verifies nine exact source bytes and exposes the declared listener with provenance (2.049659ms)
+✔ publication origins reproduce distinct capability and web asset precedence without reading configuration (1.365796ms)
+✔ ordered API rule beats marketing and web hosts, including arbitrary hosts and ordinary recipient links (1.80344ms)
+✔ Workspace upload route precedes the web rule and remains distinct from workspace SPA paths (0.267199ms)
+✔ static assets follow explicit web hosts; unknown and vnext hosts do not silently join the managed listener (0.590617ms)
+✔ same app/root input suppresses the conditional marketing rule without inventing runtime hosts (4.912647ms)
+✔ other declared backend paths cannot be misreported as web by the newsletter subset (0.286973ms)
+✔ manual preview remains a separate exact default gate requiring both path and header (0.763533ms)
+✔ capability methods query and privacy are source-declared; edge forwarding grants no backend method (0.787945ms)
+✔ immutable uploads retain their exact declared public headers and current GET contract (0.266049ms)
+✔ nginx 8080 health and five static security headers remain declarations, separate from successor parity (0.336597ms)
+✔ source publication, local equivalents and direct Next failures cannot promote live acceptance flags (0.370797ms)
+✔ missing extra wrong-type and altered source bytes refuse before producing a contract (0.349986ms)
+✔ pinned source mutation refuses: API wrong path (1.752048ms)
+✔ pinned source mutation refuses: API priority shadows marketing (0.965186ms)
+✔ pinned source mutation refuses: Workspace routes to web (1.026999ms)
+✔ pinned source mutation refuses: preview header broadening (0.718974ms)
+✔ pinned source mutation refuses: private page cache leakage (0.595259ms)
+✔ pinned source mutation refuses: unexpected capability method (1.461901ms)
+✔ pinned source mutation refuses: survey drops exact answer query (0.406179ms)
+✔ pinned source mutation refuses: upload immutable policy removed (0.51096ms)
+✔ pinned source mutation refuses: origin precedence reversed (3.827004ms)
+✔ pinned source mutation refuses: background resolved through publicUrl (0.774979ms)
+✔ pinned source mutation refuses: health port changed (0.438837ms)
+✔ hosts must be supplied explicitly and request targets never pass through a URL normalizer (3.655699ms)
+✔ uppercase configuration hosts refuse instead of changing the source raw marketing comparison (5.569724ms)
+✔ canonical configuration preserves case-insensitive request Host selection for every newsletter target (0.298909ms)
+✖ special-name case-variant header duplicates refuse in ordinary and null-prototype inputs (0.894629ms)
+✔ a single special-name header remains payload metadata without changing routing or preview authorization scope (0.769286ms)
+✔ header ambiguity and forged projection objects refuse; frozen source contracts cannot be edited (0.54333ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.490885
+
+✖ failing tests:
+
+test at scripts/ci/newsletter-declared-edge.contract.spec.mjs:276:1
+✖ special-name case-variant header duplicates refuse in ordinary and null-prototype inputs (0.894629ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///tmp/newsletter-header-before-stage-20261013/scripts/ci/newsletter-declared-edge.contract.spec.mjs:283:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /literal unambiguous headers required/,
+    operator: 'throws',
+    diff: 'simple'
+  }

@@ -1,0 +1,8 @@
+{
+  "rows": 82,
+  "beforePassed": 78,
+  "beforeFailed": 4,
+  "afterPassed": 82,
+  "afterFailed": 0,
+  "projectionBeforeAfterByteEqual": true
+}
