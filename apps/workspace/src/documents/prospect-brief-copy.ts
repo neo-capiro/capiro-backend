@@ -157,6 +157,7 @@ export async function prospectBriefCopyState(
 }
 
 interface AtomicReceipt {
+  tenantId: string;
   operation: 'copy_core_brief' | 'save_brief_copy';
   requestId: string;
   requestHash: string;
@@ -373,6 +374,7 @@ async function persistReceipt(
 ) {
   const after = await currentState(tx, tenantId, draftId);
   const receipt: AtomicReceipt = {
+    tenantId,
     operation,
     requestId,
     requestHash,

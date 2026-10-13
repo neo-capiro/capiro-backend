@@ -288,6 +288,7 @@ describe('pinned Core brief Workspace copy and atomic history', () => {
     const result = await f.copy();
     const d = f.documents()[0];
     expect(result.receipt.source).toEqual(f.source);
+    expect(result.receipt.tenantId).toBe(tenantId);
     expect(result.receipt.versionId).toBe(requestId);
     expect(d.sourceBriefVersion).toEqual(f.source);
     expect(d.body.blocks.map((b: any) => b.title)).toEqual(Object.values(briefSectionLabels));
