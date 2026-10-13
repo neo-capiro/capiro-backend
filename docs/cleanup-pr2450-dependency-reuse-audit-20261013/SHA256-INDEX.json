@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "sourceTree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+  "mode": "source-cache-metadata-and-authorized-task-owned-shared-emission",
+  "entries": [
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/REUSE-RECEIPT.md",
+      "bytes": 9653,
+      "sha256": "1f36915ad2c56caa04857806a0b923519a394c613aa0cc05de99665a926f2193"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/CACHED-RESOLUTIONS.json",
+      "bytes": 14143,
+      "sha256": "207314307ae176d6ff761e4b02d759be810a387e40ded17862067bcdf33d5fb2"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/INITIAL-CACHED-RESOLUTIONS.json",
+      "bytes": 13689,
+      "sha256": "6483bf91c7d734859ef08c14756c5d4d3ccdcf2b570aaa8dba0ba99ddb60f478"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/INITIAL-SOURCE-AND-CACHE.json",
+      "bytes": 85856,
+      "sha256": "f82bc03ec4c7d08d2dbd06a3ff248352dbd3f239bbf6726cbb4481ce181e02c1"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/LOCK-AND-AFFECTED-SOURCE.json",
+      "bytes": 9109,
+      "sha256": "d922fec6f434bf1b992b09a027f6584d7be553b669a627a1c45621d0fb3aa223"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/SOURCE-AND-CACHE.json",
+      "bytes": 86204,
+      "sha256": "6b58cbed30662c96be68aab46b96243ebf65134b145fd841d016285f233e665e"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/inspect-source-and-cache.py",
+      "bytes": 6752,
+      "sha256": "ae09b4cb5a51b4196df14780790e9370718c9f9fdebd4274dda6153b5afa99ee"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/evidence/resolve-cached-dependencies.cjs",
+      "bytes": 2142,
+      "sha256": "54f054e8d14426da4035c4afb99aece2b443b995f14897d067f5b5d3e6203df5"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/API-CHECK-COMMAND-PLAN.json",
+      "bytes": 2886,
+      "sha256": "af5756eeb0f72960a5910e66f1f1aacaf1ad606c74e133970eb0ae107ea8d204"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/COMMAND-PLAN-INITIAL-ERROR.json",
+      "bytes": 320,
+      "sha256": "b17ca600d3f7adb1cbf444ff7ed27aeb8062f466a0b09c1b2e5349addf83cae4"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/CURRENT-SHARED-HOST.json",
+      "bytes": 24745,
+      "sha256": "12ec6d41549de4ff59cff15a6edccaf105cb256b47dac48de596f4b3364736ae"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/OWNED-OVERLAY-LINKS.json",
+      "bytes": 11492,
+      "sha256": "1bbfcb8fb5f4311d2e37e39fcfe651a840c1e0acb5222297a71c3485fd817335"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/OWNED-OVERLAY-RESOLUTIONS.json",
+      "bytes": 4865,
+      "sha256": "3af02eec9418e624552f1a32d55da9932d49d5ff744e9f42e644e2eb313cb45f"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/PRE-SHARED-REFUSALS.json",
+      "bytes": 487,
+      "sha256": "9b97f4b622c7bc091d046a3f9cd079bac5637ca54d72966457a74dae72c38bca"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/SHARED-EMISSION-COMPARISON.json",
+      "bytes": 23436,
+      "sha256": "eb86fcf08c5c1d2eaa81da050d921f8a36d33a7b541081ba07122753702becf3"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/api-build-owned.tsconfig.json",
+      "bytes": 251,
+      "sha256": "93f041c3c0384ea4f5de5ab75be87e69e8a94c1ce88979a09293429e70b7fccf"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/shared-emission.command.json",
+      "bytes": 672,
+      "sha256": "0908c81d1344eb36de4091984dae7a74e7c893247cf3e9cdab81571190249e2e"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/shared-emission.exit.json",
+      "bytes": 16,
+      "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/shared-emission.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2450-dependency-reuse-audit-20261013/owned-host/shared-emission.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "packageModulesEvaluated": false,
+  "clientConstructed": false,
+  "rows": [
+    {
+      "name": "@prisma/client",
+      "entry": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js",
+      "realEntry": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js"
+    },
+    {
+      "name": "@capiro/shared",
+      "entry": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/index.js",
+      "realEntry": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/index.js"
+    },
+    {
+      "name": "@capiro/shared/ai-model-policy",
+      "entry": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/ai-model-policy.js",
+      "realEntry": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/ai-model-policy.js"
+    },
+    {
+      "name": "@capiro/shared/meri-read-outcome",
+      "entry": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/meri-read-outcome.js",
+      "realEntry": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/meri-read-outcome.js"
+    },
+    {
+      "name": "@capiro/meriv2-core",
+      "entry": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/dist/index.js",
+      "realEntry": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/dist/index.js"
+    },
+    {
+      "name": "@nestjs/common",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/index.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/index.js"
+    },
+    {
+      "name": "@nestjs/core",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/index.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/index.js"
+    },
+    {
+      "name": "@nestjs/platform-express",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express/index.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express/index.js"
+    },
+    {
+      "name": "@nestjs/testing",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing/index.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing/index.js"
+    },
+    {
+      "name": "@clerk/backend",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/index.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/index.js"
+    },
+    {
+      "name": "reflect-metadata",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/Reflect.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/Reflect.js"
+    },
+    {
+      "name": "typescript",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js"
+    },
+    {
+      "name": "pg",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/index.js",
+      "realEntry": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/index.js"
+    }
+  ]
+}
