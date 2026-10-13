@@ -1,0 +1,11 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/bounded-retirement-reviewed-publication-20261013/evidence/clause-comment-probe.mjs"
+  ],
+  "exitCode": 0,
+  "programSha256": "78d67aadcf5b528e77d80cb551f2e72bbd5baf72d34e5758c1ead595c895d862",
+  "stdoutSha256": "ac9fa5a00386b6e7fd5064073af84c35c05916ec4e5daefb33410f9ea88ff396",
+  "inertStringsOnly": true
+}

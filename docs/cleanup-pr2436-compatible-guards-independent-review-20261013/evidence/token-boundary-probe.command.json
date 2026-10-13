@@ -1,0 +1,14 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "sourceTree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-probe.mjs"
+  ],
+  "exit": 0,
+  "seconds": 0.12263607978820801,
+  "stdoutSha256": "29dbcfc752be471878593bc9fef536ac9e7bfdd321cca1d8bea4f9456d59b790",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

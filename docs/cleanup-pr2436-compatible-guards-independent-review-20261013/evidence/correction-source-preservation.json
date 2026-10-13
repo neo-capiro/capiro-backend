@@ -1,0 +1,50 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "tree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "before": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "base": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "onlyTwoRepairNonDocPaths": [
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+    "scripts/lib/onboard-spa-artifact-contract.mjs"
+  ],
+  "allFiveAcceptedScopePaths": [
+    {
+      "path": "apps/onboard-api/Dockerfile.spa-artifact",
+      "mode": "100644",
+      "blob": "274557224d218a3c5545022d5273fe2c13562b8d",
+      "sha256": "5f365d2dfb7d47f44d697e680a69bbd4ad82db72493cc3294393177d93be90a9"
+    },
+    {
+      "path": "scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "mode": "100644",
+      "blob": "debf432a07381ba49bffbc4200570b75fda77c00",
+      "sha256": "baa564d67a76b2b3c8c902dc23514b7bb4c62ec329e218574f2551448edf5f56"
+    },
+    {
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "mode": "100644",
+      "blob": "c35a50c5bfa920537d3a3f2281b30fe56a1440f4",
+      "sha256": "87c2a53fa32f049254094d32312f210e44fbf7029decfe07a025c5cd01c10343"
+    },
+    {
+      "path": "scripts/lib/newsletter-static-release-contract.mjs",
+      "mode": "100644",
+      "blob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+      "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d"
+    },
+    {
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "mode": "100644",
+      "blob": "916a8d921caaa5f6518d241260f0c2b6bea296d8",
+      "sha256": "0bf4ea3cb8e2191a38e0cb731f9487cafaf369e06d6a2719990c206d113f8a7c"
+    }
+  ],
+  "allInitial24004OutsideScopePathsExact": true,
+  "initial20ReceiptHashesPreserved": true,
+  "original128RedAncestor": true,
+  "repair3769Ancestor": true,
+  "old72CaseNamesRetained": true,
+  "newCaseCount": 79,
+  "originalNewsletterHelperAndSpecBytesModesExact": true,
+  "defaultDockerPackageWorkflowsWindowsPrismaSharedProtectedSourceOutsideScopeExact": "by Git modes/blobs only; no excluded body reads"
+}

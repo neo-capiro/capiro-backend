@@ -1,0 +1,22 @@
+{
+  "tool": "TypeScript 5.9.3",
+  "scope": "parser-only syntax check; no module resolution, code execution or browser",
+  "cases": [
+    {
+      "name": "comment-separated bare static import",
+      "diagnostics": []
+    },
+    {
+      "name": "comment-separated nonstatic dynamic import",
+      "diagnostics": []
+    },
+    {
+      "name": "comment-separated bare dynamic import",
+      "diagnostics": []
+    },
+    {
+      "name": "comment-separated bare export",
+      "diagnostics": []
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "scope": "pure response and in-memory port model; no requests/uploads/capability operations/asset parity",
+  "cases": [
+    {
+      "name": "default source receipt never confuses metadata with assets or serving",
+      "pass": true
+    },
+    {
+      "name": "synthetic oracle is explicitly not actual byte verification",
+      "pass": true
+    },
+    {
+      "name": "read port enumerates only listed paths and never verifies external membership",
+      "pass": true
+    },
+    {
+      "name": "upload byte proof grants no stored asset tenant/capability/serving authority",
+      "pass": true
+    },
+    {
+      "name": "capability route and response are inert header contracts only",
+      "pass": true
+    },
+    {
+      "name": "arbitrary extra case-insensitive auth fallback header refuses",
+      "pass": true
+    },
+    {
+      "name": "invalid provenance refuses before caller read effects",
+      "pass": true
+    },
+    {
+      "name": "canonical metadata remains independent of mutable returned rows",
+      "pass": true
+    },
+    {
+      "name": "default and explicit parity invocations remain distinct",
+      "pass": true
+    },
+    {
+      "name": "host refuses fetch before any network attempt",
+      "pass": true
+    }
+  ],
+  "pass": 10,
+  "fail": 0
+}
