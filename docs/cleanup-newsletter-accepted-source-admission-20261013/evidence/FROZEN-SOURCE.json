@@ -1,0 +1,14 @@
+{
+  "head": "f18f918a8103e8e3cb36e47c65d2f6651cb1fd7b",
+  "tree": "d4d541ba047f1ba6a752248e4107a41e54052b51",
+  "base": "07e92408d9c396de2003259d125f828cc99c7e2c",
+  "sourcePaths": [
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/lib/newsletter-accepted-source-profile.json",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs"
+  ],
+  "checks": "100/100 boundedcases=50unchangedstandalone+32preservedassembly+18sourceadmission",
+  "stage": "/workspace/cleanup-newsletter-accepted-source-admission-20261013"
+}

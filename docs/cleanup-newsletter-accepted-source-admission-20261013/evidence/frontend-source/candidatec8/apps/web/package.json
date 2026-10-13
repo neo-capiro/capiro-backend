@@ -1,0 +1,62 @@
+{
+  "name": "@capiro/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test:capiro": "vitest run --config src/shared/capiro/vitest.config.mts",
+    "test:browser": "playwright test",
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "format:check": "prettier --check src test tests *.json *.ts *.mjs",
+    "architecture": "node ../../scripts/architecture.mjs",
+    "test:browser:modules": "playwright test --config test/browser/playwright.config.ts"
+  },
+  "dependencies": {
+    "@capiro/ui": "0.0.0",
+    "@clerk/nextjs": "7.9.14",
+    "@fontsource/newsreader": "5.3.0",
+    "@schedule-x/calendar": "4.9.1",
+    "@schedule-x/calendar-controls": "4.9.1",
+    "@schedule-x/react": "4.1.0",
+    "@schedule-x/theme-default": "4.9.1",
+    "@tiptap/core": "3.31.4",
+    "@tiptap/extension-image": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "dompurify": "3.4.16",
+    "geist": "1.7.2",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "temporal-polyfill": "0.3.2",
+    "zod": "4.6.5",
+    "@tanstack/react-query": "5.104.1",
+    "@xyflow/react": "12.12.0",
+    "d3-geo": "3.1.1",
+    "lucide-react": "0.577.0",
+    "radix-ui": "1.7.0",
+    "@capiro/shared": "file:../../vendor/capiro-shared-0.0.0-38fec5c8.tgz"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "vite": "8.3.4",
+    "vitest": "4.1.11",
+    "@types/d3-geo": "3.1.1",
+    "@types/node": "24.10.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.2",
+    "eslint-config-next": "16.4.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

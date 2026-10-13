@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs"
+  ],
+  "cwd": "/workspace/cleanup-newsletter-accepted-source-admission-20261013",
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/tmp"
+  },
+  "exit": 0,
+  "durationSeconds": 4.710057735443115,
+  "scope": "Physical synthetic assembly + pure source-admission/standalone validator and explicit invalid/pending CLI refusal only; no application artifact executed",
+  "stdoutSha256": "b56c2eb6191dad40c0f7edcb63849ca22b99c81ab6abb0bd6c1710567a8dc88b",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

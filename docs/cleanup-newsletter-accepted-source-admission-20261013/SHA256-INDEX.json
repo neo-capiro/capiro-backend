@@ -1,0 +1,200 @@
+{
+  "source": "f18f918a8103e8e3cb36e47c65d2f6651cb1fd7b",
+  "files": [
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/AUTHOR-RECEIPT.json",
+      "bytes": 1208,
+      "sha256": "bf04fce040a8e95933bf63976e783af75621f3a8c6a2ca0b083890e8dc83e9c4"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/HANDOFF.md",
+      "bytes": 6351,
+      "sha256": "7dd15854eb1dca0d26df11aca21725ac9d6768496957385af088aecdb306ca77"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/01-source-admission-tests.command.json",
+      "bytes": 841,
+      "sha256": "85d94e66eaf9fa6d2024a8e3aaac1a4522536bb15c837dbf150bf7757359d7cf"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/01-source-admission-tests.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/01-source-admission-tests.stdout",
+      "bytes": 9432,
+      "sha256": "b56c2eb6191dad40c0f7edcb63849ca22b99c81ab6abb0bd6c1710567a8dc88b"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/ASSET-IDENTITY.json",
+      "bytes": 33631,
+      "sha256": "33c45444c0da26c157f315e4ae03ee7bebc87e64212bb30d48119d265146f766"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/BACKEND-BLOB-BINDINGS.json",
+      "bytes": 1462,
+      "sha256": "d6096a6d2246079da8c23bb54258e249eebe6884adedba58c60d5aa064caa6b7"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/BEFORE-BINDINGS.json",
+      "bytes": 1198,
+      "sha256": "c6a47c55020f23eb393833a1e8d939bea186ccc16dd8146e1f3eac6403ec83f6"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/BLOB-BINDINGS.json",
+      "bytes": 8398,
+      "sha256": "ca040e6afd9d4e584a59a8c496aefb3d9f96b28dd8c0bdc551cec411c642eed9"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/FROZEN-SOURCE.json",
+      "bytes": 665,
+      "sha256": "fc1c250da62ff660a5f1d20a7547709540100629a66dee4afeb70599b24b7b78"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/SOURCE-INVERSE.json",
+      "bytes": 1360,
+      "sha256": "90daf18643b542b5a45fe3aae1f5f1f4fb9e8c6c4f25f9f346b1e4eb7ce4fffb"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/TREE-DELTA.json",
+      "bytes": 68578,
+      "sha256": "90811f69fdb25f2ba170131dc7b3ae7cb1829efe96c47a62f9c348ec89db5192"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/candidatec8-commit.command.json",
+      "bytes": 372,
+      "sha256": "f900f1d0cdaaaa8f931405331a768cf21754457339d24f42267f0406906de76b"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/candidatec8-commit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/candidatec8-commit.stdout",
+      "bytes": 1173,
+      "sha256": "3991833eb5f4fb1e30601dc9ff52c1b0e18fc11e552fdfde62753f200c10b1f2"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/candidatec8-tree.command.json",
+      "bytes": 436,
+      "sha256": "f236d14cd99f23d2fc69a5e6051ceef5da8ab1f7fdb07ba21ceacd4d1bf88072"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/current-admission-probe.command.json",
+      "bytes": 667,
+      "sha256": "10118d958a70b9bf52e035a1187ba8e0d1e42a5830d6149497c9369a3da38f8e"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/current-admission-probe.mjs",
+      "bytes": 1143,
+      "sha256": "d1c3695dae38af70bf99b6fcb660c4a532dd0be40612bfc189d8e45b99f546a7"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/current-admission-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/current-admission-probe.stdout",
+      "bytes": 513,
+      "sha256": "0cdd04f411f9b78609f3d71b2d825d2510498fb56f824165d54ad58476b943f4"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/candidatec8/apps/web/Dockerfile",
+      "bytes": 855,
+      "sha256": "03225dcc94257dfd919f3b889f0886d4981156890897fee579e50d644959cbe1"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/candidatec8/apps/web/next.config.ts",
+      "bytes": 559,
+      "sha256": "b74e94a2d41d0e6587a8607a4fb3dc8800f46bd99d10ef3af43e78928af03e57"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/candidatec8/apps/web/package.json",
+      "bytes": 1891,
+      "sha256": "0745ca8c6eb1ae42b8b06fa2f70eedf0b164e2cbdc53c25eaf25b144337e6521"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/candidatec8/docs/newsletter-receiving-20261013/IMPLEMENTATION.md",
+      "bytes": 7229,
+      "sha256": "19d9ac78bb90e6a974894b2d9724d60481fb8914e9746b397315236ed6d02df4"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/candidatec8/vendor/newsletter-public-packages.json",
+      "bytes": 2172,
+      "sha256": "573ffe47485d6c31ba531bac2ed2a14093d7430561ab0242140b9ba708022630"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/historical7c/apps/web/Dockerfile",
+      "bytes": 855,
+      "sha256": "03225dcc94257dfd919f3b889f0886d4981156890897fee579e50d644959cbe1"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/historical7c/apps/web/next.config.ts",
+      "bytes": 559,
+      "sha256": "b74e94a2d41d0e6587a8607a4fb3dc8800f46bd99d10ef3af43e78928af03e57"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/historical7c/apps/web/package.json",
+      "bytes": 1882,
+      "sha256": "36cd7a98306d00ef3667bbf0a47a707e7896431feb0d60638be575a70155e6ec"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/frontend-source/historical7c/vendor/newsletter-public-packages.json",
+      "bytes": 1052,
+      "sha256": "03a191db7912271f585abb2199fd1404170ef76739f8083047666aaf22c4f855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/historical7c-commit.command.json",
+      "bytes": 372,
+      "sha256": "cc2943294f1f653c166fa55e14bc0b4f3b3a97a9c3972d636b11269e0c7660cb"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/historical7c-commit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/historical7c-commit.stdout",
+      "bytes": 1446,
+      "sha256": "32aab16a4fb050e274a8f32b65ede0ec237beb3b31659c38ea627de3d13ee2a2"
+    },
+    {
+      "path": "docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/historical7c-tree.command.json",
+      "bytes": 436,
+      "sha256": "37835917fda276fedd6d8f82bd8792994a334a143f2f5d6002e5cad15031f699"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "bytes": 24168,
+      "sha256": "959a74ca0ff87131ecea9244289ed803da33e4a7518d1ec9d6d6545915294d73",
+      "kind": "source"
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "bytes": 17741,
+      "sha256": "f4028cd46e71a99d0fb8b8f26b171108871b8cd5abe4cd640a29b31ee1b5245e",
+      "kind": "source"
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "bytes": 393,
+      "sha256": "cbb5b500b909b55c71b18f71364165e8f90f06e19310ee2ab18fbe1feb1ff8bc",
+      "kind": "source"
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "bytes": 21359,
+      "sha256": "c0fd40743506ef18fbdbddad6c579f96598617da66d4e74676a9725ac116fb37",
+      "kind": "source"
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "bytes": 9725,
+      "sha256": "1f82e04c49fc7bc686d6195c1c1daab21150a7d007d924a5a5aed9248de9693a",
+      "kind": "source"
+    }
+  ]
+}
