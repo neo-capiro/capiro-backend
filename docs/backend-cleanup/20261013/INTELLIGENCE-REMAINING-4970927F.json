@@ -1,0 +1,459 @@
+{
+  "baseline": "b78f9d4ce28089139d60b2c7a601750c99f67e69",
+  "stagedTree": "1d1bec950a693e8c75e4eadbda843c70480c8e9f",
+  "rootSHA256": "a3b1726f702f9e3eaf3dff1411eebb0f56f887943d32abe7f2fd20a37e7c1efe",
+  "rootPhysicalLines": 4933,
+  "rootNonblankLines": 4610,
+  "closedCompleteFamilies": [
+    "I5",
+    "I6",
+    "I7",
+    "I9",
+    "I11"
+  ],
+  "remainingCompleteFamilies": [
+    {
+      "family": "I1 base-profile external identity and LDA reads",
+      "methods": [
+        {
+          "name": "getClientProfile",
+          "sha256": "ae471def903b57e2686db866c89afd85e449e7cae53ba324e2488b9b3e0c8e78",
+          "nonblankLines": 110,
+          "physicalLines": 119,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "pickLdaClientIds",
+          "sha256": "e0c8bb6c64830bde946325658bcb7712af18bb47175a7fa262f0426ff166112f",
+          "nonblankLines": 10,
+          "physicalLines": 10,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "resolveLdaClientIds",
+          "sha256": "b2faa6d1d45289d701f4794cc5f56ebc2cea6d33fc393620ba8e2eb5b94af827",
+          "nonblankLines": 18,
+          "physicalLines": 18,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "confirmedLdaIds",
+          "sha256": "e67fd4681c2d6146100731551dfe11f4c64c052233ffdaa68bc73cec5bd990cd",
+          "nonblankLines": 12,
+          "physicalLines": 12,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "issueCodesForLdaIds",
+          "sha256": "380c3c1f7c085492b555f40056d5ad78e012c74f3c05ba3f70a2a6f1c50f495e",
+          "nonblankLines": 8,
+          "physicalLines": 8,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "fetchLdaByIds",
+          "sha256": "3345a9f0ddf37abb266b70f29c1b5d7e9cef0cca752f9657b83868335109702d",
+          "nonblankLines": 37,
+          "physicalLines": 39,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getClientLdaFilings",
+          "sha256": "443652a2e69a5b1ada5c8ce04fccb35409e818b4d847b4d6fd180f94003748a8",
+          "nonblankLines": 142,
+          "physicalLines": 150,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "isUuid",
+          "sha256": "0f1d6719ee19d98f90a72db441a0fbcd496c6566d017cf98916034e21fad3891",
+          "nonblankLines": 3,
+          "physicalLines": 3,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "fetchContractorById",
+          "sha256": "6945359eaeedb5a4cf6f1cb005c683b1eaae2fdd9802ac9280ee3808951b6f71",
+          "nonblankLines": 62,
+          "physicalLines": 65,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "fetchLobbyIntelById",
+          "sha256": "865d5f6769ba8f44d75a81232a41de280344c9d83ff181f4ab4d77a6547c831a",
+          "nonblankLines": 25,
+          "physicalLines": 26,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "fuzzyMatchLda",
+          "sha256": "d4ca2bfaff7a2ecd9e2ab562685689f38d9d7240402ea340427774ad38623a2e",
+          "nonblankLines": 45,
+          "physicalLines": 47,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "fuzzyMatchContractor",
+          "sha256": "dac0383f86c74afe76b3550b0206aec06e4fdf5585fff989f23d62b3fb871636",
+          "nonblankLines": 34,
+          "physicalLines": 35,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "fuzzyMatchLobbyIntel",
+          "sha256": "0f20ad6711d8d7357b2b37584aca8162aff38672021a66d007407a4bc2566731",
+          "nonblankLines": 27,
+          "physicalLines": 28,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "findCompetitors",
+          "sha256": "9c2922d39fc48e49230694b910199aad9fadd491c8af71bb1c292ba55fe17ebf",
+          "nonblankLines": 62,
+          "physicalLines": 66,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 595,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I2 mapping discovery/review lifecycle and setup",
+      "methods": [
+        {
+          "name": "getMappings",
+          "sha256": "d646c7de48ebe1e4d66f0a2a04f18d2749c2ba1bed74964edcc49ac253aefe02",
+          "nonblankLines": 10,
+          "physicalLines": 10,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "searchLdaClients",
+          "sha256": "8f0de1041e7cee2d4f86bb79bcbb30a41ad3a1bf1a3604402d1c88986c460524",
+          "nonblankLines": 42,
+          "physicalLines": 42,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "searchFecEmployers",
+          "sha256": "f1f279fcddd8a1d1758f8b8637430e2416aca39a19ad686360a8b62dc3c42cfc",
+          "nonblankLines": 34,
+          "physicalLines": 34,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "searchFecCommittees",
+          "sha256": "f32ad74a29f18c26b8aa237f8a052f48663f0c0dbbd2b0e0791df0bece5aaeb1",
+          "nonblankLines": 29,
+          "physicalLines": 29,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "searchContractors",
+          "sha256": "3d984cf2db36a8ea6800205b02c7e6f848778b8b503ecf80c92801c5ed150385",
+          "nonblankLines": 62,
+          "physicalLines": 63,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "searchAssistanceRecipients",
+          "sha256": "fe4d56334d0e98e48a3f5ec79e2480b1299929f967e9cfd33fbf29633f7ed504",
+          "nonblankLines": 72,
+          "physicalLines": 72,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "createManualMapping",
+          "sha256": "7e833402748e7c5b462105f6343fbcad658ae511276ec07ae9c47e521baebfe4",
+          "nonblankLines": 108,
+          "physicalLines": 111,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "rejectMappingCandidate",
+          "sha256": "f7451980942c8d0a915471df5f33f0bd3745e380931cd6a129233006b4f710e7",
+          "nonblankLines": 73,
+          "physicalLines": 73,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "resolveMapping",
+          "sha256": "0c11c5f063534787843c1fc5534ba316836250948f7d9303b015b3ea42e22f60",
+          "nonblankLines": 94,
+          "physicalLines": 100,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "confirmMapping",
+          "sha256": "d7cf8b90309353e2fd69eb6c6e9d4482462ecb711d047485006958089ea7dd70",
+          "nonblankLines": 84,
+          "physicalLines": 86,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getAllMappingsForTenant",
+          "sha256": "62031576fdafd98e44e76449381f39c67925a405030e6f5923ba2dc2a82a7244",
+          "nonblankLines": 19,
+          "physicalLines": 22,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getSetupCompleteness",
+          "sha256": "5238f3da320973d9ea77415045832259bfba1a51f0c4490da61c32e0a9bc0408",
+          "nonblankLines": 114,
+          "physicalLines": 119,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 741,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I4 independent regulatory profile/discovery",
+      "methods": [
+        {
+          "name": "getClientRegulatoryProfile",
+          "sha256": "117d91d8d657f31fb5e8ca4804b07ddb95799d7877b2b0c55ccd2989483cae02",
+          "nonblankLines": 46,
+          "physicalLines": 46,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "findActiveRegulations",
+          "sha256": "9a0fca1f7a911fdbcc4fa4d34565b11eb8b37651c9f51047e4cca31a976d84ca",
+          "nonblankLines": 67,
+          "physicalLines": 72,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getClientRelevantRegulations",
+          "sha256": "3f557c5f305216f39df5da4f4b257c4baa3740f1be2d39e1ff3e3899568dfd32",
+          "nonblankLines": 95,
+          "physicalLines": 99,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 208,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I8 alert sources and per-user worklist",
+      "methods": [
+        {
+          "name": "getCommentPeriodAlerts",
+          "sha256": "2a0e34e0e2433d6f88e7cd81032cea069c19c891757f8d23201287bc1a4187f9",
+          "nonblankLines": 231,
+          "physicalLines": 251,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "alertCountdownLabel",
+          "sha256": "7bd56aaafb9bdefc6c42526c9c8dbca61eafad3f2276c68fd4ee6e568ba217a3",
+          "nonblankLines": 7,
+          "physicalLines": 7,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getClientIssueCodes",
+          "sha256": "b48e72594b61dc978c10825f1ffd571266e45edb5897a4dc8f4d7e04bf7bbb54",
+          "nonblankLines": 5,
+          "physicalLines": 5,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getHearingAlerts",
+          "sha256": "350c383cab49de5904052a08b1ff08875aeeb79816d683065327297ec95ec2fb",
+          "nonblankLines": 64,
+          "physicalLines": 66,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getOverdueCommentAlerts",
+          "sha256": "cfa651118d2410ecf706b52b7cec3ac8f653c3af50d7650394db1d9e571ef6e7",
+          "nonblankLines": 91,
+          "physicalLines": 95,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getCompetitorLdaAlerts",
+          "sha256": "78bd085131a0d3d07686942290a54867c2b7612ed9cff07546a620d95946d361",
+          "nonblankLines": 56,
+          "physicalLines": 59,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getContractAwardAlerts",
+          "sha256": "8d7c9029101b9723d8e710c6997f9c8a41ca2184d02f73d12586e96bbb57343d",
+          "nonblankLines": 85,
+          "physicalLines": 88,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "resolveContractorUeisForAlerts",
+          "sha256": "f22060c1fc504431bea7294403bef0d61cf8e4d68f089f798d7ac8afccf28276",
+          "nonblankLines": 10,
+          "physicalLines": 10,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "setAlertState",
+          "sha256": "6e8e18ffdd3c64bafc92dc4be511177df5680cf42a318ce52c9ae9b8377c1288",
+          "nonblankLines": 23,
+          "physicalLines": 24,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "clearAlertState",
+          "sha256": "eeabf8f27f004bb7a467bd21cb55bf3379d131bbbb458be7c46feb9e3c90a97c",
+          "nonblankLines": 6,
+          "physicalLines": 6,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 578,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I10 knowledge graph/outreach context/engagement health",
+      "methods": [
+        {
+          "name": "walkClientGraph",
+          "sha256": "480b1f22a5542923771cb5bad5d4d48c52c2e4becc2d6664d4c649f43817c815",
+          "nonblankLines": 35,
+          "physicalLines": 35,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getKnowledgeGraph",
+          "sha256": "616ca94ad22ff5f2323e64dece903abec843834b7e58e90686637011fb3051aa",
+          "nonblankLines": 314,
+          "physicalLines": 333,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getOutreachContext",
+          "sha256": "551f7253acec0cd8edb818d32c7e9f6e80f22ba3495cd4da21770ea8f7b7d94b",
+          "nonblankLines": 114,
+          "physicalLines": 125,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "computeEngagementHealth",
+          "sha256": "4c41da2dbe9987a3534e0bcdf6ce31bb2f1a9242bbe06363b7b24817f952510d",
+          "nonblankLines": 91,
+          "physicalLines": 97,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 554,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I12 tenant portfolio/dashboard feeds and rollups",
+      "methods": [
+        {
+          "name": "getTodayTimeline",
+          "sha256": "2629d4c30060302a827c9ba0f6a0a0b8044f6973130ead85f5dba4d43bb890d5",
+          "nonblankLines": 98,
+          "physicalLines": 108,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getLiveTicker",
+          "sha256": "7130f8957569b48ab7dbe24577c705ad6ec796d3dba30892f66bd512e84f29a0",
+          "nonblankLines": 32,
+          "physicalLines": 35,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getComingUp",
+          "sha256": "fc2e8a922095befd12ecd6d5e74c733557f7fd1623e4046d0e1860d1cb0c8da8",
+          "nonblankLines": 150,
+          "physicalLines": 161,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioSummary",
+          "sha256": "7f174b70dc9df1f88ef9c0769fec4a542b4993ecaafb9d4d96bac2fa799c8a9b",
+          "nonblankLines": 92,
+          "physicalLines": 100,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "emptyPortfolioAlerts",
+          "sha256": "82ca8152b9470611ac12f87c6f629d217981d45819bb275ba1ecf24319f8d0d1",
+          "nonblankLines": 13,
+          "physicalLines": 13,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "withPortfolioAlertsRequestBudget",
+          "sha256": "2ac4adf4baa20fa3b2c1b35dd04a6e7d994a3c997f7579aae8c1fa743d688f11",
+          "nonblankLines": 19,
+          "physicalLines": 19,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioAlerts",
+          "sha256": "91e581008eae1d57d36cdfafe0bfae2ffdceb61c31ee8e4c493c5400fb5a5f6f",
+          "nonblankLines": 57,
+          "physicalLines": 62,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "computePortfolioAlerts",
+          "sha256": "ddabc83ab6853e491d39344dd1c954e929acdf2b27a847934e85112fc0277de5",
+          "nonblankLines": 88,
+          "physicalLines": 92,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioRollup",
+          "sha256": "5d3a5a678d98bd1045606a2f9d9a4f833a1a3a11dbbc4f441d915bf5efbb32c5",
+          "nonblankLines": 101,
+          "physicalLines": 108,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioPeSummary",
+          "sha256": "78dfe95d0930eac356464ddf4e0426b8385fb3ba6ae937cebc9f35cf23ab0de5",
+          "nonblankLines": 96,
+          "physicalLines": 103,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioEngagementTrend",
+          "sha256": "59045e03fd8b0ff2086954f66da1561e5d517ae68682bee9a2a6890bf1493ca9",
+          "nonblankLines": 28,
+          "physicalLines": 30,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "startOfQuarter",
+          "sha256": "a067a041f591d7bf7c2a37d2faa41f543458316a76e8d60ff08ab9b842969711",
+          "nonblankLines": 5,
+          "physicalLines": 5,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "buildQuarterWindows",
+          "sha256": "2294d46d8ba1f30c774a240088bc745ff55fe2808289667e86120a0853cd034b",
+          "nonblankLines": 24,
+          "physicalLines": 24,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "foldEngagementTrend",
+          "sha256": "0a3f8c9ee2cc345c90fa4fd17dcafbb4e2a55b4b1ccd9b8db9515dfbd6221312",
+          "nonblankLines": 40,
+          "physicalLines": 45,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 843,
+      "wholeFamilyMembersUnchanged": true
+    }
+  ],
+  "wholeCleanupComplete": false,
+  "scope": "Member/function spans only; imports/types/field policies/operating contracts remain outside totals. Source size is not retirement evidence."
+}

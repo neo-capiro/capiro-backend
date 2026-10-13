@@ -1,0 +1,228 @@
+{
+  "acceptedApiBaseline": "4970927fe1951636ab002522a20a35310d3dc7c4",
+  "precedingInventory": "INTELLIGENCE-REMAINING-4970927F.json",
+  "precedingInventorySHA256": "2c0a20d4c2d9742d53896b2e5f5b825a4cfebafabb47f3a6724de9f11d188b04",
+  "hashDomain": "TypeScript AST member/function getText(), excluding leading indentation",
+  "sourceRootSHA256": "57c412ff8eff82b29a12f89ebccea5274ffde4b62f1d0dd5e2dfe222cb040fb7",
+  "rootPhysicalLines": 3149,
+  "rootNonblankLines": 2910,
+  "closedCompleteFamiliesSincePrior": [
+    "I1",
+    "I2",
+    "I10"
+  ],
+  "remainingCompleteFamilies": [
+    {
+      "family": "I4 independent regulatory profile/discovery",
+      "methods": [
+        {
+          "name": "getClientRegulatoryProfile",
+          "sha256": "117d91d8d657f31fb5e8ca4804b07ddb95799d7877b2b0c55ccd2989483cae02",
+          "nonblankLines": 46,
+          "physicalLines": 46,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "findActiveRegulations",
+          "sha256": "9a0fca1f7a911fdbcc4fa4d34565b11eb8b37651c9f51047e4cca31a976d84ca",
+          "nonblankLines": 67,
+          "physicalLines": 72,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getClientRelevantRegulations",
+          "sha256": "3f557c5f305216f39df5da4f4b257c4baa3740f1be2d39e1ff3e3899568dfd32",
+          "nonblankLines": 95,
+          "physicalLines": 99,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 208,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I8 alert sources and per-user worklist",
+      "methods": [
+        {
+          "name": "getCommentPeriodAlerts",
+          "sha256": "2a0e34e0e2433d6f88e7cd81032cea069c19c891757f8d23201287bc1a4187f9",
+          "nonblankLines": 231,
+          "physicalLines": 251,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "alertCountdownLabel",
+          "sha256": "7bd56aaafb9bdefc6c42526c9c8dbca61eafad3f2276c68fd4ee6e568ba217a3",
+          "nonblankLines": 7,
+          "physicalLines": 7,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getClientIssueCodes",
+          "sha256": "b48e72594b61dc978c10825f1ffd571266e45edb5897a4dc8f4d7e04bf7bbb54",
+          "nonblankLines": 5,
+          "physicalLines": 5,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getHearingAlerts",
+          "sha256": "350c383cab49de5904052a08b1ff08875aeeb79816d683065327297ec95ec2fb",
+          "nonblankLines": 64,
+          "physicalLines": 66,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getOverdueCommentAlerts",
+          "sha256": "cfa651118d2410ecf706b52b7cec3ac8f653c3af50d7650394db1d9e571ef6e7",
+          "nonblankLines": 91,
+          "physicalLines": 95,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getCompetitorLdaAlerts",
+          "sha256": "78bd085131a0d3d07686942290a54867c2b7612ed9cff07546a620d95946d361",
+          "nonblankLines": 56,
+          "physicalLines": 59,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getContractAwardAlerts",
+          "sha256": "8d7c9029101b9723d8e710c6997f9c8a41ca2184d02f73d12586e96bbb57343d",
+          "nonblankLines": 85,
+          "physicalLines": 88,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "resolveContractorUeisForAlerts",
+          "sha256": "f22060c1fc504431bea7294403bef0d61cf8e4d68f089f798d7ac8afccf28276",
+          "nonblankLines": 10,
+          "physicalLines": 10,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "setAlertState",
+          "sha256": "6e8e18ffdd3c64bafc92dc4be511177df5680cf42a318ce52c9ae9b8377c1288",
+          "nonblankLines": 23,
+          "physicalLines": 24,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "clearAlertState",
+          "sha256": "eeabf8f27f004bb7a467bd21cb55bf3379d131bbbb458be7c46feb9e3c90a97c",
+          "nonblankLines": 6,
+          "physicalLines": 6,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 578,
+      "wholeFamilyMembersUnchanged": true
+    },
+    {
+      "family": "I12 tenant portfolio/dashboard feeds and rollups",
+      "methods": [
+        {
+          "name": "getTodayTimeline",
+          "sha256": "2629d4c30060302a827c9ba0f6a0a0b8044f6973130ead85f5dba4d43bb890d5",
+          "nonblankLines": 98,
+          "physicalLines": 108,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getLiveTicker",
+          "sha256": "7130f8957569b48ab7dbe24577c705ad6ec796d3dba30892f66bd512e84f29a0",
+          "nonblankLines": 32,
+          "physicalLines": 35,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getComingUp",
+          "sha256": "fc2e8a922095befd12ecd6d5e74c733557f7fd1623e4046d0e1860d1cb0c8da8",
+          "nonblankLines": 150,
+          "physicalLines": 161,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioSummary",
+          "sha256": "7f174b70dc9df1f88ef9c0769fec4a542b4993ecaafb9d4d96bac2fa799c8a9b",
+          "nonblankLines": 92,
+          "physicalLines": 100,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "emptyPortfolioAlerts",
+          "sha256": "82ca8152b9470611ac12f87c6f629d217981d45819bb275ba1ecf24319f8d0d1",
+          "nonblankLines": 13,
+          "physicalLines": 13,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "withPortfolioAlertsRequestBudget",
+          "sha256": "2ac4adf4baa20fa3b2c1b35dd04a6e7d994a3c997f7579aae8c1fa743d688f11",
+          "nonblankLines": 19,
+          "physicalLines": 19,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioAlerts",
+          "sha256": "91e581008eae1d57d36cdfafe0bfae2ffdceb61c31ee8e4c493c5400fb5a5f6f",
+          "nonblankLines": 57,
+          "physicalLines": 62,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "computePortfolioAlerts",
+          "sha256": "ddabc83ab6853e491d39344dd1c954e929acdf2b27a847934e85112fc0277de5",
+          "nonblankLines": 88,
+          "physicalLines": 92,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioRollup",
+          "sha256": "5d3a5a678d98bd1045606a2f9d9a4f833a1a3a11dbbc4f441d915bf5efbb32c5",
+          "nonblankLines": 101,
+          "physicalLines": 108,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioPeSummary",
+          "sha256": "78dfe95d0930eac356464ddf4e0426b8385fb3ba6ae937cebc9f35cf23ab0de5",
+          "nonblankLines": 96,
+          "physicalLines": 103,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "getPortfolioEngagementTrend",
+          "sha256": "59045e03fd8b0ff2086954f66da1561e5d517ae68682bee9a2a6890bf1493ca9",
+          "nonblankLines": 28,
+          "physicalLines": 30,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "startOfQuarter",
+          "sha256": "a067a041f591d7bf7c2a37d2faa41f543458316a76e8d60ff08ab9b842969711",
+          "nonblankLines": 5,
+          "physicalLines": 5,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "buildQuarterWindows",
+          "sha256": "2294d46d8ba1f30c774a240088bc745ff55fe2808289667e86120a0853cd034b",
+          "nonblankLines": 24,
+          "physicalLines": 24,
+          "wholeMemberBytesUnchanged": true
+        },
+        {
+          "name": "foldEngagementTrend",
+          "sha256": "0a3f8c9ee2cc345c90fa4fd17dcafbb4e2a55b4b1ccd9b8db9515dfbd6221312",
+          "nonblankLines": 40,
+          "physicalLines": 45,
+          "wholeMemberBytesUnchanged": true
+        }
+      ],
+      "memberNonblankLines": 843,
+      "wholeFamilyMembersUnchanged": true
+    }
+  ],
+  "wholeCleanupComplete": false,
+  "scope": "Recoverable source-only extraction of30 original methods into15 explicit modules. Original I4/I8/I12 complete member/function bytes remain unchanged; frontend and all broader Cleanup obligations remain open. Actual live image build-used trees unestablished."
+}

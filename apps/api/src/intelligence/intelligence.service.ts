@@ -1,3 +1,14 @@
+import { ClientIdentityV1Profile } from './client-identity-v1.js';
+import { ClientIdentityV1Lda } from './client-identity-v1-lda.js';
+import { ClientIdentityV1Filings } from './client-identity-v1-filings.js';
+import { ClientIdentityV1Catalog } from './client-identity-v1-catalog.js';
+import { ClientMappingV1 } from './client-mapping-v1.js';
+import { ClientMappingV1Catalog } from './client-mapping-v1-catalog.js';
+import { ClientMappingV1Review } from './client-mapping-v1-review.js';
+import { ClientMappingV1Setup } from './client-mapping-v1-setup.js';
+import { ClientContextV1Graph } from './client-context-v1-graph.js';
+import { ClientContextV1Health } from './client-context-v1-health.js';
+import { ClientContextV1Outreach } from './client-context-v1-outreach.js';
 import { ClientFinancialV1Lobbying } from './client-financial-v1.js';
 import { ClientFinancialV1Pac } from './client-financial-v1-pac.js';
 import { ClientFinancialV1MoneyFlow } from './client-financial-v1-flow.js';
@@ -29,9 +40,9 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { EngagementTaskStatus, Prisma } from '@prisma/client';
-import { fetchDeniedClientIds, toUuidArrayLiteral } from '../memory/memory-wall.helpers.js';
-import { pickKgIntelGraph, pickKgTraversalSource } from '../meri/memory-recall-source.helpers.js';
+import { Prisma } from '@prisma/client';
+
+
 import {
   AGENCY_SECTOR_MAP,
   ldaCodesForSectors,
@@ -63,6 +74,20 @@ import {
 } from '../district-nexus/district-nexus.identity.js';
 
 
+
+type ClientIntelligenceSources = {
+  identityProfile: ClientIdentityV1Profile;
+  identityLda: ClientIdentityV1Lda;
+  identityFilings: ClientIdentityV1Filings;
+  identityCatalog: ClientIdentityV1Catalog;
+  mapping: ClientMappingV1;
+  mappingCatalog: ClientMappingV1Catalog;
+  mappingReview: ClientMappingV1Review;
+  mappingSetup: ClientMappingV1Setup;
+  graph: ClientContextV1Graph;
+  health: ClientContextV1Health;
+  outreach: ClientContextV1Outreach;
+};
 
 type SupportingIntelligenceSources = {
   financial: ClientFinancialV1Lobbying;
@@ -128,24 +153,10 @@ export const AWARD_BEARING_MAPPING_SOURCES: ReadonlySet<string> = new Set([
   'assistance_recipient',
 ]);
 
-/**
- * `federal_contractor.total_contracts` / `.no_bid_total` are Decimal(18,2), and
- * `$queryRaw` hands them back as Prisma `Decimal` — which JSON-serializes to a
- * STRING even though every declared row type and the web `ClientIntelProfile`
- * contract say `number | null`. Web then formatted the string with
- * `toLocaleString`, a no-op on strings, and the client profile printed RTX's
- * $68.97B as the bare digits `68973208559.3`. Coerce here so the wire matches
- * the declared contract. (Same helper shape as federal-spending.service.ts.)
- */
-const decToNumber = (v: unknown): number | null => {
-  if (v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-
 @Injectable()
 export class IntelligenceService {
   private readonly logger = new Logger(IntelligenceService.name);
+  private readonly clientSources: ClientIntelligenceSources;
   private readonly supportingSources: SupportingIntelligenceSources;
   private readonly profileV1: IntelligenceClientProfileV1;
   private readonly billRelevanceInputs: IntelligenceBillRelevanceInputs;
@@ -253,6 +264,7 @@ export class IntelligenceService {
       getTrackedBills: (...args) => this.getTrackedBills(...args),
     });
     this.supportingSources = this.createSupportingSources();
+    this.clientSources = this.createClientSources();
   }
 
   private createSupportingSources(): SupportingIntelligenceSources {
@@ -276,6 +288,51 @@ export class IntelligenceService {
       district: new ClientDistrictV1(this.prisma),
       districtSpend: new ClientDistrictV1Spend(this.prisma, {
         resolveContractorUeisForAlerts: (...args) => this.resolveContractorUeisForAlerts(...args),
+      }),
+    };
+  }
+
+  private createClientSources(): ClientIntelligenceSources {
+    return {
+      identityProfile: new ClientIdentityV1Profile(this.prisma, {
+        pickLdaClientIds: (...args) => this.pickLdaClientIds(...args),
+        fetchLdaByIds: (...args) => this.fetchLdaByIds(...args),
+        fuzzyMatchLda: (...args) => this.fuzzyMatchLda(...args),
+        fetchContractorById: (...args) => this.fetchContractorById(...args),
+        fuzzyMatchContractor: (...args) => this.fuzzyMatchContractor(...args),
+        fetchLobbyIntelById: (...args) => this.fetchLobbyIntelById(...args),
+        fuzzyMatchLobbyIntel: (...args) => this.fuzzyMatchLobbyIntel(...args),
+        capabilityFallbackTerms: (...args) => this.capabilityFallbackTerms(...args),
+        findRelevantBills: (...args) => this.findRelevantBills(...args),
+        findActiveRegulations: (...args) => this.findActiveRegulations(...args),
+        findCompetitors: (...args) => this.findCompetitors(...args),
+      }),
+      identityLda: new ClientIdentityV1Lda(this.prisma, {
+        pickLdaClientIds: (...args) => this.pickLdaClientIds(...args),
+      }),
+      identityFilings: new ClientIdentityV1Filings(this.prisma, {
+        resolveLdaClientIds: (...args) => this.resolveLdaClientIds(...args),
+      }),
+      identityCatalog: new ClientIdentityV1Catalog(this.prisma, {
+        isUuid: (...args) => this.isUuid(...args),
+      }),
+      mapping: new ClientMappingV1(this.prisma),
+      mappingCatalog: new ClientMappingV1Catalog(this.prisma),
+      mappingReview: new ClientMappingV1Review(this.prisma, {
+        awardBearingMappingSource: (source) => AWARD_BEARING_MAPPING_SOURCES.has(source),
+        prepopulation: () => this.prepopulation,
+      }),
+      mappingSetup: new ClientMappingV1Setup(this.prisma),
+      graph: new ClientContextV1Graph(this.prisma, {
+        walkClientGraph: (...args) => this.walkClientGraph(...args),
+        warn: (message) => this.logger.warn(message),
+      }),
+      health: new ClientContextV1Health(this.prisma),
+      outreach: new ClientContextV1Outreach(this.prisma, {
+        confirmedLdaIds: (...args) => this.confirmedLdaIds(...args),
+        issueCodesForLdaIds: (...args) => this.issueCodesForLdaIds(...args),
+        getTrackedBills: (...args) => this.getTrackedBills(...args),
+        computeEngagementHealth: (...args) => this.computeEngagementHealth(...args),
       }),
     };
   }
@@ -311,123 +368,7 @@ export class IntelligenceService {
    * falls back to fuzzy matching for sources without confirmed mappings.
    */
   async getClientProfile(clientId: string, tenantId: string) {
-    // 1. Fetch the CRM client (tenant-scoped via RLS)
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id: clientId },
-        include: { capabilities: true },
-      }),
-    );
-    // Soft-archived ("deleted") clients are treated as not-found everywhere.
-    if (!client || client.status === 'archived') throw new NotFoundException('Client not found');
-
-    const clientName = client.name;
-    const capabilityRefs = (client.capabilities ?? []).map((c) => ({
-      name: c.name,
-      sector: c.sector ?? null,
-      tags: Array.isArray(c.tags)
-        ? (c.tags as unknown[]).filter((t): t is string => typeof t === 'string')
-        : [],
-    }));
-
-    // 2. Fetch existing confirmed mappings, then resolve each source.
-    //    Confirmed mappings skip fuzzy re-match and query by externalId directly.
-    const existingMappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId },
-        orderBy: { confidence: 'desc' },
-      }),
-    );
-
-    const confirmedBySource = new Map<string, string>(); // source → externalId
-    for (const m of existingMappings) {
-      const identityMayAttributeAwards =
-        m.source !== 'contracting' || (m.reviewStatus === 'confirmed' && m.rollUpAwards === true);
-      if (m.confirmed && identityMayAttributeAwards && !confirmedBySource.has(m.source)) {
-        confirmedBySource.set(m.source, m.externalId);
-      }
-    }
-
-    // 3. Resolve each source, use confirmed mapping if present, else fuzzy match.
-    //    LDA resolves over the client's FULL id set (cache, else confirmed
-    //    mappings) so a company lobbied by N firms aggregates all N relationships
-    //    (e.g. Boeing's 27 ids). Name-fuzzy is the fallback ONLY when unresolved.
-    const confirmedLdaExternalIds = existingMappings
-      .filter((m) => m.source === 'lda' && m.confirmed)
-      .map((m) => m.externalId);
-    const ldaClientIds = this.pickLdaClientIds(client.ldaClientIds, confirmedLdaExternalIds);
-
-    const [ldaMatch, contractorMatch, lobbyMatch] = await Promise.all([
-      ldaClientIds.length ? this.fetchLdaByIds(ldaClientIds) : this.fuzzyMatchLda(clientName),
-      confirmedBySource.has('contracting')
-        ? this.fetchContractorById(confirmedBySource.get('contracting')!)
-        : this.fuzzyMatchContractor(clientName),
-      confirmedBySource.has('lobby_intel')
-        ? this.fetchLobbyIntelById(confirmedBySource.get('lobby_intel')!)
-        : this.fuzzyMatchLobbyIntel(clientName),
-    ]);
-
-    // 3. Get issue codes from LDA match
-    const issueCodes: string[] = ldaMatch?.issueCodes ?? [];
-
-    // 4. Find relevant bills and regulations in parallel
-    // When LDA didn't match (no issue codes), fall back to the client's own
-    // capability metadata so the Bills + Regulations tabs aren't empty for
-    // unmapped clients. This mirrors getTrackedBills() and keeps the
-    // standalone /tracked-bills endpoint and the profile's relevantBills in
-    // agreement.
-    const capabilityFallbackTerms = issueCodes.length
-      ? []
-      : await this.capabilityFallbackTerms(tenantId, clientId);
-
-    const [relevantBills, activeRegulations, competitors] = await Promise.all([
-      this.findRelevantBills(issueCodes, capabilityFallbackTerms),
-      this.findActiveRegulations(issueCodes, capabilityFallbackTerms),
-      this.findCompetitors(clientName, issueCodes, ldaClientIds),
-    ]);
-
-    return {
-      client: {
-        id: client.id,
-        name: client.name,
-        description: client.description,
-        sectorTag: client.sectorTag,
-        submissionTracks: client.submissionTracks ?? [],
-        capabilities: capabilityRefs,
-      },
-      mappings: existingMappings,
-      lda: ldaMatch ?? {
-        matched: false,
-        ldaClientId: null,
-        ldaClientIds: [],
-        confidence: 0,
-        totalFilings: 0,
-        totalSpending: null,
-        issueCodes: [],
-        recentFilings: [],
-        yearlySpend: [],
-      },
-      contracting: contractorMatch ?? {
-        matched: false,
-        contractorName: null,
-        totalContracts: null,
-        rankByContracts: null,
-        noBidTotal: null,
-        topAgencies: [],
-        yearlySpend: [],
-      },
-      lobbyIntel: lobbyMatch ?? {
-        matched: false,
-        trajectory: null,
-        growthRate: null,
-        totalSpending: null,
-      },
-      relevantBills,
-      activeRegulations,
-      competitors,
-      aiSummary: null, // Populated by Phase 4
-      lastUpdated: new Date().toISOString(),
-    };
+    return this.clientSources.identityProfile.getClientProfile(clientId, tenantId);
   }
 
   /**
@@ -563,11 +504,7 @@ export class IntelligenceService {
     cached: number[] | null | undefined,
     confirmedExternalIds: string[],
   ): number[] {
-    const c = (cached ?? []).filter((n) => Number.isInteger(n));
-    if (c.length) return Array.from(new Set(c));
-    return Array.from(
-      new Set(confirmedExternalIds.map((e) => Number(e)).filter((n) => Number.isInteger(n))),
-    );
+    return this.clientSources.identityLda.pickLdaClientIds(cached, confirmedExternalIds);
   }
 
   /**
@@ -577,22 +514,7 @@ export class IntelligenceService {
    * and client_intel_mapping are RLS-protected), so a foreign clientId yields [].
    */
   private async resolveLdaClientIds(clientId: string, tenantId: string): Promise<number[]> {
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId },
-        select: { ldaClientIds: true },
-      });
-      if (!client) return [];
-      if ((client.ldaClientIds ?? []).length) return this.pickLdaClientIds(client.ldaClientIds, []);
-      const confirmed = await tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'lda', confirmed: true },
-        select: { externalId: true },
-      });
-      return this.pickLdaClientIds(
-        [],
-        confirmed.map((m) => m.externalId),
-      );
-    });
+    return this.clientSources.identityLda.resolveLdaClientIds(clientId, tenantId);
   }
 
   /**
@@ -602,16 +524,7 @@ export class IntelligenceService {
    * (kept in sync by prepopulation).
    */
   private async confirmedLdaIds(clientId: string, tenantId: string): Promise<number[]> {
-    const mappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'lda', confirmed: true },
-        select: { externalId: true },
-      }),
-    );
-    return this.pickLdaClientIds(
-      [],
-      mappings.map((m) => m.externalId),
-    );
+    return this.clientSources.identityLda.confirmedLdaIds(clientId, tenantId);
   }
 
   /**
@@ -621,12 +534,7 @@ export class IntelligenceService {
    * used by getCompetitorBoard / fetchLdaByIds. Returns [] for an empty set.
    */
   private async issueCodesForLdaIds(ldaClientIds: number[]): Promise<string[]> {
-    if (!ldaClientIds.length) return [];
-    const codeRows = await this.prisma.$queryRaw<Array<{ code: string }>>`
-      SELECT DISTINCT unnest(issue_codes) AS code
-      FROM lda_client WHERE id = ANY(${ldaClientIds}::int[]) AND issue_codes IS NOT NULL
-    `;
-    return codeRows.map((r) => r.code).filter(Boolean);
+    return this.clientSources.identityLda.issueCodesForLdaIds(ldaClientIds);
   }
 
   /**
@@ -636,43 +544,7 @@ export class IntelligenceService {
    * no issue_codes still contribute to filings/spend.
    */
   private async fetchLdaByIds(ldaClientIds: number[]) {
-    if (!ldaClientIds.length) return null;
-    const agg = await this.prisma.$queryRaw<
-      Array<{ total_filings: number; total_spending: number | null }>
-    >`
-      SELECT COALESCE(SUM(total_filings), 0)::int AS total_filings,
-             SUM(total_spending)::float AS total_spending
-      FROM lda_client WHERE id = ANY(${ldaClientIds}::int[])
-    `;
-    const filings = await this.prisma.ldaFiling.findMany({
-      where: { clientId: { in: ldaClientIds } },
-      orderBy: { dtPosted: 'desc' },
-      take: 10,
-    });
-    // Stale/unknown ids (no lda_client rows and no filings) → treat as unmatched.
-    if ((agg[0]?.total_filings ?? 0) === 0 && filings.length === 0) return null;
-
-    const codeRows = await this.prisma.$queryRaw<Array<{ code: string }>>`
-      SELECT DISTINCT unnest(issue_codes) AS code
-      FROM lda_client WHERE id = ANY(${ldaClientIds}::int[]) AND issue_codes IS NOT NULL
-    `;
-    const yearlySpend = await this.prisma.$queryRaw<Array<{ year: number; amount: number }>>`
-      SELECT filing_year as year, COALESCE(SUM(income), 0)::float as amount
-      FROM lda_filing WHERE client_id = ANY(${ldaClientIds}::int[])
-      GROUP BY filing_year ORDER BY filing_year
-    `;
-
-    return {
-      matched: true,
-      ldaClientId: ldaClientIds[0]!, // representative scalar (frontend back-compat)
-      ldaClientIds, // the full set
-      confidence: 1.0,
-      totalFilings: agg[0]?.total_filings ?? 0,
-      totalSpending: agg[0]?.total_spending ?? null,
-      issueCodes: codeRows.map((r) => r.code).filter(Boolean),
-      recentFilings: filings,
-      yearlySpend,
-    };
+    return this.clientSources.identityLda.fetchLdaByIds(ldaClientIds);
   }
 
   /**
@@ -688,154 +560,7 @@ export class IntelligenceService {
    * number of in-house filers; we surface whichever the filing carries.
    */
   async getClientLdaFilings(clientId: string, tenantId: string) {
-    const ldaClientIds = await this.resolveLdaClientIds(clientId, tenantId);
-    if (!ldaClientIds.length) {
-      return {
-        matched: false,
-        ldaClientIds: [] as number[],
-        totalFilings: 0,
-        totalIncome: 0,
-        totalExpenses: 0,
-        firstFilingYear: null as number | null,
-        latestFilingYear: null as number | null,
-        registrants: [] as Array<{ name: string; filings: number; income: number }>,
-        byYear: [] as Array<{ year: number; income: number; expenses: number; filings: number }>,
-        filings: [] as unknown[],
-      };
-    }
-
-    const rows = await this.prisma.ldaFiling.findMany({
-      where: { clientId: { in: ldaClientIds } },
-      orderBy: [{ filingYear: 'desc' }, { dtPosted: 'desc' }],
-      take: 501,
-      select: {
-        filingUuid: true,
-        registrantId: true,
-        clientId: true,
-        filingType: true,
-        filingYear: true,
-        filingPeriod: true,
-        income: true,
-        expenses: true,
-        dtPosted: true,
-        registrantName: true,
-        clientName: true,
-        issueCodes: true,
-        governmentEntities: true,
-        lobbyists: true,
-        lobbyingActivities: true,
-        filingDocumentUrl: true,
-      },
-    });
-
-    const num = (v: unknown): number => {
-      const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : Number(v ?? 0);
-      return Number.isFinite(n) ? n : 0;
-    };
-    const nameList = (json: unknown, key: string): string[] => {
-      if (!Array.isArray(json)) return [];
-      const out: string[] = [];
-      for (const item of json) {
-        if (item && typeof item === 'object') {
-          const v = (item as Record<string, unknown>)[key];
-          if (typeof v === 'string' && v.trim()) out.push(v.trim());
-          else if (v && typeof v === 'object') {
-            // government_entities arrive as { name } objects in some vintages
-            const n = (v as Record<string, unknown>).name;
-            if (typeof n === 'string' && n.trim()) out.push(n.trim());
-          }
-        } else if (typeof item === 'string' && item.trim()) {
-          out.push(item.trim());
-        }
-      }
-      return Array.from(new Set(out));
-    };
-    const lobbyistNames = (json: unknown): string[] => {
-      if (!Array.isArray(json)) return [];
-      const out: string[] = [];
-      for (const item of json) {
-        if (item && typeof item === 'object') {
-          const o = item as Record<string, unknown>;
-          // LDA lobbyist rows: { lobbyist: { first_name, last_name } } or flat.
-          const inner = (o.lobbyist as Record<string, unknown>) ?? o;
-          const first = typeof inner.first_name === 'string' ? inner.first_name : '';
-          const last = typeof inner.last_name === 'string' ? inner.last_name : '';
-          const full = `${first} ${last}`.trim();
-          if (full) out.push(full);
-        }
-      }
-      return Array.from(new Set(out));
-    };
-
-    let totalIncome = 0;
-    let totalExpenses = 0;
-    const byYear = new Map<
-      number,
-      { year: number; income: number; expenses: number; filings: number }
-    >();
-    const registrants = new Map<string, { name: string; filings: number; income: number }>();
-
-    const truncated = rows.length > 500;
-    const visibleRows = rows.slice(0, 500);
-    const filings = visibleRows.map((r) => {
-      const income = num(r.income);
-      const expenses = num(r.expenses);
-      totalIncome += income;
-      totalExpenses += expenses;
-
-      const y = byYear.get(r.filingYear) ?? {
-        year: r.filingYear,
-        income: 0,
-        expenses: 0,
-        filings: 0,
-      };
-      y.income += income;
-      y.expenses += expenses;
-      y.filings += 1;
-      byYear.set(r.filingYear, y);
-
-      const rn = (r.registrantName || '').trim() || 'Unknown registrant';
-      const reg = registrants.get(rn) ?? { name: rn, filings: 0, income: 0 };
-      reg.filings += 1;
-      reg.income += income;
-      registrants.set(rn, reg);
-
-      return {
-        filingUuid: r.filingUuid,
-        registrantId: r.registrantId,
-        ldaClientId: r.clientId,
-        filingType: r.filingType,
-        filingYear: r.filingYear,
-        filingPeriod: r.filingPeriod,
-        income,
-        expenses,
-        amount: income || expenses, // the headline number to show per row
-        postedAt: r.dtPosted ? r.dtPosted.toISOString() : null,
-        registrantName: rn,
-        clientName: r.clientName,
-        issueCodes: Array.isArray(r.issueCodes) ? r.issueCodes : [],
-        governmentEntities: nameList(r.governmentEntities, 'name'),
-        lobbyists: lobbyistNames(r.lobbyists),
-        documentUrl: r.filingDocumentUrl ?? null,
-      };
-    });
-
-    const years = visibleRows.map((r) => r.filingYear);
-    return {
-      matched: true,
-      ldaClientIds,
-      totalFilings: visibleRows.length,
-      truncated,
-      totalIncome,
-      totalExpenses,
-      firstFilingYear: years.length ? Math.min(...years) : null,
-      latestFilingYear: years.length ? Math.max(...years) : null,
-      registrants: Array.from(registrants.values())
-        .sort((a, b) => b.income - a.income)
-        .slice(0, 10),
-      byYear: Array.from(byYear.values()).sort((a, b) => b.year - a.year),
-      filings,
-    };
+    return this.clientSources.identityFilings.getClientLdaFilings(clientId, tenantId);
   }
 
   /**
@@ -846,218 +571,32 @@ export class IntelligenceService {
    * 500s the entire client-profile / federal footprint card. Guard first.
    */
   private isUuid(id: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
+    return this.clientSources.identityCatalog.isUuid(id);
   }
 
   /** Fetch contractor data by confirmed ID (skips fuzzy match) */
   private async fetchContractorById(id: string) {
-    const raw = (id ?? '').trim();
-    if (!raw) return null;
-
-    // Prefer catalog uuid. Fall back to exact name (and award-name: prefix) so a
-    // non-uuid external_id never 500s the profile — it either resolves or nulls.
-    // IMPORTANT: never embed a non-uuid into `${x}::uuid` even under a false
-    // AND branch — Postgres still type-checks the cast and throws 22P02.
-    const nameFromSynthetic = raw.startsWith('award-name:')
-      ? raw.slice('award-name:'.length).trim()
-      : null;
-    const nameKey = nameFromSynthetic || (!this.isUuid(raw) ? raw : null);
-
-    const rows = this.isUuid(raw)
-      ? await this.prisma.$queryRaw<
-          Array<{
-            id: string;
-            name: string;
-            total_contracts: number | null;
-            rank_by_contracts: number | null;
-            no_bid_total: number | null;
-            yearly_spend_jsonb: object[];
-            top_agencies_jsonb: object[];
-          }>
-        >`
-          SELECT id, name, total_contracts, rank_by_contracts, no_bid_total,
-                 COALESCE(yearly_spend_jsonb, '[]')::jsonb as yearly_spend_jsonb,
-                 COALESCE(top_agencies_jsonb, '[]')::jsonb as top_agencies_jsonb
-          FROM federal_contractor
-          WHERE id = ${raw}::uuid
-          LIMIT 1
-        `
-      : nameKey
-        ? await this.prisma.$queryRaw<
-            Array<{
-              id: string;
-              name: string;
-              total_contracts: number | null;
-              rank_by_contracts: number | null;
-              no_bid_total: number | null;
-              yearly_spend_jsonb: object[];
-              top_agencies_jsonb: object[];
-            }>
-          >`
-            SELECT id, name, total_contracts, rank_by_contracts, no_bid_total,
-                   COALESCE(yearly_spend_jsonb, '[]')::jsonb as yearly_spend_jsonb,
-                   COALESCE(top_agencies_jsonb, '[]')::jsonb as top_agencies_jsonb
-            FROM federal_contractor
-            WHERE name = ${nameKey}
-            LIMIT 1
-          `
-        : [];
-    if (!rows.length) return null;
-
-    const match = rows[0]!;
-    return {
-      matched: true,
-      contractorName: match.name,
-      totalContracts: decToNumber(match.total_contracts),
-      rankByContracts: match.rank_by_contracts,
-      noBidTotal: decToNumber(match.no_bid_total),
-      topAgencies: match.top_agencies_jsonb as { name: string; amount: number }[],
-      yearlySpend: match.yearly_spend_jsonb as { year: number; amount: number }[],
-    };
+    return this.clientSources.identityCatalog.fetchContractorById(id);
   }
 
   /** Fetch lobby intel data by confirmed ID (skips fuzzy match) */
   private async fetchLobbyIntelById(id: string) {
-    const raw = (id ?? '').trim();
-    // lobby_intel_mv.id is uuid-only; a non-uuid confirmed mapping must not 500.
-    if (!this.isUuid(raw)) return null;
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        trajectory: string | null;
-        growth_rate: number | null;
-        total_spending: number | null;
-      }>
-    >`
-      SELECT id, name, trajectory, growth_rate, total_spending
-      FROM lobby_intel_mv WHERE id = ${raw}::uuid
-    `;
-    if (!rows.length) return null;
-
-    const match = rows[0]!;
-    return {
-      matched: true,
-      trajectory: match.trajectory,
-      growthRate: match.growth_rate,
-      totalSpending: match.total_spending,
-    };
+    return this.clientSources.identityCatalog.fetchLobbyIntelById(id);
   }
 
   /** Fuzzy match client name against LDA clients */
   private async fuzzyMatchLda(clientName: string) {
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: number;
-        name: string;
-        total_filings: number;
-        total_spending: number | null;
-        issue_codes: string[];
-        similarity: number;
-      }>
-    >`
-      SELECT c.id, c.name, c.total_filings, c.total_spending, 
-             COALESCE(c.issue_codes, '{}') as issue_codes,
-             similarity(c.name, ${clientName}) as similarity
-      FROM lda_client c
-      WHERE similarity(c.name, ${clientName}) > 0.3
-      ORDER BY similarity DESC
-      LIMIT 1
-    `;
-    if (!rows.length) return null;
-
-    const match = rows[0]!;
-    // Get recent filings
-    const filings = await this.prisma.ldaFiling.findMany({
-      where: { clientId: match.id },
-      orderBy: { dtPosted: 'desc' },
-      take: 10,
-    });
-    // Get yearly spend trend
-    const yearlySpend = await this.prisma.$queryRaw<Array<{ year: number; amount: number }>>`
-      SELECT filing_year as year, COALESCE(SUM(income), 0)::float as amount
-      FROM lda_filing WHERE client_id = ${match.id}
-      GROUP BY filing_year ORDER BY filing_year
-    `;
-
-    return {
-      matched: true,
-      ldaClientId: match.id,
-      ldaClientIds: [match.id],
-      confidence: match.similarity,
-      totalFilings: match.total_filings,
-      totalSpending: match.total_spending,
-      issueCodes: match.issue_codes,
-      recentFilings: filings,
-      yearlySpend,
-    };
+    return this.clientSources.identityLda.fuzzyMatchLda(clientName);
   }
 
   /** Fuzzy match client name against federal contractors */
   private async fuzzyMatchContractor(clientName: string) {
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        total_contracts: number | null;
-        rank_by_contracts: number | null;
-        no_bid_total: number | null;
-        yearly_spend_jsonb: object[];
-        top_agencies_jsonb: object[];
-        similarity: number;
-      }>
-    >`
-      SELECT id, name, total_contracts, rank_by_contracts, no_bid_total,
-             COALESCE(yearly_spend_jsonb, '[]')::jsonb as yearly_spend_jsonb,
-             COALESCE(top_agencies_jsonb, '[]')::jsonb as top_agencies_jsonb,
-             similarity(name, ${clientName}) as similarity
-      FROM federal_contractor
-      WHERE similarity(name, ${clientName}) > 0.3
-      ORDER BY similarity DESC
-      LIMIT 1
-    `;
-    if (!rows.length) return null;
-
-    const match = rows[0]!;
-    return {
-      matched: true,
-      contractorName: match.name,
-      totalContracts: decToNumber(match.total_contracts),
-      rankByContracts: match.rank_by_contracts,
-      noBidTotal: decToNumber(match.no_bid_total),
-      topAgencies: match.top_agencies_jsonb as { name: string; amount: number }[],
-      yearlySpend: match.yearly_spend_jsonb as { year: number; amount: number }[],
-    };
+    return this.clientSources.identityCatalog.fuzzyMatchContractor(clientName);
   }
 
   /** Fuzzy match client name against lobby intel */
   private async fuzzyMatchLobbyIntel(clientName: string) {
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        trajectory: string | null;
-        growth_rate: number | null;
-        total_spending: number | null;
-        similarity: number;
-      }>
-    >`
-      SELECT id, name, trajectory, growth_rate, total_spending,
-             similarity(name, ${clientName}) as similarity
-      FROM lobby_intel_mv
-      WHERE similarity(name, ${clientName}) > 0.3
-      ORDER BY similarity DESC
-      LIMIT 1
-    `;
-    if (!rows.length) return null;
-
-    const match = rows[0]!;
-    return {
-      matched: true,
-      trajectory: match.trajectory,
-      growthRate: match.growth_rate,
-      totalSpending: match.total_spending,
-    };
+    return this.clientSources.identityCatalog.fuzzyMatchLobbyIntel(clientName);
   }
 
   /** Find Congress bills relevant to the client's issue areas */
@@ -1187,66 +726,7 @@ export class IntelligenceService {
     issueCodes: string[],
     ldaClientIds: number[] = [],
   ) {
-    if (!issueCodes.length) return { topBySpend: [], newEntrants: [] };
-
-    // Self-exclusion (AC-9.2): a RESOLVED client excludes its own LDA ids
-    // (c.id <> ALL(ids)) so its other-registrant filings never surface as its
-    // own competitor. An UNRESOLVED client (empty id set) has no ids to exclude,
-    // so we fall back to a name-similarity guard (< 0.6) — otherwise the client
-    // would appear as its own top competitor. Both branches are expressed in
-    // parameterized SQL (no dynamic string building); cardinality(ids) picks
-    // the active branch per-row.
-    const ids = ldaClientIds;
-
-    // Find top spenders on the same issues (excluding the client itself)
-    const topBySpend = await this.prisma.$queryRaw<
-      Array<{ name: string; total_spending: number; shared_issues: string[] }>
-    >`
-      SELECT c.name, c.total_spending::float as total_spending,
-             c.issue_codes as shared_issues
-      FROM lda_client c
-      WHERE c.issue_codes && ${issueCodes}::text[]
-        AND (
-          (cardinality(${ids}::int[]) > 0 AND c.id <> ALL(${ids}::int[]))
-          OR (cardinality(${ids}::int[]) = 0 AND similarity(c.name, ${clientName}) < 0.6)
-        )
-        AND c.total_spending IS NOT NULL
-      ORDER BY c.total_spending DESC
-      LIMIT 10
-    `;
-
-    // Find new entrants (first filing in last 90 days)
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const newEntrants = await this.prisma.$queryRaw<
-      Array<{ name: string; first_filing_date: string; issues: string[] }>
-    >`
-      SELECT c.name, MIN(f.dt_posted)::text as first_filing_date,
-             c.issue_codes as issues
-      FROM lda_client c
-      JOIN lda_filing f ON f.client_id = c.id
-      WHERE c.issue_codes && ${issueCodes}::text[]
-        AND (
-          (cardinality(${ids}::int[]) > 0 AND c.id <> ALL(${ids}::int[]))
-          OR (cardinality(${ids}::int[]) = 0 AND similarity(c.name, ${clientName}) < 0.6)
-        )
-      GROUP BY c.id, c.name, c.issue_codes
-      HAVING MIN(f.dt_posted) >= ${ninetyDaysAgo}
-      ORDER BY MIN(f.dt_posted) DESC
-      LIMIT 5
-    `;
-
-    return {
-      topBySpend: topBySpend.map((r) => ({
-        name: r.name,
-        totalSpending: r.total_spending,
-        sharedIssues: r.shared_issues,
-      })),
-      newEntrants: newEntrants.map((r) => ({
-        name: r.name,
-        firstFilingDate: r.first_filing_date,
-        issues: r.issues,
-      })),
-    };
+    return this.clientSources.identityLda.findCompetitors(clientName, issueCodes, ldaClientIds);
   }
 
   /**
@@ -1289,14 +769,7 @@ export class IntelligenceService {
    * RLS once client_intel_mapping carries tenant_id.
    */
   async getMappings(clientId: string, tenantId: string) {
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const client = await tx.client.findFirst({ where: { id: clientId }, select: { id: true } });
-      if (!client) throw new NotFoundException('Client not found');
-      return tx.clientIntelMapping.findMany({
-        where: { clientId },
-        orderBy: { confidence: 'desc' },
-      });
-    });
+    return this.clientSources.mapping.getMappings(clientId, tenantId);
   }
 
   /**
@@ -1312,46 +785,7 @@ export class IntelligenceService {
    * by its footprint + stable id rather than by name alone.
    */
   async searchLdaClients(query: string) {
-    const q = query.trim();
-    if (!q) return [];
-    const asId = Number(q);
-    const idMatch = Number.isInteger(asId) && asId > 0 ? asId : -1;
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: number;
-        name: string;
-        state: string | null;
-        total_filings: number;
-        latest_filing_year: number | null;
-        total_spending: number | null;
-        issue_codes: string[];
-        similarity: number;
-      }>
-    >`
-      SELECT id, name, state,
-             total_filings,
-             latest_filing_year,
-             total_spending::float AS total_spending,
-             COALESCE(issue_codes, '{}') AS issue_codes,
-             GREATEST(
-               similarity(name, ${q}),
-               CASE WHEN id = ${idMatch} THEN 1 ELSE 0 END
-             ) AS similarity
-      FROM lda_client
-      WHERE similarity(name, ${q}) > 0.2 OR id = ${idMatch}
-      ORDER BY similarity DESC, total_filings DESC
-      LIMIT 25
-    `;
-    return rows.map((r) => ({
-      id: String(r.id),
-      name: r.name,
-      state: r.state,
-      totalFilings: Number(r.total_filings ?? 0),
-      latestFilingYear: r.latest_filing_year,
-      totalSpending: r.total_spending,
-      issueCodes: r.issue_codes ?? [],
-      similarity: Number(r.similarity ?? 0),
-    }));
+    return this.clientSources.mappingCatalog.searchLdaClients(query);
   }
 
   /**
@@ -1363,69 +797,12 @@ export class IntelligenceService {
    * amount, and latest year so the right employer strings are recognisable.
    */
   async searchFecEmployers(query: string) {
-    const q = query.trim();
-    if (!q) return [];
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        employer: string;
-        contribution_count: number;
-        total_amount: number | null;
-        latest_year: number | null;
-        similarity: number;
-      }>
-    >`
-      SELECT contributor_employer AS employer,
-             COUNT(*)::int AS contribution_count,
-             COALESCE(SUM(amount), 0)::float AS total_amount,
-             MAX(EXTRACT(YEAR FROM contribution_date))::int AS latest_year,
-             similarity(contributor_employer, ${q}) AS similarity
-      FROM fec_contribution
-      WHERE contributor_employer IS NOT NULL
-        AND similarity(contributor_employer, ${q}) > 0.2
-      GROUP BY contributor_employer
-      ORDER BY similarity DESC, total_amount DESC
-      LIMIT 25
-    `;
-    return rows.map((r) => ({
-      // For fec_employer the employer string is both the id and the name.
-      id: r.employer,
-      name: r.employer,
-      contributionCount: Number(r.contribution_count ?? 0),
-      totalAmount: r.total_amount,
-      latestYear: r.latest_year,
-      similarity: Number(r.similarity ?? 0),
-    }));
+    return this.clientSources.mappingCatalog.searchFecEmployers(query);
   }
 
   /** Search the imported PAC catalog by official committee ID or name. */
   async searchFecCommittees(query: string) {
-    const q = query.trim();
-    if (!q) return [];
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        committee_type: string | null;
-        cycles: number[];
-        last_synced_at: Date | null;
-      }>
-    >`
-      SELECT id, name, committee_type, cycles, last_synced_at
-      FROM fec_committee
-      WHERE committee_type IN ('Q', 'N', 'O', 'V', 'W')
-        AND (id = ${q.toUpperCase()} OR similarity(name, ${q}) > 0.2)
-      ORDER BY (id = ${q.toUpperCase()}) DESC, similarity(name, ${q}) DESC, name
-      LIMIT 25
-    `;
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      committeeType: row.committee_type,
-      // The catalog does not currently store official active/terminated status.
-      active: null,
-      cycle: row.cycles.length ? Math.max(...row.cycles) : null,
-      sourceSyncedAt: row.last_synced_at?.toISOString() ?? null,
-    }));
+    return this.clientSources.mappingCatalog.searchFecCommittees(query);
   }
 
   /**
@@ -1437,67 +814,7 @@ export class IntelligenceService {
    * Accepts a name fuzzy-match or an exact uuid paste.
    */
   async searchContractors(query: string) {
-    const q = query.trim();
-    if (!q) return { results: [], unsupportedIdentifier: null as null | string };
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
-    const upper = q.toUpperCase();
-    const isUei = /^[A-Z0-9]{12}$/.test(upper);
-    // A CAGE code is 5 alphanumerics. Detected so the caller can be TOLD that
-    // `federal_contractor` carries no CAGE column — its source does not publish
-    // one (sync-openspending.ts writes only uei/recipientId). A CAGE search that
-    // silently returned zero rows would read as "this CAGE is not a federal
-    // contractor", which is a claim the data cannot support.
-    const isCage = !isUei && /^[A-Z0-9]{5}$/.test(upper) && /\d/.test(upper);
-
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        uei: string | null;
-        category: string | null;
-        total_contracts: number | null;
-        rank_by_contracts: number | null;
-        last_synced_at: Date | null;
-        similarity: number;
-      }>
-    >`
-      SELECT id, name, uei, category,
-             total_contracts::float AS total_contracts,
-             rank_by_contracts,
-             last_synced_at,
-             GREATEST(
-               similarity(name, ${q}),
-               CASE WHEN ${isUuid} AND id::text = ${q} THEN 1 ELSE 0 END,
-               -- An exact UEI is a verified identifier, so it must outrank every
-               -- name score — and it must be searchable at all, which it was not:
-               -- "RTX CORPORATION" and "RAYTHEON TECHNOLOGIES CORPORATION" share
-               -- no trigram overlap, so the only way to reach the right row is by
-               -- its identifier.
-               CASE WHEN ${isUei} AND uei = ${isUei ? upper : null} THEN 1 ELSE 0 END
-             ) AS similarity
-      FROM federal_contractor
-      WHERE similarity(name, ${q}) > 0.2
-         OR (${isUuid} AND id::text = ${q})
-         OR (${isUei} AND uei = ${isUei ? upper : null})
-      ORDER BY similarity DESC, total_contracts DESC NULLS LAST
-      LIMIT 25
-    `;
-    return {
-      results: rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        uei: r.uei,
-        category: r.category,
-        totalContracts: decToNumber(r.total_contracts),
-        rankByContracts: r.rank_by_contracts,
-        sourceSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
-        similarity: Number(r.similarity ?? 0),
-        matchedOnIdentifier: isUei && r.uei != null && r.uei.toUpperCase() === upper,
-      })),
-      unsupportedIdentifier: isCage
-        ? 'That looks like a CAGE code. The federal contractor catalog Capiro holds carries UEI but no CAGE code, so a CAGE cannot be looked up here — search by name or UEI instead.'
-        : null,
-    };
+    return this.clientSources.mappingCatalog.searchContractors(query);
   }
 
   /**
@@ -1511,76 +828,7 @@ export class IntelligenceService {
    * missing child/legal-entity UEI (§8.4 — never auto-confirm a weak match).
    */
   async searchAssistanceRecipients(query: string) {
-    const q = query.trim();
-    if (!q) return [];
-    const isUei = /^[A-Z0-9]{12}$/i.test(q);
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        uei: string | null;
-        name: string | null;
-        state: string | null;
-        award_count: number;
-        total_obligated: number;
-        similarity: number;
-      }>
-    >`
-      SELECT
-        MAX(recipient_uei) AS uei,
-        MAX(recipient_name) AS name,
-        MAX(recipient_state) AS state,
-        COUNT(*)::int AS award_count,
-        COALESCE(SUM(total_obligated_amount), 0)::float AS total_obligated,
-        MAX(sim) AS similarity
-      FROM (
-        SELECT recipient_uei, recipient_name, recipient_state, total_obligated_amount,
-               GREATEST(
-                 similarity(lower(recipient_name), lower(${q})),
-                 word_similarity(lower(${q}), lower(recipient_name)),
-                 CASE WHEN ${isUei} AND recipient_uei = upper(${q}) THEN 1 ELSE 0 END
-               ) AS sim
-        FROM federal_assistance_award
-        WHERE recipient_name IS NOT NULL
-          -- Both predicates below are index-driven; the previous form was not.
-          -- % reaches faa_recipient_name_trgm_idx (gin on lower(recipient_name));
-          -- a bare similarity(...) > c is a plain function call and seq-scans
-          -- the largest new table. The expression must be spelled
-          -- lower(recipient_name) to match the functional index.
-          --
-          -- % alone would raise the floor from the old 0.2 to pg_trgm's default
-          -- similarity_threshold of 0.3, which silently drops short-query
-          -- recall ("MIT" against "MASSACHUSETTS INSTITUTE OF TECHNOLOGY").
-          -- %> is the commutator of <% (word_similarity): it asks whether the
-          -- query matches a continuous extent of the name rather than the whole
-          -- string, which is what restores those short queries. It is also
-          -- gin_trgm_ops-supported, so recall comes back without the seq-scan.
-          --
-          -- recipient_uei is compared bare, not upper(recipient_uei): the column
-          -- has a plain btree (faa_recipient_uei_idx) and wrapping it in upper()
-          -- makes that index unusable. UEIs are uppercase alphanumeric by SAM
-          -- definition and the writer shape-checks 12 alphanumeric on ingest, so
-          -- normalising only the parameter side is sufficient.
-          AND (
-            lower(recipient_name) % lower(${q})
-            OR lower(recipient_name) %> lower(${q})
-            OR (${isUei} AND recipient_uei = upper(${q}))
-          )
-      ) matched
-      GROUP BY COALESCE(recipient_uei, recipient_name)
-      ORDER BY similarity DESC, total_obligated DESC
-      LIMIT 25
-    `;
-    return rows.map((r) => ({
-      // Stable pin identifier: UEI when the recipient has one on file, else
-      // the recipient name — mirrors the SQL's own COALESCE(uei, name) group
-      // key so a pin always lands back on the exact group it was picked from.
-      id: r.uei ?? r.name ?? '',
-      uei: r.uei,
-      name: r.name,
-      state: r.state,
-      awardCount: r.award_count,
-      totalObligated: r.total_obligated,
-      similarity: Number(r.similarity ?? 0),
-    }));
+    return this.clientSources.mappingCatalog.searchAssistanceRecipients(query);
   }
 
   /**
@@ -1603,104 +851,7 @@ export class IntelligenceService {
       actorUserId: string;
     },
   ) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-    if (
-      AWARD_BEARING_MAPPING_SOURCES.has(input.source) &&
-      (input.relationshipType == null || input.rollUpAwards == null)
-    ) {
-      throw new BadRequestException(
-        'Award-bearing federal mappings require a reviewed relationship type and an explicit award roll-up decision.',
-      );
-    }
-
-    if (input.source === 'fec_committee') {
-      const committeeId = input.externalId.trim().toUpperCase();
-      if (!/^C\d{8}$/.test(committeeId)) {
-        throw new BadRequestException('Select a valid FEC PAC committee ID.');
-      }
-      const committee = await this.prisma.fecCommittee.findUnique({
-        where: { id: committeeId },
-        select: { name: true, committeeType: true },
-      });
-      if (!committee || !['Q', 'N', 'O', 'V', 'W'].includes(committee.committeeType ?? '')) {
-        throw new BadRequestException('Select a PAC from the imported FEC committee catalog.');
-      }
-      input = { ...input, externalId: committeeId, externalName: committee.name };
-    }
-
-    const mapping = await this.prisma.withTenant(tenantId, async (tx) => {
-      const before = await tx.clientIntelMapping.findUnique({
-        where: {
-          clientId_source_externalId: {
-            clientId,
-            source: input.source,
-            externalId: input.externalId,
-          },
-        },
-      });
-      const saved = await tx.clientIntelMapping.upsert({
-        where: {
-          clientId_source_externalId: {
-            clientId,
-            source: input.source,
-            externalId: input.externalId,
-          },
-        },
-        update: {
-          externalName: input.externalName,
-          confirmed: true,
-          matchBasis: 'manual_pin',
-          matchTier: 1,
-          reviewStatus: 'confirmed',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: null,
-          ...(input.relationshipType !== undefined
-            ? { relationshipType: input.relationshipType }
-            : {}),
-          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
-        },
-        create: {
-          tenantId,
-          clientId,
-          source: input.source,
-          externalId: input.externalId,
-          externalName: input.externalName,
-          confidence: 1,
-          confirmed: true,
-          matchBasis: 'manual_pin',
-          matchTier: 1,
-          reviewStatus: 'confirmed',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: null,
-          ...(input.relationshipType !== undefined
-            ? { relationshipType: input.relationshipType }
-            : {}),
-          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId: input.actorUserId,
-          action: 'intelligence_mapping.confirmed',
-          entityType: 'client_intel_mapping',
-          entityId: saved.id,
-          before: before ? (before as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-          after: saved as unknown as Prisma.InputJsonValue,
-        },
-      });
-      return saved;
-    });
-
-    if (input.source === 'lda') {
-      await this.prepopulation?.prepopulate(tenantId, clientId);
-    }
-    return mapping;
+    return this.clientSources.mappingReview.createManualMapping(clientId, tenantId, input);
   }
 
   async rejectMappingCandidate(
@@ -1714,67 +865,7 @@ export class IntelligenceService {
       actorUserId: string;
     },
   ) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const before = await tx.clientIntelMapping.findUnique({
-        where: {
-          clientId_source_externalId: {
-            clientId,
-            source: input.source,
-            externalId: input.externalId,
-          },
-        },
-      });
-      const saved = await tx.clientIntelMapping.upsert({
-        where: {
-          clientId_source_externalId: {
-            clientId,
-            source: input.source,
-            externalId: input.externalId,
-          },
-        },
-        update: {
-          externalName: input.externalName,
-          confirmed: false,
-          reviewStatus: 'rejected',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: input.reason ?? 'Rejected by reviewer',
-          rollUpAwards: false,
-        },
-        create: {
-          tenantId,
-          clientId,
-          source: input.source,
-          externalId: input.externalId,
-          externalName: input.externalName,
-          confidence: 0,
-          confirmed: false,
-          reviewStatus: 'rejected',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: input.reason ?? 'Rejected by reviewer',
-          rollUpAwards: false,
-          matchBasis: 'fuzzy_name',
-          matchTier: 4,
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId: input.actorUserId,
-          action: 'intelligence_mapping.rejected',
-          entityType: 'client_intel_mapping',
-          entityId: saved.id,
-          before: before ? (before as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-          after: saved as unknown as Prisma.InputJsonValue,
-        },
-      });
-      return saved;
-    });
+    return this.clientSources.mappingReview.rejectMappingCandidate(clientId, tenantId, input);
   }
 
   /**
@@ -1803,104 +894,7 @@ export class IntelligenceService {
    * re-run.
    */
   async resolveMapping(clientId: string, tenantId: string) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-
-    const clientName = client.name;
-    const results: Array<{
-      source: string;
-      externalId: string;
-      externalName: string;
-      confidence: number;
-    }> = [];
-
-    // Match against each source
-    const ldaRows = await this.prisma.$queryRaw<
-      Array<{ id: number; name: string; similarity: number }>
-    >`
-      SELECT id, name, similarity(name, ${clientName}) as similarity
-      FROM lda_client WHERE similarity(name, ${clientName}) > 0.3
-      ORDER BY similarity DESC LIMIT 3
-    `;
-    for (const r of ldaRows) {
-      results.push({
-        source: 'lda',
-        externalId: String(r.id),
-        externalName: r.name,
-        confidence: r.similarity,
-      });
-    }
-
-    const contractorRows = await this.prisma.$queryRaw<
-      Array<{ id: string; name: string; similarity: number }>
-    >`
-      SELECT id, name, similarity(name, ${clientName}) as similarity
-      FROM federal_contractor WHERE similarity(name, ${clientName}) > 0.3
-      ORDER BY similarity DESC LIMIT 3
-    `;
-    for (const r of contractorRows) {
-      results.push({
-        source: 'contracting',
-        externalId: r.id,
-        externalName: r.name,
-        confidence: r.similarity,
-      });
-    }
-
-    const lobbyRows = await this.prisma.$queryRaw<
-      Array<{ id: string; name: string; similarity: number }>
-    >`
-      SELECT id, name, similarity(name, ${clientName}) as similarity
-      FROM lobby_intel_mv WHERE similarity(name, ${clientName}) > 0.3
-      ORDER BY similarity DESC LIMIT 3
-    `;
-    for (const r of lobbyRows) {
-      results.push({
-        source: 'lobby_intel',
-        externalId: r.id,
-        externalName: r.name,
-        confidence: r.similarity,
-      });
-    }
-
-    // Upsert mappings (one tenant-scoped transaction for the whole loop)
-    const mappings = await this.prisma.withTenant(tenantId, async (tx) => {
-      const out = [];
-      for (const r of results) {
-        const mapping = await tx.clientIntelMapping.upsert({
-          where: {
-            clientId_source_externalId: {
-              clientId,
-              source: r.source,
-              externalId: r.externalId,
-            },
-          },
-          update: {
-            externalName: r.externalName,
-            confidence: r.confidence,
-          },
-          create: {
-            tenantId,
-            clientId,
-            source: r.source,
-            externalId: r.externalId,
-            externalName: r.externalName,
-            confidence: r.confidence,
-            // NEVER auto-confirmed. See this method's docblock: `confidence` here
-            // is a bare trigram similarity, and a name is not an identity.
-            confirmed: false,
-            matchBasis: 'fuzzy_name',
-            matchTier: 4,
-          },
-        });
-        out.push(mapping);
-      }
-      return out;
-    });
-
-    return mappings;
+    return this.clientSources.mapping.resolveMapping(clientId, tenantId);
   }
 
   /**
@@ -1921,80 +915,7 @@ export class IntelligenceService {
     },
     tenantId: string,
   ) {
-    const mapping = await this.prisma.withTenant(tenantId, async (tx) => {
-      const existing = await tx.clientIntelMapping.findUnique({ where: { id: mappingId } });
-      const owned = existing
-        ? await tx.client.findFirst({ where: { id: existing.clientId }, select: { id: true } })
-        : null;
-      if (!existing || !owned) throw new NotFoundException('Mapping not found');
-
-      // P05 — award-bearing identity may only be decided EXPLICITLY, per decision.
-      //
-      // Three things changed here, each closing a separate hole:
-      //
-      // 1. `assistance_recipient` is now covered. Only `contracting` was, so an
-      //    assistance mapping could be confirmed with relationshipType and
-      //    rollUpAwards left NULL — and NULL means "do not roll up", so the row was
-      //    confirmed but invisible to every roll-up read. Confirmed-but-inert is
-      //    the worst of the three possible states because it looks decided.
-      //
-      // 2. The values must be present in THIS request. The old code fell back to
-      //    `?? existing.*`, so re-confirming a row silently reused a decision made
-      //    at some other time, for some other reason, possibly by someone else —
-      //    and a bulk toggle sending only `{confirmed:true}` satisfied the guard.
-      //
-      // 3. Rejecting an award-bearing mapping now needs a written reason. A reject
-      //    is a single PATCH, so the server cannot tell a bulk sweep from an
-      //    individual decision; requiring a reason is what a sweep cannot supply.
-      if (AWARD_BEARING_MAPPING_SOURCES.has(existing.source)) {
-        if (input.confirmed) {
-          if (input.relationshipType == null || input.rollUpAwards == null) {
-            throw new BadRequestException(
-              'Confirming an award-bearing identity requires an explicit relationship type and an explicit award roll-up decision on this request. Whose money this is cannot be inherited from a previous decision.',
-            );
-          }
-        } else if (!input.rejectionReason?.trim()) {
-          throw new BadRequestException(
-            'Rejecting an award-bearing identity requires a written reason, so the decision is reviewable later.',
-          );
-        }
-      }
-
-      const saved = await tx.clientIntelMapping.update({
-        where: { id: mappingId },
-        data: {
-          confirmed: input.confirmed,
-          reviewStatus: input.confirmed ? 'confirmed' : 'rejected',
-          reviewedBy: input.actorUserId,
-          reviewedAt: new Date(),
-          rejectionReason: input.confirmed
-            ? null
-            : (input.rejectionReason ?? 'Rejected by reviewer'),
-          ...(input.relationshipType !== undefined
-            ? { relationshipType: input.relationshipType }
-            : {}),
-          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorUserId: input.actorUserId,
-          action: input.confirmed
-            ? 'intelligence_mapping.confirmed'
-            : 'intelligence_mapping.rejected',
-          entityType: 'client_intel_mapping',
-          entityId: saved.id,
-          before: existing as unknown as Prisma.InputJsonValue,
-          after: saved as unknown as Prisma.InputJsonValue,
-        },
-      });
-      return saved;
-    });
-    if (mapping.source === 'lda') {
-      await this.prepopulation?.prepopulate(tenantId, mapping.clientId);
-    }
-    return mapping;
+    return this.clientSources.mappingReview.confirmMapping(mappingId, input, tenantId);
   }
 
   /** Mark an intelligence change as consumed/unconsumed */
@@ -2072,123 +993,7 @@ export class IntelligenceService {
    * weights are not exposed in the payload.
    */
   async getSetupCompleteness(clientId: string, tenantId: string) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id: clientId },
-        select: { id: true, sectorTag: true, issueCodes: true },
-      }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-
-    const [confirmedMappings, caps] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findMany({
-          where: {
-            clientId,
-            confirmed: true,
-            OR: [
-              { source: { notIn: ['contracting', 'assistance_recipient'] } },
-              { reviewStatus: 'confirmed', rollUpAwards: true },
-            ],
-          },
-          select: { source: true },
-        }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientCapability.findMany({
-          where: { clientId },
-          select: { tags: true, description: true },
-        }),
-      ),
-    ]);
-
-    const sources = new Set(confirmedMappings.map((m) => m.source));
-    const issueCodeCount = Array.isArray(client.issueCodes) ? client.issueCodes.length : 0;
-    const capWithTags = caps.filter(
-      (c) => Array.isArray(c.tags) && (c.tags as unknown[]).length > 0,
-    ).length;
-    const capWithDesc = caps.filter(
-      (c) => typeof c.description === 'string' && c.description.trim().length > 0,
-    ).length;
-
-    const checks = [
-      {
-        key: 'lda',
-        label: 'LDA mapping confirmed',
-        done: sources.has('lda'),
-        weight: 3,
-        impact: 'Unlocks tracked bills, the office recommender, hearings, and regulations.',
-        hint: 'Confirm it in Settings → Intelligence Mappings.',
-      },
-      {
-        key: 'issue_codes',
-        label: 'Issue codes set',
-        done: issueCodeCount > 0 || sources.has('lda'),
-        weight: 2,
-        impact: 'Drives bill & regulation matching — even with no LDA mapping.',
-        hint: 'Set LDA issue codes on the client form (Sector & Tracks); they auto-fill from the LDA match.',
-      },
-      {
-        key: 'capabilities',
-        label: 'Capabilities added',
-        done: caps.length > 0,
-        weight: 1,
-        impact: 'Capabilities feed bill & regulation matching.',
-        hint: "Add the client's products/services as capabilities.",
-      },
-      {
-        key: 'capability_tags',
-        label: 'Specific capability tags',
-        done: capWithTags > 0,
-        weight: 2,
-        impact:
-          'Specific tags (e.g. "hypersonics") sharpen which bills surface; vague tags add noise.',
-        hint: 'Add specific tags to each capability; acronyms like EW/C2/ISR auto-expand.',
-      },
-      {
-        key: 'capability_descriptions',
-        label: 'Capability descriptions',
-        done: capWithDesc > 0,
-        weight: 1,
-        impact: 'Descriptions power the semantic bill matcher.',
-        hint: 'Write a sentence or two describing each capability.',
-      },
-      {
-        key: 'sector',
-        label: 'Sector set',
-        done: Boolean(client.sectorTag),
-        weight: 1,
-        impact: 'Drives agency & regulation matching.',
-        hint: 'Pick a sector on the client form.',
-      },
-      {
-        key: 'contracting',
-        label: 'Contracting mapping confirmed',
-        done: sources.has('contracting'),
-        weight: 1,
-        impact: 'Federal obligations, return ratio, and real district-by-dollars nexus.',
-        hint: 'Confirm in Settings → Intelligence Mappings (optional).',
-      },
-      {
-        key: 'fec_employer',
-        label: 'FEC employer mapping confirmed',
-        done: sources.has('fec_employer'),
-        weight: 1,
-        impact: 'Employer-linked political-contribution panel.',
-        hint: 'Confirm in Settings → Intelligence Mappings (optional).',
-      },
-    ];
-
-    const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
-    const doneWeight = checks.filter((c) => c.done).reduce((s, c) => s + c.weight, 0);
-    const score = totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0;
-
-    return {
-      clientId,
-      score,
-      complete: checks.every((c) => c.done),
-      checks: checks.map(({ weight: _weight, ...rest }) => rest),
-    };
+    return this.clientSources.mappingSetup.getSetupCompleteness(clientId, tenantId);
   }
 
   /**
@@ -2331,101 +1136,7 @@ export class IntelligenceService {
 
   /** Engagement health score (0-100) per client, per 7-day window */
   async computeEngagementHealth(clientId: string, tenantId: string) {
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const meetingWhere: Record<string, unknown> = { clientId, startsAt: { gte: sevenDaysAgo } };
-    const mailWhere: Record<string, unknown> = { clientId, lastMessageAt: { gte: sevenDaysAgo } };
-    const taskWhere: Record<string, unknown> = {
-      clientId,
-      status: EngagementTaskStatus.done,
-      updatedAt: { gte: sevenDaysAgo },
-    };
-    const debriefWhere: Record<string, unknown> = { clientId, createdAt: { gte: sevenDaysAgo } };
-    const outreachWhere: Record<string, unknown> = { clientId, sentAt: { gte: sevenDaysAgo } };
-
-    const priorMeetingWhere: Record<string, unknown> = {
-      clientId,
-      startsAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
-    };
-    const priorMailWhere: Record<string, unknown> = {
-      clientId,
-      lastMessageAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
-    };
-    const priorTaskWhere: Record<string, unknown> = {
-      clientId,
-      status: EngagementTaskStatus.done,
-      updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
-    };
-    const priorDebriefWhere: Record<string, unknown> = {
-      clientId,
-      createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
-    };
-    const priorOutreachWhere: Record<string, unknown> = {
-      clientId,
-      sentAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
-    };
-
-    const [
-      meetings,
-      emails,
-      tasksCompleted,
-      debriefs,
-      outreachSent,
-      priorMeetings,
-      priorEmails,
-      priorTasks,
-      priorDebriefs,
-      priorOutreach,
-    ] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) => tx.meeting.count({ where: meetingWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.mailThread.count({ where: mailWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.engagementTask.count({ where: taskWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.meetingDebrief.count({ where: debriefWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.outreachRecord.count({ where: outreachWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.meeting.count({ where: priorMeetingWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.mailThread.count({ where: priorMailWhere })),
-      this.prisma.withTenant(tenantId, (tx) => tx.engagementTask.count({ where: priorTaskWhere })),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.meetingDebrief.count({ where: priorDebriefWhere }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.outreachRecord.count({ where: priorOutreachWhere }),
-      ),
-    ]);
-
-    const expectedWeeklyPace = 100;
-    const score = Math.min(
-      100,
-      Math.round(
-        ((meetings * 15 + emails * 2 + tasksCompleted * 10 + debriefs * 20 + outreachSent * 5) /
-          expectedWeeklyPace) *
-          100,
-      ),
-    );
-    const priorScore = Math.min(
-      100,
-      Math.round(
-        ((priorMeetings * 15 +
-          priorEmails * 2 +
-          priorTasks * 10 +
-          priorDebriefs * 20 +
-          priorOutreach * 5) /
-          expectedWeeklyPace) *
-          100,
-      ),
-    );
-
-    const trend: 'improving' | 'stable' | 'declining' =
-      score > priorScore + 5 ? 'improving' : score < priorScore - 5 ? 'declining' : 'stable';
-
-    return {
-      score,
-      breakdown: { meetings, emails, tasksCompleted, debriefs, outreachSent },
-      trend,
-      period: '7d',
-    };
+    return this.clientSources.health.computeEngagementHealth(clientId, tenantId);
   }
 
   /** Comment-period urgency alerts: upcoming FederalRegisterDocument deadlines matched to tenant clients */
@@ -3123,39 +1834,7 @@ export class IntelligenceService {
    * label/dedup logic is source-agnostic.
    */
   private async walkClientGraph(tenantId: string, clientId: string, viewerUserId: string | null) {
-    type WalkRow = {
-      depth: number;
-      src_kind: string;
-      src_id: string;
-      dst_kind: string;
-      dst_id: string;
-      edge_type: string;
-      confidence: number | null;
-      source: string | null;
-      observed_at: Date | null;
-      tenant_id: string | null;
-    };
-    return this.prisma.withTenant(
-      tenantId,
-      async (tx) => {
-        // Real server-side bound on the walk. kg_walk_bounded's own fn-scoped
-        // statement_timeout is inert (a fn-level SET cannot re-arm the invoking
-        // statement's timer), so SET LOCAL here is what actually caps the walk
-        // well under the 30s tx ceiling — closing the RC3 pooled-hold class.
-        await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '10s'`);
-        // Ethical wall: clients this viewer may not see. Fail-closed for an
-        // unidentified viewer (null userId → every walled client denied).
-        const denied = await fetchDeniedClientIds(tx, tenantId, viewerUserId);
-        return tx.$queryRaw<Array<WalkRow>>`
-            SELECT depth, src_kind, src_id, dst_kind, dst_id, edge_type, confidence, source, observed_at, tenant_id
-            FROM kg_walk_bounded(
-              ${tenantId}::uuid,
-              ${Prisma.raw(toUuidArrayLiteral(denied))},
-              'client', ${clientId}, 2, NULL::text[], 25, 500, 'both')
-          `;
-      },
-      { timeoutMs: 30_000 },
-    );
+    return this.clientSources.graph.walkClientGraph(tenantId, clientId, viewerUserId);
   }
 
   /**
@@ -3175,480 +1854,17 @@ export class IntelligenceService {
       envTraversalSource?: 'legacy' | 'cache';
     },
   ) {
-    const viewerUserId = opts?.viewerUserId ?? null;
-    const settings = await this.prisma
-      .withTenant(tenantId, (tx) =>
-        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
-      )
-      .then((t) => t?.settings ?? null)
-      .catch((err) => {
-        // Fail toward the env gates (documented house pattern) but make the
-        // degradation observable — a silent flap of a per-tenant off-override
-        // back to an enabled env is otherwise undiagnosable.
-        this.logger.warn(
-          `kg intel-graph settings read failed for tenant ${tenantId}; resolving gates from env: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        return null;
-      });
-    const endpointOn = pickKgIntelGraph(opts?.envIntelGraphOn ?? false, settings);
-    const source = pickKgTraversalSource(opts?.envTraversalSource ?? 'legacy', settings);
-    if (!endpointOn || source !== 'cache') {
-      throw new ServiceUnavailableException(
-        'Knowledge-graph endpoint is disabled pending the scoped traversal ' +
-          '(requires KG_INTEL_GRAPH/kgIntelGraph=scoped and kgTraversalSource=cache).',
-      );
-    }
-    const [client, mappings, walkRows] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findFirst({
-          // Explicit tenant pin on top of the scoped-client hook: a foreign
-          // clientId must not even resolve this client's NAME (IDOR guard).
-          where: { id: clientId, tenantId },
-          select: { id: true, name: true, sectorTag: true },
-        }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findMany({
-          where: { clientId },
-          orderBy: { confidence: 'desc' },
-        }),
-      ),
-      // Bounded, tenant + wall-scoped kg_walk_bounded over the materialized
-      // kg_edge_cache. Capped by SET LOCAL statement_timeout (10s) inside the
-      // walk tx and a 30s tx ceiling. Fail-safe: a walk error degrades to an
-      // empty edge set so the client + mappings still render (the endpoint does
-      // not 500 the moment KG_INTEL_GRAPH is flipped to scoped).
-      this.walkClientGraph(tenantId, clientId, viewerUserId).catch((err) => {
-        this.logger.warn(
-          `kg_walk_bounded failed for client ${clientId}; rendering client+mappings only: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        return [] as Awaited<ReturnType<typeof this.walkClientGraph>>;
-      }),
-    ]);
-
-    const clientLabel = client?.name ?? clientId;
-    const centerNodeId = `client:${clientId}`;
-
-    // Step 1, drop unconfirmed auto-match noise.
-    //
-    // The entity resolver writes a row to client_intel_mapping for EVERY
-    // candidate LDA/FEC/contracting match it finds, then waits for a human
-    // to confirm one. Until then those mappings have `confirmed = false`
-    // and our view emits one client→lda_client edge per candidate, which
-    // is what produced the 68-node "all AGENCY" mess in the screenshot.
-    //
-    // The graph should reflect the *resolved* state, not the candidate
-    // pool. We drop edges where source='auto_matched' (the marker we set
-    // in kg_tenant_edges for unconfirmed mappings) so only manually
-    // confirmed bridges + canonical edges remain.
-    const filteredWalkRows = walkRows.filter((r) => r.source !== 'auto_matched');
-
-    // Step 2, batch-resolve human labels for ID-keyed kinds.
-    //
-    // Many node kinds use opaque numeric IDs (LDA client = int, LDA
-    // registrant = int, LDA lobbyist = int, FEC committee = string code)
-    // or UUIDs (federal_contractor, capability). Without a name lookup
-    // the graph rendered "189497" / "67101" / raw UUIDs as labels.
-    // Collect the ids per kind across the filtered walk, then do one
-    // SELECT per kind to build a kind:id → name map.
-    const idsByKind = new Map<string, Set<string>>();
-    const collect = (kind: string, id: string) => {
-      const set = idsByKind.get(kind) ?? new Set<string>();
-      set.add(id);
-      idsByKind.set(kind, set);
-    };
-    for (const row of filteredWalkRows) {
-      collect(row.src_kind, row.src_id);
-      collect(row.dst_kind, row.dst_id);
-    }
-    const labelByNodeKey = new Map<string, string>();
-    const lookups: Array<Promise<void>> = [];
-
-    const ldaClientIds = Array.from(idsByKind.get('lda_client') ?? [])
-      .map(Number)
-      .filter((n) => Number.isFinite(n));
-    if (ldaClientIds.length) {
-      lookups.push(
-        this.prisma.$queryRaw<Array<{ id: number; name: string }>>`
-            SELECT id, name FROM lda_client WHERE id = ANY(${ldaClientIds}::int[])
-          `.then((rows) => {
-          for (const r of rows) labelByNodeKey.set(`lda_client:${r.id}`, r.name);
-        }),
-      );
-    }
-
-    const ldaRegistrantIds = Array.from(idsByKind.get('lda_registrant') ?? [])
-      .map(Number)
-      .filter((n) => Number.isFinite(n));
-    if (ldaRegistrantIds.length) {
-      lookups.push(
-        this.prisma.$queryRaw<Array<{ id: number; name: string }>>`
-            SELECT id, name FROM lda_registrant WHERE id = ANY(${ldaRegistrantIds}::int[])
-          `.then((rows) => {
-          for (const r of rows) labelByNodeKey.set(`lda_registrant:${r.id}`, r.name);
-        }),
-      );
-    }
-
-    const ldaLobbyistIds = Array.from(idsByKind.get('lda_lobbyist') ?? [])
-      .map(Number)
-      .filter((n) => Number.isFinite(n));
-    if (ldaLobbyistIds.length) {
-      lookups.push(
-        this.prisma.$queryRaw<Array<{ id: number; first_name: string; last_name: string }>>`
-            SELECT id, first_name, last_name FROM lda_lobbyist WHERE id = ANY(${ldaLobbyistIds}::int[])
-          `.then((rows) => {
-          for (const r of rows) {
-            const name = `${r.first_name ?? ''} ${r.last_name ?? ''}`.trim();
-            labelByNodeKey.set(`lda_lobbyist:${r.id}`, name || `Lobbyist ${r.id}`);
-          }
-        }),
-      );
-    }
-
-    const contractorIds = Array.from(idsByKind.get('federal_contractor') ?? []);
-    if (contractorIds.length) {
-      lookups.push(
-        this.prisma.$queryRaw<Array<{ id: string; name: string }>>`
-            SELECT id, name FROM federal_contractor WHERE id::text = ANY(${contractorIds}::text[])
-          `.then((rows) => {
-          for (const r of rows) labelByNodeKey.set(`federal_contractor:${r.id}`, r.name);
-        }),
-      );
-    }
-
-    const fecCommitteeIds = Array.from(idsByKind.get('fec_committee') ?? []);
-    if (fecCommitteeIds.length) {
-      lookups.push(
-        this.prisma.$queryRaw<Array<{ committee_id: string; committee_name: string | null }>>`
-            SELECT DISTINCT committee_id, committee_name
-            FROM fec_contribution
-            WHERE committee_id = ANY(${fecCommitteeIds}::text[])
-              AND committee_name IS NOT NULL
-          `.then((rows) => {
-          for (const r of rows) {
-            if (r.committee_name)
-              labelByNodeKey.set(`fec_committee:${r.committee_id}`, r.committee_name);
-          }
-        }),
-      );
-    }
-
-    const capabilityIds = Array.from(idsByKind.get('capability') ?? []);
-    if (capabilityIds.length) {
-      lookups.push(
-        this.prisma
-          .withTenant(tenantId, (tx) =>
-            tx.clientCapability.findMany({
-              where: { id: { in: capabilityIds }, tenantId },
-              select: { id: true, name: true },
-            }),
-          )
-          .then((rows) => {
-            for (const r of rows) labelByNodeKey.set(`capability:${r.id}`, r.name);
-          }),
-      );
-    }
-
-    await Promise.all(lookups);
-
-    // Step 3, expand kindToUiType so distinct kinds get distinct visual
-    // treatment instead of all collapsing onto "AGENCY".
-    const kindToUiType = (
-      kind: string,
-    ): 'client' | 'registrant' | 'lobbyist' | 'contractor' | 'bill' | 'pac' | 'agency' => {
-      switch (kind) {
-        case 'client':
-          return 'client';
-        case 'lda_client':
-        case 'lda_registrant':
-        case 'registrant':
-          // LDA clients/registrants are both org-like; render with the
-          // registrant chrome since they share the "lobbying firm" feel.
-          return 'registrant';
-        case 'lda_lobbyist':
-        case 'lobbyist':
-        case 'member':
-        case 'candidate':
-          // People, legislators, candidates, registered lobbyists.
-          return 'lobbyist';
-        case 'federal_contractor':
-        case 'contractor':
-          return 'contractor';
-        case 'bill':
-        case 'congress_bill':
-        case 'subject':
-        case 'policy_area':
-        case 'lda_issue_code':
-          // Bill-adjacent topical nodes share the bill chrome.
-          return 'bill';
-        case 'fec_committee':
-        case 'fec_contribution':
-        case 'employer':
-        case 'pac':
-          return 'pac';
-        case 'capability':
-        case 'program_element':
-        case 'committee':
-        case 'hearing':
-        case 'agency':
-        case 'docket':
-        case 'fr_document':
-        default:
-          return 'agency';
-      }
-    };
-
-    const prettyLabel = (kind: string, id: string) => {
-      if (kind === 'client') return clientLabel;
-      // Use the batch-resolved name if we have one.
-      const resolved = labelByNodeKey.get(`${kind}:${id}`);
-      if (resolved) {
-        return resolved.length > 96 ? `${resolved.slice(0, 96)}…` : resolved;
-      }
-      // Some kinds carry meaningful values as their id (bill numbers,
-      // committee codes, issue code names), let those pass through
-      // verbatim.
-      if (
-        kind === 'bill' ||
-        kind === 'subject' ||
-        kind === 'policy_area' ||
-        kind === 'committee' ||
-        kind === 'agency' ||
-        kind === 'employer' ||
-        kind === 'candidate' ||
-        kind === 'member' ||
-        kind === 'program_element' ||
-        kind === 'foreign_principal' ||
-        kind === 'sec_company'
-      ) {
-        return id.length > 96 ? `${id.slice(0, 96)}…` : id;
-      }
-      // Last resort, opaque ID. Prefix with kind so it's at least
-      // legible as "(lda_client) 189497" rather than a naked number.
-      return `(${kind.replace(/_/g, ' ')}) ${id.length > 24 ? id.slice(0, 24) + '…' : id}`;
-    };
-
-    const nodeMap = new Map<
-      string,
-      { id: string; type: string; label: string; metadata: Record<string, unknown> }
-    >();
-    const edgeMap = new Map<
-      string,
-      { source: string; target: string; type: string; label: string }
-    >();
-
-    nodeMap.set(centerNodeId, {
-      id: centerNodeId,
-      type: 'client',
-      label: clientLabel,
-      metadata: { sectorTag: client?.sectorTag ?? null },
-    });
-
-    const upsertNode = (kind: string, id: string, extras: Record<string, unknown> = {}) => {
-      const nodeId = `${kind}:${id}`;
-      if (!nodeMap.has(nodeId)) {
-        nodeMap.set(nodeId, {
-          id: nodeId,
-          type: kindToUiType(kind),
-          label: prettyLabel(kind, id),
-          metadata: { kind, rawId: id, ...extras },
-        });
-      }
-      return nodeId;
-    };
-
-    for (const row of filteredWalkRows) {
-      const srcNodeId = upsertNode(row.src_kind, row.src_id, {
-        source: row.source,
-        observedAt: row.observed_at,
-      });
-      const dstNodeId = upsertNode(row.dst_kind, row.dst_id, {
-        source: row.source,
-        observedAt: row.observed_at,
-      });
-
-      const edgeKey = `${srcNodeId}->${dstNodeId}:${row.edge_type}`;
-      if (!edgeMap.has(edgeKey)) {
-        edgeMap.set(edgeKey, {
-          source: srcNodeId,
-          target: dstNodeId,
-          type: row.edge_type,
-          label: row.edge_type.replace(/_/g, ' '),
-        });
-      }
-    }
-
-    const confirmedMappings = mappings.filter((m) => m.confirmed);
-    const avgConfidence =
-      confirmedMappings.length > 0
-        ? confirmedMappings.reduce((s, m) => s + (m.confidence ?? 0), 0) / confirmedMappings.length
-        : 0;
-
-    return {
-      nodes: Array.from(nodeMap.values()),
-      edges: Array.from(edgeMap.values()),
-      resolutionQuality: {
-        avgConfidence: Math.round(avgConfidence * 100),
-        confirmedCount: confirmedMappings.length,
-        unconfirmedCount: mappings.filter((m) => !m.confirmed).length,
-      },
-    };
+    return this.clientSources.graph.getKnowledgeGraph(clientId, tenantId, opts);
   }
 
   /** Outreach intelligence context, formatted text block for AI prompt injection */
   async getOutreachContext(clientId: string, tenantId: string, recipientOffice?: string) {
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-
-    // Phase 4c: union issue codes across the client's FULL confirmed LDA id set.
-    const ldaClientIds = await this.confirmedLdaIds(clientId, tenantId);
-    const issueCodes = await this.issueCodesForLdaIds(ldaClientIds);
-
-    // Tracked bills + upcoming hearings + recent changes + comment deadlines in parallel.
-    // Comment-period emitters now populate `relatedIssues` via SECTOR_TO_LDA_CODES;
-    // other sync emitters (emit-changes, compute-health-scores) still leave it empty,
-    // so the hasSome branch surfaces sector-mapped events but not source-summary rows.
-    const changeOrConditions: Record<string, unknown>[] = [{ relatedClientIds: { has: clientId } }];
-    if (issueCodes.length) changeOrConditions.push({ relatedIssues: { hasSome: issueCodes } });
-
-    const [trackedBills, hearings, recentChanges, commentPeriods, healthScore] = await Promise.all([
-      this.getTrackedBills(clientId, tenantId),
-      this.prisma.committeeHearing.findMany({
-        // Start-of-Eastern-day, not `now` — a UTC-midnight @db.Date compared
-        // against a mid-day instant silently excluded today. Same fix as above.
-        where: federalHearingWhere({
-          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: fourteenDaysOut },
-        }),
-        orderBy: { date: 'asc' },
-        take: 5,
-      }),
-      this.prisma.intelligenceChange.findMany({
-        where: { OR: changeOrConditions, detectedAt: { gte: sevenDaysAgo } },
-        orderBy: { detectedAt: 'desc' },
-        take: 5,
-      }),
-      this.prisma.federalRegisterDocument.findMany({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gt: now, lte: fourteenDaysOut },
-        },
-        orderBy: { commentEndDate: 'asc' },
-        take: 5,
-        select: { title: true, commentEndDate: true, agencyNames: true },
-      }),
-      this.computeEngagementHealth(clientId, tenantId),
-    ]);
-
-    const parts: string[] = [];
-
-    if (trackedBills.bills.length) {
-      const billList = trackedBills.bills
-        .slice(0, 5)
-        .map(
-          (b) =>
-            `- ${b.identifier}: ${b.title.slice(0, 60)}${b.latestActionText ? ` [${b.latestActionText.slice(0, 40)}]` : ''}`,
-        )
-        .join('\n');
-      parts.push(`TRACKED BILLS:\n${billList}`);
-    }
-
-    if (hearings.length) {
-      const hearingList = hearings
-        .map((h) => {
-          const daysOut = Math.ceil(
-            (new Date(h.date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-          );
-          return `- ${h.committeeName}: "${h.title.slice(0, 60)}" (in ${daysOut}d, ${h.chamber})`;
-        })
-        .join('\n');
-      parts.push(`UPCOMING HEARINGS (14d):\n${hearingList}`);
-    }
-
-    if (recentChanges.length) {
-      const changeList = recentChanges.map((c) => `- [${c.changeType}] ${c.title}`).join('\n');
-      parts.push(`RECENT INTELLIGENCE (7d):\n${changeList}`);
-    }
-
-    if (commentPeriods.length) {
-      const deadlineList = commentPeriods
-        .map((d) => {
-          const days = Math.ceil(
-            (d.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-          );
-          return `- "${d.title.slice(0, 60)}", ${days}d left (${(d.agencyNames as string[]).slice(0, 2).join('/')})`;
-        })
-        .join('\n');
-      parts.push(`COMMENT PERIOD DEADLINES:\n${deadlineList}`);
-    }
-
-    // Lobbyist coverage check for recipientOffice
-    if (recipientOffice && ldaClientIds.length) {
-      const regRows = await this.prisma.$queryRaw<Array<{ registrant_id: number }>>`
-        SELECT DISTINCT registrant_id FROM lda_filing
-        WHERE client_id = ANY(${ldaClientIds}::int[]) AND registrant_id IS NOT NULL
-      `;
-      const registrantIds = regRows.map((r) => r.registrant_id);
-      if (registrantIds.length) {
-        const lobbyists = await this.prisma.$queryRaw<
-          Array<{ first_name: string; last_name: string; covered_positions: unknown }>
-        >`
-          SELECT first_name, last_name, covered_positions FROM lda_lobbyist
-          WHERE registrant_ids && ${registrantIds}::int[]
-            AND covered_positions::text != '[]'
-          LIMIT 20
-        `;
-        const officeLower = recipientOffice.toLowerCase();
-        const matched = lobbyists.filter((l) => {
-          const positions = Array.isArray(l.covered_positions) ? l.covered_positions : [];
-          return (positions as unknown[]).some((p) => {
-            const pos = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
-            const posTitle = typeof pos.position === 'string' ? pos.position.toLowerCase() : '';
-            const posDept = typeof pos.department === 'string' ? pos.department.toLowerCase() : '';
-            return posTitle.includes(officeLower) || posDept.includes(officeLower);
-          });
-        });
-        if (matched.length) {
-          const names = matched.slice(0, 3).map((l) => `${l.first_name} ${l.last_name}`.trim());
-          parts.push(
-            `LOBBYIST CONNECTIONS TO "${recipientOffice}":\n${names.map((n) => `- ${n}`).join('\n')}`,
-          );
-        }
-      }
-    }
-
-    parts.push(`ENGAGEMENT HEALTH: ${healthScore.score}/100 (${healthScore.trend})`);
-
-    return { context: parts.join('\n\n') };
+    return this.clientSources.outreach.getOutreachContext(clientId, tenantId, recipientOffice);
   }
 
   /** Get all ClientIntelMappings for a tenant as a flat array with clientName included */
   async getAllMappingsForTenant(tenantId: string) {
-    const clients = await this.prisma.withTenant(tenantId, (tx) =>
-      // Exclude soft-archived ("deleted") clients from the mappings admin view.
-      tx.client.findMany({
-        where: { status: { not: 'archived' } },
-        select: { id: true, name: true },
-      }),
-    );
-
-    const clientIds = clients.map((c) => c.id);
-    if (!clientIds.length) return [];
-
-    const mappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId: { in: clientIds } },
-        orderBy: { confidence: 'desc' },
-      }),
-    );
-
-    const clientMap = new Map(clients.map((c) => [c.id, c.name]));
-    return mappings.map((m) => ({ ...m, clientName: clientMap.get(m.clientId) ?? '' }));
+    return this.clientSources.mapping.getAllMappingsForTenant(tenantId);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
