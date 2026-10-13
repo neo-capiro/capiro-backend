@@ -51,7 +51,7 @@ export function parseNewsletterLoopbackOrigin(value) {
 }
 function normalizeHeaders(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('response headers');
-  const headers = {};
+  const headers = Object.create(null);
   for (const [name, value] of Object.entries(input)) {
     const lower = name.toLowerCase();
     if (Object.hasOwn(headers, lower) || typeof value !== 'string') fail('ambiguous response header');
@@ -167,7 +167,7 @@ function requestGetLoopback(spec) {
     request.on('response', response => {
       response.on('aborted', () => finish(new Error('response aborted')));
       response.on('error', error => finish(error));
-      const headers = {};
+      const headers = Object.create(null);
       for (let index = 0; index < response.rawHeaders.length; index += 2) {
         const name = response.rawHeaders[index].toLowerCase();
         if (Object.hasOwn(headers, name)) return finish(new Error('ambiguous response header'));
