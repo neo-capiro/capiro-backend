@@ -5,6 +5,7 @@ import { constants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspectFrontendStandaloneManifest, inspectFrontendStandalonePath, validateFrontendStandaloneArtifact,
+  NEWSLETTER_ACCEPTED_SOURCE_PROFILE, inspectNewsletterSourceAdmission, assertAcceptedNewsletterArtifactSource,
   readFrontendStandaloneArtifact } from './frontend-standalone-artifact-contract.mjs';
 
 export const NEWSLETTER_BACKEND_PACKAGING_SOURCE = Object.freeze({
@@ -12,7 +13,7 @@ export const NEWSLETTER_BACKEND_PACKAGING_SOURCE = Object.freeze({
   boundary: 'local-already-built-artifact-assembly', nodeMajor: 24,
 });
 export const NEWSLETTER_FRONTEND_ARTIFACT_PROFILE = Object.freeze({
-  repository: 'neo-capiro/capiro-frontend', commit: '7c87678730538958ace9762f824dc3e588bf445b',
+  repository: NEWSLETTER_ACCEPTED_SOURCE_PROFILE.repository,
   dockerConsumer: 'apps/web/Dockerfile.frontend-artifact',
   serverEntrypoint: 'apps/web/server.js', receipt: 'build-receipt.json',
   maxEntries: 20000, maxTotalBytes: 512 * 1024 * 1024, maxFileBytes: 64 * 1024 * 1024,
@@ -43,7 +44,7 @@ function optionsContract(options) {
   const copy = Object.fromEntries(keys.map(key => [key, options[key]]));
   for (const key of ['standaloneDir', 'publicDir', 'staticDir', 'manifestPath', 'outputDir']) absolute(copy[key]);
   if (copy.sourceRepository !== NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.repository
-      || copy.sourceCommit !== NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.commit
+      || !literal(copy.sourceCommit) || !/^[a-f0-9]{40}$/.test(copy.sourceCommit)
       || !literal(copy.manifestSha256) || !/^[a-f0-9]{64}$/.test(copy.manifestSha256)
       || !literal(copy.backendSourceCommit) || !/^[a-f0-9]{40}$/.test(copy.backendSourceCommit)
       || !['linux/amd64', 'linux/arm64'].includes(copy.targetPlatform)
@@ -63,19 +64,22 @@ export function parseNewsletterBuildInvocation(args) {
     if (!key || Object.hasOwn(options, key) || !literal(args[i + 1])) refuse('unknown/duplicate/nonliteral build argument');
     options[key] = args[i + 1];
   }
-  return Object.freeze({ mode: args[0].slice(2), options: optionsContract(options) });
+  const checked = optionsContract(options);
+  if (args[0] === '--run') assertAcceptedNewsletterArtifactSource(pinsFor(checked));
+  return Object.freeze({ mode: args[0].slice(2), options: checked });
 }
 function pinsFor(options) {
   return { sourceRepository: options.sourceRepository, sourceCommit: options.sourceCommit,
     manifestSha256: options.manifestSha256,
     runtimeTarget: { os: 'linux', arch: options.targetPlatform.split('/')[1], libc: 'musl', nodeMajor: 24 } };
 }
-export function createNewsletterArtifactPackagingPlan(input) {
+export function createNewsletterArtifactPackagingPlan(input, { sourceAdmissionFixture } = {}) {
   const options = optionsContract(input);
   return Object.freeze({ schemaVersion: 1, kind: 'newsletter-release-assembly-plan',
     sourceOnly: true, source: { repository: options.sourceRepository, commit: options.sourceCommit },
     declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
     runtimeTarget: pinsFor(options).runtimeTarget, manifestSha256: options.manifestSha256,
+    sourceAdmission: inspectNewsletterSourceAdmission(pinsFor(options), { sourceAdmissionFixture }),
     inputs: { standalone: options.standaloneDir, public: options.publicDir, static: options.staticDir, manifest: options.manifestPath },
     outputDir: options.outputDir, receiptPath: options.outputDir + '/build-receipt.json',
     dockerConsumer: NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.dockerConsumer,
@@ -123,9 +127,10 @@ async function writeBuffer(io, value, bytes, mode = 0o644) {
   const handle = await io.open(value, 'wx', mode);
   try { await handle.writeFile(bytes); await handle.chmod(mode); await handle.sync(); } finally { await handle.close(); }
 }
-function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem) {
+function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem, sourceAdmission) {
   return { schemaVersion: 1, kind: 'newsletter-release-assembly', status: 'PASS',
-    syntheticModel: fixtureLabel !== undefined, fixtureLabel: fixtureLabel ?? null,
+    syntheticModel: fixtureLabel !== undefined || sourceAdmission.syntheticSourceApprovalModel, fixtureLabel: fixtureLabel ?? null,
+    sourceAdmission,
     builtinFilesystem, builtinFilesystemEffectsPerformed: builtinFilesystem, filesystemEffectsIndependentlyAttested: false,
     approvedSource: { repository: options.sourceRepository, commit: options.sourceCommit },
     declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
@@ -144,8 +149,9 @@ function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem) 
  * require a fixture label and retain the canonical owner's false admission.
  * Exclusive locks coordinate this builder; hostile filesystem races are outside
  * the same bounded static filesystem model as the canonical reader. */
-export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsletterIdentity, fixtureLabel } = {}) {
+export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsletterIdentity, fixtureLabel, sourceAdmissionFixture } = {}) {
   const options = optionsContract(input);
+  const sourceAdmission = assertAcceptedNewsletterArtifactSource(pinsFor(options), { sourceAdmissionFixture });
   if (process.versions.node.split('.')[0] !== '24' || process.platform !== 'linux') refuse('assembly host requires Linux/Node24');
   const customPort = newsletterIdentity !== undefined || io !== fs;
   if ((newsletterIdentity !== undefined && typeof newsletterIdentity !== 'function')
@@ -221,7 +227,7 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
         readlink: value => io.readlink(value), readFile: value => regularBuffer(io, value, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes) } });
     if (revalidated.artifactEntriesSha256 !== artifact.artifactEntriesSha256 || revalidated.actualArtifactBytesVerified !== artifact.actualArtifactBytesVerified)
       refuse('assembled output validation drift');
-    const receipt = receiptFor(options, revalidated, counts, fixtureLabel, io === fs);
+    const receipt = receiptFor(options, revalidated, counts, fixtureLabel, io === fs, sourceAdmission);
     await writeBuffer(io, temporary + '/build-receipt.json', Buffer.from(JSON.stringify(receipt, null, 2) + '\n'));
     for (const folder of [...dirs].sort((a, b) => b.length - a.length)) await syncDirectory(io, folder);
     await syncDirectory(io, temporary);
@@ -237,7 +243,7 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
     if (lock) { await lock.close(); await io.unlink(lockPath); }
   }
 }
-export const NEWSLETTER_BUILD_USAGE = 'Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS';
+export const NEWSLETTER_BUILD_USAGE = 'Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit ACTIVE_ACCEPTED_FRONTEND_SHA --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS';
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const invocation = parseNewsletterBuildInvocation(process.argv.slice(2));

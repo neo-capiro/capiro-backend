@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "repository": "neo-capiro/capiro-frontend",
+  "activeCommit": null,
+  "acceptedSources": [],
+  "runtimeProfile": {
+    "os": "linux",
+    "architectures": ["amd64", "arm64"],
+    "libc": "musl",
+    "nodeMajor": 24,
+    "nodeVersion": "24.21.0",
+    "nodeImage": "node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2"
+  }
+}
