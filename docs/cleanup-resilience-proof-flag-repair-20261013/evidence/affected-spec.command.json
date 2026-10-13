@@ -1,0 +1,18 @@
+{
+  "source": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "tree": "24945192668a0df687042e54670f81be301bee20",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2434-receipt-flag-repair-20261013/docs/cleanup-resilience-proof-flag-repair-20261013/evidence/safe-source-test-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/engagement-resilience-recovery.contract.spec.mjs"
+  ],
+  "cwd": "/workspace/cleanup-pr2434-receipt-flag-repair-20261013",
+  "exit": 0,
+  "seconds": 0.13242626190185547,
+  "stdoutSha256": "b19707baa7f5cb7114f96594f8fbe15c0c197e3fa339dcd571c6113219df4e55",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "pure/VM fake ports only; sparse stage with exact needed frozen code; no native/default CLI"
+}

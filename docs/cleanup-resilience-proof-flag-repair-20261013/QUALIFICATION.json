@@ -1,0 +1,24 @@
+{
+  "source": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "tree": "24945192668a0df687042e54670f81be301bee20",
+  "base": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "affectedSpec": {
+    "pass": 30,
+    "fail": 0,
+    "skip": 0,
+    "original28Retained": true,
+    "receipt": "evidence/affected-spec.command.json"
+  },
+  "sameReviewerSevenInputs": {
+    "beforeAccepted": 7,
+    "afterRefused": 7,
+    "unchangedProbeSha256": "4b7cb5ba02192dc293ebf4350a97e5b92c8b3c2d57ed1e3921db82b337f04830",
+    "originalRedSha256": "1de019fe02608291c753ba4cee09d38e31b643b3e33cfb986d8d5f0a32531ecb",
+    "reviewerCheckpoint": "a5c2498b253b287d4dde53e2c13cbbec66fd377c",
+    "receipt": "evidence/review-seven.command.json",
+    "outputSourceField": "hardcoded original b051; actual candidate source bound by command receipt"
+  },
+  "sourceScope": "two helper/spec paths only",
+  "nativeDefaultOperatorsExecuted": false,
+  "independentRecheck": "O pending"
+}

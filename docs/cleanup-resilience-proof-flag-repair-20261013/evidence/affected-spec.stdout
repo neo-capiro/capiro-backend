@@ -1,0 +1,38 @@
+✔ new auth regression makes four local-proxy reads with isolated anonymous/authenticated headers (3.750638ms)
+✔ new auth regression refuses: anonymous successful data (0.623858ms)
+✔ new auth regression refuses: wrong denial status (0.191915ms)
+✔ new auth regression refuses: provider/shadow refusal (0.158645ms)
+✔ new auth regression refuses: transport denial (0.279312ms)
+✔ new auth regression refuses: malformed denial (0.43678ms)
+✔ new auth regression refuses: denial with leaked rows (0.208026ms)
+✔ new auth regression refuses: unexpected main identity (0.450129ms)
+✔ new auth regression refuses: unsupported main-api label (0.283522ms)
+✔ new auth regression refuses: wrong optional error class (0.296044ms)
+✔ new auth regression refuses: wrong auth error (0.194865ms)
+✔ new auth regression refuses: missing preview denial identity (0.14504ms)
+✔ new auth regression refuses: main misrouted preview (0.118185ms)
+✔ new auth regression refuses: authenticated session poisoned (0.126264ms)
+✔ new auth regression refuses: recovery remains timed out (0.098425ms)
+✔ new auth regression refuses: empty successful recovery (0.139918ms)
+✔ new auth regression refuses: wrong row recovered (0.184239ms)
+✔ new auth regression refuses: duplicate recovered row (0.164979ms)
+✔ new auth regression refuses: wrong recovered preview identity (0.123949ms)
+✔ new auth regression refuses: recovery data mismatch (0.19407ms)
+✔ new probe requires existing retry attribution and protected route before requests (0.376346ms)
+✔ native result identity/count contract retains fourteen original identities plus new behavior (0.987708ms)
+✔ optional native proof flags retain absence and require literal native booleans when present (1.464218ms)
+✔ exact earlier producer and wrapper reconstruct through declared additive case/receipt seams (1.194777ms)
+✔ final evidence verifier original source reconstructs and retains all prior checks before additions (0.504782ms)
+✔ wrapper validates fifteen attributable results before original residual-zero cleanup (3.775093ms)
+✔ wrapper cannot accept source-only, missing-auth or duplicate-identity evidence as native (6.541643ms)
+✔ wrapper refuses malformed native proof flags before retry cleanup acceptance (8.77754ms)
+✔ new regression is supported by guard-before-provider, protected task and shared service identity source (1.361561ms)
+✔ ordinary missing-bearer envelope permits absent optional error label, never wrong labels (0.421646ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72.114859
