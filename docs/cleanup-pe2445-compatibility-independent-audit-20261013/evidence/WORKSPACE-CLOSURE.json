@@ -1,0 +1,59 @@
+{
+  "source": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "selector": "pnpm --filter capiro --filter '@capiro/api...' --filter '@capiro/workspace...' install --frozen-lockfile --fail-if-no-match",
+  "packages": [
+    {
+      "name": "capiro"
+    },
+    {
+      "name": "@capiro/api",
+      "path": "apps/api/package.json",
+      "dependencies": [
+        "@capiro/defense-contracts",
+        "@capiro/defense-domain",
+        "@capiro/meriv2-core",
+        "@capiro/shared"
+      ]
+    },
+    {
+      "name": "@capiro/auth",
+      "path": "packages/auth/package.json",
+      "dependencies": []
+    },
+    {
+      "name": "@capiro/defense-contracts",
+      "path": "packages/defense-contracts/package.json",
+      "dependencies": []
+    },
+    {
+      "name": "@capiro/defense-domain",
+      "path": "packages/defense-domain/package.json",
+      "dependencies": [
+        "@capiro/shared"
+      ]
+    },
+    {
+      "name": "@capiro/meriv2-core",
+      "path": "packages/meriv2-core/package.json",
+      "dependencies": [
+        "@capiro/shared"
+      ]
+    },
+    {
+      "name": "@capiro/shared",
+      "path": "packages/shared/package.json",
+      "dependencies": []
+    },
+    {
+      "name": "@capiro/workspace",
+      "path": "apps/workspace/package.json",
+      "dependencies": [
+        "@capiro/auth",
+        "@capiro/meriv2-core",
+        "@capiro/shared"
+      ]
+    }
+  ],
+  "missing": [],
+  "selectionMethod": "static workspace dependency edges, actual pnpm lock/install projection not executed"
+}

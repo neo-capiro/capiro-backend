@@ -1,0 +1,10 @@
+PASS scripts/lib/pe-phase-9-runner.spec.ts
+PASS scripts/lib/pe-phase-9-backend-scope.spec.ts
+PASS scripts/lib/pe-phase-9-rehearsal.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       101 passed, 101 total
+Snapshots:   0 total
+Time:        2.275 s
+Ran all test suites.
+Test results written to: ../../../phase9-focused-results.json
