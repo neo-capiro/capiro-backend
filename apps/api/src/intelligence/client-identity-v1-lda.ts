@@ -109,7 +109,7 @@ export class ClientIdentityV1Lda {
         similarity: number;
       }>
     >`
-      SELECT c.id, c.name, c.total_filings, c.total_spending, 
+      SELECT c.id, c.name, c.total_filings, c.total_spending,
              COALESCE(c.issue_codes, '{}') as issue_codes,
              similarity(c.name, ${clientName}) as similarity
       FROM lda_client c
