@@ -13,33 +13,16 @@
  * re-implementing the policy.
  */
 
-/** How the version's text came to exist. */
-export type DraftGenerationStatus = 'generated' | 'manually_authored' | 'generation_failed';
-
-/**
- * Grounding-auditor state for this EXACT version's text.
- *
- * - `not_required` — auditor mode is off for this tenant; nothing to verify.
- * - `pending`      — the version is committed but its audit has not finished.
- * - `passed`       — audited clean.
- * - `warning`      — findings exist but the mode is non-blocking (shadow/annotate),
- *                    OR a control failed in a non-blocking mode (auditDecision
- *                    then reads 'audit_unavailable').
- * - `held`         — enforce mode + findings: a ReviewRequest exists and a
- *                    reviewer must approve THIS version before it can be sent.
- * - `unavailable`  — a control itself failed under enforce (auditor threw, ledger
- *                    write failed, or review-row write failed). FAIL CLOSED.
- */
-export type DraftAuditStatus =
-  | 'not_required'
-  | 'pending'
-  | 'passed'
-  | 'warning'
-  | 'held'
-  | 'unavailable';
-
-/** Human review state for this exact version. */
-export type DraftApprovalStatus = 'not_required' | 'pending' | 'approved' | 'rejected';
+// The canonical wire vocabulary is exported by the existing public newsletter contract.
+import type {
+  DraftApprovalStatus,
+  DraftAuditStatus,
+} from '@capiro/shared/newsletter';
+export type {
+  DraftApprovalStatus,
+  DraftAuditStatus,
+  DraftGenerationStatus,
+} from '@capiro/shared/newsletter';
 
 /** Lifecycle of a durable send intent. */
 export type SendIntentStatus =
