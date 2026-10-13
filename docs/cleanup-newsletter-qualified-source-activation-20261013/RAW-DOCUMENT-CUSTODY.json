@@ -1,0 +1,30 @@
+{
+  "originalAuthorHead": "3347ac438117aa9936a5c0c27e0499f7129baf83",
+  "originalAuthorTree": "2b2aa56a857f2419e51ef3cba9538791956f624d",
+  "sourceHeadUnchanged": "0132a1c8ffd0c04d0052c992bd361add4eefc020",
+  "originalIndexPath": "docs/cleanup-newsletter-qualified-source-activation-20261013/SHA256-INDEX.json",
+  "preservedInitialIndex": "docs/cleanup-newsletter-qualified-source-activation-20261013/INITIAL-SHA256-INDEX.json",
+  "originalIndexSHA256": "50a912c5f7961080147c52aa75d3d43e862388ae88925f4883834d1859cac648",
+  "original26BindingsVerifiedAgainstOriginalCommit": 26,
+  "reason": "Current canonical source hygiene flagged blank EOF in these two newly copied qualification review documents; preserve exact original bytes in immutable Git and lossless containers, with no trimming or exclusions",
+  "currentTreeRemovesOnlyRawDuplicatePaths": true,
+  "documents": [
+    {
+      "originalPath": "docs/cleanup-newsletter-qualified-source-activation-20261013/evidence/qualified-frontend-evidence/review.md",
+      "containerPath": "docs/cleanup-newsletter-qualified-source-activation-20261013/evidence/qualified-frontend-evidence/review.md.lossless.json",
+      "originalBytes": 4487,
+      "originalSHA256": "ab34e0a3a3e6fcbf60f07660738523b60fd8db0ffaa24c840680d7709657d8dc",
+      "originalBlob": "e60f27873ed21c6701915cc3cdd92cfd6a7a785d",
+      "decodeByteExact": true
+    },
+    {
+      "originalPath": "docs/cleanup-newsletter-qualified-source-activation-20261013/evidence/qualified-frontend-evidence/visual-addendum.md",
+      "containerPath": "docs/cleanup-newsletter-qualified-source-activation-20261013/evidence/qualified-frontend-evidence/visual-addendum.md.lossless.json",
+      "originalBytes": 2669,
+      "originalSHA256": "339138059a3e594d0fd9f53ca45c2e48988046c87390342113a34f454ce875c0",
+      "originalBlob": "ca069eb25f2147a80493aab4021b9d489348c421",
+      "decodeByteExact": true
+    }
+  ],
+  "noSourceOrTestChange": true
+}
