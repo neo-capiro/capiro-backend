@@ -1,0 +1,6 @@
+Copied actual executor result from first sparse setup (before any source commit):
+Traceback (most recent call last):
+  File "<stdin>", line 9, in <module>
+AssertionError
+
+The host incorrectly assumed receiving-backend Web newsletter assets were present. Actual read-only tree inventory has0; optional parity remains unqualified. No source assertion was removed from the guards.

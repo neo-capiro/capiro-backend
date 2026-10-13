@@ -1,0 +1,78 @@
+{
+  "base": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "inputs": [
+    {
+      "path": "apps/onboard-api/Dockerfile",
+      "bytes": 5633,
+      "sha256": "21a92046e8c14538577d84cc313ace4757830c9a98e1a1813b24173b0a33a738"
+    },
+    {
+      "path": "apps/onboard-api/src/main.ts",
+      "bytes": 4663,
+      "sha256": "2d1570468029ecf9054573ccf9f938cf746eabbbf6f2d4c8f172a86e15d4d1cf"
+    },
+    {
+      "path": "apps/onboard-api/src/app.module.ts",
+      "bytes": 1850,
+      "sha256": "91d6241e99a55da6b5176e1db04b8a8b5f8b2e92d647e62c5d2ba1a21fd2ab69"
+    },
+    {
+      "path": "apps/onboard-api/scripts/entrypoint.sh",
+      "bytes": 1953,
+      "sha256": "1bce20c09c5e91bed0f4175c7073bf5bec0b65319559afdd639a4334bfb82f7c"
+    },
+    {
+      "path": ".github/workflows/onboard-api-image.yml",
+      "bytes": 2351,
+      "sha256": "eb58495f7326433e06e6e323e087c31fda7dc9d47b51997f41d11cfcf6d7a14b"
+    },
+    {
+      "path": "infra/deploy/onboard-api-serve-taskdef.json",
+      "bytes": 5338,
+      "sha256": "fccc519132ebd56766ec08e47c36bd152884004c2e68475cf3be92898ffced3d"
+    },
+    {
+      "path": "infra/deploy/onboard-api-migrate-taskdef.json",
+      "bytes": 1608,
+      "sha256": "948ff30df46a6b318dec5897fb5ce6f9e213bdd782cfa0de80a446c37e294ebf"
+    },
+    {
+      "path": "apps/onboard-api/package.json",
+      "bytes": 1462,
+      "sha256": "18960f0d08fda87965a4454b63dee9dc5901d9e10c5d3eafaa8fdb05ddfddc54"
+    },
+    {
+      "path": "packages/auth/package.json",
+      "bytes": 820,
+      "sha256": "8b5a075eada39a5ba9ca9388006ee9aeacde910e0fd771c3fa58df5f70b5bb73"
+    },
+    {
+      "path": "packages/shared/package.json",
+      "bytes": 3761,
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 728135,
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba"
+    },
+    {
+      "path": "apps/onboard-web/public/favicon.svg",
+      "bytes": 310,
+      "sha256": "6b853e45dfd9c0b5de548d2d1fa779330c09f6cda89f52c1d1bf6b3ca44904c4"
+    },
+    {
+      "path": "apps/onboard-web/public/legal-docs/Capiro-Subscription-Agreement.pdf",
+      "bytes": 201149,
+      "sha256": "2ae1437094f9310c9e9cf49c71aa1725e06823c02fba6cb546d40e3cedd33ff5"
+    },
+    {
+      "path": "apps/onboard-web/public/legal-docs/Capiro-Terms-of-Service.pdf",
+      "bytes": 58509,
+      "sha256": "94e03031d00eaf759c7e55795aa89edfa5429bf667c3ce9f975f8f2b69b6d5d2"
+    }
+  ],
+  "sourceOnlyCopies": "needed local qualification data, not production adoption",
+  "backendNewsletterAssetCount": 0,
+  "frontendParity": "unrun; actual receiving paths absent"
+}
