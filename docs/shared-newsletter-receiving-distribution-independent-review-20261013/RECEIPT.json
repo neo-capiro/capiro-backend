@@ -1,0 +1,33 @@
+{
+  "decision": "ACCEPT bounded corrected immutable distribution",
+  "sourceHead": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "sourceTree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "artifactEvidenceHead": "7e08aff831bd35b4c74eca2ae96bc8a654d625f3",
+  "artifactEvidenceTree": "bc2db62a0547275ad1ff36c85e8ba66da93dc3bc",
+  "artifact": {
+    "bytes": 532178,
+    "sha256": "3e435f280fac8fd301eb753e9fc7ead93691cf979fc1641792fedd88e1bfd6d5",
+    "integrity": "sha512-qYNGTMe2gP6BHxDw+daj1SHkNbAFenVY/PnScny1IkHl/PL3cspHSFYa9KAyCeWesjXUOSRTWOKxX07oH6OvQw==",
+    "entries": 187
+  },
+  "byteChecks": 18,
+  "receiptChecks": 18,
+  "actualPackedPublicCases": 130,
+  "actualHistoricalProducerAccepted": true,
+  "oldExports": 38,
+  "publicAdditions": 11,
+  "newExports": 49,
+  "all37DeclarationBodiesAndMapsEqual794And37": true,
+  "coreDeclarationSurfaceReuse": "cbbd197c66e8d623e94fb65c084e7af9f99a0beb; root owns actual Core17 execution",
+  "newAuthorIndexEntriesVerified": 62,
+  "old100AuthorEntriesAndIndexUnchanged": true,
+  "originalInterimEntriesUnchanged": 21,
+  "sourceCorrectionEntriesUnchanged": 65,
+  "sourceCorrectionReceipt": "3445ecce4ed5cae53a3b26b941edbc6705f94891",
+  "sourceOrArtifactBlockers": [],
+  "noRepack": true,
+  "sqlOrProviderOrNativeExecuted": false,
+  "protectedBodyRead": false,
+  "cleanInstallNode22RealFrontendClaims": false,
+  "fullPhysicalWhitespace": "OPEN"
+}

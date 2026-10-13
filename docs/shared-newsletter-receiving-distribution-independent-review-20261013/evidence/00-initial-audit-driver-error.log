@@ -1,0 +1,5 @@
+Initial read-only summary driver returned exit 1 before creating FROZEN.json:
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+TypeError: object of type 'int' has no len()
+The driver incorrectly called len() on FINAL-QUALIFICATION.packedEntries (integer187). No artifact/source/test was executed or mutated.

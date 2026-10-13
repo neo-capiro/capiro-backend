@@ -1,0 +1,17 @@
+evalmachine.<anonymous>:480
+        mobileText: structuredClone(text),
+                    ^
+
+ReferenceError: structuredClone is not defined
+    at defaultNewsletterStyles (evalmachine.<anonymous>:480:21)
+    at Object.governmentAffairsNewsletter (evalmachine.<anonymous>:606:17)
+    at Object.runNewsletterReceivingCorpus (evalmachine.<anonymous>:33:22)
+    at Object.<anonymous> (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/audit-final-runtime-public.cjs:9:327)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+
+Node.js v24.19.0

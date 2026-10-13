@@ -1,0 +1,15 @@
+{
+  "oldExports": 38,
+  "newExports": 49,
+  "additions": 11,
+  "loaded": [
+    "newsletter-fonts.catalog.js",
+    "newsletter-fonts.js",
+    "newsletter-receiving.js",
+    "newsletter-render.js",
+    "newsletter-social-share.js",
+    "newsletter.js"
+  ],
+  "actualNewTarPublicCases": 130,
+  "historicalWitness": true
+}

@@ -1,0 +1,15 @@
+{
+  "decision": "HOLD final compatibility; byte and receipt checks pass",
+  "source": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "authorEvidence": "3684613caf831cf62dc3759281a673134503f99a",
+  "artifactSha256": "f23e28ffa0e1a62491c2e772717d185619d947ffcb00b9864dc45b3bc5d17237",
+  "byteChecks": 15,
+  "consumerReceiptChecks": 36,
+  "sourceBlocker": "Actual get can return valid historical test.versionId without a matching returned current version; decoder incorrectly rejects it.",
+  "producerWitness": "evidence/04-historical-test-producer.json",
+  "all37DeclarationBodiesEqual794": true,
+  "originalAuthorHashesVerified": 100,
+  "noRepack": true,
+  "sqlExecuted": false,
+  "protectedBodyRead": false
+}

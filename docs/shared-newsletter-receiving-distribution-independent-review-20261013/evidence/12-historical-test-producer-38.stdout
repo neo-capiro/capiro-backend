@@ -1,0 +1,386 @@
+{
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "value": {
+    "id": "c3333333-3333-4333-8333-333333333333",
+    "status": "draft",
+    "name": "Current immutable stage",
+    "stage": {
+      "id": "d4444444-4444-4444-8444-444444444444",
+      "documentId": "c9999999-9999-4999-8999-999999999999",
+      "revision": 4,
+      "name": "Current immutable stage",
+      "config": {
+        "clientId": null,
+        "clientName": "",
+        "fromName": "",
+        "fromEmail": "",
+        "replyTo": "",
+        "subject": "",
+        "previewText": "",
+        "recipientIds": [],
+        "excludeRecipientIds": [],
+        "personalizeTo": false,
+        "toName": "*|FNAME|* *|LNAME|*",
+        "schedule": {
+          "mode": "now",
+          "sendAt": null,
+          "timeZone": "America/New_York",
+          "optimization": false,
+          "timewarp": false,
+          "batch": false,
+          "batchCount": 2,
+          "batchMinutes": 30,
+          "trigger": "signup",
+          "triggerValue": ""
+        },
+        "tracking": {
+          "opens": true,
+          "clicks": true,
+          "plainTextClicks": false,
+          "inbox": false,
+          "autoConvertVideo": false,
+          "ecommerce": false,
+          "googleAnalytics": false,
+          "googleAnalyticsTitle": "",
+          "clickTale": false
+        },
+        "autoResend": {
+          "enabled": false,
+          "afterDays": 3,
+          "time": "09:00",
+          "subject": "",
+          "audience": "not-opened",
+          "ignoreBotOpens": true
+        },
+        "experiment": {
+          "enabled": false,
+          "subjects": [
+            "",
+            ""
+          ],
+          "testPercent": 20,
+          "winnerMetric": "opens",
+          "waitHours": 4
+        },
+        "socialCard": {
+          "enabled": false,
+          "title": "",
+          "description": "",
+          "imageUrl": ""
+        },
+        "shareSlug": "",
+        "company": "",
+        "mailingAddress": "",
+        "permissionReminder": "You are receiving this briefing because you subscribed to updates from our team.",
+        "plainText": "",
+        "plainTextAuto": true
+      },
+      "design": {
+        "version": 1,
+        "styles": {
+          "background": "#141414",
+          "content": "#141414",
+          "backgroundImage": "",
+          "width": 660,
+          "mobilePadding": 16,
+          "text": {
+            "p": {
+              "fontFamily": "Courier New",
+              "fontSize": 14,
+              "color": "#ffffff",
+              "lineHeight": 1.4
+            },
+            "h1": {
+              "fontFamily": "Arial",
+              "fontSize": 48,
+              "color": "#ffffff",
+              "bold": true,
+              "lineHeight": 1.1
+            },
+            "h2": {
+              "fontFamily": "Arial",
+              "fontSize": 36,
+              "color": "#ffffff",
+              "bold": true,
+              "lineHeight": 1.2
+            },
+            "h3": {
+              "fontFamily": "Arial",
+              "fontSize": 24,
+              "color": "#f05f26",
+              "bold": true,
+              "lineHeight": 1.3
+            },
+            "h4": {
+              "fontFamily": "Arial",
+              "fontSize": 18,
+              "color": "#ffffff",
+              "bold": true,
+              "lineHeight": 1.3
+            }
+          },
+          "mobileText": {
+            "p": {
+              "fontFamily": "Courier New",
+              "fontSize": 14,
+              "color": "#ffffff",
+              "lineHeight": 1.4
+            },
+            "h1": {
+              "fontFamily": "Arial",
+              "fontSize": 48,
+              "color": "#ffffff",
+              "bold": true,
+              "lineHeight": 1.1
+            },
+            "h2": {
+              "fontFamily": "Arial",
+              "fontSize": 36,
+              "color": "#ffffff",
+              "bold": true,
+              "lineHeight": 1.2
+            },
+            "h3": {
+              "fontFamily": "Arial",
+              "fontSize": 24,
+              "color": "#f05f26",
+              "bold": true,
+              "lineHeight": 1.3
+            },
+            "h4": {
+              "fontFamily": "Arial",
+              "fontSize": 18,
+              "color": "#ffffff",
+              "bold": true,
+              "lineHeight": 1.3
+            }
+          },
+          "link": {
+            "color": "#ffffff",
+            "underline": true
+          },
+          "button": {
+            "background": "#141414",
+            "color": "#ffffff",
+            "borderColor": "#f05f26",
+            "borderStyle": "solid",
+            "borderWidth": 1,
+            "fontFamily": "Arial",
+            "fontSize": 16,
+            "paddingTop": 12,
+            "paddingBottom": 12,
+            "paddingLeft": 24,
+            "paddingRight": 24,
+            "radius": 0
+          },
+          "divider": {
+            "borderStyle": "solid",
+            "borderColor": "#777777",
+            "borderWidth": 1,
+            "paddingTop": 12,
+            "paddingBottom": 12
+          },
+          "image": {
+            "radius": 0,
+            "width": 100
+          },
+          "logo": {
+            "align": "left"
+          },
+          "linkedStyles": true,
+          "mobileButton": {},
+          "mobileDivider": {},
+          "mobileImage": {},
+          "mobileLogo": {}
+        },
+        "sections": [
+          {
+            "id": "n_mv605snt_vae7fd85h",
+            "name": "Header",
+            "style": {},
+            "blocks": [
+              {
+                "id": "n_mv605snt_bi0tt9ifa",
+                "kind": "logo",
+                "html": "",
+                "text": "YOUR FIRM",
+                "url": "",
+                "imageUrl": "",
+                "alt": "",
+                "headingLevel": 2,
+                "linkType": "web",
+                "openNewTab": true,
+                "imageSize": "fill",
+                "imageScale": 100,
+                "crop": null,
+                "items": [],
+                "question": "How useful was this update?",
+                "options": [
+                  "Very useful",
+                  "Somewhat useful",
+                  "Not useful"
+                ],
+                "sourceKind": "news",
+                "ratio": "2",
+                "mobileOrientation": "stacked",
+                "columns": [],
+                "style": {},
+                "mobileStyle": {},
+                "linkedStyles": true,
+                "visibility": {
+                  "mode": "all",
+                  "rules": []
+                }
+              }
+            ]
+          },
+          {
+            "id": "n_mv605snt_o1i6rgens",
+            "name": "Body",
+            "style": {},
+            "blocks": [
+              {
+                "id": "n_mv605snt_gvrofwl9r",
+                "kind": "heading",
+                "html": "",
+                "text": "This week in policy",
+                "url": "",
+                "imageUrl": "",
+                "alt": "",
+                "headingLevel": 1,
+                "linkType": "web",
+                "openNewTab": true,
+                "imageSize": "fill",
+                "imageScale": 100,
+                "crop": null,
+                "items": [],
+                "question": "How useful was this update?",
+                "options": [
+                  "Very useful",
+                  "Somewhat useful",
+                  "Not useful"
+                ],
+                "sourceKind": "news",
+                "ratio": "2",
+                "mobileOrientation": "stacked",
+                "columns": [],
+                "style": {},
+                "mobileStyle": {},
+                "linkedStyles": true,
+                "visibility": {
+                  "mode": "all",
+                  "rules": []
+                }
+              },
+              {
+                "id": "n_mv605snt_7tl6xu1di",
+                "kind": "paragraph",
+                "html": "",
+                "text": "Add your text here.",
+                "url": "",
+                "imageUrl": "",
+                "alt": "",
+                "headingLevel": 2,
+                "linkType": "web",
+                "openNewTab": true,
+                "imageSize": "fill",
+                "imageScale": 100,
+                "crop": null,
+                "items": [],
+                "question": "How useful was this update?",
+                "options": [
+                  "Very useful",
+                  "Somewhat useful",
+                  "Not useful"
+                ],
+                "sourceKind": "news",
+                "ratio": "2",
+                "mobileOrientation": "stacked",
+                "columns": [],
+                "style": {},
+                "mobileStyle": {},
+                "linkedStyles": true,
+                "visibility": {
+                  "mode": "all",
+                  "rules": []
+                }
+              }
+            ]
+          },
+          {
+            "id": "n_mv605snt_2jv6lhrcn",
+            "name": "Footer",
+            "style": {},
+            "blocks": [
+              {
+                "id": "n_mv605snt_5v9c9yplo",
+                "kind": "footer",
+                "html": "",
+                "text": "",
+                "url": "",
+                "imageUrl": "",
+                "alt": "",
+                "headingLevel": 2,
+                "linkType": "web",
+                "openNewTab": true,
+                "imageSize": "fill",
+                "imageScale": 100,
+                "crop": null,
+                "items": [],
+                "question": "How useful was this update?",
+                "options": [
+                  "Very useful",
+                  "Somewhat useful",
+                  "Not useful"
+                ],
+                "sourceKind": "news",
+                "ratio": "2",
+                "mobileOrientation": "stacked",
+                "columns": [],
+                "style": {},
+                "mobileStyle": {},
+                "linkedStyles": true,
+                "visibility": {
+                  "mode": "all",
+                  "rules": []
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "targets": [],
+    "senderConnectionId": "a7777777-7777-4777-8777-777777777777",
+    "subject": "Subject",
+    "versions": [],
+    "intentId": null,
+    "excluded": [],
+    "tests": [
+      {
+        "id": "b8888888-8888-4888-8888-888888888888",
+        "requestKey": "historical-safe-reference",
+        "senderConnectionId": "a7777777-7777-4777-8777-777777777777",
+        "versionId": "e5555555-5555-4555-8555-555555555555"
+      }
+    ]
+  },
+  "expectedAcceptance": true,
+  "decodeResult": {
+    "ok": true
+  },
+  "passed": true,
+  "currentVersionId": "f6666666-6666-4666-8666-666666666666",
+  "historicalPreparedId": "e5555555-5555-4555-8555-555555555555",
+  "probes": [
+    "record-authority-fake",
+    "current-drafts",
+    "access",
+    "history"
+  ],
+  "actualGetMethodExecuted": true,
+  "recordAuthorityPortIsFake": true,
+  "sqlExecuted": false,
+  "protectedBodyRead": false,
+  "approvalInference": false
+}

@@ -1,0 +1,603 @@
+{
+  "sourceHead": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "sourceTree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "passed": 14,
+  "failed": 2,
+  "rows": [
+    {
+      "name": "whole receiving inverse exact37 outside two membership lines/private comments",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n... Skipped lines\n\n  '/** Pure receiving contracts. These parsers validate wire data, never authorize an action. */\\n' +\n    'import type {\\n' +\n    '  NewsletterCampaign,\\n' +\n    '  NewsletterCampaignConfig,\\n' +\n    '  NewsletterCheck,\\n' +\n...\n    '    !Number.isFinite(Date.parse(value)) ||\\n' +\n+   '    new Date(value).toI'... 20634 more characters\n-   '    new Date(value).toI'... 20589 more characters\n\n    at /tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/13-source-correction-controls.cjs:4:98\n    at check (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/13-source-correction-controls.cjs:3:43)\n    at Object.<anonymous> (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/13-source-correction-controls.cjs:4:1)\n    at Module._compile (node:internal/modules/cjs/loader:1872:14)\n    at Object..js (node:internal/modules/cjs/loader:2003:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47"
+    },
+    {
+      "name": "only two owned source files differ37 and zero app/server/type/package/renderer changes",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/AUTHOR-SOURCE-RECEIPT.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/HANDOFF.md',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/SHA256-INDEX.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/01-first-tsc-composite-refusal.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/02-shared-noemit-pass.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/03-shared-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/04-original-corpus-with-fixture-errors.cjs',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/04-public-source-corpus.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/05-public-source-corpus-corrected.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/06-canonical-methods.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/06-canonical-methods.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/07-source-format.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/09-focused-strict-tsc.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-client-red.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-client-red.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-revision-red.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-revision-red.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-type-red.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-type-red.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/11-frozen-shared-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/13-actual-hash-producer.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/14-repair-format.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/15-repair-shared-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/16-canonical-hash-corpus.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/17-original-union-text-harness.cjs',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/17-source-preservation.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/18-source-preservation-corrected.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/18-source-preservation-corrected.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/19-repair-focused-strict.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/20-repair-format.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/21-repair-focused-strict.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/22-repair-focused-strict.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/23-repair-shared-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/24-repaired-public-corpus.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/25-owner-profile-format.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/26-owner-profile-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/27-owner-profile-corpus.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/28-post-save-format.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/29-post-save-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/30-post-save-corpus.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/31-final-focused-strict.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/33-timestamp-format.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/34-timestamp-build.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/35-final-timestamp-corpus.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.cjs',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/37-final-focused-strict.log',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/bounded.jest.cjs',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/focused.tsconfig.json',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/inject-source-overlay.cjs',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/original-newsletter-outreach.service.ts',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/refuse-unrelated-runtime.cjs',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-client.ts',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-revision.ts',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-type.ts',\n+   'docs/cleanup-newsletter-receiving-contracts-20261013/evidence/source-preservation.cjs',\n    'packages/shared/src/newsletter-receiving.ts',\n    'scripts/ci/fixtures/newsletter-receiving-corpus.cjs'\n  ]\n\n    at /tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/13-source-correction-controls.cjs:5:107\n    at check (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/13-source-correction-controls.cjs:3:43)\n    at Object.<anonymous> (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/13-source-correction-controls.cjs:5:1)\n    at Module._compile (node:internal/modules/cjs/loader:1872:14)\n    at Object..js (node:internal/modules/cjs/loader:2003:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47"
+    },
+    {
+      "name": "exact new public corpus130 passes",
+      "passed": true
+    },
+    {
+      "name": "historical valid UUID accepted without matching current returned versions",
+      "passed": true
+    },
+    {
+      "name": "historical reference cannot add current version/sendability/approval",
+      "passed": true
+    },
+    {
+      "name": "test version malformed n_invalid still rejected",
+      "passed": true
+    },
+    {
+      "name": "test version malformed null still rejected",
+      "passed": true
+    },
+    {
+      "name": "test version malformed undefined still rejected",
+      "passed": true
+    },
+    {
+      "name": "test version malformed 4 still rejected",
+      "passed": true
+    },
+    {
+      "name": "test current sender mismatch still rejected",
+      "passed": true
+    },
+    {
+      "name": "test with null current sender still rejected",
+      "passed": true
+    },
+    {
+      "name": "test sender UUID malformed still rejected",
+      "passed": true
+    },
+    {
+      "name": "current version parent-to-record binding still rejected when foreign",
+      "passed": true
+    },
+    {
+      "name": "duplicate current version UUID case remains rejected",
+      "passed": true
+    },
+    {
+      "name": "unprefixed content hash still rejected",
+      "passed": true
+    },
+    {
+      "name": "noncanonical current version timestamp still rejected",
+      "passed": true
+    }
+  ],
+  "publicCorpus": {
+    "total": 130,
+    "passed": 130,
+    "failed": [],
+    "cases": [
+      {
+        "name": "campaign exact deep preservation and detached snapshot",
+        "passed": true
+      },
+      {
+        "name": "list direct envelope preserves complete documents",
+        "passed": true
+      },
+      {
+        "name": "list accepts empty result",
+        "passed": true
+      },
+      {
+        "name": "campaign create get save share one parser without defaults",
+        "passed": true
+      },
+      {
+        "name": "preview keeps hostile HTML as untrusted wire text",
+        "passed": true
+      },
+      {
+        "name": "checks preserve arbitrary check ids and optional node ids",
+        "passed": true
+      },
+      {
+        "name": "html check preserves opaque bounded provider report",
+        "passed": true
+      },
+      {
+        "name": "stage receipt exact canonical route and case-bound identities",
+        "passed": true
+      },
+      {
+        "name": "stage read exact rich snapshot preserves spelling",
+        "passed": true
+      },
+      {
+        "name": "rich record preserves server fact lifecycle fields targets and optional source note",
+        "passed": true
+      },
+      {
+        "name": "rich record refuses a bare digest instead of canonical sha256-prefixed hash",
+        "passed": true
+      },
+      {
+        "name": "sendable is a supplied server boolean never recomputed",
+        "passed": true
+      },
+      {
+        "name": "historical tests survive current-version filtering without becoming current approval",
+        "passed": true
+      },
+      {
+        "name": "record permits nullable sender and no tests",
+        "passed": true
+      },
+      {
+        "name": "all current block kinds structurally supported",
+        "passed": true
+      },
+      {
+        "name": "Workspace document and primary client UUID versions6 through8 preserve current owner syntax",
+        "passed": true
+      },
+      {
+        "name": "Core stage and record UUID syntax remains versions1 through5",
+        "passed": true
+      },
+      {
+        "name": "persisted root provenance preserves post-save client union beyond request100",
+        "passed": true
+      },
+      {
+        "name": "persisted root provenance has an explicit receiving array budget",
+        "passed": true
+      },
+      {
+        "name": "embedded saved survey preserves legacy formatted nil ID and date-only timestamp",
+        "passed": true
+      },
+      {
+        "name": "embedded saved survey refuses malformed ID and invalid saved time",
+        "passed": true
+      },
+      {
+        "name": "old video and social optional fields remain absent",
+        "passed": true
+      },
+      {
+        "name": "old optional design and section provenance remain absent",
+        "passed": true
+      },
+      {
+        "name": "nullable primary client remains valid without invented association",
+        "passed": true
+      },
+      {
+        "name": "document node ids are plain strings distinct from resource UUIDs",
+        "passed": true
+      },
+      {
+        "name": "valid JSON extra fields including inert prototype-looking keys survive",
+        "passed": true
+      },
+      {
+        "name": "wire output above request-body cap is not silently truncated",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses missing design",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses missing nested config field",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses nonboolean tracking",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses nonfinite style",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong design version",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses unknown block kind",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional font shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses font resource is a node id",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong provenance type",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong nested saved survey shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong legacy introduction type",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional link preview shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional social settings",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional video settings",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses fractional document revision",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses unsafe document revision",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses invalid Workspace document UUID version",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses invalid nullable primary client",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses non-ISO owner timestamp",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses campaign status is closed persisted vocabulary",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses string required body",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong column child shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses a guessed data wrapper",
+        "passed": true
+      },
+      {
+        "name": "document binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "stage read binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "stage receipt binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "record binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong client binding",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong revision binding",
+        "passed": true
+      },
+      {
+        "name": "binding refuses malformed UUID and unsupported key",
+        "passed": true
+      },
+      {
+        "name": "binding refuses own getter without invocation",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong version parent",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong version hash",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong server sendable type",
+        "passed": true
+      },
+      {
+        "name": "record refuses unknown audit state",
+        "passed": true
+      },
+      {
+        "name": "record refuses unknown approval state",
+        "passed": true
+      },
+      {
+        "name": "record refuses unknown generation state",
+        "passed": true
+      },
+      {
+        "name": "record refuses missing version audit checks",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong context note type",
+        "passed": true
+      },
+      {
+        "name": "record refuses malformed recipient email field type",
+        "passed": true
+      },
+      {
+        "name": "record refuses duplicate case-folded version id",
+        "passed": true
+      },
+      {
+        "name": "record refuses nonobject target",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong excluded field",
+        "passed": true
+      },
+      {
+        "name": "record refuses malformed test version UUID",
+        "passed": true
+      },
+      {
+        "name": "record refuses test foreign sender",
+        "passed": true
+      },
+      {
+        "name": "record refuses test nullable sender conflict",
+        "passed": true
+      },
+      {
+        "name": "record refuses missing record status",
+        "passed": true
+      },
+      {
+        "name": "receipt and stage-read shapes cannot substitute for each other",
+        "passed": true
+      },
+      {
+        "name": "mixed receipt and stage-read shape refuses both",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route https://example.test/?newsletterStage=a1111111-1111-4111-8111-111111111111",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route /engagement/outreach?newsletterStage=b2222222-2222-4222-8222-222222222222",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route /engagement/outreach?newsletterStage=a1111111-1111-4111-8111-111111111111&extra=1",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route /engagement/outreach?newsletterStage=bad",
+        "passed": true
+      },
+      {
+        "name": "preview refuses malformed check severity and HTML field",
+        "passed": true
+      },
+      {
+        "name": "html check refuses guessed report array and foreign revision",
+        "passed": true
+      },
+      {
+        "name": "canonical timestamps refuse calendar rollover instead of normalizing wire data",
+        "passed": true
+      },
+      {
+        "name": "canonical timestamps refuse 24-hour rollover instead of normalizing wire data",
+        "passed": true
+      },
+      {
+        "name": "metadata absent null ordinary and unrelated values projected away",
+        "passed": true
+      },
+      {
+        "name": "metadata preserves UUID case and positive safe integer",
+        "passed": true
+      },
+      {
+        "name": "ordinary and valid rich metadata discriminator",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses \"\"",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses null",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses false",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses 7",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses []",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses {}",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses \"n_node\"",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses \"a1111111-1111-7111-8111-111111111111\"",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 0",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses -1",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 1.1",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 1",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses null",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 9007199254740992",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses Infinity",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses false",
+        "passed": true
+      },
+      {
+        "name": "wrong-type rich hint refuses before generic selection",
+        "passed": true
+      },
+      {
+        "name": "inherited reserved hints and absent metadata cannot discriminate a wire record",
+        "passed": true
+      },
+      {
+        "name": "nonobject metadata refuses",
+        "passed": true
+      },
+      {
+        "name": "own accessor is refused without getter call",
+        "passed": true
+      },
+      {
+        "name": "array accessor is refused without getter call",
+        "passed": true
+      },
+      {
+        "name": "toJSON function is refused without invoking it",
+        "passed": true
+      },
+      {
+        "name": "custom prototype is refused without inherited getter reads",
+        "passed": true
+      },
+      {
+        "name": "null-prototype JSON is accepted with full shape validation",
+        "passed": true
+      },
+      {
+        "name": "cyclic nested target is refused",
+        "passed": true
+      },
+      {
+        "name": "shared acyclic JSON data is detached in both positions",
+        "passed": true
+      },
+      {
+        "name": "deep generic JSON budget is refused",
+        "passed": true
+      },
+      {
+        "name": "sparse array is refused",
+        "passed": true
+      },
+      {
+        "name": "array extra property is refused",
+        "passed": true
+      },
+      {
+        "name": "symbol key is refused",
+        "passed": true
+      },
+      {
+        "name": "nonenumerable wire field is refused",
+        "passed": true
+      },
+      {
+        "name": "primitive non-JSON values are refused",
+        "passed": true
+      },
+      {
+        "name": "throwing reflection trap returns refusal instead of escaping",
+        "passed": true
+      },
+      {
+        "name": "list count bound uses current owner max100",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound section count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound section block count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound total block count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound column count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound column child count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound source client count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound font count",
+        "passed": true
+      },
+      {
+        "name": "owner depth0 through6 remains accepted",
+        "passed": true
+      },
+      {
+        "name": "owner depth7 is refused",
+        "passed": true
+      }
+    ]
+  },
+  "originalRed": "04-historical-test-producer.json",
+  "serverChanges": 0
+}
