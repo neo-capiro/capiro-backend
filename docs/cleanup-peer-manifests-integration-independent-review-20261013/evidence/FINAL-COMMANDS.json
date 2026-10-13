@@ -1,0 +1,67 @@
+{
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "node": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "source": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "--require",
+        "evidence/profile-host.cjs",
+        "evidence/profile-adversarial-controls-final.mjs"
+      ],
+      "exit": 0,
+      "cases": 22,
+      "output": "profile-adversarial-final.stdout"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "evidence/profile-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/newsletter-accepted-source-profile.spec.mjs"
+      ],
+      "exit": 0,
+      "cases": 19,
+      "output": "profile-permanent-final.stdout"
+    },
+    {
+      "argv": [
+        "node",
+        "--require",
+        "evidence/hygiene-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/reviewed-source-hygiene.spec.mjs"
+      ],
+      "exit": 0,
+      "cases": 5,
+      "output": "hygiene-permanent-final.stdout"
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+      ],
+      "exit": 0,
+      "cases": 5,
+      "output": "workflow-final.stderr"
+    },
+    {
+      "argv": [
+        "node",
+        "scripts/lib/reviewed-source-hygiene.mjs",
+        "--run",
+        "--base",
+        "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"
+      ],
+      "exit": 0,
+      "output": "source-hygiene-final.stdout"
+    }
+  ],
+  "pathQualifier": "evidence/* argv operands are under this packet, actual host commands use ./docs/cleanup-peer-manifests-integration-independent-review-20261013/evidence/*",
+  "effects": "pure imports; explicit local synthetic Git/FS and fake tool subprocesses; canonical hygiene readonly local Git; network/application/provider/native forbidden",
+  "unchangedClosureCarry": "exact packaging32/general50/Docker3 source bindings retain earlier103 controls; no repeat large suites"
+}

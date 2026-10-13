@@ -1,0 +1,27 @@
+✔ current checked-in policy remains pending and immutable with the exact pinned runtime (2.492346ms)
+✔ production admission refuses 7c87678730538958ace9762f824dc3e588bf445b before artifact callbacks (2.342391ms)
+✔ production admission refuses c8aa693e884de86001d2fc04fbb60d48db09341c before artifact callbacks (0.402367ms)
+✔ production admission refuses cccccccccccccccccccccccccccccccccccccccc before artifact callbacks (0.355382ms)
+✔ plan validates syntax and describes pending approval without promoting a declared source (1.605435ms)
+✔ only an explicit labelled test profile models the active entry and cannot attest source approval (2.147065ms)
+✔ invalid fixture policy refuses missing accepted entry before filesystem (1.313117ms)
+✔ invalid fixture policy refuses duplicate accepted entry before filesystem (0.639231ms)
+✔ invalid fixture policy refuses missing receipt pin before filesystem (0.525942ms)
+✔ invalid fixture policy refuses invalid source tree before filesystem (0.458333ms)
+✔ invalid fixture policy refuses invalid receipt identity before filesystem (1.322911ms)
+✔ invalid fixture policy refuses foreign receipt owner before filesystem (0.294633ms)
+✔ invalid fixture policy refuses credential receipt path before filesystem (0.350355ms)
+✔ invalid fixture policy refuses unreviewed runtime before filesystem (0.239251ms)
+✔ invalid fixture policy refuses relabelled Node image before filesystem (0.162649ms)
+✔ unlabelled, accessor and proxy fixture policy inputs refuse without invoking callbacks (0.309906ms)
+✔ runtime mismatch cannot be rewritten by accepted model source equality (0.334562ms)
+✔ architecture elements are exact primitive strings and refuse objects, proxies, symbols and numbers without coercion (0.757453ms)
+✔ shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection (355.319409ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 413.482057
