@@ -1,0 +1,36 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "scope": "own ephemeral mock raw TCP only plus fake request ports; no app/artifact/customer/public serving",
+  "results": [
+    {
+      "name": "ordinary duplicate control",
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "ambiguous response header",
+      "pass": true
+    },
+    {
+      "name": "duplicate special-name GET",
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "ambiguous response header",
+      "pass": true
+    },
+    {
+      "name": "valid simple GET control",
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    },
+    {
+      "name": "pure duplicate special-name normalization",
+      "expectedStatus": "FAIL",
+      "actualStatus": "FAIL",
+      "failedRequests": 1,
+      "pass": true
+    }
+  ],
+  "pass": 4,
+  "red": 0
+}

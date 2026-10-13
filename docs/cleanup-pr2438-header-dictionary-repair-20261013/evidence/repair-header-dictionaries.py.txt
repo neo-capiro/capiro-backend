@@ -1,0 +1,44 @@
+import pathlib,subprocess,os,json,hashlib
+S=pathlib.Path('/workspace/cleanup-pr2438-compatible-artifact-guards-20261013');R=pathlib.Path('/workspace/capirov2');BASE='6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf';paths=['scripts/lib/newsletter-loopback-serving.mjs','scripts/ci/newsletter-loopback-serving.spec.mjs'];p=S/paths[0];t=p.read_text();assert t.count('const headers = {};')==2;t=t.replace('const headers = {};','const headers = Object.create(null);');p.write_text(t)
+p=S/paths[1];t=p.read_text();t+='''
+
+test('raw GET refuses duplicate special-name data headers before accepting a response frame', async () => {
+  await rawHeadFixture(socket => socket.end('HTTP/1.1 200 OK\\r\\n__proto__: one\\r\\n__Proto__: two\\r\\nContent-Length: 0\\r\\nConnection: close\\r\\n\\r\\n'),
+    target => assert.rejects(requestNewsletterLoopback({ ...target, path: manifest[0].publicPath,
+      method: 'GET', timeoutMs: 500, maxWireBodyBytes: 1024 }), /ambiguous response header/));
+});
+
+test('raw GET retains a single special-name header as own data', async () => {
+  await rawHeadFixture(socket => socket.end('HTTP/1.1 200 OK\\r\\n__proto__: one\\r\\nContent-Length: 0\\r\\nConnection: close\\r\\n\\r\\n'), async target => {
+    const response = await requestNewsletterLoopback({ ...target, path: manifest[0].publicPath,
+      method: 'GET', timeoutMs: 500, maxWireBodyBytes: 1024 });
+    assert.equal(Object.hasOwn(response.headers, '__proto__'), true);
+    assert.equal(response.headers.__proto__, 'one');
+    assert.equal(response.status, 200);
+  });
+});
+
+test('normalized own mixed-case special-name duplicates preserve failed measurement and never grant serving', async () => {
+  const receipt = await verifyNewsletterLoopbackServing(input({ request: spec => {
+    const response = frame(spec);
+    if (spec.path === manifest[0].publicPath && spec.method === 'GET') {
+      response.headers = Object.fromEntries([...Object.entries(response.headers),
+        ['__proto__', 'one'], ['__Proto__', 'two']]);
+      assert.equal(Object.hasOwn(response.headers, '__proto__'), true);
+      assert.equal(Object.hasOwn(response.headers, '__Proto__'), true);
+    }
+    return response;
+  } }));
+  assert.equal(receipt.status, 'FAIL');
+  assert.equal(receipt.failedRequests, 1);
+  assert.equal(receipt.records.length, 358);
+  assert.match(receipt.records.find(record => record.status === 'FAIL').error, /ambiguous response header/);
+  assert.equal(receipt.localServingVerified, false);
+});
+''';p.write_text(t)
+env=os.environ.copy();env['GIT_INDEX_FILE']=str(S/'virtual.index')
+def git(*args,data=None):return subprocess.check_output(['git','-C',str(R),*args],env=env,input=data).decode().strip()
+git('read-tree',BASE);rows=[]
+for p in paths:
+ b=(S/p).read_bytes();oid=git('hash-object','-w','--stdin',data=b);git('update-index','--add','--cacheinfo','100644',oid,p);rows.append({'path':p,'gitBlob':oid,'mode':'100644','sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)})
+tree=git('write-tree');head=git('commit-tree',tree,'-p',BASE,data=b'Preserve all header names as own data and refuse special-name duplicates [skip ci]\n');branch='refs/heads/codex/cleanup-pr2438-compatible-artifact-guards-20261013';git('update-ref',branch,head,BASE);result={'source':head,'tree':tree,'base':BASE,'previousSource':'3e8aa44b8793827e74364442d098237f6274d045','branch':branch,'onlyPaths':rows,'helperChange':'two plain header dictionaries become null-prototype, existing HEAD unchanged','permanentAddedCases':3};(S/'HEADER-REPAIR-FREEZE.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))
