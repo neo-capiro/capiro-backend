@@ -103,7 +103,7 @@ async function regularBuffer(io, file, limit) {
     const chunks = []; let count = 0;
     while (count <= limit) {
       const chunk = Buffer.alloc(Math.min(65536, limit + 1 - count));
-      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, count);
       if (!Number.isInteger(bytesRead) || bytesRead < 0 || bytesRead > chunk.length) refuse('bounded snapshot read');
       if (bytesRead === 0) break;
       count += bytesRead;
@@ -125,7 +125,7 @@ async function writeBuffer(io, value, bytes, mode = 0o644) {
 function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem) {
   return { schemaVersion: 1, kind: 'newsletter-release-assembly', status: 'PASS',
     syntheticModel: fixtureLabel !== undefined, fixtureLabel: fixtureLabel ?? null,
-    builtinFilesystem, filesystemEffectsIndependentlyAttested: builtinFilesystem,
+    builtinFilesystem, builtinFilesystemEffectsPerformed: builtinFilesystem, filesystemEffectsIndependentlyAttested: false,
     approvedSource: { repository: options.sourceRepository, commit: options.sourceCommit },
     declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
     backendSourceIndependentlyVerified: false, manifestSha256: options.manifestSha256,
