@@ -1,0 +1,8 @@
+{
+  "physicalSource": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/contracts/newsletter-outreach-response-routing.md",
+  "sha256": "90e223fc7a18de1ebbacb626552629a1320c62843e3362003eb67ea8b0bc3a6a",
+  "bytes": 5085,
+  "gitBinding": "uncommitted root candidate; not claimed as a publication pin",
+  "review": "Matches b945 selective reserved metadata, canonical owner authority/discriminator, distinct rich/saved staging families, side-effect aware GET, explicit write/readback, and historical tests not current approval. Root independently verified b009 implementation reference from b945 manifest.",
+  "noFrontendSourceReadBeyondAuthorizedDocs": true
+}

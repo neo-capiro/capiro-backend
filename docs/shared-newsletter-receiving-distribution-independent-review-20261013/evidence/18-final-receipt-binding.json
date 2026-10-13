@@ -1,0 +1,99 @@
+{
+  "authorHead": "7e08aff831bd35b4c74eca2ae96bc8a654d625f3",
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "passed": 18,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "all19 new grouped consumer checks pass exact38",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "complete actualCJS/ESM/browser130 raw case names/status identical",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new qualification program byteexact earlier corrected host except supplied source corpus",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "strict positive/negative consumer and renderer inputs reused byteexact",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new supplied receiving corpus bytes exact source38",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual final packed-extraction exit",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual final packed-esm-imports exit",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual final packed-types-node-positive exit",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual final packed-types-node-negative exit",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual final packed-types-browser-positive exit",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual final packed-types-browser-negative exit",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new strict node positive logempty and intended6negative diagnoses",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new strict browser positive logempty and intended6negative diagnoses",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new exact six-package browser closure no external edges/output imports",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new inherited116goldens and renderer byteexact original/old/new/browser",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "final new consumer executor0 summary19/130/116",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "new build/two offline pack commands and continuity verifier all0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual tools remain Node24/TS5.9.3/esbuild0.21.5 without Node22 claim",
+      "passed": true,
+      "detail": true
+    }
+  ],
+  "noUnchangedFullSuiteReplay": true
+}

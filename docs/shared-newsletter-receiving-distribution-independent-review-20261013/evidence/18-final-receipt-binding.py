@@ -1,0 +1,24 @@
+import subprocess,json,hashlib,re
+from pathlib import Path
+H='7e08aff831bd35b4c74eca2ae96bc8a654d625f3';ROOT='docs/shared-newsletter-receiving-packed-distribution-20261013';F=ROOT+'/qualified-38fec5c8';OLD=ROOT+'/qualified-37d574a3';E=F+'/evidence/consumer-attempt-1';OUT=Path(__file__).parent
+read=lambda p:subprocess.check_output(['git','show',H+':'+p]);js=lambda p:json.loads(read(p));rows=[]
+def check(name,fn):
+ try:detail=fn();rows.append(dict(name=name,passed=True,detail=detail))
+ except Exception as e:rows.append(dict(name=name,passed=False,error=repr(e)))
+def req(v):assert v;return True
+q=js(F+'/CONSUMER-QUALIFICATION.json')
+check('all19 new grouped consumer checks pass exact38',lambda:req(len(q['checks'])==19 and all(x['pass'] for x in q['checks']) and q['sourceHead']=='38fec5c83585850ed75a7d3693b3b90d517e70af'))
+check('complete actualCJS/ESM/browser130 raw case names/status identical',lambda:req(all(x['total']==130 and x['passed']==130 and x['failed']==[] and all(c['passed'] for c in x['cases']) and [c['name'] for c in x['cases']]==[c['name'] for c in js(E+'/packed-cjs-parser-results.json')['cases']] for x in [js(E+'/packed-cjs-parser-results.json'),json.loads(read(E+'/packed-esm-imports.log'))['parserCorpus'],js(E+'/browser-parser-results.json')])))
+check('new qualification program byteexact earlier corrected host except supplied source corpus',lambda:req(read(F+'/evidence/qualify-packed-consumer.mjs')==read(OLD+'/evidence/qualify-packed-consumer-attempt-1.mjs')))
+check('strict positive/negative consumer and renderer inputs reused byteexact',lambda:req(all(read(E+'/'+n)==read(OLD+'/evidence/consumer-attempt-1/'+n) for n in ['consumer-positive.ts','consumer-negative.ts','renderer-characterizations.cjs'])))
+check('new supplied receiving corpus bytes exact source38',lambda:req(read(E+'/newsletter-receiving-corpus.cjs')==subprocess.check_output(['git','show','38fec5c83585850ed75a7d3693b3b90d517e70af:scripts/ci/fixtures/newsletter-receiving-corpus.cjs'])))
+for name,status in [('packed-extraction',0),('packed-esm-imports',0),('packed-types-node-positive',0),('packed-types-node-negative',2),('packed-types-browser-positive',0),('packed-types-browser-negative',2)]:
+ c=js(E+'/'+name+'.command.json');check('actual final '+name+' exit',lambda c=c,status=status:req(c['exitCode']==status and c['signal'] is None and c['spawnError'] is None))
+for mode in ['node','browser']:
+ check('new strict '+mode+' positive logempty and intended6negative diagnoses',lambda mode=mode:req(read(E+'/packed-types-'+mode+'-positive.log')==b'' and read(E+'/packed-types-'+mode+'-negative.log')==read(OLD+'/evidence/consumer-attempt-1/packed-types-'+mode+'-negative.log') and len(re.findall(b'error TS',read(E+'/packed-types-'+mode+'-negative.log')))==6))
+m=js(E+'/browser-metafile.json');closure=['newsletter','newsletter-render','newsletter-fonts','newsletter-fonts.catalog','newsletter-social-share','newsletter-receiving'];expected=sorted(['browser-entry.mjs','renderer-characterizations.cjs','newsletter-receiving-corpus.cjs']+['node_modules/@capiro/shared/dist/'+n+'.js' for n in closure]);check('new exact six-package browser closure no external edges/output imports',lambda:req(sorted(m['inputs'])==expected and all(not e.get('external',False) for i in m['inputs'].values() for e in i['imports']) and all(v['imports']==[] for v in m['outputs'].values())))
+check('new inherited116goldens and renderer byteexact original/old/new/browser',lambda:req(len(js(E+'/original-C-renderer-golden.json'))==116 and all(read(E+'/'+n)==read(OLD+'/evidence/consumer-attempt-1/original-C-renderer-golden.json') for n in ['original-C-renderer-golden.json','packed-renderer-results.json','browser-renderer-results.json'])))
+check('final new consumer executor0 summary19/130/116',lambda:req(js(F+'/evidence/04-consumer-attempt-0.command.json')['exitCode']==0 and json.loads(read(F+'/evidence/04-consumer-attempt-0.stdout.log'))['checks']==19 and json.loads(read(F+'/evidence/04-consumer-attempt-0.stdout.log'))['parserCases']==130))
+check('new build/two offline pack commands and continuity verifier all0',lambda:req(all(js(F+'/evidence/'+n+'.command.json')['exitCode']==0 for n in ['01-pristine-shared-build','02-effective-npm-configuration','03-npm-pack-1','03-npm-pack-2','05-final38-continuity'])))
+check('actual tools remain Node24/TS5.9.3/esbuild0.21.5 without Node22 claim',lambda:req(q['nodeVersion'].startswith('v24.') and q['typescriptVersion']=='5.9.3' and q['esbuildVersion']=='0.21.5'))
+result=dict(authorHead=H,source=q['sourceHead'],passed=sum(r['passed'] for r in rows),failed=sum(not r['passed'] for r in rows),checks=rows,noUnchangedFullSuiteReplay=True);(OUT/'18-final-receipt-binding.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({'passed':result['passed'],'failed':result['failed'],'checks':len(rows)}));raise SystemExit(bool(result['failed']))
