@@ -1,0 +1,34 @@
+{
+  "base": "ed62dd1e67be152b6b760815f79bc475925659e7",
+  "initialSource": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "acceptedCandidateSource": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "sourceTree": "24945192668a0df687042e54670f81be301bee20",
+  "nonDocPaths": 131,
+  "sourceRows": 131,
+  "portraitCopiesByteModeExact": 118,
+  "webOriginalsPreserved": true,
+  "repairSourcePaths": [
+    "scripts/ci/engagement-resilience-recovery.contract.spec.mjs",
+    "scripts/engagement-phase3-resilience-contract.mjs"
+  ],
+  "authorVerifiedHashCount": 184,
+  "caseNamesAndBodiesExact": [
+    {
+      "name": "puts clientId in the URL when a client is opened",
+      "body": "{\n    renderPicker();\n    const row = await screen.findByRole('button', { name: /Overland AI/ });\n    fireEvent.click(row);\n    // The whole point: selection must reach the URL, or the router cannot see it.\n    await waitFor(() =>\n      expect(screen.getByTestId('location')).toHaveTextContent('/clients?clientId=c-1'),\n    );\n  }"
+    },
+    {
+      "name": "lists the portfolio so there is a way in at all",
+      "body": "{\n    renderPicker();\n    expect(await screen.findByRole('button', { name: /Overland AI/ })).toBeInTheDocument();\n    expect(screen.getByRole('button', { name: /Acme Robotics/ })).toBeInTheDocument();\n  }"
+    }
+  ],
+  "apiDockerFourLineInverseExact": true,
+  "defenseInstallBuildRuntimeSecurityBodiesExact": true,
+  "allBaselineOutside131Exact": 23733,
+  "priorDocsExact": 11950,
+  "rootSharedExact": 38,
+  "workflowExact": 72,
+  "protectedReportingBodyRead": false,
+  "excludedReportsRead": false,
+  "nativeExecuted": false
+}

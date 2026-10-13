@@ -1,0 +1,20 @@
+{
+  "status": "accepted",
+  "source": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "tree": "24945192668a0df687042e54670f81be301bee20",
+  "initialSource": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "initialReview": "a5c2498b253b287d4dde53e2c13cbbec66fd377c",
+  "author": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "repairAuthor": "8e9df137a750bed3b02f5149e214c3c22697cb93",
+  "freshHermeticTests": 56,
+  "original7MalformedFlagRefusals": 7,
+  "authorOriginalHashesVerified": 184,
+  "sourcePaths": 131,
+  "portraitByteModeCopies": 118,
+  "baselineOutsideScopeExact": 23733,
+  "caseBodyNameInverseExact": true,
+  "sourceEditsByReviewer": 0,
+  "noNativeOrProviders": true,
+  "noProtectedOrDeniedReportBodiesRead": true,
+  "scopeLimitation": "Four authorized source groups only; native/install/browser-auth/full cleanup remain open."
+}
