@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-native-replay-composition-independent-review-20261013/evidence/composition-proof.py", line 70, in <module>
+    rows=index[key];counts[key]=len(rows)
+         ~~~~~^^^^^
+KeyError: 'files'

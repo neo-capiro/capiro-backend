@@ -1,0 +1,217 @@
+{
+  "source": "ce14fb20b60426fe465ae8ad3eb33f2d23cd7bbc",
+  "rows": [
+    {
+      "name": "exact root string whole byte reconstruction",
+      "pass": true
+    },
+    {
+      "name": "exact root Buffer whole byte reconstruction",
+      "pass": true
+    },
+    {
+      "name": "unreviewed prior root bytes refuse",
+      "pass": true
+    },
+    {
+      "name": "CRLF root bytes refuse",
+      "pass": true
+    },
+    {
+      "name": "extra newline root bytes refuse",
+      "pass": true
+    },
+    {
+      "name": "exact api string whole byte reconstruction",
+      "pass": true
+    },
+    {
+      "name": "exact api Buffer whole byte reconstruction",
+      "pass": true
+    },
+    {
+      "name": "unreviewed prior api bytes refuse",
+      "pass": true
+    },
+    {
+      "name": "CRLF api bytes refuse",
+      "pass": true
+    },
+    {
+      "name": "extra newline api bytes refuse",
+      "pass": true
+    },
+    {
+      "name": "missing native declaration refuses",
+      "pass": true
+    },
+    {
+      "name": "missing native trust prefix refuses",
+      "pass": true
+    },
+    {
+      "name": "duplicate native declaration refuses",
+      "pass": true
+    },
+    {
+      "name": "duplicate native prefix refuses",
+      "pass": true
+    },
+    {
+      "name": "fallthrough semicolon native prefix refuses",
+      "pass": true
+    },
+    {
+      "name": "native failure suppression refuses",
+      "pass": true
+    },
+    {
+      "name": "native helper omitted refuses",
+      "pass": true
+    },
+    {
+      "name": "native helper skip switch refuses",
+      "pass": true
+    },
+    {
+      "name": "real docker command substituted refuses",
+      "pass": true
+    },
+    {
+      "name": "one legacy phase nine test dropped refuses",
+      "pass": true
+    },
+    {
+      "name": "native prefix moved to suffix refuses",
+      "pass": true
+    },
+    {
+      "name": "root full acceptance narrowed refuses",
+      "pass": true
+    },
+    {
+      "name": "root default mode narrowed refuses",
+      "pass": true
+    },
+    {
+      "name": "root full acceptance removed refuses",
+      "pass": true
+    },
+    {
+      "name": "root dependency drift refuses",
+      "pass": true
+    },
+    {
+      "name": "root metadata drift refuses",
+      "pass": true
+    },
+    {
+      "name": "root unknown script refuses",
+      "pass": true
+    },
+    {
+      "name": "root physical byte mutation 0 refuses",
+      "pass": true
+    },
+    {
+      "name": "root physical byte mutation 7253 refuses",
+      "pass": true
+    },
+    {
+      "name": "root physical byte mutation 14505 refuses",
+      "pass": true
+    },
+    {
+      "name": "api full acceptance narrowed refuses",
+      "pass": true
+    },
+    {
+      "name": "api default mode narrowed refuses",
+      "pass": true
+    },
+    {
+      "name": "api full acceptance removed refuses",
+      "pass": true
+    },
+    {
+      "name": "api dependency drift refuses",
+      "pass": true
+    },
+    {
+      "name": "api metadata drift refuses",
+      "pass": true
+    },
+    {
+      "name": "api unknown script refuses",
+      "pass": true
+    },
+    {
+      "name": "api physical byte mutation 0 refuses",
+      "pass": true
+    },
+    {
+      "name": "api physical byte mutation 14530 refuses",
+      "pass": true
+    },
+    {
+      "name": "api physical byte mutation 29060 refuses",
+      "pass": true
+    },
+    {
+      "name": "prior API profile without native changes is now a stale input",
+      "pass": true
+    },
+    {
+      "name": "root/API kind mismatch refuses",
+      "pass": true
+    },
+    {
+      "name": "unknown kind 41 refuses",
+      "pass": true
+    },
+    {
+      "name": "unknown kind 42 refuses",
+      "pass": true
+    },
+    {
+      "name": "unknown kind 43 refuses",
+      "pass": true
+    },
+    {
+      "name": "unknown kind 44 refuses",
+      "pass": true
+    },
+    {
+      "name": "unknown kind 45 refuses",
+      "pass": true
+    },
+    {
+      "name": "unknown kind 46 refuses",
+      "pass": true
+    },
+    {
+      "name": "unreviewed input type 47 refuses",
+      "pass": true
+    },
+    {
+      "name": "unreviewed input type 48 refuses",
+      "pass": true
+    },
+    {
+      "name": "unreviewed input type 49 refuses",
+      "pass": true
+    },
+    {
+      "name": "unreviewed input type 50 refuses",
+      "pass": true
+    },
+    {
+      "name": "unreviewed input type 51 refuses",
+      "pass": true
+    }
+  ],
+  "passed": 52,
+  "failed": 0,
+  "coercions": 0,
+  "scope": "pure exact-byte input controls; readonly four pinned Git blob operands only; no operator/native/Docker/app execution"
+}
