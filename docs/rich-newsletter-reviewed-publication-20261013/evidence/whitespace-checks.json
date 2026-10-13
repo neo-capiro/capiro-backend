@@ -1,0 +1,38 @@
+[
+  {
+    "name": "source-whitespace",
+    "argv": [
+      "git",
+      "diff",
+      "--check",
+      "ed62dd1e67be152b6b760815f79bc475925659e7",
+      "HEAD",
+      "--",
+      "apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+      "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "apps/api/src/engagement/outreach-draft.service.ts",
+      "apps/api/src/engagement/outreach-draft.types.ts",
+      "packages/shared/src/newsletter-receiving.ts",
+      "packages/shared/src/newsletter.ts",
+      "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "scripts/ci/newsletter-receiving.test.cjs"
+    ],
+    "exitCode": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "physical-whitespace",
+    "argv": [
+      "git",
+      "diff",
+      "--check",
+      "ed62dd1e67be152b6b760815f79bc475925659e7",
+      "HEAD"
+    ],
+    "exitCode": 2,
+    "stdoutSha256": "6fd7cb38790ae467d8d6fb4cc13885a1559d700c3b0949dfe47fab05718b23b3",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "base": "ed62dd1e67be152b6b760815f79bc475925659e7",
+  "head": "32a0397280a5f38e5c212fb84cfcce5315fa7883",
+  "tree": "74cecd1c1b043dc6d36b4415bcbac18beec0344d",
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "sourceTree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "sourcePaths": {
+    "apps/api/src/engagement/newsletter-outreach-admission.spec.ts": "ca5f18050e1dccd393e829c562d94fded2e0d9bb830eff98004a01a7d19663b6",
+    "apps/api/src/engagement/newsletter-outreach.service.spec.ts": "1d91b1794aa00143bb114e36dc6f7313ccb4446fc2eae066595444ca1078280c",
+    "apps/api/src/engagement/newsletter-outreach.service.ts": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+    "apps/api/src/engagement/outreach-draft.service.ts": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701",
+    "apps/api/src/engagement/outreach-draft.types.ts": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf",
+    "packages/shared/src/newsletter-receiving.ts": "816bf07aa7baa26d97581ee4dede9c792dbd60803011cb1db3ae82f523aa63d6",
+    "packages/shared/src/newsletter.ts": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7",
+    "scripts/ci/fixtures/newsletter-receiving-corpus.cjs": "73b3795a9422076f9ad86a1646db86333fe6e5b2e97391b79ea11aca8e9a4268",
+    "scripts/ci/newsletter-receiving.test.cjs": "6b12a222bc446bcd26aef1409306eb892851aaa17d3b6006dd1ec2f8f658b317"
+  },
+  "outsideNineSourcePaths": {
+    "unchangedNonDocumentEntries": 11786,
+    "changedNonDocumentEntriesExactly": 9
+  },
+  "prismaDirectoryEntriesUnchanged": 521,
+  "protectedReportingBodyRead": false,
+  "schemaMigrationExecution": false,
+  "fullReleaseAcceptance": false
+}

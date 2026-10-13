@@ -1,0 +1,13 @@
+{
+  "qualification": "b945b799591c7a0345441a489b27cdadee202235",
+  "path": "docs/newsletter-port-20261012/RICH-SLICE-QUALIFICATION.md",
+  "gitBlob": "e913f7ffa87961f216a5eb39a266c240c97595a3",
+  "sha256": "8bd7ace94774f08b62e76e0493b8d71e924fbea5c92b5015728a3a74f6d973ab",
+  "implementation": "b0098f905e07a0e667566d7d7b0a8f7a8938423c",
+  "implementationMentionedInQualification": false,
+  "manifest": "docs/newsletter-port-20261012/RICH-SLICE-EVIDENCE-MANIFEST.json",
+  "manifestGitBlob": "2d921263617075592370c15c8149be75bf53b50f",
+  "manifestSha256": "492244e284f2725eac7fa74849af18be489d3ef9f5cbcb9361bb7aef3a710ace",
+  "implementationMentionedInManifest": true,
+  "implementationBindingFromDelegation": true
+}

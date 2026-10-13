@@ -1,0 +1,3 @@
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+AssertionError: ['docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md', 'docs/contracts/newsletter-outreach-response-routing.md']

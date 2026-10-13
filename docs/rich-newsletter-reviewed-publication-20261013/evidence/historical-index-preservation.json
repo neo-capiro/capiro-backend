@@ -1,0 +1,14 @@
+{
+  "historicalIndex": "docs/phase26-reviewed-publication-20261013/SHA256SUMS.json",
+  "historicalEntryCount": 1875,
+  "unchangedPhysicalEntries": 1873,
+  "supersededExactCopies": {
+    "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md": "docs/rich-newsletter-reviewed-publication-20261013/HANDOFF-PR2435.md",
+    "docs/contracts/newsletter-outreach-response-routing.md": "docs/rich-newsletter-reviewed-publication-20261013/RESPONSE-ROUTING-PR2435.md"
+  },
+  "initialHostAssertionExpectedOnlyOneInsteadOfBoth": {
+    "exitCode": 1,
+    "stderrSha256": "28745c585d484b8ae701aa0cb1f8b20df86cfc4fd10c0c6ac25e09945ac87192"
+  },
+  "correctedAuditExitCode": 0
+}

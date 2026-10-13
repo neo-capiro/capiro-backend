@@ -1,0 +1,27 @@
+{
+  "head": "cbbd197c66e8d623e94fb65c084e7af9f99a0beb",
+  "tree": "09f3982be6f6fa37dd94ec21b40418a391aae352",
+  "argv": [
+    "/tmp/capirov2-local-qualification-bin-20261012/pnpm",
+    "--filter",
+    "@capiro/api",
+    "typecheck"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion",
+  "environment": {
+    "PATH": "/tmp/capirov2-local-qualification-bin-20261012:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/capiro-rich-core-tc-20261013",
+    "TZ": "UTC",
+    "LANG": "C.UTF-8",
+    "CI": "1",
+    "NODE_OPTIONS": "--max-old-space-size=8192"
+  },
+  "exitCode": 0,
+  "canonical17SegmentScriptUnchanged": true,
+  "parserSource": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "privateSharedDeclarationSource": "7949d079b1b46acf9c18c86898d6eedf9290428a",
+  "finalSharedDeclarationEqualityRequired": true,
+  "compilerAndExistingSafetySourceOnly": true,
+  "stdoutSha256": "42a089ceef298e9e3fdb08ce17e6bcfd9dc95987898cadeb06363ead1091a960",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

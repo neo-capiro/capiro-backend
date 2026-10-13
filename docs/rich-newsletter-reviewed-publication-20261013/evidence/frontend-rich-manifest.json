@@ -1,0 +1,918 @@
+{
+  "sourceCommit": "b0098f905e07a0e667566d7d7b0a8f7a8938423c",
+  "reviewedSourceFiles": 23,
+  "sourceBinding": "All independently reviewed source bytes match the committed source. Runtime remains unchanged in the evidence commit.",
+  "files": [
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/EVIDENCE.json",
+      "bytes": 9053,
+      "sha256": "bd3af78fff26b516457c509642d669a7018c41923a39e972db4f54ad2aae3cde"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/EXACT-SIZE-EVIDENCE.json",
+      "bytes": 4258,
+      "sha256": "69b7211e0e93edc1805828fac2891358d17c406ecb758b668ef792b65b61ecc5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/FINAL-SOURCE.json",
+      "bytes": 6144,
+      "sha256": "22abfe29c8d93b71e9597736854cb23e2aa10c05ff8f0bfc08de04b3e8a3e426"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/FINDINGS.json",
+      "bytes": 2157,
+      "sha256": "413385b36a1918eedc4a825d2c8ef71b497da53bfc9acc487edb6cac221c9446"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/INITIAL-SOURCE.json",
+      "bytes": 6139,
+      "sha256": "00ef613a1dc3c05acd35426d04e396c13acb2729246d92e26f3bcab896544551"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/MANIFEST.json",
+      "bytes": 15206,
+      "sha256": "7dad2ee6cf1b1c68fffe7b825cf002c8c877369d4612c4e06539a83a47e63877"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/PRESERVATION.json",
+      "bytes": 831,
+      "sha256": "4aabfb07292bd0f066fa5788b6df61dcd41dffcc280af7c6c2863f7a63ffc85a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/READY-SIZE-RECORDS.json",
+      "bytes": 6209,
+      "sha256": "18189f949035af94a8b3d7226d8077f5cc3059040cf4f32f99cbcc1d01ca9fc7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/REVIEW.md",
+      "bytes": 11594,
+      "sha256": "119721bc120dcd0db9d153f5bca4994c284b7c9313ca47c789bb56f04fb2363c"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/ROOT-INTEGRATION-CHECK.json",
+      "bytes": 1735,
+      "sha256": "7454491813e312dd14a31d343032a752421f5b19bb3ae57f7cc8cc0cb3be03a7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/SEAL.sha256",
+      "bytes": 80,
+      "sha256": "b7ddcbdf7e433bd8e3c27e45976810a4bc2833276167c6ffec3db2b5d4f3fe35"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/STAGED-BINDING.json",
+      "bytes": 1763,
+      "sha256": "7a0939f4b824c6b571d8fd38425e59844b4cc28b614a40eb98f66246e629389e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/STATUS.md",
+      "bytes": 478,
+      "sha256": "9bb95581e4df52b4386f4016d5231971db78aa2efae4297e060561c3a2b026b2"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/STRUCTURE-REVIEW.md",
+      "bytes": 5947,
+      "sha256": "c15996bb0b8f91d811fa30ea9f0ef062818c61169ec06ad17ac50a87664e69df"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/application-unit-final.log",
+      "bytes": 236,
+      "sha256": "20fbd32d8710555d7eaba041b29caae80beb4b5d2317a39f23261e12ef10376b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/application-unit.log",
+      "bytes": 236,
+      "sha256": "271791de550302ff7d1df3f1831efbb3e6e44331d61073d6dfdc1d4cefcdeb58"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/architecture-tests-final.log",
+      "bytes": 3089,
+      "sha256": "0eb91fd582aec101cd316367b0b7e2d9a2cac5ae66f703b3398e46a69fcc5959"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/browser-final.log",
+      "bytes": 6259,
+      "sha256": "2e40118af5465ef17670a936b6ee2c1ef482ffa5ce3d31786b0bc0c4edd8b0b7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/browser-first.log",
+      "bytes": 6120,
+      "sha256": "44f94909c99a303e45182e658a37c1d3c170159cae7da0c05645542af5f2c133"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/browser-qualified-local.log",
+      "bytes": 6395,
+      "sha256": "0b0ed5798a88e8f506c18a34bb5f23034d39cbcf368ce50c01c74ca7814e6781"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/browser-reviewed.log",
+      "bytes": 9360,
+      "sha256": "1c98d35239868de41627841b628da29945986dfd2cabd0e00e249a33d1322566"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/capiro-unit-reviewed.log",
+      "bytes": 251,
+      "sha256": "16ee53bf0c7b84b129af5d1c9499405a15b009cc3d109661108705b5cbeb799a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/format-reviewed.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/history-before.log",
+      "bytes": 3413,
+      "sha256": "547955d4a623354c24a30fb7080c0fd4829cc683bd0fafd0a3aeecde185486ff"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/lint-reviewed.log",
+      "bytes": 672,
+      "sha256": "73dc500a49ad975753a4cb647df702911fcd32ed8d37d971a2a5838e39f923f2"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/metadata-before.log",
+      "bytes": 4607,
+      "sha256": "188b784d4b369d7bb52afda1c0c8cc5f9d590545a28c6ef184251fe5ce11ef9a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/node-tests-restored.log",
+      "bytes": 6222,
+      "sha256": "4821bddecccd92f3195f2e24a80e506aeda3e7c8648ca3afff77524b1d2e5c8c"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/node-tests.log",
+      "bytes": 13648,
+      "sha256": "f92bf46fa14f49f69898fe4ae150ca19ea5de979fae38e64dd7f11e6a06542c4"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/package-unit.log",
+      "bytes": 8708,
+      "sha256": "f5afa0dd1bb754536c4e6d94e95d02330df5a1185534df80efb13f38e201f56a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/production-build.log",
+      "bytes": 1018,
+      "sha256": "d0e21faca44cbf86906bb17d75038596371b7040621c9ae8ce7f1be6ff7ccd08"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/public-packages.log",
+      "bytes": 759,
+      "sha256": "a41ce4777569fe931dd0feb294ca03cf6c639fe863134648d5404334fb6b8f76"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/evidence/typecheck-reviewed.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/package.json",
+      "bytes": 1882,
+      "sha256": "36cd7a98306d00ef3667bbf0a47a707e7896431feb0d60638be575a70155e6ec"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/app/engagement/outreach/page.tsx",
+      "bytes": 411,
+      "sha256": "045f081f8751bcf45a4ad737de30d3b9c616b30e054425694799facbbdcc35e4"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/engagement/EngagementScreen.tsx",
+      "bytes": 5925,
+      "sha256": "5fd7837cdfa80ef0207d8e45dde870a442f3ff798b8266a95989ac27dc20e0e5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/engagement/NewsletterDestination.tsx",
+      "bytes": 1704,
+      "sha256": "15900285c0ece4cce17967f5842323fe40df584b25663ff8ca7d0359f8be3d0e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/engagement/OutreachView.tsx",
+      "bytes": 11121,
+      "sha256": "e2795611b5783cdf5e7f616f6fa7201d914a664bb88703f23e86bf90427fbe73"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/engagement/newsletter-route.test.ts",
+      "bytes": 1896,
+      "sha256": "3f50d27c9893de488a9538f699ddbc36a60cf6f4f20525bc7c87b024b449127b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/engagement/newsletter-route.ts",
+      "bytes": 1708,
+      "sha256": "b4c0ea0a99b4fde3358bcb0cc079381bc02a484c3f027bbc9d7508cdd17af682"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/WorkspaceScreen.tsx",
+      "bytes": 7766,
+      "sha256": "7ec9d3ae32de4a11446190d4ee99b43b830ec44590983d155e49a78309ddf3a5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/RichBlockControls.tsx",
+      "bytes": 3569,
+      "sha256": "c252f1201084ddc3a3bbfdb19e49ae850adf7f020daa286bd7c9bb78a3418f95"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/RichNewsletterEditor.tsx",
+      "bytes": 6504,
+      "sha256": "4cce004224a7cc56e313bd03eda347e97dd28920ce7b4a4a789f59e373b505d0"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/RichPreview.tsx",
+      "bytes": 2897,
+      "sha256": "92f22e482133a1454a2122bcc78b9f916836627f1b4122248507c20abd0d4158"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/RichStructure.tsx",
+      "bytes": 2447,
+      "sha256": "9cc350f82297eba25cfddb937ad45934072afc0821988a4a9a052569dc879d03"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/RichText.tsx",
+      "bytes": 2224,
+      "sha256": "0c2647f8ba7beb62e1f903edbd03a7b23835561b45ed435fec0402a584ab6a59"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/draft.test.ts",
+      "bytes": 2847,
+      "sha256": "102e47f125212ddb43b23bd9bd418ab1f116fecad26740765f1ae61091230468"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/draft.ts",
+      "bytes": 2152,
+      "sha256": "743537f90a47a6300e2e04733526043d40d593fc9a3f9b98f6ee54667866ee61"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/features/modules/workspace/rich-newsletter/rich-newsletter.module.css",
+      "bytes": 2155,
+      "sha256": "8661f21e1fa15878ce2dc95eb6a5afc89bdc322a9b232ea43389534407ebf97a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/shared/capiro/newsletter-routing.test.ts",
+      "bytes": 1956,
+      "sha256": "53b14d2f350e19a16130f02f5883deb1cb6acc13ee834b19eb7e20efaf54f74e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/shared/capiro/operations/engagement.ts",
+      "bytes": 11049,
+      "sha256": "a91e80b1300cd3fdebb1598ae3d31d01ba82fd858c595544fffadcfc7a5026a8"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/src/shared/capiro/operations/newsletter-routing.ts",
+      "bytes": 567,
+      "sha256": "8e6fff50996b8af6e7c6c261bef64d816f36a861696125009adccf591a240c91"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/test/browser/newsletter-rich-history.spec.ts",
+      "bytes": 1665,
+      "sha256": "f155d0e2167958b685827acfaedf6ccbf6958b26ad7a4c631482c3a702390c2b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/apps/web/test/browser/newsletter-rich.spec.ts",
+      "bytes": 9766,
+      "sha256": "33ec7ad0ac0d18b6b5a9cc2b3826d0bbe1809f15d738a6801f94c3fc7fdabd90"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/docs/newsletter-port-20261012/RICH-IMPLEMENTATION-PLAN.md",
+      "bytes": 3178,
+      "sha256": "6ee79562c7a1932fbeabb684d85bcd33073681862d2f23599b93233e5b5677e5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/final-source/package-lock.json",
+      "bytes": 511299,
+      "sha256": "1847b2eca0198110c55481bd2bc5c65f77e4bdf51ab07532f96771cdcfa11251"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/package.json",
+      "bytes": 1882,
+      "sha256": "36cd7a98306d00ef3667bbf0a47a707e7896431feb0d60638be575a70155e6ec"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/app/engagement/outreach/page.tsx",
+      "bytes": 411,
+      "sha256": "045f081f8751bcf45a4ad737de30d3b9c616b30e054425694799facbbdcc35e4"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/engagement/EngagementScreen.tsx",
+      "bytes": 5925,
+      "sha256": "5fd7837cdfa80ef0207d8e45dde870a442f3ff798b8266a95989ac27dc20e0e5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/engagement/NewsletterDestination.tsx",
+      "bytes": 1704,
+      "sha256": "15900285c0ece4cce17967f5842323fe40df584b25663ff8ca7d0359f8be3d0e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/engagement/OutreachView.tsx",
+      "bytes": 11121,
+      "sha256": "e2795611b5783cdf5e7f616f6fa7201d914a664bb88703f23e86bf90427fbe73"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/engagement/newsletter-route.test.ts",
+      "bytes": 1896,
+      "sha256": "3f50d27c9893de488a9538f699ddbc36a60cf6f4f20525bc7c87b024b449127b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/engagement/newsletter-route.ts",
+      "bytes": 1708,
+      "sha256": "b4c0ea0a99b4fde3358bcb0cc079381bc02a484c3f027bbc9d7508cdd17af682"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/WorkspaceScreen.tsx",
+      "bytes": 7766,
+      "sha256": "7ec9d3ae32de4a11446190d4ee99b43b830ec44590983d155e49a78309ddf3a5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/RichBlockControls.tsx",
+      "bytes": 3234,
+      "sha256": "f92a9a70d8b6f9f4af140d0d326e384f90d88cb48976bc4e3a950752d92e0622"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/RichNewsletterEditor.tsx",
+      "bytes": 6504,
+      "sha256": "4cce004224a7cc56e313bd03eda347e97dd28920ce7b4a4a789f59e373b505d0"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/RichPreview.tsx",
+      "bytes": 2684,
+      "sha256": "5070e14083aa452ebbbcb9b8a848ebd306ba1af8da9a510f09af2c9aef5a59ea"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/RichStructure.tsx",
+      "bytes": 2447,
+      "sha256": "9cc350f82297eba25cfddb937ad45934072afc0821988a4a9a052569dc879d03"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/RichText.tsx",
+      "bytes": 2224,
+      "sha256": "0c2647f8ba7beb62e1f903edbd03a7b23835561b45ed435fec0402a584ab6a59"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/draft.test.ts",
+      "bytes": 2847,
+      "sha256": "102e47f125212ddb43b23bd9bd418ab1f116fecad26740765f1ae61091230468"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/draft.ts",
+      "bytes": 1899,
+      "sha256": "3ea39651ad522a489144fe93c6f8071c816525a8cdf48e8b453f6edcc85eafd7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/features/modules/workspace/rich-newsletter/rich-newsletter.module.css",
+      "bytes": 2155,
+      "sha256": "8661f21e1fa15878ce2dc95eb6a5afc89bdc322a9b232ea43389534407ebf97a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/shared/capiro/newsletter-routing.test.ts",
+      "bytes": 1956,
+      "sha256": "53b14d2f350e19a16130f02f5883deb1cb6acc13ee834b19eb7e20efaf54f74e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/shared/capiro/operations/engagement.ts",
+      "bytes": 11049,
+      "sha256": "a91e80b1300cd3fdebb1598ae3d31d01ba82fd858c595544fffadcfc7a5026a8"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/src/shared/capiro/operations/newsletter-routing.ts",
+      "bytes": 567,
+      "sha256": "8e6fff50996b8af6e7c6c261bef64d816f36a861696125009adccf591a240c91"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/test/browser/newsletter-rich-history.spec.ts",
+      "bytes": 1023,
+      "sha256": "ec27affed4b0109e96d899d7d65db6ee48847b72679b53782c2d71dbe121caa9"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/apps/web/test/browser/newsletter-rich.spec.ts",
+      "bytes": 9177,
+      "sha256": "c6500b05a56fec529b0ebd91cf3c9401bbde6cf3c478b8ba1c22024e157b27f1"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/docs/newsletter-port-20261012/RICH-IMPLEMENTATION-PLAN.md",
+      "bytes": 3178,
+      "sha256": "6ee79562c7a1932fbeabb684d85bcd33073681862d2f23599b93233e5b5677e5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/initial-source/package-lock.json",
+      "bytes": 511299,
+      "sha256": "1847b2eca0198110c55481bd2bc5c65f77e4bdf51ab07532f96771cdcfa11251"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/prepare-size-review.mjs",
+      "bytes": 7090,
+      "sha256": "5b4721fb96ee711912374c73f4bdad3cc893d1487a4d773add12b880c43ef20a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/size-summary.json",
+      "bytes": 906,
+      "sha256": "9affc99ebe66574c6e9b2346ff0cc5599cc9c13225bba4ece8330b6e7327a2d8"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/visuals/rich-editor-desktop.png",
+      "bytes": 156916,
+      "sha256": "d46590f031ab0961c4f11800309a21c44be84cd1115a4e3a44016c3cf86e7056"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-review/visuals/rich-editor-mobile.png",
+      "bytes": 120416,
+      "sha256": "0cab8751ee4e740f676dac8ff22cc43ca12804c0fe7a6daa2c5f6f232c93e97f"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/CONTRACT-REVIEW.md",
+      "bytes": 18599,
+      "sha256": "49b9e1f85ffe06cb30032bcb75c7b7bb2a1f5102e0be9e4c05252f0ee22e6641"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/EVIDENCE-MANIFEST.json",
+      "bytes": 4757,
+      "sha256": "86bf17ea56ddd576467a4f140c61a57599e25379f0519088cf7e0b663e156c1f"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/SOURCE-ORIGINS.json",
+      "bytes": 3605,
+      "sha256": "2fa0941e7f55210b26ab54765dcc405f5dfce66d7fcdbf18e931ec3234b460ee"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/SOURCE-VERIFICATION.json",
+      "bytes": 7230,
+      "sha256": "a5ef77b884e37c7926bf45a5464e41fee237b160d5aecbbe80a675498656a7a9"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/engagement-access.helpers.ts",
+      "bytes": 5101,
+      "sha256": "a7d28dcb3db441049d7f93a89b54cc21b097af3757a66f2934b0e5a2a560d0bf"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/engagement.service.ts",
+      "bytes": 506538,
+      "sha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "bytes": 5292,
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/newsletter-outreach.service.ts",
+      "bytes": 24560,
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/newsletter-source-access.ts",
+      "bytes": 1748,
+      "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/outreach-draft.service.ts",
+      "bytes": 42497,
+      "sha256": "9bf390c4072fdeff2e424e5ab012efd06caffbcf5cbe0dc0edd43344b5d199bb"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/api/src/engagement/outreach-send-intent.service.ts",
+      "bytes": 68344,
+      "sha256": "6a9b291e8eecf2a7b1685469b1b345cfa5a3411a77c453a2ad6e4df5fbea3658"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/workspace/src/auth/tenant-context.ts",
+      "bytes": 432,
+      "sha256": "c239f86fc779d12516660bfb222310ecd58836403ecfbff5d8db0956768ee86f"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/workspace/src/auth/tenant.guard.ts",
+      "bytes": 196,
+      "sha256": "52e98f7166667465aad356f71869e7c36ea84262fc01841cf7ee5148d70060df"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/workspace/src/newsletters/newsletter-validation.ts",
+      "bytes": 27451,
+      "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/workspace/src/newsletters/newsletter.controller.ts",
+      "bytes": 16288,
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/apps/workspace/src/newsletters/newsletter.service.ts",
+      "bytes": 86320,
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/backend/docs/contracts/newsletter-outreach-response-routing.md",
+      "bytes": 3739,
+      "sha256": "dc8377aefa66ed65521154a680a0cc2f03532a2146c076b2e80c3aec054d83f6"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/BACKEND-CONTRACT-DELTA.md",
+      "bytes": 7205,
+      "sha256": "fabbd6e0bc16bd1e901447df717c35939a389d1e1070f6214e6003357fbbadbf"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/FRONTEND-BOUNDARY.md",
+      "bytes": 5025,
+      "sha256": "1342128757a22bc9301f52b16f4fcda8bc1c3b48ea2bb65ee74116d3ed0134f0"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/HANDOFF.md",
+      "bytes": 17323,
+      "sha256": "5f428d03b503a8f18ac3f6293f64ac5cf64081cb2b1276b6969ee3ac47749713"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/SOURCE-MANIFEST.json",
+      "bytes": 20641,
+      "sha256": "9164ba06f5d8d8704f92d729c585191a692ff7776730f54f9451bca8d848179a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/newsletter-render.d.ts",
+      "bytes": 1930,
+      "sha256": "c7e1b8a8fd1d8a624a57383296ef5df913de484a9e6121a9c208874fc5f851cb"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/newsletter.d.ts",
+      "bytes": 16528,
+      "sha256": "d56adf1cec6c8565932671af8ca696a47d7828f9e4b578e33b1b56d5f46410f8"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/context/package.json",
+      "bytes": 3761,
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/verification-replay.log",
+      "bytes": 105,
+      "sha256": "715b0d0f0dd759223e8e2804fb4273bfa757293917deebf0db74ef8921f227e8"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-contract-review/verify-sources.py",
+      "bytes": 971,
+      "sha256": "6827f43d77ae39c7e21a82069275228cd0cd1c6eeee73e9ec05df8a526d3f04f"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/CURRENT-OWNER-CONTINUITY.json",
+      "bytes": 5754,
+      "sha256": "2173412fa25049865a1802ad7fa90063f81274e688d0542b8e6d1020ee35eb36"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/FACET-MAP.json",
+      "bytes": 60912,
+      "sha256": "fc11581f9b596f7db5abfa54abeac3bb501d9edc4b464eb8692103da9e7054d9"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/FINDINGS.json",
+      "bytes": 5778,
+      "sha256": "c59930934ed0a0cd6eacb1a1c0cc503b1b6d2b55a920392f49660f69159dfb89"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/MANIFEST.json",
+      "bytes": 7481,
+      "sha256": "00cce2a4559fc1ab1522f446012527126adc2dadfc1aa3a2d96bb75c2d8a681b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/ORIGINAL-ASSERTION-REGISTER.json",
+      "bytes": 41851,
+      "sha256": "c9261f2352d833dbf179234634ecdde1c4cefcf2d494055507bc76ab9966a16e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/REGRESSION-PLAN.json",
+      "bytes": 8236,
+      "sha256": "cf7ce949f4bb6cf85e9e3954cf886c4de1bb91f311a78d3b58404eb433631df1"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/REUSE-AND-BOUNDARIES.json",
+      "bytes": 3305,
+      "sha256": "6d1cb11b8f1212a585614effaf5ed5b15fe31fb3ba28060ff58bccd74f4a1d83"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/SEAL.json",
+      "bytes": 145,
+      "sha256": "5c4d0a8a2537dd4b32c24cb3e59aa41fa4f9d52bfc46108fc9026743d8f1663e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/SOURCE-BINDING.json",
+      "bytes": 7965,
+      "sha256": "9a746cbaceb02216b1d629c4a871c3dd9451bd3c0d56a7a5e10c0f34ce8ce2e7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/assemble.py",
+      "bytes": 22974,
+      "sha256": "defd696fe034aec199b0690ace0a514f33b83c5b2352a1ef5679eff2e40d9a2c"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-scope-review/report.md",
+      "bytes": 7420,
+      "sha256": "653c9c39bc3a39bb5bcb4f1d32b8654f2c0e264838386426412d49e83d4c01b2"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/INITIAL-FINDINGS.json",
+      "bytes": 3085,
+      "sha256": "5eeea29d3656c3120ddb0d89bd42957473da7fe9198f324e8e523081306678f6"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/INITIAL-MANIFEST.json",
+      "bytes": 2664,
+      "sha256": "077eddf86c62483735f5849649706eef1c410ca50fbd1b28f236c5fffd24d1a0"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/INITIAL-REVIEW.md",
+      "bytes": 3535,
+      "sha256": "7540db2a0e310e92f3f8685d1cc1f4917e112d18742324779275f6cb42a83c3e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/INITIAL-SIZE-REVIEW.json",
+      "bytes": 2986,
+      "sha256": "29e3d423fe968bfb0e7831e1254938c8a60611a2e54d7acd79e24f72c8509320"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/INITIAL-SOURCE-BINDING.json",
+      "bytes": 2096,
+      "sha256": "f1bc57907303cccf3d6528bb5d412db88ea9c975a8a5d725b390db00f0fb53a5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/app/engagement/outreach/page.tsx",
+      "bytes": 411,
+      "sha256": "045f081f8751bcf45a4ad737de30d3b9c616b30e054425694799facbbdcc35e4"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/features/modules/engagement/EngagementScreen.tsx",
+      "bytes": 5925,
+      "sha256": "5fd7837cdfa80ef0207d8e45dde870a442f3ff798b8266a95989ac27dc20e0e5"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/features/modules/engagement/NewsletterDestination.tsx",
+      "bytes": 1446,
+      "sha256": "ba03aeb178620b4b79e2a41328300f04e4516203b89d61cecb08e27287c08726"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/features/modules/engagement/OutreachView.tsx",
+      "bytes": 11053,
+      "sha256": "5c9ba25e7e0041391af642b93abd2b7b30b2e1ee092f9f092bc2d0ea02d611bb"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/features/modules/engagement/newsletter-route.test.ts",
+      "bytes": 1896,
+      "sha256": "3f50d27c9893de488a9538f699ddbc36a60cf6f4f20525bc7c87b024b449127b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/features/modules/engagement/newsletter-route.ts",
+      "bytes": 1666,
+      "sha256": "1516f39fe9aa3f936429f18cd57fc30d8084754b458d4d5e72ca3deac287f717"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/shared/capiro/newsletter-routing.test.ts",
+      "bytes": 1956,
+      "sha256": "53b14d2f350e19a16130f02f5883deb1cb6acc13ee834b19eb7e20efaf54f74e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/shared/capiro/operations/engagement.ts",
+      "bytes": 11049,
+      "sha256": "a91e80b1300cd3fdebb1598ae3d31d01ba82fd858c595544fffadcfc7a5026a8"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/initial-rich-dispatch-review/initial-source/apps/web/src/shared/capiro/operations/newsletter-routing.ts",
+      "bytes": 567,
+      "sha256": "8e6fff50996b8af6e7c6c261bef64d816f36a861696125009adccf591a240c91"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/application-unit-final.log",
+      "bytes": 236,
+      "sha256": "20fbd32d8710555d7eaba041b29caae80beb4b5d2317a39f23261e12ef10376b"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/application-unit.log",
+      "bytes": 236,
+      "sha256": "271791de550302ff7d1df3f1831efbb3e6e44331d61073d6dfdc1d4cefcdeb58"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/architecture-final-candidate.log",
+      "bytes": 785668,
+      "sha256": "a207e2cb2883c9f8a92445e26e7b0041bb3a2a192c5731d79191dc600b5700c0"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/architecture-final.log",
+      "bytes": 790679,
+      "sha256": "7a8ca10880351bdb8725e9b62279d2a4d49be64eed6d33aa636489eb7a361cac"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/architecture-first.log",
+      "bytes": 785668,
+      "sha256": "b0393dc929649580142fb8ed23c8df3594cecb22189dde2e843a6e7b2c30eae1"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/architecture-pass.log",
+      "bytes": 785942,
+      "sha256": "7fab4a3e3d8da691d955b8b6302400568fb69ddc274a1deac417a44f44e10871"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/architecture-reviewed-candidate.log",
+      "bytes": 785670,
+      "sha256": "226fc9086c312afe48e3c76080321e5536731fca915bbbbddbfe116aeab96c30"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/architecture-tests-final.log",
+      "bytes": 3089,
+      "sha256": "0eb91fd582aec101cd316367b0b7e2d9a2cac5ae66f703b3398e46a69fcc5959"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/browser-final.log",
+      "bytes": 6259,
+      "sha256": "2e40118af5465ef17670a936b6ee2c1ef482ffa5ce3d31786b0bc0c4edd8b0b7"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/browser-first.log",
+      "bytes": 6120,
+      "sha256": "44f94909c99a303e45182e658a37c1d3c170159cae7da0c05645542af5f2c133"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/browser-qualified-local.log",
+      "bytes": 6395,
+      "sha256": "0b0ed5798a88e8f506c18a34bb5f23034d39cbcf368ce50c01c74ca7814e6781"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/browser-reviewed.log",
+      "bytes": 9360,
+      "sha256": "1c98d35239868de41627841b628da29945986dfd2cabd0e00e249a33d1322566"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/capiro-test-inventory.json",
+      "bytes": 34241,
+      "sha256": "aff36ed940f223e81f9bb4eca49d57c4e6c240927a7a23bd1df8c5c267559e74"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/capiro-unit-reviewed.log",
+      "bytes": 251,
+      "sha256": "16ee53bf0c7b84b129af5d1c9499405a15b009cc3d109661108705b5cbeb799a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/capiro-unit.log",
+      "bytes": 251,
+      "sha256": "2d1e9c9843f2f0d556a8270328c7f5bc4d2c45048ea495775adecf8ec891b616"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/failed-build-cache-manifest.json",
+      "bytes": 1445,
+      "sha256": "685d9b3617ec786c6cc59b222dad01c86d27709fe25bb6dfc7cf663a636c3922"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/failed-build-source-manifest.json",
+      "bytes": 3794,
+      "sha256": "ac8f9625117cd689d5376a324969b5c12f2cef70e8e4e2dfb8800b8a1d4cf701"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/format-final.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/format-reviewed.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/format.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/history-before-artifacts/.last-run.json",
+      "bytes": 96,
+      "sha256": "f87b2dd7e4a81a1dc6c2f8c5ad338f56219b37e37b01f0816941d3c97b94f798"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/history-before-artifacts/newsletter-rich-history-ty-a39eb-and-the-complete-new-branch/error-context.md",
+      "bytes": 2236,
+      "sha256": "f4642fb0b8c6868b1f69023c7e46fe6cf95cec32d4775ab8fec1e5e0bd47d740"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/history-before-artifacts/newsletter-rich-history-ty-a39eb-and-the-complete-new-branch/test-failed-1.png",
+      "bytes": 145290,
+      "sha256": "b1f395685283d9b596cc5bcd04a0a615eb59357074426806f5a6915fd5c8b973"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/history-before-artifacts/newsletter-rich-history-ty-a39eb-and-the-complete-new-branch/trace.zip",
+      "bytes": 856505,
+      "sha256": "f7408448d773fc7c0c5d365c03e13eb6a5b379ceb7fbad7cd6e2b59941944331"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/history-before.log",
+      "bytes": 3413,
+      "sha256": "547955d4a623354c24a30fb7080c0fd4829cc683bd0fafd0a3aeecde185486ff"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/lint-final.log",
+      "bytes": 672,
+      "sha256": "73dc500a49ad975753a4cb647df702911fcd32ed8d37d971a2a5838e39f923f2"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/lint-reviewed.log",
+      "bytes": 672,
+      "sha256": "73dc500a49ad975753a4cb647df702911fcd32ed8d37d971a2a5838e39f923f2"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/lint.log",
+      "bytes": 672,
+      "sha256": "73dc500a49ad975753a4cb647df702911fcd32ed8d37d971a2a5838e39f923f2"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/metadata-before.log",
+      "bytes": 4607,
+      "sha256": "188b784d4b369d7bb52afda1c0c8cc5f9d590545a28c6ef184251fe5ce11ef9a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/node-tests-restored.log",
+      "bytes": 6222,
+      "sha256": "4821bddecccd92f3195f2e24a80e506aeda3e7c8648ca3afff77524b1d2e5c8c"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/node-tests.log",
+      "bytes": 13648,
+      "sha256": "f92bf46fa14f49f69898fe4ae150ca19ea5de979fae38e64dd7f11e6a06542c4"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/package-unit.log",
+      "bytes": 8708,
+      "sha256": "f5afa0dd1bb754536c4e6d94e95d02330df5a1185534df80efb13f38e201f56a"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/production-build.log",
+      "bytes": 1018,
+      "sha256": "d0e21faca44cbf86906bb17d75038596371b7040621c9ae8ce7f1be6ff7ccd08"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/public-packages.log",
+      "bytes": 759,
+      "sha256": "a41ce4777569fe931dd0feb294ca03cf6c639fe863134648d5404334fb6b8f76"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/remote-heads.txt",
+      "bytes": 498,
+      "sha256": "8435487a9f18833915b38094a0b4629c324b1efe30ca5613ede75065d2d99972"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/responsive-assertion-before/error-context.md",
+      "bytes": 9648,
+      "sha256": "c0d9de47f8397e617da7c8d129be21654163afdf31e2f493dff52751b1a35443"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/responsive-assertion-before/test-failed-1.png",
+      "bytes": 150308,
+      "sha256": "28583ab0912889ca04cc6e580f30e745e9c906deff58137a1b6fddf8eab55b2e"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/responsive-assertion-before/trace.zip",
+      "bytes": 1115592,
+      "sha256": "5b87756d4d381522affd30d25c80424bcaa9ec3dc42e9f19ae71fb536aea0bae"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/routing-after.log",
+      "bytes": 246,
+      "sha256": "47f51317fd457a8443a54f26e398478d1357ea61ccd4ba4d58c5f0afc63af146"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/typecheck-complete.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/typecheck-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/typecheck-reviewed.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-slice-validation/typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-final-browser/.last-run.json",
+      "bytes": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-final-browser/newsletter-rich-local-rich-24c78-d-plain-text-without-writes/rich-editor-desktop.png",
+      "bytes": 156916,
+      "sha256": "d46590f031ab0961c4f11800309a21c44be84cd1115a4e3a44016c3cf86e7056"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-final-browser/newsletter-rich-local-rich-24c78-d-plain-text-without-writes/rich-editor-mobile.png",
+      "bytes": 120416,
+      "sha256": "0cab8751ee4e740f676dac8ff22cc43ca12804c0fe7a6daa2c5f6f232c93e97f"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-final-browser/newsletter-staging-explici-1d93f--opens-the-selected-session/newsletter-staging-desktop.png",
+      "bytes": 139185,
+      "sha256": "2e675b9306b93369ea1283073947777af631a665ec95a3e945c4452f9f6a8de3"
+    },
+    {
+      "path": "docs/newsletter-port-20261012/evidence/rich-final-browser/newsletter-staging-mobile--63cdc-ts-keyboard-acknowledgement/newsletter-staging-mobile.png",
+      "bytes": 110644,
+      "sha256": "5f16a64232ae0e26b0e75f10628153ab045634a3d6a917b3fca629ca1d91a00d"
+    }
+  ],
+  "localDiagnosticOnly": {
+    "path": "/tmp/capiro-newsletter-rich-dispatch-evidence/failed-build-cache.tar.gz",
+    "bytes": 137623504,
+    "sha256": "2f423e5faf4d839b9347d6569265d93bdf627236e16b8d00a5f75e323a4e9efc"
+  },
+  "scope": "Guarded receiving and local editor; not native rich persistence, production qualification or original43-facet acceptance"
+}

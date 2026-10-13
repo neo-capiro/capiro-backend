@@ -1,0 +1,281 @@
+{
+  "priorOwnedLink": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules",
+  "newOwnedOverlay": "/workspace/capiro-rich-core-overlay-20261013",
+  "sharedSource": "7949d079b1b46acf9c18c86898d6eedf9290428a",
+  "sharedPackage": "/workspace/capiro-shared-newsletter-receiving-dist-7949d079-20261013/packages/shared",
+  "sharedDeclarationsSha256": "c7e2b8cafec86a4a6f470c5651a878237dde7bf107e9c0dab7b8bdb491ce4981",
+  "links": [
+    {
+      "name": ".bin",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/.bin",
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/.bin"
+    },
+    {
+      "name": "@prisma",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@prisma",
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@prisma"
+    },
+    {
+      "name": "@capiro/meriv2-core",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/meriv2-core",
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/meriv2-core"
+    },
+    {
+      "name": "@capiro/auth",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/auth",
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/auth"
+    },
+    {
+      "name": "@capiro/shared",
+      "target": "/workspace/capiro-shared-newsletter-receiving-dist-7949d079-20261013/packages/shared",
+      "resolved": "/workspace/capiro-shared-newsletter-receiving-dist-7949d079-20261013/packages/shared"
+    },
+    {
+      "name": "@capiro/defense-domain",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/defense-domain",
+      "resolved": "/workspace/capirov2-integrated-rc/packages/defense-domain"
+    },
+    {
+      "name": "@capiro/defense-contracts",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@capiro/defense-contracts",
+      "resolved": "/workspace/capirov2-integrated-rc/packages/defense-contracts"
+    },
+    {
+      "name": "zod",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/zod",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod"
+    },
+    {
+      "name": "word-extractor",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/word-extractor",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/word-extractor@1.0.4/node_modules/word-extractor"
+    },
+    {
+      "name": "unpdf",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/unpdf",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/unpdf@1.8.1_@napi-rs+canvas@1.0.9/node_modules/unpdf"
+    },
+    {
+      "name": "undici",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/undici",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/undici@6.28.1/node_modules/undici"
+    },
+    {
+      "name": "typescript",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/typescript",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+    },
+    {
+      "name": "tsx",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/tsx",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+    },
+    {
+      "name": "tsconfig-paths",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/tsconfig-paths",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/tsconfig-paths@4.2.0/node_modules/tsconfig-paths"
+    },
+    {
+      "name": "ts-node",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/ts-node",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node"
+    },
+    {
+      "name": "ts-loader",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/ts-loader",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/ts-loader@9.6.2_typescript@5.9.3_webpack@5.97.1_@swc+core@1.16.2_@swc+helpers@0.5.23__/node_modules/ts-loader"
+    },
+    {
+      "name": "ts-jest",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/ts-jest",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+    },
+    {
+      "name": "svix",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/svix",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/svix@1.92.2/node_modules/svix"
+    },
+    {
+      "name": "supertest",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/supertest",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest"
+    },
+    {
+      "name": "stripe",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/stripe",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/stripe@17.7.0/node_modules/stripe"
+    },
+    {
+      "name": "simple-statistics",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/simple-statistics",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/simple-statistics@7.12.0/node_modules/simple-statistics"
+    },
+    {
+      "name": "shpjs",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/shpjs",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/shpjs@6.2.0/node_modules/shpjs"
+    },
+    {
+      "name": "sanitize-html",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/sanitize-html",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html"
+    },
+    {
+      "name": "rxjs",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/rxjs",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs"
+    },
+    {
+      "name": "reflect-metadata",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/reflect-metadata",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata"
+    },
+    {
+      "name": "prisma",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/prisma",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma"
+    },
+    {
+      "name": "pptxgenjs",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/pptxgenjs",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/pptxgenjs@3.12.0/node_modules/pptxgenjs"
+    },
+    {
+      "name": "pg",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/pg",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg"
+    },
+    {
+      "name": "pdf-parse",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/pdf-parse",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/pdf-parse@2.4.5/node_modules/pdf-parse"
+    },
+    {
+      "name": "pdf-lib",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/pdf-lib",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/pdf-lib@1.17.1/node_modules/pdf-lib"
+    },
+    {
+      "name": "mammoth",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/mammoth",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/mammoth@1.13.0/node_modules/mammoth"
+    },
+    {
+      "name": "lru-cache",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/lru-cache",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/lru-cache@7.18.3/node_modules/lru-cache"
+    },
+    {
+      "name": "jszip",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/jszip",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/jszip@3.10.2/node_modules/jszip"
+    },
+    {
+      "name": "jpeg-js",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/jpeg-js",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/jpeg-js@0.4.4/node_modules/jpeg-js"
+    },
+    {
+      "name": "jest",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/jest",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+    },
+    {
+      "name": "ical.js",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/ical.js",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/ical.js@2.2.1/node_modules/ical.js"
+    },
+    {
+      "name": "fast-xml-parser",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/fast-xml-parser",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/fast-xml-parser@5.11.1/node_modules/fast-xml-parser"
+    },
+    {
+      "name": "express",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/express",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express"
+    },
+    {
+      "name": "exceljs",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/exceljs",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/exceljs@4.4.0/node_modules/exceljs"
+    },
+    {
+      "name": "dotenv",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/dotenv",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv"
+    },
+    {
+      "name": "docx",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/docx",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/docx@9.7.2/node_modules/docx"
+    },
+    {
+      "name": "class-validator",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/class-validator",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator"
+    },
+    {
+      "name": "class-transformer",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/class-transformer",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer"
+    },
+    {
+      "name": "cheerio",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/cheerio",
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/cheerio@1.2.0/node_modules/cheerio"
+    },
+    {
+      "name": "@types",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@types",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@types"
+    },
+    {
+      "name": "@nestjs",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@nestjs",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@nestjs"
+    },
+    {
+      "name": "@modelcontextprotocol",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@modelcontextprotocol",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@modelcontextprotocol"
+    },
+    {
+      "name": "@makegov",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@makegov",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@makegov"
+    },
+    {
+      "name": "@jest",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@jest",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@jest"
+    },
+    {
+      "name": "@electric-sql",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@electric-sql",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@electric-sql"
+    },
+    {
+      "name": "@clerk",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@clerk",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@clerk"
+    },
+    {
+      "name": "@azure",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@azure",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@azure"
+    },
+    {
+      "name": "@aws-sdk",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/@aws-sdk",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/@aws-sdk"
+    },
+    {
+      "name": ".prisma",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules/.prisma",
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma"
+    }
+  ],
+  "otherOverlayAndGlobalCacheMutations": false,
+  "noInstallOrLifecycle": true
+}
