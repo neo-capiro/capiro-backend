@@ -1,0 +1,13 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.mjs"
+  ],
+  "exit": 0,
+  "seconds": 0.12994074821472168,
+  "stdoutSha256": "fe98faa34bd1213dfa6b1d91e90e8267b167eafc3a1471ac60c29c53b4c0d028",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,21 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "tree": "dd829a84528eb576b2337cc091fff5255c42bc5f",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 0.6756911277770996,
+  "stdoutSha256": "2f7a92804f62e8a3788b7fe2d1f6150920458ea702529a5a9b388048f4ffbfc6",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

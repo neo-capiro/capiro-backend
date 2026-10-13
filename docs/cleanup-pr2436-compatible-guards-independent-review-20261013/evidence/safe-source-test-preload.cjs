@@ -1,0 +1,12 @@
+"use strict";
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
+const allowedPaths=new Set(['apps/onboard-api/Dockerfile','apps/onboard-api/src/main.ts','apps/onboard-api/src/app.module.ts','apps/onboard-api/scripts/entrypoint.sh','.github/workflows/onboard-api-image.yml','infra/deploy/onboard-api-serve-taskdef.json','infra/deploy/onboard-api-migrate-taskdef.json','apps/onboard-web/public/favicon.svg','apps/onboard-web/public/legal-docs/Capiro-Subscription-Agreement.pdf','apps/onboard-web/public/legal-docs/Capiro-Terms-of-Service.pdf','apps/onboard-api/package.json','packages/auth/package.json','packages/shared/package.json']);
+const forbidden=p=>/\/apps\/(?:web|onboard-web)\//.test(p)||p.endsWith('/apps/api/src/engagement/engagement.service.ts');
+for(const name of ['readFileSync','readFile']){const old=fs[name];fs[name]=function(file,...args){if(forbidden(path.resolve(String(file))))throw new Error('Excluded filesystem source read refused');return old.call(this,file,...args);};}
+const oldRead=fs.promises.readFile;fs.promises.readFile=function(file,...args){if(forbidden(path.resolve(String(file))))throw new Error('Excluded filesystem source read refused');return oldRead.call(this,file,...args);};
+const oldGit=cp.execFileSync;cp.execFileSync=function(command,args,options){const prefix='b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08:';if(command!=='git'||!Array.isArray(args)||args.length!==2||args[0]!=='show'||!args[1].startsWith(prefix)||!allowedPaths.has(args[1].slice(prefix.length)))throw new Error('Unapproved subprocess/source input refused');return oldGit.call(this,command,args,options);};
+const refuse=()=>{throw new Error('Real external/child/native port refused by independent source host');};
+for(const name of ['spawn','spawnSync','exec','execSync','execFile','fork'])cp[name]=refuse;
+for(const [name,methods]of[['node:net',['connect','createConnection','createServer']],['node:tls',['connect','createServer']],['node:http',['request','get','createServer']],['node:https',['request','get','createServer']],['node:dgram',['createSocket']]])for(const method of methods)require(name)[method]=refuse;
+const dns=require('node:dns');for(const name of Object.keys(dns))if(typeof dns[name]==='function')dns[name]=refuse;for(const name of Object.keys(dns.promises))if(typeof dns.promises[name]==='function')dns.promises[name]=refuse;
+globalThis.fetch=refuse;require('node:module').syncBuiltinESMExports();
