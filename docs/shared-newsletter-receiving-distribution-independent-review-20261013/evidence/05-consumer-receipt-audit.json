@@ -1,0 +1,424 @@
+{
+  "artifactEvidenceHead": "3684613caf831cf62dc3759281a673134503f99a",
+  "source": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "passed": 36,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "19 grouped actual consumer checks all pass and exact intentional export names",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "all final source/consumer corpus copies are exact37, complete namespace supplied",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "CJS actual complete public129 corpus results pass with identical case names",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "ESM actual complete public129 corpus results pass with identical case names",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "browser actual complete public129 corpus results pass with identical case names",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "raw command packed-extraction actual exit matches scope",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "raw command packed-esm-imports actual exit matches scope",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "raw command packed-types-node-positive actual exit matches scope",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "raw command packed-types-node-negative actual exit matches scope",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "raw command packed-types-browser-positive actual exit matches scope",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "raw command packed-types-browser-negative actual exit matches scope",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "strict node positive raw output empty",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "strict node all six intended diagnostic locations/codes retained",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "strict browser positive raw output empty",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "strict browser all six intended diagnostic locations/codes retained",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "strict flags include noUnchecked and no skipLibCheck/default ambient types",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "source harness retains private subpath refusal and complete parser namespace separate from legacy projection",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "actual browser metafile exactly six package modules and three consumer inputs",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "all browser import edges local, output imports empty",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "browser map embeds package modules/source bytes and own corpus; no app/provider import paths",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "116 inherited renderer golden bytes unchanged across original/packed/browser",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "renderer source corpus exact old packet",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "projected renderer names match entire original API inventory independently checked separately",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "historical794 host failed-array error retained with nonzero executor",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "final37 initial host mode-label error retained with nonzero executor",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "corrected37 actual consumer executor exit0, fresh output directory and summary",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "historical794 01-pristine-shared-build explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "historical794 02-effective-npm-configuration explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "historical794 03-npm-pack-1 explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "historical794 03-npm-pack-2 explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "final37 01-pristine-shared-build explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "final37 02-effective-npm-configuration explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "final37 03-npm-pack-1 explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "final37 03-npm-pack-2 explicit offline/lifecycle flags and exit0",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "npm zero http-fetch debug receipts; no broader network trace inferred",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "runtime tools explicitly actualNode24/TS5.9.3/esbuild0.21.5, no Node22 success",
+      "passed": true,
+      "detail": true
+    }
+  ],
+  "commandCases": [
+    {
+      "name": "packed-extraction",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "command": [
+        "python3",
+        "-c",
+        "import pathlib,tarfile\np=pathlib.Path(\"/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-37d574a3/artifact/capiro-shared-0.0.0.tgz\")\nroot=pathlib.Path(\"/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/consumer-attempt-1/node_modules/@capiro/shared\")\nwith tarfile.open(p,'r:gz') as t:\n for m in t.getmembers():\n  q=pathlib.PurePosixPath(m.name)\n  assert m.isfile() and q.parts[0]=='package' and '..' not in q.parts and not q.is_absolute()\n  out=root.joinpath(*q.parts[1:]); out.parent.mkdir(parents=True,exist_ok=True)\n  assert not out.exists()\n  out.write_bytes(t.extractfile(m).read())\nprint('All regular package entries extracted without symlink, path traversal, install or lifecycle.')"
+      ]
+    },
+    {
+      "name": "packed-esm-imports",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "consumer.mjs"
+      ]
+    },
+    {
+      "name": "packed-types-node-positive",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig-node.json"
+      ]
+    },
+    {
+      "name": "packed-types-node-negative",
+      "exitCode": 2,
+      "signal": null,
+      "spawnError": null,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig-node-negative.json"
+      ]
+    },
+    {
+      "name": "packed-types-browser-positive",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig-browser.json"
+      ]
+    },
+    {
+      "name": "packed-types-browser-negative",
+      "exitCode": 2,
+      "signal": null,
+      "spawnError": null,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/capirov2/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig-browser-negative.json"
+      ]
+    }
+  ],
+  "groupedAuthorChecks": [
+    {
+      "name": "extracted package entries match every packed SHA256",
+      "pass": true
+    },
+    {
+      "name": "existing package metadata and both public exports are unchanged",
+      "pass": true
+    },
+    {
+      "name": "actual packed CommonJS public imports render and expose legacy stage defaults",
+      "pass": true
+    },
+    {
+      "name": "private dist and source subpaths remain unavailable via package exports",
+      "pass": true
+    },
+    {
+      "name": "actual packed ESM named public imports",
+      "pass": true
+    },
+    {
+      "name": "actual packed declarations strict node consumer",
+      "pass": true
+    },
+    {
+      "name": "actual packed declarations refuse invented node DTO/platform/kind",
+      "pass": true
+    },
+    {
+      "name": "actual packed declarations strict browser consumer",
+      "pass": true
+    },
+    {
+      "name": "actual packed declarations refuse invented browser DTO/platform/kind",
+      "pass": true
+    },
+    {
+      "name": "complete public namespace retains all old exports and exactly eleven intentional additions",
+      "pass": true
+    },
+    {
+      "name": "actual packed public CommonJS namespace passes reusable receiving corpus",
+      "pass": true
+    },
+    {
+      "name": "entire fixed renderer corpus matches original C source before packed candidate",
+      "pass": true
+    },
+    {
+      "name": "original renderer closes over five modules and candidate over exactly six",
+      "pass": true
+    },
+    {
+      "name": "meaningful legacy renderer and social refusal expectations",
+      "pass": true
+    },
+    {
+      "name": "actual browser bundle uses only both public exports, six packed modules and own two corpora",
+      "pass": true
+    },
+    {
+      "name": "actual browser bundle renderer corpus is byte-equal to original C and packed results",
+      "pass": true
+    },
+    {
+      "name": "complete browser public namespace passes receiving corpus and exact addition inventory",
+      "pass": true
+    },
+    {
+      "name": "browser qualification supplied no Node require/process/Buffer/fetch or application/provider globals",
+      "pass": true
+    },
+    {
+      "name": "packed source/declaration/JS maps use relative package sources without checkout paths",
+      "pass": true
+    }
+  ],
+  "completePublicCorpusCounts": {
+    "CJS": 129,
+    "ESM": 129,
+    "browser": 129
+  },
+  "legacyProjection": [
+    "NEWSLETTER_BLOCK_KINDS",
+    "NEWSLETTER_BLOCK_LABELS",
+    "NEWSLETTER_COLUMN_RATIOS",
+    "NEWSLETTER_FONT_CATALOG",
+    "NEWSLETTER_SOCIAL_ICON_STYLES",
+    "NEWSLETTER_SOCIAL_PLATFORMS",
+    "NEWSLETTER_SOCIAL_SHARE_PLATFORMS",
+    "NEWSLETTER_SURVEY_SECTION_TYPES",
+    "NEWSLETTER_SYSTEM_FONTS",
+    "NEWSLETTER_TEMPLATE_ID",
+    "applyNewsletterBrandKit",
+    "cloneNewsletterBlocks",
+    "createNewsletterBlock",
+    "createNewsletterLayout",
+    "createNewsletterSection",
+    "createNewsletterSurveyQuestion",
+    "defaultNewsletterBrandKit",
+    "defaultNewsletterConfig",
+    "defaultNewsletterSocialSettings",
+    "defaultNewsletterSocialShare",
+    "defaultNewsletterStyles",
+    "defaultNewsletterSurveyDefinition",
+    "findNewsletterBlock",
+    "governmentAffairsNewsletter",
+    "newsletterBlockVisible",
+    "newsletterBrandButtonStyle",
+    "newsletterCatalogFont",
+    "newsletterCatalogStyle",
+    "newsletterCustomVideoThumbnail",
+    "newsletterDesignFontRequests",
+    "newsletterDesignFonts",
+    "newsletterId",
+    "newsletterSocialPlatform",
+    "newsletterSocialSettings",
+    "newsletterSourceClients",
+    "newsletterVideoSource",
+    "newsletterWebFontUrls",
+    "visitNewsletterBlocks"
+  ],
+  "oldGolden": "docs/shared-newsletter-packed-distribution-20261012/evidence/original-C-renderer-golden.json",
+  "historicalErrors": {
+    "historical794": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/evidence/qualify-packed-consumer.mjs",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-conversion"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+      "env": {
+        "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "exitCode": 1,
+      "sourceHead": "7949d079b1b46acf9c18c86898d6eedf9290428a",
+      "utc": "2026-10-13T00:56:50.803765+00:00"
+    },
+    "final37FirstHost": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-37d574a3/evidence/qualify-packed-consumer.mjs",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-37d574a3",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-conversion"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+      "env": {
+        "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "exitCode": 1,
+      "sourceHead": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+      "utc": "2026-10-13T01:01:28.912365+00:00"
+    }
+  },
+  "noRuntimeSuiteReplay": true,
+  "limits": [
+    "No actual browser UI/frontend consumption/Node22/clean install/runtime authority/native SQL assertion.",
+    "Strict type checks and synthetic browser receipts are bounded to the exact sealed commands/artifact."
+  ]
+}

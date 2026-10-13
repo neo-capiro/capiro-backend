@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/audit-consumer-receipts.py", line 30, in <module>
+    oldGolden=[p for p in oldPaths if p.endswith('/original-C-renderer-golden.json')];oldCorpus=[p for p in oldPaths if p.endswith('/renderer-characterizations.cjs')];req(len(oldGolden)==1)
+                                                                                                                                                                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/audit-consumer-receipts.py", line 5, in req
+    def req(v,message='requirement refused'):assert v,message;return True
+                                                    ^
+AssertionError: requirement refused
