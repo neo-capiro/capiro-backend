@@ -1,0 +1,7 @@
+import pathlib,subprocess,os,json,hashlib
+S=pathlib.Path('/workspace/cleanup-newsletter-canonical-builder-20261013');R=pathlib.Path('/workspace/capirov2');BASE='523ef9167f05a33efdbdfbbfc08d5fc2e2679012';paths=['scripts/build-newsletter-release.sh','scripts/lib/newsletter-artifact-packaging-plan.mjs','scripts/ci/newsletter-artifact-packaging-plan.spec.mjs','scripts/lib/frontend-standalone-artifact-contract.mjs','scripts/ci/frontend-artifact-docker.contract.spec.mjs'];env=os.environ.copy();env['GIT_INDEX_FILE']=str(S/'virtual.index')
+def git(*args,data=None):return subprocess.check_output(['git','-C',str(R),*args],env=env,input=data).decode().strip()
+git('read-tree',BASE);rows=[]
+for p in paths:
+ b=(S/p).read_bytes();oid=git('hash-object','-w','--stdin',data=b);mode='100755' if p.endswith('.sh') else '100644';git('update-index','--add','--cacheinfo',mode,oid,p);rows.append({'path':p,'mode':mode,'gitBlob':oid,'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)})
+tree=git('write-tree');head=git('commit-tree',tree,'-p',BASE,data=b'Implement guarded canonical already-built newsletter artifact assembly [skip ci]\n');branch='refs/heads/codex/cleanup-newsletter-canonical-builder-20261013';git('update-ref',branch,head,'0000000000000000000000000000000000000000');result={'source':head,'tree':tree,'base':BASE,'branch':branch,'paths':rows};(S/'SOURCE-FREEZE.json').write_text(json.dumps(result,indent=2)+'\n');print(head,tree)

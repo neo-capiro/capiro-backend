@@ -1,0 +1,62 @@
+{
+  "source": "c26ae029e3c6319a265f735f687758b22093c401",
+  "records": [
+    {
+      "name": "noargs",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/safe-source-host.cjs",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/scripts/lib/newsletter-artifact-packaging-plan.mjs"
+      ],
+      "exit": 2,
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "676dc560d3e04e7cb40c49763eba942dfc8e99d1d561051f3d7f3dc691ba10c3"
+    },
+    {
+      "name": "help",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/safe-source-host.cjs",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "--help"
+      ],
+      "exit": 0,
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "stdoutSha256": "c6241fc8ad6916293ad9aca925d2bb34ae8ffdc71633a9e123b6095c890e70b9",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "unknown",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/safe-source-host.cjs",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "--unknown"
+      ],
+      "exit": 2,
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "676dc560d3e04e7cb40c49763eba942dfc8e99d1d561051f3d7f3dc691ba10c3"
+    },
+    {
+      "name": "run-missing",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/safe-source-host.cjs",
+        "/workspace/cleanup-newsletter-canonical-builder-20261013/scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "--run"
+      ],
+      "exit": 2,
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "676dc560d3e04e7cb40c49763eba942dfc8e99d1d561051f3d7f3dc691ba10c3"
+    }
+  ],
+  "pass": 4,
+  "scope": "actualNode sourceCLI noargs/help/unknown/missingrun, no applicationinputFS/write/network/provider"
+}

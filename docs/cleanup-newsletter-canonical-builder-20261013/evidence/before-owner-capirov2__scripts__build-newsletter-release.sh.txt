@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Build one immutable candidate using the canonical Dockerfile. Never promotes.
+set -euo pipefail
+: "${EXPECTED_SHA:?Exact source SHA required}"
+: "${NEWSLETTER_RELEASE_SERVICE:?Service required}"
+[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+test "$CODEBUILD_RESOLVED_SOURCE_VERSION" = "$EXPECTED_SHA"
+test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+test "$(uname -m)" = aarch64
+test "$(aws sts get-caller-identity --query Account --output text)" = 967807252336
+case "$NEWSLETTER_RELEASE_SERVICE" in
+  api) dockerfile=apps/api/Dockerfile; migration_root=apps/api/prisma/migrations ;;
+  engagement-api) dockerfile=apps/engagement-api/Dockerfile; migration_root=apps/api/prisma/migrations ;;
+  workspace) dockerfile=apps/workspace/Dockerfile; migration_root=apps/workspace/prisma/migrations ;;
+  web-vnext) dockerfile=apps/web/Dockerfile; migration_root='' ;;
+  *) echo 'Unsupported newsletter release service' >&2; exit 1 ;;
+esac
+repository="capiro/dev/$NEWSLETTER_RELEASE_SERVICE"
+image="967807252336.dkr.ecr.us-east-1.amazonaws.com/$repository:$EXPECTED_SHA"
+test "$(aws ecr list-images --region us-east-1 --repository-name "$repository" --filter tagStatus=TAGGED --query "length(imageIds[?imageTag=='${EXPECTED_SHA}'])" --output json)" = 0
+python3 scripts/validate-meri-build-isolation.py
+aws ecr get-login-password --region us-east-1 |
+  docker login --username AWS --password-stdin 967807252336.dkr.ecr.us-east-1.amazonaws.com
+docker build --platform linux/arm64 --build-arg NODE_VERSION=22.23.3 \
+  --build-arg GIT_SHA="$EXPECTED_SHA" --build-arg CAPIRO_WEB_BUILD_SURFACE=vnext \
+  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \
+  --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2' \
+  -f "$dockerfile" -t "$image" .
+test "$(docker image inspect "$image" --format '{{.Architecture}}')" = arm64
+test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
+if [ "$NEWSLETTER_RELEASE_SERVICE" = web-vnext ]; then
+  docker run --rm --network none --entrypoint sh "$image" -c \
+    'test -f /usr/share/nginx/html/index.html; test -f /usr/share/nginx/html/newsletter/capitol.png; grep -rl "Stage in Outreach" /usr/share/nginx/html/assets >/dev/null; echo NEWSLETTER_PACKAGED_UI_PASS'
+else
+  if [ "$NEWSLETTER_RELEASE_SERVICE" = workspace ]; then
+    imports="require('./dist/newsletters/newsletter.service.js');require('./dist/newsletters/newsletter-image.service.js');require('./dist/newsletters/newsletter-html-check.service.js');"
+  else
+    imports="require('./dist/engagement/newsletter-outreach.controller.js');require('./dist/engagement/newsletter-outreach.service.js');require('./dist/workspace-collab/newsletter-account-provider.js');"
+  fi
+  docker run --rm --network none --entrypoint node "$image" -e \
+    "require('node:assert/strict').equal(process.version,'v22.23.3');${imports}require('@capiro/shared/newsletter');require('@capiro/shared/newsletter-render');console.log('NEWSLETTER_PACKAGED_RUNTIME_PASS')"
+  docker run --rm --network none --entrypoint node "$image" -e \
+    'const fs=require("node:fs"),c=require("node:crypto"),r="./prisma/migrations";console.log(JSON.stringify(fs.readdirSync(r).filter(n=>fs.existsSync(r+"/"+n+"/migration.sql")).sort().map(n=>({name:n,sha256:c.createHash("sha256").update(fs.readFileSync(r+"/"+n+"/migration.sql")).digest("hex")}))))' > newsletter-image-migrations.json
+  MIGRATION_ROOT="$migration_root" python3 - <<'PY'
+import json, pathlib, hashlib, os
+expected=[{'name':p.parent.name,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(pathlib.Path(os.environ['MIGRATION_ROOT']).glob('*/migration.sql'))]
+assert json.load(open('newsletter-image-migrations.json')) == expected
+print('EXACT_PACKAGED_MIGRATIONS_PASS', len(expected))
+PY
+fi
+docker push "$image"
+digest=$(aws ecr describe-images --region us-east-1 --repository-name "$repository" --image-ids "imageTag=$EXPECTED_SHA" --query 'imageDetails[0].imageDigest' --output text)
+[[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+echo "NEWSLETTER_CANDIDATE_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/$repository@$digest"
+echo "NEWSLETTER_CANDIDATE_SOURCE=$EXPECTED_SHA"

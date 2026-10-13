@@ -1,0 +1,30 @@
+✔ physical synthetic assembly publishes complete bytes, links and durable receipt then independently revalidates (567.377914ms)
+✔ canonical inspector has no ports and rejects invalid declaration/pin grammar before input scans (80.057369ms)
+✔ assembly refuses unapproved source before filesystem calls (53.135814ms)
+✔ assembly refuses wrong repository before filesystem calls (56.949722ms)
+✔ assembly refuses old Node before filesystem calls (58.698581ms)
+✔ assembly refuses wrong libc before filesystem calls (74.734197ms)
+✔ assembly refuses unknown platform before filesystem calls (54.698695ms)
+✔ assembly refuses coerced pin before filesystem calls (53.847707ms)
+✔ assembly refuses manifest newline before filesystem calls (66.325144ms)
+✔ assembly refuses credential output before filesystem calls (57.586959ms)
+✔ parser and plan require explicit run mode and every literal option, with no I/O admission (77.599364ms)
+✔ argv pins and manifest checksum drift cannot create a lock or output (84.047792ms)
+✔ unlisted payloads, modified compiled bytes and changed internal link refuse before output writes (203.999149ms)
+✔ declared resource overrun refuses before any raw input enumeration (57.772623ms)
+✔ existing output, replay and input/output overlap preserve current bytes (370.003816ms)
+✔ cooperative same-output concurrency allows one immutable publication and cleans its lock (330.593906ms)
+✔ failed staged rename rolls back only owned scratch and leaves inputs untouched (292.462101ms)
+✔ unlabelled injected identity cannot pretend to be production assembly (51.060752ms)
+✔ actual canonical shell help/noargs/unknown/plan remain explicit and remove ambient Node loaders (199.071859ms)
+✔ physical assembly preserves0755 helper execute bits without authenticating modes or granting runtime admission (444.068824ms)
+✔ prepublication directory fsync failure never returns a success receipt and rolls back owned output (282.34587ms)
+✔ postrename directory fsync failure never returns a success receipt and rolls back owned output (308.674801ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3870.652744

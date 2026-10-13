@@ -1,0 +1,27 @@
+✔ physical synthetic assembly publishes complete bytes, links and durable receipt then independently revalidates (608.740484ms)
+✔ canonical inspector has no ports and rejects invalid declaration/pin grammar before input scans (105.267814ms)
+✔ assembly refuses unapproved source before filesystem calls (43.635684ms)
+✔ assembly refuses wrong repository before filesystem calls (60.44282ms)
+✔ assembly refuses old Node before filesystem calls (57.838565ms)
+✔ assembly refuses wrong libc before filesystem calls (55.607532ms)
+✔ assembly refuses unknown platform before filesystem calls (51.872253ms)
+✔ assembly refuses coerced pin before filesystem calls (54.364967ms)
+✔ assembly refuses manifest newline before filesystem calls (66.433455ms)
+✔ assembly refuses credential output before filesystem calls (48.318127ms)
+✔ parser and plan require explicit run mode and every literal option, with no I/O admission (64.025494ms)
+✔ argv pins and manifest checksum drift cannot create a lock or output (72.343638ms)
+✔ unlisted payloads, modified compiled bytes and changed internal link refuse before output writes (220.531194ms)
+✔ declared resource overrun refuses before any raw input enumeration (64.917056ms)
+✔ existing output, replay and input/output overlap preserve current bytes (398.657243ms)
+✔ cooperative same-output concurrency allows one immutable publication and cleans its lock (422.053557ms)
+✔ failed staged rename rolls back only owned scratch and leaves inputs untouched (323.223847ms)
+✔ unlabelled injected identity cannot pretend to be production assembly (67.572948ms)
+✔ actual canonical shell help/noargs/unknown/plan remain explicit and remove ambient Node loaders (203.503514ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3039.953423

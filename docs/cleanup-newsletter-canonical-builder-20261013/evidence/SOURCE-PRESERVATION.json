@@ -1,0 +1,29 @@
+{
+  "source": "c26ae029e3c6319a265f735f687758b22093c401",
+  "tree": "c23bf6bdc107734f5101eb1df4086e717b21546e",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "only5Paths": [
+    "scripts/build-newsletter-release.sh",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs"
+  ],
+  "outside5BaselineEntriesExact": 24774,
+  "allBaselineDocsAndSchemasMigrationsAppsSharedPackagesWorkflowsWindowsExact": true,
+  "canonicalOwnerPrivateWholeFileExactAfterOnly2ExportRemoval": true,
+  "CLIOnlyCarryFrom7eeExact": true,
+  "currentOldOnboardAndLoopbackHeaderOwnerBlobsExact": {
+    "scripts/lib/onboard-spa-artifact-contract.mjs": "3afe06de20d333b9a5a9afac3f67f823bce4672d",
+    "scripts/lib/newsletter-loopback-serving.mjs": "aa6d231f7c30550d914ee1fd04d66c0506ce1002"
+  },
+  "sourceModelsNoNewApplicationDTOServiceStore": true,
+  "previousBuilderAbsentRulePreservedAt": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "explicitSourceSupersessions": [
+    "scripts/build-newsletter-release.sh",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs"
+  ]
+}
