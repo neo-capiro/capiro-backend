@@ -1,7 +1,16 @@
 {
-  "parent": "f59d9ee1cf75670c2d80a5f012fbe42474e0654d",
+  "parent": "fe3a11e7b73eee6bd53d560706e028b160f056c5",
   "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "append": "static owned cleanup review only; no execution",
   "files": {
+    "CLEANUP-STATIC-REVIEW.md": {
+      "sha256": "1463f43fdd50dfebf917869b1cc8134eb57ca3bc384940eb0ca247c3f256ad58",
+      "bytes": 1934
+    },
+    "INITIAL-SHA256-INDEX.json": {
+      "sha256": "736609e41f00f69058635c5d2a8006bd21b58942ba1788597ee8452a3a22110e",
+      "bytes": 3245
+    },
     "PREPARATION.md": {
       "sha256": "872ae5c5e566830154fa5b28443557b78817f2d8356ea3cacfb49bb341607b28",
       "bytes": 3615
@@ -61,6 +70,22 @@
     "evidence/09-runtime-dependency-review.json": {
       "sha256": "6e232bda192878b04a0b638b362211b787bd5b2bc08e4b96897727be250f3849",
       "bytes": 56877
+    },
+    "evidence/10-initial-cleanup-source.py": {
+      "sha256": "e0f72570a9c4597fd54bc81084b7a3d7eee366c9d97f926046f852d805626ee4",
+      "bytes": 5608
+    },
+    "evidence/10-initial-cleanup-static-review.json": {
+      "sha256": "aab95d66699c03e20878ffd14b1b47b705ae35ba5e7fb0c361ebd9543fcb426f",
+      "bytes": 1037
+    },
+    "evidence/11-corrected-cleanup-source.py": {
+      "sha256": "00de98e18eb41090e447c282ae50c02c4e616433c3fccd7cf508cd312293fb27",
+      "bytes": 6426
+    },
+    "evidence/11-final-cleanup-static-review.json": {
+      "sha256": "d11fcc7afa4ca41acc9be19c7d6ff064878adca7fb542688beda213b5d033d04",
+      "bytes": 1717
     },
     "evidence/direct-owned-rls-initial-unrun.cjs": {
       "sha256": "873f07eae08150dff34d5241ad7031d205f4e95d00f741fac273a75a04fb6fa7",

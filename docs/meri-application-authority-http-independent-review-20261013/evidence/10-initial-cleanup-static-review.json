@@ -1,0 +1,22 @@
+{
+  "sourcePath": "/workspace/capirov2-meri-http-qualified-20261013/docs/meri-http-qualification-20261013/cleanup-owned-native-db.py",
+  "sha256": "e0f72570a9c4597fd54bc81084b7a3d7eee366c9d97f926046f852d805626ee4",
+  "bytes": 5608,
+  "ownedReceiptSha256": "1052a8486f3545f5004acd3aeed342d697cf54005b28ab05e0a9cbdf59d4bd09",
+  "executed": false,
+  "disposition": "bounded source scope; request fail-safe correction before unconditional acceptance",
+  "scopeVerified": [
+    "fixedownedDB16917/name/comment/cluster",
+    "fixedownNOLOGINnonprivrole/zero-membership",
+    "zeroactiveownedconnections",
+    "plainDROPonlynoFORCE/CASCADE/termination",
+    "othercatalogandcontainerconfigurationbeforeafterdigests",
+    "fixedprivateconfigpathonly"
+  ],
+  "requestedCorrections": [
+    "Pythonassertsdisabledby-O/PYTHONOPTIMIZE: failclosedwhenoptimizedorexplicitguards",
+    "privateconfigpreflightbeforeDROP,lstatregularnonsymlink0600,exactfieldsandidentitybeforeunlink",
+    "exclusivefinalreceiptwrite",
+    "receiptcontainerbinding"
+  ]
+}
