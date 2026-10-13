@@ -154,5 +154,13 @@
       "permissions for new backend tasks"
     ],
     "narrowNextCheck": "Already-known active frontend task-definition ARN: exact non-secret Core/Workspace/Intel upstream URLs and issuer environment fields, then only the actual identified Core task ARN issuer/secret-reference fields. Do not repeat capiro-staging-api family lookup, scan all ECS services, or read secret payloads."
+  },
+  "authoritativeCurrentOwnerDecision": {
+    "stagingEnvironmentExists": false,
+    "use": "confirmed current production Clerk parameter references for restricted preview preparation",
+    "stopHistoricalStagingReads": true,
+    "businessDataAllowlist": [],
+    "newIsolatedEnvironment": "separate explicit setup",
+    "sourceDecisionFile": "CURRENT-OWNER-DECISION.md"
   }
 }

@@ -1,3 +1,5 @@
+**Current owner correction:** [CURRENT-OWNER-DECISION.md](CURRENT-OWNER-DECISION.md) supersedes earlier staging inference. Neo confirms no staging environment; use confirmed current production Clerk references, keep the production business-read allowlist empty.
+
 # Shortest existing-source image and bootstrap path
 
 Use minimum qualified app sourcee50aed3c5b5cce58317b37de442482fa970842cb; repository importc76f5fc0 has exactly the same apps/packages/manifests and remains frozen. Do not wait for the cleanup receiving checkpoint. Reuse PR2487's reviewed scopes and existing verified AWS inventory.

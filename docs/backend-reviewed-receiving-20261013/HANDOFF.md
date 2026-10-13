@@ -1,3 +1,5 @@
+**Current owner correction:** [CURRENT-OWNER-DECISION.md](CURRENT-OWNER-DECISION.md) supersedes earlier staging inference. Neo confirms no staging environment; use confirmed current production Clerk references, keep the production business-read allowlist empty.
+
 # Backend receiving checkpoint and minimum preview handoff
 
 The new branch starts exact private backend-importc76f5fc0df6688743afeec274211afd2e67fe8f1/tree3bae0d1a303662260673ecb0c5ac0a8bfe551829. Ordinary merge3fcfcdd04 retains published PR2489 ancestry, including PR2486/2488. Ordinary merge70f604828cf92b50c065e9b3e9cd1d1c606d18dc/tree004aba1a1e6c78d331d11e29237357ed75b80d5d receives exact PR2490c625fcc4b5fb7c4270e701fe090b9f408d9108fe/tree046ef2faa7ef042c9b9155df65ec04f7484ebcc8, directly based on Tracker1ecd4b71. All original/new source histories remain. All74 workflow/Dependabot quarantines retain exact mode/blob identities; no active automation is restored. No backend-import or capirov2main ref changes.

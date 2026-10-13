@@ -1,3 +1,5 @@
+**Current owner correction:** [CURRENT-OWNER-DECISION.md](CURRENT-OWNER-DECISION.md) supersedes earlier staging inference. Neo confirms no staging environment; use confirmed current production Clerk references, keep the production business-read allowlist empty.
+
 # Current minimum preview inputs
 
 Use imported backend tipc76f5fc0df6688743afeec274211afd2e67fe8f1/tree3bae0d1a303662260673ecb0c5ac0a8bfe551829 for the minimum isolated source. Its apps, packages and root manifests are mode/blob exact to already-admitted image-sourcee50aed3c5b5cce58317b37de442482fa970842cb/tree711da5c3871ffdc52e4e3ea002531eed909b3c7f. That source matches the unchanged preview validator. The new cleanup receiving branch is a checkpoint and is not a prerequisite for preview.

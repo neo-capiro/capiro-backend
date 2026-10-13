@@ -1,3 +1,5 @@
+**Current owner correction:** [CURRENT-OWNER-DECISION.md](CURRENT-OWNER-DECISION.md) supersedes earlier staging inference. Neo confirms no staging environment; use confirmed current production Clerk references, keep the production business-read allowlist empty.
+
 # Minimal default-deny preview route findings
 
 The default upstream business-route allowlist is empty. Do not forward arbitrary authenticated GETs: Core TenantContextMiddleware unconditionally best-effort updates User.lastSeenAt at src/tenant/tenant-context.middleware.ts:336; lines229/234 can rebind/create users, line591 creates membership and line519 writes audit. Minimum-role RolesGuard permits sufficiently ranked callers and has no no-mutation contract. clerk-role.util.ts:37 maps verified internal org admins to cross-tenant capiro_admin. Lowering a displayed UI role or hiding buttons would not suppress these backend writes.
