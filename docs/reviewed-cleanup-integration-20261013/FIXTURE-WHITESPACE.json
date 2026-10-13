@@ -1,0 +1,15 @@
+{
+  "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+  "originalHead": "b321d8f44ba398c8add11bf93f5de736dd941755",
+  "originalBytes": 53172,
+  "originalSha256": "1d6215ccd58961b7465ac72d83fd3c5c27f7a3e6f1dbf47ccc032f7a319aff81",
+  "originalBlob": "138efadf24e54c7f882891222db95895d94e7d7e",
+  "currentBytes": 53171,
+  "currentSha256": "514378d04f5b8a8c8046cd17a9c446de3eb94d7e9148981b5ba0924c6efffc3b",
+  "onlyChange": "one extra LF at EOF removed; add one LF to recover entire prior blob",
+  "classification": "mutable source-characterization fixture; not an immutable diagnostic/receipt archive",
+  "consumers": "intelligence.mapping-governance.spec.ts regex/substrings; no fixture byte-hash or EOF-sensitive consumer identified in selected source",
+  "actualGovernanceSuitePending": true,
+  "parentExplicitlyAuthorizedMinimalReversibleWhitespaceCorrection": true,
+  "immutableRawEvidenceUntouched": true
+}
