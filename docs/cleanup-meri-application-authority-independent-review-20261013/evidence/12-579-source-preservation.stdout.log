@@ -1,0 +1,7 @@
+{
+  "sourcePaths": 8,
+  "proofs": 208,
+  "onlineSessionOperations": [
+    "this.client.sessions.getSession"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/workspace/capiro-application-authority-independent-d5c12197-20261013/docs/capiro-application-authority-source-20261013/jest.safe.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63-jest.json"
+  ],
+  "cwd": "/workspace/capiro-application-authority-independent-d5c12197-20261013",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC",
+    "CI": "1"
+  },
+  "exitCode": 0,
+  "finishedAt": "2026-10-13T05:01:53.905779+00:00"
+}

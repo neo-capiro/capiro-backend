@@ -1,0 +1,80 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/auth/application-authority.spec.ts
+  application-authority closed wire and minimal receipts
+    ✓ accepts exact empty identity and lowercase nil/v7/v8 context syntax (4 ms)
+    ✓ refuses identity absent (30 ms)
+    ✓ refuses identity null (1 ms)
+    ✓ refuses identity array (1 ms)
+    ✓ refuses identity extra capability (1 ms)
+    ✓ refuses identity symbol (3 ms)
+    ✓ refuses identity inherited (2 ms)
+    ✓ refuses identity proxy (1 ms)
+    ✓ refuses context missing run field (1 ms)
+    ✓ refuses context extra authority (1 ms)
+    ✓ refuses context uppercase hash (2 ms)
+    ✓ refuses context uppercase UUID (1 ms)
+    ✓ refuses context non-string UUID
+    ✓ refuses context accessor (1 ms)
+    ✓ refuses context proxy (1 ms)
+    ✓ refuses proxies before any user-defined reflection trap (1 ms)
+    ✓ projects closed identity output and refuses original expired bounds (1 ms)
+    ✓ makes revisions deterministic and rejects accessor or unsupported facts (1 ms)
+  actual Clerk owner bounded read-only session assertion
+    ✓ uses exact verified sid and clips JWT/session/abandon bounds (54 ms)
+    ✓ refuses missing sid before SDK work (30 ms)
+    ✓ refuses missing exp before SDK work (54 ms)
+    ✓ refuses expired JWT before SDK work (58 ms)
+    ✓ refuses path-shaped sid before SDK work (40 ms)
+    ✓ refuses current session id=other (43 ms)
+    ✓ refuses current session userId=other (30 ms)
+    ✓ refuses current session status=revoked (24 ms)
+    ✓ refuses current session status=ended (53 ms)
+    ✓ refuses current session expireAt=1 (29 ms)
+    ✓ refuses current session abandonAt=1 (20 ms)
+    ✓ refuses current session expireAt=NaN (18 ms)
+    ✓ refuses current session createdAt=1791870746193 (23 ms)
+    ✓ fails closed on provider failure and consumes timeout late rejection (36 ms)
+    ✓ refuses late resolution even when a delayed event loop has not fired the timeout callback (20 ms)
+  actual middleware selected-provenance current authority
+    ✓ shares authentic request provenance across the actual separate middleware/provider instances (97 ms)
+    ✓ keeps normal pipeline effects but dedicated current checks are read-only and session first (42 ms)
+    ✓ refuses user mapping changing during session await (41 ms)
+    ✓ refuses member removed changing during session await (59 ms)
+    ✓ refuses member role changing during session await (72 ms)
+    ✓ refuses tenant suspended changing during session await (98 ms)
+    ✓ refuses org remapped changing during session await (66 ms)
+    ✓ refuses tenant slug changing during session await (43 ms)
+    ✓ excludes activity but includes exact membership version (36 ms)
+    ✓ rechecks exact selected impersonation and clips original operator expiry (37 ms)
+    ✓ stamps no-store even on missing bearer denial (41 ms)
+  context receipt existing-owner ordering and correlation boundary
+    ✓ has closed minimal output, rechecks identity last and echoes unrelated valid hash without granting anything (2 ms)
+    ✓ refuses conversation id mismatch before client owners (1 ms)
+    ✓ refuses conversation tenantId mismatch before client owners (1 ms)
+    ✓ refuses conversation userId mismatch before client owners (1 ms)
+    ✓ refuses conversation clientId mismatch before client owners (1 ms)
+    ✓ refuses conversation clientId mismatch before client owners (1 ms)
+    ✓ refuses conversation archivedAt mismatch before client owners (1 ms)
+    ✓ refuses conversation status mismatch before client owners
+    ✓ preserves conversationScope refusal (3 ms)
+    ✓ preserves clientVisible refusal
+    ✓ preserves clientAuthority refusal (1 ms)
+    ✓ refuses identity mutation after asynchronous wall lookup (1 ms)
+    ✓ refuses a conversation retarget during the final online identity read (1 ms)
+    ✓ refuses wall revocation during the final online identity read (1 ms)
+    ✓ refuses local membership drift during final context reads
+    ✓ ignores activity/title, but changes revision for wall/security facts (1 ms)
+  actual Meri and scope-owner source integration
+    ✓ uses original active conversation and client lookup plus current prospect owner without constructing service (135 ms)
+    ✓ uses canonical wall predicate before/after tenant/client-bounded fact read (25 ms)
+    ✓ pins both POST200 no-store routes under existing role guard and provider wiring (1 ms)
+    ✓ canonical resolver rejects a foreign-tenant wall grant and preserves same-tenant/unwalled admission in both consumers (19 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       64 passed, 64 total
+Snapshots:   0 total
+Time:        2.749 s
+Ran all test suites.
+Test results written to: ../../tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64-jest.json

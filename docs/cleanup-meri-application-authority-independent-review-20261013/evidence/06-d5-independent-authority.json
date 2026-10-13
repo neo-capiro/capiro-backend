@@ -1,0 +1,190 @@
+{
+  "sourceHead": "d5c121973438a29a65515496f395f4ad7568d006",
+  "sourceIdentities": [
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "bytes": 9325,
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "bytes": 8258,
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "bytes": 30010,
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    }
+  ],
+  "total": 41,
+  "passed": 41,
+  "failed": [],
+  "cases": [
+    {
+      "name": "actual verified v2 native claims compose with distinct middleware/provider and minimal wire receipt",
+      "passed": true
+    },
+    {
+      "name": "actual canonical issuer assertion refuses before any local owner query",
+      "passed": true
+    },
+    {
+      "name": "native verifier failure is sanitized before current-owner work",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses missing sid without lookup",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses missing sub without lookup",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses missing original exp without lookup",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses fractional exp without lookup",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses unsafe exp milliseconds without lookup",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses original expiry exact current time without lookup",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses null current session",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses mismatched native session",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses mismatched native user",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses pending session",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses abandoned session",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses replaced session",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses string expiration",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses null expiration",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses fractional expiration",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses negative creation",
+      "passed": true
+    },
+    {
+      "name": "session assertion refuses unsafe abandonment",
+      "passed": true
+    },
+    {
+      "name": "current session and inactivity bounds each shorten original expiry",
+      "passed": true
+    },
+    {
+      "name": "original verified expiry is captured before asynchronous lookup and cannot be extended",
+      "passed": true
+    },
+    {
+      "name": "original expiry crossed during lookup refuses rather than returning an already expired receipt",
+      "passed": true
+    },
+    {
+      "name": "absolute two-second cutoff refuses even if event-loop timeout has not fired",
+      "passed": true
+    },
+    {
+      "name": "timed-out SDK late resolution cannot reopen the failed call",
+      "passed": true
+    },
+    {
+      "name": "fresh second lookup observes revocation with no positive session cache",
+      "passed": true
+    },
+    {
+      "name": "post-session local authority refuses origin membership replacement",
+      "passed": true
+    },
+    {
+      "name": "post-session local authority refuses origin membership tenant transfer",
+      "passed": true
+    },
+    {
+      "name": "post-session local authority refuses membership actor transfer",
+      "passed": true
+    },
+    {
+      "name": "post-session local authority refuses suspended member",
+      "passed": true
+    },
+    {
+      "name": "post-session local authority refuses disabled origin tenant",
+      "passed": true
+    },
+    {
+      "name": "post-session local authority refuses current user mapping change",
+      "passed": true
+    },
+    {
+      "name": "activity cannot rotate identity but current membership version does",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses different selected operator ID",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses different target",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses different actor",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses operator ended",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses target tenant disabled",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses operator expired",
+      "passed": true
+    },
+    {
+      "name": "current selected operator authority refuses origin operator role removed",
+      "passed": true
+    },
+    {
+      "name": "final local callback closes operator end while keeping original native expiry",
+      "passed": true
+    }
+  ],
+  "scope": "Actual frozen Clerk verifier/session assertion and distinct middleware/provider closures; signature/session/database ports mocked. No app/server/bootstrap, actual Clerk/Prisma/provider calls, credentials or Meri fixtures. Ordered point-in-time checks are not atomic Clerk/Postgres or an authority lease."
+}

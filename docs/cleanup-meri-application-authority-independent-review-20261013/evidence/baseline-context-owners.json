@@ -1,0 +1,152 @@
+{
+  "sourceHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "sourceIdentities": [
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "sourceSha256": "0def3e294659424a8a831c0c2fa652b5fa594b22ea0836d9cf209958d53e60f5",
+      "sourceBytes": 293639
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "sourceSha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924",
+      "sourceBytes": 4785
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "sourceSha256": "7b49f49c10fe05c781c096d2202c6be3b6a08a10f9027d9ad5ba6bf301109904",
+      "sourceBytes": 5398
+    },
+    {
+      "path": "apps/api/src/context/context.types.ts",
+      "sourceSha256": "b61dfd755bd161a77cba40dd2c23a8e9723cf93527220a060d80de67f2892746",
+      "sourceBytes": 5392
+    },
+    {
+      "path": "apps/api/src/context/context.types.ts",
+      "declaration": "ContextResolutionError",
+      "declarationSha256": "fc4016713d512ea73407c28e00548122e35f692aa23a8839aef9d8dca46195f8",
+      "declarationBytes": 288
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "declaration": "authorizeResearchPortfolioConversation",
+      "declarationSha256": "ff60c9474028982e32a4ea484118d67388d75ab98525685ec54e96f35986ea7d",
+      "declarationBytes": 1460
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "declaration": "ensureConversation",
+      "declarationSha256": "37921f4a04ff2e64098ace3c638865d6988fd7c36854b6ea15a9d3b5ecc1e35b",
+      "declarationBytes": 658
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "declaration": "ensureClientVisible",
+      "declarationSha256": "f3ed4702724636710917b49cc48e51da92097b6d93146c92b32cfc42e97aeecf",
+      "declarationBytes": 374
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "declaration": "ContextSecurityScopeService",
+      "declarationSha256": "914e648ae92e5ebec32b846290d6fed25ff320bb7fa1049036272b5fc61ce33b",
+      "declarationBytes": 3513
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "declaration": "requiredId",
+      "declarationSha256": "e0f4d88c72b06c30ff374ae451e01bd765d2e2accb811e816de76dcdd1370e85",
+      "declarationBytes": 243
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "declaration": "normalizeIds",
+      "declarationSha256": "f43376a5c9e59e32e1f0b510cf1c88af7f3bfd531443058b0e5b44454bc2e9a8",
+      "declarationBytes": 183
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "declaration": "dedupeGraphPartitions",
+      "declarationSha256": "1285b9ffe5d6ec19e23c092b86eb3f7165ba700b5bf13793c0d8719de828aaab",
+      "declarationBytes": 279
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "declaration": "stableJson",
+      "declarationSha256": "1706d315ec1c579ed1b32959d3a7bc078b0c93c3f71b98219af1db26a3a52bfa",
+      "declarationBytes": 402
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-meri-scope.service.ts",
+      "sourceSha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9",
+      "sourceBytes": 6332
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-meri-scope.service.ts",
+      "declaration": "MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY",
+      "declarationSha256": "16b9be7c643f728985f33844f2dc84a85596ffd89cc684b35fba393d9f595941",
+      "declarationBytes": 69
+    }
+  ],
+  "total": 14,
+  "passed": 14,
+  "failed": [],
+  "cases": [
+    {
+      "name": "active canonical conversation binds tenant,user,id and archivedAt:null",
+      "passed": true
+    },
+    {
+      "name": "active canonical conversation refuses cross-tenant",
+      "passed": true
+    },
+    {
+      "name": "active canonical conversation refuses other-user",
+      "passed": true
+    },
+    {
+      "name": "active canonical conversation refuses archived",
+      "passed": true
+    },
+    {
+      "name": "active canonical conversation refuses other-id",
+      "passed": true
+    },
+    {
+      "name": "active canonical conversation refuses absent row",
+      "passed": true
+    },
+    {
+      "name": "canonical portfolio owner refuses a client-bound portfolio row before external access",
+      "passed": true
+    },
+    {
+      "name": "ordinary null-client conversation remains baseline-readable without granting new bridge authority",
+      "passed": true
+    },
+    {
+      "name": "canonical client visibility binds tenant and nonarchived status",
+      "passed": true
+    },
+    {
+      "name": "canonical client visibility refuses other-tenant",
+      "passed": true
+    },
+    {
+      "name": "canonical client visibility refuses archived",
+      "passed": true
+    },
+    {
+      "name": "canonical ethical-wall resolver keeps caller list as upper bound and current actor grant predicate",
+      "passed": true
+    },
+    {
+      "name": "canonical ethical-wall resolver refuses missing requested current authority",
+      "passed": true
+    },
+    {
+      "name": "empty client upper bound does not query or become all-clients",
+      "passed": true
+    }
+  ],
+  "scope": "Actual baseline private method/declaration execution with synthetic ports. No module bootstrap, native RLS, Prisma, Clerk, provider or live authority acceptance. Canonical wall resolver tenant isolation relies on existing withTenant behavior; no database enforcement claim."
+}

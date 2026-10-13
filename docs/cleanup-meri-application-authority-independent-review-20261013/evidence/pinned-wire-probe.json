@@ -1,0 +1,507 @@
+{
+  "sourceHead": "7ad86d7acc1234e446cacb61c8e7f00b4bf989ab",
+  "sourceIdentitiesVerified": 3,
+  "total": 72,
+  "passed": 72,
+  "failed": [],
+  "cases": [
+    {
+      "name": "identity exact empty object",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "identity null-prototype inert object",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "identity refuses null",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses array",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses scalar",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses unknown authority",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses custom prototype",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses symbol field",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses accessor without invocation",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses hidden field",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses proxy without traps",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context exact selectors",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "context refuses empty hash",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses short hash",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses long hash",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses uppercase hash",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses hash final newline",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses malformed uuid",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses uuid final newline",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses uppercase uuid",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses null client",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses caller principal",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses caller approval",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses caller run",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses missing identitySha256",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses missing conversationId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses missing clientId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context retains generic nil UUID syntax",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "context retains generic v7 UUID syntax",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "context retains generic v8 UUID syntax",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "identity exact receipt",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "identity refuses unsafe checked time",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses negative checked time",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses fractional checked time",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses equal expiry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses earlier expiry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses unsafe expiry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses empty identity revision",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses long identity revision",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses profile disclosure",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses token disclosure",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity refuses empty principal tenantId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses long principal tenantId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses not-string principal tenantId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses empty principal actorId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses long principal actorId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses not-string principal actorId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "identity refuses extra principal role",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "identity retains 256-character text boundary",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "context exact receipt",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "context refuses unsafe checked time",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses negative checked time",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses fractional checked time",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses equal expiry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses earlier expiry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses unsafe expiry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses empty identity revision",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses long identity revision",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses profile disclosure",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses token disclosure",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context refuses empty principal tenantId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses long principal tenantId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses not-string principal tenantId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses empty principal actorId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses long principal actorId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses not-string principal actorId",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context refuses extra principal role",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context retains 256-character text boundary",
+      "expectedAccepted": true,
+      "accepted": true,
+      "passed": true
+    },
+    {
+      "name": "context receipt refuses empty context revision",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context receipt refuses long context revision",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    },
+    {
+      "name": "context receipt refuses extra fence",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_COMMAND"
+    },
+    {
+      "name": "context receipt refuses null selected client",
+      "expectedAccepted": false,
+      "accepted": false,
+      "passed": true,
+      "error": "INVALID_APPLICATION_AUTHORITY"
+    }
+  ],
+  "getterCalls": 0,
+  "proxyCalls": 0,
+  "realClerkProviderDatabaseOrMeriFixtureCalls": 0,
+  "scope": "Actual pinned wire admission only; no Capiro candidate authority or live acceptance."
+}

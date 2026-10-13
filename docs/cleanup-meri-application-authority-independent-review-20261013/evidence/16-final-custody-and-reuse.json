@@ -1,0 +1,478 @@
+{
+  "acceptedSource": "579af9e4b826be308f0db289109c233350bbf34d",
+  "tree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "authorEvidence": "4061ea3fd617c8ab6f8c616b68c31aabd5da2669",
+  "authorEvidenceTree": "75aac79f1eeebeeb7f6ffc8b0370b25feff036c2",
+  "original45AndOriginalIndexByteExact": true,
+  "oldPacketFilesVerified": 45,
+  "newPacketFilesVerified": 15,
+  "latestSourceBindingsVerified": 8,
+  "indexedPacketFiles": [
+    {
+      "path": "docs/capiro-application-authority-source-20261013/COMMANDS.json",
+      "sha256": "14c3a541992a07c6b6c21fad4d872571261864770715079a5b7f60b9a8df4550",
+      "bytes": 11055,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/HANDOFF.md",
+      "sha256": "04cc4eb8d3a5dd073a3dc869db09c3fbde6951c9ec6ddcb3d61b4ed6be452f4c",
+      "bytes": 5417,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/OUTLINE.md",
+      "sha256": "1b76e97014800d9af6b7190f0af70b58bcf8b786ab4a1858b657719b030931e0",
+      "bytes": 1900,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE-CORRECTION.json",
+      "sha256": "4053e50f266203bcb33e5b058239f228cebec1d13a18bb2ea48a043d55b2ada1",
+      "bytes": 806,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE-FINAL.json",
+      "sha256": "3b41d7969c6642f49221827db594c6ee7c94e1a6732db4d3c262e426dd2bf546",
+      "bytes": 304,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE.json",
+      "sha256": "7deb89665db59abb7a5ab449c38b43876723d0f787e6a1a692843eebd6739fba",
+      "bytes": 759,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/00-baseline-equality-red.log",
+      "sha256": "e08871aa4fea3f83c804e2ef7dd111bcc6e8872c91586d7c2f6082f00521faff",
+      "bytes": 251,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.json",
+      "sha256": "e9834503b8987134f2c9c6a280e5b18c23e1347e23d9e779128ca46e76697c35",
+      "bytes": 22971,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.log",
+      "sha256": "ff5a282795e39c9d91efbe8c7b738e23556f9cfe0eedec69a144c5dc43e5d675",
+      "bytes": 4306,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.json",
+      "sha256": "bd16d996eafbe9c9842f96ad859f0442d7135a33fe63c740b2d163f1e076c512",
+      "bytes": 33207,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.log",
+      "sha256": "8861ea32579a33155f9ed0b36c27213a5131bbfd5f43693d649140d50627138d",
+      "bytes": 7278,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-gap-source-binding.json",
+      "sha256": "79ab6ce88fb33ad6710962adf907b5d8577399f2ba9c974a306d28b46a981027",
+      "bytes": 304,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-pre-gap-contract.ts.txt",
+      "sha256": "a7dee1ca0f450469cf059871e38502822a811cf28a69256720c9143150aa2d49",
+      "bytes": 7598,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-pre-gap-tests.ts.txt",
+      "sha256": "24fa53f958732959aacf9e8e9d98e15750575bfda847b3912254d508da015b03",
+      "bytes": 24032,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.json",
+      "sha256": "cef180bf43436ac6136daac496746d6179b1820895b46e7869cea558ed72bc61",
+      "bytes": 23874,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.log",
+      "sha256": "672b68f95a4cb3920e387d350ce5dfce297e2f364059de402fea5823c7476f53",
+      "bytes": 4463,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.json",
+      "sha256": "320cc5a127c1660be9ccddde21a562d602e2b0bebc43e07e6bfc71ddbddfadf5",
+      "bytes": 24309,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.log",
+      "sha256": "6e4574d8f38e1aad24f2a6cc206648b69397ce1f26d937c60bead75c1826e331",
+      "bytes": 4503,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/05-focused-strict-typecheck.log",
+      "sha256": "ab10b25f2945f0157bd2bd54e2b70fbf69dcabcfe0c26453699accd3ec6693bc",
+      "bytes": 13204,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/06-focused-strict-typecheck.log",
+      "sha256": "0de04ab237f5157ac87b23966f916afdb826c3ea63f70e3f0a1c96b844e1d76e",
+      "bytes": 357,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/07-focused-strict-typecheck.log",
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "bytes": 174,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-middleware.ts.txt",
+      "sha256": "4304f8e4140031d5d7b0ddb6e5a94e66af1cf1ffd6fd7871fb863a9229550e8c",
+      "bytes": 29878,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.json",
+      "sha256": "7590e2d5d7db9918c9bee3efb1424b84e83f9a6bc97dadd38f0ca3980bf87f79",
+      "bytes": 25593,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.log",
+      "sha256": "3ce1a083a4200087afb3b54a42b7e00881f01980771a6c06f02bbd40b4ae9a3b",
+      "bytes": 5071,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-tests.ts.txt",
+      "sha256": "a45eac29ecb3d1c29aa05a746c86ac51963958db944bdb6edb8410708c125fb6",
+      "bytes": 25350,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.json",
+      "sha256": "8f0a5d46b98fc3d0cd5a6873361087ae588fe0da009f1f60c1b80e5a8e3251ad",
+      "bytes": 24798,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.log",
+      "sha256": "96e083b039c0240d2af15e6b5454fd3eb9ce854e84483ece841f166091e84263",
+      "bytes": 4638,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/10-focused-strict-two-instance.log",
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "bytes": 174,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.json",
+      "sha256": "745f0df4b469130ddc265b3d15c818c4c75f8cbf51ec50400ac11d35880688c1",
+      "bytes": 25280,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.log",
+      "sha256": "1a80ce18530de34048948ebb5a7fca6a7c95ff1b6dedd82011e9d77d61bddda4",
+      "bytes": 4761,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/12-final-focused-strict.log",
+      "sha256": "0ed5411154604e406e27595171b364cfe760330536003e8f18ab537a988b3bb8",
+      "bytes": 688,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/13-final-focused-strict.log",
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "bytes": 174,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.json",
+      "sha256": "c5120f6361b9e1eb4ebc5453eb7de57278bf259ee93f81e0349bec5133a37503",
+      "bytes": 26382,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.log",
+      "sha256": "5f7dde6c6e27e9c25b6bd7b2ded40c9ac99b650d33c03478d57e9871bc44e31f",
+      "bytes": 4906,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/15-proxy-final-focused-strict.log",
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "bytes": 174,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/16-source-preservation-program-red.cjs.txt",
+      "sha256": "a67ca4344c1635e6f1cef33d7d9a79343f2f97c48dac1f9d61346cdbe4a527c5",
+      "bytes": 6075,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/16-source-preservation.log",
+      "sha256": "5d0e021a8d5183e29666cf8d0577589b0d3b1d84c80b4ea13d89dac41aae5665",
+      "bytes": 1159,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/17-source-preservation.json",
+      "sha256": "a3e48ec846e2286f4f7dad3e8a5b1e25f85b81be112d8875b8df94a8b8317694",
+      "bytes": 24557,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/17-source-preservation.log",
+      "sha256": "c5f82bf7fd0925b8ffffda95377312b82a7a671d2e3adf4fdb4eb850de6ff411",
+      "bytes": 19269,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/18-current-owner-and-sdk-bindings.json",
+      "sha256": "75c40ee39b32084cc97c4842770b135aad8274350f50b05636d86f6b8deffd39",
+      "bytes": 5563,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/19-source-whitespace.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "sha256": "1c3dc45ab53daf1e7a6249c3f2ac4ea70ca5f0e6e3481e96cabd226d4c344914",
+      "bytes": 7516,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/jest.safe.cjs",
+      "sha256": "54e8eaa192da27bbc540d41831fc52bc3c346666e47ffef683868e4c5dbb4ffa",
+      "bytes": 542,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/scope-and-revision-inputs.json",
+      "sha256": "b1e05edf575cd7844357284c52defe90c08fd8587e178667f5f5d8c47b1220dc",
+      "bytes": 1417,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/source-preservation.cjs",
+      "sha256": "0d09d6e8e8984f7c1bd915c8d8bf472fb10133107612fcf011edd6b84e81c22a",
+      "bytes": 6517,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE-TENANT-GRANT.json",
+      "sha256": "bda3f1d2cd7c618271416f686b4d2636228087c70fcf8d36c5c8ad442ecb8357",
+      "bytes": 440,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/TENANT-GRANT-COMMANDS.json",
+      "sha256": "d4edc4a921c93b1a0d0a9d8c5dab47df914790dae2d72167789efe9afdf0320a",
+      "bytes": 1662,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/TENANT-GRANT-CORRECTION.md",
+      "sha256": "cbf9da359a38fd39391aee8e9f44da1833bf51a1f88c57870acd67c07c47a189",
+      "bytes": 2767,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/20-tenant-grant-owner-tests.json",
+      "sha256": "f7c75bfba19afb776d2511f40695358930fa45213825547559f9583b81a6740d",
+      "bytes": 26903,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/20-tenant-grant-owner-tests.log",
+      "sha256": "eb27bc004f81306e9417cad8bc8ce8fc9d0382f8f9c4b690aab0c7aa5d25d475",
+      "bytes": 5005,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/21-disk-attempt-receipt.json",
+      "sha256": "8a19691ef94f214221f848d95d1b808321ba030621536fcab7eb7061e4999d70",
+      "bytes": 532,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/21-scratch-index-cleanup.json",
+      "sha256": "4a0a3da7b5ff13dd5e6c26fc86db9c5e2af4a2b7852df18e16206e5b17221f5e",
+      "bytes": 529,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/21-tenant-grant-focused-strict.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/22-tenant-grant-focused-strict.log",
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "bytes": 174,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/23-preservation-program-red.cjs.txt",
+      "sha256": "de9f2263d053fd08c62693b592f6a281176b639305e9abf25ca9e535b851579b",
+      "bytes": 7781,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/23-tenant-grant-preservation.json",
+      "sha256": "d6d2b675f2e7b65201295a42e268d5dd21a496dc2a099474b2680dd061be7200",
+      "bytes": 25061,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/23-tenant-grant-preservation.log",
+      "sha256": "9c8b160569d51e9941482f813a7b8c71402a4496687912e387f192435223857f",
+      "bytes": 19669,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/24-tenant-grant-preservation.json",
+      "sha256": "01c7491e0a376d2044acb42724d0d8ad98106226ecab74e4706d40fcb5b70756",
+      "bytes": 25059,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/24-tenant-grant-preservation.log",
+      "sha256": "1d957e690870d5a6e59018090f7e7f1d2f7e419ae92a9cd0de2848cc99a0330c",
+      "bytes": 19667,
+      "physicalEqualsGit": true
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/source-preservation-tenant-grant.cjs",
+      "sha256": "78af67643654ea326a1da5e8af296a739f345da5b3ad02e16baf838170f9eba9",
+      "bytes": 7885,
+      "physicalEqualsGit": true
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "bytes": 8258,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "bytes": 30010,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24",
+      "bytes": 7013,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9",
+      "bytes": 2627,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "bytes": 295936,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467",
+      "bytes": 45695,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "bytes": 9325,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "gitBlob": "cefec1060990ec56e449d45ec70c438966cd2134",
+      "sha256": "b738b2dbc1917255b062af225b08063f5092551c75fceddfff2542ed5bf9338c",
+      "bytes": 28650,
+      "receiptAndPhysicalEqualSource": true
+    }
+  ],
+  "scopeExactly8CodeAndTestPaths": true,
+  "d5To579OnlyTwoApprovedSourcePaths": true,
+  "unchangedConsumedClosureReuse": [
+    {
+      "test": "original composition and Proxy four-case replay",
+      "path": "apps/api/src/auth/application-authority.ts",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "entireFileByteExactD5To579": true
+    },
+    {
+      "test": "original composition and Proxy four-case replay",
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "entireFileByteExactD5To579": true
+    },
+    {
+      "test": "original composition and Proxy four-case replay",
+      "path": "apps/api/src/meri/meri.service.ts",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "entireFileByteExactD5To579": true
+    },
+    {
+      "test": "41 independent Clerk/session/tenant/impersonation owner controls",
+      "path": "apps/api/src/auth/application-authority.ts",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "entireFileByteExactD5To579": true
+    },
+    {
+      "test": "41 independent Clerk/session/tenant/impersonation owner controls",
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "entireFileByteExactD5To579": true
+    },
+    {
+      "test": "41 independent Clerk/session/tenant/impersonation owner controls",
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "entireFileByteExactD5To579": true
+    }
+  ],
+  "actual64AllPassed": true,
+  "all63OriginalCasesAndOrderRetained": true,
+  "caseNameQualifier": "One unchanged test uses createdAt=Date.now()+1_000_000 in its name; only that single full anchored 13-digit clock value was normalized for both runs. Actual raw names remain unchanged in the two JSON receipts.",
+  "newPermanentCase": [
+    "actual Meri and scope-owner source integration canonical resolver rejects a foreign-tenant wall grant and preserves same-tenant/unwalled admission in both consumers"
+  ],
+  "privateBodiesCopied": false,
+  "appDatabaseProviderOrCredentialExecution": false
+}
