@@ -257,7 +257,10 @@ test('PARITY: the program-level attribution caveat is byte-identical to apps/api
   assert.match(legacySource, /return mergeProvisionLinks\(directLinks, programLinks\);/);
   assert.match(legacySource, /from '@capiro\/defense-domain\/pe-read'/);
   assert.doesNotMatch(legacySource, /const byProvision = new Map/);
-  const legacyItem = legacyMerge([], [link('legacy-program', 'program_alias', 'candidate', 0.6)])[0];
+  const legacyItem = legacyMerge(
+    [],
+    [link('legacy-program', 'program_alias', 'candidate', 0.6)],
+  )[0];
   assert.ok(legacyItem, 'historical program-path fixture must produce a provision');
   assert.equal(
     PROGRAM_LEVEL_ATTRIBUTION_CAVEAT,
