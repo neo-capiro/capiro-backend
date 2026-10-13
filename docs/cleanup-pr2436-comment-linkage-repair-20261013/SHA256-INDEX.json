@@ -24,6 +24,11 @@
       "bytes": 1481
     },
     {
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-981-SHA256-INDEX.json",
+      "sha256": "f82e0dd1484062bf7a0f92a0da9dd2ec78b193ac8006c9e4483bc8180d47f60d",
+      "bytes": 19539
+    },
+    {
       "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-EAF-HANDOFF.md",
       "sha256": "c589da6d9a68cab4cbf84c4c8e971a2574f70b9f93f0636a5739c356ae315929",
       "bytes": 3301
@@ -112,6 +117,11 @@
       "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE.json",
       "sha256": "61191c94f0eecdbd6b7f00beed04f8298d00b3847f8c465d367d51ffafb863fd",
       "bytes": 551
+    },
+    {
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/WHITESPACE-COLLECTOR-CLARIFICATION.json",
+      "sha256": "6775da7f25dd6605c0fd1066e7582d4c8a6c3ffe3b6245f213d5f6c41beaa03a",
+      "bytes": 538
     },
     {
       "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.command.json",
@@ -392,6 +402,21 @@
       "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/safe-source-test-preload.cjs",
       "sha256": "7ff0afb7c32ce107f2e0ea2aea6df2d62496dcdb26f88a2d065d7fb38cac0bef",
       "bytes": 1893
+    },
+    {
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/sealed-packet-whitespace.command.json",
+      "sha256": "8426079e76aa692bb5a394a432699b806d85e04f44630a9870551f0c33ace77f",
+      "bytes": 420
+    },
+    {
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/sealed-packet-whitespace.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/sealed-packet-whitespace.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
     },
     {
       "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.command.json",
