@@ -1,0 +1,24 @@
+{
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/mock-loopback-source-host.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "GIT_DIR": "/workspace/capirov2/.git",
+    "GIT_WORK_TREE": "/workspace/cleanup-pr2438-compatible-artifact-guards-20261013"
+  },
+  "cwd": "/workspace/cleanup-pr2438-compatible-artifact-guards-20261013",
+  "exit": 0,
+  "seconds": 2.2081589698791504,
+  "stdoutSha256": "032b9ac74de28f088c7690ce0d8e2fa6af6865322d7aa6f006c06b313b3753af",
+  "stderrSha256": "2753936ec1e32bea6096b03193dd698a3fea6fe6b19770dabffe67421fda7533",
+  "hostSha256": "81013fc15bca01f25e830c1ec4dd828ad9c5759d5d71c23409bfe9448a9a7b96",
+  "effects": "own synthetic ephemeral127 only, fake ports; no app/default/native/provider/deploy"
+}
