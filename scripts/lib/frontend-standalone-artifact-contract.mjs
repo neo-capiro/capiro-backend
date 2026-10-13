@@ -135,6 +135,11 @@ function manifestContract(manifestBytes, pins) {
   return { manifest, index, directories, dereference };
 }
 
+/** Canonical declaration grammar only; no I/O or byte/runtime admission. */
+export function inspectFrontendStandaloneManifest({ manifestBytes, pins }) {
+  return manifestContract(manifestBytes, pins).manifest;
+}
+
 /** All regular buffers and all symlinks must be exhaustively provided. A custom
  * Newsletter identity port is an inert model and can never produce a byte receipt.
  * Source equality is not proof that this was the tree used by a Next build.
