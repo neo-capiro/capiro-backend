@@ -1,3 +1,19 @@
+import { ClientRegulatoryV1 } from './client-regulatory-v1.js';
+import { ClientCommentDeadlineAlertsV1 } from './client-alerts-v1-comment-deadlines.js';
+import { ClientAlertsV1 } from './client-alerts-v1.js';
+import { ClientAwardAlertsV1 } from './client-alerts-v1-awards.js';
+import { IntelligencePortfolioTimeline } from './intelligence-portfolio-timeline.js';
+import { IntelligencePortfolioComingUp } from './intelligence-portfolio-coming-up.js';
+import { IntelligencePortfolioSummary } from './intelligence-portfolio-summary.js';
+import { IntelligencePortfolioAlerts } from './intelligence-portfolio-alerts.js';
+import { IntelligencePortfolioRollup } from './intelligence-portfolio-rollup.js';
+import { IntelligencePortfolioTrend } from './intelligence-portfolio-trend.js';
+import type { AlertRow } from './client-alerts-v1.shared.js';
+import {
+  buildQuarterWindows as portfolioBuildQuarterWindows,
+  foldEngagementTrend as portfolioFoldEngagementTrend,
+} from './intelligence-portfolio-quarters.js';
+import type { OutreachSendRow, ClientEmailRow } from './intelligence-portfolio-quarters.js';
 import { ClientIdentityV1Profile } from './client-identity-v1.js';
 import { ClientIdentityV1Lda } from './client-identity-v1-lda.js';
 import { ClientIdentityV1Filings } from './client-identity-v1-filings.js';
@@ -31,49 +47,43 @@ import {
   profileV1IsoOrNull,
 } from './client-profile-v1-presentation.js';
 import { buildProfileV1RegulatoryLifecycle } from './client-profile-v1-regulatory.js';
-import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+
+import { Injectable, Logger } from '@nestjs/common';
 
 
-import {
-  AGENCY_SECTOR_MAP,
-  ldaCodesForSectors,
-  normalizeSector,
-  type SectorTag,
-} from '@capiro/shared';
+
+
 import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  ownMeetingWhere,
-  clientAssociatedMeetingWhere,
-} from '../engagement/engagement-access.helpers.js';
-import { toCanonicalAlert } from './canonical-alert.adapter.js';
-import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
+
+
+
 
 
 import type { PacCoverage } from './fec-pac-coverage.js';
 
-import { columnKeywordMatchSql } from './bill-keyword-match.helpers.js';
+
 import { withBillKeywordProfileDeadline } from './bill-keyword-deadline.js';
-import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
+
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
 
-import {
-  buildDistrictNexusIdentity,
-  districtNexusContractorIdsToResolve,
-  type DistrictNexusIdentitySeed,
-} from '../district-nexus/district-nexus.identity.js';
 
 
+
+
+type FinalIntelligenceSources = {
+  regulatory: ClientRegulatoryV1;
+  commentDeadlines: ClientCommentDeadlineAlertsV1;
+  alerts: ClientAlertsV1;
+  awardAlerts: ClientAwardAlertsV1;
+  timeline: IntelligencePortfolioTimeline;
+  comingUp: IntelligencePortfolioComingUp;
+  summary: IntelligencePortfolioSummary;
+  portfolioAlerts: IntelligencePortfolioAlerts;
+  rollup: IntelligencePortfolioRollup;
+  trend: IntelligencePortfolioTrend;
+};
 
 type ClientIntelligenceSources = {
   identityProfile: ClientIdentityV1Profile;
@@ -102,23 +112,8 @@ type SupportingIntelligenceSources = {
 };
 
 
-/**
- * Normalized internal shape every "Top alerts" source emits. `_urgencyScore` and
- * `_typeRank` are sort-only and stripped before the payload leaves the service.
- */
-type AlertRow = {
-  id: string;
-  type: string;
-  severity: string;
-  title: string;
-  subtitle: string;
-  when: string;
-  countdownDays: number | null;
-  countdownLabel: string | null;
-  href: string | null;
-  _urgencyScore: number;
-  _typeRank: number;
-};
+
+
 
 /**
  * Cosine-similarity floors for tracked-bill embedding matches.
@@ -156,6 +151,7 @@ export const AWARD_BEARING_MAPPING_SOURCES: ReadonlySet<string> = new Set([
 @Injectable()
 export class IntelligenceService {
   private readonly logger = new Logger(IntelligenceService.name);
+  private readonly finalSources: FinalIntelligenceSources;
   private readonly clientSources: ClientIntelligenceSources;
   private readonly supportingSources: SupportingIntelligenceSources;
   private readonly profileV1: IntelligenceClientProfileV1;
@@ -265,6 +261,7 @@ export class IntelligenceService {
     });
     this.supportingSources = this.createSupportingSources();
     this.clientSources = this.createClientSources();
+    this.finalSources = this.createFinalSources();
   }
 
   private createSupportingSources(): SupportingIntelligenceSources {
@@ -334,6 +331,55 @@ export class IntelligenceService {
         getTrackedBills: (...args) => this.getTrackedBills(...args),
         computeEngagementHealth: (...args) => this.computeEngagementHealth(...args),
       }),
+    };
+  }
+
+  private createFinalSources(): FinalIntelligenceSources {
+    return {
+      regulatory: new ClientRegulatoryV1(this.prisma, {
+        withSourceBudget: <T,>(label: string, clientId: string, work: Promise<T>) =>
+          this.withSourceBudget(label, clientId, work),
+        getBillRegulationLinks: (...args) => this.getBillRegulationLinks(...args),
+        getClientRelevantRegulations: (...args) => this.getClientRelevantRegulations(...args),
+        buildRegulatoryLifecycle: (...args) => this.buildRegulatoryLifecycle(...args),
+        logger: () => this.logger,
+      }),
+      commentDeadlines: new ClientCommentDeadlineAlertsV1(this.prisma, {
+        logger: () => this.logger,
+      }),
+      alerts: new ClientAlertsV1(this.prisma, {
+        getTrackedBills: (...args) => this.getTrackedBills(...args),
+        alertCountdownLabel: (...args) => this.alertCountdownLabel(...args),
+        getClientIssueCodes: (...args) => this.getClientIssueCodes(...args),
+        confirmedLdaIds: (...args) => this.confirmedLdaIds(...args),
+        issueCodesForLdaIds: (...args) => this.issueCodesForLdaIds(...args),
+        logger: () => this.logger,
+      }),
+      awardAlerts: new ClientAwardAlertsV1(this.prisma, {
+        resolveContractorUeisForAlerts: (...args) => this.resolveContractorUeisForAlerts(...args),
+        logger: () => this.logger,
+      }),
+      timeline: new IntelligencePortfolioTimeline(this.prisma),
+      comingUp: new IntelligencePortfolioComingUp(this.prisma),
+      summary: new IntelligencePortfolioSummary(this.prisma),
+      portfolioAlerts: new IntelligencePortfolioAlerts(this.prisma, {
+        cache: () => this.portfolioAlertsCache,
+        inflight: () => this.portfolioAlertsInflight,
+        gate: () => this.portfolioAlertsGate,
+        setGate: (value) => {
+          this.portfolioAlertsGate = value;
+        },
+        ttlMs: () => IntelligenceService.PORTFOLIO_ALERTS_TTL_MS,
+        requestBudgetMs: () => IntelligenceService.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS,
+        logger: () => this.logger,
+        emptyPortfolioAlerts: () => this.emptyPortfolioAlerts(),
+        withPortfolioAlertsRequestBudget: (cacheKey, work) =>
+          this.withPortfolioAlertsRequestBudget(cacheKey, work),
+        computePortfolioAlerts: (...args) => this.computePortfolioAlerts(...args),
+        getClientProfileV1: (...args) => this.getClientProfileV1(...args),
+      }),
+      rollup: new IntelligencePortfolioRollup(this.prisma),
+      trend: new IntelligencePortfolioTrend(this.prisma),
     };
   }
 
@@ -425,50 +471,7 @@ export class IntelligenceService {
 
   /** The regulatory view does not depend on financial, graph, or AI profile sources. */
   async getClientRegulatoryProfile(clientId: string, tenantId: string) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true, status: true } }),
-    );
-    if (!client || client.status === 'archived') throw new NotFoundException('Client not found');
-    const now = new Date();
-    const results = await Promise.allSettled([
-      this.withSourceBudget(
-        'billRegulationLinks',
-        clientId,
-        this.getBillRegulationLinks(clientId, tenantId),
-      ),
-      this.withSourceBudget(
-        'clientRelevantRegulations',
-        clientId,
-        this.getClientRelevantRegulations(clientId, tenantId, now),
-      ),
-    ] as const);
-    const labels = ['Tracked-bill regulations', 'Client-relevant regulations'];
-    const sources = results.map((result, index) => {
-      if (result.status === 'rejected') {
-        this.logger.warn(
-          `regulatory-profile source ${labels[index]} failed for client ${clientId}: ${String(result.reason)}`,
-        );
-      }
-      return {
-        name: labels[index]!,
-        status: result.status === 'fulfilled' ? ('available' as const) : ('unavailable' as const),
-      };
-    });
-    if (results.every((result) => result.status === 'rejected')) {
-      throw new ServiceUnavailableException('Regulatory sources are unavailable. Please retry.');
-    }
-    const links =
-      results[0].status === 'fulfilled'
-        ? results[0].value
-        : { links: [], totalBills: 0, totalRegulations: 0 };
-    const relevant = results[1].status === 'fulfilled' ? results[1].value : [];
-    return {
-      clientId,
-      generatedAt: now.toISOString(),
-      partial: sources.some((source) => source.status === 'unavailable'),
-      sources,
-      regulatoryLifecycle: this.buildRegulatoryLifecycle(links, relevant, now),
-    };
+    return this.finalSources.regulatory.getClientRegulatoryProfile(clientId, tenantId);
   }
 
   private buildRegulatoryLifecycle(
@@ -648,76 +651,7 @@ export class IntelligenceService {
    * verbatim, so it returned zero rows even for clients with obvious matches.
    */
   private async findActiveRegulations(issueCodes: string[], fallbackTerms: string[] = []) {
-    const issueNames: string[] = [];
-    if (issueCodes.length) {
-      const nameRows = await this.prisma.$queryRaw<Array<{ name: string }>>`
-        SELECT name FROM lda_issue_code WHERE code = ANY(${issueCodes}::text[])
-      `;
-      issueNames.push(...nameRows.map((r) => r.name));
-    }
-    const allTerms = [...issueNames, ...fallbackTerms];
-    if (!allTerms.length) return { total: 0, documents: [] };
-
-    const lowerTerms = allTerms.map((n) => n.toLowerCase());
-    const wordPatterns = lowerTerms.map((n) => `\\m${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
-
-    // Separate COUNT so total isn't truncated by the LIMIT 50 page.
-    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>`
-      SELECT COUNT(*)::bigint AS total
-      FROM federal_register_document
-      WHERE comment_end_date > NOW()
-        AND (
-          EXISTS (
-            SELECT 1 FROM unnest(topics) t
-            WHERE LOWER(t) ~ ANY(${wordPatterns}::text[])
-          )
-          OR LOWER(title) ~ ANY(${wordPatterns}::text[])
-        )
-    `;
-
-    const docs = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        document_number: string;
-        type: string;
-        title: string;
-        agency_names: string[];
-        topics: string[];
-        comment_end_date: Date | null;
-        publication_date: Date;
-        significant_rule: boolean;
-        html_url: string | null;
-      }>
-    >`
-      SELECT id, document_number, type, title, agency_names, topics,
-             comment_end_date, publication_date, significant_rule, html_url
-      FROM federal_register_document
-      WHERE comment_end_date > NOW()
-        AND (
-          EXISTS (
-            SELECT 1 FROM unnest(topics) t
-            WHERE LOWER(t) ~ ANY(${wordPatterns}::text[])
-          )
-          OR LOWER(title) ~ ANY(${wordPatterns}::text[])
-        )
-      ORDER BY comment_end_date ASC
-      LIMIT 50
-    `;
-
-    const documents = docs.map((d) => ({
-      id: d.id,
-      documentNumber: d.document_number,
-      type: d.type,
-      title: d.title,
-      agencyNames: d.agency_names,
-      topics: d.topics,
-      commentEndDate: d.comment_end_date,
-      publicationDate: d.publication_date,
-      significantRule: d.significant_rule,
-      htmlUrl: d.html_url,
-    }));
-
-    return { total: Number(countRows[0]?.total ?? 0), documents };
+    return this.finalSources.regulatory.findActiveRegulations(issueCodes, fallbackTerms);
   }
 
   /** Find competitors: other entities lobbying on the same issue codes */
@@ -1141,255 +1075,7 @@ export class IntelligenceService {
 
   /** Comment-period urgency alerts: upcoming FederalRegisterDocument deadlines matched to tenant clients */
   async getCommentPeriodAlerts(tenantId: string) {
-    const now = new Date();
-    const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-
-    const [clientsWithCaps, docs, stateRules] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findMany({
-          // Exclude soft-archived ("deleted") clients: archiving sets
-          // status='archived' but leaves profileStatus untouched, so filtering
-          // on profileStatus alone would still surface a deleted client's alerts.
-          where: { status: { not: 'archived' }, profileStatus: 'ACTIVE' },
-          select: {
-            id: true,
-            name: true,
-            sectorTag: true,
-            capabilities: { select: { sector: true, tags: true, name: true } },
-          },
-        }),
-      ),
-      this.prisma.federalRegisterDocument.findMany({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gt: now, lte: fourteenDaysOut },
-        },
-        orderBy: { commentEndDate: 'asc' },
-      }),
-      // W4.5 (M3-D): state_rule is a GLOBAL public table (R1) — read WITHOUT
-      // withTenant, exactly like federalRegisterDocument above and
-      // check-comment-periods.ts.
-      this.prisma.stateRule.findMany({
-        where: { commentEndDate: { gt: now, lte: fourteenDaysOut } },
-        orderBy: { commentEndDate: 'asc' },
-      }),
-    ]);
-
-    if ((!docs.length && !stateRules.length) || !clientsWithCaps.length) return { alerts: [] };
-
-    const alerts: Array<{
-      documentId: string;
-      title: string;
-      type: string;
-      commentEndDate: Date;
-      daysToDeadline: number;
-      severity: string;
-      agencies: string[];
-      clientId: string;
-      clientName: string;
-      relevanceScore: number;
-    }> = [];
-
-    const changesToCreate: Array<{
-      dedupeKey: string;
-      source: string;
-      changeType: string;
-      severity: string;
-      title: string;
-      description: string;
-      relatedClientIds: string[];
-      relatedIssues: string[];
-      data: object;
-    }> = [];
-
-    for (const doc of docs) {
-      const daysToDeadline = Math.ceil(
-        (doc.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      const urgencyMultiplier = daysToDeadline < 3 ? 2.0 : daysToDeadline <= 7 ? 1.5 : 1.0;
-      const severity = daysToDeadline < 3 ? 'critical' : daysToDeadline <= 7 ? 'notable' : 'info';
-      const agencies = doc.agencyNames as string[];
-
-      // Determine which sectors this document touches via agency mapping
-      const docSectors = new Set<SectorTag>();
-      for (const agency of agencies) {
-        for (const sector of AGENCY_SECTOR_MAP[agency] ?? []) {
-          docSectors.add(sector);
-        }
-      }
-      // LDA codes derived from doc sectors, feeds IntelligenceChange.relatedIssues
-      // so the hasSome branch in getCommentPeriodAlerts / generateClientBriefing
-      // can surface this change for clients lobbying on the same codes.
-      const docLdaCodes = ldaCodesForSectors([...docSectors]);
-
-      for (const client of clientsWithCaps) {
-        let baseRelevance = 0;
-        const matchedSectors = new Set<SectorTag>();
-
-        // Agency-sector match against client sectorTag (already controlled enum)
-        if (client.sectorTag && docSectors.has(client.sectorTag as SectorTag)) {
-          baseRelevance = Math.max(baseRelevance, 0.5);
-          matchedSectors.add(client.sectorTag as SectorTag);
-        }
-
-        // Agency-sector match against capability sectors. cap.sector is free text
-        // in legacy data; normalize through the shared taxonomy before comparing.
-        for (const cap of client.capabilities) {
-          const normalized = normalizeSector(cap.sector);
-          if (normalized && docSectors.has(normalized)) {
-            baseRelevance = Math.max(baseRelevance, 0.5);
-            matchedSectors.add(normalized);
-          }
-        }
-
-        // Topic match against capability keywords
-        if (baseRelevance < 0.7) {
-          const capKeywords = new Set<string>();
-          for (const cap of client.capabilities) {
-            if (cap.sector) capKeywords.add(cap.sector.toLowerCase());
-            if (cap.name)
-              cap.name
-                .split(/\s+/)
-                .filter((w) => w.length > 3)
-                .forEach((w) => capKeywords.add(w.toLowerCase()));
-            const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
-            for (const t of tags) {
-              if (typeof t === 'string' && t.length > 3) capKeywords.add(t.toLowerCase());
-            }
-          }
-
-          for (const topic of doc.topics as string[]) {
-            const topicLower = topic.toLowerCase();
-            for (const kw of capKeywords) {
-              if (topicLower.includes(kw) || kw.includes(topicLower)) {
-                baseRelevance = Math.max(baseRelevance, 0.7);
-                break;
-              }
-            }
-          }
-        }
-
-        const finalScore = baseRelevance * urgencyMultiplier;
-        if (finalScore <= 0.3) continue;
-
-        alerts.push({
-          documentId: doc.id,
-          title: doc.title,
-          type: doc.type,
-          commentEndDate: doc.commentEndDate!,
-          daysToDeadline,
-          severity,
-          agencies,
-          clientId: client.id,
-          clientName: client.name,
-          relevanceScore: Math.round(finalScore * 100) / 100,
-        });
-
-        const matchedLdaCodes = matchedSectors.size
-          ? ldaCodesForSectors([...matchedSectors])
-          : docLdaCodes;
-        changesToCreate.push({
-          dedupeKey: commentDeadlineDedupeKey('federal_register', doc.id, client.id),
-          source: 'federal_register',
-          changeType: 'comment_deadline_approaching',
-          severity,
-          title: `Comment period closing in ${daysToDeadline}d: ${doc.title.slice(0, 80)}`,
-          description: `${doc.type} from ${agencies.slice(0, 2).join('/')} has a comment deadline in ${daysToDeadline} days. Relevant to ${client.name}.`,
-          relatedClientIds: [client.id],
-          relatedIssues: matchedLdaCodes,
-          data: { documentId: doc.id, daysToDeadline, relevanceScore: finalScore },
-        });
-      }
-    }
-
-    // ── W4.5 (M3-D): STATE rules, matched EXACTLY as the scheduled
-    // check-comment-periods.ts verb does — capability-keyword overlap against
-    // the rule's title AND abstract (no AGENCY_SECTOR_MAP for state agencies
-    // yet, so no sector match; abstract is included to match that verb's header
-    // claim). Mirroring the scheduled verb is deliberate: both callers write the
-    // SAME ('state_register', ruleId, clientId) dedupeKey, so their match logic
-    // must agree or they'd upsert conflicting rows. Pushed into the SAME
-    // alerts/changes arrays so `criticalDeadlines` + the Top-alerts card include
-    // state rows too. ──
-    for (const rule of stateRules) {
-      const daysToDeadline = Math.ceil(
-        (rule.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      const urgencyMultiplier = daysToDeadline < 3 ? 2.0 : daysToDeadline <= 7 ? 1.5 : 1.0;
-      const severity = daysToDeadline < 3 ? 'critical' : daysToDeadline <= 7 ? 'notable' : 'info';
-      const haystack = `${rule.title} ${rule.abstract ?? ''}`.toLowerCase();
-
-      for (const client of clientsWithCaps) {
-        let baseRelevance = 0;
-        const capKeywords = new Set<string>();
-        for (const cap of client.capabilities) {
-          if (cap.sector) capKeywords.add(cap.sector.toLowerCase());
-          if (cap.name)
-            cap.name
-              .split(/\s+/)
-              .filter((w) => w.length > 3)
-              .forEach((w) => capKeywords.add(w.toLowerCase()));
-          const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
-          for (const t of tags) {
-            if (typeof t === 'string' && t.length > 3) capKeywords.add(t.toLowerCase());
-          }
-        }
-        for (const kw of capKeywords) {
-          if (haystack.includes(kw)) {
-            baseRelevance = 0.7;
-            break;
-          }
-        }
-
-        const finalScore = baseRelevance * urgencyMultiplier;
-        if (finalScore <= 0.3) continue;
-
-        alerts.push({
-          documentId: rule.id,
-          title: rule.title,
-          type: rule.ruleType,
-          commentEndDate: rule.commentEndDate!,
-          daysToDeadline,
-          severity,
-          agencies: [rule.agency],
-          clientId: client.id,
-          clientName: client.name,
-          relevanceScore: Math.round(finalScore * 100) / 100,
-        });
-        changesToCreate.push({
-          dedupeKey: commentDeadlineDedupeKey('state_register', rule.id, client.id),
-          source: 'state_register',
-          changeType: 'comment_deadline_approaching',
-          severity,
-          title: `Comment period closing in ${daysToDeadline}d: ${rule.title.slice(0, 80)}`,
-          description: `${rule.ruleType} from ${rule.state} ${rule.agency} has a comment deadline in ${daysToDeadline} days. Relevant to ${client.name} (relevance: ${Math.round(finalScore * 100)}%).`,
-          relatedClientIds: [client.id],
-          // State agencies have no LDA-code mapping yet — empty, never a guess.
-          relatedIssues: [],
-          data: { documentId: rule.id, daysToDeadline, relevanceScore: finalScore },
-        });
-      }
-    }
-
-    // Emit changes (fire-and-forget errors). Idempotent: upsert on the SAME
-    // dedupeKey `check-comment-periods.ts` uses for this (document, client)
-    // pair, so a re-run of the scheduled verb OR simply reloading this
-    // on-demand dashboard read never creates a second row (M3.4/M4.2 —
-    // comment-deadline.util.ts's doc comment previously described this as
-    // already done for both callers; this caller had not actually been
-    // switched over to `upsert` yet).
-    await Promise.all(
-      changesToCreate.map((c) =>
-        this.prisma.intelligenceChange
-          .upsert({ where: { dedupeKey: c.dedupeKey }, create: c, update: c })
-          .catch((err) => {
-            this.logger.warn(`Failed to emit comment-period change: ${err.message}`);
-          }),
-      ),
-    );
-
-    alerts.sort((a, b) => a.daysToDeadline - b.daysToDeadline);
-    return { alerts };
+    return this.finalSources.commentDeadlines.getCommentPeriodAlerts(tenantId);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1400,18 +1086,12 @@ export class IntelligenceService {
 
   /** Internal alert row shape shared by every compute-on-read alert source. */
   private alertCountdownLabel(days: number | null): string | null {
-    if (days == null) return null;
-    if (days < 0) return `Overdue ${Math.abs(days)}d`;
-    if (days === 0) return 'Due today';
-    if (days === 1) return '1d left';
-    return `${days}d left`;
+    return this.finalSources.alerts.alertCountdownLabel(days);
   }
 
   /** Resolve a client's LDA issue codes (confirmed mapping) for competitor matching. */
   private async getClientIssueCodes(clientId: string, tenantId: string): Promise<string[]> {
-    // Phase 4c: union issue codes across the FULL confirmed LDA id set.
-    const ldaClientIds = await this.confirmedLdaIds(clientId, tenantId);
-    return this.issueCodesForLdaIds(ldaClientIds);
+    return this.finalSources.alerts.getClientIssueCodes(clientId, tenantId);
   }
 
   /**
@@ -1428,62 +1108,13 @@ export class IntelligenceService {
       | Promise<Awaited<ReturnType<typeof this.getTrackedBills>>>
       | Awaited<ReturnType<typeof this.getTrackedBills>>,
   ): Promise<AlertRow[]> {
-    try {
-      // Tracked bills give us the bill identifiers + the committees of jurisdiction
-      // to match hearings against (same signal the removed Hearings panel used).
-      const tracked = await (precomputedTracked ?? this.getTrackedBills(clientId, tenantId));
-      const billVariants = (tracked.bills ?? []).map((b) => ({
-        identifier: b.identifier,
-        // "hr-1234" / "hr 1234" / "h.r. 1234" style variants for title matching.
-        variants: [
-          b.identifier.toLowerCase(),
-          b.identifier.toLowerCase().replace(/-/g, ' '),
-          b.identifier.toLowerCase().replace(/-/g, '.'),
-        ],
-      }));
-      if (billVariants.length === 0) return [];
-
-      const hearings = await this.prisma.committeeHearing.findMany({
-        // Start-of-Eastern-day, not `now`: see the note at the portfolio feed above.
-        // `date` is a UTC-midnight @db.Date, so `gte: now` dropped today's rows.
-        where: federalHearingWhere({
-          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: until },
-        }),
-        orderBy: [{ date: 'asc' }, { time: 'asc' }],
-        take: 40,
-      });
-
-      const out: AlertRow[] = [];
-      for (const h of hearings) {
-        const titleLower = h.title.toLowerCase();
-        const linked = billVariants
-          .filter((b) => b.variants.some((v) => titleLower.includes(v)))
-          .map((b) => b.identifier);
-        if (linked.length === 0) continue; // keep only client-relevant hearings
-        const d = new Date(h.date);
-        const days = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        const severity = days < 3 ? 'critical' : days <= 7 ? 'notable' : 'info';
-        out.push({
-          id: `hearing:${h.id}`,
-          type: 'hearing',
-          severity,
-          title: `${h.committeeName}: ${h.title}`.slice(0, 140),
-          subtitle: `${h.chamber} ${h.type ?? 'hearing'} · ${linked.slice(0, 3).join(', ')}`,
-          when: d.toISOString(),
-          countdownDays: days,
-          countdownLabel: this.alertCountdownLabel(days),
-          href: `/intelligence/bills/${encodeURIComponent(linked[0] ?? '')}?clientId=${encodeURIComponent(clientId)}`,
-          _urgencyScore: 100 - Math.max(-30, Math.min(days, 100)),
-          _typeRank: 2,
-        });
-      }
-      return out;
-    } catch (err) {
-      this.logger.warn(
-        `getHearingAlerts failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return [];
-    }
+    return this.finalSources.alerts.getHearingAlerts(
+      clientId,
+      tenantId,
+      now,
+      until,
+      precomputedTracked,
+    );
   }
 
   /**
@@ -1497,94 +1128,7 @@ export class IntelligenceService {
     now: Date,
     lookbackStart: Date,
   ): Promise<AlertRow[]> {
-    try {
-      const client = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findFirst({
-          where: { id: clientId },
-          select: {
-            id: true,
-            name: true,
-            sectorTag: true,
-            capabilities: { select: { sector: true, tags: true, name: true } },
-          },
-        }),
-      );
-      if (!client) return [];
-
-      const docs = await this.prisma.federalRegisterDocument.findMany({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gte: lookbackStart, lt: now },
-        },
-        orderBy: { commentEndDate: 'desc' },
-        take: 40,
-      });
-      if (!docs.length) return [];
-
-      const capKeywords = new Set<string>();
-      if (client.sectorTag) capKeywords.add(String(client.sectorTag).toLowerCase());
-      for (const cap of client.capabilities) {
-        if (cap.sector) capKeywords.add(cap.sector.toLowerCase());
-        if (cap.name)
-          cap.name
-            .split(/\s+/)
-            .filter((w) => w.length > 3)
-            .forEach((w) => capKeywords.add(w.toLowerCase()));
-        const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
-        for (const t of tags) {
-          if (typeof t === 'string' && t.length > 3) capKeywords.add(t.toLowerCase());
-        }
-      }
-      const normalizedClientSector = normalizeSector(client.sectorTag);
-
-      const out: AlertRow[] = [];
-      for (const doc of docs) {
-        const agencies = (doc.agencyNames as string[]) ?? [];
-        const docSectors = new Set<SectorTag>();
-        for (const agency of agencies) {
-          for (const sector of AGENCY_SECTOR_MAP[agency] ?? []) docSectors.add(sector);
-        }
-        let relevant = false;
-        if (normalizedClientSector && docSectors.has(normalizedClientSector)) relevant = true;
-        if (!relevant) {
-          const topics = Array.isArray(doc.topics) ? (doc.topics as string[]) : [];
-          for (const topic of topics) {
-            const tl = topic.toLowerCase();
-            for (const kw of capKeywords) {
-              if (tl.includes(kw) || kw.includes(tl)) {
-                relevant = true;
-                break;
-              }
-            }
-            if (relevant) break;
-          }
-        }
-        if (!relevant) continue;
-
-        const days = Math.ceil(
-          (doc.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-        ); // negative
-        out.push({
-          id: `comment_overdue:${doc.id}`,
-          type: 'comment_overdue',
-          severity: 'notable',
-          title: `Deadline closed: ${doc.title}`.slice(0, 140),
-          subtitle: agencies.slice(0, 2).join(' / ') || 'Federal Register',
-          when: doc.commentEndDate!.toISOString(),
-          countdownDays: days,
-          countdownLabel: this.alertCountdownLabel(days),
-          href: `/intelligence/changes?clientId=${encodeURIComponent(clientId)}&source=comment_overdue`,
-          _urgencyScore: 30, // recently lapsed: notable but below live deadlines
-          _typeRank: 2,
-        });
-      }
-      return out.slice(0, 5);
-    } catch (err) {
-      this.logger.warn(
-        `getOverdueCommentAlerts failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return [];
-    }
+    return this.finalSources.alerts.getOverdueCommentAlerts(clientId, tenantId, now, lookbackStart);
   }
 
   /**
@@ -1598,59 +1142,7 @@ export class IntelligenceService {
     tenantId: string,
     since: Date,
   ): Promise<AlertRow[]> {
-    try {
-      const issueCodes = await this.getClientIssueCodes(clientId, tenantId);
-      if (issueCodes.length === 0) return [];
-
-      // The client's own LDA client name(s) so we exclude their own filings.
-      const client = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findFirst({ where: { id: clientId }, select: { name: true } }),
-      );
-      const ownName = (client?.name ?? '').trim().toLowerCase();
-
-      const filings = await this.prisma.ldaFiling.findMany({
-        where: {
-          dtPosted: { gte: since },
-          issueCodes: { hasSome: issueCodes },
-        },
-        orderBy: { dtPosted: 'desc' },
-        take: 25,
-      });
-
-      const seenRegistrants = new Set<string>();
-      const out: AlertRow[] = [];
-      for (const f of filings) {
-        const registrant = (f.registrantName ?? '').trim();
-        const filingClient = (f.clientName ?? '').trim();
-        // Skip the client's own filings (match on client name) and dedupe per registrant.
-        if (ownName && filingClient.toLowerCase() === ownName) continue;
-        const dedupeKey = `${registrant.toLowerCase()}|${filingClient.toLowerCase()}`;
-        if (seenRegistrants.has(dedupeKey)) continue;
-        seenRegistrants.add(dedupeKey);
-        if (!f.dtPosted) continue;
-        const overlap = (f.issueCodes ?? []).filter((c) => issueCodes.includes(c));
-        out.push({
-          id: `competitor:${f.id}`,
-          type: 'competitor_filing',
-          severity: 'info',
-          title: `New lobbying filing: ${registrant || 'Unknown firm'}`,
-          subtitle: `${filingClient || 'Undisclosed client'} · issues ${overlap.slice(0, 3).join(', ')}`,
-          when: f.dtPosted.toISOString(),
-          countdownDays: null,
-          countdownLabel: null,
-          href: `/intelligence/issues/${encodeURIComponent(overlap[0] ?? issueCodes[0] ?? '')}?clientId=${encodeURIComponent(clientId)}`,
-          _urgencyScore: 10,
-          _typeRank: 1,
-        });
-        if (out.length >= 5) break;
-      }
-      return out;
-    } catch (err) {
-      this.logger.warn(
-        `getCompetitorLdaAlerts failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return [];
-    }
+    return this.finalSources.alerts.getCompetitorLdaAlerts(clientId, tenantId, since);
   }
 
   /**
@@ -1663,100 +1155,14 @@ export class IntelligenceService {
     tenantId: string,
     since: Date,
   ): Promise<AlertRow[]> {
-    try {
-      // Release 1 fix: `externalId` on a `contracting` mapping is a
-      // `federal_contractor.id` UUID, NOT a contractor name — this used to
-      // compare that UUID against `federal_award.contractor_name`, which can
-      // never match, and read as "no new awards" for every client with a
-      // confirmed contracting mapping. Resolved through the same canonical
-      // identity primitive every other District Nexus award reader uses.
-      const [mapping, client] = await this.prisma.withTenant(tenantId, (tx) =>
-        Promise.all([
-          tx.clientIntelMapping.findFirst({
-            where: {
-              clientId,
-              source: 'contracting',
-              confirmed: true,
-              reviewStatus: 'confirmed',
-              rollUpAwards: true,
-            },
-            select: { externalId: true, externalName: true, matchBasis: true, matchTier: true },
-          }),
-          tx.client.findFirst({ where: { id: clientId }, select: { uei: true } }),
-        ]),
-      );
-      if (!mapping) return [];
-
-      const seed: DistrictNexusIdentitySeed = {
-        clientId,
-        clientName: '',
-        uei: client?.uei ?? null,
-        mappings: [
-          {
-            source: 'contracting',
-            externalId: mapping.externalId,
-            externalName: mapping.externalName,
-            matchBasis: mapping.matchBasis,
-            matchTier: mapping.matchTier,
-          },
-        ],
-      };
-      const contractorUeis = await this.resolveContractorUeisForAlerts(
-        districtNexusContractorIdsToResolve([seed]),
-      );
-      const identity = buildDistrictNexusIdentity(seed, contractorUeis);
-      if (identity.contract.basis === 'none') return [];
-
-      const awards = await this.prisma.federalAward.findMany({
-        where:
-          identity.contract.basis === 'exact_uei'
-            ? { recipientUei: { in: identity.contract.ueis }, awardedAt: { gte: since } }
-            : {
-                contractorName: { in: identity.contract.fallbackNames, mode: 'insensitive' },
-                awardedAt: { gte: since },
-              },
-        orderBy: { awardedAt: 'desc' },
-        take: 10,
-      });
-
-      const out: AlertRow[] = [];
-      for (const a of awards) {
-        if (!a.awardedAt) continue;
-        const amount = a.amount ? Number(a.amount) : 0;
-        out.push({
-          id: `award:${a.id}`,
-          type: 'contract_award',
-          severity: 'notable',
-          title: `New federal award${amount > 0 ? `: $${Math.round(amount).toLocaleString('en-US')}` : ''}`,
-          subtitle: `${a.awardingAgency ?? 'Federal agency'}${a.description ? ` · ${a.description.slice(0, 60)}` : ''}`,
-          when: a.awardedAt.toISOString(),
-          countdownDays: null,
-          countdownLabel: null,
-          href: `/intelligence/changes?clientId=${encodeURIComponent(clientId)}&source=contract_award`,
-          _urgencyScore: 25,
-          _typeRank: 1,
-        });
-        if (out.length >= 5) break;
-      }
-      return out;
-    } catch (err) {
-      this.logger.warn(
-        `getContractAwardAlerts failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return [];
-    }
+    return this.finalSources.awardAlerts.getContractAwardAlerts(clientId, tenantId, since);
   }
 
   /** Resolve `federal_contractor.id -> uei`, outside any tenant transaction. See district-nexus.service.ts's twin. */
   private async resolveContractorUeisForAlerts(
     contractorIds: string[],
   ): Promise<Map<string, string | null>> {
-    if (!contractorIds.length) return new Map();
-    const rows = await this.prisma.federalContractor.findMany({
-      where: { id: { in: contractorIds } },
-      select: { id: true, uei: true },
-    });
-    return new Map(rows.map((r) => [r.id, r.uei]));
+    return this.finalSources.awardAlerts.resolveContractorUeisForAlerts(contractorIds);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1772,29 +1178,19 @@ export class IntelligenceService {
     state: 'acknowledged' | 'dismissed' | 'snoozed',
     snoozedUntil?: Date | null,
   ) {
-    // Verify the client belongs to the tenant (RLS also enforces, but fail fast).
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-
-    const resolvedSnooze = state === 'snoozed' ? (snoozedUntil ?? null) : null;
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.alertState.upsert({
-        where: { userId_clientId_alertId: { userId, clientId, alertId } },
-        create: { tenantId, userId, clientId, alertId, state, snoozedUntil: resolvedSnooze },
-        update: { state, snoozedUntil: resolvedSnooze },
-        select: { id: true, alertId: true, state: true, snoozedUntil: true },
-      }),
+    return this.finalSources.alerts.setAlertState(
+      tenantId,
+      userId,
+      clientId,
+      alertId,
+      state,
+      snoozedUntil,
     );
   }
 
   /** Clear per-user state for an alert (undo ack/dismiss/snooze). Idempotent. */
   async clearAlertState(tenantId: string, userId: string, clientId: string, alertId: string) {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.alertState.deleteMany({ where: { userId, clientId, alertId } }),
-    );
-    return { ok: true };
+    return this.finalSources.alerts.clearAlertState(tenantId, userId, clientId, alertId);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1957,88 +1353,7 @@ export class IntelligenceService {
       htmlUrl: string | null;
     }>
   > {
-    try {
-      const client = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findFirst({
-          where: { id: clientId },
-          select: {
-            id: true,
-            sectorTag: true,
-            capabilities: { select: { sector: true, tags: true, name: true } },
-          },
-        }),
-      );
-      if (!client) return [];
-
-      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      const docs = await this.prisma.federalRegisterDocument.findMany({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          OR: [{ commentEndDate: { gte: now } }, { publicationDate: { gte: ninetyDaysAgo } }],
-        },
-        orderBy: { publicationDate: 'desc' },
-        take: 200,
-      });
-      if (!docs.length) return [];
-
-      const capKeywords = new Set<string>();
-      if (client.sectorTag) capKeywords.add(String(client.sectorTag).toLowerCase());
-      for (const cap of client.capabilities) {
-        if (cap.sector) capKeywords.add(cap.sector.toLowerCase());
-        if (cap.name)
-          cap.name
-            .split(/\s+/)
-            .filter((w) => w.length > 3)
-            .forEach((w) => capKeywords.add(w.toLowerCase()));
-        const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
-        for (const t of tags) {
-          if (typeof t === 'string' && t.length > 3) capKeywords.add(t.toLowerCase());
-        }
-      }
-      const normalizedClientSector = normalizeSector(client.sectorTag);
-
-      const matched: typeof docs = [];
-      for (const doc of docs) {
-        const agencies = (doc.agencyNames as string[]) ?? [];
-        const docSectors = new Set<SectorTag>();
-        for (const agency of agencies) {
-          for (const sector of AGENCY_SECTOR_MAP[agency] ?? []) docSectors.add(sector);
-        }
-        let relevant = false;
-        if (normalizedClientSector && docSectors.has(normalizedClientSector)) relevant = true;
-        if (!relevant) {
-          const topics = Array.isArray(doc.topics) ? (doc.topics as string[]) : [];
-          for (const topic of topics) {
-            const tl = topic.toLowerCase();
-            for (const kw of capKeywords) {
-              if (tl.includes(kw) || kw.includes(tl)) {
-                relevant = true;
-                break;
-              }
-            }
-            if (relevant) break;
-          }
-        }
-        if (relevant) matched.push(doc);
-        if (matched.length >= 20) break;
-      }
-
-      return matched.map((doc) => ({
-        documentNumber: doc.documentNumber,
-        type: doc.type,
-        title: doc.title,
-        agencyNames: (doc.agencyNames as string[]) ?? [],
-        publicationDate: doc.publicationDate,
-        commentEndDate: doc.commentEndDate,
-        effectiveDate: doc.effectiveDate,
-        htmlUrl: doc.htmlUrl,
-      }));
-    } catch (err) {
-      this.logger.warn(
-        `getClientRelevantRegulations failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      throw err;
-    }
+    return this.finalSources.regulatory.getClientRelevantRegulations(clientId, tenantId, now);
   }
 
   /**
@@ -2059,112 +1374,7 @@ export class IntelligenceService {
    * Returns chronologically sorted events with severity counts.
    */
   async getTodayTimeline(tenantId: string) {
-    const now = new Date();
-    // ET day bounds for timestamp columns; UTC-midnight bounds for @db.Date columns.
-    const { start: startOfDay, end: endOfDay } = dayBoundsInZone(now, 'America/New_York');
-    const dateBounds = dateBoundsInZone(now, 'America/New_York');
-    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    const [hearings, deadlines, changes, clientIds] = await Promise.all([
-      this.prisma.committeeHearing.findMany({
-        where: federalHearingWhere({ date: { gte: dateBounds.start, lte: dateBounds.end } }),
-        orderBy: { time: 'asc' },
-        take: 30,
-      }),
-      this.prisma.federalRegisterDocument.findMany({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gte: dateBounds.start, lte: dateBounds.end },
-        },
-        orderBy: { commentEndDate: 'asc' },
-        take: 20,
-      }),
-      this.prisma.intelligenceChange.findMany({
-        where: {
-          detectedAt: { gte: last24h },
-          severity: { in: ['critical', 'notable', 'info'] },
-        },
-        orderBy: { detectedAt: 'desc' },
-        take: 30,
-      }),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findMany({ where: { status: { not: 'archived' } }, select: { id: true } }),
-      ),
-    ]);
-
-    const tenantClientIds = new Set(clientIds.map((c) => c.id));
-
-    type TimelineEvent = {
-      id: string;
-      kind: 'hearing' | 'deadline' | 'change' | 'brief';
-      label: string;
-      title: string;
-      detail: string | null;
-      severity: 'info' | 'notable' | 'critical';
-      time: string | null;
-      timestamp: string;
-      href: string | null;
-    };
-
-    const events: TimelineEvent[] = [];
-
-    for (const h of hearings) {
-      const isMarkup = h.type === 'markup';
-      events.push({
-        id: `hearing-${h.id}`,
-        kind: 'hearing',
-        label: isMarkup ? 'MARKUP' : 'HEARING',
-        title: `${h.committeeName}, ${h.title}`,
-        detail: h.location ?? h.witnesses.slice(0, 3).join(', ') ?? null,
-        severity: isMarkup ? 'notable' : 'info',
-        time: h.time ?? null,
-        timestamp: h.date.toISOString(),
-        href: h.url ?? null,
-      });
-    }
-
-    for (const d of deadlines) {
-      events.push({
-        id: `deadline-${d.id}`,
-        kind: 'deadline',
-        label: 'COMMENT DEADLINE',
-        title: d.title,
-        detail: d.agencyNames.slice(0, 2).join(' / '),
-        severity: 'critical',
-        time: 'before EOD',
-        timestamp: (d.commentEndDate ?? endOfDay).toISOString(),
-        href: d.htmlUrl ?? null,
-      });
-    }
-
-    for (const c of changes) {
-      // Three states:
-      //   neutral     = relatedClientIds empty → general market signal, include
-      //   tenantTouch = at least one related client belongs to this tenant → include
-      //   foreign     = relatedClientIds only references other tenants → EXCLUDE
-      //                 (descriptions can include the matched client's name)
-      const isNeutral = c.relatedClientIds.length === 0;
-      const touchesTenant = !isNeutral && c.relatedClientIds.some((id) => tenantClientIds.has(id));
-      if (!isNeutral && !touchesTenant) continue;
-      events.push({
-        id: `change-${c.id}`,
-        kind: 'change',
-        label: c.source.toUpperCase().slice(0, 16),
-        title: c.title,
-        detail: c.description ? c.description.slice(0, 160) : null,
-        severity: (c.severity as TimelineEvent['severity']) ?? 'info',
-        time: null,
-        timestamp: c.detectedAt.toISOString(),
-        href: null,
-      });
-    }
-
-    events.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-    const counts = { critical: 0, notable: 0, info: 0 };
-    for (const e of events) counts[e.severity]++;
-
-    return { events, counts, today: startOfDay.toISOString() };
+    return this.finalSources.timeline.getTodayTimeline(tenantId);
   }
 
   /**
@@ -2176,39 +1386,7 @@ export class IntelligenceService {
    * tenants if returned.
    */
   async getLiveTicker(tenantId: string, limit = 12) {
-    const clientIds = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findMany({ where: { status: { not: 'archived' } }, select: { id: true } }),
-    );
-    const tenantClientIds = clientIds.map((c) => c.id);
-
-    const tenantChanges = tenantClientIds.length
-      ? await this.prisma.intelligenceChange.findMany({
-          where: { relatedClientIds: { hasSome: tenantClientIds } },
-          orderBy: { detectedAt: 'desc' },
-          take: limit,
-        })
-      : [];
-
-    let items = tenantChanges;
-    if (items.length < limit) {
-      const fill = await this.prisma.intelligenceChange.findMany({
-        where: {
-          id: { notIn: items.map((i) => i.id) },
-          relatedClientIds: { isEmpty: true },
-        },
-        orderBy: { detectedAt: 'desc' },
-        take: limit - items.length,
-      });
-      items = [...items, ...fill];
-    }
-
-    return items.map((c) => ({
-      id: c.id,
-      source: c.source,
-      title: c.title,
-      severity: c.severity,
-      detectedAt: c.detectedAt.toISOString(),
-    }));
+    return this.finalSources.timeline.getLiveTicker(tenantId, limit);
   }
 
   /**
@@ -2221,165 +1399,7 @@ export class IntelligenceService {
    * the same ownership as GET /api/engagement/meetings), not tenant-wide.
    */
   async getComingUp(tenantId: string, userId: string) {
-    if (!userId) {
-      throw new UnauthorizedException('Current user is required');
-    }
-    const now = new Date();
-    // Both `hearing.date` and `comment_end_date` come back at UTC midnight;
-    // bounds must also be UTC midnight to include rows on the boundary day.
-    const tomorrowStart = addDateInZone(now, 1, 'America/New_York');
-    const sevenDaysOut = new Date(tomorrowStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    // Meetings come from this tenant's connected calendar (Outlook sync) or
-    // manually-created meetings. We pull the same tomorrow→+7d window. The
-    // href is the in-app meeting detail route so clicking on the dashboard
-    // card opens the meeting inside Capiro; the Outlook webLink (stored in
-    // metadata) is reachable from there.
-    const [hearings, deadlines, meetings, clientIds] = await Promise.all([
-      this.prisma.committeeHearing.findMany({
-        where: federalHearingWhere({ date: { gte: tomorrowStart, lte: sevenDaysOut } }),
-        orderBy: { date: 'asc' },
-        take: 30,
-      }),
-      this.prisma.federalRegisterDocument.findMany({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gte: tomorrowStart, lte: sevenDaysOut },
-        },
-        orderBy: { commentEndDate: 'asc' },
-        take: 20,
-      }),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.meeting.findMany({
-          where: {
-            ...ownMeetingWhere(userId),
-            startsAt: { gte: tomorrowStart, lte: sevenDaysOut },
-            status: { notIn: ['cancelled', 'canceled', 'deleted'] },
-          },
-          orderBy: { startsAt: 'asc' },
-          take: 30,
-          select: {
-            id: true,
-            subject: true,
-            startsAt: true,
-            location: true,
-            organizerName: true,
-            organizerEmail: true,
-          },
-        }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findMany({ where: { status: { not: 'archived' } }, select: { id: true } }),
-      ),
-    ]);
-    // tenantClientIds reserved for future relevance ranking
-    void clientIds;
-
-    type ComingUpItem = {
-      id: string;
-      kind: 'hearing' | 'markup' | 'deadline' | 'meeting';
-      label: string;
-      title: string;
-      detail: string | null;
-      severity: 'info' | 'notable' | 'critical';
-      date: string;
-      time: string | null;
-      href: string | null;
-    };
-
-    const items: ComingUpItem[] = [];
-
-    for (const h of hearings) {
-      const isMarkup = h.type === 'markup';
-      items.push({
-        id: `hearing-${h.id}`,
-        kind: isMarkup ? 'markup' : 'hearing',
-        label: isMarkup ? 'MARKUP' : 'HEARING',
-        title: `${h.committeeName}, ${h.title}`,
-        detail: h.location ?? null,
-        severity: isMarkup ? 'critical' : 'notable',
-        date: h.date.toISOString(),
-        time: h.time ?? null,
-        href: h.url ?? null,
-      });
-    }
-
-    for (const d of deadlines) {
-      items.push({
-        id: `deadline-${d.id}`,
-        kind: 'deadline',
-        label: 'DEADLINE',
-        title: d.title,
-        detail: d.agencyNames.slice(0, 2).join(' / '),
-        severity: 'notable',
-        date: (d.commentEndDate ?? sevenDaysOut).toISOString(),
-        time: 'before EOD',
-        href: d.htmlUrl ?? null,
-      });
-    }
-
-    for (const m of meetings) {
-      const startsAt = m.startsAt;
-      // ET time string for the card. Falls back to null if formatting fails
-      // (e.g. exotic timezone string the DB returned unexpectedly).
-      let timeLabel: string | null = null;
-      try {
-        timeLabel = startsAt.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          timeZone: 'America/New_York',
-        });
-      } catch {
-        timeLabel = null;
-      }
-      const organizer = m.organizerName ?? m.organizerEmail ?? null;
-      items.push({
-        id: `meeting-${m.id}`,
-        kind: 'meeting',
-        label: 'MEETING',
-        title: m.subject,
-        detail:
-          [m.location, organizer ? `Organizer: ${organizer}` : null]
-            .filter((v): v is string => Boolean(v))
-            .join(' · ') || null,
-        severity: 'info',
-        date: startsAt.toISOString(),
-        time: timeLabel,
-        href: `/engagement/meetings/${m.id}`,
-      });
-    }
-
-    items.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Meetings are always the user's own calendar, they should be visible
-    // on the home dashboard even if there are higher-severity hearings or
-    // deadlines competing for slots. Strategy:
-    //   1. Include up to 4 meetings, soonest first.
-    //   2. Fill remaining slots (up to 6 total) with the highest-severity
-    //      non-meeting items, soonest first within the same severity.
-    //   3. Sort the final list by date so the dashboard reads chronologically.
-    const meetingItems = items
-      .filter((i) => i.kind === 'meeting')
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 4);
-
-    const SEVERITY_RANK: Record<ComingUpItem['severity'], number> = {
-      critical: 3,
-      notable: 2,
-      info: 1,
-    };
-    const nonMeetingPicks = items
-      .filter((i) => i.kind !== 'meeting')
-      .sort((a, b) => {
-        const sev = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
-        if (sev !== 0) return sev;
-        return a.date.localeCompare(b.date);
-      })
-      .slice(0, Math.max(0, 6 - meetingItems.length));
-
-    const top = [...meetingItems, ...nonMeetingPicks].sort((a, b) => a.date.localeCompare(b.date));
-
-    return { items: top, totalThisWeek: items.length };
+    return this.finalSources.comingUp.getComingUp(tenantId, userId);
   }
 
   /**
@@ -2396,104 +1416,7 @@ export class IntelligenceService {
    * issue-code × congress_bill subject join (which can be empty while pins exist).
    */
   async getPortfolioSummary(tenantId: string, userId: string, window?: { from?: string; to?: string }) {
-    const now = new Date();
-    const quarterStart = startOfQuarter(now);
-
-    // G1: meetings this week — same weekBounds logic the frontend used.
-    const day = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
-    monday.setHours(0, 0, 0, 0);
-    const nextMonday = new Date(monday);
-    nextMonday.setDate(monday.getDate() + 7);
-    const from = window?.from ? new Date(window.from) : monday;
-    const to = window?.to ? new Date(window.to) : nextMonday;
-    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || to <= from || to.getTime() - from.getTime() > 8 * 86400_000) {
-      throw new BadRequestException('A valid week window is required');
-    }
-
-    const [tenantScoped, regulationsTracked] = await Promise.all([
-      this.prisma.withTenant(tenantId, async (tx) => {
-        const clients = await tx.client.findMany({
-          where: { tenantId, status: { not: 'archived' } },
-          select: { id: true, profileStatus: true, primaryContactEmail: true, people: { where: { tenantId }, select: { email: true } } },
-        });
-        const clientAssociations = clientAssociatedMeetingWhere(
-          clients.map((client) => client.id),
-          clients.flatMap((client) => [client.primaryContactEmail, ...client.people.map((person) => person.email)])
-            .filter((email): email is string => Boolean(email)),
-        );
-        const [mappings, meetingsThisWeek, billsTracked, activeStrategies] = await Promise.all([
-            tx.clientIntelMapping.findMany({
-              where: { confirmed: true, source: 'lda' },
-              select: { clientId: true, externalId: true },
-            }),
-            tx.meeting.count({
-              where: {
-                tenantId,
-                ...ownMeetingWhere(userId),
-                startsAt: { gte: from, lt: to },
-                AND: [clientAssociations],
-                isInternal: false,
-                status: { notIn: ['cancelled', 'canceled', 'deleted'] },
-              },
-            }),
-            // Match Clients → Intelligence column (rollup uses trackedBill.groupBy).
-            tx.trackedBill.count(),
-            // sp_strategy is owned by api-strategy but lives in the same DB and
-            // FORCE-RLS on tenant_id. Must use the tenant-scoped tx client.
-            tx.$queryRaw<Array<{ count: bigint }>>`
-              SELECT COUNT(*)::bigint AS count
-              FROM sp_strategy
-              WHERE tenant_id = ${tenantId}::uuid
-                AND archived_at IS NULL
-            `.catch(() => [{ count: 0n }]),
-          ]);
-        return { clients, mappings, meetingsThisWeek, billsTracked, activeStrategies };
-      }),
-      // Global FR catalog (not tenant-RLS); open proposed/final rules with a comment window.
-      this.prisma.federalRegisterDocument.count({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gt: now },
-        },
-      }),
-    ]);
-
-    const { clients, mappings, meetingsThisWeek, billsTracked, activeStrategies } = tenantScoped;
-
-    const tenantClientIds = new Set(clients.map((c) => c.id));
-    const tenantLdaIds = mappings
-      .filter((m) => tenantClientIds.has(m.clientId))
-      .map((m) => Number(m.externalId))
-      .filter((n) => Number.isFinite(n));
-
-    const needAttention = clients.filter(
-      (c) => c.profileStatus === 'PAUSED' || c.profileStatus === 'MONITORING',
-    ).length;
-
-    // LDA filings are a shared catalog keyed by LDA client id (not tenant RLS).
-    const ldaSpendRows = tenantLdaIds.length
-      ? await this.prisma.$queryRaw<Array<{ total: string | null }>>`
-          SELECT COALESCE(SUM(income), 0)::text AS total
-          FROM lda_filing
-          WHERE client_id = ANY(${tenantLdaIds}::int[])
-            AND dt_posted >= ${quarterStart}
-        `
-      : [{ total: '0' }];
-
-    // LDA `income` is stored as Decimal dollars (not cents).
-    const ldaSpendDollars = Number(ldaSpendRows[0]?.total ?? '0');
-
-    return {
-      activeClients: clients.length,
-      needAttention,
-      ldaSpendQtd: ldaSpendDollars,
-      billsTracked,
-      activeRegulations: regulationsTracked,
-      meetingsThisWeek,
-      activeStrategies: Number(activeStrategies[0]?.count ?? 0n),
-    };
+    return this.finalSources.summary.getPortfolioSummary(tenantId, userId, window);
   }
 
   /**
@@ -2517,12 +1440,7 @@ export class IntelligenceService {
     clientCount: number;
     generatedAt: string;
   } {
-    return {
-      alerts: [],
-      total: 0,
-      clientCount: 0,
-      generatedAt: new Date().toISOString(),
-    };
+    return this.finalSources.portfolioAlerts.emptyPortfolioAlerts();
   }
 
   /**
@@ -2532,21 +1450,7 @@ export class IntelligenceService {
   private async withPortfolioAlertsRequestBudget<
     T extends ReturnType<IntelligenceService['emptyPortfolioAlerts']>,
   >(cacheKey: string, work: Promise<T>): Promise<T> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const budget = new Promise<T>((resolve) => {
-      timer = setTimeout(() => {
-        this.logger.warn(
-          `portfolio-alerts: exceeded ${IntelligenceService.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS}ms request budget for ${cacheKey}; failing open`,
-        );
-        resolve(this.emptyPortfolioAlerts() as T);
-      }, IntelligenceService.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS);
-      timer.unref?.();
-    });
-    try {
-      return await Promise.race([work, budget]);
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
+    return this.finalSources.portfolioAlerts.withPortfolioAlertsRequestBudget(cacheKey, work);
   }
 
   async getPortfolioAlerts(
@@ -2559,57 +1463,7 @@ export class IntelligenceService {
     clientCount: number;
     generatedAt: string;
   }> {
-    const limit = Math.max(1, Math.min(opts?.limit ?? 12, 50));
-    // Cap the number of clients we will aggregate per roll-up. Each client runs
-    // the full profile-v1 fan-out, so this is the dominant cost. Kept modest by
-    // default; raise only with the cron-precompute path (see note below).
-    const maxClients = Math.max(1, Math.min(opts?.maxClients ?? 40, 200));
-    const cacheKey = `${tenantId}:${userId ?? 'anon'}:${limit}:${maxClients}`;
-
-    const cached = this.portfolioAlertsCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value as Awaited<ReturnType<typeof this.getPortfolioAlerts>>;
-    }
-
-    // Coalesce concurrent callers for the same key onto one in-flight promise —
-    // a dashboard reload (or several open tabs) must not each launch their own
-    // N-client roll-up. Whoever arrives first computes; everyone else awaits it
-    // under the same request budget (so waiters also fail open).
-    const existing = this.portfolioAlertsInflight.get(cacheKey);
-    if (existing) {
-      return this.withPortfolioAlertsRequestBudget(
-        cacheKey,
-        existing as Promise<Awaited<ReturnType<typeof this.getPortfolioAlerts>>>,
-      );
-    }
-
-    const compute = this.computePortfolioAlerts(tenantId, userId, limit, maxClients)
-      .then((result) => {
-        this.portfolioAlertsCache.set(cacheKey, {
-          expiresAt: Date.now() + IntelligenceService.PORTFOLIO_ALERTS_TTL_MS,
-          value: result,
-        });
-        return result;
-      })
-      .catch((err) => {
-        // Never leave the HTTP request hanging on an unexpected throw; fail open.
-        this.logger.warn(
-          `portfolio-alerts: compute failed for ${cacheKey}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        return this.emptyPortfolioAlerts();
-      })
-      .finally(() => {
-        this.portfolioAlertsInflight.delete(cacheKey);
-      });
-
-    this.portfolioAlertsInflight.set(cacheKey, compute);
-
-    // Race the roll-up against a hard request budget. The in-flight map still
-    // holds `compute` (not the raced promise) so a late success can populate
-    // the TTL cache for the next caller even if this request already failed open.
-    return this.withPortfolioAlertsRequestBudget(cacheKey, compute);
+    return this.finalSources.portfolioAlerts.getPortfolioAlerts(tenantId, userId, opts);
   }
 
   /**
@@ -2636,86 +1490,12 @@ export class IntelligenceService {
     clientCount: number;
     generatedAt: string;
   }> {
-    const run = async () => {
-      // Active (non-archived) clients for the tenant.
-      const clients = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findMany({
-          where: { status: { not: 'archived' } },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
-          take: maxClients,
-        }),
-      );
-
-      // SERIAL: one client aggregate at a time. Never parallelize here — the
-      // per-client profile-v1 already fans out widely; running several at once
-      // is what starved the pool.
-      const tagged: Array<Record<string, unknown> & { clientId: string; clientName: string }> = [];
-      for (const client of clients) {
-        try {
-          const profile = (await this.getClientProfileV1(client.id, tenantId, userId)) as {
-            sections?: { snapshot?: { topAlerts?: Array<Record<string, unknown>> } };
-          };
-          const topAlerts = profile?.sections?.snapshot?.topAlerts ?? [];
-          for (const alert of topAlerts) {
-            // Canonical 7-field Alert sidecar (SC1.1/SC1.2): completeness flags
-            // ride along; rows are NEVER filtered or hidden on incompleteness.
-            const canonical = toCanonicalAlert(alert, client.id);
-            tagged.push({
-              ...alert,
-              // Namespace the id with the client so identical alert ids across
-              // clients (e.g. the same FedReg doc) stay distinct in the list.
-              id: `${client.id}:${String(alert.id ?? '')}`,
-              clientId: client.id,
-              clientName: client.name,
-              canonicalComplete: canonical.complete,
-              canonicalMissingFields: canonical.missingFields,
-            });
-          }
-        } catch (err) {
-          this.logger.warn(
-            `portfolio-alerts: profile-v1 failed for client ${client.id}: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          );
-        }
-      }
-
-      // Global re-rank: severity, then soonest deadline (countdownDays asc when
-      // present), then most-recent `when`. Mirrors the per-client ordering
-      // intent while making cross-client urgency comparable.
-      const sevRank = (s: unknown): number => {
-        const v = String(s ?? '').toLowerCase();
-        if (v === 'critical') return 0;
-        if (v === 'notable') return 1;
-        return 2;
-      };
-      tagged.sort((a, b) => {
-        const sev = sevRank(a.severity) - sevRank(b.severity);
-        if (sev !== 0) return sev;
-        const ad = typeof a.countdownDays === 'number' ? a.countdownDays : Number.POSITIVE_INFINITY;
-        const bd = typeof b.countdownDays === 'number' ? b.countdownDays : Number.POSITIVE_INFINITY;
-        if (ad !== bd) return ad - bd;
-        return String(b.when ?? '').localeCompare(String(a.when ?? ''));
-      });
-
-      return {
-        alerts: tagged.slice(0, limit),
-        total: tagged.length,
-        clientCount: clients.length,
-        generatedAt: new Date().toISOString(),
-      };
-    };
-
-    // Chain onto the process-wide gate so roll-ups never overlap. We attach the
-    // next run regardless of whether the previous settled ok, and we keep the
-    // gate from rejecting (a failed run must not poison the chain).
-    const gated = this.portfolioAlertsGate.then(run, run);
-    this.portfolioAlertsGate = gated.then(
-      () => undefined,
-      () => undefined,
+    return this.finalSources.portfolioAlerts.computePortfolioAlerts(
+      tenantId,
+      userId,
+      limit,
+      maxClients,
     );
-    return gated;
   }
 
   /**
@@ -2743,101 +1523,7 @@ export class IntelligenceService {
       }
     >;
   }> {
-    const now = new Date();
-
-    const [taskCounts, billCounts, meetings, workCounts] = await Promise.all([
-      // Attention: open (non-done/canceled) engagement tasks per client.
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.engagementTask.groupBy({
-          by: ['clientId'],
-          where: {
-            status: { in: ['todo', 'in_progress', 'blocked'] },
-            clientId: { not: null },
-          },
-          _count: { id: true },
-        }),
-      ),
-      // Intelligence: tracked bills per client.
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.trackedBill.groupBy({
-          by: ['clientId'],
-          _count: { id: true },
-        }),
-      ),
-      // Next touch: earliest future shared meeting per client.
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.meeting.findMany({
-          where: {
-            startsAt: { gte: now },
-            visibility: 'shared',
-            status: { not: 'cancelled' },
-            clientId: { not: null },
-          },
-          select: { id: true, clientId: true, startsAt: true, subject: true },
-          orderBy: { startsAt: 'asc' },
-        }),
-      ),
-      // Item 5 — Work column: in_progress engagement tasks per client.
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.engagementTask.groupBy({
-          by: ['clientId'],
-          where: {
-            status: 'in_progress',
-            clientId: { not: null },
-          },
-          _count: { id: true },
-        }),
-      ),
-    ]);
-
-    const rollup: Record<
-      string,
-      {
-        attentionCount: number;
-        intelCount: number;
-        nextTouch: { id: string; startsAt: string; subject: string } | null;
-        workCount: number;
-      }
-    > = {};
-
-    // Initialize from task counts (these have the client set).
-    for (const row of taskCounts) {
-      const cid = row.clientId as string;
-      rollup[cid] = { attentionCount: row._count.id, intelCount: 0, nextTouch: null, workCount: 0 };
-    }
-
-    // Merge in bill counts.
-    for (const row of billCounts) {
-      const cid = row.clientId;
-      if (!rollup[cid])
-        rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
-      rollup[cid].intelCount = row._count.id;
-    }
-
-    // Merge in earliest meeting per client (meetings are ordered by startsAt asc,
-    // so the first one we encounter for each client is the earliest).
-    for (const meeting of meetings) {
-      const cid = meeting.clientId as string;
-      if (!rollup[cid])
-        rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
-      if (!rollup[cid].nextTouch) {
-        rollup[cid].nextTouch = {
-          id: meeting.id,
-          startsAt: meeting.startsAt.toISOString(),
-          subject: meeting.subject,
-        };
-      }
-    }
-
-    // Merge in work counts (in_progress tasks).
-    for (const row of workCounts) {
-      const cid = row.clientId as string;
-      if (!rollup[cid])
-        rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
-      rollup[cid].workCount = row._count.id;
-    }
-
-    return { rollup };
+    return this.finalSources.rollup.getPortfolioRollup(tenantId);
   }
 
   /**
@@ -2862,100 +1548,7 @@ export class IntelligenceService {
     peAttribution: Record<string, string[]>;
     watchedCount: number;
   }> {
-    // 1. Fetch watched PE codes for this tenant (all users in tenant — the
-    //    portfolio surface is tenant-wide, not per-user).
-    const watches = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.programElementWatch.findMany({
-        where: { tenantId },
-        select: { peCode: true },
-      }),
-    );
-
-    const peCodes = [...new Set(watches.map((w) => w.peCode))];
-    if (peCodes.length === 0) {
-      return { netDeltaPct: null, peAttribution: {}, watchedCount: 0 };
-    }
-
-    // 2. Fetch the most-material live delta per watched PE (supersededAt IS NULL).
-    //    Use the deltaPct from the row with the highest materialityScore per PE.
-    const deltas = await this.prisma.$queryRaw<
-      Array<{ pe_code: string; delta_pct: number | null }>
-    >`
-      SELECT pe_code, delta_pct
-      FROM (
-        SELECT
-          d.pe_code,
-          d.delta_pct,
-          d.materiality_score,
-          ROW_NUMBER() OVER (PARTITION BY d.pe_code ORDER BY d.materiality_score DESC) AS rn
-        FROM program_element_delta d
-        WHERE d.pe_code = ANY(${peCodes}::text[])
-          AND d.superseded_at IS NULL
-      ) ranked
-      WHERE rn = 1
-    `;
-
-    // 3. Average the delta percentages for the net figure. Only count PEs with a
-    //    non-null deltaPct — a null means "no comparable delta" and is not zero.
-    const validDeltas = deltas.filter((d) => d.delta_pct != null && Number.isFinite(d.delta_pct));
-    const netDeltaPct =
-      validDeltas.length > 0
-        ? validDeltas.reduce((sum, d) => sum + (d.delta_pct as number), 0) / validDeltas.length
-        : null;
-
-    // 4. Client attribution: find clients whose ClientCapability.peNumbers
-    //    includes any of the watched PE codes. This is the join from watched
-    //    PEs → clients who fund them.
-    const capabilities = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientCapability.findMany({
-        where: {
-          OR: [{ peNumber: { in: peCodes } }, { peNumbers: { hasSome: peCodes } }],
-        },
-        select: {
-          clientId: true,
-          peNumber: true,
-          peNumbers: true,
-        },
-      }),
-    );
-
-    // Resolve client names for the attribution map.
-    const clientIds = [...new Set(capabilities.map((c) => c.clientId))];
-    const clients =
-      clientIds.length > 0
-        ? await this.prisma.withTenant(tenantId, (tx) =>
-            tx.client.findMany({
-              where: { id: { in: clientIds }, status: { not: 'archived' } },
-              select: { id: true, name: true },
-            }),
-          )
-        : [];
-    const clientNameMap = new Map(clients.map((c) => [c.id, c.name]));
-
-    // Build peAttribution: peCode → array of client names.
-    const peAttribution: Record<string, string[]> = {};
-    for (const peCode of peCodes) {
-      peAttribution[peCode] = [];
-    }
-    for (const cap of capabilities) {
-      const name = clientNameMap.get(cap.clientId);
-      if (!name) continue;
-      // Check both peNumber (single) and peNumbers (array).
-      if (cap.peNumber && peCodes.includes(cap.peNumber)) {
-        if (!peAttribution[cap.peNumber]!.includes(name)) {
-          peAttribution[cap.peNumber]!.push(name);
-        }
-      }
-      if (Array.isArray(cap.peNumbers)) {
-        for (const pe of cap.peNumbers) {
-          if (peCodes.includes(pe) && !peAttribution[pe]!.includes(name)) {
-            peAttribution[pe]!.push(name);
-          }
-        }
-      }
-    }
-
-    return { netDeltaPct, peAttribution, watchedCount: peCodes.length };
+    return this.finalSources.rollup.getPortfolioPeSummary(tenantId, _userId);
   }
 
   /**
@@ -2976,34 +1569,7 @@ export class IntelligenceService {
    * foldEngagementTrend helper below — this method only fetches.
    */
   async getPortfolioEngagementTrend(tenantId: string): Promise<PortfolioEngagementTrendResponse> {
-    const quarters = buildQuarterWindows(new Date(), 6); // oldest → newest
-    const windowStart = quarters[0]!.start;
-
-    const [outreach, mail] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.outreachRecord.findMany({
-          where: {
-            clientId: { not: null },
-            deletedAt: null,
-            sentAt: { gte: windowStart },
-            client: { status: { not: 'archived' } },
-          },
-          select: { sentAt: true },
-        }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.mailThread.findMany({
-          where: {
-            clientId: { not: null },
-            lastMessageAt: { gte: windowStart },
-            client: { status: { not: 'archived' } },
-          },
-          select: { lastMessageAt: true },
-        }),
-      ),
-    ]);
-
-    return foldEngagementTrend(quarters, outreach, mail);
+    return this.finalSources.trend.getPortfolioEngagementTrend(tenantId);
   }
 
   /**
@@ -3031,11 +1597,7 @@ export class IntelligenceService {
   }
 }
 
-function startOfQuarter(now: Date): Date {
-  const month = now.getMonth();
-  const quarterStartMonth = Math.floor(month / 3) * 3;
-  return new Date(now.getFullYear(), quarterStartMonth, 1);
-}
+
 
 /** Response shape for GET /api/intelligence/portfolio-engagement-trend. */
 export interface PortfolioEngagementTrendResponse {
@@ -3055,42 +1617,19 @@ export interface PortfolioEngagementTrendResponse {
  * Build `count` labeled quarter windows ending at the quarter containing
  * `now`, oldest first. `end` is the start of the FOLLOWING quarter (an
  * exclusive upper bound), so a timestamp buckets via `start <= t < end`.
- * Adapted from the quarter-label loop in buildRoiQuarterSeries above and the
- * startOfQuarter helper directly above this function — parameterized on
- * count (6, not 8) and with no per-client scoping. Pure: no DB access.
+ * The canonical implementation is in intelligence-portfolio-quarters.ts.
+ * This wrapper preserves the original module contract. Pure: no DB access.
  */
 export function buildQuarterWindows(
   now: Date,
   count: number,
 ): Array<{ label: string; start: Date; end: Date }> {
-  const y = now.getFullYear();
-  const q = Math.floor(now.getMonth() / 3) + 1; // 1-4
-  const windows: Array<{ label: string; start: Date; end: Date }> = [];
-  for (let i = count - 1; i >= 0; i--) {
-    let qy = y;
-    let qq = q - i;
-    while (qq < 1) {
-      qq += 4;
-      qy -= 1;
-    }
-    const nextQq = qq === 4 ? 1 : qq + 1;
-    const nextQy = qq === 4 ? qy + 1 : qy;
-    windows.push({
-      label: `Q${qq}'${String(qy).slice(2)}`,
-      start: new Date(qy, (qq - 1) * 3, 1),
-      end: new Date(nextQy, (nextQq - 1) * 3, 1),
-    });
-  }
-  return windows;
+  return portfolioBuildQuarterWindows(now, count);
 }
 
-interface OutreachSendRow {
-  sentAt: Date | null;
-}
 
-interface ClientEmailRow {
-  lastMessageAt: Date | null;
-}
+
+
 
 /**
  * Bucket outreach sends + client emails into their quarter windows and
@@ -3107,43 +1646,5 @@ export function foldEngagementTrend(
   outreach: OutreachSendRow[],
   mail: ClientEmailRow[],
 ): PortfolioEngagementTrendResponse {
-  const buckets = quarters.map((q) => ({
-    label: q.label,
-    start: q.start,
-    end: q.end,
-    outreachSends: 0,
-    clientEmails: 0,
-  }));
-
-  const bucketFor = (t: Date) => buckets.find((b) => t >= b.start && t < b.end);
-
-  for (const row of outreach) {
-    if (!row.sentAt) continue;
-    const bucket = bucketFor(row.sentAt);
-    if (bucket) bucket.outreachSends += 1;
-  }
-  for (const row of mail) {
-    if (!row.lastMessageAt) continue;
-    const bucket = bucketFor(row.lastMessageAt);
-    if (bucket) bucket.clientEmails += 1;
-  }
-
-  const quartersOut = buckets.map((b) => ({
-    label: b.label,
-    start: b.start.toISOString(),
-    end: b.end.toISOString(),
-    outreachSends: b.outreachSends,
-    clientEmails: b.clientEmails,
-    total: b.outreachSends + b.clientEmails,
-  }));
-
-  const currentQuarterTotal = quartersOut.length ? quartersOut[quartersOut.length - 1]!.total : 0;
-  const priorQuarterTotal =
-    quartersOut.length > 1 ? quartersOut[quartersOut.length - 2]!.total : null;
-  const qoqDeltaPct =
-    priorQuarterTotal != null && priorQuarterTotal > 0
-      ? ((currentQuarterTotal - priorQuarterTotal) / priorQuarterTotal) * 100
-      : null;
-
-  return { quarters: quartersOut, currentQuarterTotal, qoqDeltaPct };
+  return portfolioFoldEngagementTrend(quarters, outreach, mail);
 }

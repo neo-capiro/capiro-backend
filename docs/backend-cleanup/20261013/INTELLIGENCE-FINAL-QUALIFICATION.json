@@ -1,0 +1,1206 @@
+{
+  "acceptedApiBaseline": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+  "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "originalRootSHA256": "57c412ff8eff82b29a12f89ebccea5274ffde4b62f1d0dd5e2dfe222cb040fb7",
+  "finalRootSHA256": "24bdc3d7d33f38499ceeea6f344c3c904cd2f922519cd7c2adaae4919727d249",
+  "finalProductionAndArchitecturePins": [
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+      "sha256": "f27fd1af1b2fc9f2deaf1f81bbd7cf759d09962ee46af094444dbd5099c15e3e"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts",
+      "sha256": "a635a9ed454849e522dc1edd792441cbac95a7c744e84b6b6ed5ae48d170ef76"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1.shared.ts",
+      "sha256": "c5e8d36a56e46133159a35747f9f1e436fb27347605b127996e17cf08d7d32fb"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1.ts",
+      "sha256": "a3227ae871347f44c524066dc6526e415d6e1f42a94870d9eb1d6b61fb5548da"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-regulatory-v1.ts",
+      "sha256": "0c56c4e5748bad9f0604f3473be8cbfd8be69e5a3ff939b2e21b8e1fa4a85e81"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+      "sha256": "3e5f7ac15371069ddc40fe4b2344b22ada057467ca80313e893dcc4acebbbed7"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts",
+      "sha256": "c7ec379642cdf158cb19b74cba87d97b6739a83e69b8a7f1b13eaee26df684c3"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+      "sha256": "486881ab90bc453146ed8730d24bf26441629536458fc8f548be309e3952491c"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+      "sha256": "9b7b0633d111c6b5f090cc6bac36bf5ce19d0b7e8a0a6a051740e767e377a545"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-summary.ts",
+      "sha256": "2efe5572347760d2010f9654f7d936afdfa273b2459c06de79053dc1c1120256"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+      "sha256": "def1beb91a917316a6fd3ca493b8b837096c1a90f074bfc73139e51899790be6"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-trend.ts",
+      "sha256": "218758f33014ae142766bbfbe33515747a4da82221986124370508ef33bffcba"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "sha256": "24bdc3d7d33f38499ceeea6f344c3c904cd2f922519cd7c2adaae4919727d249"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts",
+      "sha256": "e82b676a0b34029126c5724d59c07c4f188a9321d7739b439b5b45fc7cfc6254"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-final-ownership.contract.spec.ts",
+      "sha256": "e2487b21c8217db4d2bccfb34e4afcb3c9060f587aaa761194511746eee9b34c"
+    }
+  ],
+  "finalNewTestPins": [
+    {
+      "path": "apps/api/src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts",
+      "sha256": "2cb845686a87de7a04fa9ebd390dcda803a211c8373d7db946f44b5519c692b7"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts",
+      "sha256": "01ccf40f72f693337fb195405b30181bc332c1bd92352e07f84cbfdce01d51ee"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts",
+      "sha256": "7403690c37463caa4a10863dcc6b5abdeb481efaee0d03e655d1e2a2411f6ef9"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts",
+      "sha256": "b9c0ffef33148e53ad6862d358b4a07cc88f06415688d183d8970ed8e121e0fb"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts",
+      "sha256": "2eb9f07f3d9214194b1c840e313512427cf751b46c525a96a0ca746c1a0e8e8f"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts",
+      "sha256": "52040968b007f0d1bf9aa91a37d0e29662e4ca6e4df96ef50a31dcbe1a64edad"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts",
+      "sha256": "9d3df58395511ad66c631b440c30b5980bd53ca1b97ca2fbaeef0eeabcacaea6"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts",
+      "sha256": "e9e5d52fe477d85114667c3b2bd1c69e1f5abfed86f123c9c88361d7f46a4468"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts",
+      "sha256": "de01589f3c22c5f5b747047c5bfa565c16e7ce0e1d603cbc9431bab31eac2041"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts",
+      "sha256": "94945cd4a2d46f0ac9797286801bd0178a7597d46ef8a5a3affe201544cde182"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts",
+      "sha256": "c907e5cd0cdb7a2956060c7e41606aece811507a073faa27eeca73f9755e5d76"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts",
+      "sha256": "d68bea88d2b3730edc319d4536c3cb4c75d8e2cabd2405a62f2a4eadc861dd6c"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts",
+      "sha256": "011e32c22b817f98ca077c0bd61d05b1f1db6d39e0b6ff931d7484207e669aa7"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts",
+      "sha256": "dd03d1b974c80bf7f919e328faa60b15288cadde02b807f0aaff6a00388fb8d3"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts",
+      "sha256": "b1ab9b2a03f2b059e26030d873fdc3b2b950d7c8048e9429555360b29f349a3d"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts",
+      "sha256": "f15ec43e0dd8fc9c289e073ea3db5953d8e611343269d57f51be87edf82f3d6a"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts",
+      "sha256": "8091a980666687a7ab5993255dfdb6f5461e1f0aeb9e1727d78847eaacd2bdc2"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts",
+      "sha256": "8f72984cda8795453051702727f2bda5bcafc2d59726be54baafea00b3c1f3d5"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts",
+      "sha256": "25beb3cdb7be0c40183238580fd5d59629c16023625d2a9ac4afcfa669d08307"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-alerts.ts",
+      "sha256": "8f100058ea393ed9ab39e5450ff04ab9c7c7cbe1fd08ee768c1495915ca7da69"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-portfolio.rows.ts",
+      "sha256": "12811a0f71111bdc1cad193da0f7336e64ed554a185437f37ef2e91894f8c727"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-portfolio.ts",
+      "sha256": "4c57814d2c097dd339fc447c2140928c88c7f8cf86480c00abcb32a1cc954ea4"
+    }
+  ],
+  "bodyEquivalence": {
+    "originalBodies": 27,
+    "originalTopLevelStatements": 170,
+    "sqlLiteralOrTagSites": 6
+  },
+  "retainedSource": {
+    "precedingNonRootProductionFiles": 125,
+    "originalRootMethodHeaders": 97,
+    "unrelatedWholeRootMethods": 73,
+    "retainedTestSpecs": 74,
+    "retainedFixtures": 7,
+    "architectureCaseMappings": 1
+  },
+  "testAccounting": {
+    "mappedCaseIdentityMultisetExact": true,
+    "casesPerPhase": 1262,
+    "distinctFileAndNameKeysPerPhase": 1260,
+    "allRetainedRuntimeCaseIdentitiesUnchanged": true,
+    "retainedCases": 1064,
+    "newCharacterizationCases": 198,
+    "retainedRuntimeCases": 1055,
+    "retainedArchitectureCases": 9,
+    "suiteCount": 93,
+    "skippedCases": 0,
+    "architectureRenameMapping": {
+      "beforeFullName": "publishes the exact six-family source handover and retains all three outside families unchanged",
+      "afterFullName": "publishes the exact six-family source handover and records all final family owner dispositions",
+      "caseCount": 1,
+      "reason": "Original inline-location hash predicate becomes obsolete when all remaining families are canonically moved. Preserve immutable archive, all27 original member hash identities and actual concrete owner symbols; supplemental guard verifies Root routing/helper paths."
+    },
+    "allScopeCoverage": {
+      "BEFORE": {
+        "statements": {
+          "covered": 2589,
+          "total": 2602,
+          "uncovered": 13
+        },
+        "functions": {
+          "covered": 739,
+          "total": 741,
+          "uncovered": 2
+        },
+        "branches": {
+          "covered": 1146,
+          "total": 1233,
+          "uncovered": 87
+        }
+      },
+      "AFTER": {
+        "statements": {
+          "covered": 2693,
+          "total": 2700,
+          "uncovered": 7
+        },
+        "functions": {
+          "covered": 812,
+          "total": 814,
+          "uncovered": 2
+        },
+        "branches": {
+          "covered": 1136,
+          "total": 1212,
+          "uncovered": 76
+        }
+      }
+    },
+    "newOwnerCoverage": {
+      "statements": {
+        "covered": 643,
+        "total": 646,
+        "uncovered": 3
+      },
+      "functions": {
+        "covered": 139,
+        "total": 139,
+        "uncovered": 0
+      },
+      "branches": {
+        "covered": 291,
+        "total": 316,
+        "uncovered": 25
+      }
+    },
+    "coverageAccountingDisposition": "Four identical original keyword loops are now one canonical helper expanded at the four original positions; raw branch denominators and original uncovered probes remain measured separately. Covered construction/forwarding does not establish business coverage gain.",
+    "historicalCleanupFloorEstablished": false,
+    "sourceOnly": true,
+    "supplementalArchitectureCases": 3,
+    "finalPassingCaseExecutions": 1265,
+    "finalDistinctSuites": 94,
+    "runtimeCases": 1253,
+    "architectureCases": 12
+  },
+  "keywordLoopConsolidation": {
+    "before": {
+      "total": 28,
+      "covered": 15,
+      "uncovered": 13
+    },
+    "after": {
+      "total": 7,
+      "covered": 5,
+      "uncovered": 2
+    },
+    "outsideLoops": {
+      "total": 1205,
+      "covered": 1131,
+      "uncovered": 74
+    }
+  },
+  "nativeReceipts": {
+    "BEFORE-characterization-coverage": {
+      "name": "BEFORE-characterization-coverage",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/district-nexus/priority-intelligence/priority-intelligence.service.spec.ts",
+        "src/district-nexus/r5-action-layer/r5-district-context.spec.ts",
+        "src/intelligence/bill-keyword-deadline.spec.ts",
+        "src/intelligence/client-award-scope-parity.spec.ts",
+        "src/intelligence/comment-period-alerts-dedupe.spec.ts",
+        "src/intelligence/district-nexus-representatives.spec.ts",
+        "src/intelligence/intelligence-bills-embedding.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-enrichment.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-keyword.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-manual-lifecycle.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-matching.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-ownership.contract.spec.ts",
+        "src/intelligence/intelligence-bills-terms.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-tracking.characterization.spec.ts",
+        "src/intelligence/intelligence-briefs-v1.characterization.spec.ts",
+        "src/intelligence/intelligence-changes-v1.characterization.spec.ts",
+        "src/intelligence/intelligence-district-v1.capabilities.characterization.spec.ts",
+        "src/intelligence/intelligence-district-v1.spend-projection.characterization.spec.ts",
+        "src/intelligence/intelligence-district-v1.spend-scope.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-flow.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-pac.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-quarters.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-roi.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-briefing.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-ownership.contract.spec.ts",
+        "src/intelligence/intelligence-profile-v1-projections.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-sources-deadlines.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-sources.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-worklist.characterization.spec.ts",
+        "src/intelligence/intelligence-relationships-v1-office.characterization.spec.ts",
+        "src/intelligence/intelligence-relationships-v1.characterization.spec.ts",
+        "src/intelligence/intelligence-supporting-ownership.contract.spec.ts",
+        "src/intelligence/intelligence.alerts-worklist.spec.ts",
+        "src/intelligence/intelligence.client-issue-codes.spec.ts",
+        "src/intelligence/intelligence.coming-up-ownership.spec.ts",
+        "src/intelligence/intelligence.coming-up.controller.spec.ts",
+        "src/intelligence/intelligence.controller.profile-v1.spec.ts",
+        "src/intelligence/intelligence.district-bills.spec.ts",
+        "src/intelligence/intelligence.fec-money-flow.spec.ts",
+        "src/intelligence/intelligence.manual-mapping.spec.ts",
+        "src/intelligence/intelligence.mapping-governance.spec.ts",
+        "src/intelligence/intelligence.pac-giving.spec.ts",
+        "src/intelligence/intelligence.profile-v1-source-budget.spec.ts",
+        "src/intelligence/intelligence.profile-v1.spec.ts",
+        "src/intelligence/intelligence.regulatory-profile.spec.ts",
+        "src/intelligence/intelligence.setup-completeness.spec.ts",
+        "src/intelligence/portfolio-alerts-timeout.spec.ts",
+        "src/intelligence/portfolio-engagement-trend.spec.ts",
+        "src/intelligence/portfolio-summary-tenant-scope.spec.ts",
+        "src/intelligence/tracked-bills-similarity-floor.spec.ts",
+        "src/tracker/tracker.board.spec.ts",
+        "src/intelligence/intelligence-identity-v1-catalog.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-competitors.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-numerics.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-profile.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.award-discovery.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.callbacks.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.confirmation.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.discovery.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.manual.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.pac-pins.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.reads.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.rejection.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.resolve.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.setup.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-graph-access.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-graph-labels.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-graph-projection.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-health.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-outreach-coverage.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-outreach.characterization.spec.ts",
+        "src/intelligence/intelligence-client-ownership.contract.spec.ts",
+        "src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts",
+        "src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts",
+        "src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts",
+        "--coverage",
+        "--collectCoverageFrom=src/intelligence/intelligence.service.ts",
+        "--collectCoverageFrom=src/intelligence/client-profile-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/intelligence-*bill*.ts",
+        "--collectCoverageFrom=src/intelligence/client-financial-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-district-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-relationships-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-changes-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-briefs-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-identity-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-mapping-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-context-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-regulatory-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-alerts-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-intelligence-values.ts",
+        "--collectCoverageFrom=src/intelligence/intelligence-portfolio-*.ts",
+        "--collectCoverageFrom=!src/intelligence/**/*.spec.ts",
+        "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/intelligence-final-families-e19ec92e-20261013/coverage-before",
+        "--coverageReporters=json",
+        "--coverageReporters=json-summary",
+        "--coverageReporters=text",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/intelligence-final-families-e19ec92e-20261013/BEFORE-characterization-results.json"
+      ],
+      "cwd": "/workspace/capirov2-backend-intelligence-final-families-20261013",
+      "exitCode": 0,
+      "durationSeconds": 89.264,
+      "sourceHead": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceOnly": true,
+      "databaseExecuted": false,
+      "providerCredentialsInherited": false,
+      "nativeNetworkSandboxClaimed": false
+    },
+    "AFTER-characterization-coverage": {
+      "name": "AFTER-characterization-coverage",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/district-nexus/priority-intelligence/priority-intelligence.service.spec.ts",
+        "src/district-nexus/r5-action-layer/r5-district-context.spec.ts",
+        "src/intelligence/bill-keyword-deadline.spec.ts",
+        "src/intelligence/client-award-scope-parity.spec.ts",
+        "src/intelligence/comment-period-alerts-dedupe.spec.ts",
+        "src/intelligence/district-nexus-representatives.spec.ts",
+        "src/intelligence/intelligence-bills-embedding.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-enrichment.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-keyword.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-manual-lifecycle.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-matching.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-ownership.contract.spec.ts",
+        "src/intelligence/intelligence-bills-terms.characterization.spec.ts",
+        "src/intelligence/intelligence-bills-tracking.characterization.spec.ts",
+        "src/intelligence/intelligence-briefs-v1.characterization.spec.ts",
+        "src/intelligence/intelligence-changes-v1.characterization.spec.ts",
+        "src/intelligence/intelligence-district-v1.capabilities.characterization.spec.ts",
+        "src/intelligence/intelligence-district-v1.spend-projection.characterization.spec.ts",
+        "src/intelligence/intelligence-district-v1.spend-scope.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-flow.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-pac.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-quarters.characterization.spec.ts",
+        "src/intelligence/intelligence-financial-v1-roi.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-briefing.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-ownership.contract.spec.ts",
+        "src/intelligence/intelligence-profile-v1-projections.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-sources-deadlines.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-sources.characterization.spec.ts",
+        "src/intelligence/intelligence-profile-v1-worklist.characterization.spec.ts",
+        "src/intelligence/intelligence-relationships-v1-office.characterization.spec.ts",
+        "src/intelligence/intelligence-relationships-v1.characterization.spec.ts",
+        "src/intelligence/intelligence-supporting-ownership.contract.spec.ts",
+        "src/intelligence/intelligence.alerts-worklist.spec.ts",
+        "src/intelligence/intelligence.client-issue-codes.spec.ts",
+        "src/intelligence/intelligence.coming-up-ownership.spec.ts",
+        "src/intelligence/intelligence.coming-up.controller.spec.ts",
+        "src/intelligence/intelligence.controller.profile-v1.spec.ts",
+        "src/intelligence/intelligence.district-bills.spec.ts",
+        "src/intelligence/intelligence.fec-money-flow.spec.ts",
+        "src/intelligence/intelligence.manual-mapping.spec.ts",
+        "src/intelligence/intelligence.mapping-governance.spec.ts",
+        "src/intelligence/intelligence.pac-giving.spec.ts",
+        "src/intelligence/intelligence.profile-v1-source-budget.spec.ts",
+        "src/intelligence/intelligence.profile-v1.spec.ts",
+        "src/intelligence/intelligence.regulatory-profile.spec.ts",
+        "src/intelligence/intelligence.setup-completeness.spec.ts",
+        "src/intelligence/portfolio-alerts-timeout.spec.ts",
+        "src/intelligence/portfolio-engagement-trend.spec.ts",
+        "src/intelligence/portfolio-summary-tenant-scope.spec.ts",
+        "src/intelligence/tracked-bills-similarity-floor.spec.ts",
+        "src/tracker/tracker.board.spec.ts",
+        "src/intelligence/intelligence-identity-v1-catalog.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-competitors.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-numerics.characterization.spec.ts",
+        "src/intelligence/intelligence-identity-v1-profile.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.award-discovery.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.callbacks.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.confirmation.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.discovery.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.manual.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.pac-pins.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.reads.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.rejection.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.resolve.characterization.spec.ts",
+        "src/intelligence/intelligence-mapping-v1.setup.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-graph-access.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-graph-labels.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-graph-projection.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-health.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-outreach-coverage.characterization.spec.ts",
+        "src/intelligence/intelligence-context-v1-outreach.characterization.spec.ts",
+        "src/intelligence/intelligence-client-ownership.contract.spec.ts",
+        "src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts",
+        "src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts",
+        "src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts",
+        "src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts",
+        "src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts",
+        "--coverage",
+        "--collectCoverageFrom=src/intelligence/intelligence.service.ts",
+        "--collectCoverageFrom=src/intelligence/client-profile-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/intelligence-*bill*.ts",
+        "--collectCoverageFrom=src/intelligence/client-financial-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-district-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-relationships-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-changes-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-briefs-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-identity-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-mapping-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-context-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-regulatory-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-alerts-v1*.ts",
+        "--collectCoverageFrom=src/intelligence/client-intelligence-values.ts",
+        "--collectCoverageFrom=src/intelligence/intelligence-portfolio-*.ts",
+        "--collectCoverageFrom=!src/intelligence/**/*.spec.ts",
+        "--coverageDirectory=/workspace/backend-cleanup-recovery-20261012/intelligence-final-families-e19ec92e-20261013/coverage-after",
+        "--coverageReporters=json",
+        "--coverageReporters=json-summary",
+        "--coverageReporters=text",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/intelligence-final-families-e19ec92e-20261013/AFTER-characterization-results.json"
+      ],
+      "cwd": "/workspace/capirov2-backend-intelligence-final-families-20261013",
+      "exitCode": 0,
+      "durationSeconds": 107.083,
+      "sourceHead": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+      "trackedDiffSha256": "5dfece6cd8537b7a017b9f9d901cd1a0301754f62560035a0eeb3169533a786a",
+      "sourceOnly": true,
+      "databaseExecuted": false,
+      "providerCredentialsInherited": false,
+      "nativeNetworkSandboxClaimed": false
+    },
+    "architecture-guards": {
+      "name": "architecture-guards",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/intelligence/intelligence-final-ownership.contract.spec.ts",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/intelligence-final-families-e19ec92e-20261013/architecture-guard-results.json"
+      ],
+      "cwd": "/workspace/capirov2-backend-intelligence-final-families-20261013",
+      "exitCode": 0,
+      "durationSeconds": 6.059,
+      "sourceHead": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+      "trackedDiffSha256": "5dfece6cd8537b7a017b9f9d901cd1a0301754f62560035a0eeb3169533a786a",
+      "sourceOnly": true,
+      "databaseExecuted": false,
+      "providerCredentialsInherited": false,
+      "nativeNetworkSandboxClaimed": false
+    },
+    "api-typecheck-fresh-v3": {
+      "name": "api-typecheck-fresh-v3",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/workspace/capirov2-backend-intelligence-final-families-20261013",
+      "exitCode": 0,
+      "durationSeconds": 220.152,
+      "sourceHead": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+      "trackedDiffSha256": "5dfece6cd8537b7a017b9f9d901cd1a0301754f62560035a0eeb3169533a786a",
+      "sourceOnly": true,
+      "databaseExecuted": false,
+      "providerCredentialsInherited": false,
+      "nativeNetworkSandboxClaimed": false
+    },
+    "api-build": {
+      "name": "api-build",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "build"
+      ],
+      "cwd": "/workspace/capirov2-backend-intelligence-final-families-20261013",
+      "exitCode": 0,
+      "durationSeconds": 61.655,
+      "sourceHead": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+      "trackedDiffSha256": "5dfece6cd8537b7a017b9f9d901cd1a0301754f62560035a0eeb3169533a786a",
+      "sourceOnly": true,
+      "databaseExecuted": false,
+      "providerCredentialsInherited": false,
+      "nativeNetworkSandboxClaimed": false
+    }
+  },
+  "emittedVerification": {
+    "formattedOwnedFiles": [
+      "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+      "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts",
+      "apps/api/src/intelligence/client-alerts-v1.shared.ts",
+      "apps/api/src/intelligence/client-alerts-v1.ts",
+      "apps/api/src/intelligence/client-regulatory-v1.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-summary.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-trend.ts",
+      "apps/api/src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts",
+      "apps/api/src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts",
+      "apps/api/test/fixtures/intelligence-alerts.ts",
+      "apps/api/test/fixtures/intelligence-portfolio.rows.ts",
+      "apps/api/test/fixtures/intelligence-portfolio.ts",
+      "apps/api/src/intelligence/intelligence-final-ownership.contract.spec.ts",
+      "apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts"
+    ],
+    "emittedSyntax": [
+      {
+        "path": "apps/api/dist/intelligence/intelligence.service.js",
+        "sha256": "58aad295830813875bbcaa97dba4fe234846748d223da21947028e34ab22283c"
+      },
+      {
+        "path": "apps/api/dist/intelligence/client-alerts-v1-awards.js",
+        "sha256": "29b6baf8479e1f2727983e94f5ab9a641b1aa6c044597dd92a36829231eb0f52"
+      },
+      {
+        "path": "apps/api/dist/intelligence/client-alerts-v1-comment-deadlines.js",
+        "sha256": "fd8780a5c5d4d84200ccbf932b88dd679c3150ce09cee745e3ff6d30aee9bd07"
+      },
+      {
+        "path": "apps/api/dist/intelligence/client-alerts-v1.shared.js",
+        "sha256": "8fb898bb57dbba8b603a8cb3f548591271b40ec09fb3bea3d5937500ba94b688"
+      },
+      {
+        "path": "apps/api/dist/intelligence/client-alerts-v1.js",
+        "sha256": "ebda7c8e99f5ed04b89bf38c8184b1c0dc4f6a55f78632bf46e312a16b4af34c"
+      },
+      {
+        "path": "apps/api/dist/intelligence/client-regulatory-v1.js",
+        "sha256": "87bc1be91d2f82100bd8545901a189b3577db5ec5913946f142dc5b37b6dbbc8"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-alerts.js",
+        "sha256": "4a6dbbb35a5e4a536a43b02a9ae9f2754eeab45a5f48f8f36d51607985412ef2"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-coming-up.js",
+        "sha256": "6a50ad8300e5f7cb9e2b75edb9bfecd865c41a7c84853584f8aefa05ee7e323f"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-quarters.js",
+        "sha256": "40b63af9a6739cfcfb4cecd2aa1442b594eb63dc7e6ef307bde5dedd20ed1074"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-rollup.js",
+        "sha256": "f0df0369325d3029e9932792c60031fee8d306c3077f787fd7972bb51c1a43d8"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-summary.js",
+        "sha256": "87c385106a3bc37bc7717b4f42837d9a624866a4da507b9dcc7d078c035f2712"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-timeline.js",
+        "sha256": "b4156634bd147cb06e1198c29aaf7f2c35c97fd06c265fd865efa8f252504821"
+      },
+      {
+        "path": "apps/api/dist/intelligence/intelligence-portfolio-trend.js",
+        "sha256": "5e7d0c562cc7574a17d80e902a6bd45b4513c9904e25630a25a0984f25ef0b69"
+      }
+    ],
+    "nestConstructorMetadata": [
+      [
+        "PrismaService",
+        "ClientPrepopulationService",
+        "OfficeRecommenderService"
+      ]
+    ],
+    "testAssetsExcluded": true,
+    "modules": [
+      {
+        "path": "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+        "sha256": "f27fd1af1b2fc9f2deaf1f81bbd7cf759d09962ee46af094444dbd5099c15e3e",
+        "nonblankLines": 109,
+        "largestFunctionPhysicalLines": 62
+      },
+      {
+        "path": "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts",
+        "sha256": "a635a9ed454849e522dc1edd792441cbac95a7c744e84b6b6ed5ae48d170ef76",
+        "nonblankLines": 217,
+        "largestFunctionPhysicalLines": 58
+      },
+      {
+        "path": "apps/api/src/intelligence/client-alerts-v1.shared.ts",
+        "sha256": "c5e8d36a56e46133159a35747f9f1e436fb27347605b127996e17cf08d7d32fb",
+        "nonblankLines": 102,
+        "largestFunctionPhysicalLines": 17
+      },
+      {
+        "path": "apps/api/src/intelligence/client-alerts-v1.ts",
+        "sha256": "a3227ae871347f44c524066dc6526e415d6e1f42a94870d9eb1d6b61fb5548da",
+        "nonblankLines": 270,
+        "largestFunctionPhysicalLines": 66
+      },
+      {
+        "path": "apps/api/src/intelligence/client-regulatory-v1.ts",
+        "sha256": "0c56c4e5748bad9f0604f3473be8cbfd8be69e5a3ff939b2e21b8e1fa4a85e81",
+        "nonblankLines": 210,
+        "largestFunctionPhysicalLines": 72
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+        "sha256": "3e5f7ac15371069ddc40fe4b2344b22ada057467ca80313e893dcc4acebbbed7",
+        "nonblankLines": 233,
+        "largestFunctionPhysicalLines": 76
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts",
+        "sha256": "c7ec379642cdf158cb19b74cba87d97b6739a83e69b8a7f1b13eaee26df684c3",
+        "nonblankLines": 190,
+        "largestFunctionPhysicalLines": 62
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+        "sha256": "486881ab90bc453146ed8730d24bf26441629536458fc8f548be309e3952491c",
+        "nonblankLines": 76,
+        "largestFunctionPhysicalLines": 45
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+        "sha256": "9b7b0633d111c6b5f090cc6bac36bf5ce19d0b7e8a0a6a051740e767e377a545",
+        "nonblankLines": 221,
+        "largestFunctionPhysicalLines": 68
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-summary.ts",
+        "sha256": "2efe5572347760d2010f9654f7d936afdfa273b2459c06de79053dc1c1120256",
+        "nonblankLines": 129,
+        "largestFunctionPhysicalLines": 69
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+        "sha256": "def1beb91a917316a6fd3ca493b8b837096c1a90f074bfc73139e51899790be6",
+        "nonblankLines": 161,
+        "largestFunctionPhysicalLines": 59
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-trend.ts",
+        "sha256": "218758f33014ae142766bbfbe33515747a4da82221986124370508ef33bffcba",
+        "nonblankLines": 34,
+        "largestFunctionPhysicalLines": 30
+      }
+    ],
+    "testLimits": [
+      {
+        "path": "apps/api/src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts",
+        "sha256": "2cb845686a87de7a04fa9ebd390dcda803a211c8373d7db946f44b5519c692b7",
+        "nonblankLines": 109,
+        "largestFunctionPhysicalLines": 50
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts",
+        "sha256": "01ccf40f72f693337fb195405b30181bc332c1bd92352e07f84cbfdce01d51ee",
+        "nonblankLines": 148,
+        "largestFunctionPhysicalLines": 52
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts",
+        "sha256": "7403690c37463caa4a10863dcc6b5abdeb481efaee0d03e655d1e2a2411f6ef9",
+        "nonblankLines": 148,
+        "largestFunctionPhysicalLines": 58
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts",
+        "sha256": "b9c0ffef33148e53ad6862d358b4a07cc88f06415688d183d8970ed8e121e0fb",
+        "nonblankLines": 236,
+        "largestFunctionPhysicalLines": 50
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts",
+        "sha256": "2eb9f07f3d9214194b1c840e313512427cf751b46c525a96a0ca746c1a0e8e8f",
+        "nonblankLines": 272,
+        "largestFunctionPhysicalLines": 66
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts",
+        "sha256": "52040968b007f0d1bf9aa91a37d0e29662e4ca6e4df96ef50a31dcbe1a64edad",
+        "nonblankLines": 151,
+        "largestFunctionPhysicalLines": 66
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts",
+        "sha256": "9d3df58395511ad66c631b440c30b5980bd53ca1b97ca2fbaeef0eeabcacaea6",
+        "nonblankLines": 151,
+        "largestFunctionPhysicalLines": 38
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts",
+        "sha256": "e9e5d52fe477d85114667c3b2bd1c69e1f5abfed86f123c9c88361d7f46a4468",
+        "nonblankLines": 90,
+        "largestFunctionPhysicalLines": 19
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts",
+        "sha256": "de01589f3c22c5f5b747047c5bfa565c16e7ce0e1d603cbc9431bab31eac2041",
+        "nonblankLines": 114,
+        "largestFunctionPhysicalLines": 54
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts",
+        "sha256": "94945cd4a2d46f0ac9797286801bd0178a7597d46ef8a5a3affe201544cde182",
+        "nonblankLines": 135,
+        "largestFunctionPhysicalLines": 52
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts",
+        "sha256": "c907e5cd0cdb7a2956060c7e41606aece811507a073faa27eeca73f9755e5d76",
+        "nonblankLines": 155,
+        "largestFunctionPhysicalLines": 59
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts",
+        "sha256": "d68bea88d2b3730edc319d4536c3cb4c75d8e2cabd2405a62f2a4eadc861dd6c",
+        "nonblankLines": 150,
+        "largestFunctionPhysicalLines": 39
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts",
+        "sha256": "011e32c22b817f98ca077c0bd61d05b1f1db6d39e0b6ff931d7484207e669aa7",
+        "nonblankLines": 155,
+        "largestFunctionPhysicalLines": 43
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts",
+        "sha256": "dd03d1b974c80bf7f919e328faa60b15288cadde02b807f0aaff6a00388fb8d3",
+        "nonblankLines": 206,
+        "largestFunctionPhysicalLines": 79
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts",
+        "sha256": "b1ab9b2a03f2b059e26030d873fdc3b2b950d7c8048e9429555360b29f349a3d",
+        "nonblankLines": 220,
+        "largestFunctionPhysicalLines": 70
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts",
+        "sha256": "f15ec43e0dd8fc9c289e073ea3db5953d8e611343269d57f51be87edf82f3d6a",
+        "nonblankLines": 92,
+        "largestFunctionPhysicalLines": 43
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts",
+        "sha256": "8091a980666687a7ab5993255dfdb6f5461e1f0aeb9e1727d78847eaacd2bdc2",
+        "nonblankLines": 195,
+        "largestFunctionPhysicalLines": 52
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts",
+        "sha256": "8f72984cda8795453051702727f2bda5bcafc2d59726be54baafea00b3c1f3d5",
+        "nonblankLines": 208,
+        "largestFunctionPhysicalLines": 75
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts",
+        "sha256": "25beb3cdb7be0c40183238580fd5d59629c16023625d2a9ac4afcfa669d08307",
+        "nonblankLines": 132,
+        "largestFunctionPhysicalLines": 54
+      },
+      {
+        "path": "apps/api/test/fixtures/intelligence-alerts.ts",
+        "sha256": "8f100058ea393ed9ab39e5450ff04ab9c7c7cbe1fd08ee768c1495915ca7da69",
+        "nonblankLines": 303,
+        "largestFunctionPhysicalLines": 50
+      },
+      {
+        "path": "apps/api/test/fixtures/intelligence-portfolio.rows.ts",
+        "sha256": "12811a0f71111bdc1cad193da0f7336e64ed554a185437f37ef2e91894f8c727",
+        "nonblankLines": 84,
+        "largestFunctionPhysicalLines": 14
+      },
+      {
+        "path": "apps/api/test/fixtures/intelligence-portfolio.ts",
+        "sha256": "4c57814d2c097dd339fc447c2140928c88c7f8cf86480c00abcb32a1cc954ea4",
+        "nonblankLines": 266,
+        "largestFunctionPhysicalLines": 47
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-final-ownership.contract.spec.ts",
+        "sha256": "e2487b21c8217db4d2bccfb34e4afcb3c9060f587aaa761194511746eee9b34c",
+        "nonblankLines": 164,
+        "largestFunctionPhysicalLines": 37
+      },
+      {
+        "path": "apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts",
+        "sha256": "e82b676a0b34029126c5724d59c07c4f188a9321d7739b439b5b45fc7cfc6254",
+        "nonblankLines": 201,
+        "largestFunctionPhysicalLines": 80
+      }
+    ],
+    "facade": {
+      "physicalLines": 1650,
+      "nonblankLines": 1499,
+      "constructorPhysicalLines": 69,
+      "originalMethodCount": 98,
+      "remainsOversizedOutsideSelectedCapability": true
+    },
+    "sourceOnly": true
+  },
+  "strictGateRepair": {
+    "failedAttemptsRetained": 3,
+    "initialFailedDiagnostics": 5,
+    "secondFailedDiagnostics": 1,
+    "thirdTypeScriptDiagnostics": 0,
+    "thirdFailure": "copied fence blocked own tsx Unix IPC; precise task TMPDIR allowance restored",
+    "changedNewTestSourceFiles": 1,
+    "all22TestAssetsCjsAndEsnextByteExact": true,
+    "runtimeDataNamesAssertionsUnchanged": true
+  },
+  "evidencePins": [
+    {
+      "path": "BEFORE.json",
+      "sha256": "e24dbc33c260043550ff4f7975195e55e90cf0ebb28dd139d2b252e5c622922f"
+    },
+    {
+      "path": "DEPENDENCY-PROVENANCE.json",
+      "sha256": "71c23c5c4205defe4c0d8e685bd29137f5a9f0fc000a27f9768d2030c9dd3ced"
+    },
+    {
+      "path": "RETAINED-TEST-SCOPE.json",
+      "sha256": "1050665f2acdc63726f18425decdf0bde9fba98da7229a457be2b440fa206e3e"
+    },
+    {
+      "path": "BEFORE-TEST-SOURCE.json",
+      "sha256": "979ede93350a9314fd5531c558b0990dbdaa9d93802c1cd96e372d6a9fb73207"
+    },
+    {
+      "path": "FINAL-TEST-SOURCE-v2.json",
+      "sha256": "70f839c89821b75a61e7c9bde46b930531624e73db95705db93fa0164289fc6e"
+    },
+    {
+      "path": "INTEGRATED-SOURCE.json",
+      "sha256": "d83fe2d734b5ca663539d29a13eee1b21ad5e09ff221bb8222c5d131c2467766"
+    },
+    {
+      "path": "METHOD-OWNERSHIP.json",
+      "sha256": "aa828ebcd4353208064f20a8b24adb563fad03fc1a6e346a10d69c06032f6e01"
+    },
+    {
+      "path": "ARCHITECTURE-TRANSITION.json",
+      "sha256": "3fd13288e6e27f42fc3e99812516124c8e96928cb64c77a5120af466ef3cf32d"
+    },
+    {
+      "path": "CHARACTERIZATION-COVERAGE-COMPARISON.json",
+      "sha256": "f635aa6f04fe8fee7796772c90ce1aee91a834cc9fd9f0d19de43f09615045aa"
+    },
+    {
+      "path": "TYPE-ERASURE-PROOF-ROOT-v2.json",
+      "sha256": "8b4102c008670caca6c44bb85238f2c8758accba45c900bbf8ba06de5e0f883f"
+    },
+    {
+      "path": "HEARING-TEST-TYPE-REPAIR-v2.json",
+      "sha256": "ada98a7532fe94ae9d55e06c1d363ec42ea58c4e3653d404b68316c9a338e640"
+    },
+    {
+      "path": "FAILED-TYPECHECK-PRESERVATION.json",
+      "sha256": "369d0b6b15af92f889190f32cddb5486e89a0361532bd284d21052db1399acab"
+    },
+    {
+      "path": "FAILED-TYPECHECK-PRESERVATION-v2.json",
+      "sha256": "f951398c058496e9a3f1b7297ed2a19554f319084ba6fbea6c7a843bf5ea72d0"
+    },
+    {
+      "path": "FAILED-TYPECHECK-PRESERVATION-v3.json",
+      "sha256": "fe4d33597fe0d3abf372f675fc35b995b77bc5a2112d0d3056f57445f5d976fd"
+    },
+    {
+      "path": "QUALIFICATION-IPC-CORRECTION.json",
+      "sha256": "add3ff61e67eafbabbadfadbf60adb54bc817c201eb22d46407b354069d5b097"
+    },
+    {
+      "path": "network-fence-v2.cjs",
+      "sha256": "e0ef1cc98b1c2278ec1dd7d4dd26a5ba165c85241c13621d29518177eb5485ae"
+    },
+    {
+      "path": "EMITTED-VERIFICATION.json",
+      "sha256": "1228de0644544788608773eeb271382baaed0fcca64829f9e5068cdc5473cfb8"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "sha256": "01c45f3fb4239ab9b3c5a81038b740ccc8f4d73c723e3765fb654fe9fedba341"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-BODIES-actual-v4.json",
+      "sha256": "3f7753db3d28700a6b4bacb5a1e0f479e2de5fac9854b65c3e29c7834e84f50a"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-FACADE-actual-v3.json",
+      "sha256": "1ac0f3807bc3172ea20e74e5bafd5e96f479a39dc3fad58e659fc4bc048a7a19"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-STRUCTURE-actual-v2.json",
+      "sha256": "1a3f765bd130372019afe2078bb2c1bf3fb3a7dc2d6e15d6f61fecb4a3b1e558"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-NATIVE-IDENTITY-v2.json",
+      "sha256": "eb7d294f2a32825fc23e2e92485f96bdc4607c24335e70886184711a8dd1784b"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-COVERAGE-CONSOLIDATION-v1.json",
+      "sha256": "46e8e7c46c3224d56e5452ae85415d9ccf32d13ef12df58a55be0895d8c8c39f"
+    },
+    {
+      "path": "CONSUMER-AUDIT-MANIFEST.json",
+      "sha256": "0ae22cf046204d45461495ab6c79d2e94acb5e7a7f8c231387081cb4f9588333"
+    },
+    {
+      "path": "NEXT-CAPABILITY-INVENTORY.json",
+      "sha256": "576b5eccccf31550919312de48d6a4e5e61da628c171bfd3c0f87259a32649ac"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-TYPE-ERASURE-v1.json",
+      "sha256": "801de68e500422d78de5b5caaa5e3761002252ca3e6f55f2327f860601f4d132"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-TYPE-ERASURE-v2.json",
+      "sha256": "5e6c1ea76ec55913945b7cd648aa2672f1a1fdaefbef6af6c12a8bd3332d7edd"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-IPC-FENCE-v1.json",
+      "sha256": "8c19fd983c0c760fe8fff7c0eef9323bbbb91f2ed47aba96989af545198b66e8"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW-NEXT-HANDOVER-v2.json",
+      "sha256": "ebdf5f5a603fc1b23d5c2efb62f403ffa98d0b9ece9641ead8cc260bdf00824b"
+    },
+    {
+      "path": "BEFORE-characterization-coverage.json",
+      "sha256": "83c3a3580c624251cb44571b209d9621add0ed1fd37298b3c041c2f377d39b40"
+    },
+    {
+      "path": "BEFORE-characterization-coverage.stdout",
+      "sha256": "3894ef8e421b7a062faa8b1d1e17aa99b623dd6619a3a1e8eed7a17cd54b2391"
+    },
+    {
+      "path": "BEFORE-characterization-coverage.stderr",
+      "sha256": "4e5af6ee7d7d66b265c6ad29bc1c72edc565fa84bcf9838bf4972540777a17eb"
+    },
+    {
+      "path": "AFTER-characterization-coverage.json",
+      "sha256": "d4e24d4fc7d5d37aaae49cca5638d69541b57d0c20875b69950c61aefd1eeeca"
+    },
+    {
+      "path": "AFTER-characterization-coverage.stdout",
+      "sha256": "ae01db3dd30ed18a791ce8bd0e0c71e6d9ec5b1fc3c40f9b443aeed9fd656426"
+    },
+    {
+      "path": "AFTER-characterization-coverage.stderr",
+      "sha256": "8329b0284a49d930b594e9c2f6cad3c6121e372466868d098b7d98729f47973a"
+    },
+    {
+      "path": "architecture-guards.json",
+      "sha256": "3d9dacaad37905458829f11c94f798f79f49d445a9f9ab79fffe4e7d0d2f8bda"
+    },
+    {
+      "path": "architecture-guards.stdout",
+      "sha256": "93172f7405814bd596861ff009e5ea092af636ede84c32d9ca703003ad5085e9"
+    },
+    {
+      "path": "architecture-guards.stderr",
+      "sha256": "868fbb74b487b0ef525a136183ff12c0764951d91becf4b62e9d0cca6396d1e1"
+    },
+    {
+      "path": "api-typecheck-fresh-v3.json",
+      "sha256": "7bb7cb70b8d80b18f0272f8a97c1cefe610b033ad9993eb770b36398cdb57e37"
+    },
+    {
+      "path": "api-typecheck-fresh-v3.stdout",
+      "sha256": "b4727e2291651ba91ed54d4c44e9e4296c04cca1591f383a9db8e519b3a67a83"
+    },
+    {
+      "path": "api-typecheck-fresh-v3.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "api-build.json",
+      "sha256": "e841c3864a52de50618fb949163ef56e76c32527a9367d389fd3a6be8e2f0469"
+    },
+    {
+      "path": "api-build.stdout",
+      "sha256": "da70b5188dcf21ec785f2065e2b700179f1e4e7e9a2d7df2c8d0dbd52fa3dc80"
+    },
+    {
+      "path": "api-build.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BEFORE-characterization-results.json",
+      "sha256": "fe2a02440af1f43007f821314d439a36477d3565d3f30123d41782e038da1c8a"
+    },
+    {
+      "path": "AFTER-characterization-results.json",
+      "sha256": "f24fbb62ee33a16fc366cd93963c17855a57086894ab66acd25fa3b546147233"
+    },
+    {
+      "path": "architecture-guard-results.json",
+      "sha256": "f368695faee2480be0aa02578903e4371988d42baa3b823de323bc5adf71d35c"
+    },
+    {
+      "path": "api-typecheck.json",
+      "sha256": "cf9c6e648c5a4aa254c3b058cf47b6c6007bb81213790ce35a05875fc495cfb5"
+    },
+    {
+      "path": "api-typecheck.stdout",
+      "sha256": "48a55bb6c5f0fecfcc4478a9cdd334c1d7783bff37d4b796cceb98154b6ea056"
+    },
+    {
+      "path": "api-typecheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "api-typecheck-fresh.json",
+      "sha256": "c91f5922f8122975332fa21106878c47108c25dfe9305c3248323b81796924a5"
+    },
+    {
+      "path": "api-typecheck-fresh.stdout",
+      "sha256": "38c9441280612df606d32cf4d742f8469ec9439150da6759efc7eb45026500a4"
+    },
+    {
+      "path": "api-typecheck-fresh.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "api-typecheck-fresh-v2.json",
+      "sha256": "25a5f18cb8e03b9c319636dd2f86c58be2e95e62ab3bb0aed13a9ef7f333a858"
+    },
+    {
+      "path": "api-typecheck-fresh-v2.stdout",
+      "sha256": "2dcc89dfc175d7e0265fa5d8ed64c284a0c77ac0b523f3ea146dc2193c86a6df"
+    },
+    {
+      "path": "api-typecheck-fresh-v2.stderr",
+      "sha256": "4a8a68de316cbf3c22da01985831a26c67e1c3103c5e264aacbac1f1eece3a29"
+    },
+    {
+      "path": "EXPLICIT-ENV-api-typecheck-fresh-v3.json",
+      "sha256": "a95a00f6c596e78369eb0226990b846e7c5bed546c4ebf3237e3d4da723817b8"
+    },
+    {
+      "path": "EXPLICIT-ENV-api-build.json",
+      "sha256": "a95a00f6c596e78369eb0226990b846e7c5bed546c4ebf3237e3d4da723817b8"
+    }
+  ],
+  "beforeRecoveryTag": "backend-cleanup-intelligence-final-before-20261013",
+  "remainingNamedMethodFamilies": [],
+  "fullIntelligenceCleanupAcceptanceComplete": false,
+  "actualImageBuildUsedTreesEstablished": false,
+  "mainOnlyCiExecutionEstablished": false,
+  "broaderRetirementAcceptanceEstablished": false,
+  "wholeCleanupComplete": false,
+  "mainMerged": false,
+  "deployed": false,
+  "databaseExecuted": false,
+  "providersExecuted": false,
+  "activeProductExclusions": [
+    "Federal Register calendar endpoint",
+    "Workspace copy changes"
+  ],
+  "sourceOnly": true,
+  "emittedFacadeCountLabelDisposition": {
+    "inheritedWitnessLabel": "originalMethodCount",
+    "witnessValueIsCurrentCount": 98,
+    "originalMethodCount": 97,
+    "newCompositionFactoryCount": 1
+  }
+}

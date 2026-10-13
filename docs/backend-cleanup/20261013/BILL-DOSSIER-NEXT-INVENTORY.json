@@ -1,0 +1,1961 @@
+{
+  "acceptedApiSourceBaseline": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+  "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "sourceInventorySHA256": "576b5eccccf31550919312de48d6a4e5e61da628c171bfd3c0f87259a32649ac",
+  "reservationSHA256": "d9104ce0a185bd1aa8eabec79b6f090cb52757ec355c7ec510b1de0ac1904064",
+  "recommendedWholeCapability": {
+    "path": "apps/intel-api/src/bill-dossier/bill-dossier.service.ts",
+    "physicalLines": 1886,
+    "nonblankLines": 1775,
+    "sha256": "3644620513ba0fd4bfe87d69c4d094d8f4519ff1c3350e43edcd0e769c397175",
+    "gitBlob": "712a2a0fbc8c24ade5e025806de043d8a07c0685",
+    "coreBlob": "712a2a0fbc8c24ade5e025806de043d8a07c0685",
+    "exactWholeCoreFile": true,
+    "declaredComponent": "intel-api",
+    "declaredRevision": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "exactDeclaredComponentFile": true,
+    "recordedPathReservation": false,
+    "spans": [
+      {
+        "name": "noFunding",
+        "category": "standalone-function",
+        "start": 119,
+        "end": 121,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "e55304790b5854da56d7a92cc26e3bc69ade0de1e355a82a66200f13d40d6b75",
+        "thisReads": []
+      },
+      {
+        "name": "constructor",
+        "category": "constructor",
+        "start": 142,
+        "end": 146,
+        "physicalLines": 5,
+        "nonblankLines": 5,
+        "sha256": "d7b5fcaf00fb2f2b4ca272ddfd8b4adc51483a7a1c7f3bdc3e240ad3e2c60e78",
+        "thisReads": []
+      },
+      {
+        "name": "getGlobalDossier",
+        "category": "class-method",
+        "start": 149,
+        "end": 153,
+        "physicalLines": 5,
+        "nonblankLines": 5,
+        "sha256": "995ebe1d48cfdc16d70b14cd503d774ef912550589624133606632a7d6c49fb8",
+        "thisReads": [
+          "buildStateCore",
+          "buildFederalCore"
+        ]
+      },
+      {
+        "name": "getSourceRecords",
+        "category": "class-method",
+        "start": 155,
+        "end": 199,
+        "physicalLines": 45,
+        "nonblankLines": 45,
+        "sha256": "c902199ace97490bdf70501b656481942410054de197fbf6362a23692572c419",
+        "thisReads": [
+          "stateSource"
+        ]
+      },
+      {
+        "name": "getStateVoteMembers",
+        "category": "class-method",
+        "start": 201,
+        "end": 204,
+        "physicalLines": 4,
+        "nonblankLines": 4,
+        "sha256": "0af5f42cd48439816c7edf657df2e776610df8d950376a836a651f026714f02b",
+        "thisReads": [
+          "stateSource"
+        ]
+      },
+      {
+        "name": "getClientDossier",
+        "category": "class-method",
+        "start": 207,
+        "end": 257,
+        "physicalLines": 51,
+        "nonblankLines": 48,
+        "sha256": "43a8e9786d5cba500fb03070b68eeac4f1eef24687401ff537578ca91b18ed58",
+        "thisReads": [
+          "sourceData",
+          "buildStateCore",
+          "buildFederalCore",
+          "loadTracking",
+          "loadClientAlerts",
+          "loadMatchedTopics",
+          "loadClientHearings",
+          "mergeAnalystOverview",
+          "buildKpis"
+        ]
+      },
+      {
+        "name": "buildFederalCore",
+        "category": "class-method",
+        "start": 261,
+        "end": 431,
+        "physicalLines": 171,
+        "nonblankLines": 159,
+        "sha256": "36a8bb8d6128418776f83d2bb15112b3723af9ed81b76d0c7dc3fb0e5622ff95",
+        "thisReads": [
+          "sourceData",
+          "loadFunding",
+          "ruleVoteToBillVote",
+          "passageVoteToBillVote",
+          "buildFederalMilestones",
+          "buildKpis"
+        ]
+      },
+      {
+        "name": "buildFederalMilestones",
+        "category": "class-method",
+        "start": 433,
+        "end": 458,
+        "physicalLines": 26,
+        "nonblankLines": 26,
+        "sha256": "aef4cba4c044880529262ef3694ba6d9688f4ac0e454ee643fdb42b6e72e1d4d",
+        "thisReads": []
+      },
+      {
+        "name": "ruleVoteToBillVote",
+        "category": "class-method",
+        "start": 460,
+        "end": 476,
+        "physicalLines": 17,
+        "nonblankLines": 17,
+        "sha256": "364525712191ae9c8629db4dfe53215dd045004af26241167d2d13e920e8190c",
+        "thisReads": []
+      },
+      {
+        "name": "passageVoteToBillVote",
+        "category": "class-method",
+        "start": 478,
+        "end": 495,
+        "physicalLines": 18,
+        "nonblankLines": 18,
+        "sha256": "6a9be03d8c8de3194c652f36286d35ab27fa9f260f78a0aa1bfdf07f1df883f6",
+        "thisReads": []
+      },
+      {
+        "name": "buildStateCore",
+        "category": "class-method",
+        "start": 499,
+        "end": 617,
+        "physicalLines": 119,
+        "nonblankLines": 113,
+        "sha256": "781819ce9ce89ce7dc9f2141d945c71ed058e35a2f6829c6e4cb076de4b3bdf9",
+        "thisReads": [
+          "stateSource",
+          "buildKpis"
+        ]
+      },
+      {
+        "name": "loadFunding",
+        "category": "class-method",
+        "start": 636,
+        "end": 724,
+        "physicalLines": 89,
+        "nonblankLines": 84,
+        "sha256": "fa4e35d05bb7d9f64a5a0beb579b3367a2671e8c6d8802f698ff0e825cb0370a",
+        "thisReads": [
+          "sourceData"
+        ]
+      },
+      {
+        "name": "loadTracking",
+        "category": "class-method",
+        "start": 728,
+        "end": 775,
+        "physicalLines": 48,
+        "nonblankLines": 48,
+        "sha256": "f54ab2ce1efd09ed947a92800b8d3a77976b8ca8df2fd0ea97a880a400be1aeb",
+        "thisReads": [
+          "prisma"
+        ]
+      },
+      {
+        "name": "loadClientAlerts",
+        "category": "class-method",
+        "start": 782,
+        "end": 804,
+        "physicalLines": 23,
+        "nonblankLines": 23,
+        "sha256": "5c50061a93f60a4bebd7a1f314498e9a66a07b17cbef6d28e19a9fe837504c4d",
+        "thisReads": [
+          "prisma"
+        ]
+      },
+      {
+        "name": "loadMatchedTopics",
+        "category": "class-method",
+        "start": 812,
+        "end": 832,
+        "physicalLines": 21,
+        "nonblankLines": 21,
+        "sha256": "fa0cf22f49ad598306c47128448280a88c31d9ead160f9fe768103c0a86b32a6",
+        "thisReads": [
+          "prisma"
+        ]
+      },
+      {
+        "name": "loadClientHearings",
+        "category": "class-method",
+        "start": 846,
+        "end": 878,
+        "physicalLines": 33,
+        "nonblankLines": 33,
+        "sha256": "c9ee4487a745ce5bf901cc985d0f43b1f0f48bf541c781c2250c10cf20a28e10",
+        "thisReads": [
+          "prisma"
+        ]
+      },
+      {
+        "name": "mergeAnalystOverview",
+        "category": "class-method",
+        "start": 880,
+        "end": 915,
+        "physicalLines": 36,
+        "nonblankLines": 36,
+        "sha256": "f2e073b2707f6945f75a46f0bf4c561a1ac0ed2bacdce1dd17f62ffbb7a9a191",
+        "thisReads": []
+      },
+      {
+        "name": "buildKpis",
+        "category": "class-method",
+        "start": 926,
+        "end": 1025,
+        "physicalLines": 100,
+        "nonblankLines": 100,
+        "sha256": "4ae8599bc13649b0e7aa20ec2a1e97fd5c42f320d6d3db217dab8b9505283f8a",
+        "thisReads": []
+      },
+      {
+        "name": "toContextAlertView",
+        "category": "standalone-function",
+        "start": 1040,
+        "end": 1042,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "c43b36426757079a0e639e59d813562787c27874e90b4bab763eef9c9e0e85ea",
+        "thisReads": []
+      },
+      {
+        "name": "buildRecommendedActions",
+        "category": "standalone-function",
+        "start": 1051,
+        "end": 1070,
+        "physicalLines": 20,
+        "nonblankLines": 20,
+        "sha256": "319bd567850be9c918d3bffba9bf2187e6a1175b4958df3f7919c0f4b040e0d8",
+        "thisReads": []
+      },
+      {
+        "name": "msToClock",
+        "category": "standalone-function",
+        "start": 1073,
+        "end": 1080,
+        "physicalLines": 8,
+        "nonblankLines": 8,
+        "sha256": "dc4311c55328accd1e14ea666807f2400960a27678b9f1acda1c1fff564f01f8",
+        "thisReads": []
+      },
+      {
+        "name": "num",
+        "category": "standalone-function",
+        "start": 1093,
+        "end": 1097,
+        "physicalLines": 5,
+        "nonblankLines": 5,
+        "sha256": "f9f49d92840179ee033dc7f8676423faeab37cf03192f113a25fc139a466d1b6",
+        "thisReads": []
+      },
+      {
+        "name": "versionedValueSource",
+        "category": "standalone-function",
+        "start": 1099,
+        "end": 1108,
+        "physicalLines": 10,
+        "nonblankLines": 10,
+        "sha256": "7968e51ed84c33b625c746efae0431bbd83bdc8826f7195b4fea82e03321b1a7",
+        "thisReads": []
+      },
+      {
+        "name": "fmtMillions",
+        "category": "standalone-function",
+        "start": 1111,
+        "end": 1114,
+        "physicalLines": 4,
+        "nonblankLines": 4,
+        "sha256": "ff0bf115da6ee6fc19896cbe23501625fd06cc21851685efc41b2633ac1a6370",
+        "thisReads": []
+      },
+      {
+        "name": "fmtSignedMillions",
+        "category": "standalone-function",
+        "start": 1117,
+        "end": 1120,
+        "physicalLines": 4,
+        "nonblankLines": 4,
+        "sha256": "8035d6ed494a33ad9f72ade65d42794364dc89ecc1b4a4bc092f8ba76180af07",
+        "thisReads": []
+      },
+      {
+        "name": "amountTreatmentFor",
+        "category": "standalone-function",
+        "start": 1122,
+        "end": 1139,
+        "physicalLines": 18,
+        "nonblankLines": 18,
+        "sha256": "16aec81a0883d456ce950920ed46fc0e5a0ee37d188248670c10a0f01a05a417",
+        "thisReads": []
+      },
+      {
+        "name": "fundingStageTrackLabel",
+        "category": "standalone-function",
+        "start": 1141,
+        "end": 1163,
+        "physicalLines": 23,
+        "nonblankLines": 23,
+        "sha256": "9ed1c298e70597e3650b92cd416d03d0bba0874d5477c67f489d6acf67c808a7",
+        "thisReads": []
+      },
+      {
+        "name": "toFundingPositionView",
+        "category": "standalone-function",
+        "start": 1165,
+        "end": 1189,
+        "physicalLines": 25,
+        "nonblankLines": 25,
+        "sha256": "23a375b12819652dbbb63da91290bf997263df2c17c6017e11d154ef13f29fd7",
+        "thisReads": []
+      },
+      {
+        "name": "toPeImpactView",
+        "category": "standalone-function",
+        "start": 1191,
+        "end": 1282,
+        "physicalLines": 92,
+        "nonblankLines": 92,
+        "sha256": "4a762ee44e0961e1f962f5161167654e028c038a73486f4737480bbc69c29f71",
+        "thisReads": []
+      },
+      {
+        "name": "toFundingProvisionView",
+        "category": "standalone-function",
+        "start": 1284,
+        "end": 1302,
+        "physicalLines": 19,
+        "nonblankLines": 19,
+        "sha256": "151e5151225fd0c5f9c2367618afc6ca9978d365f50d7a49a247b49aab6e6157",
+        "thisReads": []
+      },
+      {
+        "name": "toFundingVehicleContext",
+        "category": "standalone-function",
+        "start": 1304,
+        "end": 1344,
+        "physicalLines": 41,
+        "nonblankLines": 41,
+        "sha256": "ccf30215b4218b9ac8de3625c4540c5c910fa7acfb6fc8922ca08fdd1905ef7d",
+        "thisReads": []
+      },
+      {
+        "name": "hasFundingTableValues",
+        "category": "standalone-function",
+        "start": 1346,
+        "end": 1354,
+        "physicalLines": 9,
+        "nonblankLines": 9,
+        "sha256": "907e258a8db45a9238310a1c033552685e00f431d9b26e026fed716b92f75089",
+        "thisReads": []
+      },
+      {
+        "name": "toRelatedVehicleView",
+        "category": "standalone-function",
+        "start": 1356,
+        "end": 1363,
+        "physicalLines": 8,
+        "nonblankLines": 8,
+        "sha256": "86acd495578500dea4d33728fd1cce3f9430274318a8072ab67da8e88e699437",
+        "thisReads": []
+      },
+      {
+        "name": "pickPrimaryPosition",
+        "category": "standalone-function",
+        "start": 1370,
+        "end": 1391,
+        "physicalLines": 22,
+        "nonblankLines": 22,
+        "sha256": "4a5605258e7c72807751582f3a924c22f044ea5bcac91bbf41f13af9b206a5e1",
+        "thisReads": []
+      },
+      {
+        "name": "isOverrideReconciled",
+        "category": "standalone-function",
+        "start": 1393,
+        "end": 1398,
+        "physicalLines": 6,
+        "nonblankLines": 6,
+        "sha256": "ac8e8556a48c9e2a549673cae4a1f2c5da5ce0731601cea2633c6c103af7235c",
+        "thisReads": []
+      },
+      {
+        "name": "isReviewedVerification",
+        "category": "standalone-function",
+        "start": 1400,
+        "end": 1402,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "1d7eebec53795d132d752f2eb6341aa21ce8ee1cac89cca403cdecd9e86eea08",
+        "thisReads": []
+      },
+      {
+        "name": "buildRequestComparison",
+        "category": "standalone-function",
+        "start": 1409,
+        "end": 1434,
+        "physicalLines": 26,
+        "nonblankLines": 26,
+        "sha256": "ff6c27f428fec03284b804a91eec05dc856bb5ad71f6f4ebf2dddb6ef1d3fee1",
+        "thisReads": []
+      },
+      {
+        "name": "buildSenateComparison",
+        "category": "standalone-function",
+        "start": 1437,
+        "end": 1461,
+        "physicalLines": 25,
+        "nonblankLines": 25,
+        "sha256": "4d680d184b096de13338aeaed98378f4f82483325be61b149c5acb47982d2edc",
+        "thisReads": []
+      },
+      {
+        "name": "buildLikeForLikeComparisons",
+        "category": "standalone-function",
+        "start": 1471,
+        "end": 1503,
+        "physicalLines": 33,
+        "nonblankLines": 33,
+        "sha256": "8dc5cec62dd87359d95f80bc95bacd591c083af60e755272edb2eeed3ccd8dc5",
+        "thisReads": []
+      },
+      {
+        "name": "fiscalYearOf",
+        "category": "standalone-function",
+        "start": 1505,
+        "end": 1507,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "874336dedf72d046f1d0100d25ba1404ac2b390f7828de526208c60b43f44320",
+        "thisReads": []
+      },
+      {
+        "name": "fundingUnavailableReason",
+        "category": "standalone-function",
+        "start": 1515,
+        "end": 1518,
+        "physicalLines": 4,
+        "nonblankLines": 4,
+        "sha256": "3964e7b6e98e0be3dcb6bcccdafa6091e7c69164eb57e5eb23dc01df9a035591",
+        "thisReads": []
+      },
+      {
+        "name": "emptyFunding",
+        "category": "standalone-function",
+        "start": 1520,
+        "end": 1537,
+        "physicalLines": 18,
+        "nonblankLines": 18,
+        "sha256": "c4fe3addde557e5e8f7e4a87b60445e0782ffae5ca64910d111886c7b62ebdc4",
+        "thisReads": []
+      },
+      {
+        "name": "buildPartyMap",
+        "category": "standalone-function",
+        "start": 1539,
+        "end": 1556,
+        "physicalLines": 18,
+        "nonblankLines": 18,
+        "sha256": "6f856fd5342eda8ad225da40290c275eb17e4832d9fead22e8d7a164d00f6d64",
+        "thisReads": []
+      },
+      {
+        "name": "toIso",
+        "category": "standalone-function",
+        "start": 1558,
+        "end": 1560,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "80b5354c82d3a82cce4c0441ee1112553233782c18ee25f1b6806fd03ba56b21",
+        "thisReads": []
+      },
+      {
+        "name": "truncate",
+        "category": "standalone-function",
+        "start": 1562,
+        "end": 1564,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "553594bb18b612eea9110bd6183e4898dded4e8854e2f7b8bd9ec5b4c0c019ff",
+        "thisReads": []
+      },
+      {
+        "name": "isPassageVoteQuestion",
+        "category": "standalone-function",
+        "start": 1578,
+        "end": 1583,
+        "physicalLines": 6,
+        "nonblankLines": 6,
+        "sha256": "f2eb4d827e354f187951171f2cfde71b65165624e6fad1a88a6968993d941559",
+        "thisReads": []
+      },
+      {
+        "name": "isPassageActionText",
+        "category": "standalone-function",
+        "start": 1585,
+        "end": 1591,
+        "physicalLines": 7,
+        "nonblankLines": 7,
+        "sha256": "012a9f208550468269398c860ebc80fa9fc863ca0387b6cd93bf1d5f5fb124b6",
+        "thisReads": []
+      },
+      {
+        "name": "readableChamber",
+        "category": "standalone-function",
+        "start": 1593,
+        "end": 1598,
+        "physicalLines": 6,
+        "nonblankLines": 6,
+        "sha256": "2211152cca101962f58695ca73e1c862e1df93dae6741e6a1830114aa6514014",
+        "thisReads": []
+      },
+      {
+        "name": "chamberFromAction",
+        "category": "standalone-function",
+        "start": 1600,
+        "end": 1604,
+        "physicalLines": 5,
+        "nonblankLines": 5,
+        "sha256": "c34e82add7ee6ad216e445aa8b759197c558499f9b62e42bbd9c5426fd88aec5",
+        "thisReads": []
+      },
+      {
+        "name": "actionOutcome",
+        "category": "standalone-function",
+        "start": 1606,
+        "end": 1617,
+        "physicalLines": 12,
+        "nonblankLines": 12,
+        "sha256": "b4979593d207a61bdd9c200cfe1dcd41bfbb192c16fddd882cff7f07434b3eb1",
+        "thisReads": []
+      },
+      {
+        "name": "readableActionType",
+        "category": "standalone-function",
+        "start": 1619,
+        "end": 1639,
+        "physicalLines": 21,
+        "nonblankLines": 21,
+        "sha256": "69b945f24e9c6bc1fdc43872ace6cb9cf2fe6b4a800e4654f56db9c324c8d4e3",
+        "thisReads": []
+      },
+      {
+        "name": "passageDetail",
+        "category": "standalone-function",
+        "start": 1641,
+        "end": 1648,
+        "physicalLines": 8,
+        "nonblankLines": 8,
+        "sha256": "171169b60601105fbf53017ca6471dff2fcb8b09b99a5ca6db6e144ae46ca2fa",
+        "thisReads": []
+      },
+      {
+        "name": "actionSemanticKey",
+        "category": "standalone-function",
+        "start": 1650,
+        "end": 1678,
+        "physicalLines": 29,
+        "nonblankLines": 29,
+        "sha256": "9c290b7e9a2e32b793361b2fed461c4c89f0ef8a12f4211a0399cf159cd2691b",
+        "thisReads": []
+      },
+      {
+        "name": "buildActionMilestones",
+        "category": "standalone-function",
+        "start": 1685,
+        "end": 1732,
+        "physicalLines": 48,
+        "nonblankLines": 46,
+        "sha256": "bd60020c8a2f65ac7814e1761e28d72e3062b523320742d3be2f28e58b702178",
+        "thisReads": []
+      },
+      {
+        "name": "federalStatusPresentation",
+        "category": "standalone-function",
+        "start": 1734,
+        "end": 1761,
+        "physicalLines": 28,
+        "nonblankLines": 27,
+        "sha256": "f8ecd96d3b16439ca8839ffe510bc326c9348bb435a393f9a73607247c301cf9",
+        "thisReads": []
+      },
+      {
+        "name": "expectedNextStep",
+        "category": "standalone-function",
+        "start": 1763,
+        "end": 1784,
+        "physicalLines": 22,
+        "nonblankLines": 22,
+        "sha256": "b939cecc7fba347ad0d98f04199964c6c726e6f64bd7133d0ad53f3085b4e391",
+        "thisReads": []
+      },
+      {
+        "name": "capitalize",
+        "category": "standalone-function",
+        "start": 1786,
+        "end": 1789,
+        "physicalLines": 4,
+        "nonblankLines": 4,
+        "sha256": "0d2b4227a5b9206ca2e233d5e1206f319145c7d78eb1d957f9e433f0005d16c8",
+        "thisReads": []
+      },
+      {
+        "name": "prettifyStatus",
+        "category": "standalone-function",
+        "start": 1791,
+        "end": 1796,
+        "physicalLines": 6,
+        "nonblankLines": 6,
+        "sha256": "c4c6dac8aec658a1699e4faf0db7d887a76a90db2237cba250e58d499a6b12a4",
+        "thisReads": []
+      },
+      {
+        "name": "isFailedResult",
+        "category": "standalone-function",
+        "start": 1798,
+        "end": 1800,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "911ea40e2a83b6a4d9ca984d593a56ed5dc2abd155659642eb80498eaa65efe7",
+        "thisReads": []
+      },
+      {
+        "name": "sevForResult",
+        "category": "standalone-function",
+        "start": 1802,
+        "end": 1807,
+        "physicalLines": 6,
+        "nonblankLines": 6,
+        "sha256": "781061722d7c6cb7e17a6c81cacaa72c33a9e235b010794420520124ee5aea68",
+        "thisReads": []
+      },
+      {
+        "name": "sevForStatus",
+        "category": "standalone-function",
+        "start": 1809,
+        "end": 1828,
+        "physicalLines": 20,
+        "nonblankLines": 20,
+        "sha256": "5353568e5dd410868775ff6d8f2e7b69ee4a3b78b115d519c4233935a0353d63",
+        "thisReads": []
+      },
+      {
+        "name": "sevForAlert",
+        "category": "standalone-function",
+        "start": 1830,
+        "end": 1834,
+        "physicalLines": 5,
+        "nonblankLines": 5,
+        "sha256": "e4219774d3aa00eddde306aae756bd6b859d121f4c2fcc30862139d3bfa07394",
+        "thisReads": []
+      },
+      {
+        "name": "officialNextStepText",
+        "category": "standalone-function",
+        "start": 1841,
+        "end": 1867,
+        "physicalLines": 27,
+        "nonblankLines": 27,
+        "sha256": "459a6f64d4c1cc9fcb096d9d26bf54ec7259b9bc0f2699a7e4c1f3ff72b332a4",
+        "thisReads": []
+      },
+      {
+        "name": "isFresh",
+        "category": "standalone-function",
+        "start": 1870,
+        "end": 1874,
+        "physicalLines": 5,
+        "nonblankLines": 5,
+        "sha256": "298076b46aca87e8be4c6c718b1f2d960c0e336483138b30773df1725fd65653",
+        "thisReads": []
+      },
+      {
+        "name": "normalizePosition",
+        "category": "standalone-function",
+        "start": 1876,
+        "end": 1878,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "91bc2ebc54b11d818de3ba2e90e99b1d2456a884c4bec6fce22e58b8cffccf92",
+        "thisReads": []
+      },
+      {
+        "name": "normalizePriority",
+        "category": "standalone-function",
+        "start": 1880,
+        "end": 1882,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "c5dc0332f505e964f95a8d878fdcb2fabe997d9d68d768d30be7887a956e414f",
+        "thisReads": []
+      },
+      {
+        "name": "byDateDesc",
+        "category": "standalone-function",
+        "start": 1884,
+        "end": 1886,
+        "physicalLines": 3,
+        "nonblankLines": 3,
+        "sha256": "2757c15f3074f57b2c797e4f5074dfea68a5d2d116afa0e7aa0a9b2d240adbed",
+        "thisReads": []
+      }
+    ],
+    "functions": [
+      {
+        "kind": "FunctionDeclaration",
+        "name": "noFunding",
+        "start": 119,
+        "end": 121,
+        "physicalLines": 3,
+        "containingSpan": "noFunding"
+      },
+      {
+        "kind": "Constructor",
+        "name": null,
+        "start": 142,
+        "end": 146,
+        "physicalLines": 5,
+        "containingSpan": "constructor"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "getGlobalDossier",
+        "start": 149,
+        "end": 153,
+        "physicalLines": 5,
+        "containingSpan": "getGlobalDossier"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "getSourceRecords",
+        "start": 155,
+        "end": 199,
+        "physicalLines": 45,
+        "containingSpan": "getSourceRecords"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "getStateVoteMembers",
+        "start": 201,
+        "end": 204,
+        "physicalLines": 4,
+        "containingSpan": "getStateVoteMembers"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "getClientDossier",
+        "start": 207,
+        "end": 257,
+        "physicalLines": 51,
+        "containingSpan": "getClientDossier"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "buildFederalCore",
+        "start": 261,
+        "end": 431,
+        "physicalLines": 171,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 286,
+        "end": 286,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 287,
+        "end": 287,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 287,
+        "end": 287,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 293,
+        "end": 293,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 294,
+        "end": 294,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 295,
+        "end": 296,
+        "physicalLines": 2,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 298,
+        "end": 298,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 302,
+        "end": 302,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 303,
+        "end": 315,
+        "physicalLines": 13,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 416,
+        "end": 422,
+        "physicalLines": 7,
+        "containingSpan": "buildFederalCore"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "buildFederalMilestones",
+        "start": 433,
+        "end": 458,
+        "physicalLines": 26,
+        "containingSpan": "buildFederalMilestones"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 445,
+        "end": 445,
+        "physicalLines": 1,
+        "containingSpan": "buildFederalMilestones"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 446,
+        "end": 456,
+        "physicalLines": 11,
+        "containingSpan": "buildFederalMilestones"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "ruleVoteToBillVote",
+        "start": 460,
+        "end": 476,
+        "physicalLines": 17,
+        "containingSpan": "ruleVoteToBillVote"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "passageVoteToBillVote",
+        "start": 478,
+        "end": 495,
+        "physicalLines": 18,
+        "containingSpan": "passageVoteToBillVote"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "buildStateCore",
+        "start": 499,
+        "end": 617,
+        "physicalLines": 119,
+        "containingSpan": "buildStateCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 511,
+        "end": 522,
+        "physicalLines": 12,
+        "containingSpan": "buildStateCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 580,
+        "end": 580,
+        "physicalLines": 1,
+        "containingSpan": "buildStateCore"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 581,
+        "end": 588,
+        "physicalLines": 8,
+        "containingSpan": "buildStateCore"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "loadFunding",
+        "start": 636,
+        "end": 724,
+        "physicalLines": 89,
+        "containingSpan": "loadFunding"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 665,
+        "end": 665,
+        "physicalLines": 1,
+        "containingSpan": "loadFunding"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 666,
+        "end": 666,
+        "physicalLines": 1,
+        "containingSpan": "loadFunding"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 668,
+        "end": 671,
+        "physicalLines": 4,
+        "containingSpan": "loadFunding"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 679,
+        "end": 679,
+        "physicalLines": 1,
+        "containingSpan": "loadFunding"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 684,
+        "end": 684,
+        "physicalLines": 1,
+        "containingSpan": "loadFunding"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "loadTracking",
+        "start": 728,
+        "end": 775,
+        "physicalLines": 48,
+        "containingSpan": "loadTracking"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 733,
+        "end": 734,
+        "physicalLines": 2,
+        "containingSpan": "loadTracking"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "loadClientAlerts",
+        "start": 782,
+        "end": 804,
+        "physicalLines": 23,
+        "containingSpan": "loadClientAlerts"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 787,
+        "end": 802,
+        "physicalLines": 16,
+        "containingSpan": "loadClientAlerts"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "loadMatchedTopics",
+        "start": 812,
+        "end": 832,
+        "physicalLines": 21,
+        "containingSpan": "loadMatchedTopics"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 817,
+        "end": 821,
+        "physicalLines": 5,
+        "containingSpan": "loadMatchedTopics"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 825,
+        "end": 825,
+        "physicalLines": 1,
+        "containingSpan": "loadMatchedTopics"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 826,
+        "end": 831,
+        "physicalLines": 6,
+        "containingSpan": "loadMatchedTopics"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "loadClientHearings",
+        "start": 846,
+        "end": 878,
+        "physicalLines": 33,
+        "containingSpan": "loadClientHearings"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 851,
+        "end": 863,
+        "physicalLines": 13,
+        "containingSpan": "loadClientHearings"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 867,
+        "end": 877,
+        "physicalLines": 11,
+        "containingSpan": "loadClientHearings"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 872,
+        "end": 876,
+        "physicalLines": 5,
+        "containingSpan": "loadClientHearings"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "mergeAnalystOverview",
+        "start": 880,
+        "end": 915,
+        "physicalLines": 36,
+        "containingSpan": "mergeAnalystOverview"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 888,
+        "end": 888,
+        "physicalLines": 1,
+        "containingSpan": "mergeAnalystOverview"
+      },
+      {
+        "kind": "MethodDeclaration",
+        "name": "buildKpis",
+        "start": 926,
+        "end": 1025,
+        "physicalLines": 100,
+        "containingSpan": "buildKpis"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 937,
+        "end": 937,
+        "physicalLines": 1,
+        "containingSpan": "buildKpis"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 944,
+        "end": 944,
+        "physicalLines": 1,
+        "containingSpan": "buildKpis"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toContextAlertView",
+        "start": 1040,
+        "end": 1042,
+        "physicalLines": 3,
+        "containingSpan": "toContextAlertView"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "buildRecommendedActions",
+        "start": 1051,
+        "end": 1070,
+        "physicalLines": 20,
+        "containingSpan": "buildRecommendedActions"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "msToClock",
+        "start": 1073,
+        "end": 1080,
+        "physicalLines": 8,
+        "containingSpan": "msToClock"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "num",
+        "start": 1093,
+        "end": 1097,
+        "physicalLines": 5,
+        "containingSpan": "num"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "versionedValueSource",
+        "start": 1099,
+        "end": 1108,
+        "physicalLines": 10,
+        "containingSpan": "versionedValueSource"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "fmtMillions",
+        "start": 1111,
+        "end": 1114,
+        "physicalLines": 4,
+        "containingSpan": "fmtMillions"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "fmtSignedMillions",
+        "start": 1117,
+        "end": 1120,
+        "physicalLines": 4,
+        "containingSpan": "fmtSignedMillions"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "amountTreatmentFor",
+        "start": 1122,
+        "end": 1139,
+        "physicalLines": 18,
+        "containingSpan": "amountTreatmentFor"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "fundingStageTrackLabel",
+        "start": 1141,
+        "end": 1163,
+        "physicalLines": 23,
+        "containingSpan": "fundingStageTrackLabel"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toFundingPositionView",
+        "start": 1165,
+        "end": 1189,
+        "physicalLines": 25,
+        "containingSpan": "toFundingPositionView"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toPeImpactView",
+        "start": 1191,
+        "end": 1282,
+        "physicalLines": 92,
+        "containingSpan": "toPeImpactView"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toFundingProvisionView",
+        "start": 1284,
+        "end": 1302,
+        "physicalLines": 19,
+        "containingSpan": "toFundingProvisionView"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toFundingVehicleContext",
+        "start": 1304,
+        "end": 1344,
+        "physicalLines": 41,
+        "containingSpan": "toFundingVehicleContext"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "hasFundingTableValues",
+        "start": 1346,
+        "end": 1354,
+        "physicalLines": 9,
+        "containingSpan": "hasFundingTableValues"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1353,
+        "end": 1353,
+        "physicalLines": 1,
+        "containingSpan": "hasFundingTableValues"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toRelatedVehicleView",
+        "start": 1356,
+        "end": 1363,
+        "physicalLines": 8,
+        "containingSpan": "toRelatedVehicleView"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "pickPrimaryPosition",
+        "start": 1370,
+        "end": 1391,
+        "physicalLines": 22,
+        "containingSpan": "pickPrimaryPosition"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1376,
+        "end": 1383,
+        "physicalLines": 8,
+        "containingSpan": "pickPrimaryPosition"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1386,
+        "end": 1389,
+        "physicalLines": 4,
+        "containingSpan": "pickPrimaryPosition"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1390,
+        "end": 1390,
+        "physicalLines": 1,
+        "containingSpan": "pickPrimaryPosition"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "isOverrideReconciled",
+        "start": 1393,
+        "end": 1398,
+        "physicalLines": 6,
+        "containingSpan": "isOverrideReconciled"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "isReviewedVerification",
+        "start": 1400,
+        "end": 1402,
+        "physicalLines": 3,
+        "containingSpan": "isReviewedVerification"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "buildRequestComparison",
+        "start": 1409,
+        "end": 1434,
+        "physicalLines": 26,
+        "containingSpan": "buildRequestComparison"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1414,
+        "end": 1420,
+        "physicalLines": 7,
+        "containingSpan": "buildRequestComparison"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "buildSenateComparison",
+        "start": 1437,
+        "end": 1461,
+        "physicalLines": 25,
+        "containingSpan": "buildSenateComparison"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1443,
+        "end": 1449,
+        "physicalLines": 7,
+        "containingSpan": "buildSenateComparison"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "buildLikeForLikeComparisons",
+        "start": 1471,
+        "end": 1503,
+        "physicalLines": 33,
+        "containingSpan": "buildLikeForLikeComparisons"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1478,
+        "end": 1484,
+        "physicalLines": 7,
+        "containingSpan": "buildLikeForLikeComparisons"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1486,
+        "end": 1486,
+        "physicalLines": 1,
+        "containingSpan": "buildLikeForLikeComparisons"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1487,
+        "end": 1502,
+        "physicalLines": 16,
+        "containingSpan": "buildLikeForLikeComparisons"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "fiscalYearOf",
+        "start": 1505,
+        "end": 1507,
+        "physicalLines": 3,
+        "containingSpan": "fiscalYearOf"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1506,
+        "end": 1506,
+        "physicalLines": 1,
+        "containingSpan": "fiscalYearOf"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "fundingUnavailableReason",
+        "start": 1515,
+        "end": 1518,
+        "physicalLines": 4,
+        "containingSpan": "fundingUnavailableReason"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "emptyFunding",
+        "start": 1520,
+        "end": 1537,
+        "physicalLines": 18,
+        "containingSpan": "emptyFunding"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "buildPartyMap",
+        "start": 1539,
+        "end": 1556,
+        "physicalLines": 18,
+        "containingSpan": "buildPartyMap"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "toIso",
+        "start": 1558,
+        "end": 1560,
+        "physicalLines": 3,
+        "containingSpan": "toIso"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "truncate",
+        "start": 1562,
+        "end": 1564,
+        "physicalLines": 3,
+        "containingSpan": "truncate"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "isPassageVoteQuestion",
+        "start": 1578,
+        "end": 1583,
+        "physicalLines": 6,
+        "containingSpan": "isPassageVoteQuestion"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "isPassageActionText",
+        "start": 1585,
+        "end": 1591,
+        "physicalLines": 7,
+        "containingSpan": "isPassageActionText"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "readableChamber",
+        "start": 1593,
+        "end": 1598,
+        "physicalLines": 6,
+        "containingSpan": "readableChamber"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "chamberFromAction",
+        "start": 1600,
+        "end": 1604,
+        "physicalLines": 5,
+        "containingSpan": "chamberFromAction"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "actionOutcome",
+        "start": 1606,
+        "end": 1617,
+        "physicalLines": 12,
+        "containingSpan": "actionOutcome"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "readableActionType",
+        "start": 1619,
+        "end": 1639,
+        "physicalLines": 21,
+        "containingSpan": "readableActionType"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "passageDetail",
+        "start": 1641,
+        "end": 1648,
+        "physicalLines": 8,
+        "containingSpan": "passageDetail"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "actionSemanticKey",
+        "start": 1650,
+        "end": 1678,
+        "physicalLines": 29,
+        "containingSpan": "actionSemanticKey"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "buildActionMilestones",
+        "start": 1685,
+        "end": 1732,
+        "physicalLines": 48,
+        "containingSpan": "buildActionMilestones"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1714,
+        "end": 1714,
+        "physicalLines": 1,
+        "containingSpan": "buildActionMilestones"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "federalStatusPresentation",
+        "start": 1734,
+        "end": 1761,
+        "physicalLines": 28,
+        "containingSpan": "federalStatusPresentation"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1747,
+        "end": 1747,
+        "physicalLines": 1,
+        "containingSpan": "federalStatusPresentation"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1750,
+        "end": 1750,
+        "physicalLines": 1,
+        "containingSpan": "federalStatusPresentation"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "expectedNextStep",
+        "start": 1763,
+        "end": 1784,
+        "physicalLines": 22,
+        "containingSpan": "expectedNextStep"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "capitalize",
+        "start": 1786,
+        "end": 1789,
+        "physicalLines": 4,
+        "containingSpan": "capitalize"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "prettifyStatus",
+        "start": 1791,
+        "end": 1796,
+        "physicalLines": 6,
+        "containingSpan": "prettifyStatus"
+      },
+      {
+        "kind": "ArrowFunction",
+        "name": null,
+        "start": 1794,
+        "end": 1794,
+        "physicalLines": 1,
+        "containingSpan": "prettifyStatus"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "isFailedResult",
+        "start": 1798,
+        "end": 1800,
+        "physicalLines": 3,
+        "containingSpan": "isFailedResult"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "sevForResult",
+        "start": 1802,
+        "end": 1807,
+        "physicalLines": 6,
+        "containingSpan": "sevForResult"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "sevForStatus",
+        "start": 1809,
+        "end": 1828,
+        "physicalLines": 20,
+        "containingSpan": "sevForStatus"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "sevForAlert",
+        "start": 1830,
+        "end": 1834,
+        "physicalLines": 5,
+        "containingSpan": "sevForAlert"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "officialNextStepText",
+        "start": 1841,
+        "end": 1867,
+        "physicalLines": 27,
+        "containingSpan": "officialNextStepText"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "isFresh",
+        "start": 1870,
+        "end": 1874,
+        "physicalLines": 5,
+        "containingSpan": "isFresh"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "normalizePosition",
+        "start": 1876,
+        "end": 1878,
+        "physicalLines": 3,
+        "containingSpan": "normalizePosition"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "normalizePriority",
+        "start": 1880,
+        "end": 1882,
+        "physicalLines": 3,
+        "containingSpan": "normalizePriority"
+      },
+      {
+        "kind": "FunctionDeclaration",
+        "name": "byDateDesc",
+        "start": 1884,
+        "end": 1886,
+        "physicalLines": 3,
+        "containingSpan": "byDateDesc"
+      }
+    ],
+    "declarations": [
+      {
+        "category": "InterfaceDeclaration",
+        "name": "DossierOptions",
+        "text": "export interface DossierOptions {\n  /** `defense_funding_intel` \u2014 when false, no funding query runs at all (\u00a73.6). */\n  funding?: boolean;\n}",
+        "nonblankLines": 4
+      },
+      {
+        "category": "InterfaceDeclaration",
+        "name": "LoadedFunding",
+        "text": "interface LoadedFunding {\n  block: FundingBlock;\n  relatedVehicles: RelatedVehicle[];\n}",
+        "nonblankLines": 4
+      },
+      {
+        "category": "InterfaceDeclaration",
+        "name": "ClientAlertRow",
+        "text": "interface ClientAlertRow {\n  id: string;\n  severity: string | null;\n  createdAt: Date;\n  title: string;\n  whyItMatters: string | null;\n  recommendedAction: string | null;\n}",
+        "nonblankLines": 8
+      },
+      {
+        "category": "InterfaceDeclaration",
+        "name": "ActionMilestoneSource",
+        "text": "interface ActionMilestoneSource {\n  id: string;\n  date: Date;\n  text: string;\n  type: string | null;\n  chamber: string | null;\n}",
+        "nonblankLines": 7
+      }
+    ],
+    "exports": [
+      {
+        "kind": "InterfaceDeclaration",
+        "names": [
+          "DossierOptions"
+        ],
+        "start": 103
+      },
+      {
+        "kind": "ClassDeclaration",
+        "names": [
+          "BillDossierService"
+        ],
+        "start": 140
+      }
+    ]
+  },
+  "comparison": [
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "physicalLines": 12528,
+      "nonblankLines": 11942,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "physicalLines": 10423,
+      "nonblankLines": 10015,
+      "recordedPathReservation": true,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "physicalLines": 6956,
+      "nonblankLines": 6708,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-research.service.ts",
+      "physicalLines": 6247,
+      "nonblankLines": 6079,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/directory/directory.service.ts",
+      "physicalLines": 3775,
+      "nonblankLines": 3538,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/defense-research/defense-research.service.ts",
+      "physicalLines": 3559,
+      "nonblankLines": 3498,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "physicalLines": 3149,
+      "nonblankLines": 2910,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/program-element/program-element-read.service.ts",
+      "physicalLines": 3002,
+      "nonblankLines": 2860,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-wave1.service.ts",
+      "physicalLines": 2589,
+      "nonblankLines": 2457,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/engagement/microsoft/microsoft-graph-sync.service.ts",
+      "physicalLines": 2564,
+      "nonblankLines": 2414,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill.service.ts",
+      "physicalLines": 2459,
+      "nonblankLines": 2363,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/district-nexus/district-nexus.service.ts",
+      "physicalLines": 2349,
+      "nonblankLines": 2242,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "physicalLines": 2225,
+      "nonblankLines": 2223,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter.service.ts",
+      "physicalLines": 2025,
+      "nonblankLines": 1937,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/engagement/google/google-sync.service.ts",
+      "physicalLines": 2034,
+      "nonblankLines": 1919,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "physicalLines": 2007,
+      "nonblankLines": 1916,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/explorer/explorer.service.ts",
+      "physicalLines": 1936,
+      "nonblankLines": 1826,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-dossier.service.ts",
+      "physicalLines": 1903,
+      "nonblankLines": 1820,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "physicalLines": 2021,
+      "nonblankLines": 1785,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier.service.ts",
+      "physicalLines": 1886,
+      "nonblankLines": 1775,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-review.service.ts",
+      "physicalLines": 1865,
+      "nonblankLines": 1756,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board.service.ts",
+      "physicalLines": 1810,
+      "nonblankLines": 1736,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.service.ts",
+      "physicalLines": 1818,
+      "nonblankLines": 1732,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "physicalLines": 1812,
+      "nonblankLines": 1717,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "physicalLines": 1692,
+      "nonblankLines": 1625,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/live-hearings/live-hearings.service.ts",
+      "physicalLines": 1558,
+      "nonblankLines": 1511,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/live-hearings/phase9/legiwatch-phase9-readiness.service.ts",
+      "physicalLines": 1551,
+      "nonblankLines": 1499,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/engagement/notetaker/notetaker.service.ts",
+      "physicalLines": 1476,
+      "nonblankLines": 1402,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.service.ts",
+      "physicalLines": 1485,
+      "nonblankLines": 1398,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+      "physicalLines": 1423,
+      "nonblankLines": 1359,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/intel-api/src/hearing/hearing-record-workflow.service.ts",
+      "physicalLines": 1324,
+      "nonblankLines": 1324,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/intelligence/insight-generator.service.ts",
+      "physicalLines": 1420,
+      "nonblankLines": 1311,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "physicalLines": 1350,
+      "nonblankLines": 1308,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "physicalLines": 1365,
+      "nonblankLines": 1305,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-import.service.ts",
+      "physicalLines": 1338,
+      "nonblankLines": 1304,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/memory/immutable-memory-version.service.ts",
+      "physicalLines": 1310,
+      "nonblankLines": 1239,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/bill-change-detector.service.ts",
+      "physicalLines": 1299,
+      "nonblankLines": 1233,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "physicalLines": 1264,
+      "nonblankLines": 1232,
+      "recordedPathReservation": false,
+      "protectedDomain": true
+    },
+    {
+      "path": "apps/intel-api/src/hearing/hearing-publication.service.ts",
+      "physicalLines": 1233,
+      "nonblankLines": 1230,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    },
+    {
+      "path": "apps/api/src/memory/memory-store.service.ts",
+      "physicalLines": 1272,
+      "nonblankLines": 1225,
+      "recordedPathReservation": false,
+      "protectedDomain": false
+    }
+  ],
+  "limitation": "Recorded-path reservation absence alone is not authority. Active domain owners, protected consumers and actual worktree deltas require separate judgment; no deletion or implementation proposed from static import emptiness.",
+  "implementationInThisSlice": false,
+  "actualImageBuildUsedTreesEstablished": false,
+  "existingRegressionTests": [
+    "apps/intel-api/test/bill-dossier.spec.ts",
+    "apps/intel-api/test/bill-dossier.truth.spec.ts",
+    "apps/intel-api/test/bill-dossier-auth.spec.ts",
+    "apps/intel-api/test/bill-dossier-state.spec.ts",
+    "apps/intel-api/test/bill-dossier-funding.spec.ts"
+  ],
+  "relatedSourceVerifier": "apps/intel-api/test/verify-bill-dossier-sources.spec.ts"
+}

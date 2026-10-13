@@ -1,0 +1,361 @@
+{
+  "acceptedApiBaseline": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+  "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "hashDomain": "original TypeScript AST member/function getText()",
+  "originalRemainingInventory": "INTELLIGENCE-REMAINING-AFTER-CLIENT.json",
+  "familyOwnership": [
+    {
+      "family": "I4 independent regulatory profile/discovery",
+      "originalMemberNonblankLines": 208,
+      "methods": [
+        {
+          "name": "getClientRegulatoryProfile",
+          "originalSHA256": "117d91d8d657f31fb5e8ca4804b07ddb95799d7877b2b0c55ccd2989483cae02",
+          "ownerFile": "apps/api/src/intelligence/client-regulatory-v1.ts",
+          "ownerClass": "ClientRegulatoryV1",
+          "ownerField": "regulatory",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "bf4f92d1eb09b627385f1d290fd8058148a801904b587957deb6182494c40e8b"
+        },
+        {
+          "name": "findActiveRegulations",
+          "originalSHA256": "9a0fca1f7a911fdbcc4fa4d34565b11eb8b37651c9f51047e4cca31a976d84ca",
+          "ownerFile": "apps/api/src/intelligence/client-regulatory-v1.ts",
+          "ownerClass": "ClientRegulatoryV1",
+          "ownerField": "regulatory",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "5945d91c187b28d1fc7e13b113d06c2fd294de0ac235e25e3aa5046b050cbc60"
+        },
+        {
+          "name": "getClientRelevantRegulations",
+          "originalSHA256": "3f557c5f305216f39df5da4f4b257c4baa3740f1be2d39e1ff3e3899568dfd32",
+          "ownerFile": "apps/api/src/intelligence/client-regulatory-v1.ts",
+          "ownerClass": "ClientRegulatoryV1",
+          "ownerField": "regulatory",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "1d332c46ae3f06e27136480f36ca947b42842e57d5bfe7dfee9756fe7454eb20"
+        }
+      ]
+    },
+    {
+      "family": "I8 alert sources and per-user worklist",
+      "originalMemberNonblankLines": 578,
+      "methods": [
+        {
+          "name": "getCommentPeriodAlerts",
+          "originalSHA256": "2a0e34e0e2433d6f88e7cd81032cea069c19c891757f8d23201287bc1a4187f9",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts",
+          "ownerClass": "ClientCommentDeadlineAlertsV1",
+          "ownerField": "commentDeadlines",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "5a78fe3b701e0a35f06d199d3e27ab116b34b1d86c27939f971f96d437b7b5fb"
+        },
+        {
+          "name": "alertCountdownLabel",
+          "originalSHA256": "7bd56aaafb9bdefc6c42526c9c8dbca61eafad3f2276c68fd4ee6e568ba217a3",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "85bc9fe2bd1751c59cd4f7825ce8d9f12ec0937fb94874d5e50c9dd5b6641860"
+        },
+        {
+          "name": "getClientIssueCodes",
+          "originalSHA256": "b48e72594b61dc978c10825f1ffd571266e45edb5897a4dc8f4d7e04bf7bbb54",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "c4e28664ab2af54441670ae1c0222bdb286472b67fc59279d9c57ed36b03594b"
+        },
+        {
+          "name": "getHearingAlerts",
+          "originalSHA256": "350c383cab49de5904052a08b1ff08875aeeb79816d683065327297ec95ec2fb",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "911f61d111865083d42c34cac8e7027c5b330f1d2c502c8a9e2448b5f52f19b7"
+        },
+        {
+          "name": "getOverdueCommentAlerts",
+          "originalSHA256": "cfa651118d2410ecf706b52b7cec3ac8f653c3af50d7650394db1d9e571ef6e7",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "7328ed7753a3b234c3d5f0a6a769763397c9d915a68d9f3c72314e9db62f6c9c"
+        },
+        {
+          "name": "getCompetitorLdaAlerts",
+          "originalSHA256": "78bd085131a0d3d07686942290a54867c2b7612ed9cff07546a620d95946d361",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "c9f636e1ba564db36346358badce4d0fc4850c6da5e5a559634014acdef8477b"
+        },
+        {
+          "name": "getContractAwardAlerts",
+          "originalSHA256": "8d7c9029101b9723d8e710c6997f9c8a41ca2184d02f73d12586e96bbb57343d",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+          "ownerClass": "ClientAwardAlertsV1",
+          "ownerField": "awardAlerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "dc510eabaefb1fb7195dc2c3a0266c4116bd4718e1c0fed07f78b36ee9b796cb"
+        },
+        {
+          "name": "resolveContractorUeisForAlerts",
+          "originalSHA256": "f22060c1fc504431bea7294403bef0d61cf8e4d68f089f798d7ac8afccf28276",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+          "ownerClass": "ClientAwardAlertsV1",
+          "ownerField": "awardAlerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "2bfea35df6f6b31457b004c999229babbb50f9827ff158b44f19c4bdcb6716f7"
+        },
+        {
+          "name": "setAlertState",
+          "originalSHA256": "6e8e18ffdd3c64bafc92dc4be511177df5680cf42a318ce52c9ae9b8377c1288",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "6e8e18ffdd3c64bafc92dc4be511177df5680cf42a318ce52c9ae9b8377c1288"
+        },
+        {
+          "name": "clearAlertState",
+          "originalSHA256": "eeabf8f27f004bb7a467bd21cb55bf3379d131bbbb458be7c46feb9e3c90a97c",
+          "ownerFile": "apps/api/src/intelligence/client-alerts-v1.ts",
+          "ownerClass": "ClientAlertsV1",
+          "ownerField": "alerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "eeabf8f27f004bb7a467bd21cb55bf3379d131bbbb458be7c46feb9e3c90a97c"
+        }
+      ]
+    },
+    {
+      "family": "I12 tenant portfolio/dashboard feeds and rollups",
+      "originalMemberNonblankLines": 843,
+      "methods": [
+        {
+          "name": "getTodayTimeline",
+          "originalSHA256": "2629d4c30060302a827c9ba0f6a0a0b8044f6973130ead85f5dba4d43bb890d5",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+          "ownerClass": "IntelligencePortfolioTimeline",
+          "ownerField": "timeline",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "24bbeaeeda8afe24daee1a5370828bd6b541db76c13474140d3bda2ee46e987b"
+        },
+        {
+          "name": "getLiveTicker",
+          "originalSHA256": "7130f8957569b48ab7dbe24577c705ad6ec796d3dba30892f66bd512e84f29a0",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+          "ownerClass": "IntelligencePortfolioTimeline",
+          "ownerField": "timeline",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "69b6e1af45c172d35e4462cd2829c9b2afd1a3b2507ae9d6ba57c91c5f3c81d6"
+        },
+        {
+          "name": "getComingUp",
+          "originalSHA256": "fc2e8a922095befd12ecd6d5e74c733557f7fd1623e4046d0e1860d1cb0c8da8",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts",
+          "ownerClass": "IntelligencePortfolioComingUp",
+          "ownerField": "comingUp",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "fe9a3af16ef53d764c2057138acd3718c3f8c03c64e7ac408ea81fa5dd70c2a8"
+        },
+        {
+          "name": "getPortfolioSummary",
+          "originalSHA256": "7f174b70dc9df1f88ef9c0769fec4a542b4993ecaafb9d4d96bac2fa799c8a9b",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-summary.ts",
+          "ownerClass": "IntelligencePortfolioSummary",
+          "ownerField": "summary",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "e9a0e98021440ecba2e8e6a6cd6e9afc34235e988bc7dd224ef5e6f2eab7ce75"
+        },
+        {
+          "name": "emptyPortfolioAlerts",
+          "originalSHA256": "82ca8152b9470611ac12f87c6f629d217981d45819bb275ba1ecf24319f8d0d1",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+          "ownerClass": "IntelligencePortfolioAlerts",
+          "ownerField": "portfolioAlerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "eb57a4648e87a8c2a1f525d8754121fdcf8c1957c5f63c7c2e9ccb20299e334d"
+        },
+        {
+          "name": "withPortfolioAlertsRequestBudget",
+          "originalSHA256": "2ac4adf4baa20fa3b2c1b35dd04a6e7d994a3c997f7579aae8c1fa743d688f11",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+          "ownerClass": "IntelligencePortfolioAlerts",
+          "ownerField": "portfolioAlerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "f2fe3325e24239026d35242238b49e493cca6cad4cff1909d38c38a044a85725"
+        },
+        {
+          "name": "getPortfolioAlerts",
+          "originalSHA256": "91e581008eae1d57d36cdfafe0bfae2ffdceb61c31ee8e4c493c5400fb5a5f6f",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+          "ownerClass": "IntelligencePortfolioAlerts",
+          "ownerField": "portfolioAlerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "bceded46fb203bfe549e3fba955180b532c78e33bd637e1dd2d3ea3215817688"
+        },
+        {
+          "name": "computePortfolioAlerts",
+          "originalSHA256": "ddabc83ab6853e491d39344dd1c954e929acdf2b27a847934e85112fc0277de5",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+          "ownerClass": "IntelligencePortfolioAlerts",
+          "ownerField": "portfolioAlerts",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "aacc5067c8dfb83ae863b1126fbd0a30104917970027888d50dfcf76382a96a0"
+        },
+        {
+          "name": "getPortfolioRollup",
+          "originalSHA256": "5d3a5a678d98bd1045606a2f9d9a4f833a1a3a11dbbc4f441d915bf5efbb32c5",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+          "ownerClass": "IntelligencePortfolioRollup",
+          "ownerField": "rollup",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "20945738bc89794e594fb8058c56ab77c97081196dc58c70d068dba6b8d69df5"
+        },
+        {
+          "name": "getPortfolioPeSummary",
+          "originalSHA256": "78dfe95d0930eac356464ddf4e0426b8385fb3ba6ae937cebc9f35cf23ab0de5",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+          "ownerClass": "IntelligencePortfolioRollup",
+          "ownerField": "rollup",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "01369b9e691f1cba1df10f1e9903ef4d5172262331b8fa49c21a88d092bbc191"
+        },
+        {
+          "name": "getPortfolioEngagementTrend",
+          "originalSHA256": "59045e03fd8b0ff2086954f66da1561e5d517ae68682bee9a2a6890bf1493ca9",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-trend.ts",
+          "ownerClass": "IntelligencePortfolioTrend",
+          "ownerField": "trend",
+          "rootDisposition": "original method header; concrete delegate",
+          "ownerMemberSHA256": "59045e03fd8b0ff2086954f66da1561e5d517ae68682bee9a2a6890bf1493ca9"
+        },
+        {
+          "name": "startOfQuarter",
+          "originalSHA256": "a067a041f591d7bf7c2a37d2faa41f543458316a76e8d60ff08ab9b842969711",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+          "ownerClass": null,
+          "ownerField": null,
+          "rootDisposition": "private helper relocated after sole caller moved",
+          "ownerMemberSHA256": "2c26a30a1ed5da797e39fb872569a28c10f6634c68655f3daca191045dcb043f"
+        },
+        {
+          "name": "buildQuarterWindows",
+          "originalSHA256": "2294d46d8ba1f30c774a240088bc745ff55fe2808289667e86120a0853cd034b",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+          "ownerClass": null,
+          "ownerField": null,
+          "rootDisposition": "original exported helper header; canonical function delegate",
+          "ownerMemberSHA256": "2294d46d8ba1f30c774a240088bc745ff55fe2808289667e86120a0853cd034b"
+        },
+        {
+          "name": "foldEngagementTrend",
+          "originalSHA256": "0a3f8c9ee2cc345c90fa4fd17dcafbb4e2a55b4b1ccd9b8db9515dfbd6221312",
+          "ownerFile": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+          "ownerClass": null,
+          "ownerField": null,
+          "rootDisposition": "original exported helper header; canonical function delegate",
+          "ownerMemberSHA256": "0a3f8c9ee2cc345c90fa4fd17dcafbb4e2a55b4b1ccd9b8db9515dfbd6221312"
+        }
+      ]
+    }
+  ],
+  "remainingNamedMethodFamilies": [],
+  "namedMethodFamilyOwnershipPrepared": true,
+  "nativeQualificationRecordedInHandover": true,
+  "facade": {
+    "sourceSHA256": "24bdc3d7d33f38499ceeea6f344c3c904cd2f922519cd7c2adaae4919727d249",
+    "nonblankLines": 1499,
+    "physicalLines": 1650,
+    "methodCount": 98,
+    "originalMethodHeadersRetained": 97,
+    "unrelatedWholeMethodsRetained": 73,
+    "constructorPhysicalLines": 69,
+    "finalCompositionFactoryPhysicalLines": 48,
+    "fileBudgetBelow400": false,
+    "remainingDisposition": [
+      "original provider/API/private compatibility routing and three-dependency construction",
+      "explicit owner composition and typed request-time callbacks",
+      "existing shared profile source-budget/slow-warning mechanism",
+      "original mutable/static policy and Root cache/inflight/gate compatibility fields",
+      "original exports/type contracts and historical operating comments"
+    ]
+  },
+  "newOwnerModules": [
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+      "sha256": "f27fd1af1b2fc9f2deaf1f81bbd7cf759d09962ee46af094444dbd5099c15e3e"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts",
+      "sha256": "a635a9ed454849e522dc1edd792441cbac95a7c744e84b6b6ed5ae48d170ef76"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1.shared.ts",
+      "sha256": "c5e8d36a56e46133159a35747f9f1e436fb27347605b127996e17cf08d7d32fb"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-alerts-v1.ts",
+      "sha256": "a3227ae871347f44c524066dc6526e415d6e1f42a94870d9eb1d6b61fb5548da"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-regulatory-v1.ts",
+      "sha256": "0c56c4e5748bad9f0604f3473be8cbfd8be69e5a3ff939b2e21b8e1fa4a85e81"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+      "sha256": "3e5f7ac15371069ddc40fe4b2344b22ada057467ca80313e893dcc4acebbbed7"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts",
+      "sha256": "c7ec379642cdf158cb19b74cba87d97b6739a83e69b8a7f1b13eaee26df684c3"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+      "sha256": "486881ab90bc453146ed8730d24bf26441629536458fc8f548be309e3952491c"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+      "sha256": "9b7b0633d111c6b5f090cc6bac36bf5ce19d0b7e8a0a6a051740e767e377a545"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-summary.ts",
+      "sha256": "2efe5572347760d2010f9654f7d936afdfa273b2459c06de79053dc1c1120256"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+      "sha256": "def1beb91a917316a6fd3ca493b8b837096c1a90f074bfc73139e51899790be6"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-portfolio-trend.ts",
+      "sha256": "218758f33014ae142766bbfbe33515747a4da82221986124370508ef33bffcba"
+    }
+  ],
+  "fullIntelligenceCleanupAcceptanceComplete": false,
+  "wholeCleanupComplete": false,
+  "actualImageBuildUsedTreesEstablished": false,
+  "broaderRetirementAcceptanceEstablished": false,
+  "activeProductExclusions": [
+    "Federal Register calendar endpoint",
+    "Workspace copy changes"
+  ],
+  "nextSubstantialCapability": {
+    "path": "apps/intel-api/src/bill-dossier/bill-dossier.service.ts",
+    "name": "complete Bill 360 dossier read model",
+    "nonblankLines": 1775,
+    "physicalLines": 1886,
+    "methods": 16,
+    "standaloneHelpers": 50,
+    "sourceBlob": "712a2a0fbc8c24ade5e025806de043d8a07c0685",
+    "declaredIntelRevision": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "sourceConsumerAudit": "BILL-DOSSIER-NEXT.md and BILL-DOSSIER-NEXT-INVENTORY.json",
+    "implementationInThisSlice": false
+  },
+  "qualificationRecord": "INTELLIGENCE-FINAL-QUALIFICATION.json"
+}
