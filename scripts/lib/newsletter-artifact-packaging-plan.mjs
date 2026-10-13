@@ -1,3 +1,4 @@
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import { constants } from 'node:fs';
@@ -236,12 +237,12 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
     if (lock) { await lock.close(); await io.unlink(lockPath); }
   }
 }
-export const NEWSLETTER_BUILD_USAGE = 'build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS';
+export const NEWSLETTER_BUILD_USAGE = 'Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS';
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const invocation = parseNewsletterBuildInvocation(process.argv.slice(2));
     if (invocation.mode === 'help') console.log(NEWSLETTER_BUILD_USAGE);
     else if (invocation.mode === 'plan') console.log(JSON.stringify(createNewsletterArtifactPackagingPlan(invocation.options), null, 2));
     else console.log(JSON.stringify(await assembleNewsletterReleaseArtifact(invocation.options), null, 2));
-  } catch (error) { console.error(JSON.stringify({ status: 'FAIL', assemblyCompleted: false, shippingAuthorized: false, error: String(error.message).slice(0, 300) })); process.exitCode = 2; }
+  } catch (error) { console.error(JSON.stringify({ status: 'FAIL', assemblyCompleted: false, shippingAuthorized: false, usage: NEWSLETTER_BUILD_USAGE, error: String(error.message).slice(0, 300) })); process.exitCode = 2; }
 }
