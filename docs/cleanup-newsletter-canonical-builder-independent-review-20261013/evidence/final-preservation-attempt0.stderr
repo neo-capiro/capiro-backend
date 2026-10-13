@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation.py", line 71, in <module>
+    for row in old_index['entries']:
+               ~~~~~~~~~^^^^^^^^^^^
+KeyError: 'entries'

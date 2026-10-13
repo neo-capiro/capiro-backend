@@ -1,0 +1,21 @@
+{
+  "source": "df86e43aba9f16d0c28c68202ebd88f913aa2ce3",
+  "scope": "fake fd callbacks only; no allocations over16MiB+1/private/assets/writes/native operations",
+  "readFileCalls": 0,
+  "boundedReads": [
+    {
+      "bufferLength": 65536,
+      "offset": 0,
+      "length": 65536,
+      "position": 0
+    },
+    {
+      "bufferLength": 65536,
+      "offset": 0,
+      "length": 65536,
+      "position": 2
+    }
+  ],
+  "error": "Frontend standalone artifact refused: manifest byte identity",
+  "pass": true
+}
