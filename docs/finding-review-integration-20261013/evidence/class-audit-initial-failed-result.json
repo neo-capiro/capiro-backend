@@ -1,0 +1,8 @@
+{
+  "exitCode": 1,
+  "error": "Error: constructor changed",
+  "sourceHead": "093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00",
+  "program": "class-audit-initial-failed-program.cjs.txt",
+  "correctedPreservationInvariant": "seven constructor parameter/decorator texts, not the body which initializes the new owner",
+  "productionChangeMadeToSatisfyInitialAssertion": false
+}

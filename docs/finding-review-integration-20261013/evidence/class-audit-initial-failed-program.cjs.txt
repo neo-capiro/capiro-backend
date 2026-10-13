@@ -1,0 +1,12 @@
+const fs=require('node:fs'),cp=require('node:child_process'),ts=require('/workspace/capirov2/node_modules/typescript'),crypto=require('node:crypto');
+const filepath='apps/api/src/clients/client-profile-fill-completion.service.ts';
+const before=cp.execFileSync('git',['show','d54a857b1f8edd279e8798ff41f56389c2efeb69:'+filepath],{encoding:'utf8'});
+const after=fs.readFileSync(filepath,'utf8');
+const ast=(text)=>{const source=ts.createSourceFile(filepath,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);return {source,cls:source.statements.find(x=>ts.isClassDeclaration(x)&&x.name?.text==='ClientProfileFillCompletionService')};};
+const b=ast(before),a=ast(after); const get=(x,text)=>new Map(x.cls.members.map(n=>[n.name?.getText(x.source)||'constructor',text.slice(n.pos,n.end)]));
+const bm=get(b,before),am=get(a,after);let same=[],changed=[],removed=[],added=[];
+for(const [name,value] of bm){if(!am.has(name))removed.push(name);else if(am.get(name)===value)same.push(name);else changed.push(name);}for(const name of am.keys())if(!bm.has(name))added.push(name);
+const constructorsEqual=b.cls.members.find(ts.isConstructorDeclaration).getText(b.source)===a.cls.members.find(ts.isConstructorDeclaration).getText(a.source);
+if(!constructorsEqual)throw Error('constructor changed');
+const receipt={beforeMembers:bm.size,afterMembers:am.size,byteExactMembers:same.length,byteExactMemberNames:same,changedMemberNames:changed,removedMemberNames:removed,addedMemberNames:added,constructorTextExact:constructorsEqual,serviceBeforeLines:before.split('\n').length-1,serviceAfterLines:after.split('\n').length-1,sourceHead:'093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00',donorParent:'d54a857b1f8edd279e8798ff41f56389c2efeb69'};
+fs.writeFileSync('docs/finding-review-integration-20261013/evidence/class-member-preservation.json',JSON.stringify(receipt,null,2)+'\n');console.log(JSON.stringify({...receipt,byteExactMemberNames:undefined}));

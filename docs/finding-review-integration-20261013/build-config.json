@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/tmp/finding-review-api-build-20261013",
+    "tsBuildInfoFile": "/tmp/finding-review-api-build-20261013.tsbuildinfo"
+  }
+}

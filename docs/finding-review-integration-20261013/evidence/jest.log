@@ -1,0 +1,26 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-finding-review-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/clients/client-profile-fill-completion.service.spec.ts (8.796 s)
+PASS src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts
+[95m[Nest] 761162  - [39m10/13/2026, 9:52:15 AM [95m  DEBUG[39m [38;5;3m[ClientAdvocacyMatterService] [39m[95mAdvocacy matter access for client 22222222-2222-2222-2222-222222222222[39m
+[95m[Nest] 761162  - [39m10/13/2026, 9:52:15 AM [95m  DEBUG[39m [38;5;3m[ClientAdvocacyMatterService] [39m[95mAdvocacy matter access for client 22222222-2222-2222-2222-222222222222[39m
+PASS src/clients/client-profile-fill-finding-application.characterization.spec.ts
+PASS src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts
+PASS src/clients/client-advocacy-matter.contract.spec.ts
+PASS src/clients/client-profile-fill-regulatory-comments.characterization.spec.ts
+PASS src/clients/client-profile-fill-retry.spec.ts
+PASS src/clients/client-profile-fill-completion.characterization.spec.ts
+PASS src/clients/client-profile-fill-finding-review.characterization.spec.ts
+PASS src/clients/client-advocacy-matter-security.contract.spec.ts
+PASS src/clients/client-profile-fill-regulatory-comment-source.characterization.spec.ts
+PASS src/clients/client-profile-fill-finding-source-check.contract.spec.ts
+PASS src/clients/client-profile-qa-attribution.spec.ts
+PASS src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts
+
+Test Suites: 1 skipped, 14 passed, 14 of 15 total
+Tests:       5 skipped, 216 passed, 221 total
+Snapshots:   0 total
+Time:        13.158 s
+Ran all test suites within paths "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-regulatory-comment-source.characterization.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-regulatory-comments.characterization.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-finding-application.characterization.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-fill-finding-review.characterization.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-advocacy-matter-security.contract.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-advocacy-matter.contract.spec.ts", "/workspace/capirov2-finding-review-integration-20261013/apps/api/src/clients/client-profile-qa-attribution.spec.ts".
+Test results written to: ../../docs/finding-review-integration-20261013/evidence/jest-results.json

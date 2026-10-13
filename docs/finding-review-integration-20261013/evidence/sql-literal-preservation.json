@@ -1,0 +1,20 @@
+{
+  "sourceHead": "093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00",
+  "sourceParent": "d54a857b1f8edd279e8798ff41f56389c2efeb69",
+  "comparison": "decoded literal SQL multiset for finding/advocacy/client statements, old service vs retained service and four extracted owners",
+  "oldStatements": 21,
+  "retainedStatements": 14,
+  "movedStatements": 7,
+  "allLiteralBytesAndMultiplicityExact": true,
+  "movedSqlSha256": [
+    "20325b215770a9882ec042e68f154f6d608e05f93256d7099820f24993d2cd1d",
+    "e71d7e1acc74b223aacd7a93159621235a8486ed83c4d03df6a7e056fc434008",
+    "75eaef87dbb8b37a8ebe25c523b098793d733f1e9e979b3c0af4841c78faf443",
+    "da581f364834becab18afeec5660982a442c9e068191828d8745cb304bb239ee",
+    "ac45c708e82c663a92cf33585a9a8f0d045a5e554959a069fe8b79667847f908",
+    "7f098f6808714a4c1e26e000b8b1fca7938eba0730566f556c2f10769f2a24f0",
+    "20325b215770a9882ec042e68f154f6d608e05f93256d7099820f24993d2cd1d"
+  ],
+  "parameterBindingOrder": "independent semantic review; literal equality alone does not establish it",
+  "nativeSqlExecuted": false
+}

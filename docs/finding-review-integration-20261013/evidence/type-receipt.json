@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "check": "type",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/workspace/capirov2-finding-review-integration-20261013/apps/api/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/finding-review-api-type-20261013.tsbuildinfo"
+  ],
+  "cwd": "/workspace/capirov2-finding-review-integration-20261013/apps/api",
+  "sourceHead": "093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00",
+  "sourceTree": "5bc1e1433d3fea5a01b8dbb325eab315245b2471",
+  "elapsedSeconds": 144.306,
+  "exitCode": 0,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/finding-review-integration-20261013/evidence/type.log",
+  "logBytes": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

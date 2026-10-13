@@ -1,0 +1,37 @@
+{
+  "receivingSourceHead": "093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00",
+  "sourceTree": "5bc1e1433d3fea5a01b8dbb325eab315245b2471",
+  "baseHead": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e",
+  "donorHead": "e05f9d69357600243a333395119337bf01cd0e7d",
+  "codePaths": 11,
+  "exactDonorPaths": 11,
+  "independentReview": "INDEPENDENT-BACKEND-REVIEW.md",
+  "checks": {
+    "jest": {
+      "passed": 216,
+      "retainedSkipped": 5,
+      "failed": 0,
+      "elapsedSeconds": 14.725
+    },
+    "typecheck": {
+      "exitCode": 0,
+      "elapsedSeconds": 144.306
+    },
+    "build": {
+      "exitCode": 0,
+      "elapsedSeconds": 89.52
+    }
+  },
+  "unchangedAuthorityInputs": 33,
+  "unchangedClassMembers": 71,
+  "constructorParameterDecoratorTextsPreserved": 7,
+  "constructorBodyChangedToInitializeOwner": true,
+  "movedSqlLiteralBytesAndMultiplicityExact": 7,
+  "exactlyOnceConcurrencyClaimed": false,
+  "nativeAuthorityRepeated": false,
+  "artifactBuildPerformed": false,
+  "mainMerge": false,
+  "deployment": false,
+  "independentReviewHead": "0e1a62a2ce5e03c81679f8f0c33d5a7f40ec28b7",
+  "independentReviewTree": "b3e50b910b7ef07ebf26f0415a4bb709262138d8"
+}

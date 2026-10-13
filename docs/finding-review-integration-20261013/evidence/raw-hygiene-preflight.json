@@ -1,0 +1,11 @@
+{
+  "offendingRawFiles": [
+    {
+      "path": "docs/finding-review-integration-20261013/evidence/jest.log",
+      "diagnostics": "docs/finding-review-integration-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/finding-review-integration-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+      "bytes": 4004,
+      "sha256": "fd441d3d8cc99c0c67def1901f991a802e5f68be9a12a4d65a6a82177026bccf"
+    }
+  ],
+  "noIndexDifferenceExit1AloneIsNotHygieneFailure": true
+}

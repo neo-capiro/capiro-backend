@@ -1,0 +1,24 @@
+# Advanced finding-review ownership integration
+
+This draft composes reviewed PR2458 into published PR2457. Production delta is eleven exact donor paths: four cohesive finding-review/shared/record/outcome modules, two new characterization specs, three existing guards/QA adaptations, one fixture and the completion-service facade change. There is no package, schema, migration, Nest registration, source-policy or public-authority change.
+
+Receiving source `093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00`, tree `5bc1e1433d3fea5a01b8dbb325eab315245b2471`, is based on PR2457 `30cfdb9bfc030934cc68e39bcc79b21c88d3993e` (tree `cd172f0c3e64385583e39cf8ba25c346c9027982`). PR2458 donor `e05f9d69357600243a333395119337bf01cd0e7d` (tree `7f06ffec3611d07bc56cf8fbfc6cf13e7bbfcfda`) has parent PR2455 `d54a857b1f8edd279e8798ff41f56389c2efeb69`. Ordinary merge retains all original and reviewed donor/source heads. Publication successors are documentation only.
+
+| Owner / dependency | Current disposition |
+| --- | --- |
+| Completion service facade | 4,646→4,123 total lines. All71 unrelated class members are byte-exact. Seven constructor parameter/decorator texts and public signatures stay exact; constructor body intentionally initializes the new review owner. |
+| Advanced finding review | Complete scoped load, core-first ordering, advanced pending/informational/replay handling, apply/accept and targeted Matter review retain canonical service ports and tenant/client/run binding. |
+| Record / outcome writers | All seven moved SQL statements retain literal bytes/multiplicity; independent semantic review verifies parameter ordering. Human-selected Matter assignment and audit stay in the record transaction; automatic clustering and outcome links remain best-effort postcommit. Finding acceptance stays a separate scoped transaction. |
+| Concurrency / idempotency | Existing load/write/accept behavior preserved. No new lock, exactly-once or native concurrency guarantee is claimed by extraction or mocked tests. |
+| Receiving verification | 216 source/pure/mocked cases pass; five pre-existing retry integration skips remain (14 passing suites, one retained skipped suite). Strict API compiler (144.306s, exit0) and actual production Nest build (89.520s, exit0) receipts bind receiving source. |
+| Owner qualification | PR2458 reports257 cases, coverage and independent acceptance plus full type/build. Those private raw results are owner-reported; this packet records its own bounded receiving results and review. |
+| Frontend policy and artifact | PR2457 policy/source pins remain exact; its24-case acceptance carries by source identity. Actual source83 musl artifact work belongs to thread01a134a6-3a87-7533-bba6-0b6152739019 in a fresh instance. No competing build, Files admission or image/ABI claim here. |
+| Native authority / cleanup | All33 previously qualified authority inputs unchanged. Completed native HTTP/Prisma/RLS/database cleanup is not repeated. |
+| Protected unpublished reporting | No branch/body inspection, changes or qualification. Runtime mocked host refuses its implementation body and uses only an inert DI token for the unselected dependency. |
+| Main / deployment / exclusions | No main merge or deployment. No Commitment/We owe/They owe/counterparty UI, provider/customer effects, credentials/permissions, AWS/network-security or database/migration operation. Shared used task/backend behavior remains. |
+
+[Exact source audit](evidence/source-composition-audit.json) binds all eleven donor bytes and unchanged authority/policy/package inputs. [Class-member audit](evidence/class-member-preservation.json) binds the71 unchanged members and correct constructor invariant. The initial root audit incorrectly required the complete constructor body to be byte-equal, so it stopped with `Error: constructor changed`; its original program/result is retained. Correcting the invariant required no production change: extraction initializes the new owner while preserving constructor parameters and injection metadata.
+
+Actual receiving checks use installed, previously verified cached tooling and source-client/schema compatibility. No installation, generation, provider, AppModule or native database execution occurs. Test assertions and the inherited skipped suite are unchanged except the reviewed donor guard/QA adaptations. The configured effect-denial host prevents accidental network/process/provider work. Independent receiving acceptance is recorded in [INDEPENDENT-BACKEND-REVIEW.md](INDEPENDENT-BACKEND-REVIEW.md).
+
+All previous evidence/source objects remain recoverable. Raw failed and passing observations are preserved without trimming; any whitespace-bearing raw log is archived losslessly with its original Git head/path/hash. No new hygiene exception or historical/full-suite coverage claim is introduced.

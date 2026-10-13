@@ -1,0 +1,109 @@
+{
+  "receivingSourceHead": "093d6b0a1f7fbd1b645c0dbbb281bcd89fa6af00",
+  "sourceTree": "5bc1e1433d3fea5a01b8dbb325eab315245b2471",
+  "baseHead": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e",
+  "donorHead": "e05f9d69357600243a333395119337bf01cd0e7d",
+  "donorParent": "d54a857b1f8edd279e8798ff41f56389c2efeb69",
+  "codePaths": [
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter-security.contract.spec.ts",
+      "mode": "100644",
+      "blob": "7335158e278e4c9c14c65cd43be59c241040464e",
+      "bytes": 7801,
+      "sha256": "ffbf63fba28a84742fec273f2240f0d65a001f0ae38381008378abfdcdbf09b9",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter.contract.spec.ts",
+      "mode": "100644",
+      "blob": "f42ab8c6f21da67d834d443b5c428ff370b3b454",
+      "bytes": 12700,
+      "sha256": "22858594eafb314f01578f63a494ec79a4de7c6d65361b5499c7ab9d4970c714",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-advocacy-record-application.ts",
+      "mode": "100644",
+      "blob": "9375b2df00a35acb06477a75b907c9c6bf53158f",
+      "bytes": 7974,
+      "sha256": "60b46daddc278714e5825a78da9e8d4ff5b073446191602d34e361397a046cbf",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "mode": "100644",
+      "blob": "0169e392db147412fa6fd762bc4c598db391350d",
+      "bytes": 163029,
+      "sha256": "07765bcf201166fe56c4c2d2d39f1f85ab87e43ebbdb6666c722207f7060c540",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-finding-application.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "b5694fb76dac4a26d838845cb3fee334a2c8f341",
+      "bytes": 16337,
+      "sha256": "4e7436c0978c081c2161ddc7f9d36de8c1fc1cd7f585ee88f4542c18035a5bcc",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-finding-review.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "c2b83d63b074759f4dfff0047a568cca6f8771ce",
+      "bytes": 8010,
+      "sha256": "6848882adb93cc50a039f6e25e4bec6f6fff659b456d6231d7b30723466a5f20",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-finding-review.shared.ts",
+      "mode": "100644",
+      "blob": "af957a6fbd12fb6b40f4efe33299666a322d02ab",
+      "bytes": 1645,
+      "sha256": "892acee41045b4e80a8d7532adeae5cddcbad45465be3e1691ae71dcd6106edb",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-finding-review.ts",
+      "mode": "100644",
+      "blob": "3659193438337009acac805fb1e269aa53a72ac6",
+      "bytes": 10754,
+      "sha256": "4f0dbeb19577cfacbc253989c93286d8490e4b744428a48fae69526911506218",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-outcome-application.ts",
+      "mode": "100644",
+      "blob": "45f678edc505f42a68649e1ae83e6e8a790e2811",
+      "bytes": 6974,
+      "sha256": "13376c7dcc6d36838df2e0645655b44a50feff7db71dc3350fb3a2ff5a1d8a0a",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-qa-attribution.spec.ts",
+      "mode": "100644",
+      "blob": "7984ae8a876efc2eb99f4164625d283a62f496b8",
+      "bytes": 2871,
+      "sha256": "f8b425a1c9266629b6be8d1fff67a92d24460bbbad287c3f93acc491286af27d",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-finding-review.ts",
+      "mode": "100644",
+      "blob": "5a22f3bdb66883f70db210cb7ae37bb1295355c1",
+      "bytes": 8573,
+      "sha256": "4e099acaf4b6bfd5e196193b4ea88c99abfbb019a46800394d27363a2fd48c3f",
+      "exactDonor": "e05f9d69357600243a333395119337bf01cd0e7d"
+    }
+  ],
+  "exactDonorPaths": 11,
+  "authorityInputsUnchanged": 33,
+  "policyPackageAndLockPathsUnchanged": [
+    "scripts/lib/newsletter-accepted-source-profile.json",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "package.json",
+    "apps/api/package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "protectedUnpublishedReportingTouched": false,
+  "nativeOrProviderAcceptanceClaimed": false
+}
