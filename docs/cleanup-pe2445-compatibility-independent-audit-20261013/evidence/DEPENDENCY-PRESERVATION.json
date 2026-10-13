@@ -1,0 +1,126 @@
+{
+  "peHead": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "builderHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "checks": [
+    {
+      "path": "pnpm-lock.yaml",
+      "peHead": "100644 blob 08d78e3dbca937f82ada2eb344b961477e9dfc58\tpnpm-lock.yaml",
+      "builderHead": "100644 blob 08d78e3dbca937f82ada2eb344b961477e9dfc58\tpnpm-lock.yaml",
+      "exact": true
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "peHead": "100644 blob a04e37e5fb1774c83b3d8007b60f69cf44d769d5\tpnpm-workspace.yaml",
+      "builderHead": "100644 blob a04e37e5fb1774c83b3d8007b60f69cf44d769d5\tpnpm-workspace.yaml",
+      "exact": true
+    },
+    {
+      "path": "turbo.json",
+      "peHead": "100644 blob d27fafa866b273697a299ab4a9c03b9b18ae56bf\tturbo.json",
+      "builderHead": "100644 blob d27fafa866b273697a299ab4a9c03b9b18ae56bf\tturbo.json",
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "peHead": "100644 blob 00998e78899becc7dc52818f3f81c2cb88f46f39\tapps/api/jest.config.cjs",
+      "builderHead": "100644 blob 00998e78899becc7dc52818f3f81c2cb88f46f39\tapps/api/jest.config.cjs",
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "peHead": "100644 blob 75f042fb3b96b7d4fbbcbc10f2d131198319d789\tapps/api/jest.setup.ts",
+      "builderHead": "100644 blob 75f042fb3b96b7d4fbbcbc10f2d131198319d789\tapps/api/jest.setup.ts",
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.native-runtime-environment.cjs",
+      "peHead": "100644 blob 5682accba9ead35890424577759e84c50ebc7514\tapps/api/jest.native-runtime-environment.cjs",
+      "builderHead": "100644 blob 5682accba9ead35890424577759e84c50ebc7514\tapps/api/jest.native-runtime-environment.cjs",
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "peHead": "100644 blob 63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd\tapps/api/jest.worker-database.cjs",
+      "builderHead": "100644 blob 63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd\tapps/api/jest.worker-database.cjs",
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "peHead": "100644 blob 6c60698125878c4497d68ea8d6d7f32496dd8cae\tapps/api/tsconfig.json",
+      "builderHead": "100644 blob 6c60698125878c4497d68ea8d6d7f32496dd8cae\tapps/api/tsconfig.json",
+      "exact": true
+    },
+    {
+      "path": "packages/shared/package.json",
+      "peHead": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6\tpackages/shared/package.json",
+      "builderHead": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6\tpackages/shared/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "peHead": "100644 blob cff5b3a8506d1a290987883f0ed773b2118da169\tpackages/shared/tsconfig.json",
+      "builderHead": "100644 blob cff5b3a8506d1a290987883f0ed773b2118da169\tpackages/shared/tsconfig.json",
+      "exact": true
+    },
+    {
+      "path": "packages/auth/package.json",
+      "peHead": "100644 blob 12b92ec6bd14dfa4ba1159a940e8046f7a903c08\tpackages/auth/package.json",
+      "builderHead": "100644 blob 12b92ec6bd14dfa4ba1159a940e8046f7a903c08\tpackages/auth/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/auth/tsconfig.json",
+      "peHead": "100644 blob 7069a40a273757ed9abe4c8eda8d7b9ebd4f6912\tpackages/auth/tsconfig.json",
+      "builderHead": "100644 blob 7069a40a273757ed9abe4c8eda8d7b9ebd4f6912\tpackages/auth/tsconfig.json",
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "peHead": "100644 blob b8469e8303f277ccf029180d011174e0a5e63e44\tpackages/meriv2-core/package.json",
+      "builderHead": "100644 blob b8469e8303f277ccf029180d011174e0a5e63e44\tpackages/meriv2-core/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "peHead": "100644 blob c6d60ebe84565ed0fea35aff4f94886c2b7557e9\tpackages/meriv2-core/tsconfig.json",
+      "builderHead": "100644 blob c6d60ebe84565ed0fea35aff4f94886c2b7557e9\tpackages/meriv2-core/tsconfig.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/package.json",
+      "peHead": "100644 blob f35b337f65180b29a7072a41f2a0cff4d03e5b52\tpackages/defense-domain/package.json",
+      "builderHead": "100644 blob f35b337f65180b29a7072a41f2a0cff4d03e5b52\tpackages/defense-domain/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/tsconfig.json",
+      "peHead": "100644 blob 9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e\tpackages/defense-domain/tsconfig.json",
+      "builderHead": "100644 blob 9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e\tpackages/defense-domain/tsconfig.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-contracts/package.json",
+      "peHead": "100644 blob 02871c2ccf00d583632bbfbe412582404a55e18c\tpackages/defense-contracts/package.json",
+      "builderHead": "100644 blob 02871c2ccf00d583632bbfbe412582404a55e18c\tpackages/defense-contracts/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-contracts/tsconfig.json",
+      "peHead": "100644 blob 9460ae94af000a6643b92829d299fa54858f7840\tpackages/defense-contracts/tsconfig.json",
+      "builderHead": "100644 blob 9460ae94af000a6643b92829d299fa54858f7840\tpackages/defense-contracts/tsconfig.json",
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "peHead": "100644 blob c4ef8a3c3a39f2877e759141c987929ff785ca51\tapps/workspace/package.json",
+      "builderHead": "100644 blob c4ef8a3c3a39f2877e759141c987929ff785ca51\tapps/workspace/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/tsconfig.json",
+      "peHead": "100644 blob 410e389b6dc669e990526cdb19154a52373d2461\tapps/workspace/tsconfig.json",
+      "builderHead": "100644 blob 410e389b6dc669e990526cdb19154a52373d2461\tapps/workspace/tsconfig.json",
+      "exact": true
+    }
+  ]
+}

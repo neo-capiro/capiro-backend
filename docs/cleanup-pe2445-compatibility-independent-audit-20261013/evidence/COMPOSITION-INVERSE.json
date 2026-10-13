@@ -1,0 +1,51 @@
+{
+  "donor": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "receiving": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "commonBase": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+  "sourcePaths": 13,
+  "builderSourcePaths": 8,
+  "overlap": [],
+  "packages": [
+    {
+      "path": "package.json",
+      "originalCount": 126,
+      "peCount": 128,
+      "currentCount": 126,
+      "added": {
+        "verify:pe-phase-9:backend": "pnpm -C apps/api run verify:pe-phase-9:backend",
+        "verify:pe-phase-9:backend:dry-run": "pnpm -C apps/api run verify:pe-phase-9:backend:dry-run"
+      },
+      "changed": {},
+      "inverseExactBase": true,
+      "currentExactBase": true,
+      "changesOtherThanScripts": 0
+    },
+    {
+      "path": "apps/api/package.json",
+      "originalCount": 251,
+      "peCount": 253,
+      "currentCount": 251,
+      "added": {
+        "verify:pe-phase-9:backend": "tsx scripts/verify-pe-phase-9.ts --backend-only --run",
+        "verify:pe-phase-9:backend:dry-run": "tsx scripts/verify-pe-phase-9.ts --backend-only --dry-run"
+      },
+      "changed": {
+        "test:pe-trust": {
+          "before": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts",
+          "after": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts"
+        }
+      },
+      "inverseExactBase": true,
+      "currentExactBase": true,
+      "changesOtherThanScripts": 0
+    }
+  ],
+  "PEFullCatalogGolden": "f7f1cd24c268410234e40b4f2ffe6450d441574aeb2260ff8f48baf0660f240f",
+  "gateCounts": {
+    "fullSteps": 31,
+    "fullRequired": 29,
+    "backendSteps": 31,
+    "backendRequired": 29
+  },
+  "noProductRoutesDTOOrSchemaChanges": true
+}

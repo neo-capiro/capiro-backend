@@ -1,0 +1,35 @@
+{
+  "source": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pe2445-compatibility-audit-20261013/no-external-effects.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/workspace/cleanup-pe2445-compatibility-audit-20261013/focused.jest.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "/workspace/cleanup-pe2445-compatibility-audit-20261013/phase9-focused-results.json"
+  ],
+  "cwd": "/workspace/cleanup-pe2445-compatibility-audit-20261013/pe-source/apps/api",
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "HOME": "/workspace/cleanup-pe2445-compatibility-audit-20261013/host-home",
+    "TMPDIR": "/workspace/cleanup-pe2445-compatibility-audit-20261013/tmp",
+    "NODE_PATH": "/workspace/capirov2/apps/api/node_modules:/workspace/capirov2/node_modules"
+  },
+  "exit": 0,
+  "durationSeconds": 2.947021007537842,
+  "compilerDiagnosticClaim": false,
+  "noDBNativeProvider": true,
+  "initialHostRetained": true,
+  "sha256": {
+    "focused.jest.cjs": "30d6fe05377974ebeecdcfb0550932425d08da2601b20b5a62d34ed34d075143",
+    "test-only.tsconfig.json": "128930a7fc1d540ce55333b2a68ea0e56d042bf0fdbeefe0babf8784f4274d0d",
+    "no-external-effects.cjs": "38fce00e488e2fc3f55c223a3da05575a1ca29e6fd908433826f64a983b69f3a",
+    "phase9-focused.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "phase9-focused.stderr": "9489c12463c3e3e6f17d5a374a37ea530532322f97e834e52079a23788f302fb"
+  }
+}

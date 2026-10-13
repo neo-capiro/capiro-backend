@@ -1,0 +1,49 @@
+{
+  "sourceHead": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "sourceTree": "19ee55e0a411f68b2a7e239544786e7f9987b892",
+  "receivingHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "receivingTree": "a89206d77ac4c46fefbfb81551f5596110bab4ae",
+  "commonBase": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+  "scope": "Read-only source compatibility; no integrated source acceptance or production edits",
+  "tests": {
+    "suites": 3,
+    "cases": 101,
+    "failed": 0,
+    "pending": 0,
+    "perSuite": [
+      {
+        "path": "pe-phase-9-runner.spec.ts",
+        "status": "passed",
+        "cases": 28
+      },
+      {
+        "path": "pe-phase-9-backend-scope.spec.ts",
+        "status": "passed",
+        "cases": 55
+      },
+      {
+        "path": "pe-phase-9-rehearsal.spec.ts",
+        "status": "passed",
+        "cases": 18
+      }
+    ]
+  },
+  "sourceSetProof": {
+    "PE13": 13,
+    "builder8": 8,
+    "pathOverlap": 0,
+    "dependencyPathsExact": 20
+  },
+  "concreteIntegrationSeam": "Historical package-preservation guard requires exact two new PE alias admission with negative controls; root owns change",
+  "installReceiptStatus": "Not received or evaluated in this audit; reuse cleanup owner frozen isolated install",
+  "unrun": [
+    "package manager / install",
+    "standard full build/typecheck graph",
+    "long PE driver full/backend run",
+    "native generation",
+    "database/migration/RLS",
+    "Docker/app/provider/CI"
+  ],
+  "testHost": "Narrow staged Phase9 roots, no setupFiles; actual CLI through strict fake require/fs/process ports; preload refuses network and process execution; compiler diagnostics disabled only for test transpilation and no TSC acceptance claimed",
+  "initialHost": "101 passed with sparse tsconfig-discovery warnings; raw initial receipts retained. Corrected own explicit test tsconfig rerun101 passed with no warnings."
+}
