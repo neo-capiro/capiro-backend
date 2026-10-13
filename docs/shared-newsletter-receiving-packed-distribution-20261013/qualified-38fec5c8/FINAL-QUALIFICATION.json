@@ -1,0 +1,161 @@
+{
+  "sourceHead": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "sourceTree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "sourceCorrectionIndependentReceipt": "3445ecce4ed5cae53a3b26b941edbc6705f94891",
+  "sourceCorrectionIndependentTree": "2bd598c7b2c6d5b9d223452a42af3b2594d52cd6",
+  "sourceCorrectionTargetedControls": 16,
+  "sourceCorrectionPublicCorpus": 130,
+  "artifact": {
+    "path": "artifact/capiro-shared-0.0.0.tgz",
+    "bytes": 532178,
+    "sha256": "3e435f280fac8fd301eb753e9fc7ead93691cf979fc1641792fedd88e1bfd6d5",
+    "integrity": "sha512-qYNGTMe2gP6BHxDw+daj1SHkNbAFenVY/PnScny1IkHl/PL3cspHSFYa9KAyCeWesjXUOSRTWOKxX07oH6OvQw=="
+  },
+  "deterministicPacks": 2,
+  "packedEntries": 187,
+  "actualConsumerChecks": 19,
+  "actualPublicCjsEsmBrowserCasesEach": 130,
+  "strictNodeAndBrowserTypesExit": 0,
+  "negativeTypeDiagnosticCountEach": 6,
+  "originalProjectedRendererGoldens": 116,
+  "legacyRendererNamespaceProjectionExplicit": true,
+  "completeParserNamespacesUsed": true,
+  "publicRuntimeAdditions": [
+    "NEWSLETTER_RECEIVE_LIMITS",
+    "parseNewsletterCampaign",
+    "parseNewsletterChecks",
+    "parseNewsletterDocumentList",
+    "parseNewsletterHtmlCheck",
+    "parseNewsletterOutreachRecord",
+    "parseNewsletterOutreachStage",
+    "parseNewsletterPreview",
+    "parseNewsletterRecordDiscriminator",
+    "parseNewsletterReservedMetadata",
+    "parseNewsletterStageReceipt"
+  ],
+  "publicMetadataSubpathsVersionUnchanged": true,
+  "browserRuntimeClosure": "six package modules plus two consumer-only corpus files and owned entry; no external imports",
+  "all37DeclarationBodiesByteEqual794And37": true,
+  "all37DeclarationMapsByteEqual794And37": true,
+  "fullCore17Reexecuted": false,
+  "priorCore17ReuseBasis": "All37 actual packaged declaration bodies and maps byte-equal to794 used by root; root owns prior canonical Core17 command/results. No new Core execution or runtime qualification.",
+  "old100IndexedFilesAndIndexByteExact": true,
+  "old697d4cAndF23ArtifactsPreserved": true,
+  "old37ReceiptStatus": "Historical superseded candidate: actual Core get may return historical tests referring to prepared versions omitted from versions; its parser incorrectly required current-list membership. Raw artifact, successes, source acceptance and host failures remain unchanged.",
+  "historicalTestSemantics": "A decoded historical test is not current approval or current sender authority; action-time canonical owners remain authoritative.",
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+      "gitBlob": "a7ea0896ca17de7f1d9d0550c554244e5df87add",
+      "sha256": "ca5f18050e1dccd393e829c562d94fded2e0d9bb830eff98004a01a7d19663b6",
+      "bytes": 10031
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "gitBlob": "f68c95ddc384854e40ac5595e014b7ce1cf0bf40",
+      "sha256": "1d91b1794aa00143bb114e36dc6f7313ccb4446fc2eae066595444ca1078280c",
+      "bytes": 14451
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "gitBlob": "15b6d76e025165264115c6081616311f7be639aa",
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+      "bytes": 25409
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "gitBlob": "1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701",
+      "bytes": 41867
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.types.ts",
+      "gitBlob": "aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "sha256": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf",
+      "bytes": 6127
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "gitBlob": "1a8a2228b4c79c7ec24af77289e308748c18baef",
+      "sha256": "816bf07aa7baa26d97581ee4dede9c792dbd60803011cb1db3ae82f523aa63d6",
+      "bytes": 30638
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "gitBlob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7",
+      "bytes": 36609
+    },
+    {
+      "path": "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "gitBlob": "6caecdb1007f8802acebf7959b355b28c23d73df",
+      "sha256": "73b3795a9422076f9ad86a1646db86333fe6e5b2e97391b79ea11aca8e9a4268",
+      "bytes": 33583
+    },
+    {
+      "path": "scripts/ci/newsletter-receiving.test.cjs",
+      "gitBlob": "08dc197885812fb5c59aa48f074730da6c185790",
+      "sha256": "6b12a222bc446bcd26aef1409306eb892851aaa17d3b6006dd1ec2f8f658b317",
+      "bytes": 578
+    }
+  ],
+  "cachedToolsByteHashesUnchangedFromPriorSeal": [
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "realpath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "bytes": 125989464,
+      "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+    },
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/package.json",
+      "realpath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/package.json",
+      "bytes": 6616,
+      "sha256": "1e6c1475248247276dad8a00cb25a0af567a02a37ed549c1fb2d26739011d5d9"
+    },
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js",
+      "realpath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js",
+      "bytes": 54,
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/typescript/bin/tsc",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc",
+      "bytes": 45,
+      "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/typescript/lib/_tsc.js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/_tsc.js",
+      "bytes": 6213092,
+      "sha256": "e8f349eabd48486bdb2bf9dc1a00c89d58297270c54b745838879e2859194419"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/typescript/lib/typescript.js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js",
+      "bytes": 9112572,
+      "sha256": "3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/esbuild@0.21.5/node_modules/esbuild/lib/main.js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/esbuild@0.21.5/node_modules/esbuild/lib/main.js",
+      "bytes": 87654,
+      "sha256": "ac0772cb9176e4dd1d896be746b82edff699103940c8535a286493cecb69bdee"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild",
+      "bytes": 9707520,
+      "sha256": "b567f467fdac92c606717c86ea5cd1d6c30145c616776c0f2ff5429ad48586ba"
+    }
+  ],
+  "npmOfflineIgnoreScriptsNoNotifier": true,
+  "npmDebugHttpFetchLines": 0,
+  "registryPublication": false,
+  "noInstallLifecycleOrNetworkRetrieval": true,
+  "noGeneralOSNetworkContainmentClaim": true,
+  "nativeDatabaseOrAppBootstrapExecuted": false,
+  "realFrontendConsumptionOrBrowserPageClaim": false,
+  "fullPhysicalWhitespaceFloor": "OPEN; all physical raw bytes/fixtures retained; no encodings/exclusions/deletions to manufacture acceptance.",
+  "artifactIndependentReview": "Pending this exact evidence seal; root owns integration/publication."
+}
