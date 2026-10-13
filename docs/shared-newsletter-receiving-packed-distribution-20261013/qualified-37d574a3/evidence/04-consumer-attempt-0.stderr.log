@@ -1,0 +1,17 @@
+node:fs:2483
+    return binding.writeFileUtf8(
+                   ^
+
+Error: ENOENT: no such file or directory, open '/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/consumer/tsconfig-/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node.json'
+    at Object.writeFileSync (node:fs:2483:20)
+    at file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-37d574a3/evidence/qualify-packed-consumer.mjs:107:6
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/consumer/tsconfig-/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node.json'
+}
+
+Node.js v24.19.0

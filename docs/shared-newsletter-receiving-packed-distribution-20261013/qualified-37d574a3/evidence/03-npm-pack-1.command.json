@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js",
+    "pack",
+    "--ignore-scripts",
+    "--offline",
+    "--no-update-notifier",
+    "--userconfig",
+    "/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/empty-pack-configuration/user.npmrc",
+    "--globalconfig",
+    "/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/empty-pack-configuration/global.npmrc",
+    "--cache",
+    "/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/npm-cache",
+    "--pack-destination",
+    "/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/pack-1",
+    "--json"
+  ],
+  "cwd": "/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/packages/shared",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 0
+}

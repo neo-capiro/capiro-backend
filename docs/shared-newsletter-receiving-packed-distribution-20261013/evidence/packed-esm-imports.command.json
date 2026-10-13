@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "consumer.mjs"
+  ],
+  "cwd": "/workspace/capiro-shared-newsletter-receiving-dist-7949d079-20261013/consumer",
+  "exitCode": 1,
+  "signal": null,
+  "spawnError": null
+}

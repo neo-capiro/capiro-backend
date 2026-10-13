@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "-c",
+    "import pathlib,tarfile\np=pathlib.Path(\"/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-37d574a3/artifact/capiro-shared-0.0.0.tgz\")\nroot=pathlib.Path(\"/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/consumer/node_modules/@capiro/shared\")\nwith tarfile.open(p,'r:gz') as t:\n for m in t.getmembers():\n  q=pathlib.PurePosixPath(m.name)\n  assert m.isfile() and q.parts[0]=='package' and '..' not in q.parts and not q.is_absolute()\n  out=root.joinpath(*q.parts[1:]); out.parent.mkdir(parents=True,exist_ok=True)\n  assert not out.exists()\n  out.write_bytes(t.extractfile(m).read())\nprint('All regular package entries extracted without symlink, path traversal, install or lifecycle.')"
+  ],
+  "cwd": "/workspace/capiro-shared-newsletter-receiving-dist-37d574a3-20261013/consumer",
+  "exitCode": 0,
+  "signal": null,
+  "spawnError": null
+}
