@@ -207,3 +207,36 @@ test('actual canonical shell help/noargs/unknown/plan remain explicit and remove
     assert.equal(JSON.parse(planned.stdout).assemblyPerformed, false); await absent(options.outputDir);
   });
 });
+
+
+test('physical assembly preserves0755 helper execute bits without authenticating modes or granting runtime admission', async () => {
+  await fixture(async ({ options }) => {
+    const name = 'node_modules/runtime/runtime.js';
+    await fs.chmod(options.standaloneDir + '/' + name, 0o755);
+    const before = await fs.readFile(options.standaloneDir + '/' + name);
+    const receipt = await assembleNewsletterReleaseArtifact(options, model);
+    assert.equal((await fs.stat(options.outputDir + '/rootfs/' + name)).mode & 0o777, 0o755);
+    assert.deepEqual(await fs.readFile(options.outputDir + '/rootfs/' + name), before);
+    assert.equal(receipt.counts.fileModes.find(entry => entry.path === name).mode, '755');
+    assert.equal(receipt.permissionHandling.privilegedBitsPreserved, false);
+    assert.equal(receipt.permissionHandling.manifestAuthenticatesPermissions, false);
+    assert.equal(receipt.permissionHandling.runtimePermissionsCompatibilityVerified, false);
+    assert.equal(receipt.syntheticModel, true); assert.equal(receipt.shippingAuthorized, false);
+  });
+});
+
+for (const phase of ['prepublication', 'postrename']) test(`${phase} directory fsync failure never returns a success receipt and rolls back owned output`, async () => {
+  await fixture(async ({ options, root, manifestBytes }) => {
+    let failed = false;
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ open: async (value, ...args) => {
+      const handle = await fs.open(value, ...args);
+      const selected = phase === 'prepublication' ? value.includes('/.newsletter-assembly-') && value.endsWith('/rootfs')
+        : value === root;
+      if (!selected) return handle;
+      return { sync: async () => { failed = true; throw new Error(`injected ${phase} fsync failure`); }, close: () => handle.close() };
+    } }) }), new RegExp(`injected ${phase} fsync`));
+    assert.equal(failed, true); await absent(options.outputDir); await absent(options.outputDir + '.newsletter-assembly.lock');
+    assert.deepEqual(await fs.readFile(options.manifestPath), manifestBytes);
+    assert.equal((await fs.readdir(root)).some(name => name.startsWith('.newsletter-assembly-')), false);
+  });
+});
