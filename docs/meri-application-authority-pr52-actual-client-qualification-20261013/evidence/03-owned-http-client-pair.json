@@ -1,0 +1,593 @@
+{
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "sourceTree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+  "actualLoopbackHttp": true,
+  "nativePrisma": true,
+  "wholeAppBootstrap": false,
+  "fullMigrations": false,
+  "liveClerk": false,
+  "TLS": false,
+  "currentRunAuthority": false,
+  "targetIdentity": {
+    "databaseName": "capiro_auth_http_20261013_4966f869fa",
+    "databaseOid": 16917,
+    "databaseComment": "owned /root authority HTTP fixture at bbb38185058fdc64c204da723943aee055b3dad3",
+    "systemIdentifier": "7695590366852821031",
+    "currentUser": "capiro",
+    "sessionUser": "capiro",
+    "superuser": true,
+    "bypassRls": true,
+    "serverAddress": "172.18.0.2/32",
+    "version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit"
+  },
+  "settings": [
+    {
+      "currentUser": "capiro",
+      "sessionUser": "capiro",
+      "tenantGuc": "a1000000-0000-4000-8000-000000000001",
+      "bypassGuc": ""
+    }
+  ],
+  "tables": [
+    {
+      "relname": "audit_logs",
+      "owner": "capiro",
+      "rowSecurity": true,
+      "forceRowSecurity": true,
+      "ownerMembership": true
+    },
+    {
+      "relname": "client_memory_access",
+      "owner": "capiro",
+      "rowSecurity": true,
+      "forceRowSecurity": true,
+      "ownerMembership": true
+    },
+    {
+      "relname": "clients",
+      "owner": "capiro",
+      "rowSecurity": true,
+      "forceRowSecurity": true,
+      "ownerMembership": true
+    },
+    {
+      "relname": "clio_conversations",
+      "owner": "capiro",
+      "rowSecurity": true,
+      "forceRowSecurity": true,
+      "ownerMembership": true
+    },
+    {
+      "relname": "impersonation_sessions",
+      "owner": "capiro",
+      "rowSecurity": false,
+      "forceRowSecurity": false,
+      "ownerMembership": true
+    },
+    {
+      "relname": "tenant_memberships",
+      "owner": "capiro",
+      "rowSecurity": true,
+      "forceRowSecurity": true,
+      "ownerMembership": true
+    },
+    {
+      "relname": "tenants",
+      "owner": "capiro",
+      "rowSecurity": true,
+      "forceRowSecurity": true,
+      "ownerMembership": true
+    },
+    {
+      "relname": "users",
+      "owner": "capiro",
+      "rowSecurity": false,
+      "forceRowSecurity": false,
+      "ownerMembership": true
+    }
+  ],
+  "sourceReads": [
+    {
+      "path": "src/app.module.ts",
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc",
+      "bytes": 9137
+    },
+    {
+      "path": "src/prisma/prisma.module.ts",
+      "sha256": "8e32aa6e0aa74ae51df4642cc0da286fe53447e3c66d3609b6689f65b03a4641",
+      "bytes": 213
+    },
+    {
+      "path": "src/prisma/prisma.service.ts",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "bytes": 12476
+    },
+    {
+      "path": "src/auth/auth.module.ts",
+      "sha256": "678d559f329735b77ebacbdea6cf9e3466e19ffe8ab0ddc5640f52b17f5f384d",
+      "bytes": 973
+    },
+    {
+      "path": "src/auth/clerk.service.ts",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "bytes": 8258
+    },
+    {
+      "path": "src/auth/roles.guard.ts",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9",
+      "bytes": 2703
+    },
+    {
+      "path": "src/auth/roles.decorator.ts",
+      "sha256": "48273cb64384cd3b22c90e3abc8a0a0e0c77d774ac1d30602e1d0a1a26715a62",
+      "bytes": 447
+    },
+    {
+      "path": "src/tenant/tenant.module.ts",
+      "sha256": "6858db17104b4f12a91c69a766bb6c93fc0d0d5cad8ebaf2f04503c9f4131616",
+      "bytes": 358
+    },
+    {
+      "path": "src/tenant/tenant-context.middleware.ts",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "bytes": 30010
+    },
+    {
+      "path": "src/auth/clerk-role.util.ts",
+      "sha256": "01ef5660e55db04465edbfc553318a50e2cd47414a6ca50e37874c2dbcb8ca6d",
+      "bytes": 1991
+    },
+    {
+      "path": "src/tenant/tenant-context.store.ts",
+      "sha256": "33b46f43722694f12986ff4d535e1ee31f8834c2e8cec0d70e319cfe91be5181",
+      "bytes": 884
+    },
+    {
+      "path": "src/auth/application-authority.ts",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "bytes": 9325
+    },
+    {
+      "path": "src/meri/meri.module.ts",
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67",
+      "bytes": 12478
+    },
+    {
+      "path": "src/context/context.module.ts",
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9",
+      "bytes": 2627
+    },
+    {
+      "path": "src/context/context-persistence-boundary.interceptor.ts",
+      "sha256": "bde48e68ccd4ddc9010182bb4477328218e77a82904438c5c40117b2d320ec51",
+      "bytes": 1851
+    },
+    {
+      "path": "src/context/context-persistence-boundary.service.ts",
+      "sha256": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221",
+      "bytes": 1450
+    },
+    {
+      "path": "src/context/context-security-scope.service.ts",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24",
+      "bytes": 7013
+    },
+    {
+      "path": "src/context/context.types.ts",
+      "sha256": "b61dfd755bd161a77cba40dd2c23a8e9723cf93527220a060d80de67f2892746",
+      "bytes": 5392
+    },
+    {
+      "path": "src/meri/meri.controller.ts",
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467",
+      "bytes": 45695
+    },
+    {
+      "path": "src/tenant/current-tenant.decorator.ts",
+      "sha256": "4709acfb1164a4e71fa508e03534a9015a0c8e7fc4ccc452264099e913281647",
+      "bytes": 776
+    },
+    {
+      "path": "src/meri/meri.service.ts",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "bytes": 295936
+    },
+    {
+      "path": "src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924",
+      "bytes": 4785
+    },
+    {
+      "path": "src/research-portfolios/research-portfolio-meri-scope.service.ts",
+      "sha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9",
+      "bytes": 6332
+    },
+    {
+      "path": "src/research-portfolios/research-portfolio-access.ts",
+      "sha256": "927d3292d437c944d80ccb9be6f9e7f77a15906eb9408eb9b3aa1ca259fb7e08",
+      "bytes": 1833
+    },
+    {
+      "path": "src/memory/memory-wall.helpers.ts",
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e",
+      "bytes": 7222
+    },
+    {
+      "path": "src/business-development/bizdev-meri-scope.service.ts",
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525",
+      "bytes": 8411
+    },
+    {
+      "path": "src/common/tenant-flags.ts",
+      "sha256": "9a78b70d147496aadd94dfd7e11eb87f4e9300553670297987bead550de337a9",
+      "bytes": 28465
+    },
+    {
+      "path": "src/meri/meri-prospect-scope.helpers.ts",
+      "sha256": "3a3089721a795836a4d4714e7f3fdc33869c0c1a26b1fa9a3726881170aee0ea",
+      "bytes": 4140
+    },
+    {
+      "path": "src/meri/meri-circuit-breaker.ts",
+      "sha256": "4e045c01c38997146305f0ec73146fa36e413a6eb1bf9d5aec352a3aa419c067",
+      "bytes": 2349
+    },
+    {
+      "path": "src/meri/meriv3-runtime.proxy.ts",
+      "sha256": "34abf99eb804afba2b598d430d4ed4d9806f4bb35b0254b9ccda1b1ef5f956e5",
+      "bytes": 11027
+    },
+    {
+      "path": "src/observability/api-latency.middleware.ts",
+      "sha256": "2b5bd782c8c793c58af21f1c54aa5aa05b9dc43ea45a8f34bd2e44a4c1b80433",
+      "bytes": 1098
+    },
+    {
+      "path": "src/bootstrap/configure-api-http-app.ts",
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c",
+      "bytes": 7342
+    },
+    {
+      "path": "src/common/prisma-exception.filter.ts",
+      "sha256": "2f5476ef3e5206c079480ff7a52a2f8c79c182583851d94042fbd9c93da81145",
+      "bytes": 5689
+    }
+  ],
+  "unrelatedBlockedImports": [
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/config/config.schema.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/auth/clerk-provisioning.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/auth/identity-outbox.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/auth/internal-service.guard.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/users/users.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/health/health.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/webhooks/webhooks.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/webhooks/recall-webhook.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/capiro-admin/capiro-admin.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/tenant-admin/tenant-admin.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/clients/clients.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/branding/branding.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/help/help.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/directory/directory.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/district-nexus/district-nexus.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/funding-opportunities/funding-opportunities.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/engagement/engagement.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/engagement-integrations/engagement-integration-actions.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/engagement-callbacks/engagement-callbacks.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/engagement-workers/engagement-workers.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/capabilities/capabilities.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/demo-requests/demo-requests.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/managed-mcp.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/client-documents/client-documents.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-client-filing.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-job-deliverables.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-job-deliverables.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/ai-credentials/ai-credentials.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/business-development/business-development.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/ai-credentials/ai-credential-resolver.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/lda-intel/lda-intel.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/lobby-intel/lobby-intel.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/federal-spending/federal-spending.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/federal-spending/federal-market-meri-tools.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/program-element/program-element.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/acquisition-personnel/acquisition-personnel.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/intelligence/intelligence.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/clients/representation.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/regulatory-docket/regulatory-docket.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/embeddings/embeddings.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/learning/learning.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/quality-telemetry/quality-telemetry.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/evaluation/evaluation.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/evaluation/evaluation-capture.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/knowledge/knowledge.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/retrieval/retrieval.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-compiler.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-layer.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-packet-v2.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-plane-audit.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-stage-timer.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-plane-gateway.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/context-resolver.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/internal-strategy-context.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/context/strategy-context-plane.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/research-portfolios/research-portfolios.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/funding-opportunities/meri-opportunity-assessment.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/reviews/reviews.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/reviews/reviews.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/tool-service-secret.guard.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-v3-internal-service.guard.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-research-portfolio-tool-scope.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-attachment-continuity.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/learning/learning-signal-capture.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/learning/adapters/meri-feedback.adapter.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/quality-telemetry/quality-telemetry-capture.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/quality-telemetry/adapters/meri-feedback.telemetry-adapter.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/memory-recall-source.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/memory-scoring.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-context-metrics.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-recall-suppression.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/kg-cache-enrich.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-tools.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-artifact-integrity.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-context-plane.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/common/internal-clio-artifact.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-edited-artifact.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/engagement/ai-credential-resolver.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-ingest.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-candidate.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-cleanup-outbox.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-mutation-auth.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-autolearn-governance.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/memory/memory-clio-adapter.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-prompt.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-memory.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-tool-exec.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-citations.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-verifier-sources.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-domain-fanout.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-pe-structural.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/skills/skill-registry.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-firm-skills.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-firm-skills.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-mcp.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-mcp.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-trace.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-plan.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-budget.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-suggestions.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-feedback.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-feedback-anonymize.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-compliance.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-confidence.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-actions.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-research-promote.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-stream-preflight.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-grounding-statement.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-feature-flags.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meriv2-chat.client.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-claim-writer.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-attachment-document.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-attachment-content-state.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/common/meri-evidence-accuracy-flags.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-attachment.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-thinking.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-compaction.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-turn-maintenance.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-history-search.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/embeddings/embedder.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/embeddings/client-kb.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-verifier.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-turn.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meriv2-routing.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-research-replay-authorization.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-report-provenance.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-research.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-job.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-mcp-oauth.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-procedure-runtime-validation.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-approval.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-compliance-audit.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-research.helpers.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-tool-request-control.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-chat-attachment-read-scope.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-chat-attachment-transport.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-rp-tool-transport.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-docgen-pdf.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-telemetry.runtime.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-source.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-source.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-skills.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-action-proposal.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-analysis-artifact.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-context-packet.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-action-proposal.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-policy-pack.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-policy-pack-rollout.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-policy-pack.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-bizdev-tools.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/analytics/analytics-db.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/governed-meri-tools.proxy.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/governed-meri-research.factory.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-docgen.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-mcp-oauth.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-context-plane-runtime.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meriv3-chat.client.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-v3-research-runner.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meriv3-proxy.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-conversation-evidence.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-chat-attachment-read.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meriv3-settings.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-v3-visual-analysis.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-vnext-library.controller.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-vnext-library.service.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-job-lease-sweeper.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-turn-progress.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/meri-otel-lifecycle.provider.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/mobile/meri-mobile.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/federal-register/federal-register.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/intelligence/alert-memo/alert-memo.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/intelligence/alert-memo/district-brief.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/intelligence/chokepoint/chokepoint.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/agentic/agentic.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/tracker/tracker.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/workspace-collab/workspace-collab.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/workspace-assistant/workspace-assistant.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/workspace-table/workspace-table.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/explorer/explorer.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/search/search.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/insights/insights.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/defense-budget-lifecycle/defense-budget-lifecycle.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/ai-usage/ai-usage.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/billing/billing.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/internal-onboarding/internal-onboarding.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/budget-packages/budget-packages.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/live-hearings/live-hearings.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/bill-impact/bill-impact.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/external/govinfo/govinfo.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/external/tango/tango.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/admin-broadcasts/admin-broadcasts.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/vendor-reference/vendor-reference.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/defense-budget-client-watch/defense-budget-client-watch.module.ts",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/defense-research/defense-research.module.ts"
+  ],
+  "hostPortCalls": [
+    "ConfigModule.forRoot:fixture-no-env",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/governed-meri-tools.proxy.ts#createGovernedMeriToolsService:inert-factory",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/funding-opportunities/meri-opportunity-assessment.service.ts#MeriOpportunityAssessmentService.withCollaborators:installed-only",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/funding-opportunities/meri-opportunity-assessment.service.ts#MeriOpportunityAssessmentService.withCompletion:installed-only",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/src/meri/governed-meri-research.factory.ts#createGovernedMeriResearchService:inert-factory"
+  ],
+  "sdkCalls": {
+    "construct": 1,
+    "verify": 2,
+    "session": 3
+  },
+  "nativeQueries": {
+    "count": 92,
+    "transactions": 13,
+    "parametersSerialized": false
+  },
+  "containment": {
+    "externalRefusals": 0,
+    "protectedReadRefusals": 0,
+    "childRefusals": 0,
+    "allowedLoopbackConnections": 2,
+    "allowedLoopbackListeners": 1,
+    "literalLoopbackLookups": 1
+  },
+  "cases": [
+    {
+      "name": "unchanged private Meri client consumes actual HTTP receipts test-only mapping",
+      "passed": true
+    }
+  ],
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "receipts": [
+    {
+      "case": "private-client-consumer",
+      "actualConsumer": {
+        "identity": {
+          "principal": {
+            "tenantId": "a1000000-0000-4000-8000-000000000001",
+            "actorId": "a2000000-0000-4000-8000-000000000001"
+          },
+          "identityRevision": "80f271b0499ae2b977d2304680b8c71b3d3289f52d49732618fcdde5cd140eff",
+          "checkedAtMs": 1791877900413,
+          "expiresAtMs": 1791877990000
+        },
+        "context": {
+          "principal": {
+            "tenantId": "a1000000-0000-4000-8000-000000000001",
+            "actorId": "a2000000-0000-4000-8000-000000000001"
+          },
+          "identityRevision": "80f271b0499ae2b977d2304680b8c71b3d3289f52d49732618fcdde5cd140eff",
+          "checkedAtMs": 1791877900523,
+          "expiresAtMs": 1791877990000,
+          "identitySha256": "c31f94ad21866c2e98d46dd5f74504ad54b87a8ebace8161cf7fe66a2213454e",
+          "conversationId": "a5000000-0000-4000-8000-000000000001",
+          "selectedClientId": "a4000000-0000-4000-8000-000000000001",
+          "contextRevision": "6e881a131b843b28a9f287c04967dfd82820a1e41ecb8b0f944feac6a780ea69"
+        },
+        "identitySha256": "c31f94ad21866c2e98d46dd5f74504ad54b87a8ebace8161cf7fe66a2213454e",
+        "captures": [
+          {
+            "source": {
+              "capiroHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+              "capiroTree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+              "meriHead": "4699fdea910ba25c809725630443198c8ae189e4",
+              "meriTree": "61c076225b4d9a3aba431a83342e028a3f7b60ca"
+            },
+            "request": {
+              "method": "POST",
+              "path": "/api/clio/application-authority/identity",
+              "bodyUtf8": "{}",
+              "sentAtMs": 1791877900336,
+              "bodyBytes": 2,
+              "bodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+            },
+            "response": {
+              "status": 200,
+              "headers": {
+                "content-type": "application/json; charset=utf-8",
+                "cache-control": "no-store",
+                "content-length": "256"
+              },
+              "bodyUtf8": "{\"principal\":{\"tenantId\":\"a1000000-0000-4000-8000-000000000001\",\"actorId\":\"a2000000-0000-4000-8000-000000000001\"},\"identityRevision\":\"80f271b0499ae2b977d2304680b8c71b3d3289f52d49732618fcdde5cd140eff\",\"checkedAtMs\":1791877900413,\"expiresAtMs\":1791877990000}",
+              "receivedAtMs": 1791877900429,
+              "bodyBytes": 256,
+              "bodySha256": "0f5a71fffa9d202c44c09a23b664dc73752d4faee1102b5a633ef4da6e4dbd81"
+            }
+          },
+          {
+            "source": {
+              "capiroHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+              "capiroTree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+              "meriHead": "4699fdea910ba25c809725630443198c8ae189e4",
+              "meriTree": "61c076225b4d9a3aba431a83342e028a3f7b60ca"
+            },
+            "request": {
+              "method": "POST",
+              "path": "/api/clio/application-authority/context",
+              "bodyUtf8": "{\"identitySha256\":\"c31f94ad21866c2e98d46dd5f74504ad54b87a8ebace8161cf7fe66a2213454e\",\"conversationId\":\"a5000000-0000-4000-8000-000000000001\",\"clientId\":\"a4000000-0000-4000-8000-000000000001\"}",
+              "sentAtMs": 1791877900432,
+              "bodyBytes": 191,
+              "bodySha256": "7f534514c59c1c587aaa73beb30daf37c5f5e8ea66ee9654a65f42f2c561c263"
+            },
+            "response": {
+              "status": 200,
+              "headers": {
+                "content-type": "application/json; charset=utf-8",
+                "cache-control": "no-store",
+                "content-length": "539"
+              },
+              "bodyUtf8": "{\"principal\":{\"tenantId\":\"a1000000-0000-4000-8000-000000000001\",\"actorId\":\"a2000000-0000-4000-8000-000000000001\"},\"identityRevision\":\"80f271b0499ae2b977d2304680b8c71b3d3289f52d49732618fcdde5cd140eff\",\"checkedAtMs\":1791877900523,\"expiresAtMs\":1791877990000,\"identitySha256\":\"c31f94ad21866c2e98d46dd5f74504ad54b87a8ebace8161cf7fe66a2213454e\",\"conversationId\":\"a5000000-0000-4000-8000-000000000001\",\"selectedClientId\":\"a4000000-0000-4000-8000-000000000001\",\"contextRevision\":\"6e881a131b843b28a9f287c04967dfd82820a1e41ecb8b0f944feac6a780ea69\"}",
+              "receivedAtMs": 1791877900525,
+              "bodyBytes": 539,
+              "bodySha256": "506afd902b7ca7e27036231ee521e131247a4f64489f06b5f670e70093df6db3"
+            }
+          }
+        ],
+        "privateReceiverSource": {
+          "head": "4699fdea910ba25c809725630443198c8ae189e4",
+          "tree": "61c076225b4d9a3aba431a83342e028a3f7b60ca",
+          "bindingsSha256": "9fae1e1a2783cb98d8c013a70174b2d2c493842ebd8642c4c9f2ac03e92e9a04"
+        },
+        "timeline": {
+          "sentIdentityAtMs": 1791877900335,
+          "receivedIdentityAtMs": 1791877900431,
+          "sentContextAtMs": 1791877900431,
+          "receivedContextAtMs": 1791877900526
+        },
+        "limits": {
+          "TLS": false,
+          "currentRunAuthority": false,
+          "productionOrigin": false,
+          "testOnlyMappedTransport": true
+        }
+      }
+    }
+  ]
+}

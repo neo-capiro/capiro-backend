@@ -1,0 +1,63 @@
+{
+  "actualSource": "df397f60811a4aae6a799dc3534e2c2884d58c9f",
+  "consumerPrivateHead": "4699fdea910ba25c809725630443198c8ae189e4",
+  "producerHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "originalActualOutput": {
+    "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/03-owned-http-client-pair.json",
+    "bytes": 35276,
+    "sha256": "40daeff4964130c96e36dbfbd73887dc4a6751821e4bbd6badabc5ac7acfdc0e"
+  },
+  "onePairPassed": true,
+  "actualHttpResponses": 2,
+  "captures": [
+    {
+      "method": "POST",
+      "path": "/api/clio/application-authority/identity",
+      "status": 200,
+      "requestBytes": 2,
+      "requestSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "responseBytes": 256,
+      "responseSha256": "0f5a71fffa9d202c44c09a23b664dc73752d4faee1102b5a633ef4da6e4dbd81",
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "256"
+      },
+      "freshBoundAtCapture": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/clio/application-authority/context",
+      "status": 200,
+      "requestBytes": 191,
+      "requestSha256": "7f534514c59c1c587aaa73beb30daf37c5f5e8ea66ee9654a65f42f2c561c263",
+      "responseBytes": 539,
+      "responseSha256": "506afd902b7ca7e27036231ee521e131247a4f64489f06b5f670e70093df6db3",
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "539"
+      },
+      "freshBoundAtCapture": true
+    }
+  ],
+  "actualPrivateCanonicalDigest": "c31f94ad21866c2e98d46dd5f74504ad54b87a8ebace8161cf7fe66a2213454e",
+  "pairDtoIdentityAndSelectorsMatched": true,
+  "captureUtf8BodiesUnchanged": true,
+  "credentialFieldsOrValuesInActualEvidence": false,
+  "author45AndIndependent24Replayed": false,
+  "privateConfigRemoved": true,
+  "nativeQueries": {
+    "count": 92,
+    "transactions": 13,
+    "parametersSerialized": false
+  },
+  "cleanupQualification": "E184 driver awaited app.close and Prisma.disconnect in finally; child naturally exited0, no force/timeout. No new socket or DB cleanup probe by this lane.",
+  "remainingLimits": {
+    "TLS": false,
+    "liveClerk": false,
+    "currentRunAuthority": false,
+    "wholeAppBootstrap": false,
+    "nativeRlsQualificationByThisPair": false
+  }
+}

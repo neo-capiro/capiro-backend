@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/containment-preload.cjs",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/http-driver.cjs",
+    "/tmp/capiro-authority-http-pr52-pair-private-20261013.json",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/03-owned-http-client-pair.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "startedAt": "2026-10-13T07:51:36.530704+00:00",
+  "finishedAt": "2026-10-13T07:51:40.679926+00:00",
+  "exitCode": 0,
+  "rootApprovedExactOnePair": true,
+  "runAuthorCases": false,
+  "privateConfigReadOrCopiedByThisLauncher": false,
+  "privateConfigUnlinked": true
+}

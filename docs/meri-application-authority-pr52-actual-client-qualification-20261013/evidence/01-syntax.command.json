@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--check",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/meri-application-authority-pr52-actual-client-qualification-20261013/consumeOwnedHttp.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "startedAt": "2026-10-13T07:34:11.802068+00:00",
+  "finishedAt": "2026-10-13T07:34:11.845786+00:00",
+  "exitCode": 0,
+  "qualification": "parse only; no module evaluation/private imports/HTTP/DB"
+}

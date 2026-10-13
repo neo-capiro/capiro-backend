@@ -1,0 +1,7 @@
+{
+  "failedAction": "Read-only saved-pair custody audit process creation",
+  "toolError": "Failed to create unified exec process: exec-server transport disconnected",
+  "nativeDbHttpReplayAttempted": false,
+  "mutationReplayBeforeReadOnlyRecovery": false,
+  "recovery": "Read-only inventory confirmed actual03 output/logs present, config absent, head df;04 output absent before saved JSON audit."
+}

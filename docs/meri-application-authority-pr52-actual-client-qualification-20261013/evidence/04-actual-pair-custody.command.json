@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/verify-actual-pair.py"
+  ],
+  "env": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "startedAt": "2026-10-13T07:59:40.570330+00:00",
+  "finishedAt": "2026-10-13T07:59:40.623639+00:00",
+  "exitCode": 0,
+  "qualification": "saved actual JSON/hash audit only; no native/client/HTTP replay"
+}

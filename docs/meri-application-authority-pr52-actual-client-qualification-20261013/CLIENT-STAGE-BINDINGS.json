@@ -1,0 +1,93 @@
+{
+  "sourceHead": "4699fdea910ba25c809725630443198c8ae189e4",
+  "sourceTree": "61c076225b4d9a3aba431a83342e028a3f7b60ca",
+  "stage": "/tmp/capiro-meri-pr52-private-client-stage-20261013",
+  "modules": [
+    {
+      "path": "packages/contracts/action-authority-0.2/validate.mjs",
+      "gitBlob": "391e047b61fac0fab12ae061768e50dbcfc61e6a",
+      "bytes": 1880,
+      "sha256": "40fa36caeedb7ec17bef27119c846feb372bf5e1c6678032d5bcd0ab540ebd79"
+    },
+    {
+      "path": "packages/contracts/commands-0.2/execution-boundary.mjs",
+      "gitBlob": "22099d1728b4c62742b55c9bbefa1151f0599788",
+      "bytes": 1562,
+      "sha256": "e1c3cfb9fd75b7e623f1bc9492ab06793b4145277336eac1039ff5eef8e6690c"
+    },
+    {
+      "path": "packages/contracts/retrieval-0.2/operation-contracts.mjs",
+      "gitBlob": "f5ba11b19952a58023971ca434de2506e96035b8",
+      "bytes": 5544,
+      "sha256": "f09b6b3a8b0186b3e2f05a17135ce40bac9ed728796493501ce7d8d4d647adfd"
+    },
+    {
+      "path": "packages/contracts/validate.mjs",
+      "gitBlob": "2effe37084e7d20c20a33dc0104baea237f7d309",
+      "bytes": 3311,
+      "sha256": "c2449fd55300b31bdc1e829b5d918a531f1c4b2c675085a5b4707726ddd36d10"
+    },
+    {
+      "path": "packages/contracts/meri.schema.json",
+      "gitBlob": "d7b3c22491ae81c5e875243754413aa7d35097e3",
+      "bytes": 50043,
+      "sha256": "e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b"
+    },
+    {
+      "path": "apps/control/action-host/application-adapters/authority-http.mjs",
+      "gitBlob": "7c4a83004884bd32834496ede86af907e18d21d1",
+      "bytes": 4664,
+      "sha256": "ba9af89c706dc6bbb27f55e06c9e6331e5c655edabb3a22d2cc13269750ef993"
+    },
+    {
+      "path": "packages/runtime/operation-lifetime.mjs",
+      "gitBlob": "a90524cdfe899260310d87bafed5a7a31a664317",
+      "bytes": 2595,
+      "sha256": "10730af13c7cf29623fc7e8c836262b02f01e3436ac6e1488d263ec6ed19b52f"
+    }
+  ],
+  "cacheLink": {
+    "path": "/tmp/capiro-meri-pr52-private-client-stage-20261013/node_modules",
+    "target": "/workspace/meri-greenfield/node_modules"
+  },
+  "dependencies": [
+    {
+      "package": "ajv",
+      "version": "8.20.0",
+      "metadataPath": "/workspace/meri-greenfield/node_modules/ajv/package.json",
+      "metadataBytes": 4405,
+      "metadataSha256": "1f9033ee5a6515e7d76938b7072941862d1ed228a6879cc7fe10cdeb75107989",
+      "entryPath": "/workspace/meri-greenfield/node_modules/ajv/dist/2020.js",
+      "entryBytes": 2894,
+      "entrySha256": "908e9670b478b2ba126802a221b7e47006f50cf467e2c5dd7935d3dbef10a20a"
+    },
+    {
+      "package": "ajv-formats",
+      "version": "3.0.1",
+      "metadataPath": "/workspace/meri-greenfield/node_modules/ajv-formats/package.json",
+      "metadataBytes": 1897,
+      "metadataSha256": "402fb4bcfa457f0226813f3976ac42839dd619907c075c108efba8600d7edb69",
+      "entryPath": "/workspace/meri-greenfield/node_modules/ajv-formats/dist/index.js",
+      "entryBytes": 1508,
+      "entrySha256": "3f3014150293846086d11058bb8bf43e669e354a98b37adcf10281454d5e753b"
+    },
+    {
+      "package": "canonicalize",
+      "version": "5.1.0",
+      "metadataPath": "/workspace/meri-greenfield/node_modules/canonicalize/package.json",
+      "metadataBytes": 1553,
+      "metadataSha256": "ca7454aac0f76429b5d56bbc3bd61fa706fb1088a19f45d64cf38e055fbf4670",
+      "entryPath": "/workspace/meri-greenfield/node_modules/canonicalize/lib/canonicalize.js",
+      "entryBytes": 7145,
+      "entrySha256": "c1d0195af2a0748454b06af8f218e5c90415c19d39154d0058fee8229c12d859"
+    }
+  ],
+  "node": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12",
+    "version": "v24.19.0"
+  },
+  "privateBodiesUntrackedOutsideGit": true,
+  "actualClientImportedOrExecuted": false,
+  "stageOriginalManifestSha256": "112f3ae54f1f4581484c7f7b12e8a3b4ddff71f2a39c4f990600a6175723b6fd"
+}
