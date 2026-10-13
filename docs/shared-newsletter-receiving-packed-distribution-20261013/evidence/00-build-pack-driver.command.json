@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/evidence/prepare-and-pack.py",
+    "--source",
+    "7949d079b1b46acf9c18c86898d6eedf9290428a",
+    "--tree",
+    "fd151ac5409ad0ead6b1808ae85f5707dd0d9bbd",
+    "--repository",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+    "--packet",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013",
+    "--stage",
+    "/workspace/capiro-shared-newsletter-receiving-dist-7949d079-20261013"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 0,
+  "utc": "2026-10-13T00:55:47.292314+00:00",
+  "sourceCandidateAcceptancePending": true
+}

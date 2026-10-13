@@ -1,0 +1,204 @@
+{
+  "sourceHead": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "historicalCandidate": "7949d079b1b46acf9c18c86898d6eedf9290428a",
+  "allDeclarationBytesUnchanged": [
+    {
+      "path": "dist/ai-model-policy.d.ts",
+      "bytes": 1280,
+      "sha256": "60dde3f5524c4a5f29a06359f38a075bfedeb40dcf85a1a961062cc6a99f37ea"
+    },
+    {
+      "path": "dist/client-memory-wall.d.ts",
+      "bytes": 651,
+      "sha256": "76e2282167b3e2077863706012534fd71e4409f3333878f4d5c4a2e6adce9147"
+    },
+    {
+      "path": "dist/client-objective-destination.d.ts",
+      "bytes": 1427,
+      "sha256": "59cf05a92aff6e76a47e0d9a177f7ea4d4b52f036d4f41d90c19c1624601e14b"
+    },
+    {
+      "path": "dist/client-registration-integrity.d.ts",
+      "bytes": 1312,
+      "sha256": "30e6e19d27434681f2fc0d740f6186ebf56a85f96167c596081a6155738d6992"
+    },
+    {
+      "path": "dist/defense-budget-line.d.ts",
+      "bytes": 1564,
+      "sha256": "35e2007ec3696dfe52af2d2566613e7ff15ad460a1ce1c8916230753cb21367b"
+    },
+    {
+      "path": "dist/defense-research.d.ts",
+      "bytes": 20390,
+      "sha256": "21e999a9d9f1f7f5bf56264b4a8f0ed350dd6d9bab222afa683b37e882740973"
+    },
+    {
+      "path": "dist/funding-claim.d.ts",
+      "bytes": 16089,
+      "sha256": "3797e8cddcd42d20ab215269b2272ef01c8fa112283f568f56ab328f5c466ae8"
+    },
+    {
+      "path": "dist/funding-opportunities-v2-detail.d.ts",
+      "bytes": 6942,
+      "sha256": "55ab2eb9693f3dc828f42d53b84035f02b804e74a89302766ba899f2918b26ff"
+    },
+    {
+      "path": "dist/funding-opportunities-v2-workflow.d.ts",
+      "bytes": 1836,
+      "sha256": "de42f99e2dfe5271ba1d123deed1ab96665efee38b66bfde510ce8f741b4e706"
+    },
+    {
+      "path": "dist/funding-opportunities-v2.d.ts",
+      "bytes": 7137,
+      "sha256": "1214085e5511599ade254f0359b41d8d4df2aa8ac40c442ea6448d450111dc89"
+    },
+    {
+      "path": "dist/funding-priorities.d.ts",
+      "bytes": 650,
+      "sha256": "06bbb72d29fcfb4ed527b64df8d2a702a913db541fe453267cb9580f1663e963"
+    },
+    {
+      "path": "dist/index.d.ts",
+      "bytes": 203549,
+      "sha256": "5f4e51a02cc5e7c599fad29b2795c9fef48a2acda769fc06ac81ee959157cddd"
+    },
+    {
+      "path": "dist/legislative-research.d.ts",
+      "bytes": 3348,
+      "sha256": "f9f5fced53394bcd13ba7d9bd7b561770242670ba6905b1d2804de3c33f378c2"
+    },
+    {
+      "path": "dist/legiwatch-phase8.d.ts",
+      "bytes": 4425,
+      "sha256": "f8ba13557565bc468e515158d374f902904e87f7198c56a4c2ae1f7e1dc98fb8"
+    },
+    {
+      "path": "dist/legiwatch-query.d.ts",
+      "bytes": 2123,
+      "sha256": "d65cab0d2803fd3fc2c54c7686414dd53fd01f8edddf2ddf0b094cf1a3e80a02"
+    },
+    {
+      "path": "dist/market-title.d.ts",
+      "bytes": 1203,
+      "sha256": "9102a69273b2ea83e11e53270fb550cd969e815544d03e40dbeba39f96a39e21"
+    },
+    {
+      "path": "dist/meri-document-request.d.ts",
+      "bytes": 971,
+      "sha256": "f42e2356c99b735659003bf58064c3f95627c1c40cb8c37f439ad9cfd02785d3"
+    },
+    {
+      "path": "dist/meri-read-outcome.d.ts",
+      "bytes": 1451,
+      "sha256": "bef6ce5adbb0fab951e03bb29227c3b823b0769fbe64675a99ab3494ce7c5142"
+    },
+    {
+      "path": "dist/meri-skills.d.ts",
+      "bytes": 15889,
+      "sha256": "63c4a632e6e2d161d542d3a04cd2cb208b4b9901dca71eb029c12a5df8f3a0d1"
+    },
+    {
+      "path": "dist/money.d.ts",
+      "bytes": 801,
+      "sha256": "aca121e254bf5baebadf636369f809202ded8d900a199dd66720cf19b8c8995d"
+    },
+    {
+      "path": "dist/newsletter-fonts.catalog.d.ts",
+      "bytes": 252,
+      "sha256": "88dc210e0aabed431af2efe62e8b18c7c2dc9e38c5daae1917cf5cc48216f9bc"
+    },
+    {
+      "path": "dist/newsletter-fonts.d.ts",
+      "bytes": 1157,
+      "sha256": "82d36b112b7468a9b54854ee3c2906bf6861acd7e3506c1d34790958618f3eca"
+    },
+    {
+      "path": "dist/newsletter-receiving.d.ts",
+      "bytes": 6362,
+      "sha256": "c7e2b8cafec86a4a6f470c5651a878237dde7bf107e9c0dab7b8bdb491ce4981"
+    },
+    {
+      "path": "dist/newsletter-render.d.ts",
+      "bytes": 1930,
+      "sha256": "928c3749d26810b10bbf3791e427af4f3e4838820430862fc820bbe55339f831"
+    },
+    {
+      "path": "dist/newsletter-social-share.d.ts",
+      "bytes": 585,
+      "sha256": "41d66ee9d87d1a20026eb3d0f6122b89fc8767d7fa9f644b3663852406c5e8d6"
+    },
+    {
+      "path": "dist/newsletter.d.ts",
+      "bytes": 16666,
+      "sha256": "18bc33c62051d26d16bc23666bba4add5e5f87ba31e87565d53b4ed8fee72555"
+    },
+    {
+      "path": "dist/pe-source-coverage.d.ts",
+      "bytes": 2196,
+      "sha256": "e7b5ff5a4540019a08bd64762ca893bfcc25dcd19e781c053f26ef6e6b059873"
+    },
+    {
+      "path": "dist/prospect-resource-scope.d.ts",
+      "bytes": 1001,
+      "sha256": "61ba24cb2b03d1cc812227c7e98f87428774c9dd69584f72e77b0145c11ca536"
+    },
+    {
+      "path": "dist/research-portfolios.d.ts",
+      "bytes": 32756,
+      "sha256": "d9e82045d5676d336bc770aff21cb9d1a75fa3b944f236ca8fb19982f3071b06"
+    },
+    {
+      "path": "dist/schedule/deadline.d.ts",
+      "bytes": 695,
+      "sha256": "bcb4ef01b245d41202fa40ab6a37ff671c3a3dc1c404551db4a1eb121f2d18e3"
+    },
+    {
+      "path": "dist/schedule/synthesis.d.ts",
+      "bytes": 953,
+      "sha256": "c40524d8d3e3860cabf9c32649f08605a795c55754765efcb900879f5b43ba15"
+    },
+    {
+      "path": "dist/schedule/time-zone.d.ts",
+      "bytes": 686,
+      "sha256": "f7a03144cfbba0dcb09fd8859bee742dfb87ab2b21e0507390b84cf24f804056"
+    },
+    {
+      "path": "dist/schedule/validate.d.ts",
+      "bytes": 1017,
+      "sha256": "19230f27d578037fa57e4d9ee6626212eacdd7bdf5571e296ac52848c5279edd"
+    },
+    {
+      "path": "dist/tenant-feature.d.ts",
+      "bytes": 220,
+      "sha256": "601667bbdc6044c009eb131b16a00350f447578223a89fb9714c42d5b7be4750"
+    },
+    {
+      "path": "dist/time.d.ts",
+      "bytes": 582,
+      "sha256": "e9794d675905a8d777e8216de81bacb52073d1e0fd0eadccbc2f8823c2ff1a0f"
+    },
+    {
+      "path": "dist/us-states.d.ts",
+      "bytes": 292,
+      "sha256": "94a7d23af89a60b5c9a5498a6a287c6bd3993aad8b0f53293b9dd51027d41a76"
+    },
+    {
+      "path": "dist/workspace-saved-revision.d.ts",
+      "bytes": 1591,
+      "sha256": "30cf983c67630739d882af215b80563fc31836afac6b1bda4b2e301191a18018"
+    }
+  ],
+  "declarationMapsExcludedFromSurfaceEquality": "positions can change with private timestamp implementation",
+  "inherited116GoldenBytesUnchanged": {
+    "bytes": 54405,
+    "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+  },
+  "rendererCorpusByteExact": true,
+  "completePublicNamespaceCases": {
+    "cjs": 129,
+    "esm": 129,
+    "browser": 129
+  },
+  "old697dTarballUnchanged": true,
+  "sourceAcceptancePendingIndependentReceipt": true
+}

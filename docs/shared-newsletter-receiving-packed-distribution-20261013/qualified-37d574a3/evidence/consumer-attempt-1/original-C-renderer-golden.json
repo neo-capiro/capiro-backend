@@ -1,0 +1,679 @@
+[
+  {
+    "name": "public runtime names/newsletter",
+    "value": [
+      "NEWSLETTER_BLOCK_KINDS",
+      "NEWSLETTER_BLOCK_LABELS",
+      "NEWSLETTER_COLUMN_RATIOS",
+      "NEWSLETTER_FONT_CATALOG",
+      "NEWSLETTER_SOCIAL_ICON_STYLES",
+      "NEWSLETTER_SOCIAL_PLATFORMS",
+      "NEWSLETTER_SOCIAL_SHARE_PLATFORMS",
+      "NEWSLETTER_SURVEY_SECTION_TYPES",
+      "NEWSLETTER_SYSTEM_FONTS",
+      "NEWSLETTER_TEMPLATE_ID",
+      "applyNewsletterBrandKit",
+      "cloneNewsletterBlocks",
+      "createNewsletterBlock",
+      "createNewsletterLayout",
+      "createNewsletterSection",
+      "createNewsletterSurveyQuestion",
+      "defaultNewsletterBrandKit",
+      "defaultNewsletterConfig",
+      "defaultNewsletterSocialSettings",
+      "defaultNewsletterSocialShare",
+      "defaultNewsletterStyles",
+      "defaultNewsletterSurveyDefinition",
+      "findNewsletterBlock",
+      "governmentAffairsNewsletter",
+      "newsletterBlockVisible",
+      "newsletterBrandButtonStyle",
+      "newsletterCatalogFont",
+      "newsletterCatalogStyle",
+      "newsletterCustomVideoThumbnail",
+      "newsletterDesignFontRequests",
+      "newsletterDesignFonts",
+      "newsletterId",
+      "newsletterSocialPlatform",
+      "newsletterSocialSettings",
+      "newsletterSourceClients",
+      "newsletterVideoSource",
+      "newsletterWebFontUrls",
+      "visitNewsletterBlocks"
+    ]
+  },
+  {
+    "name": "public runtime names/renderer",
+    "value": [
+      "newsletterBundledImageUrl",
+      "newsletterEscape",
+      "newsletterFontCss",
+      "newsletterMergeText",
+      "newsletterPlainText",
+      "newsletterSafeUrl",
+      "newsletterSocialIconSize",
+      "newsletterSocialShareItems",
+      "newsletterSocialShareTarget",
+      "newsletterSocialShareUrl",
+      "newsletterStyleCss",
+      "renderNewsletterBlock",
+      "renderNewsletterDesign"
+    ]
+  },
+  {
+    "name": "existing default configuration",
+    "value": {
+      "clientId": null,
+      "clientName": "",
+      "fromName": "",
+      "fromEmail": "",
+      "replyTo": "",
+      "subject": "",
+      "previewText": "",
+      "recipientIds": [],
+      "excludeRecipientIds": [],
+      "personalizeTo": false,
+      "toName": "*|FNAME|* *|LNAME|*",
+      "schedule": {
+        "mode": "now",
+        "sendAt": null,
+        "timeZone": "America/New_York",
+        "optimization": false,
+        "timewarp": false,
+        "batch": false,
+        "batchCount": 2,
+        "batchMinutes": 30,
+        "trigger": "signup",
+        "triggerValue": ""
+      },
+      "tracking": {
+        "opens": true,
+        "clicks": true,
+        "plainTextClicks": false,
+        "inbox": false,
+        "autoConvertVideo": false,
+        "ecommerce": false,
+        "googleAnalytics": false,
+        "googleAnalyticsTitle": "",
+        "clickTale": false
+      },
+      "autoResend": {
+        "enabled": false,
+        "afterDays": 3,
+        "time": "09:00",
+        "subject": "",
+        "audience": "not-opened",
+        "ignoreBotOpens": true
+      },
+      "experiment": {
+        "enabled": false,
+        "subjects": [
+          "",
+          ""
+        ],
+        "testPercent": 20,
+        "winnerMetric": "opens",
+        "waitHours": 4
+      },
+      "socialCard": {
+        "enabled": false,
+        "title": "",
+        "description": "",
+        "imageUrl": ""
+      },
+      "shareSlug": "",
+      "company": "",
+      "mailingAddress": "",
+      "permissionReminder": "You are receiving this briefing because you subscribed to updates from our team.",
+      "plainText": "",
+      "plainTextAuto": true
+    }
+  },
+  {
+    "name": "existing default brand kit",
+    "value": {
+      "revision": 1,
+      "updatedAt": "",
+      "logos": [],
+      "primaryLogoId": null,
+      "colors": {
+        "primary": [
+          "#ffffff",
+          "#141414",
+          "#131a2b"
+        ],
+        "secondary": []
+      },
+      "fonts": {
+        "heading": "Arial",
+        "body": "Courier New",
+        "uploaded": []
+      },
+      "buttons": [
+        {
+          "id": "brand-button-1",
+          "name": "Button 1",
+          "shape": "pill",
+          "variant": "filled",
+          "background": "#ffffff",
+          "color": "#131a2b",
+          "fontFamily": "Arial"
+        },
+        {
+          "id": "brand-button-2",
+          "name": "Button 2",
+          "shape": "pill",
+          "variant": "filled",
+          "background": "#000000",
+          "color": "#ffffff",
+          "fontFamily": "Arial"
+        },
+        {
+          "id": "brand-button-3",
+          "name": "Button 3",
+          "shape": "pill",
+          "variant": "filled",
+          "background": "#131a2b",
+          "color": "#ffffff",
+          "fontFamily": "Arial"
+        },
+        {
+          "id": "brand-button-4",
+          "name": "Button 4",
+          "shape": "pill",
+          "variant": "outlined",
+          "background": "#ffffff",
+          "color": "#ffffff",
+          "fontFamily": "Arial"
+        }
+      ],
+      "primaryButtonId": null
+    }
+  },
+  {
+    "name": "node ids remain document-local lazy time/random",
+    "value": "n_mv579mo0_4i"
+  },
+  {
+    "name": "safe link/https://example.test/a?x=1&y=2",
+    "value": "https://example.test/a?x=1&y=2"
+  },
+  {
+    "name": "safe image/https://example.test/a?x=1&y=2",
+    "value": "https://example.test/a?x=1&y=2"
+  },
+  {
+    "name": "safe link/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "safe image/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "safe link/javascript:alert(1)",
+    "value": ""
+  },
+  {
+    "name": "safe image/javascript:alert(1)",
+    "value": ""
+  },
+  {
+    "name": "safe link//newsletter/capitol.svg",
+    "value": "/newsletter/capitol.svg"
+  },
+  {
+    "name": "safe image//newsletter/capitol.svg",
+    "value": "/newsletter/capitol.svg"
+  },
+  {
+    "name": "safe link/#anchor",
+    "value": "#anchor"
+  },
+  {
+    "name": "safe image/#anchor",
+    "value": ""
+  },
+  {
+    "name": "safe link/*|ARCHIVE|*",
+    "value": "*|ARCHIVE|*"
+  },
+  {
+    "name": "safe image/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "safe link/mailto:ada@example.test",
+    "value": "mailto:ada@example.test"
+  },
+  {
+    "name": "safe image/mailto:ada@example.test",
+    "value": ""
+  },
+  {
+    "name": "safe link/tel:+15555550100",
+    "value": "tel:+15555550100"
+  },
+  {
+    "name": "safe image/tel:+15555550100",
+    "value": ""
+  },
+  {
+    "name": "safe link///example.test/a",
+    "value": ""
+  },
+  {
+    "name": "safe image///example.test/a",
+    "value": ""
+  },
+  {
+    "name": "safe link/data:image/png;base64,YQ==",
+    "value": ""
+  },
+  {
+    "name": "safe image/data:image/png;base64,YQ==",
+    "value": "data:image/png;base64,YQ=="
+  },
+  {
+    "name": "safe link/https://",
+    "value": ""
+  },
+  {
+    "name": "safe image/https://",
+    "value": ""
+  },
+  {
+    "name": "safe link/",
+    "value": ""
+  },
+  {
+    "name": "safe image/",
+    "value": ""
+  },
+  {
+    "name": "escaping special characters",
+    "value": "&lt;a title=&quot;x&quot;&gt;O&#39;Reilly &amp; Co&lt;/a&gt;"
+  },
+  {
+    "name": "merge tags disabled retain legacy tags",
+    "value": "*|FNAME|* *|CURRENT_YEAR|* *|UNKNOWN|*"
+  },
+  {
+    "name": "merge tags live preserve unknown tags",
+    "value": "Ada <&> Lovelace ada@example.test 2026 *|UNKNOWN|*"
+  },
+  {
+    "name": "style clamping and fixed catalog",
+    "value": "font-family:'DM Sans', Arial, sans-serif;font-size:1000px;width:1%;line-height:4;padding-top:0px;color:#abc;text-align:right;border-top-left-radius:1000px;font-weight:700;font-style:normal"
+  },
+  {
+    "name": "font catalog known and unknown",
+    "value": [
+      {
+        "label": "DM Sans",
+        "family": "DM Sans",
+        "weight": 400,
+        "italic": false
+      },
+      null
+    ]
+  },
+  {
+    "name": "bundled legacy SVG remapping",
+    "value": [
+      "/newsletter/capitol.png",
+      "/newsletter/policy-desk.png",
+      "/newsletter/newsroom.png",
+      "/newsletter/social-update.png",
+      "/newsletter/other.svg"
+    ]
+  },
+  {
+    "name": "custom fonts retain filter and CSS escaping",
+    "value": "@font-face{font-family:'CapiroFont-11111111-1111-4111-8111-111111111111';src:url('https://example.test/font%28%27x%27%29.woff2') format('woff2');font-display:swap;}"
+  },
+  {
+    "name": "visibility operator/is",
+    "value": true
+  },
+  {
+    "name": "visibility operator/is-not",
+    "value": false
+  },
+  {
+    "name": "visibility operator/contains",
+    "value": true
+  },
+  {
+    "name": "visibility operator/does-not-contain",
+    "value": false
+  },
+  {
+    "name": "visibility operator/is-empty",
+    "value": false
+  },
+  {
+    "name": "visibility operator/is-not-empty",
+    "value": true
+  },
+  {
+    "name": "visibility without recipient denies",
+    "value": ""
+  },
+  {
+    "name": "visibility authorized recipient",
+    "value": "<div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Policy audience only</div></div>"
+  },
+  {
+    "name": "editor shows conditional block",
+    "value": "<div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;opacity:.65;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Policy audience only</div></div>"
+  },
+  {
+    "name": "block kind/image",
+    "value": "<div id=\"test-image\" class=\"nl-block-test-image\" style=\"padding:12px 0px 12px 0px;\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://app.example.test/newsletter/capitol.png\" alt=\"&lt;image&gt;\" style=\"max-width:100%;width:100%;display:block;border:0;border-radius:0px;margin-left:0;margin-right:auto;\"></a></div>"
+  },
+  {
+    "name": "block kind/heading",
+    "value": "<div id=\"test-heading\" class=\"nl-block-test-heading\" style=\"padding:12px 0px 12px 0px;\"><h2 style=\"margin:0;font-family:'Arial', Arial, sans-serif;font-size:36px;color:#ffffff;line-height:1.2;font-weight:700;font-style:normal\">Text Ada &lt;&amp;&gt;</h2></div>"
+  },
+  {
+    "name": "block kind/paragraph",
+    "value": "<div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Text Ada &lt;&amp;&gt;</div></div>"
+  },
+  {
+    "name": "block kind/button",
+    "value": "<div id=\"test-button\" class=\"nl-block-test-button\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;font-weight:400;font-style:normal\">Text Ada &lt;&amp;&gt;</a></div></div>"
+  },
+  {
+    "name": "block kind/divider",
+    "value": "<div id=\"test-divider\" class=\"nl-block-test-divider\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div>"
+  },
+  {
+    "name": "block kind/spacer",
+    "value": "<div id=\"test-spacer\" class=\"nl-block-test-spacer\" style=\"padding:12px 0px 12px 0px;\"><div style=\"height:24px;line-height:1px\" aria-hidden=\"true\">&nbsp;</div></div>"
+  },
+  {
+    "name": "block kind/video",
+    "value": "<div id=\"test-video\" class=\"nl-block-test-video\" style=\"padding:12px 24px 12px 24px;\"><div style=\"\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:block;color:#ffffff\"><img src=\"https://app.example.test/newsletter/capitol.png\" alt=\"&lt;image&gt;\" style=\"max-width:100%;width:100%;display:block;border:0;;margin-left:0;margin-right:auto;\"></a></div></div>"
+  },
+  {
+    "name": "block kind/social",
+    "value": "<div id=\"test-social\" class=\"nl-block-test-social\" style=\"padding:12px 0px 12px 0px;\"><div style=\";text-align:center\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item nl-social-last\" style=\"display:inline-table;margin:0 0px 0 0;vertical-align:middle\"><tr><td style=\"padding:0;vertical-align:middle\"><a href=\"https://example.test/product\" target=\"_blank\" rel=\"noopener noreferrer\" style=\";color:#ffffff;text-decoration:none\"><img class=\"nl-social-icon\" src=\"https://app.example.test/newsletter/social-website-dark.png\" alt=\"Item &amp; details\" width=\"40\" height=\"40\" style=\"display:inline-block;vertical-align:middle;width:40px;height:40px;border:0\"></a></td></tr></table></div></div>"
+  },
+  {
+    "name": "block kind/logo",
+    "value": "<div id=\"test-logo\" class=\"nl-block-test-logo\" style=\"padding:12px 0px 12px 0px;\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://app.example.test/newsletter/capitol.png\" alt=\"&lt;image&gt;\" style=\"max-width:100%;width:100%;display:block;border:0;text-align:left;margin-left:0;margin-right:auto;\"></a></div>"
+  },
+  {
+    "name": "block kind/survey",
+    "value": "<div id=\"test-survey\" class=\"nl-block-test-survey\" style=\"padding:0px 0px 0px 0px;\"><div style=\"text-align:center;padding:12px 0;\"><span aria-disabled=\"true\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;text-align:center;font-weight:400;font-style:normal\">Text Ada &lt;&amp;&gt;</span></div></div>"
+  },
+  {
+    "name": "block kind/code",
+    "value": "<div id=\"test-code\" class=\"nl-block-test-code\" style=\"padding:12px 0px 12px 0px;\"><pre style=\"white-space:pre-wrap;font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Text Ada &lt;&amp;&gt;</pre></div>"
+  },
+  {
+    "name": "block kind/apps",
+    "value": "<div id=\"test-apps\" class=\"nl-block-test-apps\" style=\"padding:12px 0px 12px 0px;\"></div>"
+  },
+  {
+    "name": "block kind/product",
+    "value": "<div id=\"test-product\" class=\"nl-block-test-product\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\"><tr><td valign=\"top\" style=\"padding:8px;width:100%;\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://app.example.test/newsletter/newsroom.png\" alt=\"Item &amp; details\" style=\"max-width:100%;width:100%;display:block;border:0;;margin-left:0;margin-right:auto;\"></a><h3>Item &amp; details</h3><p>Description</p><p>$12</p><a href=\"https://example.test/product\" style=\"color:inherit\">Text Ada &lt;&amp;&gt;</a></td></tr></table></div>"
+  },
+  {
+    "name": "block kind/product-rec",
+    "value": "<div id=\"test-product-rec\" class=\"nl-block-test-product-rec\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\"><tr><td valign=\"top\" style=\"padding:8px;width:100%;\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://app.example.test/newsletter/newsroom.png\" alt=\"Item &amp; details\" style=\"max-width:100%;width:100%;display:block;border:0;;margin-left:0;margin-right:auto;\"></a><h3>Item &amp; details</h3><p>Description</p><p>$12</p><a href=\"https://example.test/product\" style=\"color:inherit\">Text Ada &lt;&amp;&gt;</a></td></tr></table></div>"
+  },
+  {
+    "name": "block kind/footer",
+    "value": "<div id=\"test-footer\" class=\"nl-block-test-footer\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\"><p>Copyright &copy; 2026 Example firm. All rights reserved.</p><p>Opted in.</p><p>Our mailing address is:<br>10 Example Lane</p><p>Want to change how you receive these emails?</p><p>You can <a href=\"https://example.test/preferences\" style=\"color:inherit\">update your preferences</a> or <a href=\"https://example.test/unsubscribe\" style=\"color:inherit\">unsubscribe</a>.</p></div></div>"
+  },
+  {
+    "name": "block kind/columns",
+    "value": "<div id=\"test-columns\" class=\"nl-block-test-columns\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 16px 0 0;\"><div id=\"nested-left\" class=\"nl-block-nested-left\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Left</div></div></td><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 0 0 16px;\"><div id=\"nested-right\" class=\"nl-block-nested-right\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Right</div></div></td></tr></table></div>"
+  },
+  {
+    "name": "rich fallback escapes HTML",
+    "value": "<div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">&lt;a href=&quot;https://example.test/&quot; style=&quot;color:red&quot;&gt;Ada &amp;lt;&amp;amp;&amp;gt;&lt;/a&gt;</div></div>"
+  },
+  {
+    "name": "explicit sanitizer remains caller policy",
+    "value": "<div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\"><a href=\"https://example.test/\" style=\"color:#ffffff;text-decoration:underline\">Ada &lt;&amp;&gt;</a></div></div>"
+  },
+  {
+    "name": "image sizing crop asset and rewrite callback",
+    "value": "<div id=\"test-image\" class=\"nl-block-test-image\" style=\"padding:12px 0px 12px 0px;\"><a href=\"https://track.example.test/?url=https%3A%2F%2Fexample.test%2Farticle\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"https://app.example.test/newsletter/capitol.png\" alt=\"Capitol\" style=\"max-width:100%;width:42%;display:block;border:0;border-radius:0px;text-align:center;margin-left:auto;margin-right:auto;object-fit:cover;object-position:10% 20%;aspect-ratio:16/9;\"></a></div>"
+  },
+  {
+    "name": "saved survey no callback disabled",
+    "value": "<div id=\"test-survey\" class=\"nl-block-test-survey\" style=\"padding:0px 0px 0px 0px;\"><div style=\"text-align:center;padding:12px 0;background:#abc;\"><span aria-disabled=\"true\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;text-align:center;font-weight:400;font-style:normal\">Start survey</span></div></div>"
+  },
+  {
+    "name": "saved survey authorized caller callback",
+    "value": "<div id=\"test-survey\" class=\"nl-block-test-survey\" style=\"padding:0px 0px 0px 0px;\"><div style=\"text-align:center;padding:12px 0;background:#abc;\"><a href=\"https://example.test/survey\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;text-align:center;font-weight:400;font-style:normal\">Start survey</a></div></div>"
+  },
+  {
+    "name": "legacy survey callbacks preserved",
+    "value": "<div id=\"test-survey\" class=\"nl-block-test-survey\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:center\"><p>Legacy question?</p><a href=\"https://example.test/Yes\" style=\"display:block;padding:10px;margin:6px 0;border:1px solid #777;color:inherit\">Yes</a><a href=\"https://example.test/No\" style=\"display:block;padding:10px;margin:6px 0;border:1px solid #777;color:inherit\">No</a></div></div>"
+  },
+  {
+    "name": "callback arguments and order",
+    "value": [
+      [
+        "sanitize",
+        "<a href=\"https://example.test/\" style=\"color:red\">Ada &lt;&amp;&gt;</a>"
+      ],
+      [
+        "rewrite",
+        "https://example.test/article",
+        "test-image"
+      ],
+      [
+        "savedSurvey",
+        "test-survey"
+      ],
+      [
+        "survey",
+        "test-survey",
+        "Yes"
+      ],
+      [
+        "survey",
+        "test-survey",
+        "No"
+      ]
+    ]
+  },
+  {
+    "name": "social target/https://example.test/public?a=1",
+    "value": "https://example.test/public?a=1"
+  },
+  {
+    "name": "social url/facebook/https://example.test/public?a=1",
+    "value": "https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fexample.test%2Fpublic%3Fa%3D1"
+  },
+  {
+    "name": "social url/linkedin/https://example.test/public?a=1",
+    "value": "https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fexample.test%2Fpublic%3Fa%3D1"
+  },
+  {
+    "name": "social url/pinterest/https://example.test/public?a=1",
+    "value": "https://pinterest.com/pin/create/button/?url=https%3A%2F%2Fexample.test%2Fpublic%3Fa%3D1&media=Newsletter"
+  },
+  {
+    "name": "social url/twitter/https://example.test/public?a=1",
+    "value": "https://twitter.com/intent/tweet?text=Newsletter:%20https%3A%2F%2Fexample.test%2Fpublic%3Fa%3D1"
+  },
+  {
+    "name": "social url/instapaper/https://example.test/public?a=1",
+    "value": "https://www.instapaper.com/hello2?url=https%3A%2F%2Fexample.test%2Fpublic%3Fa%3D1&title=Newsletter"
+  },
+  {
+    "name": "social url/forward/https://example.test/public?a=1",
+    "value": ""
+  },
+  {
+    "name": "social target/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/facebook/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/linkedin/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/pinterest/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/twitter/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/instapaper/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/forward/https://example.test/engagement/newsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social target/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/facebook/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/linkedin/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/pinterest/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/twitter/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/instapaper/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social url/forward/https://example.test/engagement/%6eewsletter-public/token",
+    "value": ""
+  },
+  {
+    "name": "social target/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social url/facebook/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social url/linkedin/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social url/pinterest/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social url/twitter/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social url/instapaper/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social url/forward/https://u:p@example.test/",
+    "value": ""
+  },
+  {
+    "name": "social target/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social url/facebook/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social url/linkedin/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social url/pinterest/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social url/twitter/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social url/instapaper/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social url/forward/*|ARCHIVE|*",
+    "value": ""
+  },
+  {
+    "name": "social target/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "social url/facebook/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "social url/linkedin/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "social url/pinterest/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "social url/twitter/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "social url/instapaper/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "social url/forward/javascript:bad",
+    "value": ""
+  },
+  {
+    "name": "share block and mobile styles",
+    "value": "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Policy &lt;brief&gt;</title><style>body{margin:0}table{border-collapse:collapse}a{color:#ffffff}p{margin:0 0 12px}@media(max-width:600px){.nl-shell{width:100%!important}.nl-padding{padding:16px!important}.nl-column{display:block!important;width:100%!important;padding:0!important}h1{font-size:32px!important}h2{font-size:26px!important}.nl-block-test-social .nl-social-item{display:inline-table!important;margin:0 24px 0 0!important;vertical-align:middle!important}.nl-block-test-social .nl-social-last{margin-right:0!important}.nl-block-test-social .nl-social-icon{width:40px!important;height:40px!important}}</style></head><body style=\"background:#141414;\"><div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all\">Preview &amp; details</div><table role=\"presentation\" width=\"100%\"><tr><td align=\"center\"><table class=\"nl-shell\" role=\"presentation\" width=\"660\" style=\"width:660px;max-width:100%;background:#141414\"><tr><td class=\"nl-padding\" style=\"padding:24px\"><section id=\"section\" style=\"\"><div id=\"test-social\" class=\"nl-block-test-social\" style=\"padding:12px 0px 12px 0px;\"><div style=\";text-align:center\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item\" style=\"display:inline-table;margin:0 24px 0 0;vertical-align:middle\"><tr><td style=\"padding:0;vertical-align:middle\"><a href=\"https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fexample.test%2Fpublic\" target=\"_blank\" rel=\"noopener noreferrer\" style=\";color:#ffffff;text-decoration:none\"><img class=\"nl-social-icon\" src=\"https://app.example.test/newsletter/social-facebook-dark.png\" alt=\"Share\" width=\"40\" height=\"40\" style=\"display:inline-block;vertical-align:middle;width:40px;height:40px;border:0\"></a></td></tr></table><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item nl-social-last\" style=\"display:inline-table;margin:0 0px 0 0;vertical-align:middle\"><tr><td style=\"padding:0;vertical-align:middle\"><a href=\"https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fexample.test%2Fpublic\" target=\"_blank\" rel=\"noopener noreferrer\" style=\";color:#ffffff;text-decoration:none\"><img class=\"nl-social-icon\" src=\"https://app.example.test/newsletter/social-linkedin-dark.png\" alt=\"Share\" width=\"40\" height=\"40\" style=\"display:inline-block;vertical-align:middle;width:40px;height:40px;border:0\"></a></td></tr></table></div></div></section></td></tr></table></td></tr></table></body></html>"
+  },
+  {
+    "name": "full rich document rendering",
+    "value": "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Policy &lt;brief&gt;</title><link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=DM+Sans:wght@400&amp;display=swap\" referrerpolicy=\"no-referrer\"><style>body{margin:0}table{border-collapse:collapse}a{color:#ffffff}p{margin:0 0 12px}@media(max-width:600px){.nl-shell{width:100%!important}.nl-padding{padding:16px!important}.nl-column{display:block!important;width:100%!important;padding:0!important}h1{font-size:32px!important}h2{font-size:26px!important}.nl-block-test-heading>*{font-family:'Arial', Arial, sans-serif!important;font-size:48px!important;color:#ffffff!important;line-height:1.1!important;font-weight:700!important;font-style:normal!important}.nl-block-test-paragraph{padding-left:3px!important}.nl-block-test-paragraph>*{font-size:16px!important}.nl-block-test-paragraph{padding-left:3px!important}.nl-block-test-paragraph>*{font-size:16px!important}.nl-block-test-footer{padding-left:3px!important}.nl-block-test-footer>*{font-size:16px!important}}</style></head><body style=\"background:#141414;\"><div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all\">Preview &amp; details</div><table role=\"presentation\" width=\"100%\"><tr><td align=\"center\"><table class=\"nl-shell\" role=\"presentation\" width=\"660\" style=\"width:660px;max-width:100%;background:#141414\"><tr><td class=\"nl-padding\" style=\"padding:24px\"><section id=\"section\" style=\"\"><div id=\"test-heading\" class=\"nl-block-test-heading\" style=\"padding:12px 0px 12px 0px;\"><h1 style=\"margin:0;font-family:'DM Sans', Arial, sans-serif;font-size:48px;color:#ffffff;line-height:1.1;font-weight:700;font-style:normal\">Hello Ada &lt;&amp;&gt;</h1></div><div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">&lt;a href=&quot;https://example.test/&quot; style=&quot;color:red&quot;&gt;Ada &amp;lt;&amp;amp;&amp;gt;&lt;/a&gt;</div></div><div id=\"test-image\" class=\"nl-block-test-image\" style=\"padding:12px 0px 12px 0px;\"><a href=\"https://example.test/article\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"/newsletter/capitol.png\" alt=\"Capitol\" style=\"max-width:100%;width:42%;display:block;border:0;border-radius:0px;text-align:center;margin-left:auto;margin-right:auto;object-fit:cover;object-position:10% 20%;aspect-ratio:16/9;\"></a></div><div id=\"test-paragraph\" class=\"nl-block-test-paragraph\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Policy audience only</div></div><div id=\"test-survey\" class=\"nl-block-test-survey\" style=\"padding:0px 0px 0px 0px;\"><div style=\"text-align:center;padding:12px 0;background:#abc;\"><span aria-disabled=\"true\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;text-align:center;font-weight:400;font-style:normal\">Start survey</span></div></div><div id=\"test-footer\" class=\"nl-block-test-footer\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\"><p>Copyright &copy; 2026 Example firm. All rights reserved.</p><p>Opted in.</p><p>Our mailing address is:<br>10 Example Lane</p><p>Want to change how you receive these emails?</p><p>You can <a href=\"https://example.test/preferences\" style=\"color:inherit\">update your preferences</a> or <a href=\"https://example.test/unsubscribe\" style=\"color:inherit\">unsubscribe</a>.</p></div></div></section></td></tr></table></td></tr></table></body></html>"
+  },
+  {
+    "name": "full plain text rendering",
+    "value": "Hello Ada <&>\n\n Ada <&> \n\nPolicy audience only\n\nStart survey\nhttps://example.test/survey\n\nExample firm\nOpted in.\n10 Example Lane\nUpdate preferences: https://example.test/preferences\nUnsubscribe: https://example.test/unsubscribe"
+  },
+  {
+    "name": "government affairs original template",
+    "value": "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Policy &lt;brief&gt;</title><style>body{margin:0}table{border-collapse:collapse}a{color:#ffffff}p{margin:0 0 12px}@media(max-width:600px){.nl-shell{width:100%!important}.nl-padding{padding:16px!important}.nl-column{display:block!important;width:100%!important;padding:0!important}h1{font-size:32px!important}h2{font-size:26px!important}}</style></head><body style=\"background:#141414;\"><div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all\">Preview &amp; details</div><table role=\"presentation\" width=\"100%\"><tr><td align=\"center\"><table class=\"nl-shell\" role=\"presentation\" width=\"660\" style=\"width:660px;max-width:100%;background:#141414\"><tr><td class=\"nl-padding\" style=\"padding:24px\"><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:11px;color:#ffffff;line-height:1.4;text-decoration:underline;font-weight:400;font-style:normal\">&lt;a href=&quot;*|ARCHIVE|*&quot;&gt;View this email in your browser&lt;/a&gt;</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 24px 0px;\"><div style=\"text-align:left;color:#f05f26;font-size:64px;font-family:'Arial', Arial, sans-serif;font-weight:700;font-style:normal\">CAPIRO</div></div></section><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:12px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">OCTOBER 6, 2026 · WEEKLY CLIENT BRIEFING</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><h1 style=\"margin:0;font-family:'Arial', Arial, sans-serif;font-size:48px;color:#ffffff;line-height:1.1;font-weight:700;font-style:normal\">The week in policy.<br>What it means for you.</h1></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:16px 0px 24px 0px;\"><img src=\"/newsletter/capitol.png\" alt=\"Illustration of the U.S. Capitol\" style=\"max-width:100%;width:100%;display:block;border:0;border-radius:0px;margin-left:0;margin-right:auto;\"></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 16px 0 0;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#f05f26;line-height:1.4;font-weight:700;font-style:normal\">LEGISLATIVE WATCH</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">H.R. XXXX · Sample Infrastructure Modernization Act<br><br>Illustrative update: the committee has published proposed language for stakeholder review. Our team is tracking changes to eligibility, funding and reporting requirements.</div></div></td><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 0 0 16px;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#f05f26;line-height:1.4;font-weight:700;font-style:normal\">WHAT THIS MEANS FOR YOUR TEAM</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Use this space to connect a bill’s latest action to your client’s priorities. Summarize the impact, link to the source and explain the next decision or deadline. This preview uses sample material.</div></div></td></tr></table></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\"><a href=\"https://www.congress.gov/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;font-weight:400;font-style:normal\">Read the bill update</a></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"height:24px;line-height:1px\" aria-hidden=\"true\">&nbsp;</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><h2 style=\"margin:0;font-family:'Arial', Arial, sans-serif;font-size:36px;color:#ffffff;line-height:1.2;font-weight:700;font-style:normal\">Your priorities.<br>Our watchlist.<br>A clear next step.</h2></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><h3 style=\"margin:0;font-family:'Arial', Arial, sans-serif;font-size:24px;color:#f05f26;line-height:1.3;font-weight:700;font-style:normal\">Plan for the week ahead.</h3></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 16px 0 0;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#f05f26;line-height:1.4;font-weight:700;font-style:normal\">UP NEXT · SAMPLE POLICY CALENDAR</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Committee hearing · stakeholder comments · agency guidance<br><br>Highlight the dates your client needs to know and the actions your team recommends.</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\"><a href=\"https://www.congress.gov/committee-schedule\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;font-weight:400;font-style:normal\">Review upcoming hearings</a></div></div></td><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 0 0 16px;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><img src=\"/newsletter/policy-desk.png\" alt=\"Illustration of a policy briefing desk\" style=\"max-width:100%;width:100%;display:block;border:0;border-radius:0px;margin-left:0;margin-right:auto;\"></div></td></tr></table></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><h2 style=\"margin:0;font-family:'Arial', Arial, sans-serif;font-size:36px;color:#ffffff;line-height:1.2;font-weight:700;font-style:normal\">News that moves<br>your agenda.</h2></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><img src=\"/newsletter/newsroom.png\" alt=\"Illustration of policy news headlines\" style=\"max-width:100%;width:100%;display:block;border:0;border-radius:0px;margin-left:0;margin-right:auto;\"></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 16px 0 0;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#f05f26;line-height:1.4;font-weight:700;font-style:normal\">IN THE NEWS</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Sample news brief: an agency outlines its next rulemaking priorities. Add a sourced headline, a concise summary and a note on why this development matters to your client.</div></div></td><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 0 0 16px;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#f05f26;line-height:1.4;font-weight:700;font-style:normal\">OUR TAKE</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Explain the implications in plain language. Separate the source’s reported facts from your analysis, and identify what your client should watch next.</div></div></td></tr></table></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\"><a href=\"https://www.federalregister.gov/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;font-weight:400;font-style:normal\">Explore policy news</a></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"border-top:1px solid #777777;height:0\"></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 16px 0 0;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><img src=\"/newsletter/social-update.png\" alt=\"Illustration of a social media update\" style=\"max-width:100%;width:100%;display:block;border:0;border-radius:0px;margin-left:0;margin-right:auto;\"></div></td><td class=\"nl-column\" valign=\"top\" width=\"50%\" style=\"padding:0 0 0 16px;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#f05f26;line-height:1.4;font-weight:700;font-style:normal\">ON OUR RADAR · SAMPLE TWEET</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">@PolicyDesk (illustrative)<br>“Stakeholder input helps shape the next phase of policy work.”<br><br>Use this section for a relevant tweet, its source link and context for your client.</div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\"><a href=\"https://x.com/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;text-decoration:none;background:#141414;color:#ffffff;border-color:#f05f26;border-style:solid;border-width:1px;font-family:'Arial', Arial, sans-serif;font-size:16px;padding-top:12px;padding-bottom:12px;padding-left:24px;padding-right:24px;border-radius:0px;font-weight:400;font-style:normal\">Read the original post</a></div></div></td></tr></table></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:24px 0px 24px 0px;\"><div style=\"text-align:center;font-size:12px;text-align:center\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item\" style=\"display:inline-table;margin:0 24px 0 0;vertical-align:middle\"><tr><td style=\"padding:0;vertical-align:middle\"><a href=\"https://www.linkedin.com/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-size:12px;color:#ffffff;text-decoration:none\"><span class=\"nl-social-label\" style=\"padding-left:0px;vertical-align:middle\">LINKEDIN</span></a></td></tr></table><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item\" style=\"display:inline-table;margin:0 24px 0 0;vertical-align:middle\"><tr><td style=\"padding:0;vertical-align:middle\"><a href=\"https://x.com/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-size:12px;color:#ffffff;text-decoration:none\"><span class=\"nl-social-label\" style=\"padding-left:0px;vertical-align:middle\">X / TWITTER</span></a></td></tr></table><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item nl-social-last\" style=\"display:inline-table;margin:0 0px 0 0;vertical-align:middle\"><tr><td style=\"padding:0;vertical-align:middle\"><a href=\"https://capiro.ai/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-size:12px;color:#ffffff;text-decoration:none\"><span class=\"nl-social-label\" style=\"padding-left:0px;vertical-align:middle\">WEBSITE</span></a></td></tr></table></div></div></section><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:24px 0px 24px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:11px;color:#cccccc;line-height:1.4;text-align:center;font-weight:400;font-style:normal\"><p>Copyright &copy; 2026 Example firm. All rights reserved.</p><p>Opted in.</p><p>Our mailing address is:<br>10 Example Lane</p><p>Want to change how you receive these emails?</p><p>You can <a href=\"*|UPDATE_PROFILE|*\" style=\"color:inherit\">update your preferences</a> or <a href=\"*|UNSUB|*\" style=\"color:inherit\">unsubscribe</a>.</p></div></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:right;font-family:'Arial', Arial, sans-serif;font-size:30px;color:#f05f26;font-weight:700;font-style:normal\">CAPIRO</div></div></section></td></tr></table></td></tr></table></body></html>"
+  },
+  {
+    "name": "column layout original template",
+    "value": "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Policy &lt;brief&gt;</title><style>body{margin:0}table{border-collapse:collapse}a{color:#ffffff}p{margin:0 0 12px}@media(max-width:600px){.nl-shell{width:100%!important}.nl-padding{padding:16px!important}.nl-column{display:block!important;width:100%!important;padding:0!important}h1{font-size:32px!important}h2{font-size:26px!important}}</style></head><body style=\"background:#141414;\"><div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all\">Preview &amp; details</div><table role=\"presentation\" width=\"100%\"><tr><td align=\"center\"><table class=\"nl-shell\" role=\"presentation\" width=\"660\" style=\"width:660px;max-width:100%;background:#141414\"><tr><td class=\"nl-padding\" style=\"padding:24px\"><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\">YOUR FIRM</div></div></section><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><h1 style=\"margin:0;font-family:'Arial', Arial, sans-serif;font-size:48px;color:#ffffff;line-height:1.1;font-weight:700;font-style:normal\">This week in policy</h1></div><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"nl-column\" valign=\"top\" width=\"33.33333333333333%\" style=\"padding:0 16px 0 0;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Add your text here.</div></div></td><td class=\"nl-column\" valign=\"top\" width=\"33.33333333333333%\" style=\"padding:0 0 0 16px;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Add your text here.</div></div></td><td class=\"nl-column\" valign=\"top\" width=\"33.33333333333333%\" style=\"padding:0 0 0 16px;\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">Add your text here.</div></div></td></tr></table></div></section><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\"><p>Copyright &copy; 2026 Example firm. All rights reserved.</p><p>Opted in.</p><p>Our mailing address is:<br>10 Example Lane</p><p>Want to change how you receive these emails?</p><p>You can <a href=\"*|UPDATE_PROFILE|*\" style=\"color:inherit\">update your preferences</a> or <a href=\"*|UNSUB|*\" style=\"color:inherit\">unsubscribe</a>.</p></div></div></section></td></tr></table></td></tr></table></body></html>"
+  },
+  {
+    "name": "code layout original template",
+    "value": "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Policy &lt;brief&gt;</title><style>body{margin:0}table{border-collapse:collapse}a{color:#ffffff}p{margin:0 0 12px}@media(max-width:600px){.nl-shell{width:100%!important}.nl-padding{padding:16px!important}.nl-column{display:block!important;width:100%!important;padding:0!important}h1{font-size:32px!important}h2{font-size:26px!important}}</style></head><body style=\"background:#141414;\"><div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all\">Preview &amp; details</div><table role=\"presentation\" width=\"100%\"><tr><td align=\"center\"><table class=\"nl-shell\" role=\"presentation\" width=\"660\" style=\"width:660px;max-width:100%;background:#141414\"><tr><td class=\"nl-padding\" style=\"padding:24px\"><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"text-align:left\">YOUR FIRM</div></div></section><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><pre style=\"white-space:pre-wrap;font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\">&lt;p&gt;Add your newsletter HTML here.&lt;/p&gt;</pre></div></section><section id=\"n_mv579mo0_4i\" style=\"\"><div id=\"n_mv579mo0_4i\" class=\"nl-block-n_mv579mo0_4i\" style=\"padding:12px 0px 12px 0px;\"><div style=\"font-family:'Courier New', Arial, sans-serif;font-size:14px;color:#ffffff;line-height:1.4;font-weight:400;font-style:normal\"><p>Copyright &copy; 2026 Example firm. All rights reserved.</p><p>Opted in.</p><p>Our mailing address is:<br>10 Example Lane</p><p>Want to change how you receive these emails?</p><p>You can <a href=\"*|UPDATE_PROFILE|*\" style=\"color:inherit\">update your preferences</a> or <a href=\"*|UNSUB|*\" style=\"color:inherit\">unsubscribe</a>.</p></div></div></section></td></tr></table></td></tr></table></body></html>"
+  }
+]

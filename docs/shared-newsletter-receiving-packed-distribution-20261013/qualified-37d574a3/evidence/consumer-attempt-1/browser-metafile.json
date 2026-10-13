@@ -1,0 +1,168 @@
+{
+  "inputs": {
+    "node_modules/@capiro/shared/dist/newsletter-fonts.catalog.js": {
+      "bytes": 98670,
+      "imports": [],
+      "format": "cjs"
+    },
+    "node_modules/@capiro/shared/dist/newsletter-fonts.js": {
+      "bytes": 5876,
+      "imports": [
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-fonts.catalog.js",
+          "kind": "require-call",
+          "original": "./newsletter-fonts.catalog.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    "node_modules/@capiro/shared/dist/newsletter-receiving.js": {
+      "bytes": 26309,
+      "imports": [
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter.js",
+          "kind": "require-call",
+          "original": "./newsletter.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    "node_modules/@capiro/shared/dist/newsletter.js": {
+      "bytes": 31486,
+      "imports": [
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-fonts.js",
+          "kind": "require-call",
+          "original": "./newsletter-fonts.js"
+        },
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-fonts.js",
+          "kind": "require-call",
+          "original": "./newsletter-fonts.js"
+        },
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-receiving.js",
+          "kind": "require-call",
+          "original": "./newsletter-receiving.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    "node_modules/@capiro/shared/dist/newsletter-social-share.js": {
+      "bytes": 2406,
+      "imports": [
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter.js",
+          "kind": "require-call",
+          "original": "./newsletter.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    "node_modules/@capiro/shared/dist/newsletter-render.js": {
+      "bytes": 32251,
+      "imports": [
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter.js",
+          "kind": "require-call",
+          "original": "./newsletter.js"
+        },
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-fonts.js",
+          "kind": "require-call",
+          "original": "./newsletter-fonts.js"
+        },
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-social-share.js",
+          "kind": "require-call",
+          "original": "./newsletter-social-share.js"
+        },
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-social-share.js",
+          "kind": "require-call",
+          "original": "./newsletter-social-share.js"
+        }
+      ],
+      "format": "cjs"
+    },
+    "renderer-characterizations.cjs": {
+      "bytes": 8823,
+      "imports": [],
+      "format": "cjs"
+    },
+    "newsletter-receiving-corpus.cjs": {
+      "bytes": 33100,
+      "imports": [],
+      "format": "cjs"
+    },
+    "browser-entry.mjs": {
+      "bytes": 1554,
+      "imports": [
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter.js",
+          "kind": "import-statement",
+          "original": "@capiro/shared/newsletter"
+        },
+        {
+          "path": "node_modules/@capiro/shared/dist/newsletter-render.js",
+          "kind": "import-statement",
+          "original": "@capiro/shared/newsletter-render"
+        },
+        {
+          "path": "renderer-characterizations.cjs",
+          "kind": "import-statement",
+          "original": "./renderer-characterizations.cjs"
+        },
+        {
+          "path": "newsletter-receiving-corpus.cjs",
+          "kind": "import-statement",
+          "original": "./newsletter-receiving-corpus.cjs"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "browser-bundle.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 394235
+    },
+    "browser-bundle.js": {
+      "imports": [],
+      "exports": [],
+      "entryPoint": "browser-entry.mjs",
+      "inputs": {
+        "node_modules/@capiro/shared/dist/newsletter-fonts.catalog.js": {
+          "bytesInOutput": 106556
+        },
+        "node_modules/@capiro/shared/dist/newsletter-fonts.js": {
+          "bytesInOutput": 5842
+        },
+        "node_modules/@capiro/shared/dist/newsletter-receiving.js": {
+          "bytesInOutput": 26906
+        },
+        "node_modules/@capiro/shared/dist/newsletter.js": {
+          "bytesInOutput": 32148
+        },
+        "node_modules/@capiro/shared/dist/newsletter-social-share.js": {
+          "bytesInOutput": 2311
+        },
+        "node_modules/@capiro/shared/dist/newsletter-render.js": {
+          "bytesInOutput": 30434
+        },
+        "renderer-characterizations.cjs": {
+          "bytesInOutput": 10461
+        },
+        "newsletter-receiving-corpus.cjs": {
+          "bytesInOutput": 39180
+        },
+        "browser-entry.mjs": {
+          "bytesInOutput": 1895
+        }
+      },
+      "bytes": 257884
+    }
+  }
+}
