@@ -1,0 +1,22 @@
+{
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "reviewGitHead": "ed388f81261cd1b5bdd2b523f743d6584dcafaa1",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/mock-loopback-source-host.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 0.14406085014343262,
+  "hostSha256": "061b4e0f683ac7036c57a0744f8cc469f52f19948f3156edf5c1e57856eb4ffb",
+  "stdoutSha256": "274e93b767150ba1fdd7cbd462bdebcf9ee66cd21a84d843641b548bac5c40a9",
+  "stderrSha256": "d3cb0f3a6fd634be9fdac6bfd57d461f0253e6c51ae60e2ba93e50cf3f31e94a",
+  "note": "Immutable corrected probe retains initial3e8 source label; exact command and current Git source bindings identify2c95 actualsubject. All four inputs/expectations unchanged."
+}

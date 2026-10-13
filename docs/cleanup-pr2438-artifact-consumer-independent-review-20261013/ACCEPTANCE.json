@@ -1,0 +1,33 @@
+{
+  "decision": "ACCEPT bounded compatible source",
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "initialAuthor": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+  "initialAuthorHashesVerified": 45,
+  "repairAuthor": "e7b9972adaa297caa71b6c2a6027c6d324f9b45d",
+  "repairAuthorHashesVerified": 30,
+  "approvedPaths": 7,
+  "heldDonorPaths": 4,
+  "permanentCases": {
+    "DockerUnchanged": 3,
+    "standaloneUnchanged": 50,
+    "loopbackFresh": 53,
+    "total": 106
+  },
+  "independentReplay": {
+    "pass": 4,
+    "red": 0,
+    "programSha256": "cf6f65d4ce3a2a5f1d31ede13ea9efb9f761e5068c769660127a5dc95e6cb4f1"
+  },
+  "baselineEntriesExact": 24640,
+  "sourceAndRedHistoryPreserved": true,
+  "nativeArtifactUiDeploymentAccepted": false,
+  "limits": [
+    "controlled synthetic loopback only",
+    "caller-pinned receipt consistency, no authenticity/process-source attestation",
+    "no actual artifact/build/native/runtime dependency/UI/public serving proof",
+    "packaging/workflow dependency closure held"
+  ],
+  "protectedOrDeniedBodiesRead": false
+}

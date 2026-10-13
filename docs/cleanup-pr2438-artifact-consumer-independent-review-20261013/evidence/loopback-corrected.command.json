@@ -1,0 +1,24 @@
+{
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "reviewGitHead": "ed388f81261cd1b5bdd2b523f743d6584dcafaa1",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/mock-loopback-source-host.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 1.587871789932251,
+  "hostSha256": "061b4e0f683ac7036c57a0744f8cc469f52f19948f3156edf5c1e57856eb4ffb",
+  "stdoutSha256": "e9433057f9cace18043f906d093f14847b2b0b79f49ba4af69558395e9995757",
+  "stderrSha256": "a4e29dd0cd762acb93139db8cde7e6067f5493573aacc5ac774ab68cd87419fa",
+  "note": "Immutable corrected probe retains initial3e8 source label; exact command and current Git source bindings identify2c95 actualsubject. All four inputs/expectations unchanged."
+}
