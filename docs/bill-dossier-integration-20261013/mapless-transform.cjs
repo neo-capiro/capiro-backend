@@ -1,0 +1,3 @@
+const {default:jest}=require(require.resolve("ts-jest",{paths:["/tmp/capirov2-bill-dossier-integration-20261013/apps/intel-api"]}));
+const delegate=jest.createTransformer({diagnostics:{ignoreCodes:[151002]},isolatedModules:true,tsconfig:"/tmp/capirov2-bill-dossier-integration-20261013/docs/bill-dossier-integration-20261013/jest-transform-config.json"});
+module.exports={getCacheKey:(...args)=>delegate.getCacheKey(...args),process:(...args)=>{const value=delegate.process(...args);if(typeof value==="string")return value;return {code:value.code.replace(/\n?\/\/[#@] sourceMappingURL=[^\r\n]*(?:\r?\n)?$/,"")};}};

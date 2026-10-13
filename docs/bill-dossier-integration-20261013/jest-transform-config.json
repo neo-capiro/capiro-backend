@@ -1,0 +1,7 @@
+{
+  "extends": "/tmp/capirov2-bill-dossier-integration-20261013/apps/intel-api/tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false,
+    "inlineSourceMap": false
+  }
+}

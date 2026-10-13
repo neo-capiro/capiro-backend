@@ -1,0 +1,29 @@
+{
+  "priorReadTree": "exit0 emitted14 not-uptodate-removal warnings for owned exact Git legacy TXT fixtures outside previous sparse patterns; tool output retained, not misclassified as clean stderr",
+  "files": [
+    "apps/api/src/california-grants/california-public-sample.fixture.json",
+    "apps/api/src/directory/legistorm/__fixtures__/member-page.json",
+    "apps/api/src/directory/legistorm/__fixtures__/office-page.json",
+    "apps/api/src/directory/legistorm/__fixtures__/retired-ids.json",
+    "apps/api/src/directory/legistorm/__fixtures__/staff-page.json",
+    "apps/api/src/funding-opportunities/__fixtures__/baseline-contract-v1.json",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/memory-file-editor-shared.ts.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/pending-memory-review-shared.ts.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+    "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+    "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+    "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+    "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt",
+    "apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt",
+    "apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt",
+    "apps/api/src/outreach-v3/state/__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt"
+  ],
+  "recovery": "Append exact canonical literal fixture paths to sparse patterns, read-tree reconciles index visibility without body edits",
+  "recoveryExit": 0,
+  "recoveryStdout": "",
+  "recoveryStderr": ""
+}

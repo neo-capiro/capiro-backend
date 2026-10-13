@@ -70,12 +70,25 @@ it('routes all sixteen facade methods through concrete owners and bounds actual 
   );
   if (!facade) throw new Error('Actual Intelligence facade is required');
   const ctor = facade.members.find(ts.isConstructorDeclaration);
-  const factory = facade.members.find(
-    (node): node is ts.MethodDeclaration =>
-      ts.isMethodDeclaration(node) && node.name.getText(ast) === 'createSupportingSources',
+  const composition = source('intelligence-facade-supporting-composition.ts');
+  const factory = composition.ast.statements.find(
+    (node): node is ts.FunctionDeclaration =>
+      ts.isFunctionDeclaration(node) && node.name?.text === 'createSupportingSources',
   );
+  expect(factory?.body?.statements).toHaveLength(1);
+  expect(ctor?.body?.getText(ast)).toContain(
+    'this.supportingSources = createSupportingSources(this',
+  );
+  expect(
+    ast.statements
+      .filter(ts.isImportDeclaration)
+      .some(
+        (node) =>
+          node.moduleSpecifier.getText(ast) === "'./intelligence-facade-supporting-composition.js'",
+      ),
+  ).toBe(true);
   expect(ctor?.getText(ast).split('\n').length).toBeLessThanOrEqual(80);
-  expect(factory?.getText(ast).split('\n').length).toBeLessThanOrEqual(80);
+  expect(factory?.getText(composition.ast).split('\n').length).toBeLessThanOrEqual(80);
   let delegates = 0;
   for (const [owner, names] of Object.entries(ownership)) {
     for (const name of names) {

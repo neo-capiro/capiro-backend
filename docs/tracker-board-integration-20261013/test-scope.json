@@ -1,0 +1,27 @@
+{
+  "source": "1e00e41a36b3450d77148b6f55a7ca90c83a194f",
+  "tests": [
+    "src/tracker/tracker-board-state-stage.spec.ts",
+    "src/tracker/tracker-tenant-scoping.spec.ts",
+    "test/tracker-board-guards.spec.ts",
+    "test/tracker-board-highfit.spec.ts",
+    "test/tracker-board-pagination.spec.ts",
+    "test/tracker-board-feedback.spec.ts",
+    "test/tracker-summary.spec.ts",
+    "test/tracker-portfolio-counts.spec.ts",
+    "test/bill-search.spec.ts",
+    "test/bill-search-jurisdictions.spec.ts",
+    "test/new-match-detector.spec.ts",
+    "test/tracker-board-ownership-compilation.spec.ts",
+    "test/tracker-board-ownership-curation.spec.ts",
+    "test/tracker-board-ownership-lookups.spec.ts",
+    "test/tracker-board-ownership-reads.spec.ts",
+    "test/tracker-board-ownership-recommendations.spec.ts",
+    "test/tracker-board-ownership-worker-receivers.spec.ts",
+    "test/task-runner.spec.ts",
+    "test/tracker-board-ownership.contract.spec.ts"
+  ],
+  "expectedSuites": 19,
+  "expectedCases": 197,
+  "sourceOfScope": "Exact donorAFTER-characterization command excludingflags plus8ownershipguards"
+}

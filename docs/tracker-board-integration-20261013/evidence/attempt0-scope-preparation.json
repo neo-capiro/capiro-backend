@@ -1,0 +1,5 @@
+{
+  "observation": "Initialpreparation incorrectly countedcoverageflagending.spec.ts as20thsuite; assertionstoppedbeforeanytest/type/buildrun.",
+  "fix": "Literalpaths exclude anyleading-hyphenflags;19actualexistingpathsvalidated.",
+  "testExecutionAtFailure": false
+}

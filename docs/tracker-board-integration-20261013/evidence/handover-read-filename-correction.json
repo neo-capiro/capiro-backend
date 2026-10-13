@@ -1,0 +1,9 @@
+{
+  "initialRead": "git show PR2485:docs/backend-cleanup/20261013/TRACKER-HANDOVER.md failed128 (guessedfilename); no mutation or evidence loss",
+  "actualPublishedHandover": "TRACKER-BOARD-HANDOVER.md",
+  "correction": "Read exactfilename listedbydonor32pathmetadata",
+  "laterReadObservations": [
+    "A read incorrectly used the source directory for the docs handover, failed128; corrected literal docs/backend-cleanup/20261013/TRACKER-BOARD-HANDOVER.md succeeds.",
+    "A read of the prior dossier packet in sparse Tracker checkout reports ENOENT; prior committed blob remains in its own dossier checkout and unchanged in Git."
+  ]
+}

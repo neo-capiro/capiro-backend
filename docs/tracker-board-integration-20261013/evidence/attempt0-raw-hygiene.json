@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"f59a30300341ac1469e34f4c6672227f1c1eaf4a\",\n  \"checkedPaths\": 73,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"docs/tracker-board-integration-20261013/evidence/jest.log:1: trailing whitespace.\\n+ts-jest[config] (WARN) \\ndocs/tracker-board-integration-20261013/evidence/jest.log:3: trailing whitespace.\\n+  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+  "stderr": "",
+  "rawCheckpoint": "2a452c68a984adb5b682abba3eded8a36d371388"
+}

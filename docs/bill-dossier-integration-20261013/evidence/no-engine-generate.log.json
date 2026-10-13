@@ -1,0 +1,9 @@
+{
+  "rawCheckpoint": "6bac4b9a3f761b1e8666025e484d9d4eaf3b44c3",
+  "rawPath": "docs/bill-dossier-integration-20261013/evidence/no-engine-generate.log",
+  "rawBlob": "9d73a215e264f3605e530f4e1a92582e600f731c",
+  "bytes": 172,
+  "sha256": "344282a3e9e6d493f1030748c32502d2470f23751452fb4c6c304b6dcb777119",
+  "encoding": "UTF8textJSON decodeexactrawbytes",
+  "text": "Prisma schema loaded from .bill-dossier-types-only.prisma\n\n\u2714 Generated Prisma Client (v5.22.0, engine=none) to ./../../../../bill-dossier-prisma-types-20261013 in 708ms\n\n"
+}

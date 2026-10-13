@@ -1,0 +1,20 @@
+{
+  "atUTC": "2026-10-13T22:07:42.396777+00:00",
+  "action": "read-only GET repository using existing connector credentials",
+  "repository": "neo-capiro/capiro-backend",
+  "exit": 1,
+  "status": 404,
+  "response": {
+    "message": "Not Found",
+    "documentation_url": "https://docs.github.com/rest/repos/repos#get-a-repository",
+    "status": "404"
+  },
+  "stderr": "gh: Not Found (HTTP 404)\n",
+  "parentEvidence": "Neo manually created the private repository; coordinator verified private21:57UTC; selected-repository connector installation148624850 excludes capiro-backend; explicit add-only approval pending",
+  "importHead": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "importTree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+  "branch": "backend-import",
+  "pushAttempted": false,
+  "creationRetried": false,
+  "credentialOrPermissionChange": false
+}

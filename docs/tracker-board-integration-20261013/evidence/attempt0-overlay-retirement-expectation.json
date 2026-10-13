@@ -1,0 +1,7 @@
+{
+  "observation": "First retirement verifier expected only symlinks in the task-created dependency overlays and stopped on seven copied .bin command shims. Before the assertion it removed only the owned Tracker root node_modules symlink and generated/prisma-client symlink; underlying targets remain present.",
+  "exit": 1,
+  "correction": "Inventory and hash the finite copied .bin shims, compare them across the task overlays, and retire only these owned overlay directories without following symlinks.",
+  "borrowedTargetsModified": false,
+  "partialOwnedLinkRemoval": true
+}

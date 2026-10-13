@@ -1,0 +1,17 @@
+{
+  "rawCheckpoint": "2a452c68a984adb5b682abba3eded8a36d371388",
+  "losslessEnvelopes": [
+    {
+      "envelope": "docs/tracker-board-integration-20261013/evidence/jest.log.json",
+      "originalPath": "docs/tracker-board-integration-20261013/evidence/jest.log",
+      "gitBlob": "8bf7e4147ba3d0565a93d5447436a3ad3cba7186",
+      "bytes": 2253,
+      "sha256": "9283414876abecc8bbf15cd0adf5b246baead5772c26096cc40daba9ef75a5d6",
+      "roundTripExact": true
+    }
+  ],
+  "rawBytesTrimmed": false,
+  "hygieneExceptionAdded": false,
+  "allOtherRawLogsRemainExact": true,
+  "fourExistingImmutableRawArchivesUnchanged": true
+}

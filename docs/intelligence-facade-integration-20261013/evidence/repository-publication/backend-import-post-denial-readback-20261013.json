@@ -1,0 +1,9 @@
+{
+  "checkedAtUTC": "2026-10-13T21:08:07.556695+00:00",
+  "endpoint": "GET /repos/neo-capiro/capiro-backend",
+  "exit": 1,
+  "stderr": "gh: Not Found (HTTP 404)\n",
+  "creationAttempt": "POST /user/repos denied403 Resource not accessible by integration",
+  "pushAttempted": false,
+  "credentialOrAccessChanges": false
+}

@@ -1,0 +1,37 @@
+{
+  "atUTC": "2026-10-13T22:09:52.516632+00:00",
+  "destination": {
+    "id": 1418020840,
+    "full_name": "neo-capiro/capiro-backend",
+    "private": true,
+    "size": 0,
+    "permissions": {
+      "admin": true,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    }
+  },
+  "owner": {
+    "login": "neo-capiro",
+    "id": 276034435,
+    "type": "User"
+  },
+  "branches": [],
+  "tags": [],
+  "remoteHeadsAndTags": "",
+  "sourceHead": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "sourceTree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+  "branch": "backend-import",
+  "originalMainAncestorPreserved": true,
+  "sourceEntryCount": 26977,
+  "workflowQuarantine": {
+    "activePaths": [],
+    "disabledWorkflows": 73,
+    "disabledDependabot": 1,
+    "allModeBlobExact": true
+  },
+  "existingSourceMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "result": "PASS: approved selected-repository access now available; exact private empty destination and immutable reviewed import verified; no write yet"
+}

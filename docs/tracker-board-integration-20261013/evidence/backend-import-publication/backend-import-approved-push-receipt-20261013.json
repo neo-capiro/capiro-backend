@@ -1,0 +1,23 @@
+{
+  "atUTC": "2026-10-13T22:10:39.732446+00:00",
+  "command": [
+    "git",
+    "push",
+    "--porcelain",
+    "https://github.com/neo-capiro/capiro-backend.git",
+    "c76f5fc0df6688743afeec274211afd2e67fe8f1:refs/heads/backend-import"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 20.858,
+  "head": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "tree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+  "onlyRequestedRef": "refs/heads/backend-import",
+  "force": false,
+  "mirror": false,
+  "tagsRequested": false,
+  "logBytes": 139,
+  "logSHA256": "700c414d7629c1ef05bb8a81170578f31a48656c19b5cb9d27e38488bc918929",
+  "logFile": "/tmp/backend-import-approved-push-20261013.log",
+  "mainMergeOrDeployment": false,
+  "credentialsPermissionsOrRepositorySettingsChanged": false
+}

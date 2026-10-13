@@ -1,0 +1,2 @@
+const base=require("/tmp/capirov2-tracker-board-integration-20261013/apps/intel-api/jest.config.cjs");
+module.exports={...base,rootDir:"/tmp/capirov2-tracker-board-integration-20261013/apps/intel-api",roots:["/tmp/capirov2-tracker-board-integration-20261013/apps/intel-api"],setupFiles:[],setupFilesAfterEnv:[],cache:false,cacheDirectory:"/tmp/tracker-board-mapless-jest-cache-20261013",transform:{"^.+[.]ts$":"/tmp/capirov2-tracker-board-integration-20261013/docs/tracker-board-integration-20261013/mapless-transform.cjs"}};

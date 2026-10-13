@@ -1,0 +1,71 @@
+{
+  "source": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+  "sourceTree": "4d33f74730f47bbae00f84d513b62a9ecfff25b1",
+  "actualFreshNestBuild": true,
+  "changedActualProductionEmissions": [
+    {
+      "path": "intelligence/intelligence.service.js",
+      "bytes": 20303,
+      "sha256": "24e9f15882701d82ffd34b21f3629b78538fcf88cfd7c946d17d498379baa3fc",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-client-composition.js",
+      "bytes": 3913,
+      "sha256": "c0bad9b0808d53689357332e16d1ebcfa147df66be067edd937ea0d72c349eb1",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-contracts.js",
+      "bytes": 77,
+      "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-final-composition.js",
+      "bytes": 3970,
+      "sha256": "42e20259315767370f28f045111942f947dd927064be7cb30cedc1e1e9378e49",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-owners.js",
+      "bytes": 77,
+      "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-policy-values.js",
+      "bytes": 396,
+      "sha256": "f0511efeb60e128bb67968f72a6d9fc37436ef25640502e7dbd1572533b6d911",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-profile-composition.js",
+      "bytes": 4946,
+      "sha256": "6c35d59ecf4d3002315a361b4ed84485f48e2915d24a8a9859bd3e854b36ce3f",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-facade-supporting-composition.js",
+      "bytes": 2265,
+      "sha256": "376c23d81f5aeb2145e7efecdb63d9d668f76a6aeb987f08aadb0d2aa02ff725",
+      "syntaxExit": 0
+    },
+    {
+      "path": "intelligence/intelligence-profile-source-budget.js",
+      "bytes": 1248,
+      "sha256": "3aff7a265d125ae7217350f97748aa93b77f296004ef84a778d9963ba7c8cf61",
+      "syntaxExit": 0
+    }
+  ],
+  "nineSyntaxChecksPass": true,
+  "emittedDIMetadataNames": [
+    "PrismaService",
+    "ClientPrepopulationService",
+    "OfficeRecommenderService"
+  ],
+  "DIQualification": "Actual emitted metadata static inspection; no AppModule/controller/service instantiation or native/live acceptance",
+  "allEmittedFiles": 1981,
+  "emittedBytes": 22168381,
+  "productionSourceMapsQualified": false
+}
