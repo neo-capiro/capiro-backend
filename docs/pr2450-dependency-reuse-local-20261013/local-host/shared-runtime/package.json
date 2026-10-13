@@ -1,0 +1,127 @@
+{
+  "name": "@capiro/shared",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "ai-model-policy": [
+        "dist/ai-model-policy.d.ts"
+      ],
+      "client-registration-integrity": [
+        "dist/client-registration-integrity.d.ts"
+      ],
+      "money": [
+        "dist/money.d.ts"
+      ],
+      "funding-claim": [
+        "dist/funding-claim.d.ts"
+      ],
+      "defense-budget-line": [
+        "dist/defense-budget-line.d.ts"
+      ],
+      "pe-source-coverage": [
+        "dist/pe-source-coverage.d.ts"
+      ],
+      "meri-skills": [
+        "dist/meri-skills.d.ts"
+      ],
+      "meri-read-outcome": [
+        "dist/meri-read-outcome.d.ts"
+      ],
+      "market-title": [
+        "dist/market-title.d.ts"
+      ],
+      "newsletter": [
+        "dist/newsletter.d.ts"
+      ],
+      "newsletter-render": [
+        "dist/newsletter-render.d.ts"
+      ]
+    }
+  },
+  "exports": {
+    "./ai-model-policy": {
+      "types": "./dist/ai-model-policy.d.ts",
+      "require": "./dist/ai-model-policy.js",
+      "import": "./dist/ai-model-policy.js",
+      "default": "./dist/ai-model-policy.js"
+    },
+    "./client-registration-integrity": {
+      "types": "./dist/client-registration-integrity.d.ts",
+      "require": "./dist/client-registration-integrity.js",
+      "import": "./dist/client-registration-integrity.js",
+      "default": "./dist/client-registration-integrity.js"
+    },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./money": {
+      "types": "./dist/money.d.ts",
+      "require": "./dist/money.js",
+      "import": "./dist/money.js",
+      "default": "./dist/money.js"
+    },
+    "./funding-claim": {
+      "types": "./dist/funding-claim.d.ts",
+      "require": "./dist/funding-claim.js",
+      "import": "./dist/funding-claim.js",
+      "default": "./dist/funding-claim.js"
+    },
+    "./defense-budget-line": {
+      "types": "./dist/defense-budget-line.d.ts",
+      "require": "./dist/defense-budget-line.js",
+      "import": "./dist/defense-budget-line.js",
+      "default": "./dist/defense-budget-line.js"
+    },
+    "./pe-source-coverage": {
+      "types": "./dist/pe-source-coverage.d.ts",
+      "require": "./dist/pe-source-coverage.js",
+      "import": "./dist/pe-source-coverage.js",
+      "default": "./dist/pe-source-coverage.js"
+    },
+    "./meri-skills": {
+      "types": "./dist/meri-skills.d.ts",
+      "require": "./dist/meri-skills.js",
+      "import": "./dist/meri-skills.js",
+      "default": "./dist/meri-skills.js"
+    },
+    "./meri-read-outcome": {
+      "types": "./dist/meri-read-outcome.d.ts",
+      "require": "./dist/meri-read-outcome.js",
+      "import": "./dist/meri-read-outcome.js",
+      "default": "./dist/meri-read-outcome.js"
+    },
+    "./market-title": {
+      "types": "./dist/market-title.d.ts",
+      "require": "./dist/market-title.js",
+      "import": "./dist/market-title.js",
+      "default": "./dist/market-title.js"
+    },
+    "./newsletter": {
+      "types": "./dist/newsletter.d.ts",
+      "require": "./dist/newsletter.js",
+      "import": "./dist/newsletter.js",
+      "default": "./dist/newsletter.js"
+    },
+    "./newsletter-render": {
+      "types": "./dist/newsletter-render.d.ts",
+      "require": "./dist/newsletter-render.js",
+      "import": "./dist/newsletter-render.js",
+      "default": "./dist/newsletter-render.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

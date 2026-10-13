@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/shared/tsconfig.json",
+    "--outDir",
+    "/tmp/pr2450-shared-emission-check-20261013/dist",
+    "--tsBuildInfoFile",
+    "/tmp/pr2450-shared-emission-check-20261013/shared.tsbuildinfo"
+  ],
+  "cwd": "/workspace/capirov2-meri-http-qualified-20261013",
+  "environmentKeys": [
+    "PATH",
+    "TZ"
+  ],
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "sourceCount": 37,
+  "nativeGeneration": false,
+  "packageCodeExecution": false
+}

@@ -1,0 +1,8 @@
+{
+  "attempt": "command-plan-hash-bindings",
+  "exitCode": 1,
+  "errorType": "FileNotFoundError",
+  "missingPath": "/workspace/capirov2-meri-http-qualified-20261013/tsconfig.base.json",
+  "actualApiTypeOrBuildExecuted": false,
+  "disposition": "Materialized exact tracked current root config bytes; no source change."
+}
