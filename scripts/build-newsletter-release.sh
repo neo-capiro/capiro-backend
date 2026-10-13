@@ -1,7 +1,7 @@
 #!/bin/sh
 # Local assembly only. Never builds/runs images, applications, providers or publishes.
 set -eu
-usage='build-newsletter-release.sh --node-bin /absolute/node --plan|--run [all explicit source, target, manifest and input/output flags]'
+usage='Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run [all explicit source, target, manifest and input/output flags]'
 if [ "$#" -eq 1 ] && [ "$1" = --help ]; then printf '%s\n' "$usage"; exit 0; fi
 if [ "$#" -lt 3 ] || [ "$1" != --node-bin ]; then printf '%s\n' "$usage" >&2; exit 2; fi
 node_bin=$2
