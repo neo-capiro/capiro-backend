@@ -43,7 +43,7 @@ export const PE_PRODUCTION_SCRIPTS = [
 
 export type PeProductionScript = (typeof PE_PRODUCTION_SCRIPTS)[number];
 
-/** Pure helpers the PE script typecheck must include so loaders resolve. */
+/** Exact helper inventory: TypeScript typecheck plus dedicated Node/Bash validation. */
 export const PE_PRODUCTION_SCRIPT_HELPERS = [
   'scripts/lib/pe-production-scripts.ts',
   'scripts/lib/pe-exact-sha-loader-contract.ts',
@@ -55,6 +55,10 @@ export const PE_PRODUCTION_SCRIPT_HELPERS = [
   'scripts/lib/pe-migration-guards.ts',
   'scripts/lib/pe-migration-guards.spec.ts',
   'scripts/lib/pe-phase-9-rehearsal-catalog.ts',
+  'scripts/lib/pe-phase-9-migration-discovery.mjs',
+  'scripts/lib/pe-phase-9-migration-discovery.spec.mjs',
+  'scripts/lib/pe-phase-9-owned-postgres.sh',
+  'scripts/lib/pe-phase-9-owned-postgres.spec.mjs',
   'scripts/lib/pe-phase-9-backend-scope.ts',
   'scripts/lib/pe-phase-9-backend-scope.spec.ts',
   'scripts/lib/pe-phase-9-rehearsal.ts',
