@@ -1,0 +1,63 @@
+{
+  "base": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "tree": "dd829a84528eb576b2337cc091fff5255c42bc5f",
+  "paths": [
+    {
+      "path": "apps/onboard-api/Dockerfile.spa-artifact",
+      "gitBlob": "274557224d218a3c5545022d5273fe2c13562b8d",
+      "sha256": "5f365d2dfb7d47f44d697e680a69bbd4ad82db72493cc3294393177d93be90a9",
+      "bytes": 6362,
+      "mode": "100644",
+      "publishedExact": true
+    },
+    {
+      "path": "scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "gitBlob": "debf432a07381ba49bffbc4200570b75fda77c00",
+      "sha256": "baa564d67a76b2b3c8c902dc23514b7bb4c62ec329e218574f2551448edf5f56",
+      "bytes": 19019,
+      "mode": "100644",
+      "publishedExact": true
+    },
+    {
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "gitBlob": "c3866dfbdbb6729e1f7c4e68a81d8ef1bf25240e",
+      "sha256": "e8f1252a87e5d2afd782348878f6010dbb9c55cbfdcfbd5f4aeeee082721964b",
+      "bytes": 27655,
+      "mode": "100644",
+      "publishedExact": false
+    },
+    {
+      "path": "scripts/lib/newsletter-static-release-contract.mjs",
+      "gitBlob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+      "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d",
+      "bytes": 36528,
+      "mode": "100644",
+      "publishedExact": true
+    },
+    {
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "gitBlob": "669733c773f10e151b29ead069f9883f34053bdb",
+      "sha256": "47a5ba0c0164cebd9ed1721a14cf9ca907a024a4cd12044dcc297b8c562c0eb6",
+      "bytes": 12915,
+      "mode": "100644",
+      "publishedExact": true
+    }
+  ],
+  "outsideFiveExact": 24004,
+  "protectedCounts": {
+    "workflows": 72,
+    "schemaMigrations": 617,
+    "oldDocs": 12209,
+    "packageLocks": 30,
+    "windows": 13
+  },
+  "defaultOnboardDockerWorkflowServingEntryPointExact": true,
+  "missingClioDependenciesHeld": [
+    "scripts/engagement-phase3-backend-inputs.mjs",
+    "scripts/engagement-phase3-main-route-accounting.mjs",
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+  ],
+  "scope": "full tree metadata comparison only; no protected reporting/document bodies read"
+}

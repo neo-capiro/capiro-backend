@@ -1,0 +1,228 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "tree": "dd829a84528eb576b2337cc091fff5255c42bc5f",
+  "packet": [
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/COMMANDS.md",
+      "bytes": 1684,
+      "sha256": "ce1aa448d818585489db8f3f7a07a5ff1bfa522afb6a1c73e69e2a7a049d3b1c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/HANDOFF.md",
+      "bytes": 4768,
+      "sha256": "17e2eded4186e7f3fbe63fe50a216f4980b17ccc4d7f6f0478ade0043df99f89"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/INITIAL-SHA256-INDEX.json",
+      "bytes": 8834,
+      "sha256": "05276d02efe9006eb18ff7d5b093a5a6cc984d343bea1d835643035dee9e0202"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/QUALIFICATION.json",
+      "bytes": 1879,
+      "sha256": "97d4c21b6c3aaeef627693c24a10b801c875f9875a755e8c3455990624ace8e0"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/CURRENT-HEADER-LITERAL-CHECK.json",
+      "bytes": 346,
+      "sha256": "f2d165d491dd26485a4e9ce8d20389508b4330cc5b1a622feb875d77aae9c8a0"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/CURRENT-HEADER-SOURCE-BINDINGS.json",
+      "bytes": 1772,
+      "sha256": "9436d661fc92bff54adb47625d97529c5554bec360b419fa99294c25a6828330"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/HISTORICAL-ADAPTATION.json",
+      "bytes": 627,
+      "sha256": "430df278a11f0d8499485293d4f17149b8e72b05833d8287990c8b3ce320fdbf"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/RECEIVING-INPUTS.json",
+      "bytes": 2662,
+      "sha256": "c0335fd676e7b3fb2a018751fd7e6dc4b89522d5bb4118a94c07d73b82dfd4c9"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/SOURCE-FREEZE-INITIAL.json",
+      "bytes": 796,
+      "sha256": "a1328a49be1622cb7e150982e28050df8ef56dbee942bd34e5182b371897a274"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/SOURCE-FREEZE.json",
+      "bytes": 1009,
+      "sha256": "f48825e00747c5b22fbccf0f1220aaa7915b976b6cc9b6cfea0403764a2dc404"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/SOURCE-PRESERVATION.json",
+      "bytes": 2278,
+      "sha256": "e2b749f56bd055cf7e70b742a08e60e00fd63fe566207fafb2bffdfd2c19c9f4"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/focused-attempt-0.command.json",
+      "bytes": 1207,
+      "sha256": "e63cad60a2eb9147f9d25ab66e47fb8d8adff1b90897343d37016e2483a823c8"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/focused-attempt-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/focused-attempt-0.stdout",
+      "bytes": 4716,
+      "sha256": "10dcc4596a5fd7c9edfee85448c4ef69633c042e751168983960472db99d4e9f"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/initial-host-setup-failure.executor.txt",
+      "bytes": 378,
+      "sha256": "fd46b7ed9b52784706edb3bf4be65e942ff34f7a308d027ea15db63fb3506255"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/inventory-CODE-BLOB-BINDINGS.json",
+      "bytes": 2735,
+      "sha256": "a09d0856f30e66cd130e10a480c2f46577f8e9907076a7766b1fa11df1e62ced"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/inventory-INVENTORY.json",
+      "bytes": 3390,
+      "sha256": "d309a335baacca06bfeda3e3b328585fbc595f5a6b27d68fa56072e5525ba284"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/inventory-ONBOARD-HISTORICAL-BINDINGS.json",
+      "bytes": 621,
+      "sha256": "40bc11c70d7efea46d4ed51e6e2a867025a3bff372e3f819b4142762dac25afe"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/inventory-changed-path-metadata.json",
+      "bytes": 5723,
+      "sha256": "e8e889157c5ef8e61135c9bb33ced0c30bcbcf423d78cc5e16c6df2993d6ce85"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/inventory-six-commit-metadata.json",
+      "bytes": 1155,
+      "sha256": "13820a2498261e24e4b95de6035d7d1132aa9821c2c814f2eafbb5927d5ed6a8"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/newsletter-final.command.json",
+      "bytes": 1142,
+      "sha256": "3cc9506c23078d2a286057248c00eea2d792dbe1fe5eae0057201f2be076f357"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/newsletter-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/newsletter-final.stdout",
+      "bytes": 3506,
+      "sha256": "0665f535a9446988e0217bdb7730c52640c8959fe29a3a9b54e109ab13700470"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/onboard-final.command.json",
+      "bytes": 1137,
+      "sha256": "69883f54ae97d2fba5ca7215c08493f4dc4fbc612b181bd69738cdce1e3986e6"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/onboard-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/onboard-final.stdout",
+      "bytes": 2341,
+      "sha256": "e31772b03a06c41cc6ff051236dc2bf3b9716f629d8724480655adc6a695d370"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/original-4799-helper.mjs.txt",
+      "bytes": 12635,
+      "sha256": "1fd6adc7466f0e49e2d582e3072a3a2dadfcc032ebba05055c524084869b2b59"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/original-4799-spec.mjs.txt",
+      "bytes": 20003,
+      "sha256": "3ef4815748e85b9f50b5070a6ff4785edad78c787f4228b59e97dbfa5216e21c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/prepare-source.py.txt",
+      "bytes": 6703,
+      "sha256": "57b7a5eff6f10d9b603366e12a75ae46961bea11c231db775c30b94d1c06549b"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.command.json",
+      "bytes": 377,
+      "sha256": "be879e8b72b05c5a9f02d942f75848ae2ce3d52b1f82fa7e639edb754f72fa84"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.stdout",
+      "bytes": 238,
+      "sha256": "09596593c9246766bd8004de4c843c7586ae509984bff0a33755a29f819271f5"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/safe-source-test-preload.cjs",
+      "bytes": 1893,
+      "sha256": "7ff0afb7c32ce107f2e0ea2aea6df2d62496dcdb26f88a2d065d7fb38cac0bef"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/source-whitespace.command.json",
+      "bytes": 213,
+      "sha256": "3840b361ecf8a8e8bbe09294277f70251a32bc138f860fde1faecdea4bef3a79"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/source-whitespace.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/source-whitespace.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/onboard-api/Dockerfile.spa-artifact",
+      "gitBlob": "274557224d218a3c5545022d5273fe2c13562b8d",
+      "sha256": "5f365d2dfb7d47f44d697e680a69bbd4ad82db72493cc3294393177d93be90a9",
+      "bytes": 6362,
+      "mode": "100644",
+      "publishedExact": true
+    },
+    {
+      "path": "scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "gitBlob": "debf432a07381ba49bffbc4200570b75fda77c00",
+      "sha256": "baa564d67a76b2b3c8c902dc23514b7bb4c62ec329e218574f2551448edf5f56",
+      "bytes": 19019,
+      "mode": "100644",
+      "publishedExact": true
+    },
+    {
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "gitBlob": "c3866dfbdbb6729e1f7c4e68a81d8ef1bf25240e",
+      "sha256": "e8f1252a87e5d2afd782348878f6010dbb9c55cbfdcfbd5f4aeeee082721964b",
+      "bytes": 27655,
+      "mode": "100644",
+      "publishedExact": false
+    },
+    {
+      "path": "scripts/lib/newsletter-static-release-contract.mjs",
+      "gitBlob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+      "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d",
+      "bytes": 36528,
+      "mode": "100644",
+      "publishedExact": true
+    },
+    {
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "gitBlob": "669733c773f10e151b29ead069f9883f34053bdb",
+      "sha256": "47a5ba0c0164cebd9ed1721a14cf9ca907a024a4cd12044dcc297b8c562c0eb6",
+      "bytes": 12915,
+      "mode": "100644",
+      "publishedExact": true
+    }
+  ]
+}

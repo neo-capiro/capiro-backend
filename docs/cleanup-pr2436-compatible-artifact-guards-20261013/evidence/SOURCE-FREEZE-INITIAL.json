@@ -1,0 +1,16 @@
+{
+  "base": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "source": "1187ee7a6733fce50bc182b8ce3476e02fec38d4",
+  "tree": "c44022decd1b38fc7ed17f82cdcd575e7f881254",
+  "branch": "refs/heads/codex/cleanup-pr2436-compatible-artifact-guards-20261013",
+  "onlySourcePaths": [
+    "apps/onboard-api/Dockerfile.spa-artifact",
+    "scripts/lib/onboard-spa-artifact-contract.mjs",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+    "scripts/lib/newsletter-static-release-contract.mjs",
+    "scripts/ci/newsletter-static-release.contract.spec.mjs"
+  ],
+  "sourceAdoption": "four exact published blobs; Onboard spec receiving pins/foreign historical read replaced by fixed-hash reconstruction",
+  "sourceMethod": "isolated sparse stage/index; no other tree edits",
+  "heldClioWorkflowPaths": 4
+}

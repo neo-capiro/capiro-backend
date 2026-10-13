@@ -297,7 +297,7 @@ test('physical supplied fixture qualifies with legacy frontend denied, and physi
 test('case/control regression preserves all former cases and limits the helper change to canonical paths and pins', () => {
   const before = reconstructedHistoricalHelper();
   assert.equal(sha(before), '1fd6adc7466f0e49e2d582e3072a3a2dadfcc032ebba05055c524084869b2b59');
-  const next = source('scripts/lib/onboard-spa-artifact-contract.mjs');
+  const next = beforeCommentLinkageGuard();
   const inverse = next
     .replace(`  if (!pins || ['manifestSha256', 'sourceCommit', 'sourceRepository'].some((key) =>
     typeof pins[key] !== 'string' || !pins[key] || pins[key].trim() !== pins[key] || /[\\s\\u0000-\\u001f\\u007f]/.test(pins[key])) ||
@@ -311,7 +311,7 @@ test('case/control regression preserves all former cases and limits the helper c
 });
 
 function reconstructedHistoricalHelper() {
-  const next = source('scripts/lib/onboard-spa-artifact-contract.mjs');
+  const next = beforeCommentLinkageGuard();
   const inverse = next
     .replace(`  if (!pins || ['manifestSha256', 'sourceCommit', 'sourceRepository'].some((key) =>
     typeof pins[key] !== 'string' || !pins[key] || pins[key].trim() !== pins[key] || /[\\s\\u0000-\\u001f\\u007f]/.test(pins[key])) ||
@@ -393,4 +393,43 @@ test('pure pins refuse coerced/non-string/control values before filesystem opera
       assert.deepEqual(port.calls, []);
     }
   }
+});
+
+function beforeCommentLinkageGuard() {
+  const next = source('scripts/lib/onboard-spa-artifact-contract.mjs');
+  const block = "  // Token separators may contain comments; quoted reference bytes are never stripped.\n  const cssTrivia = String.raw`(?:\\s|\\/\\*[\\s\\S]*?\\*\\/)*`;\n  const jsTrivia = String.raw`(?:\\s|\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\r\\n]*(?:\\r?\\n|$))*`;\n  if (path.endsWith('.css')) {\n    for (const match of text.matchAll(new RegExp(String.raw`\\burl${cssTrivia}\\(${cssTrivia}(?:\"([^\"]+)\"|'([^']+)'|([^\\s)]+))${cssTrivia}\\)`, 'gi'))) add(match[1] ?? match[2] ?? match[3]);\n    for (const match of text.matchAll(new RegExp(String.raw`@import\\b${cssTrivia}[\"']([^\"']+)[\"']`, 'gi'))) add(match[1]);\n  }\n  if (/\\.(?:m?js)$/.test(path)) {\n    for (const match of text.matchAll(new RegExp(String.raw`\\b(?:import|export)\\b${jsTrivia}(?:[^;'\"()]*?\\bfrom\\b${jsTrivia})?[\"']([^\"']+)[\"']`, 'g'))) add(match[1], 'module');\n    const literal = new RegExp(String.raw`^${jsTrivia}([\"'])([^\"']+)\\1${jsTrivia}$`);\n    const imports = new Set();\n    for (const match of text.matchAll(new RegExp(String.raw`\\bimport\\b${jsTrivia}\\(([^)]*)\\)`, 'g'))) {\n      imports.add(match.index);\n      const value = literal.exec(match[1]);\n      if (!value) fail(`nonstatic module reference in ${path}`);\n      add(value[2], 'module');\n    }\n    for (const match of text.matchAll(new RegExp(String.raw`\\bimport\\b${jsTrivia}\\(`, 'g'))) {\n      if (!imports.has(match.index)) fail(`unsupported module reference in ${path}`);\n    }\n    const urls = new Set();\n    for (const match of text.matchAll(new RegExp(String.raw`\\bnew\\b${jsTrivia}URL\\b${jsTrivia}\\(([^)]*),${jsTrivia}import\\b${jsTrivia}\\.${jsTrivia}meta\\b${jsTrivia}\\.${jsTrivia}url\\b${jsTrivia}\\)`, 'g'))) {\n      urls.add(match.index);\n      const value = literal.exec(match[1]);\n      if (!value) fail(`nonstatic asset reference in ${path}`);\n      add(value[2]);\n    }\n    for (const match of text.matchAll(new RegExp(String.raw`\\bnew\\b${jsTrivia}URL\\b${jsTrivia}\\(`, 'g'))) {\n      if (!urls.has(match.index)) fail(`unsupported asset reference in ${path}`);\n    }\n";
+  assert.equal(next.split(block).length, 2);
+  const before = next.replace(block, "  if (path.endsWith('.css')) {\n    for (const match of text.matchAll(/url\\(\\s*(?:\"([^\"]+)\"|'([^']+)'|([^\\s)]+))\\s*\\)/gi)) add(match[1] ?? match[2] ?? match[3]);\n    for (const match of text.matchAll(/@import\\s+[\"']([^\"']+)[\"']/gi)) add(match[1]);\n  }\n  if (/\\.(?:m?js)$/.test(path)) {\n    for (const match of text.matchAll(/\\b(?:import|export)\\s*(?:[^;'\"()]*?\\bfrom\\s*)?[\"']([^\"']+)[\"']/g)) add(match[1], 'module');\n    for (const match of text.matchAll(/\\bimport\\s*\\(([^)]*)\\)/g)) {\n      const value = /^\\s*([\"'])([^\"']+)\\1\\s*$/.exec(match[1]);\n      if (!value) fail(`nonstatic module reference in ${path}`);\n      add(value[2], 'module');\n    }\n    for (const match of text.matchAll(/\\bnew\\s+URL\\s*\\(([^)]*),\\s*import\\.meta\\.url\\s*\\)/g)) {\n      const value = /^\\s*([\"'])([^\"']+)\\1\\s*$/.exec(match[1]);\n      if (!value) fail(`nonstatic asset reference in ${path}`);\n      add(value[2]);\n    }\n");
+  assert.equal(sha(before), '47a5ba0c0164cebd9ed1721a14cf9ca907a024a4cd12044dcc297b8c562c0eb6');
+  return before;
+}
+
+for (const [name, js, css] of [
+  ['comment-separated bare static import', 'import/*review*/"react";', undefined],
+  ['comment-separated nonstatic dynamic import', 'import/*review*/(variable);', undefined],
+  ['comment-separated bare dynamic import', 'import/*review*/("react");', undefined],
+  ['comment-separated bare export', 'export/*review*/{x}/*review*/from/*review*/"react";', undefined],
+  ['comment-separated local CSS import', 'export const valid=1;', '@import/**/"./missing.css";'],
+]) test(`actual static guard refuses ${name} without executing payloads`, () => {
+  assert.throws(() => validate(fixture({ 'assets/main.js': js,
+    ...(css === undefined ? {} : { 'assets/main.css': css }) })), /refused:/);
+});
+
+test('comment token gaps retain legitimate closed references and quoted remote URL text', () => {
+  const data = fixture({
+    'assets/main.js': 'import/*gap*/"./chunk.js"; export/*gap*/{x}/*gap*/from/*gap*/"./export.js"; const lazy=import/*gap*/(/*gap*/"./lazy.js"/*gap*/); const font=new/*gap*/URL/*gap*/(/*gap*/"./font.woff2"/*gap*/,/*gap*/import/*gap*/./*gap*/meta/*gap*/./*gap*/url/*gap*/); const text="/*kept in string*/";',
+    'assets/main.css': '@import/**/"./nested.css";body{background:url/**/("https://example.test/x/*literal*/image.png");font-family:demo}@font-face{font-family:demo;src:url/**/("./font.woff2")}',
+  });
+  assert.equal(validate(data).qualification, 'static-byte-contract-only');
+});
+
+test('recognized unsupported or escaped module and URL argument forms refuse before resource lookup', () => {
+  for (const js of [
+    'import/*gap*/("https://example.test/x.js");',
+    'import/*gap*/(".\\/chunk.js");',
+    'import/*gap*/(variable',
+    'const x=new/*gap*/URL/*gap*/(variable,import.meta.url);',
+    'const x=new/*gap*/URL/*gap*/("./font.woff2",otherBase);',
+    'const x=new/*gap*/URL/*gap*/("./missing.png",import.meta.url);',
+  ]) assert.throws(() => validate(fixture({ 'assets/main.js': js })), /refused:/);
 });

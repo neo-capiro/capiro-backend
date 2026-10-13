@@ -1,0 +1,64 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "tree": "dd829a84528eb576b2337cc091fff5255c42bc5f",
+  "base": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "checks": {
+    "onboard": {
+      "pass": 19,
+      "fail": 0,
+      "skip": 0,
+      "receipt": "evidence/onboard-final.command.json"
+    },
+    "newsletterDefault": {
+      "pass": 53,
+      "fail": 0,
+      "skip": 0,
+      "receipt": "evidence/newsletter-final.command.json"
+    },
+    "headerLiteralBindings": {
+      "pass": 8,
+      "receipt": "evidence/CURRENT-HEADER-LITERAL-CHECK.json"
+    },
+    "sourceWhitespace": {
+      "exit": 0,
+      "receipt": "evidence/source-whitespace.command.json"
+    }
+  },
+  "totalPureCases": 72,
+  "frontendParity": {
+    "run": false,
+    "receivingBackendAssets": 0,
+    "accepted": false
+  },
+  "publishedExactCodeBlobs": 4,
+  "adaptedSpec": 1,
+  "outsideFiveExact": 24004,
+  "retainedFailures": [
+    {
+      "receipt": "evidence/initial-host-setup-failure.executor.txt",
+      "kind": "incorrect asset-presence host assumption, executor transcript preserved"
+    },
+    {
+      "receipt": "evidence/focused-attempt-0.command.json",
+      "pass": 18,
+      "fail": 2,
+      "kind": "strict mode extra runner argv +custody separator-boundary source test"
+    }
+  ],
+  "independentReview": "O pending",
+  "unrun": [
+    "Docker build/install",
+    "actual supplied SPA artifact",
+    "browser/flow/auth replacement",
+    "historical newsletter serving/actual HEAD/GET",
+    "default CLI/backend graph",
+    "CI/SQL/DB/provider/security/permissions/deploy"
+  ],
+  "guardScope": "bounded source/static grammar and synthetic-response tests; not arbitrary JS/dataflow/network containment",
+  "rawEvidenceWhitespace": {
+    "exit": 2,
+    "receipt": "evidence/raw-evidence-whitespace.command.json",
+    "fullFloorAccepted": false,
+    "physicalRawRetained": true
+  }
+}

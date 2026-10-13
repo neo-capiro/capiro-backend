@@ -1,0 +1,23 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "tree": "dd829a84528eb576b2337cc091fff5255c42bc5f",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013/docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/safe-source-test-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "GIT_DIR": "/workspace/capirov2/.git",
+    "GIT_WORK_TREE": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013"
+  },
+  "cwd": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013",
+  "exit": 0,
+  "seconds": 0.2984194755554199,
+  "stdoutSha256": "e31772b03a06c41cc6ff051236dc2bf3b9716f629d8724480655adc6a695d370",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "single test file, pure/fake ports and own synthetic filesystem; no actual artifact/browser/default operation"
+}
