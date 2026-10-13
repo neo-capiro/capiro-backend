@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs"
+  ],
+  "cwd": "/workspace/cleanup-newsletter-qualified-source-activation-20261013",
+  "environment": {
+    "PATH": "/usr/bin:/bin"
+  },
+  "exit": 0,
+  "durationSeconds": 1.2992751598358154,
+  "effects": "Only pure owner admission and actual CLI on labelled inert filesystem refusal host; no actual artifact filesystem access",
+  "stdoutSHA256": "833a795af43db57dd965c56c69aaa7ed03a43ff8f7522978060b5b8593b94cdf",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,11 +1,25 @@
 {
   "schemaVersion": 1,
   "repository": "neo-capiro/capiro-frontend",
-  "activeCommit": null,
-  "acceptedSources": [],
+  "activeCommit": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "acceptedSources": [
+    {
+      "commit": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+      "tree": "9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4",
+      "qualificationReceipt": {
+        "repository": "neo-capiro/capiro-frontend",
+        "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+        "path": "docs/newsletter-receiving-final-20261013/QUALIFICATION.md",
+        "sha256": "cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33"
+      }
+    }
+  ],
   "runtimeProfile": {
     "os": "linux",
-    "architectures": ["amd64", "arm64"],
+    "architectures": [
+      "amd64",
+      "arm64"
+    ],
     "libc": "musl",
     "nodeMajor": 24,
     "nodeVersion": "24.21.0",

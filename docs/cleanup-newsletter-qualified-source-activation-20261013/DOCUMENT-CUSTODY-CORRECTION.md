@@ -1,0 +1,7 @@
+# Qualification document custody correction
+
+The original author packet at `3347ac438117aa9936a5c0c27e0499f7129baf83` retains both exact published review documents and its 26-binding index. The independent canonical hygiene run identified blank EOF lines in the two newly copied raw files: `review.md:31` and `visual-addendum.md:21`. That failure remains in the independent review packet.
+
+This successor stores those two documents as lossless base64 JSON containers, each pinning its original name, byte length, SHA256 and immutable Git commit/path/blob. Each container was decoded and checked byte-for-byte against the original raw Git blob before removing only the current-tree raw duplicate. No bytes were trimmed or changed, and no hygiene exclusion was added. Original raw documents remain directly available through the original author commit and their published frontend commit. `RAW-DOCUMENT-CUSTODY.json` provides exact bindings and `INITIAL-SHA256-INDEX.json` preserves the old master bytes. The new current index covers the containers and remaining current files.
+
+Source remains exactly `0132a1c8ffd0c04d0052c992bd361add4eefc020`. Profile activation, helpers, runtime, Docker, all source-control results and qualified-source limits remain unchanged. No semantic test was repeated and no frontend artifact, native or provider operation occurred. The correction changes document custody only; the current source-hygiene gate is independently rechecked by its reviewer.

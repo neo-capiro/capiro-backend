@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -12,6 +12,11 @@ import { assembleNewsletterReleaseArtifact, createNewsletterArtifactPackagingPla
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const current = 'c8aa693e884de86001d2fc04fbb60d48db09341c';
 const historical = '7c87678730538958ace9762f824dc3e588bf445b';
+// Preserve the earlier pending-policy controls as an explicit labelled model;
+// this data is never injected through the CLI or treated as current approval.
+const PENDING_PROFILE = Object.freeze({ ...PROFILE, activeCommit: null, acceptedSources: Object.freeze([]) });
+const pendingFixture = () => ({ sourceAdmissionFixture: { kind: 'newsletter-source-admission-fixture',
+  label: 'historical pending policy fixture', profile: PENDING_PROFILE } });
 const pins = commit => ({ sourceRepository: PROFILE.repository, sourceCommit: commit, manifestSha256: 'a'.repeat(64),
   runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 } });
 const options = commit => ({ standaloneDir: '/synthetic/standalone', publicDir: '/synthetic/public',
@@ -38,29 +43,30 @@ function shippingArgs(commit = current) {
     '--target-platform', 'linux/amd64', '--target-libc', 'musl', '--target-node-major', '24'];
 }
 
+describe('Historical pending-policy fixture controls (original nineteen control IDs)', () => {
 test('current checked-in policy remains pending and immutable with the exact pinned runtime', () => {
-  assert.equal(PROFILE.activeCommit, null); assert.deepEqual(PROFILE.acceptedSources, []);
-  assert.equal(PROFILE.runtimeProfile.nodeVersion, '24.21.0'); assert.equal(PROFILE.runtimeProfile.libc, 'musl');
-  assert.match(PROFILE.runtimeProfile.nodeImage, /^node:24\.21\.0-alpine3\.23@sha256:9ec4/);
-  assert.throws(() => { PROFILE.activeCommit = current; }, TypeError);
-  assert.throws(() => PROFILE.acceptedSources.push(entry(current)), TypeError);
+  assert.equal(PENDING_PROFILE.activeCommit, null); assert.deepEqual(PENDING_PROFILE.acceptedSources, []);
+  assert.equal(PENDING_PROFILE.runtimeProfile.nodeVersion, '24.21.0'); assert.equal(PENDING_PROFILE.runtimeProfile.libc, 'musl');
+  assert.match(PENDING_PROFILE.runtimeProfile.nodeImage, /^node:24\.21\.0-alpine3\.23@sha256:9ec4/);
+  assert.throws(() => { PENDING_PROFILE.activeCommit = current; }, TypeError);
+  assert.throws(() => PENDING_PROFILE.acceptedSources.push(entry(current)), TypeError);
 });
 for (const commit of [historical, current, 'c'.repeat(40)]) test(`production admission refuses ${commit} before artifact callbacks`, async () => {
   let calls = 0;
   const port = async () => { calls++; throw new Error('artifact access'); };
-  assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(commit)), /final accepted frontend source/);
+  assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(commit), pendingFixture()), /final accepted frontend source/);
   await assert.rejects(readAcceptedFrontendStandaloneArtifact({ pins: pins(commit), artifactDir: '/synthetic/artifact',
-    ports: { lstat: port, readdir: port, realpath: port, readFile: port, readlink: port } }), /final accepted frontend source/);
+    ...pendingFixture(), ports: { lstat: port, readdir: port, realpath: port, readFile: port, readlink: port } }), /final accepted frontend source/);
   await assert.rejects(assembleNewsletterReleaseArtifact(options(commit), { io: { lstat: port },
-    fixtureLabel: 'synthetic must not access filesystem' }), /final accepted frontend source/);
+    fixtureLabel: 'synthetic must not access filesystem', ...pendingFixture() }), /final accepted frontend source/);
   assert.equal(calls, 0);
 });
 test('plan validates syntax and describes pending approval without promoting a declared source', () => {
   const invocation = parseNewsletterBuildInvocation(buildArgs('--plan'));
-  const plan = createNewsletterArtifactPackagingPlan(invocation.options);
+  const plan = createNewsletterArtifactPackagingPlan(invocation.options, pendingFixture());
   assert.equal(plan.sourceAdmission.status, 'pending'); assert.equal(plan.sourceAdmission.assemblyAdmissionAllowed, false);
   assert.equal(plan.sourceAdmission.sourceAcceptedByReviewedPolicy, false); assert.equal(plan.assemblyPerformed, false);
-  assert.throws(() => parseNewsletterBuildInvocation(buildArgs('--run')), /final accepted frontend source/);
+  assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(current), pendingFixture()), /final accepted frontend source/);
   for (const change of [{ sourceCommit: 'latest' }, { manifestSha256: 'bad' }, { outputDir: '/tmp/.aws/output' },
     { targetLibc: 'glibc' }, { sourceRepository: 'other/repository' }])
     assert.throws(() => createNewsletterArtifactPackagingPlan({ ...options(current), ...change }));
@@ -128,17 +134,79 @@ test('architecture elements are exact primitive strings and refuse objects, prox
   assert.equal(Object.isFrozen(legitimate.requiredRuntimeProfile.architectures), true);
 });
 test('shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection', () => {
-  assert.equal(parseFrontendStandaloneInvocation(shippingArgs()).pins.sourceCommit, current);
-  const run = (file, args) => spawnSync(process.execPath, [ROOT + '/scripts/lib/' + file, ...args], {
-    env: { PATH: '/usr/bin:/bin', NEWSLETTER_ACCEPTED_SOURCE: current }, encoding: 'utf8' });
-  const shipping = run('frontend-standalone-artifact-contract.mjs', shippingArgs());
-  assert.equal(shipping.status, 1); assert.match(shipping.stderr, /final accepted frontend source/);
-  assert.equal(shipping.stdout, '');
-  const build = run('newsletter-artifact-packaging-plan.mjs', buildArgs('--run'));
-  assert.equal(build.status, 2); assert.match(build.stderr, /final accepted frontend source/);
-  assert.equal(JSON.parse(build.stderr).assemblyCompleted, false);
+  const shipping = parseFrontendStandaloneInvocation(shippingArgs());
+  assert.equal(shipping.pins.sourceCommit, current);
+  assert.throws(() => assertAcceptedNewsletterArtifactSource(shipping.pins, pendingFixture()), /final accepted frontend source/);
+  const build = parseNewsletterBuildInvocation(buildArgs('--run'));
+  assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(build.options.sourceCommit), pendingFixture()), /final accepted frontend source/);
   for (const flag of ['--source-profile', '--source-admission-fixture']) {
-    assert.equal(run('frontend-standalone-artifact-contract.mjs', [...shippingArgs(), flag, '{}']).status, 1);
-    assert.equal(run('newsletter-artifact-packaging-plan.mjs', [...buildArgs('--run'), flag, '{}']).status, 2);
+    assert.throws(() => parseFrontendStandaloneInvocation([...shippingArgs(), flag, '{}']));
+    assert.throws(() => parseNewsletterBuildInvocation([...buildArgs('--run'), flag, '{}']));
+  }
+});
+});
+
+test('current production policy admits only the qualified runtime with its exact published receipt pin', () => {
+  assert.equal(PROFILE.activeCommit, current); assert.equal(PROFILE.acceptedSources.length, 1);
+  assert.deepEqual(PROFILE.acceptedSources[0], { commit: current, tree: '9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4',
+    qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '46ebdd448ef55e88c7a4083fb4586322757a14f8',
+      path: 'docs/newsletter-receiving-final-20261013/QUALIFICATION.md',
+      sha256: 'cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33' } });
+  const admitted = assertAcceptedNewsletterArtifactSource(pins(current));
+  assert.equal(admitted.status, 'accepted'); assert.equal(admitted.sourceAcceptedByReviewedPolicy, true);
+  assert.equal(admitted.syntheticSourceApprovalModel, false);
+  for (const key of ['sourceApprovalProofVerified', 'independentFrontendQualificationVerified',
+    'buildUsedSourceVerified', 'nativeRuntimeCompatibilityVerified']) assert.equal(admitted[key], false, key);
+  const plan = createNewsletterArtifactPackagingPlan(options(current));
+  assert.equal(plan.sourceAdmission.status, 'accepted'); assert.equal(plan.assemblyPerformed, false);
+  assert.equal(parseNewsletterBuildInvocation(buildArgs('--run')).mode, 'run');
+});
+
+test('current production policy refuses stale, arbitrary and wrong runtime declarations before artifact callbacks', async () => {
+  for (const supplied of [pins(historical), pins('c'.repeat(40)), { ...pins(current), sourceRepository: 'other/repository' },
+    { ...pins(current), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'glibc', nodeMajor: 24 } },
+    { ...pins(current), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 22 } }]) {
+    let calls = 0; const before = structuredClone(supplied);
+    await assert.rejects(readAcceptedFrontendStandaloneArtifact({ artifactDir: '/synthetic/artifact', pins: supplied,
+      ports: { lstat: async () => { calls++; throw new Error('must not touch artifact'); } } }));
+    assert.equal(calls, 0); assert.deepEqual(supplied, before);
+  }
+});
+
+function interceptedCli(file, args, ambientSource = historical) {
+  const fullPath = ROOT + '/scripts/lib/' + file;
+  const host = `import fs from 'node:fs/promises'; import {syncBuiltinESMExports} from 'node:module';
+    const label='labelled inert artifact-filesystem refusal';
+    for(const method of ['lstat','readdir','realpath','readFile','readlink','open','mkdir','rename']) fs[method]=async(...args)=>{
+      console.log(JSON.stringify({fixtureLabel:label,artifactPortReached:method,artifactFilesystemEffectsPerformed:false}));
+      throw Error('INERT_ARTIFACT_REFUSAL'); };
+    syncBuiltinESMExports(); process.argv=['node',${JSON.stringify(fullPath)},...${JSON.stringify(args)}];
+    await import(${JSON.stringify('file://' + fullPath)});`;
+  return spawnSync(process.execPath, ['--input-type=module', '--eval', host], {
+    env: { PATH: '/usr/bin:/bin', NEWSLETTER_ACCEPTED_SOURCE: ambientSource }, encoding: 'utf8' });
+}
+
+test('actual current CLI reaches only labelled inert artifact ports for qualified c8 and cannot override approval through flags or environment', () => {
+  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(), 1],
+    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run'), 2]]) {
+    const result = interceptedCli(file, args);
+    assert.equal(result.status, code, result.stderr); assert.match(result.stderr, /INERT_ARTIFACT_REFUSAL/);
+    const marker = JSON.parse(result.stdout);
+    assert.equal(marker.fixtureLabel, 'labelled inert artifact-filesystem refusal');
+    assert.equal(marker.artifactFilesystemEffectsPerformed, false); assert.equal(marker.artifactPortReached, 'lstat');
+    assert.doesNotMatch(result.stdout, /newsletter-release-assembly|"status":"PASS"/);
+    if (code === 2) assert.equal(JSON.parse(result.stderr).assemblyCompleted, false);
+  }
+  for (const commit of [historical, 'c'.repeat(40)]) {
+    for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(commit), 1],
+      ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', commit), 2]]) {
+      const result = interceptedCli(file, args, current);
+      assert.equal(result.status, code); assert.match(result.stderr, /active accepted frontend source/);
+      assert.equal(result.stdout, '', 'source refusal before artifact ports despite ambient accepted source');
+      for (const flag of ['--source-profile', '--source-admission-fixture']) {
+        const injected = interceptedCli(file, [...args, flag, '{}'], current);
+        assert.equal(injected.status, code); assert.equal(injected.stdout, '');
+      }
+    }
   }
 });
