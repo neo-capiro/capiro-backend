@@ -1,0 +1,237 @@
+✔ Defense image workspace closes over exactly six backend members and seven frozen importers (11.42092ms)
+✔ the Defense guard reads only image-owned manifests; unrelated/frontend inputs can be absent (7.309258ms)
+✔ rejects frontend member admission (2.689707ms)
+✔ rejects workspace wildcard (1.447409ms)
+✔ rejects frontend manifest COPY (5.569232ms)
+✔ rejects missing backend manifest COPY (5.921454ms)
+✔ rejects new undeclared workspace dependency (1.304206ms)
+✔ rejects manifest/lockfile specifier drift (4.997152ms)
+✔ rejects missing frozen importer (7.357698ms)
+✔ rejects wrong transitive workspace link (5.162469ms)
+✔ rejects missing external frozen snapshot (5.182242ms)
+✔ rejects unqualified manifest peer metadata (6.727423ms)
+✔ rejects weakened frozen install (5.38561ms)
+✔ rejects lost runtime/schema/client artifact (5.351912ms)
+✔ rejects changed build ordering (4.093163ms)
+✔ rejects changed runtime security (4.777454ms)
+✔ rejects changed pinned toolchain (4.445439ms)
+✔ new auth regression makes four local-proxy reads with isolated anonymous/authenticated headers (1.048754ms)
+✔ new auth regression refuses: anonymous successful data (0.273325ms)
+✔ new auth regression refuses: wrong denial status (0.211328ms)
+✔ new auth regression refuses: provider/shadow refusal (0.210608ms)
+✔ new auth regression refuses: transport denial (0.734601ms)
+✔ new auth regression refuses: malformed denial (0.154913ms)
+✔ new auth regression refuses: denial with leaked rows (0.109004ms)
+✔ new auth regression refuses: unexpected main identity (0.132831ms)
+✔ new auth regression refuses: unsupported main-api label (0.288082ms)
+✔ new auth regression refuses: wrong optional error class (0.516609ms)
+✔ new auth regression refuses: wrong auth error (0.190704ms)
+✔ new auth regression refuses: missing preview denial identity (0.523075ms)
+✔ new auth regression refuses: main misrouted preview (0.118198ms)
+✔ new auth regression refuses: authenticated session poisoned (0.200764ms)
+✔ new auth regression refuses: recovery remains timed out (0.109844ms)
+✔ new auth regression refuses: empty successful recovery (0.085085ms)
+✔ new auth regression refuses: wrong row recovered (0.154029ms)
+✔ new auth regression refuses: duplicate recovered row (0.141122ms)
+✔ new auth regression refuses: wrong recovered preview identity (0.103418ms)
+✔ new auth regression refuses: recovery data mismatch (0.648426ms)
+✔ new probe requires existing retry attribution and protected route before requests (0.300707ms)
+✔ native result identity/count contract retains fourteen original identities plus new behavior (1.058509ms)
+✔ exact earlier producer and wrapper reconstruct through declared additive case/receipt seams (0.992734ms)
+✔ final evidence verifier original source reconstructs and retains all prior checks before additions (0.406273ms)
+✔ wrapper validates fifteen attributable results before original residual-zero cleanup (4.324578ms)
+✔ wrapper cannot accept source-only, missing-auth or duplicate-identity evidence as native (3.790952ms)
+✔ new regression is supported by guard-before-provider, protected task and shared service identity source (1.165666ms)
+✔ ordinary missing-bearer envelope permits absent optional error label, never wrong labels (0.374895ms)
+✔ only the obsolete Web directory selection changes; all importer/DB/provider/CLI and existing specs remain intact (5.849376ms)
+✔ all118 owned JPEG bytes, SHA256, dimensions and manifest/public URL contracts are established (8.567405ms)
+✖ Docker build and runtime both copy API-owned data without requiring a Web source tree (1.744157ms)
+✔ owned-present success preserves original118-image proof and removes only the first Web probe (20.392165ms)
+✔ owned absent while Web present refuses the exact missing-image error with zero Web attempts (5.729036ms)
+✔ both directories absent retain the original missing-image error but eliminate the Web probe (1.716468ms)
+✔ corrupt/missing image and unchanged-byte incorrect width/height retain original refusal semantics (26.644496ms)
+✔ invalid JPEG with matching byte hash still refuses dimensions and never probes Web (7.055832ms)
+✔ original manifest schema/source/vocabulary/public URL/minimum dimensions and filename uniqueness gates remain effective (42.746422ms)
+ℹ tests 54
+ℹ suites 0
+ℹ pass 53
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 310.536096
+
+✖ failing tests:
+
+test at scripts/ci/florida-owned-portrait-release.spec.mjs:152:1
+✖ Docker build and runtime both copy API-owned data without requiring a Web source tree (1.744157ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /COPY[^\n]*apps\/web/. Input:
+  
+  '# Capiro API container.\n' +
+    '#\n' +
+    '# Build context: REPOSITORY ROOT (not apps/api).\n' +
+    '#   docker buildx build --platform linux/arm64 -f apps/api/Dockerfile -t capiro-api:local --push .\n' +
+    '#\n' +
+    '# Multi-stage:\n' +
+    '#   1. base    pnpm + corepack on slim node\n' +
+    '#   2. build   install + compile, then `pnpm prune --prod` in place\n' +
+    '#   3. runtime minimal node slim, non-root user, copies the pruned workspace\n' +
+    '#\n' +
+    "# Why we DON'T use `pnpm deploy`: it doesn't carry generated Prisma client\n" +
+    "# files (which live under pnpm's symlinked store at .pnpm/@prisma+client@*/.prisma).\n" +
+    '# Instead, we prune dev deps in place and copy the whole workspace.\n' +
+    '\n' +
+    '# sanitize-html in the frozen lockfile requires Node >=22.12.0. Keep build and\n' +
+    '# runtime on the same supported release so CommonJS can load its ESM parser.\n' +
+    'ARG NODE_VERSION=22.23.3\n' +
+    '\n' +
+    '# -------- base ----------------------------------------------------------------\n' +
+    "# Use the ECR Public mirror so release builds are not coupled to Docker Hub's\n" +
+    '# anonymous pull limits.\n' +
+    'FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base\n' +
+    'ENV PNPM_HOME=/pnpm\n' +
+    'ENV PATH=$PNPM_HOME:$PATH\n' +
+    'RUN corepack enable && corepack prepare pnpm@9.12.0 --activate\n' +
+    'WORKDIR /workspace\n' +
+    '\n' +
+    '# -------- build ---------------------------------------------------------------\n' +
+    'FROM base AS build\n' +
+    "# Prisma's binary engine wants libssl. Bookworm ships OpenSSL 3 but Prisma\n" +
+    "# can't detect it without the package present.\n" +
+    'RUN apt-get update \\\n' +
+    ' && apt-get install -y --no-install-recommends openssl ca-certificates \\\n' +
+    ' && rm -rf /var/lib/apt/lists/*\n' +
+    '\n' +
+    'COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./\n' +
+    'COPY apps/api/package.json apps/api/package.json\n' +
+    'COPY packages/shared/package.json packages/shared/package.json\n' +
+    'COPY packages/meriv2-core/package.json packages/meriv2-core/package.json\n' +
+    'COPY packages/defense-contracts/package.json packages/defense-contracts/package.json\n' +
+    'COPY packages/defense-domain/package.json packages/defense-domain/package.json\n' +
+    'RUN --mount=type=cache,id=pnpm,target=/pnpm/store \\\n' +
+    '    pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...\n' +
+    '\n' +
+    'COPY packages/shared/src packages/shared/src\n' +
+    'COPY packages/shared/tsconfig.json packages/shared/tsconfig.json\n' +
+    'COPY packages/meriv2-core/src packages/meriv2-core/src\n' +
+    'COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json\n' +
+    'COPY packages/defense-contracts/src packages/defense-contracts/src\n' +
+    'COPY packages/defense-contracts/tsconfig.json packages/defense-contracts/tsconfig.json\n' +
+    'COPY packages/defense-domain/src packages/defense-domain/src\n' +
+    'COPY packages/defense-domain/tsconfig.json packages/defense-domain/tsconfig.json\n' +
+    'COPY apps/api/src apps/api/src\n' +
+    'COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/\n' +
+    'COPY apps/api/prisma apps/api/prisma\n' +
+    'COPY apps/api/scripts apps/api/scripts\n' +
+    'COPY apps/api/data apps/api/data\n' +
+    '# The one-shot Florida directory importer verifies every web portrait byte,\n' +
+    '# checksum, and JPEG dimension before it may write source evidence. Keep an\n' +
+    '# audit copy in the API release image; the web image serves the same files.\n' +
+    'COPY apps/web/public/florida-directory/portraits apps/api/data/florida-legislative-directory/portraits\n' +
+    '\n' +
+    'RUN pnpm --filter @capiro/shared build\n' +
+    'RUN pnpm --filter @capiro/meriv2-core build\n' +
+    '# defense-domain is a leaf onto @capiro/shared, defense-contracts has no\n' +
+    "# workspace deps of its own — apps/api's new lifecycle read module imports\n" +
+    '# both directly (see docs/defense-budget/defense-budget-vnext-implementation-map.md).\n' +
+    'RUN pnpm --filter @capiro/defense-contracts build\n' +
+    'RUN pnpm --filter @capiro/defense-domain build\n' +
+    'RUN pnpm --filter @capiro/api exec prisma generate\n' +
+    "# V8's default old-space heuristic under QEMU cross-arch emulation (e.g. building\n" +
+    '# linux/arm64 on an amd64 host) misreads emulated /proc/meminfo and picks a heap\n' +
+    "# ceiling far below the host's real available memory, OOM-killing `nest build` on\n" +
+    "# this codebase's current size. Pin an explicit ceiling for this step only.\n" +
+    'RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build\n' +
+    '\n' +
+    '# Prune dev dependencies in place (keeps the .pnpm store with the generated\n' +
+    '# Prisma client intact).\n' +
+    'RUN --mount=type=cache,id=pnpm,target=/pnpm/store \\\n' +
+    '    pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...\n' +
+    '\n' +
+    '# -------- runtime -------------------------------------------------------------\n' +
+    'FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime\n' +
+    'ENV NODE_ENV=production\n' +
+    'ENV NODE_OPTIONS=--enable-source-maps\n' +
+    'RUN groupadd --system --gid 1001 capiro \\\n' +
+    ' && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \\\n' +
+    ' && apt-get update \\\n' +
+    ' && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \\\n' +
+    ' && rm -rf /var/lib/apt/lists/*\n' +
+    '# tsx (used by entrypoint.sh to run scripts/sync-*.ts as ECS one-off tasks)\n' +
+    '# needs writable scratch space for its IPC server. Keep image-local fallbacks for\n' +
+    "# writable-root deployments, but default to Fargate's writable /dev/shm tmpfs.\n" +
+    '# entrypoint.sh probes TMPDIR, /dev/shm, and /tmp before dispatch because a baked\n' +
+    '# /app/tmp becomes read-only when ECS enables readonlyRootFilesystem.\n' +
+    'RUN mkdir -p /app/tmp /tmp \\\n' +
+    ' && chmod 1777 /tmp \\\n' +
+    ' && chown capiro:capiro /app/tmp\n' +
+    'ENV TMPDIR=/dev/shm\n' +
+    'WORKDIR /app\n' +
+    '\n' +
+    "# Copy the entire workspace, pnpm's symlinked node_modules + the generated\n" +
+    '# Prisma client + the compiled API. Larger image (~250MB) but reliable.\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json\n' +
+    '# meriv2-core (unlike leaf @capiro/shared) has workspace deps of its own —\n' +
+    '# packages/meriv2-core/dist/alerts/alert.js require()s @capiro/shared, and pnpm\n' +
+    '# links that (+ zod) under packages/meriv2-core/node_modules (relative symlinks\n' +
+    '# to /app/packages/shared and /app/node_modules/.pnpm), NOT hoisted to root. Copy\n' +
+    "# it or the API crashloops at boot with MODULE_NOT_FOUND '@capiro/shared'.\n" +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json\n' +
+    '# defense-domain, like meriv2-core, has a workspace dep of its own (@capiro/shared)\n' +
+    '# that pnpm links under its own node_modules rather than hoisting to root.\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json\n' +
+    '# bootstrap-*, sync-* and emit-* commands run TS scripts via tsx at task\n' +
+    '# launch. Copy both the scripts AND the app `src/` they import from (e.g.\n' +
+    '# sync-congress imports ../src/embeddings/embedder.js) so `tsx scripts/<name>.ts`\n' +
+    '# resolves at runtime — the compiled dist/ alone does not satisfy those imports.\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/scripts /app/apps/api/scripts\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/src\n' +
+    '# tsx (used by entrypoint.sh for sync-entity-resolution, which boots the full\n' +
+    '# NestJS AppModule) needs a tsconfig with experimentalDecorators/emitDecoratorMetadata\n' +
+    '# at runtime; without it esbuild fails NestJS controllers with\n' +
+    '# "Parameter decorators only work when experimentalDecorators are enabled".\n' +
+    '# Copy the api tsconfig + the base it extends so tsx auto-discovers them.\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json\n' +
+    'COPY --chown=capiro:capiro --from=build /workspace/apps/api/tsconfig.json /app/apps/api/tsconfig.json\n' +
+    '# Phase A: retain the large legacy dispatcher for all ordinary verbs, but put a\n' +
+    '# small fail-closed wrapper in front of it. The wrapper owns migration deployment\n' +
+    '# (never edits _prisma_migrations) and the SELECT-only PE trust diagnostic.\n' +
+    'COPY --chown=capiro:capiro apps/api/scripts/entrypoint-legacy.sh /usr/local/lib/capiro/entrypoint-legacy.sh\n' +
+    'COPY --chown=capiro:capiro apps/api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh\n' +
+    'RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh \\\n' +
+    ' && chmod 0755 /usr/local/bin/entrypoint.sh\n' +
+    '\n' +
+    'USER capiro\n' +
+    'WORKDIR /app/apps/api\n' +
+    '# Validate the pruned runtime dependency graph before publishing the image.\n' +
+    `RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/meri/meri-tools.service.js'); require('./dist/memory/memory-candidate.service.js');"\n` +
+    'EXPOSE 4000\n' +
+    'ENTRYPOINT ["/usr/bin/dumb-init'... 55 more characters
+  
+      at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-local-dispatch-independent-review/scripts/ci/florida-owned-portrait-release.spec.mjs:157:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Capiro API container.\n#\n# Build context: REPOSITORY ROOT (not apps/api).\n#   docker buildx build --platform linux/arm64 -f apps/api/Dockerfile -t capiro-api:local --push .\n#\n# Multi-stage:\n#   1. base    pnpm + corepack on slim node\n#   2. build   install + compile, then `pnpm prune --prod` in place\n#   3. runtime minimal node slim, non-root user, copies the pruned workspace\n#\n...',
+    expected: /COPY[^\n]*apps\/web/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

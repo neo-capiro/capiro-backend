@@ -1,0 +1,364 @@
+{
+  "head": "af5f208961e6c9a01a6e489a7f5b1a6e6edfd736",
+  "tree": "2d921a1541cf6f8fe7df7a1ec5f7000f877a137c",
+  "base": "ed1bb4b539b297086413e7060979ea02226dc485",
+  "baseTree": "5d7a84e87057979645c3e5c6a2c39f61b95817b2",
+  "changes": [
+    {
+      "path": ".github/workflows/backend-cleanup-ci-contracts.yml",
+      "before": {
+        "mode": "100644",
+        "path": ".github/workflows/backend-cleanup-ci-contracts.yml",
+        "sha": "87125c0e7bed16daa140814bff789106f2cbf862",
+        "size": 1727,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": ".github/workflows/backend-cleanup-ci-contracts.yml",
+        "sha": "2e2aeeee0c1a0d6cf66030ac2505b459f247ef14",
+        "size": 1752,
+        "type": "blob"
+      }
+    },
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "before": {
+        "mode": "100644",
+        "path": ".github/workflows/backend-cleanup-preservation.yml",
+        "sha": "f4467a8912eee3b919439e36e1e507dd8cf80c27",
+        "size": 6394,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": ".github/workflows/backend-cleanup-preservation.yml",
+        "sha": "ba885d5d0772fb30eb4fea55c8b2275bb0e1e000",
+        "size": 6792,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "apps/api/scripts/ingest-florida-legislative-directories.ts",
+      "before": {
+        "mode": "100644",
+        "path": "apps/api/scripts/ingest-florida-legislative-directories.ts",
+        "sha": "6ddf65f7a12864e96241cdd16fb1cb93cc47a399",
+        "size": 35498,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "apps/api/scripts/ingest-florida-legislative-directories.ts",
+        "sha": "23b6d5226471c8f34780fe299689d953dfd331d2",
+        "size": 35222,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "apps/defense-api/Dockerfile",
+      "before": {
+        "mode": "100644",
+        "path": "apps/defense-api/Dockerfile",
+        "sha": "2e39267be0eaf6dd5d061431066f992dba547191",
+        "size": 8741,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "apps/defense-api/Dockerfile",
+        "sha": "28917bc5b56abd6cb0925bd7779aa44f5d01f9d8",
+        "size": 7941,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "apps/defense-api/pnpm-workspace.build.yaml",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "apps/defense-api/pnpm-workspace.build.yaml",
+        "sha": "c4001cd5bd183f7c2bd82a824fca667effc92c15",
+        "size": 251,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "apps/web/src/vnext/pages/client-crm/VNextClientPicker.tsx",
+      "before": {
+        "mode": "100644",
+        "path": "apps/web/src/vnext/pages/client-crm/VNextClientPicker.tsx",
+        "sha": "e85f33a15baab41d76dbb14564040d899f018683",
+        "size": 5739,
+        "type": "blob"
+      },
+      "after": null
+    },
+    {
+      "path": "apps/web/src/vnext/pages/client-crm/client-crm-entry.test.tsx",
+      "before": {
+        "mode": "100644",
+        "path": "apps/web/src/vnext/pages/client-crm/client-crm-entry.test.tsx",
+        "sha": "71eb7e8a9881810dfae49445768ab7046187770a",
+        "size": 2764,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "apps/web/src/vnext/pages/client-crm/client-crm-entry.test.tsx",
+        "sha": "63267be626a3e027fd653a5ee2e894b6c1852b27",
+        "size": 6710,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "docs/backend-cleanup/20261012/PORTRAIT-OWNERSHIP.md",
+      "before": {
+        "mode": "100644",
+        "path": "docs/backend-cleanup/20261012/PORTRAIT-OWNERSHIP.md",
+        "sha": "730114dbd628b4706a23e21eb399e0809804c184",
+        "size": 2505,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "docs/backend-cleanup/20261012/PORTRAIT-OWNERSHIP.md",
+        "sha": "00e41b9c7512e4186863d4da09a3713473ce8bf8",
+        "size": 2841,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+        "sha": "eaf865b63f63b296c8634d316048fecd0d10c9f3",
+        "size": 13177,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+        "sha": "0b3cb37b40539b89e62c60870c9a3dca16422ced",
+        "size": 15631,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/defense-backend-workspace.contract.spec.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/defense-backend-workspace.contract.spec.mjs",
+        "sha": "53bcbad377c80484dac2732626780feff46ff425",
+        "size": 11802,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/engagement-local-owned-inputs.spec.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/ci/engagement-local-owned-inputs.spec.mjs",
+        "sha": "07b7c7aa2847559fa0528923230854c2a0ac0d18",
+        "size": 26185,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/engagement-local-owned-inputs.spec.mjs",
+        "sha": "66dfb0c9753a47f5f5510dd5edf2db98be336b54",
+        "size": 31367,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/engagement-resilience-native-ports.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/engagement-resilience-native-ports.mjs",
+        "sha": "045c917ad62bee96cda6df7503149a5dfa7c54f0",
+        "size": 5726,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/engagement-resilience-recovery.contract.spec.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/engagement-resilience-recovery.contract.spec.mjs",
+        "sha": "b7c4ec6a9998fc6c560302fb6299b9a25d2dc6bf",
+        "size": 12933,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/engagement-resilience-scope.spec.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/ci/engagement-resilience-scope.spec.mjs",
+        "sha": "3bd35ca77d56775300c4ec547a61ac8b4d4308d3",
+        "size": 32753,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/engagement-resilience-scope.spec.mjs",
+        "sha": "34b10d5329d67b488106ebbc11aacc90757a6b06",
+        "size": 30496,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/ci/florida-owned-portrait-release.spec.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/ci/florida-owned-portrait-release.spec.mjs",
+        "sha": "1d6b9a85debcb1ce1d0df359d9004be303f05c1a",
+        "size": 12977,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-inputs.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-backend-inputs.mjs",
+        "sha": "bd9e630c7f95c0c37b06560f0edccfa79f987ab2",
+        "size": 17041,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-backend-inputs.mjs",
+        "sha": "b4b1e4c518ac28bddacc992228f188160e45f4c5",
+        "size": 18114,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-inputs.spec.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-backend-inputs.spec.mjs",
+        "sha": "077b38b90e034a268e07e054f0ed64833786d4b7",
+        "size": 17749,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-backend-inputs.spec.mjs",
+        "sha": "5f3187ede913e634dc3b3126bdb22230c7a7a632",
+        "size": 21376,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-main-route-accounting.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-main-route-accounting.mjs",
+        "sha": "d75dee874b312d703f822fda2740088bee8c0996",
+        "size": 7587,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-main-route-accounting.spec.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-main-route-accounting.spec.mjs",
+        "sha": "79a85c38e724af8d920589ecee9686c446be9420",
+        "size": 8752,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-resilience-contract.mjs",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-resilience-contract.mjs",
+        "sha": "1e0cf3470f24d31652856fa30ca0a6b0c1e97ec8",
+        "size": 6125,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-resilience-policy.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-resilience-policy.mjs",
+        "sha": "7eee768750377d33bfc88259508eda5fe77c1e01",
+        "size": 12098,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-resilience-policy.mjs",
+        "sha": "bfb3b39648c54379a566f2cfa356377a937215e0",
+        "size": 12690,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/engagement-phase3-resilience.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-resilience.mjs",
+        "sha": "e291e0f713624ef93f695fd1477bbca0e5b542da",
+        "size": 18093,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/engagement-phase3-resilience.mjs",
+        "sha": "f496559c31c6105cdd9a47622505efec31ff176f",
+        "size": 18434,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/run-engagement-phase3-resilience.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/run-engagement-phase3-resilience.mjs",
+        "sha": "dbbf8dcaaa0953253f5b7fe542339a43147bbb1a",
+        "size": 3774,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/run-engagement-phase3-resilience.mjs",
+        "sha": "3b008d64e57c35d24925c608c23dd875bf4fe8ee",
+        "size": 3899,
+        "type": "blob"
+      }
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "before": {
+        "mode": "100644",
+        "path": "scripts/verify-engagement-phase3-local-evidence.mjs",
+        "sha": "2f371affc8bfa618636f45f71f2cd84c51b13c25",
+        "size": 10452,
+        "type": "blob"
+      },
+      "after": {
+        "mode": "100644",
+        "path": "scripts/verify-engagement-phase3-local-evidence.mjs",
+        "sha": "e8c2db92ee2f414c1a30b91997fa0239a0570e86",
+        "size": 10710,
+        "type": "blob"
+      }
+    }
+  ],
+  "documentContentRetrieved": false,
+  "rawMetadataCache": "/workspace/cleanup-pr2434-code-metadata-20261013"
+}

@@ -1,0 +1,19 @@
+{
+  "source": "3e66557ce671b2505595f3fdf4f8d6014b9003f3",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/safe-source-test-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/defense-backend-workspace.contract.spec.mjs",
+    "scripts/ci/florida-owned-portrait-release.spec.mjs",
+    "scripts/ci/engagement-resilience-recovery.contract.spec.mjs"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+  "exit": 1,
+  "seconds": 0.3859732151031494,
+  "stdoutSha256": "1469a98f86be147a153f17d67211c1568f9cb8ed775bee2dcf9d0882fe9f5e50",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "source / actual selected fragment functions under fake filesystem and child ports; no native/app/default CLI"
+}

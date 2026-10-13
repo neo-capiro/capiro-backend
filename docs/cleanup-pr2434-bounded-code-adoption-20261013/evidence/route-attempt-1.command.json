@@ -1,0 +1,35 @@
+{
+  "source": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/web",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/apps/web/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/vnext/pages/client-crm/client-crm-entry.test.tsx",
+    "--pool=threads",
+    "--no-file-parallelism",
+    "--testTimeout=20000",
+    "--hookTimeout=20000",
+    "--reporter=json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-final.json",
+    "--config",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route.safe.config.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "NODE_OPTIONS": "--require /tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/intercepted-route-preload.cjs",
+    "CI": "1",
+    "TERM": "dumb",
+    "ROUTE_CHECK_EVENT_PATH": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-1.host-events.json"
+  },
+  "exit": 0,
+  "seconds": 2.611938238143921,
+  "stdoutSha256": "f74d735c77420ab61bbb07349dc37df1f1fcc6638078887870716dfc586694f3",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "privateCacheLinks": [
+    "node_modules",
+    "apps/web/node_modules"
+  ],
+  "hostOverride": "numeric loopback hostname prevents startup DNS lookup; listener and outgoing I/O remain refused"
+}

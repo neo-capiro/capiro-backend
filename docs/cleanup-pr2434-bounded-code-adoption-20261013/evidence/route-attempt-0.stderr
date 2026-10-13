@@ -1,0 +1,16 @@
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Startup Error [27m[22m⎯⎯⎯⎯⎯⎯⎯⎯[39m
+Error: INTERCEPTED_ROUTE_CHECK_REFUSED:DNS
+    at Object.lookup (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/intercepted-route-preload.cjs:5:58)
+    at getLocalhostAddressIfDiffersFromDNS (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:17303:14)
+    at resolveHostname (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:17323:33)
+    at PluginContext.buildStart (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:47458:45)
+    at PluginContainer.hookParallel (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:48988:39)
+    at PluginContainer.buildStart (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:48995:12)
+    at file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:63399:23
+    at initServer (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:63406:6)
+    at _createServer (file:///workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:63425:11)
+    at async createViteServer (file:///workspace/capirov2/node_modules/.pnpm/vitest@2.1.9_@types+node@26.6.3_jsdom@29.1.1_@noble+hashes@1.8.0__lightningcss@1.32.0_terser@5.46.2/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:9842:18)
+
+
+
