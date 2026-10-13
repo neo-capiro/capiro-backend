@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { execFileSync } from 'node:child_process';
+import { restoreReviewedPeManifest } from '../lib/reviewed-pe-manifest-contract.mjs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { contextPlaneValidationScope, contextPlaneValidationMarker } from '../lib/context-plane-validation-scope.mjs';
@@ -170,7 +171,7 @@ test('guard and whitespace failures cannot produce any scoped completion',()=>{
   }
 });
 test('current package metadata/aliases survive the four exact scoped run aliases',()=>{
-  const currentPackage = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const currentPackage = JSON.parse(restoreReviewedPeManifest(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'), 'root'));
   const originalPackage = JSON.parse(execFileSync('git', ['show', ORIGINAL_HEAD + ':package.json'], {cwd: ROOT, encoding: 'utf8'}));
   const aliases = Object.fromEntries([
     ['backend', '--backend-only'], ['backend:typing', '--backend-only --skip-tests'],

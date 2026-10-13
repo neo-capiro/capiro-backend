@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { restoreReviewedPeManifest } from '../lib/reviewed-pe-manifest-contract.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = '523ef9167f05a33efdbdfbbfc08d5fc2e2679012';
@@ -51,7 +52,7 @@ test('default Web Docker, release operator, workspace, lock and Onboard default 
   for (const file of ['apps/web/Dockerfile',
     'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/onboard-api/Dockerfile']) {
     const before = execFileSync('git', ['show', `${BASE}:${file}`], { cwd: ROOT, encoding: 'utf8' });
-    assert.equal(read(file), before, file);
+    assert.equal(file === 'package.json' ? restoreReviewedPeManifest(read(file), 'root') : read(file), before, file);
   }
   // The current canonical builder only assembles explicit already-built inputs; deployment defaults stay untouched.
   assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), true);

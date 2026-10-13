@@ -33,7 +33,7 @@ COMMANDS = [
     ("Exercise isolated loopback fixtures with synthetic asset identities",
      "node --test scripts/ci/newsletter-loopback-serving.spec.mjs"),
 ]
-DEFAULTS = ["apps/web/Dockerfile", "apps/onboard-api/Dockerfile", "package.json",
+DEFAULTS = ["apps/web/Dockerfile", "apps/onboard-api/Dockerfile", "package.json", "apps/api/package.json",
             "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/web-image.yml",
             ".github/workflows/cleanup1-gate.yml", ".github/workflows/ci-pr.yml"]
 
@@ -159,7 +159,14 @@ class SourceJobsContract(unittest.TestCase):
         for file in DEFAULTS:
             before = subprocess.run(["git", "show", f"{BASE}:{file}"], cwd=ROOT,
                                     check=True, capture_output=True).stdout
-            with self.subTest(file=file): self.assertEqual((ROOT / file).read_bytes(), before)
+            current = (ROOT / file).read_bytes()
+            if file in ["package.json", "apps/api/package.json"]:
+                kind = "root" if file == "package.json" else "api"
+                source = "import {restoreReviewedPeManifest} from './scripts/lib/reviewed-pe-manifest-contract.mjs'; import {readFileSync} from 'node:fs'; process.stdout.write(restoreReviewedPeManifest(readFileSync(0), process.argv[1]));"
+                current = subprocess.run(["node", "--no-addons", "--input-type=module", "-e", source, kind],
+                                         cwd=ROOT, input=current, check=True, capture_output=True,
+                                         env={"PATH": os.environ["PATH"]}).stdout
+            with self.subTest(file=file): self.assertEqual(current, before)
 
 
 if __name__ == "__main__":

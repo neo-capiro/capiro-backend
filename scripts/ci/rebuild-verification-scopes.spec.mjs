@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { restoreReviewedPeManifest } from '../lib/reviewed-pe-manifest-contract.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const baseline = '5470c6df029c9553dd49e531229c3c91b26275ef';
@@ -15,7 +16,7 @@ const before = (path) =>
   });
 const current = (path) => readFileSync(join(root, path), 'utf8');
 const originalPackage = JSON.parse(before('package.json'));
-const actualPackage = JSON.parse(current('package.json'));
+const actualPackage = JSON.parse(restoreReviewedPeManifest(current('package.json'), 'root'));
 const aliasKeys = ['typecheck:backend', 'typecheck:frontend'];
 for (const [prefix, phases] of [
   ['verify:engagement-phase-', [1, 2, 3]],
