@@ -41,9 +41,11 @@ export function classifyReviewedHygienePaths(changedPaths, archiveBytes) {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 function git(args) {
   const result = spawnSync('git', ['--literal-pathspecs', '-c', 'core.fsmonitor=false',
-    '-c', 'core.pager=cat', ...args], {cwd: ROOT, maxBuffer: 16 * 1024 * 1024,
+    '-c', 'core.pager=cat', '-c', 'core.filemode=true',
+    '-c', 'core.whitespace=blank-at-eol,blank-at-eof,space-before-tab',
+    '-c', 'core.attributesfile=/dev/null', ...args], {cwd: ROOT, maxBuffer: 16 * 1024 * 1024,
     env: {PATH: process.env.PATH ?? '/usr/bin:/bin', GIT_NO_REPLACE_OBJECTS: '1',
-      GIT_OPTIONAL_LOCKS: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null'}});
+      GIT_OPTIONAL_LOCKS: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_ATTR_NOSYSTEM: '1'}});
   if (result.error || result.signal || result.status === null)
     throw new Error('Read-only Git operation failed');
   return result;
@@ -53,7 +55,31 @@ function successful(args) {
   if (result.status !== 0) throw new Error('Read-only Git identity operation failed');
   return result.stdout;
 }
-const diff = ['diff', '--no-ext-diff', '--no-textconv', '--no-renames'];
+// --text prevents a binary/diff attribute from hiding an added source line.
+const diff = ['diff', '--no-ext-diff', '--no-textconv', '--no-renames', '--text'];
+function literalNames(bytes) {
+  const text = bytes.toString('utf8');
+  if (!Buffer.from(text).equals(bytes) || (text.length && !text.endsWith('\0')))
+    throw new Error('Literal UTF-8 repository path list required');
+  return text.length ? text.slice(0, -1).split('\0') : [];
+}
+function checkAttributes(paths) {
+  // Per-path attributes outrank core.whitespace. Inspect both states; local
+  // info/attributes also appears here and cannot silently suppress this gate.
+  for (const cached of [[], ['--cached']]) {
+    for (let offset = 0; offset < paths.length; offset += 128) {
+      const selected = paths.slice(offset, offset + 128);
+      const fields = literalNames(successful(['check-attr', '-z', ...cached, 'whitespace', 'diff', '--', ...selected]));
+      if (fields.length !== selected.length * 6) throw new Error('Exact whitespace attribute observations required');
+      for (let index = 0; index < selected.length; index++) {
+        const [file, kind, value, diffFile, diffKind, diffValue] = fields.slice(index * 6, index * 6 + 6);
+        if (file !== selected[index] || diffFile !== file || kind !== 'whitespace' || diffKind !== 'diff' ||
+            value !== 'unspecified' || !['unspecified', 'set'].includes(diffValue))
+          throw new Error(`Unreviewed source whitespace/diff attribute override refused: ${selected[index]}`);
+      }
+    }
+  }
+}
 
 export function runReviewedSourceHygiene(base) {
   if (typeof base !== 'string' || !/^[a-f0-9]{40}$/.test(base))
@@ -62,23 +88,31 @@ export function runReviewedSourceHygiene(base) {
   if (commit !== base) throw new Error('Exact base commit identity mismatch');
   const archiveBytes = new Map();
   for (const [file] of RAW_ARCHIVES) {
+    const headMode = successful(['ls-tree', '-z', 'HEAD', '--', file]).toString();
+    const indexMode = successful(['ls-files', '--stage', '-z', '--', file]).toString();
+    if (!/^100644 blob [a-f0-9]{40}\t/.test(headMode) || !headMode.endsWith(`\t${file}\0`) ||
+        !/^100644 [a-f0-9]{40} 0\t/.test(indexMode) || !indexMode.endsWith(`\t${file}\0`))
+      throw new Error(`Immutable raw archive HEAD/index mode mismatch: ${file}`);
     archiveBytes.set(file, successful(['show', `HEAD:${file}`]));
-    if (successful([...diff, 'HEAD', '--', file]).length !== 0)
+    if (successful([...diff, '--cached', 'HEAD', '--', file]).length !== 0 ||
+        successful([...diff, '--', file]).length !== 0)
       throw new Error(`Immutable raw archive worktree/index edits refused: ${file}`);
   }
-  const names = successful([...diff, '--name-only', '-z', base, '--']);
-  const text = names.toString('utf8');
-  if (!Buffer.from(text).equals(names) || (text.length && !text.endsWith('\0')))
-    throw new Error('Literal UTF-8 repository path list required');
-  const changedPaths = text.length ? text.slice(0, -1).split('\0') : [];
+  const changedPaths = [...new Set([
+    ...literalNames(successful([...diff, '--name-only', '-z', '--cached', base, '--'])),
+    ...literalNames(successful([...diff, '--name-only', '-z', base, '--'])),
+  ])];
   const scope = classifyReviewedHygienePaths(changedPaths, archiveBytes);
+  checkAttributes(changedPaths);
   let checkedDiagnostics = '';
-  for (let offset = 0; offset < scope.checkedPaths.length; offset += 128) {
-    const result = git([...diff, '--check', base, '--', ...scope.checkedPaths.slice(offset, offset + 128)]);
-    checkedDiagnostics += result.stdout.toString() + result.stderr.toString();
-    if (result.status !== 0) return {sourceHygiene: 'FAIL', base,
-      checkedPaths: scope.checkedPaths.length, rawArchivesClassified: scope.classifiedRawPaths,
-      checkedDiagnostics, rawArchiveSource: RAW_ARCHIVE_SOURCE};
+  for (const cached of [[], ['--cached']]) {
+    for (let offset = 0; offset < scope.checkedPaths.length; offset += 128) {
+      const result = git([...diff, '--check', ...cached, base, '--', ...scope.checkedPaths.slice(offset, offset + 128)]);
+      checkedDiagnostics += result.stdout.toString() + result.stderr.toString();
+      if (result.status !== 0) return {sourceHygiene: 'FAIL', base,
+        checkedPaths: scope.checkedPaths.length, checkedStates: ['index', 'working-tree'],
+        rawArchivesClassified: scope.classifiedRawPaths, checkedDiagnostics, rawArchiveSource: RAW_ARCHIVE_SOURCE};
+    }
   }
   let rawArchiveDiagnostics = '';
   if (scope.classifiedRawPaths.length) {
@@ -88,6 +122,7 @@ export function runReviewedSourceHygiene(base) {
     rawArchiveDiagnostics = result.stdout.toString() + result.stderr.toString();
   }
   return {sourceHygiene: 'PASS', base, checkedPaths: scope.checkedPaths.length,
+    checkedStates: ['index', 'working-tree'], whitespaceRules: ['blank-at-eol', 'blank-at-eof', 'space-before-tab'],
     rawArchivesClassified: scope.classifiedRawPaths, rawArchiveSource: RAW_ARCHIVE_SOURCE,
     rawArchiveHashes: RAW_ARCHIVES.map(([file, sha256, bytes]) => ({file, sha256, bytes})),
     checkedDiagnostics, rawArchiveDiagnostics,
