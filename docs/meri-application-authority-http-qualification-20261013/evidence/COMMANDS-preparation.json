@@ -1,0 +1,49 @@
+{
+  "cwd": "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013",
+  "commands": [
+    {
+      "label": "01-prepare-host",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node prepare-host.cjs evidence/01-prepare-host.json",
+      "exit": 0,
+      "executorSession": 74411
+    },
+    {
+      "label": "02-prepare-current-shared",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node prepare-host.cjs evidence/02-prepare-current-shared.json",
+      "exit": 0,
+      "executorSession": 59556
+    },
+    {
+      "label": "03-pure-driver-controls",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --test http-driver.test.cjs",
+      "exit": 0,
+      "cases": 14
+    },
+    {
+      "label": "05-root-target-controls",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin node --test http-driver.test.cjs",
+      "exit": 0,
+      "cases": 14
+    },
+    {
+      "label": "06-preloaded-prepare",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 node --require ./containment-preload.cjs prepare-host.cjs evidence/06-preloaded-prepare.json",
+      "exit": 0,
+      "executorSession": 27576
+    },
+    {
+      "label": "07-final-target-controls",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin node --test http-driver.test.cjs",
+      "exit": 0,
+      "cases": 14
+    },
+    {
+      "label": "08-preload-controls",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin node --require ./containment-preload.cjs preload-controls.cjs",
+      "exit": 0,
+      "cases": 10
+    }
+  ],
+  "nativeHTTPExecuted": false,
+  "DBConnected": false
+}

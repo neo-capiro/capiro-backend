@@ -1,0 +1,11 @@
+PASS protected body read
+PASS environment body read
+PASS HTTPS request
+PASS HTTP foreign request
+PASS DNS lookup
+PASS foreign socket
+PASS unapproved loopback port
+PASS external listener
+PASS fixed listener
+PASS child process
+{"total":10,"passed":10,"audit":{"externalRefusals":7,"protectedReadRefusals":2,"childRefusals":1,"allowedLoopbackConnections":0,"allowedLoopbackListeners":0}}

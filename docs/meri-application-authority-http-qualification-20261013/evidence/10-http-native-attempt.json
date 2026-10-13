@@ -1,0 +1,11 @@
+{
+  "sourceHead": "7160b2c29255d1c91911ba1ad298857aefe28774",
+  "executorSession": 30752,
+  "exit": 1,
+  "phase": "read-only target fence",
+  "HTTPListenerStarted": false,
+  "fixtureRowsWritten": false,
+  "reason": "obj_description instead of PostgreSQL shared-object shobj_description",
+  "stdoutBytes": 0,
+  "stderrSHA256": "c37d3e361fea65641474a48fc55c58a0f973dcce7783f07953226e92f1487d29"
+}

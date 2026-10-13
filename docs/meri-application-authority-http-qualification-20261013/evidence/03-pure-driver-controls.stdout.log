@@ -1,0 +1,22 @@
+✔ approved owned target syntax accepted without connection (1.986488ms)
+✔ target refusal: wrong source (1.291915ms)
+✔ target refusal: approval missing (0.320638ms)
+✔ target refusal: ordinary database (0.192108ms)
+✔ target refusal: other cluster (0.267559ms)
+✔ target refusal: OID invalid (6.592101ms)
+✔ target refusal: ownership comment missing (0.377104ms)
+✔ target refusal: foreign network (1.126909ms)
+✔ target refusal: wrong database path (0.548403ms)
+✔ target refusal: foreign schema (0.946057ms)
+✔ target refusal: pool widened (1.355819ms)
+✔ target refusal: nonPostgres protocol (0.901288ms)
+✔ fixed two authority routes use actual clio prefix (1.998015ms)
+✔ all synthetic fixture identifiers are unique lower-case UUIDs (0.227402ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 543.695417

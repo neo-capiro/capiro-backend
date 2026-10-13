@@ -1,0 +1,7 @@
+AssertionError [ERR_ASSERTION]: Owned target mismatch: databaseComment
++ actual - expected
+
++ null
+- 'owned /root authority HTTP fixture at bbb38185058fdc64c204da723943aee055b3dad3'
+
+    at main (/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/http-driver.cjs:108:99)

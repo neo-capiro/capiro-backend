@@ -1,0 +1,45 @@
+PASS identity real POST200 and canonical principal
+PASS context current owned client POST200 echo-only correlation
+PASS wrong meri alias has no route
+PASS missing bearer401
+PASS invalid token401
+PASS missing sid401 before SDK online
+PASS foreign issuer401
+PASS client_portal_user role refused by actual RolesGuard
+PASS revoked native session identity401
+PASS revoked native session context403
+PASS session user binding identity401
+PASS session ID binding identity401
+PASS expired native session401
+PASS SDK failure401 without cached receipt
+PASS SDK caller deadline bounds refusal no cancellation claim
+PASS membership revoked during SDK await403
+PASS tenant inactive during SDK await403
+PASS Clerk user mapping changed during SDK await403
+PASS membership role changed during SDK await403
+PASS identity closed HTTP JSON array
+PASS identity closed HTTP JSON null
+PASS identity closed HTTP JSON primitive
+PASS identity closed HTTP JSON constructor
+PASS identity closed HTTP JSON prototype
+PASS identity closed HTTP JSON extra
+PASS malformed JSON parser400
+PASS oversize default parser413
+PASS context missing hash400
+PASS context selector object400
+PASS context extra JSON constructor400
+PASS foreign client selector cannot grant403
+PASS same tenant walled client no grant403
+PASS same tenant current wall grant200
+PASS foreign tenant grant for same client does not authorize403
+PASS other actor conversation403
+PASS archived conversation403
+PASS inactive conversation403
+PASS client binding changes during second session await403
+PASS wall revoked during second session await403
+PASS malformed persisted prospect scope403
+PASS RP scope cannot transfer bound client403
+PASS empty JSON body observed as framework empty object200
+PASS duplicate lexical key uses observed JSON last-value semantics
+PASS uppercase context selector400 per lower-case wire
+PASS nil syntactic selector cannot grant403
