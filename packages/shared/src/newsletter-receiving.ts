@@ -128,6 +128,10 @@ export interface NewsletterReceiveIdentity {
 }
 /** Resource syntax/binding is not evidence of actor, tenant, approval or ID-family authority. */
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[1-5][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
+// Workspace's current HillDay source/document owner admits versions 1–8. Core stays 1–5.
+const WORKSPACE_UUID = /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
+// An embedded saved-survey snapshot is not a resource lookup or a stage capability.
+const SAVED_SURVEY_ID = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 /**
  * Wire-snapshot budgets, independent of request normalization. String capacity includes large
  * image URLs, rendered HTML and a 100-document list; these are explicit receiving limits.
@@ -245,6 +249,16 @@ const revision: Rule = (value, path) => {
 };
 const uuid: Rule = (value, path) => {
   if (typeof value !== 'string' || !UUID.test(value)) refuse(path);
+};
+const workspaceUuid: Rule = (value, path) => {
+  if (typeof value !== 'string' || !WORKSPACE_UUID.test(value)) refuse(path);
+};
+const savedSurveyId: Rule = (value, path) => {
+  if (typeof value !== 'string' || !SAVED_SURVEY_ID.test(value)) refuse(path);
+};
+const savedSurveyTime: Rule = (value, path) => {
+  if (typeof value !== 'string' || value.length > 40 || !Number.isFinite(Date.parse(value)))
+    refuse(path);
 };
 const timestamp: Rule = (value, path) => {
   if (
@@ -435,12 +449,12 @@ const surveyDefinition = object({
   buttonTextColor: text,
 });
 const savedSurvey = object({
-  id: uuid,
+  id: savedSurveyId,
   name: text,
   revision,
   status: literal('draft'),
-  updatedAt: timestamp,
-  sourceClientIds: clients,
+  updatedAt: savedSurveyTime,
+  sourceClientIds: array(workspaceUuid, 100),
   definition: surveyDefinition,
 });
 const blockShape = object(
@@ -560,7 +574,7 @@ const design: Rule = (value, path) => {
   );
 };
 const config = object({
-  clientId: nullable(uuid),
+  clientId: nullable(workspaceUuid),
   clientName: text,
   fromName: text,
   fromEmail: text,
@@ -624,7 +638,7 @@ const config = object({
   plainTextAuto: bool,
 });
 const campaign = object({
-  id: uuid,
+  id: workspaceUuid,
   name: text,
   revision,
   status: literal('draft', 'staged'),
@@ -637,7 +651,14 @@ const check = object(
   { id: text, severity: literal('error', 'warning', 'pass'), label: text, detail: text },
   { blockId: text },
 );
-const stageRead = object({ id: uuid, documentId: uuid, revision, name: text, config, design });
+const stageRead = object({
+  id: uuid,
+  documentId: workspaceUuid,
+  revision,
+  name: text,
+  config,
+  design,
+});
 const draftVersion = object(
   {
     id: uuid,
@@ -700,10 +721,13 @@ function identity(
   for (const key of Object.keys(spec)) {
     if (!allowed.has(key as (typeof keys)[number])) refuse(`$expected.${key}`);
     const wanted = spec[key]!;
-    (key === 'revision' ? revision : key === 'clientId' ? nullable(uuid) : uuid)(
-      wanted,
-      `$expected.${key}`,
-    );
+    (key === 'revision'
+      ? revision
+      : key === 'clientId'
+        ? nullable(workspaceUuid)
+        : key === 'documentId'
+          ? workspaceUuid
+          : uuid)(wanted, `$expected.${key}`);
     const actual = value[key];
     const equal =
       typeof wanted === 'string' && typeof actual === 'string'
@@ -779,7 +803,14 @@ export function parseNewsletterStageReceipt(
 ): NewsletterReceiveResult<NewsletterStage> {
   return receive(
     value,
-    object({ id: uuid, documentId: uuid, revision, name: text, createdAt: timestamp, route: text }),
+    object({
+      id: uuid,
+      documentId: workspaceUuid,
+      revision,
+      name: text,
+      createdAt: timestamp,
+      route: text,
+    }),
     (value) => {
       const stage = row(value, '$');
       if ('design' in stage || 'config' in stage) refuse('$');

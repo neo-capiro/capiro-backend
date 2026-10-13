@@ -281,6 +281,62 @@ function runNewsletterReceivingCorpus(api) {
     ];
     accepted(api.parseNewsletterCampaign(value));
   });
+  check(
+    'Workspace document and primary client UUID versions6 through8 preserve current owner syntax',
+    () => {
+      for (const version of [6, 7, 8]) {
+        const value = clone(doc);
+        value.id = 'b2222222-2222-' + version + '222-8222-222222222222';
+        value.config.clientId = 'e5555555-5555-' + version + '555-8555-555555555555';
+        same(
+          accepted(
+            api.parseNewsletterCampaign(value, {
+              documentId: value.id.toUpperCase(),
+              clientId: value.config.clientId.toUpperCase(),
+            }),
+          ),
+          value,
+        );
+        const read = { ...clone(stage), documentId: value.id };
+        accepted(api.parseNewsletterOutreachStage(read, { documentId: value.id }));
+        accepted(
+          api.parseNewsletterStageReceipt(
+            { ...receipt, documentId: value.id },
+            { documentId: value.id },
+          ),
+        );
+      }
+    },
+  );
+  check('Core stage and record UUID syntax remains versions1 through5', () => {
+    const foreign = 'a1111111-1111-7111-8111-111111111111';
+    denied(api.parseNewsletterOutreachStage({ ...stage, id: foreign }));
+    denied(
+      api.parseNewsletterStageReceipt({
+        ...receipt,
+        id: foreign,
+        route: '/engagement/outreach?newsletterStage=' + foreign,
+      }),
+    );
+    denied(api.parseNewsletterOutreachRecord({ ...record, id: foreign }));
+  });
+  check('embedded saved survey preserves legacy formatted nil ID and date-only timestamp', () => {
+    const value = clone(doc);
+    const saved = value.design.sections[additionIndex].blocks[0].columns[0][0].survey.saved;
+    saved.id = '00000000-0000-0000-0000-000000000000';
+    saved.updatedAt = '2026-10-12';
+    saved.sourceClientIds = ['e5555555-5555-7555-8555-555555555555'];
+    same(accepted(api.parseNewsletterCampaign(value)), value);
+  });
+  check('embedded saved survey refuses malformed ID and invalid saved time', () => {
+    const value = clone(doc);
+    const saved = value.design.sections[additionIndex].blocks[0].columns[0][0].survey.saved;
+    saved.id = 'not-a-snapshot-id';
+    denied(api.parseNewsletterCampaign(value));
+    saved.id = id;
+    saved.updatedAt = 'not-a-date';
+    denied(api.parseNewsletterCampaign(value));
+  });
   check('old video and social optional fields remain absent', () => {
     const value = clone(doc);
     const blocks = value.design.sections[additionIndex].blocks[0].columns[0];
@@ -432,9 +488,9 @@ function runNewsletterReceivingCorpus(api) {
       },
     ],
     [
-      'invalid resource UUID version',
+      'invalid Workspace document UUID version',
       (d) => {
-        d.id = 'b2222222-2222-7222-8222-222222222222';
+        d.id = 'b2222222-2222-9222-8222-222222222222';
       },
     ],
     [
