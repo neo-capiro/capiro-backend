@@ -7,15 +7,22 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { canonicalNewsletterManifest } from '../lib/newsletter-static-release-contract.mjs';
-import { inspectFrontendStandaloneManifest, readFrontendStandaloneArtifact } from '../lib/frontend-standalone-artifact-contract.mjs';
+import { inspectFrontendStandaloneManifest, readFrontendStandaloneArtifact, NEWSLETTER_ACCEPTED_SOURCE_PROFILE } from '../lib/frontend-standalone-artifact-contract.mjs';
 import { NEWSLETTER_FRONTEND_ARTIFACT_PROFILE as PROFILE, parseNewsletterBuildInvocation,
   createNewsletterArtifactPackagingPlan, assembleNewsletterReleaseArtifact } from '../lib/newsletter-artifact-packaging-plan.mjs';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const assets = canonicalNewsletterManifest(), byUrl = new Map(assets.map(entry => [entry.publicPath, entry]));
 const identity = (bytes, url) => bytes.equals(Buffer.from(url)) ? byUrl.get(url) : null;
-const source = { repository: PROFILE.repository, commit: PROFILE.commit };
-const model = { newsletterIdentity: identity, fixtureLabel: 'synthetic already-built input' };
+const source = { repository: PROFILE.repository, commit: 'c'.repeat(40) };
+const sourceProfile = structuredClone(NEWSLETTER_ACCEPTED_SOURCE_PROFILE);
+sourceProfile.activeCommit = source.commit;
+sourceProfile.acceptedSources = [{ commit: source.commit, tree: 'd'.repeat(40),
+  qualificationReceipt: { repository: source.repository, commit: 'e'.repeat(40),
+    path: 'docs/synthetic-source-acceptance/RECEIPT.json', sha256: 'f'.repeat(64) } }];
+const sourceAdmissionFixture = { kind: 'newsletter-source-admission-fixture',
+  label: 'synthetic accepted source profile', profile: sourceProfile };
+const model = { newsletterIdentity: identity, fixtureLabel: 'synthetic already-built input', sourceAdmissionFixture };
 const pins = options => ({ sourceRepository: options.sourceRepository, sourceCommit: options.sourceCommit,
   manifestSha256: options.manifestSha256, runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 } });
 function argv(options, mode = '--plan') {
@@ -69,6 +76,9 @@ test('physical synthetic assembly publishes complete bytes, links and durable re
   await fixture(async ({ files, links, options, manifestBytes, root }) => {
     const receipt = await assembleNewsletterReleaseArtifact(options, model);
     assert.equal(receipt.status, 'PASS'); assert.equal(receipt.syntheticModel, true);
+    assert.equal(receipt.sourceAdmission.syntheticSourceApprovalModel, true);
+    assert.equal(receipt.sourceAdmission.sourceApprovalProofVerified, false);
+    assert.equal(receipt.sourceAdmission.sourceAcceptedByReviewedPolicy, false);
     assert.equal(receipt.artifact.actualArtifactBytesVerified, false); assert.equal(receipt.shippingAuthorized, false);
     assert.equal(receipt.atomicDirectoryPublishPerformed, true); assert.equal(receipt.durableFilesAndDirectorySyncPerformed, true);
     assert.deepEqual(receipt.runtimeTarget, { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 });
@@ -191,7 +201,7 @@ test('failed staged rename rolls back only owned scratch and leaves inputs untou
 
 test('unlabelled injected identity cannot pretend to be production assembly', async () => {
   await fixture(async ({ options }) => {
-    await assert.rejects(assembleNewsletterReleaseArtifact(options, { newsletterIdentity: identity }), /labelled synthetic/);
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { newsletterIdentity: identity, sourceAdmissionFixture }), /labelled synthetic/);
     await absent(options.outputDir);
   });
 });
@@ -264,9 +274,9 @@ for (const [name, key, value] of [
 test('unlabelled filesystem injection refuses before callbacks and extra labels cannot alter production mode', async () => {
   await fixture(async ({ options }) => {
     let calls = 0; await assert.rejects(assembleNewsletterReleaseArtifact(options,
-      { io: ioWith({ lstat: async () => { calls++; throw new Error('synthetic callback'); } }) }), /labelled synthetic/);
+      { sourceAdmissionFixture, io: ioWith({ lstat: async () => { calls++; throw new Error('synthetic callback'); } }) }), /labelled synthetic/);
     assert.equal(calls, 0);
-    await assert.rejects(assembleNewsletterReleaseArtifact(options, { fixtureLabel: 'not a port' }), /labelled synthetic/);
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { fixtureLabel: 'not a port', sourceAdmissionFixture }), /labelled synthetic/);
   });
 });
 
