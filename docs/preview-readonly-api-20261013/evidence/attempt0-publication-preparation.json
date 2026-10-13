@@ -1,0 +1,8 @@
+{
+  "failed_git_add": "index.lock write ENOSPC plus noncone spec exclusion; no partial index publication",
+  "resolution": "retired own materializations after final checks, corrected finite sparse patterns",
+  "helper_retirement_error": "untracked clients.read.ts accidentally retired and restored from the exact prior staging content",
+  "restored_helper_git_blob": "f1c0714ddcb711626ee7f50307c4b706eeb1cb45",
+  "existing_prior_staging_blob_bytes_match": true,
+  "source_unchanged": true
+}

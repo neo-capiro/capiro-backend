@@ -1,0 +1,1 @@
+{"result":"failed","reason":"owned root node_modules lacked @capiro parent for fresh Shared link","resolution":"created owned scope parent, linked own freshly compiled frozen Shared and cached no-engine Core client; borrowed targets unchanged"}

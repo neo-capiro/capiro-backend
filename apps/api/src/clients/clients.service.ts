@@ -28,6 +28,8 @@ import { EntityResolutionService } from '../intelligence/entity-resolution.servi
 import { ClientPrepopulationService } from '../intelligence/client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { readClient, readClients, type ListClientsFilter } from './clients.read.js';
+export type { ListClientsFilter } from './clients.read.js';
 import { validateClientFundingProfile } from './client-funding-profile.validation.js';
 
 export interface CreateClientInput {
@@ -69,16 +71,6 @@ export type UpdateClientInput = Partial<CreateClientInput> & {
   status?: string;
 };
 
-export interface ListClientsFilter {
-  profileStatus?: string;
-  sectorTag?: string;
-  /**
-   * Include soft-archived ("deleted") clients. Defaults to false so archived
-   * clients disappear from every operational surface (dashboards, pickers,
-   * intelligence). Management views that need to see them pass true.
-   */
-  includeArchived?: boolean;
-}
 
 const ALLOWED_LOGO_MIME = new Set([
   'image/png',
@@ -1093,33 +1085,11 @@ export class ClientsService {
   }
 
   async list(ctx: TenantContext, filter: ListClientsFilter = {}) {
-    // Tenant isolation is enforced IN-QUERY, not by RLS. The runtime API role
-    // (capiro_app) is a member of the table-owner role (capiro_master) and so
-    // bypasses row-level security on every table — withTenant sets the GUC but
-    // the FORCE RLS policy never runs for this connection. Without this explicit
-    // tenantId filter, findMany returns EVERY tenant's clients (confirmed leak).
-    const where: Record<string, unknown> = { tenantId: ctx.tenantId };
-    if (filter.profileStatus) where.profileStatus = filter.profileStatus;
-    if (filter.sectorTag) where.sectorTag = filter.sectorTag;
-    // Soft-archived ("deleted") clients are hidden by default everywhere; only
-    // explicit management views opt in via includeArchived.
-    if (!filter.includeArchived) where.status = { not: 'archived' };
-
-    const clients = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findMany({ where, orderBy: { createdAt: 'desc' } }),
-    );
-    return this.withLogoUrls(clients);
+    return readClients(this.prisma, ctx, filter, (client) => this.withLogoUrl(client));
   }
 
   async get(ctx: TenantContext, id: string) {
-    // findFirst with an explicit tenantId (not findUnique by id alone): the app
-    // role bypasses RLS, so a bare id lookup would let any tenant fetch any
-    // other tenant's client by guessing/enumerating ids.
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({ where: { id, tenantId: ctx.tenantId } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-    return this.withLogoUrl(client);
+    return readClient(this.prisma, ctx, id, (client) => this.withLogoUrl(client));
   }
 
   async create(ctx: TenantContext, input: CreateClientInput) {
@@ -1972,12 +1942,6 @@ export class ClientsService {
       firmLogoUrl: rows.tenant?.logoS3Key ? await this.signedGetUrl(rows.tenant.logoS3Key) : null,
       firmLogoContentType: rows.tenant?.logoContentType ?? null,
     };
-  }
-
-  private async withLogoUrls<T extends { logoS3Key: string | null }>(
-    clients: T[],
-  ): Promise<Array<T & { logoUrl: string | null }>> {
-    return Promise.all(clients.map((client) => this.withLogoUrl(client)));
   }
 
   private async withLogoUrl<T extends { logoS3Key: string | null }>(

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Prisma, PrismaClient } from '@prisma/client';
 
 /**
@@ -80,6 +81,49 @@ export function applyTenantScope(
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
+  // Used only by the separate preview bootstrap. Query-extension scope remains
+  // closure-bound; ALS selects the already scoped transaction at method entry.
+  private readonly previewTransaction = new AsyncLocalStorage<{
+    tenantId: string; tx: Prisma.TransactionClient;
+  }>();
+
+  async withPreviewReadOnly<T>(
+    tenantId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (this.previewTransaction.getStore()) throw new Error('Nested preview transaction refused');
+    return this.scopedClient({ tenantId }).$transaction(async (tx) => {
+      // First statement: database enforcement, before identity or business reads.
+      await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+      const [permission] = await tx.$queryRaw<Array<{ safe: boolean }>>`
+        SELECT (
+          NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole AND NOT r.rolcreatedb
+          AND current_setting('default_transaction_read_only') = 'on'
+          AND NOT EXISTS (
+            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+              AND n.nspname NOT LIKE 'pg_toast%'
+              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+              AND (pg_has_role(current_user, c.relowner, 'MEMBER')
+                OR has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                OR has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+              AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind = 'S'
+              AND (pg_has_role(current_user, c.relowner, 'MEMBER')
+                OR has_sequence_privilege(current_user, c.oid, 'USAGE,UPDATE'))
+          )
+        ) AS safe FROM pg_roles r WHERE r.rolname = current_user
+      `;
+      if (permission?.safe !== true) throw new Error('Preview requires a reviewed read-only database role');
+      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'off', true)`;
+      await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+      const transaction = tx as unknown as Prisma.TransactionClient;
+      return this.previewTransaction.run({ tenantId, tx: transaction }, () => fn(transaction));
+    }, { timeout: 5000, isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+  }
 
   // Every model that has a `tenantId` field, derived from the schema at
   // construction — the set the tenant-scope hook constrains. Auto-maintained:
@@ -147,6 +191,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
+    const preview = this.previewTransaction.getStore();
+    if (preview) {
+      if (preview.tenantId !== tenantId) throw new Error('Preview tenant mismatch');
+      return fn(preview.tx);
+    }
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         // SET LOCAL is bound to the transaction. set_config(..., true) returns
@@ -187,6 +236,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
+    if (this.previewTransaction.getStore()) throw new Error('Preview scope cannot open this transaction');
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
@@ -240,6 +290,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   ): Promise<T> {
     // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
     // preserving the intentional cross-tenant reach of system paths.
+    if (this.previewTransaction.getStore()) throw new Error('Preview scope cannot open this transaction');
     return this.scopedClient({ bypass: true }).$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;

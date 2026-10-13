@@ -1,0 +1,50 @@
+{
+  "base": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "shared_build": {
+    "exit_code": 0,
+    "fresh_canonical_source": true
+  },
+  "full_api_typecheck": {
+    "exit_code": 0,
+    "config": "apps/api/tsconfig.json",
+    "no_emit": true,
+    "incremental": false,
+    "all_frozen_api_production_roots": 1975,
+    "additional_preview_source": true,
+    "selected_specs": [
+      "preview-readonly/preview-readonly.spec.ts",
+      "users/users.controller.spec.ts",
+      "auth/clerk-role.util.spec.ts",
+      "prisma/prisma.service.spec.ts"
+    ],
+    "unselected_global_specs_qualified": false
+  },
+  "selected_jest": {
+    "exit_code": 0,
+    "suites": 4,
+    "tests": 136,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 3.509,
+    "loopback_synthetic_http": true,
+    "outbound_network_fenced": true
+  },
+  "native_postgres_rls_qualified": false,
+  "real_provider_or_customer_calls": false,
+  "deployment_or_permission_changes": false,
+  "failed_evidence_retained": true,
+  "source_hygiene": "PASS",
+  "review": "independent source review accepted, native qualification held",
+  "qualified_source_mode_blob": [
+    "100644 f1c0714ddcb711626ee7f50307c4b706eeb1cb45 0\tapps/api/src/clients/clients.read.ts",
+    "100644 beb0f511fb54650a120787bea1998c35da1a20cf 0\tapps/api/src/clients/clients.service.ts",
+    "100644 fa8a2b8424936c00487c5e401c75d150ce959a8e 0\tapps/api/src/preview-readonly/preview-main.ts",
+    "100644 4d06f78a37a38e416231e72cf1f7d4d1d7712181 0\tapps/api/src/preview-readonly/preview-readonly.spec.ts",
+    "100644 579b3b9444a8826412979fc35d3199518b816e85 0\tapps/api/src/preview-readonly/preview.config.ts",
+    "100644 0804b20dda32f6a4bd43b9f59def4ed10d554f60 0\tapps/api/src/preview-readonly/preview.controller.ts",
+    "100644 e2053c4dae8b89bbf663039affd262f01c767102 0\tapps/api/src/preview-readonly/preview.interceptor.ts",
+    "100644 fe8cbbc723b7631b7ab6ca46f92b5f8a6ef42162 0\tapps/api/src/preview-readonly/preview.module.ts",
+    "100644 1b630768036465a11ff18f56b4623fce40e80cc7 0\tapps/api/src/preview-readonly/preview.route-policy.ts",
+    "100644 a627b46668f589fd3192681b58a0ac147949353d 0\tapps/api/src/prisma/prisma.service.ts"
+  ]
+}
