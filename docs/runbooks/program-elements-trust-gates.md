@@ -179,3 +179,39 @@ Evidence lands under `docs/verification/program-elements-trust/phase-9/` when th
 `PE_PHASE_9_OK` certifies the harness on the exact HEAD SHA only. Independent adversarial REVIEW must still PASS.
 Base-proven failures require `PE_PHASE_9_BASE_RESULTS_JSON` for classification; without it, required failures fail closed as branch-introduced.
 
+The backend/shared rehearsal has an explicit scope:
+
+```bash
+# Inspect the selected commands without executing them:
+pnpm run verify:pe-phase-9:backend:dry-run
+pnpm -C apps/api exec tsx scripts/verify-pe-phase-9.ts --backend-only --catalog-only
+
+# Long backend rehearsal, after qualifying the disposable database targets:
+pnpm run verify:pe-phase-9:backend
+```
+
+`--backend-only` omits web typecheck, web build and the Phase H browser suite. It
+selects root tooling and API/Workspace dependency packages for installation, and
+checks backend/shared paths for formatting and diff hygiene. It also builds
+meriv2-core, defense-contracts and defense-domain after shared, in the API
+Dockerfile's order, before API typechecking. All backend proof owners and required
+migration gates remain selected. The default and `--full` catalogs stay unchanged.
+
+Backend evidence defaults to `docs/verification/program-elements-trust/phase-9-backend/`,
+uses `kind: backend_release_rehearsal`, and records `fullReleaseQualified: false`.
+Its success marker is `PE_PHASE_9_BACKEND_OK`. Frontend qualification and independent
+review remain separate requirements. Unknown arguments and conflicting
+`--backend-only --full` flags fail before commands run.
+
+Installation filters select packages; pnpm still discovers workspace manifests
+and validates the frozen lockfile. Root tooling also has optional browser-related
+dependencies. A command-selection check does not prove a frozen installation
+after retiring the web directory.
+
+Both scopes retain database rehearsals. The optional Phase C RLS shell script
+uses inherited `PGHOST`, `PGPORT` and `PGUSER` and creates/drops its rehearsal
+database and roles. Docker availability or `PE_PHASE_9_PGHOST` does not isolate
+that script's target. Qualify explicit disposable targets before running either
+long rehearsal. `--skip-disposable-pg` records a required migration skip and blocks
+the rehearsal gate; it cannot produce backend success. Pure orchestration tests
+use command-recording ports and do not qualify actual database behavior.

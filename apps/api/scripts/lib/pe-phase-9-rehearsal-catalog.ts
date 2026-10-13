@@ -8,6 +8,8 @@
  * Steps are **named contracts**. The shell/tsx orchestrators execute them;
  * unit tests assert catalog honesty (ids unique, required flags, no secrets).
  */
+import { pePhase9BackendSteps } from './pe-phase-9-backend-scope.js';
+export { PE_PHASE_9_BACKEND_EXCLUDED_STEP_IDS } from './pe-phase-9-backend-scope.js';
 
 export type PePhase9StepKind =
   | 'install'
@@ -31,6 +33,9 @@ export type PePhase9FailureClass =
   /** Environment / tooling unavailable (docker down, etc.) — document, may block if required. */
   | 'environment'
   | 'ok';
+
+/** Backend rehearsal is a separate obligation set, never a full release claim. */
+export type PePhase9Scope = 'full' | 'backend';
 
 export interface PePhase9Step {
   /** Stable id used in evidence JSON and gate logs. */
@@ -367,16 +372,27 @@ export const PE_PHASE_9_REHEARSAL_STEPS: readonly PePhase9Step[] = [
   },
 ] as const;
 
-export function pePhase9StepIds(): string[] {
-  return PE_PHASE_9_REHEARSAL_STEPS.map((s) => s.id);
+/**
+ * Select the rehearsal obligations explicitly. Keep the established full catalog
+ * untouched; backend keeps both server dependency closures and root tooling.
+ * Dependency suffixes select dependencies, not frontend reverse dependents.
+ */
+export function pePhase9StepsForScope(scope: PePhase9Scope = 'full'): readonly PePhase9Step[] {
+  if (scope === 'full') return PE_PHASE_9_REHEARSAL_STEPS;
+  if (scope !== 'backend') throw new Error(`unsupported Phase 9 scope: ${String(scope)}`);
+  return pePhase9BackendSteps(PE_PHASE_9_REHEARSAL_STEPS);
 }
 
-export function pePhase9RequiredSteps(): PePhase9Step[] {
-  return PE_PHASE_9_REHEARSAL_STEPS.filter((s) => s.required);
+export function pePhase9StepIds(scope: PePhase9Scope = 'full'): string[] {
+  return pePhase9StepsForScope(scope).map((s) => s.id);
 }
 
-export function pePhase9ExtendedProofSteps(): PePhase9Step[] {
-  return PE_PHASE_9_REHEARSAL_STEPS.filter((s) => s.extendedProof);
+export function pePhase9RequiredSteps(scope: PePhase9Scope = 'full'): PePhase9Step[] {
+  return pePhase9StepsForScope(scope).filter((s) => s.required);
+}
+
+export function pePhase9ExtendedProofSteps(scope: PePhase9Scope = 'full'): PePhase9Step[] {
+  return pePhase9StepsForScope(scope).filter((s) => s.extendedProof);
 }
 
 /** Extended PE proofs required by the Phase 9 plan "Also run" list. */
