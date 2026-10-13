@@ -1,0 +1,21 @@
+{
+  "decision": "HOLD",
+  "source": "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+  "tree": "0c96047a606ec28209f29ef3f09579241c2451f7",
+  "remainingConcreteBlocker": "JavaScript line-comment recognition omits U+2028 and U+2029 in both separator and clause alternatives, so valid bare imports get a false static closure receipt.",
+  "programPath": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-probe.mjs",
+  "programSha256": "668feab13037aa3a378c15910c93a47742110f48acc736c214b8d083584a7b1f",
+  "rawPath": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-probe.stdout",
+  "rawSha256": "f17b8f297fa2b2eb30bc0562124222cc5b22d92875d9b757c7e6be3b6a94a80c",
+  "pass": 2,
+  "red": 2,
+  "retainedGreen": {
+    "onboard": 32,
+    "newsletterExactUnchangedSuite": 53,
+    "originalStaticReplay": 9,
+    "rootClauseReplay": 4,
+    "tokenBoundaries": 18,
+    "newsletterBoundaries": 10
+  },
+  "scope": "inert strings only; zero payload/module execution; source review cannot establish browser/serving/asset/native acceptance"
+}

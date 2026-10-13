@@ -1,0 +1,55 @@
+{
+  "decision": "ACCEPT bounded source contracts",
+  "source": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "sourceTree": "f856da3e3f0df6941fbb3837a41c19615ed78cd9",
+  "base": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "initialSource": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "initialAuthorEvidence": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "initialAuthorIndexedHashesVerified": 41,
+  "permanentQualification": {
+    "onboardFreshAt7a02": 37,
+    "newsletterUnchangedByteBound": 53,
+    "total": 90,
+    "original72CaseNamesPreserved": true,
+    "skipped": 0,
+    "TODO": 0
+  },
+  "independentChecks": {
+    "originalCorpus": 9,
+    "rootClauseCorpus": 4,
+    "terminatorCorpus": 4,
+    "tokenBoundaries": 18,
+    "newsletterReceiptBoundaries": 10,
+    "total": 45
+  },
+  "preservation": {
+    "baselineOutsideFiveAdditionsExact": 24004,
+    "priorReviewerPacketFilesExact": 65,
+    "initialIndexedFilesExact": 20,
+    "helperPrefixSuffixOutsideRecognitionBlockExact": true,
+    "originalWholeSpecInverseExact": true,
+    "originalSourceAndRedHeadsActualAncestors": true
+  },
+  "unaccepted": [
+    "actual Onboard artifact/browser/auth flow",
+    "deployed serving",
+    "backend/frontend 179-asset byte parity",
+    "full native/Cleanup gates",
+    "Clio/workflow absent dependency closure"
+  ],
+  "sourceBodiesNotInspected": [
+    "protected EngagementService reporting",
+    "denied retirement report",
+    "skipped portrait report"
+  ],
+  "notPerformed": [
+    "provider/customer/DB/SQL/native/Prisma/install/Docker/default app graphs",
+    "real uploads/messages",
+    "frontend parity/replacement",
+    "deployment/main merge"
+  ],
+  "limitations": "bounded static linkage and synthetic port contracts; no arbitrary language/runtime/proxy/OS containment or provenance authentication claim",
+  "authorRepairEvidence": "a6a600c4da23447c856d20d6df344d9e71301fbe",
+  "authorRepairTree": "ecedbbbaad015aa30dcdfe0b2cab3616f4b817a3",
+  "authorRepairIndexedHashesVerified": 88
+}

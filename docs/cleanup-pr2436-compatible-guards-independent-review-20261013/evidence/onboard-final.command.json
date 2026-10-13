@@ -1,0 +1,23 @@
+{
+  "source": "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+  "sourceTree": "0c96047a606ec28209f29ef3f09579241c2451f7",
+  "reviewGitHead": "b53f2661d3fc8b2d83c22c1fe906e1699fef44b7",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 0.3002345561981201,
+  "stdoutSha256": "77432434e7e0d4aceef4eb8e231d3c3613c33484181f982d976cb9fb167ec5b4",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "note": "Immutable probes retain historical subject labels; exact command and Git source bindings identify actualeaf subject. No probe/input/expected-result changes."
+}

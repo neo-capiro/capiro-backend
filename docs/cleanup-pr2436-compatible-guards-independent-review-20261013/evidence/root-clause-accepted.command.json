@@ -1,0 +1,21 @@
+{
+  "source": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "sourceTree": "f856da3e3f0df6941fbb3837a41c19615ed78cd9",
+  "reviewGitHead": "6495758096b3e1e144efbd634e7734efc453f138",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-comment-probe.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 0.10571455955505371,
+  "stdoutSha256": "4248d4e0e80509cdf2f5bf95cd19b6013d787b308c839718edaaa5587c369abd",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "note": "Immutable probe text retains historical subject labels; command and current Git source bindings identify actual7a02 subject. Inputs/expected results are unchanged."
+}
