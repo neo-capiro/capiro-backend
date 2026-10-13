@@ -11,6 +11,7 @@ import { assembleNewsletterReleaseArtifact, createNewsletterArtifactPackagingPla
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const current = 'c8aa693e884de86001d2fc04fbb60d48db09341c';
+const qualified = '83f54f5ac0107822833adbbfef2b453e0240bc56';
 const historical = '7c87678730538958ace9762f824dc3e588bf445b';
 // Preserve the earlier pending-policy controls as an explicit labelled model;
 // this data is never injected through the CLI or treated as current approval.
@@ -147,25 +148,29 @@ test('shipping CLI keeps all seven flags, refuses pending pins and exposes no pr
 });
 
 test('current production policy admits only the qualified runtime with its exact published receipt pin', () => {
-  assert.equal(PROFILE.activeCommit, current); assert.equal(PROFILE.acceptedSources.length, 1);
+  assert.equal(PROFILE.activeCommit, qualified); assert.equal(PROFILE.acceptedSources.length, 2);
   assert.deepEqual(PROFILE.acceptedSources[0], { commit: current, tree: '9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4',
     qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '46ebdd448ef55e88c7a4083fb4586322757a14f8',
       path: 'docs/newsletter-receiving-final-20261013/QUALIFICATION.md',
       sha256: 'cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33' } });
-  const admitted = assertAcceptedNewsletterArtifactSource(pins(current));
+  assert.deepEqual(PROFILE.acceptedSources[1], { commit: qualified, tree: '760b05a7a7feacee16815da2767cb83dbb600d95',
+    qualificationReceipt: { repository: 'neo-capiro/capiro-frontend', commit: '3ee5655bf50350e3814b17170ce6f0a93b060dc0',
+      path: 'docs/unified-20261013/qualification-83f54f5a/README.md',
+      sha256: 'd8f2f93ac3887e760aad27ed9cf18ecf17b0e51575e4c2e0dc8c4f6d5658ea00' } });
+  const admitted = assertAcceptedNewsletterArtifactSource(pins(qualified));
   assert.equal(admitted.status, 'accepted'); assert.equal(admitted.sourceAcceptedByReviewedPolicy, true);
   assert.equal(admitted.syntheticSourceApprovalModel, false);
   for (const key of ['sourceApprovalProofVerified', 'independentFrontendQualificationVerified',
     'buildUsedSourceVerified', 'nativeRuntimeCompatibilityVerified']) assert.equal(admitted[key], false, key);
-  const plan = createNewsletterArtifactPackagingPlan(options(current));
+  const plan = createNewsletterArtifactPackagingPlan(options(qualified));
   assert.equal(plan.sourceAdmission.status, 'accepted'); assert.equal(plan.assemblyPerformed, false);
-  assert.equal(parseNewsletterBuildInvocation(buildArgs('--run')).mode, 'run');
+  assert.equal(parseNewsletterBuildInvocation(buildArgs('--run', qualified)).mode, 'run');
 });
 
 test('current production policy refuses stale, arbitrary and wrong runtime declarations before artifact callbacks', async () => {
-  for (const supplied of [pins(historical), pins('c'.repeat(40)), { ...pins(current), sourceRepository: 'other/repository' },
-    { ...pins(current), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'glibc', nodeMajor: 24 } },
-    { ...pins(current), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 22 } }]) {
+  for (const supplied of [pins(historical), pins(current), pins('c'.repeat(40)), { ...pins(qualified), sourceRepository: 'other/repository' },
+    { ...pins(qualified), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'glibc', nodeMajor: 24 } },
+    { ...pins(qualified), runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 22 } }]) {
     let calls = 0; const before = structuredClone(supplied);
     await assert.rejects(readAcceptedFrontendStandaloneArtifact({ artifactDir: '/synthetic/artifact', pins: supplied,
       ports: { lstat: async () => { calls++; throw new Error('must not touch artifact'); } } }));
@@ -186,9 +191,9 @@ function interceptedCli(file, args, ambientSource = historical) {
     env: { PATH: '/usr/bin:/bin', NEWSLETTER_ACCEPTED_SOURCE: ambientSource }, encoding: 'utf8' });
 }
 
-test('actual current CLI reaches only labelled inert artifact ports for qualified c8 and cannot override approval through flags or environment', () => {
-  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(), 1],
-    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run'), 2]]) {
+test('actual current CLI reaches only labelled inert artifact ports for qualified 83 and cannot override approval through flags or environment', () => {
+  for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(qualified), 1],
+    ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', qualified), 2]]) {
     const result = interceptedCli(file, args);
     assert.equal(result.status, code, result.stderr); assert.match(result.stderr, /INERT_ARTIFACT_REFUSAL/);
     const marker = JSON.parse(result.stdout);
@@ -197,16 +202,35 @@ test('actual current CLI reaches only labelled inert artifact ports for qualifie
     assert.doesNotMatch(result.stdout, /newsletter-release-assembly|"status":"PASS"/);
     if (code === 2) assert.equal(JSON.parse(result.stderr).assemblyCompleted, false);
   }
-  for (const commit of [historical, 'c'.repeat(40)]) {
+  for (const commit of [historical, current, 'c'.repeat(40)]) {
     for (const [file, args, code] of [['frontend-standalone-artifact-contract.mjs', shippingArgs(commit), 1],
       ['newsletter-artifact-packaging-plan.mjs', buildArgs('--run', commit), 2]]) {
-      const result = interceptedCli(file, args, current);
+      const result = interceptedCli(file, args, qualified);
       assert.equal(result.status, code); assert.match(result.stderr, /active accepted frontend source/);
       assert.equal(result.stdout, '', 'source refusal before artifact ports despite ambient accepted source');
       for (const flag of ['--source-profile', '--source-admission-fixture']) {
-        const injected = interceptedCli(file, [...args, flag, '{}'], current);
+        const injected = interceptedCli(file, [...args, flag, '{}'], qualified);
         assert.equal(injected.status, code); assert.equal(injected.stdout, '');
       }
     }
   }
+});
+
+test('retained c8 receipt is historical and cannot admit an artifact or become active through environment', () => {
+  assert.equal(inspectNewsletterSourceAdmission(pins(current)).status, 'refused');
+  assert.equal(inspectNewsletterSourceAdmission(pins(current)).activeSource.commit, qualified);
+  assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(current)), /active accepted/);
+  const result = interceptedCli('newsletter-artifact-packaging-plan.mjs', buildArgs('--run', current), current);
+  assert.equal(result.status, 2); assert.equal(result.stdout, '');
+  assert.match(result.stderr, /active accepted frontend source/);
+});
+
+test('qualified source permits arm64 declarations while retaining every native and receipt-byte proof gate', () => {
+  const supplied = pins(qualified); supplied.runtimeTarget.arch = 'arm64';
+  const admitted = assertAcceptedNewsletterArtifactSource(supplied);
+  assert.equal(admitted.sourceAcceptedByReviewedPolicy, true);
+  for (const key of ['sourceApprovalProofVerified', 'independentFrontendQualificationVerified',
+    'buildUsedSourceVerified', 'nativeRuntimeCompatibilityVerified']) assert.equal(admitted[key], false, key);
+  assert.equal(admitted.activeSource.tree, '760b05a7a7feacee16815da2767cb83dbb600d95');
+  assert.notEqual(admitted.activeSource.tree, '67f821a13c8470ceeb5222eb89d43cea58b1a8c8');
 });

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repository": "neo-capiro/capiro-frontend",
-  "activeCommit": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "activeCommit": "83f54f5ac0107822833adbbfef2b453e0240bc56",
   "acceptedSources": [
     {
       "commit": "c8aa693e884de86001d2fc04fbb60d48db09341c",
@@ -11,6 +11,16 @@
         "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
         "path": "docs/newsletter-receiving-final-20261013/QUALIFICATION.md",
         "sha256": "cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33"
+      }
+    },
+    {
+      "commit": "83f54f5ac0107822833adbbfef2b453e0240bc56",
+      "tree": "760b05a7a7feacee16815da2767cb83dbb600d95",
+      "qualificationReceipt": {
+        "repository": "neo-capiro/capiro-frontend",
+        "commit": "3ee5655bf50350e3814b17170ce6f0a93b060dc0",
+        "path": "docs/unified-20261013/qualification-83f54f5a/README.md",
+        "sha256": "d8f2f93ac3887e760aad27ed9cf18ecf17b0e51575e4c2e0dc8c4f6d5658ea00"
       }
     }
   ],
