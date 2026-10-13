@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createContext, Script } from 'node:vm';
 import { createHash } from 'node:crypto';
+import { types as nodeTypes } from 'node:util';
 import ts from 'typescript';
 import type { ApplicationAuthorityIdentityProof } from './application-authority.js';
 
@@ -32,7 +33,7 @@ function load(source: string, ports: Record<string, unknown>, timers = { setTime
   return module.exports;
 }
 const contract = load(sources('auth/application-authority.ts'), {
-  '@nestjs/common': nest, 'node:crypto': { createHash },
+  '@nestjs/common': nest, 'node:crypto': { createHash }, 'node:util': { types: nodeTypes },
 });
 const tenantId = '00000000-0000-7000-8000-000000000001';
 const actorId = '00000000-0000-0000-0000-000000000002';
@@ -119,6 +120,7 @@ describe('application-authority closed wire and minimal receipts', () => {
   for (const [name, body] of [
     ['absent', undefined], ['null', null], ['array', []], ['extra capability', { scopes: [] }],
     ['symbol', { [Symbol('hidden')]: true }], ['inherited', Object.create({ permission: true })],
+    ['proxy', new Proxy({}, {})],
   ]) it(`refuses identity ${name}`, () => expect(() => contract.assertApplicationAuthorityIdentityBody(body)).toThrow());
   for (const [name, body] of [
     ['missing run field', { conversationId, clientId }], ['extra authority', { ...input, tenantId }],
@@ -126,7 +128,15 @@ describe('application-authority closed wire and minimal receipts', () => {
     ['uppercase UUID', { ...input, clientId: 'A'.repeat(8) + clientId.slice(8) }],
     ['non-string UUID', { ...input, clientId: null }],
     ['accessor', Object.defineProperty({ ...input }, 'clientId', { get() { throw new Error('getter executed'); } })],
+    ['proxy', new Proxy({ ...input }, {})],
   ]) it(`refuses context ${name}`, () => expect(() => contract.parseApplicationAuthorityContextBody(body)).toThrow());
+  it('refuses proxies before any user-defined reflection trap', () => {
+    let traps = 0;
+    const proxy = new Proxy({}, { getPrototypeOf() { traps++; throw new Error('trap'); }, ownKeys() { traps++; throw new Error('trap'); } });
+    expect(() => contract.assertApplicationAuthorityIdentityBody(proxy)).toThrow('Invalid application authority request');
+    expect(() => contract.parseApplicationAuthorityContextBody(proxy)).toThrow('Invalid application authority request');
+    expect(traps).toBe(0);
+  });
   it('projects closed identity output and refuses original expired bounds', () => {
     const result = contract.applicationAuthorityIdentityReceipt({ ...identity(), privateProfile: 'discard' });
     expect(Object.keys(result).sort()).toEqual(['checkedAtMs', 'expiresAtMs', 'identityRevision', 'principal']);

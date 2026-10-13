@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { types as nodeTypes } from 'node:util';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 export interface ApplicationAuthorityPrincipal {
@@ -48,7 +49,7 @@ export function parseApplicationAuthorityContextBody(body: unknown): Application
 }
 
 function closedBody(body: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (!body || typeof body !== 'object' || Array.isArray(body) ||
+  if (!body || typeof body !== 'object' || nodeTypes.isProxy(body) || Array.isArray(body) ||
       (Object.getPrototypeOf(body) !== Object.prototype && Object.getPrototypeOf(body) !== null)) {
     throw new BadRequestException('Invalid application authority request');
   }
@@ -74,6 +75,9 @@ export function applicationAuthorityRevision(kind: 'identity' | 'context', facts
 
 function stableFacts(value: unknown, depth = 0): string {
   if (depth > 12) throw new ForbiddenException('Application authority unavailable');
+  if (value && typeof value === 'object' && nodeTypes.isProxy(value)) {
+    throw new ForbiddenException('Application authority unavailable');
+  }
   if (value === null || typeof value === 'boolean' || typeof value === 'string') {
     if (typeof value === 'string' && value.length > 4096) throw new ForbiddenException('Application authority unavailable');
     return JSON.stringify(value);
