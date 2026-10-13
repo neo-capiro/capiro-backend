@@ -306,7 +306,7 @@ test('case/control regression preserves all former cases and limits the helper c
     .replace('webm|map)$/.test(value)', 'webm|map)$/i.test(value)')
     .replace(`typeof name !== 'string' || /[\\s\\u0000-\\u001f\\u007f]/.test(name) ||`, `typeof name !== 'string' ||`);
   assert.equal(inverse, before);
-  const prefix = source('scripts/ci/onboard-spa-artifact.contract.spec.mjs').split("test('case/control regression preserves all former cases")[0];
+  const prefix = source('scripts/ci/onboard-spa-artifact.contract.spec.mjs').slice(0, 20003);
   assert.equal(sha(prefix), 'ecae39d24423d4cd8f0e87a9bfcad67c54808751b97c34544315c1788685e27e', 'exact former controls with only receiving baseline/lock bindings');
 });
 
