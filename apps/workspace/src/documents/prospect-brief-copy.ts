@@ -26,7 +26,7 @@ import {
 } from './prospect-brief-copy-contract.js';
 
 type Tx = Prisma.TransactionClient;
-interface CopyDocument {
+export interface CopyDocument {
   id: string;
   name: string;
   ordinal: number;
