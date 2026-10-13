@@ -1,0 +1,218 @@
+{
+  "schema": "backend-cleanup-client-intel-plan-retirement/v1",
+  "scope": "Exactly two historical May26 implementation/backlog prose paths. All other docs, acceptance/QA evidence, operating/API contracts, migration/incident histories, new rebuild packets, unpublished Engagement report and reserved progress remain held. No frontend retirement or native success claim.",
+  "replacement": "docs/backend-cleanup/20261012/CLIENT-INTEL-HISTORY.md",
+  "originalRequirementsCommit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "preRetirementCheckpoint": {
+    "commit": "ab52a0c4b04eeda1ebba2dfab1314282cb88213b",
+    "tree": "9a18a015527820e98d21e9256f8bbdc07627b60d",
+    "ref": "refs/tags/cleanup-recovery/20261012/before-client-intel-plan-retirement",
+    "checkpointRecord": "/workspace/backend-cleanup-recovery-20261012/client-intel-plans-before/CHECKPOINT.json",
+    "checkpointRecordSha256": "958fdd3ddc9bc3843f91c12d40e0c2d5540b2e73b6973927d567d1664828729d",
+    "readonlyArchiveMode": "0444",
+    "deltaBundle": "/workspace/backend-cleanup-recovery-20261012/client-intel-plans-before/source-checkpoint.bundle",
+    "deltaBundleBytes": 1387583,
+    "deltaBundleSha256": "23ce4225f555e6f77a6a87537913078f5b67569c5fc4642c8c7d2c0d365fbab2",
+    "completeHistoryCustody": [
+      "declared-deployed-revisions.bundle (complete Core history)",
+      "client-intel-plans-before/source-checkpoint.bundle (all later ancestors from Core)"
+    ],
+    "requiredCoreAncestor": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "bareRestoreVerifiedByIntegrationOwner": true,
+    "exactArchivesMatchRestoredHistoryVerifiedByIntegrationOwner": true,
+    "sliceOwnerVerifiedArchiveActiveOriginalBytes": true,
+    "sliceOwnerVerifiedBundleSha256": true,
+    "tagProtection": "Conventional immutable ref; readonly content-addressed bundle and recorded exact commit/blob/hash identities are the authority."
+  },
+  "retiredPaths": [
+    {
+      "path": "docs/plans/2026-05-26-client-intel-tab-redesign-v1-implementation-plan.md",
+      "mode": "100644",
+      "blob": "4382ce7168c2f5bcdb225fff0ef65032f308639b",
+      "sha256": "413408a0425eb1fb18847258e9de35cb6b8e88cda1dcc8daf4a5be6ed0e40c98",
+      "bytes": 15219,
+      "originalRequirementsUrl": "https://github.com/neo-capiro/capirov2/blob/f1e83a3f194a8ebd972e370ff6e5b5f559888b29/docs/plans/2026-05-26-client-intel-tab-redesign-v1-implementation-plan.md",
+      "preservedAtOriginal": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "preservedAtCheckpoint": "ab52a0c4b04eeda1ebba2dfab1314282cb88213b",
+      "checkpointUrl": "https://github.com/neo-capiro/capirov2/blob/ab52a0c4b04eeda1ebba2dfab1314282cb88213b/docs/plans/2026-05-26-client-intel-tab-redesign-v1-implementation-plan.md",
+      "readonlyArchive": "/workspace/backend-cleanup-recovery-20261012/client-intel-plans-before/2026-05-26-client-intel-tab-redesign-v1-implementation-plan.md"
+    },
+    {
+      "path": "docs/plans/2026-05-26-client-intel-tab-redesign-v1-ticket-backlog.md",
+      "mode": "100644",
+      "blob": "de9e352a6c46b91099d735040a505e1aef497219",
+      "sha256": "57103cb33aa264eb04abac126ee5570bfd031d74b48f33d06a3fbfd72d9f8953",
+      "bytes": 10348,
+      "originalRequirementsUrl": "https://github.com/neo-capiro/capirov2/blob/f1e83a3f194a8ebd972e370ff6e5b5f559888b29/docs/plans/2026-05-26-client-intel-tab-redesign-v1-ticket-backlog.md",
+      "preservedAtOriginal": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "preservedAtCheckpoint": "ab52a0c4b04eeda1ebba2dfab1314282cb88213b",
+      "checkpointUrl": "https://github.com/neo-capiro/capirov2/blob/ab52a0c4b04eeda1ebba2dfab1314282cb88213b/docs/plans/2026-05-26-client-intel-tab-redesign-v1-ticket-backlog.md",
+      "readonlyArchive": "/workspace/backend-cleanup-recovery-20261012/client-intel-plans-before/2026-05-26-client-intel-tab-redesign-v1-ticket-backlog.md"
+    }
+  ],
+  "retainedClientIntelDocs": [
+    {
+      "path": "docs/plans/2026-05-26-client-intel-tab-redesign-v1-acceptance-criteria.md",
+      "blob": "7f6dbf5413b3c6c4b5b6a5ec1b1fa5f158bf1726",
+      "sha256": "b86e24b0b90fa5460f2db5e76bdb3dca23e644ff419f1e7e2905202f37329d69",
+      "bytes": 11925,
+      "disposition": "HELD: API acceptance requirements or historical sign-off evidence; no rewrite/delete",
+      "immutableUrl": "https://github.com/neo-capiro/capirov2/blob/f1e83a3f194a8ebd972e370ff6e5b5f559888b29/docs/plans/2026-05-26-client-intel-tab-redesign-v1-acceptance-criteria.md"
+    },
+    {
+      "path": "docs/plans/2026-05-28-client-intel-v1-visual-parity-qa-evidence.md",
+      "blob": "28a3e0dda3d776cbb32efff8c5b567fc2b9cfbc5",
+      "sha256": "eab9773c766a25b9667c677001b9fb44dca7526557da1385843105d0dedaed0c",
+      "bytes": 2059,
+      "disposition": "HELD: API acceptance requirements or historical sign-off evidence; no rewrite/delete",
+      "immutableUrl": "https://github.com/neo-capiro/capirov2/blob/f1e83a3f194a8ebd972e370ff6e5b5f559888b29/docs/plans/2026-05-28-client-intel-v1-visual-parity-qa-evidence.md"
+    }
+  ],
+  "sourceObservationScope": {
+    "declaredRevisions": {
+      "core-api": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "memory-review": "32a4320d0386f5608e0bf59af3671c91e665c100",
+      "legiwatch-api-89": "d6fef85b726e6c7f4c5c674f82a47602894a64f9",
+      "legiwatch-api-104": "41aead03cd5ad9fec8abecb45e6c12569b0ea08e",
+      "api-strategy": "e04b01744570134e9b1f0316b2fa377e89057505",
+      "engagement-api": "192cca3a1386eb2ceb370e01f6041e338709ab24",
+      "intel-api": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "meriv2-orchestrator": "5d97ebc64dc9d2c99ea9fca5e1b409f16d3196bf",
+      "workspace": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda"
+    },
+    "protectedTagOnlyCandidates": {
+      "clio-tag-only": "c16f3d4e8f199cc41911a332881a5a7a71d4ef43",
+      "onboard-tag-only": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+    },
+    "parent802": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+    "initialObservedHead": "959ddd650f5183d5cd7469947b30a45601020100",
+    "finalObservedHead": "ab52a0c4b04eeda1ebba2dfab1314282cb88213b",
+    "originalF1": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+    "allCandidateModeBlobBytesIdenticalAcrossObservedTrees": true,
+    "actualBuildTrees": "UNVERIFIED; no new component-source admission/composition or live filesystem claim"
+  },
+  "consumerAudit": {
+    "artifact": "/tmp/backend-cleanup-transition-20261012/docs-next-inventory.json",
+    "artifactSha256": "1241f915b212c15f9ba8529885bdf6ada7c977a6df1abe4498dd69c841e4ad04",
+    "sourceBodyObservations": 143720,
+    "uniqueSourceBodies": 13553,
+    "namedExecutableOrRequiredFileHits": 0,
+    "namedPrototypeFindingOrManifestMembershipHits": 0,
+    "dynamicMarkdown": "Scoped Strategy eval/template readers and uploaded documents; no source-owned loader selecting either root planning path. Whole-HEAD archive is a positive inclusion, qualified separately.",
+    "dockerAndPublication": "No broad Docker COPY . or docs inclusion, root docs-site publisher or source-owned external API selection for these prose files in checked scope. No unrecorded-external-consumer claim.",
+    "narrativeReferences": "Implementation prose links ticket backlog, retained acceptance checklist and retained May28 QA evidence. They are historical links, not executable readers. Complete original prose links remain pinned here.",
+    "coreE2eArchiveChainPresent": false,
+    "corePhase1LocalTar": "OCI image metadata extraction only; not repo-source archiving"
+  },
+  "requirementsRetention": {
+    "allOriginalRequirementsPreservedAtPinnedUrls": true,
+    "retainedAcceptanceF1F5": "Profile payload, aggregation, tenant/client scoping/freshness, SQL view naming and action-target metadata remain in retained acceptance checklist and full immutable originals; current API source/tests untouched.",
+    "allOriginalAIProseAndUnfinishedItems": "Full original requirements/ticket sequencing, priorities and historical done gates remain at the two pinned original blobs. No old unfinished item is marked complete by this slice.",
+    "retainedI4I5I6Evidence": "May28 sign-off/QA claims retained byte-for-byte as historical evidence; no fresh native/test/coverage assertion.",
+    "unresolvedHistoricalMapping": {
+      "backlog": "C-002 at line75 is FEC three-column flow visual",
+      "acceptance": "C2 at line106 is ROI chart",
+      "decision": "Original documents claim one-to-one mapping but differ; preserve each version and hold canonical mapping/completion reconciliation for the integration/product owner. No historical rewriting or guessed resolution."
+    },
+    "liveApiCanonicalDecision": "Historical prose archival does not choose present API semantics or change public/API operating contracts."
+  },
+  "sourceArchiveQualification": {
+    "wholeTreeInclusion": true,
+    "sourceTree": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+    "archiveRecipe": "git -c core.autocrlf=false archive --format=tar -o source-<HEAD>.tar HEAD",
+    "exportIgnore": false,
+    "gitattributesBlob": "d3ce067e7eeefe063893c65ff17bfef55c176787",
+    "gitattributesSha256": "0c81c178c2662c17f00a3a2d6c147de88f7f16d6416aa85d4d456e2994008f65",
+    "gitattributesSameAll14Pins": true,
+    "measuredInputs": [
+      "apps/web/src",
+      "apps/web/public",
+      "apps/web/vite.config.ts",
+      "apps/web/vite.config.js",
+      "apps/web/tsconfig.json",
+      "apps/web/package.json",
+      "apps/web/index.html",
+      "apps/e2e",
+      "apps/onboard-web/src",
+      "apps/onboard-web/smoke",
+      "apps/onboard-web/index.html",
+      "apps/onboard-web/public",
+      "apps/onboard-web/vite.config.ts",
+      "apps/onboard-web/vitest.config.ts",
+      "apps/onboard-web/tsconfig.json",
+      "apps/onboard-web/package.json",
+      "packages/shared/src",
+      "packages/shared/package.json",
+      "packages/strategy-verifier/src",
+      "packages/strategy-verifier/package.json",
+      "apps/e2e/lib/renderer-contract.mjs",
+      "apps/e2e/lib/render-context.mjs",
+      "apps/e2e/lib/playwright-report.mjs",
+      "scripts/test-proof/lib/adapters.mjs",
+      "scripts/test-proof/lib/paths.mjs",
+      "scripts/test-proof/lib/schema.mjs",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "tsconfig.base.json",
+      "turbo.json"
+    ],
+    "requiredInputs": [
+      "apps/web/src",
+      "apps/web/package.json",
+      "apps/e2e",
+      "apps/onboard-web/src",
+      "apps/onboard-web/package.json",
+      "apps/onboard-web/index.html",
+      "apps/onboard-web/vite.config.ts",
+      "packages/shared/src",
+      "packages/strategy-verifier/src",
+      "package.json",
+      "pnpm-lock.yaml",
+      "apps/e2e/lib/renderer-contract.mjs",
+      "apps/e2e/lib/render-context.mjs",
+      "apps/e2e/lib/playwright-report.mjs",
+      "scripts/test-proof/lib/adapters.mjs"
+    ],
+    "candidateMembershipInRequiredAndMeasuredInputs": false,
+    "candidateMembershipInExistingBaselineManifest": false,
+    "baselineManifestBlob": "bb6b5f62b6d70693f657f1d26bef478617860abb",
+    "baselineManifestSha256": "5d60e4d8528b56ab90020aea4c8abc496ff90dfa1aa81ba7a2952cdb977779f4",
+    "coreHasArchiveIdentityManifestChain": false,
+    "futureQualification": "On deliberate rebuild adoption at a later exact commit, create a fresh separately versioned source-<newHEAD>.tar, source-manifest.json and archive-receipt.json; verify containment, canonical required inputs and source stability, then record applicable captures/repeat/coverage proofs against that new identity. Keep every old802 tar/manifest/receipt/proof byte-for-byte. Do not narrow schemas, erase measured rows, or change historical claims. Doc-only changes may preserve measured bytes, but HEAD/tree/tar change; additional integration changes may also change the measured fingerprint. No such generation/native qualification is executed or backported here.",
+    "namedFileRetentionRequirementForProposedDocs": false,
+    "existingBaselineRecordedIdentity": {
+      "schema": "capiro.cleanup1.visual-source-manifest.v1",
+      "head": null,
+      "treeHash": null,
+      "fingerprint": "c1bf8a80e6cb6f15a7e500718c9407e70aa2cf71969cc2a4af4f8bec59fc3840",
+      "fileCount": 2459
+    },
+    "historicalIdentityRule": "Existing baseline at802 has null HEAD/tree. It is historical membership/measurement metadata, not validated source-bound proof under current HEX40 validator. Preserve its nulls/blob/hash; never fill or relabel the historical artifact. Future adoption uses a fresh valid independently measured packet.",
+    "existingBaselineAcceptedSourceBoundProof": false,
+    "validatorAnchors": [
+      {
+        "path": "apps/e2e/lib/source-identity.mjs",
+        "blob": "59abe882dd5c40a28fba8a75dd915c688b1e2b25",
+        "line": 346,
+        "excerpt": "  if (!HEX40.test(String(doc.head))) errors.push(`head must be 40-hex, got ${JSON.stringify(doc.head)}`);"
+      },
+      {
+        "path": "apps/e2e/lib/source-identity.mjs",
+        "blob": "59abe882dd5c40a28fba8a75dd915c688b1e2b25",
+        "line": 347,
+        "excerpt": "  if (!HEX40.test(String(doc.treeHash))) errors.push(`treeHash must be 40-hex, got ${JSON.stringify(doc.treeHash)}`);"
+      }
+    ]
+  },
+  "protectionRules": [
+    "Hold every document beyond exactly two retired paths, including linked API acceptance and QA.",
+    "Keep complete history, read-only archived bytes, original refs and all unresolved source variants.",
+    "Keep all source802 archives/proofs at their recorded identities; generate fresh separately versioned valid receipts on deliberate future adoption, never import/rewrite them here.",
+    "Preserve baseline null HEAD/tree values and never backfill/relabel for green.",
+    "No reserved cleanup4-progress.md or unpublished Engagement report content inspection/deletion.",
+    "No code/test identity, package/CI/deployment, security, migration or API changes by this prose slice."
+  ],
+  "verification": "Source-only archive/hash/JSON/reference/preservation review. No native/application verifier, build, database, provider, AWS or proof generation executed; no frontend-retirement completion asserted.",
+  "independentReview": "Required before integration; pending frozen four-path review at preparation."
+}

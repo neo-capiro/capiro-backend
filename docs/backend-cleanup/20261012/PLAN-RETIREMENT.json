@@ -1,0 +1,126 @@
+{
+  "candidateSupplement": {
+    "filename": "docs-candidate-supplement.json",
+    "qualification": "Two unadmitted tag-only source candidates checked conservatively for additional readers; source admission and actual live filesystems remain unknown.",
+    "sha256": "f192643a1be8a99cd8ebe6348a50ee4492c6f2cbe65786ae6230d30de25f9de6"
+  },
+  "decision": "recoverable retirement of exactly four historical prose requirement paths; replacement index preserves original requirements through immutable f1 links; no positive consumer identified in admitted-source scope",
+  "declaredRevisions": {
+    "api-strategy": "e04b01744570134e9b1f0316b2fa377e89057505",
+    "core-api": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "engagement-api": "192cca3a1386eb2ceb370e01f6041e338709ab24",
+    "intel-api": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+    "legiwatch-api-104": "41aead03cd5ad9fec8abecb45e6c12569b0ea08e",
+    "legiwatch-api-89": "d6fef85b726e6c7f4c5c674f82a47602894a64f9",
+    "memory-review": "32a4320d0386f5608e0bf59af3671c91e665c100",
+    "meriv2-orchestrator": "5d97ebc64dc9d2c99ea9fca5e1b409f16d3196bf",
+    "workspace": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda"
+  },
+  "nativeVerification": "Documentation source audit and exact preservation only; no application build, tests or coverage claimed.",
+  "replacement": "docs/backend-cleanup/ACCEPTANCE.md",
+  "retiredPaths": [
+    {
+      "blob": "88928d6b4d93c48c668be648f0e9b5b79daa50ff",
+      "bytes": 25161,
+      "mode": "100644",
+      "path": "docs/plans/CleanUp1.md",
+      "preservedAt": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "sha256": "dded1ec8bd8f1727aa229ab4fbf04756c622c44731e8a2fb7b74fef7c31c754f"
+    },
+    {
+      "blob": "686ea3240d252dc144523c64604173891ba89015",
+      "bytes": 37818,
+      "mode": "100644",
+      "path": "docs/plans/CleanUp2.md",
+      "preservedAt": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "sha256": "020c69304d63eefed205487d41bd35e857e401ef591640c7e1a9c55f1818d2f9"
+    },
+    {
+      "blob": "92cbcaa2d1ab5bd88d69edc865724447703931ad",
+      "bytes": 18321,
+      "mode": "100644",
+      "path": "docs/plans/CleanUp3.md",
+      "preservedAt": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "sha256": "99eaf8382a6be3324a75f9bc0b750f140a335a1c6ab446f14a6ec501c26e3b63"
+    },
+    {
+      "blob": "5719b93387d7f3c45b58d413c8cd09ed50ff9058",
+      "bytes": 24876,
+      "mode": "100644",
+      "path": "docs/plans/CleanUp4.md",
+      "preservedAt": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "sha256": "eccda8048174bf51100be10dd6cda0c0ee94062fb47b3890e21915a6d89bf130"
+    }
+  ],
+  "schema": "backend-cleanup-plan-retirement/v1",
+  "scope": "Exactly four historical prose plans; all other plans, operating/API documents, migration/incident records, historical evidence and unpublished Engagement report retained. No observed consumer in admitted tracked-source scope; unrecorded external consumers and actual image filesystems are not established.",
+  "sourceAudit": {
+    "filename": "docs.json",
+    "sha256": "7d624047ba4334259afb9060e74b8898c928824f74413b5536c380a8f136631a",
+    "summary": {
+      "api-strategy": {
+        "bodyFilesRead": 14394,
+        "commit": "e04b01744570134e9b1f0316b2fa377e89057505",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "core-api": {
+        "bodyFilesRead": 14393,
+        "commit": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "engagement-api": {
+        "bodyFilesRead": 14390,
+        "commit": "192cca3a1386eb2ceb370e01f6041e338709ab24",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "intel-api": {
+        "bodyFilesRead": 13905,
+        "commit": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "legiwatch-api-104": {
+        "bodyFilesRead": 13924,
+        "commit": "41aead03cd5ad9fec8abecb45e6c12569b0ea08e",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "legiwatch-api-89": {
+        "bodyFilesRead": 13720,
+        "commit": "d6fef85b726e6c7f4c5c674f82a47602894a64f9",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "memory-review": {
+        "bodyFilesRead": 7973,
+        "commit": "32a4320d0386f5608e0bf59af3671c91e665c100",
+        "directCleanupReferenceHits": 0,
+        "dockerCopyAddInstructions": 313,
+        "docsRootOrPlanningReferenceHits": 105
+      },
+      "meriv2-orchestrator": {
+        "bodyFilesRead": 14139,
+        "commit": "5d97ebc64dc9d2c99ea9fca5e1b409f16d3196bf",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      },
+      "workspace": {
+        "bodyFilesRead": 14381,
+        "commit": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+        "directCleanupReferenceHits": 569,
+        "dockerCopyAddInstructions": 488,
+        "docsRootOrPlanningReferenceHits": 143
+      }
+    }
+  }
+}

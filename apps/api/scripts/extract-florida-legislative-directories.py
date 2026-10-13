@@ -55,7 +55,7 @@ DEFAULT_MANIFEST = (
     / "directory-enrichment.json"
 )
 DEFAULT_PORTRAIT_DIR = (
-    REPO_ROOT / "apps" / "web" / "public" / "florida-directory" / "portraits"
+    REPO_ROOT / "apps" / "api" / "data" / "florida-legislative-directory" / "portraits"
 )
 
 PHONE_RE = re.compile(r"\(\d{3}\)\s*\d{3}-\d{4}")

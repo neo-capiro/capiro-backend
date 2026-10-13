@@ -72,6 +72,10 @@
         {
           "name": "Exercise isolated loopback fixtures with synthetic asset identities",
           "run": "node --test scripts/ci/newsletter-loopback-serving.spec.mjs"
+        },
+        {
+          "name": "Preserve backend-owned Intel inputs and retained frontend parity",
+          "run": "node --test scripts/ci/backend-owned-qualification-inputs.spec.mjs apps/intel-api/test/qualification/hearing-recording-transport-parity.spec.mjs apps/intel-api/src/tracker/email-cta-route-input-parity.spec.mjs"
         }
       ]
     }
