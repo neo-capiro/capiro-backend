@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "incremental": false,
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "test/tracker-board-ownership*.spec.ts",
+    "test/fixtures/tracker-board-ownership/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
