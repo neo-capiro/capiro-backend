@@ -10,7 +10,7 @@
 // Investigate read-only and PROPOSE first; wait for go-ahead before editing,
 // merging, or deploying.
 // ============================================================================
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClerkClient, type ClerkClient, verifyToken } from '@clerk/backend';
 import type { AppConfig } from '../config/config.schema.js';
@@ -18,6 +18,8 @@ import type { AppConfig } from '../config/config.schema.js';
 export interface ClerkSessionClaims {
   sub: string; // Clerk user id
   iss: string;
+  sid?: string;
+  exp?: number;
   email?: string;
   // Clerk Organizations claims (populated when the user has an active org).
   // NOTE: Clerk's *v2* default session token nests these under a compact `o`
@@ -46,6 +48,17 @@ interface ClerkV2OrgClaim {
   id?: string;
   slg?: string;
   rol?: string;
+}
+
+export interface ActiveApplicationAuthoritySession {
+  id: string;
+  userId: string;
+  status: 'active';
+  createdAt: number;
+  expireAt: number;
+  abandonAt: number;
+  actor: Record<string, unknown> | null;
+  expiresAtMs: number;
 }
 
 /**
@@ -89,6 +102,48 @@ export class ClerkService {
     // foreign-instance token already fails signature verification above.
     this.assertIssuer(raw as Record<string, unknown>);
     return normalizeClaims(raw as Record<string, unknown>);
+  }
+
+  /** Read-only online session check for application receipts. Never mints tokens.
+   * The SDK has no per-getSession AbortSignal. This deadline bounds caller
+   * refusal; late SDK settlement is consumed and cannot produce a receipt. */
+  async assertActiveApplicationAuthoritySession(
+    claims: ClerkSessionClaims,
+  ): Promise<ActiveApplicationAuthoritySession> {
+    const denied = () => new UnauthorizedException('Application authority unavailable');
+    if (typeof claims.sid !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sid) ||
+        typeof claims.sub !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(claims.sub) ||
+        !Number.isSafeInteger(claims.exp) || !Number.isSafeInteger((claims.exp ?? 0) * 1000) ||
+        (claims.exp ?? 0) * 1000 <= Date.now()) throw denied();
+    const sessionId = claims.sid;
+    const userId = claims.sub;
+    const jwtExpiresAtMs = claims.exp! * 1000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const session = await Promise.race([
+        Promise.resolve().then(() => this.client.sessions.getSession(sessionId)),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(denied()), 2000);
+        }),
+      ]);
+      const now = Date.now();
+      if (!session || session.id !== sessionId || session.userId !== userId ||
+          session.status !== 'active' ||
+          ![session.createdAt, session.expireAt, session.abandonAt].every(
+            (value) => Number.isSafeInteger(value) && value >= 0,
+          ) || session.createdAt > now) throw denied();
+      const expiresAtMs = Math.min(jwtExpiresAtMs, session.expireAt, session.abandonAt);
+      if (expiresAtMs <= now) throw denied();
+      return {
+        id: session.id, userId: session.userId, status: 'active',
+        createdAt: session.createdAt, expireAt: session.expireAt, abandonAt: session.abandonAt,
+        actor: session.actor, expiresAtMs,
+      };
+    } catch {
+      throw denied();
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
   }
 
   private assertIssuer(raw: Record<string, unknown>): void {

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -23,6 +23,33 @@ export interface ResolveContextSecurityScopeInput {
 @Injectable()
 export class ContextSecurityScopeService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Minimal current client/wall facts for a selected-client application receipt.
+   * Uses this owner's existing client resolver; requested IDs never grant access.
+   * Facts are hashed by the caller, not returned as a roster or profile. */
+  async resolveApplicationAuthorityClient(tenantId: string, actorUserId: string, clientId: string) {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      await this.resolveClients(tx, actorUserId, [clientId], true);
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId, status: { not: 'archived' } },
+        select: {
+          id: true, tenantId: true, status: true, memoryWall: true,
+          memoryAccessGrants: {
+            where: { tenantId, clientId, userId: actorUserId },
+            select: { id: true, tenantId: true, clientId: true, userId: true, createdAt: true },
+            orderBy: { id: 'asc' },
+          },
+        },
+      });
+      if (!client || client.id !== clientId || client.tenantId !== tenantId || client.status === 'archived') {
+        throw new ForbiddenException('Application authority unavailable');
+      }
+      // Recheck through the canonical predicate after the fact read as well.
+      await this.resolveClients(tx, actorUserId, [clientId], true);
+      return [client.id, client.tenantId, client.status, client.memoryWall,
+        client.memoryAccessGrants.map((grant) => [grant.id, grant.tenantId, grant.clientId, grant.userId, grant.createdAt.getTime()])];
+    });
+  }
 
   async resolve(input: ResolveContextSecurityScopeInput): Promise<ResolvedContextSecurityScope> {
     const tenantId = requiredId(input.tenantId, 'tenantId');
