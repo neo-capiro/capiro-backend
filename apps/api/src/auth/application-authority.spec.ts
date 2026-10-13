@@ -14,9 +14,9 @@ const decorator = () => () => undefined;
 const nest = { Injectable: decorator, Optional: decorator, Logger: class { log() {} warn() {} error() {} },
   UnauthorizedException: Refusal, ForbiddenException: Refusal, BadRequestException: Refusal,
   NotFoundException: Refusal };
-function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout }) {
+function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
   const module = { exports: {} as any };
-  const context = createContext({ module, exports: module.exports, Date, Object, Reflect, Array,
+  const context = createContext({ module, exports: module.exports, Date: clock, Object, Reflect, Array,
     Promise, Number, JSON, Map, WeakMap, Error, ...timers,
     require(id: string) {
       if (Object.hasOwn(ports, id)) return ports[id];
@@ -48,7 +48,7 @@ const identity = (): ApplicationAuthorityIdentityProof => ({ principal: { tenant
   recheckCurrent: async () => identity() });
 const conversation = () => ({ id: conversationId, tenantId, userId: actorId, clientId, status: 'active', archivedAt: null,
   updatedAt: new Date(), title: 'not a revision input', metadata: {} });
-function clerkFixture(timers?: { setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout }) {
+function clerkFixture(timers?: { setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
   const events: string[] = [];
   let row = session();
   let reader = async (_id: string) => row;
@@ -57,7 +57,7 @@ function clerkFixture(timers?: { setTimeout: typeof setTimeout; clearTimeout: ty
     '@clerk/backend': { createClerkClient: () => ({ sessions: { getSession: (id: string) => {
       events.push(`getSession:${id}`); return reader(id);
     } } }), verifyToken: () => { throw new Error('JWT port must not be called by the dedicated assertion'); } },
-  }, timers);
+  }, timers, clock);
   const clerk = new exports.ClerkService({ get: (key: string) => key === 'CLERK_SECRET_KEY' ? 'synthetic-test-secret' : undefined });
   return { clerk, events, row, setReader(next: typeof reader) { reader = next; } };
 }
@@ -91,15 +91,19 @@ function tenantFixture(options: { impersonated?: boolean } = {}) {
     './tenant-context.store.js': {}, '../auth/application-authority.js': contract,
   }).TenantContextMiddleware;
   let activeContext: any;
-  const owner = new middleware({ verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {
+  const clerkPort = { verifySessionToken: async () => claims(), assertActiveApplicationAuthoritySession: async (value: any) => {
     events.push('onlineSession'); return sessionReader(value);
-  } }, { withSystem: async (fn: any) => fn(tx) }, { run: (value: any, fn: any) => { activeContext = value; return fn(); } });
+  } };
+  const prismaPort = { withSystem: async (fn: any) => fn(tx) };
+  const storePort = { run: (value: any, fn: any) => { activeContext = value; return fn(); } };
+  const owner = new middleware(clerkPort, prismaPort, storePort);
   const headers: Record<string, string> = { authorization: 'Bearer synthetic' };
   if (options.impersonated) headers['x-capiro-impersonate-tenant'] = 'target';
   const req = { path: '/api/clio/application-authority/identity', originalUrl: '/api/clio/application-authority/identity',
     headers, header: (name: string) => headers[name], hostname: 'localhost' } as any;
   const responseHeaders: Record<string, string> = {};
   return { owner, req, user, tenant, membership, impersonation, tx, events, responseHeaders,
+    separateProvider() { return new middleware(clerkPort, prismaPort, storePort); },
     setSessionReader(next: typeof sessionReader) { sessionReader = next; },
     async authenticate() {
       await owner.use(req, { setHeader: (key: string, value: string) => { responseHeaders[key] = value; } }, () => {});
@@ -169,9 +173,23 @@ describe('actual Clerk owner bounded read-only session assertion', () => {
     await expect(pending).rejects.toThrow('Application authority unavailable');
     rejectLate(new Error('late')); await Promise.resolve(); expect(cleared).toBe(1);
   });
+  it('refuses late resolution even when a delayed event loop has not fired the timeout callback', async () => {
+    let now = Date.now();
+    class Clock extends Date { static now() { return now; } }
+    const f = clerkFixture({ setTimeout: (() => 1) as any, clearTimeout: (() => {}) as any }, Clock);
+    f.setReader(async () => { now += 2001; return f.row; });
+    await expect(f.clerk.assertActiveApplicationAuthoritySession(claims())).rejects.toThrow('Application authority unavailable');
+  });
 });
 
 describe('actual middleware selected-provenance current authority', () => {
+  it('shares authentic request provenance across the actual separate middleware/provider instances', async () => {
+    const f = tenantFixture(); const selected = await f.authenticate();
+    const provider = f.separateProvider();
+    expect((await provider.readApplicationAuthority(f.req, selected)).principal).toEqual({ tenantId, actorId });
+    await expect(provider.readApplicationAuthority({ ...f.req }, selected)).rejects.toThrow();
+    await expect(provider.readApplicationAuthority(f.req, { ...selected })).rejects.toThrow();
+  });
   it('keeps normal pipeline effects but dedicated current checks are read-only and session first', async () => {
     const f = tenantFixture(); const selected = await f.authenticate();
     expect(f.responseHeaders['Cache-Control']).toBe('no-store');

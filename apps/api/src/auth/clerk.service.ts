@@ -118,6 +118,7 @@ export class ClerkService {
     const sessionId = claims.sid;
     const userId = claims.sub;
     const jwtExpiresAtMs = claims.exp! * 1000;
+    const deadlineMs = Date.now() + 2000;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const session = await Promise.race([
@@ -127,7 +128,7 @@ export class ClerkService {
         }),
       ]);
       const now = Date.now();
-      if (!session || session.id !== sessionId || session.userId !== userId ||
+      if (now >= deadlineMs || !session || session.id !== sessionId || session.userId !== userId ||
           session.status !== 'active' ||
           ![session.createdAt, session.expireAt, session.abandonAt].every(
             (value) => Number.isSafeInteger(value) && value >= 0,

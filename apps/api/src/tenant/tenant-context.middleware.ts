@@ -48,6 +48,11 @@ interface ApplicationAuthorityRequestProvenance {
   impersonationId: string | null;
 }
 
+// Nest's middleware wrapper and injected provider can be separate instances.
+// The existing owner shares only private, ephemeral provenance keyed by the
+// actual request object; there is no reusable/durable authorization receipt.
+const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
+
 /**
  * Resolves the tenant context for an authenticated request.
  *
@@ -72,8 +77,6 @@ interface ApplicationAuthorityRequestProvenance {
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
   private readonly logger = new Logger(TenantContextMiddleware.name);
-  // Private ephemeral request provenance, never a caller-supplied capability.
-  private readonly applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
 
   constructor(
     private readonly clerk: ClerkService,
@@ -395,7 +398,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     // for the @CurrentTenant() decorator and direct controller access.
     (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
     if (selectedAuthorityMembership) {
-      this.applicationAuthorityRequests.set(req, {
+      applicationAuthorityRequests.set(req, {
         context: ctx,
         claims: { ...claims },
         membershipId: selectedAuthorityMembership.id,
@@ -412,7 +415,7 @@ export class TenantContextMiddleware implements NestMiddleware {
    * method cannot repair missing authority or choose a different membership. */
   async readApplicationAuthority(req: Request, ctx: TenantContext): Promise<ApplicationAuthorityIdentityProof> {
     const denied = () => new ForbiddenException('Application authority unavailable');
-    const provenance = this.applicationAuthorityRequests.get(req);
+    const provenance = applicationAuthorityRequests.get(req);
     if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
     const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
     const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
