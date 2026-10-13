@@ -22,6 +22,16 @@
         "path": "docs/unified-20261013/qualification-83f54f5a/README.md",
         "sha256": "d8f2f93ac3887e760aad27ed9cf18ecf17b0e51575e4c2e0dc8c4f6d5658ea00"
       }
+    },
+    {
+      "commit": "90ccdd47de7a989e822590d616d69baa15a37d5d",
+      "tree": "2bd75625dfa0b1a8aa894a48a68f34550a6f5037",
+      "qualificationReceipt": {
+        "repository": "neo-capiro/capiro-frontend",
+        "commit": "5875e240c7b266a0e63903c4d0ed9b30c08d4d9a",
+        "path": "docs/unified-20261013/qualification-90ccdd47/README.md",
+        "sha256": "d27f3473eb5b7ddbed6e2e2db2cc60adab697ff96f07e994dba803cec92b8b67"
+      }
     }
   ],
   "runtimeProfile": {
