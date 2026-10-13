@@ -1,0 +1,67 @@
+{
+  "observed_at": "2026-10-13T19:11:57.593346+00:00",
+  "records": {
+    "identity": {
+      "command": [
+        "gh",
+        "api",
+        "user",
+        "--jq",
+        "{login,id,type}"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"id\":276034435,\"login\":\"neo-capiro\",\"type\":\"User\"}\n",
+      "stderr": ""
+    },
+    "source": {
+      "command": [
+        "gh",
+        "api",
+        "repos/neo-capiro/capirov2",
+        "--jq",
+        "{full_name,private,visibility,owner:{login:.owner.login,type:.owner.type,id:.owner.id},default_branch,permissions}"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"default_branch\":\"main\",\"full_name\":\"neo-capiro/capirov2\",\"owner\":{\"id\":276034435,\"login\":\"neo-capiro\",\"type\":\"User\"},\"permissions\":{\"admin\":true,\"maintain\":true,\"pull\":true,\"push\":true,\"triage\":true},\"private\":true,\"visibility\":\"private\"}\n",
+      "stderr": ""
+    },
+    "destination": {
+      "command": [
+        "gh",
+        "api",
+        "repos/neo-capiro/capiro-backend",
+        "--jq",
+        "{full_name,private,visibility,owner:{login:.owner.login,type:.owner.type,id:.owner.id},default_branch,archived,disabled,size,permissions}"
+      ],
+      "exit_code": 1,
+      "stdout": "{\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/repos/repos#get-a-repository\",\"status\":\"404\"}",
+      "stderr": "gh: Not Found (HTTP 404)\n"
+    },
+    "visible_owner_repos": {
+      "command": [
+        "gh",
+        "api",
+        "--paginate",
+        "user/repos?affiliation=owner&visibility=all&per_page=100",
+        "--jq",
+        "{visible_owner_repositories:length,destination_matches:[.[]|select(.full_name==\"neo-capiro/capiro-backend\")|{full_name,private,visibility,owner:{login:.owner.login,type:.owner.type,id:.owner.id},default_branch,archived,disabled,size,permissions}]}"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"destination_matches\":[],\"visible_owner_repositories\":3}\n",
+      "stderr": ""
+    },
+    "main": {
+      "command": [
+        "gh",
+        "api",
+        "repos/neo-capiro/capirov2/branches/main",
+        "--jq",
+        "{name,sha:.commit.sha,protected}"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"name\":\"main\",\"protected\":false,\"sha\":\"4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace\"}\n",
+      "stderr": ""
+    }
+  },
+  "interpretation": "404 plus owner listing gives no visible destination. Absence vs token-inaccessible private destination remains ambiguous; no destination creation permission verified."
+}

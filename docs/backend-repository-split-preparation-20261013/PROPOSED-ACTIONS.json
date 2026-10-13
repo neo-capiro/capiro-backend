@@ -1,0 +1,52 @@
+{
+  "status": "proposal-only; no destination action performed",
+  "destination": "neo-capiro/capiro-backend",
+  "verified_owner": {
+    "login": "neo-capiro",
+    "type": "User",
+    "id": 276034435
+  },
+  "creation": {
+    "endpoint": "POST /user/repos",
+    "body": {
+      "name": "capiro-backend",
+      "private": true,
+      "auto_init": false
+    },
+    "permission_status": "unverified; preparation authorization does not authorize execution",
+    "existing_destination_behavior": "stop and return exact ownership/visibility/ref metadata to parent; never overwrite"
+  },
+  "source_publication": {
+    "ref_allowlist": [
+      "refs/heads/backend-import"
+    ],
+    "source_head": null,
+    "source_tree": null,
+    "freeze_requirements": [
+      "root final receiving integration of PR2476",
+      "root independently reviewed preview-only delta",
+      "exact published Meri bootstrap/deployment contract dependency",
+      "reviewed automation-quarantine child commit"
+    ],
+    "current_prospective_source_head": "b9da0ae2938821e08a3bfea563c6267608ae9909",
+    "current_prospective_source_tree": "91436b73ebff4c9807c5c877093e8502430a50c9",
+    "history": "append reviewed child; no rewrite; original receiving head/parents remain reachable",
+    "force": false,
+    "mirror": false,
+    "tags": false,
+    "main_publication": false,
+    "remote_mutation": false,
+    "destination_must_be_empty": true,
+    "default_branch": "proposed backend-import; verify resulting metadata and seek separate review before any needed settings change",
+    "automatic_workflow_execution_authorized": false
+  },
+  "excluded_actions": [
+    "credentials/access grants",
+    "copied secrets/environments/settings",
+    "AWS/IAM/network/security changes",
+    "database/migration execution",
+    "production/main merge/deploy",
+    "publishing historical workflow-bearing refs",
+    "protected unpublished reporting branch/body inspection"
+  ]
+}

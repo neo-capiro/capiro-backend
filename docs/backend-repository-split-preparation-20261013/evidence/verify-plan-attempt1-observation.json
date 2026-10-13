@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-10-13T19:18:53.589330+00:00",
+  "command": [
+    "python3",
+    "docs/backend-repository-split-preparation-20261013/verify-plan.py"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"/tmp/capirov2-backend-repository-split-preparation-20261013/docs/backend-repository-split-preparation-20261013/verify-plan.py\", line 71, in <module>\n    assert len(inventory[\"original_ledger_candidates\"]) == 16\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+  "helper_sha256": "3016145f5725060fc53832046f1b8e4ac3d1e65a4a743ff2128e389850f37c74"
+}

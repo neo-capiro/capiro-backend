@@ -1,0 +1,22 @@
+{
+  "source_head": "b9da0ae2938821e08a3bfea563c6267608ae9909",
+  "source_tree": "91436b73ebff4c9807c5c877093e8502430a50c9",
+  "source_tree_entry_count": 26754,
+  "protected_published_entry_metadata_only": [
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+    }
+  ],
+  "unpublished_protected_owner": "task01a12dc9-21a3-7062-908e-b6fabc37c027; no branch/body inspection",
+  "repository_AGENTS_paths": [],
+  "excluded_body_reads": [
+    ".env and all .env variants",
+    "apps/api/src/engagement/engagement.service.ts",
+    "unpublished EngagementService reporting branches"
+  ],
+  "expected_preparation_changed_path_prefix": "docs/backend-repository-split-preparation-20261013/",
+  "new_repository_operations_performed": []
+}

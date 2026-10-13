@@ -1,0 +1,24 @@
+{
+  "reviewedPreparationHead": "68ff5f6640e6d04b97ed1254ef69b7c0660bd8a7",
+  "reviewedPreparationTree": "47f92601304ed13c41fa73c24746134a93cf9cf4",
+  "originalFiniteShaRows": 19,
+  "originalHashesAllPass": true,
+  "all26754BaseModeBlobEntriesExact": true,
+  "preparedDocumentationPaths": 20,
+  "readOnlyPlanVerification": {
+    "status": "PASS",
+    "source_head": "b9da0ae2938821e08a3bfea563c6267608ae9909",
+    "source_tree": "91436b73ebff4c9807c5c877093e8502430a50c9",
+    "source_tree_entries": 26754,
+    "reachable_commits": 9680,
+    "open_prs": 301,
+    "original_ledger_heads": 15,
+    "workflow_quarantine_rows": 74,
+    "new_destination_operations": [],
+    "protected_body_reads": [],
+    "product_or_live_config_changes": [],
+    "limit": "frozen metadata and proposal validation only; no final-source, destination-creation or deployment acceptance"
+  },
+  "newDestinationActionRequested": false,
+  "nativeOrCodeTestsRepeated": false
+}
