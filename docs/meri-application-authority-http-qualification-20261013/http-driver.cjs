@@ -22,25 +22,30 @@ const SESSION_ID = 'fixture_session_current';
 const CREDENTIAL = 'fixture-local-only'; // synthetic, never emitted to receipts
 function validatePrivateConfig(config) {
   assert.equal(config.sourceHead, SOURCE_HEAD);
-  assert.match(config.databaseName, /^capiro_meri_http_20261013_[a-z0-9]+$/);
+  assert.match(config.databaseName, /^capiro_auth_http_20261013_[0-9a-f]{10}$/);
+  assert.equal(config.databaseName,'capiro_auth_http_20261013_4966f869fa');
   assert.equal(config.systemIdentifier, '7695590366852821031');
   assert.equal(config.approvedOwnedDatabase, true);
   assert.ok(Number.isSafeInteger(config.databaseOid) && config.databaseOid > 0);
-  assert.equal(config.databaseComment, 'owned disposable Meri HTTP qualification 20261013');
+  assert.equal(config.databaseOid,16917);
+  assert.equal(config.databaseComment, `owned /root authority HTTP fixture at ${SOURCE_HEAD}`);
   const url = new URL(config.connectionUrl);
   assert.equal(url.protocol, 'postgresql:');
   assert.ok(['127.0.0.1','localhost'].includes(url.hostname));
+  assert.equal(url.port,'5432');
+  assert.equal(decodeURIComponent(url.username),'capiro');
   assert.equal(decodeURIComponent(url.pathname.slice(1)), config.databaseName);
   assert.equal(url.searchParams.get('schema') ?? 'public', 'public');
   assert.equal(url.searchParams.get('connection_limit') ?? '1', '1');
   return url;
 }
-async function main(configPath, output) {
+async function main(configPath, output, {supplementary}={}) {
   if (!configPath || !output || fs.existsSync(output)) throw new Error('Private approved config and exclusive output required');
+  if(!require.cache[require.resolve('./containment-preload.cjs')]) throw new Error('Containment must preload before fixture imports');
   const config = JSON.parse(fs.readFileSync(configPath,'utf8'));
   validatePrivateConfig(config);
   const sourceManifest = JSON.parse(fs.readFileSync(path.join(__dirname,'critical-source-sha256.json'),'utf8'));
-  const sdkCalls = {construct:0,verify:0,session:0,providerNetwork:0};
+  const sdkCalls = {construct:0,verify:0,session:0};
   let scenario = {};
   let prisma;
   let app;
@@ -58,20 +63,24 @@ async function main(configPath, output) {
         return {id:scenario.sessionId ?? SESSION_ID,userId:scenario.sessionUser ?? CLAIM_SUB,
           status:scenario.sessionStatus ?? 'active',createdAt:scenario.createdAt,
           expireAt:scenario.expireAt,abandonAt:scenario.abandonAt,
-          actor:null};
+          actor:scenario.actor??null};
       }}};
     },
     async verifyToken(token) {
       sdkCalls.verify++;
       if (token !== CREDENTIAL || scenario.verifyFailure) throw new Error('Deterministic token refusal');
-      return {sub:CLAIM_SUB,sid:SESSION_ID,exp:Math.floor(Date.now()/1000)+90,
+      const claims={sub:CLAIM_SUB,sid:SESSION_ID,exp:Math.floor(Date.now()/1000)+90,
         iss:'https://fixture.clerk.invalid',capiro_tenant_id:IDS.tenant,
         capiro_tenant_slug:'http-fixture-a',org_id:'fixture_org_a',...(scenario.claims ?? {})};
+      scenario.originalJwtExpiresAtMs=claims.exp*1000;return claims;
     },
   };
   const host = createHost({sourceManifest,sdk,native:true,fixtureConfig:{NODE_ENV:'test',CLERK_SECRET_KEY:'',CLERK_JWT_ISSUER:'https://fixture.clerk.invalid'}});
   const PrismaService = host.load(path.join(host.API_ROOT,'src/prisma/prisma.service.ts')).PrismaService;
-  prisma = new PrismaService({datasources:{db:{url:config.connectionUrl}}});
+  const ownedConnection=new URL(config.connectionUrl);ownedConnection.searchParams.set('connection_limit','1');
+  prisma = new PrismaService({datasources:{db:{url:ownedConnection.href}},log:[{emit:'event',level:'query'}]});
+  const nativeQueries={count:0,transactions:0,parametersSerialized:false};
+  prisma.$on('query',event=>{nativeQueries.count++;if(/^BEGIN/.test(event.query))nativeQueries.transactions++;});
   const receipts = [];
   const results = [];
   const nativeFetch = globalThis.fetch;
@@ -97,6 +106,7 @@ async function main(configPath, output) {
     const rows = await prisma.$queryRaw`SELECT current_database() AS "databaseName",d.oid::int AS "databaseOid",obj_description(d.oid,'pg_database') AS "databaseComment",system_identifier::text AS "systemIdentifier",current_user AS "currentUser",session_user AS "sessionUser",r.rolsuper AS "superuser",r.rolbypassrls AS "bypassRls",inet_server_addr()::text AS "serverAddress",version() AS version FROM pg_database d CROSS JOIN pg_control_system() CROSS JOIN pg_roles r WHERE d.datname=current_database() AND r.rolname=current_user`;
     assert.equal(rows.length,1);targetIdentity=rows[0];
     for (const key of ['databaseName','databaseOid','databaseComment','systemIdentifier']) assert.equal(targetIdentity[key],config[key],`Owned target mismatch: ${key}`);
+    assert.equal(targetIdentity.currentUser,'capiro');assert.equal(targetIdentity.sessionUser,'capiro');
     assert.match(targetIdentity.version,/PostgreSQL 16\.15/);
     const {Test} = cacheRequire('@nestjs/testing');
     const module = await Test.createTestingModule({imports:[host.FixturePortsModule,host.AppModule]})
@@ -143,9 +153,19 @@ async function main(configPath, output) {
       const receipt={source:{capiroHead:SOURCE_HEAD,capiroTree:'77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2',meriHead:config.meriHead},case:caseName,
         request:{method:'POST',path:route,body:bodyUtf8,sentAtMs,sha256:digest(Buffer.from(bodyUtf8))},
         response:{status:response.status,headers:Object.fromEntries(response.headers),bodyUtf8:actualBody,receivedAtMs,sha256:digest(Buffer.from(actualBody))},
-        expected:{status:expected},sessionReads:scenario.sessionReads??0};
+        expected:{status:expected},sessionReads:scenario.sessionReads??0,
+        suppliedSessionBounds:{originalJwtExpiresAtMs:scenario.originalJwtExpiresAtMs??null,nativeExpireAtMs:scenario.expireAt??null,nativeAbandonAtMs:scenario.abandonAt??null}};
       receipts.push(receipt);assert.equal(response.status,expected,`${caseName}: ${actualBody}`);
-      if (expected===200) {assert.match(response.headers.get('content-type'),/^application\/json; charset=utf-8$/i);assert.equal(response.headers.get('cache-control'),'no-store');}
+      if (expected===200) {
+        assert.match(response.headers.get('content-type'),/^application\/json; charset=utf-8$/i);assert.equal(response.headers.get('cache-control'),'no-store');
+        const parsed=JSON.parse(actualBody);
+        const keys=route===ROUTES.identity?['principal','identityRevision','checkedAtMs','expiresAtMs']:['principal','identityRevision','checkedAtMs','expiresAtMs','identitySha256','conversationId','selectedClientId','contextRevision'];
+        assert.deepEqual(Object.keys(parsed).sort(),keys.sort());assert.deepEqual(Object.keys(parsed.principal).sort(),['actorId','tenantId']);
+        assert.match(parsed.identityRevision,/^[0-9a-f]{64}$/);if(route===ROUTES.context)assert.match(parsed.contextRevision,/^[0-9a-f]{64}$/);
+        assert.ok(Number.isSafeInteger(parsed.checkedAtMs) && parsed.checkedAtMs>=sentAtMs && parsed.checkedAtMs<=receivedAtMs);
+        assert.ok(Number.isSafeInteger(parsed.expiresAtMs) && parsed.expiresAtMs>parsed.checkedAtMs);
+        assert.ok(parsed.expiresAtMs<=Math.min(scenario.originalJwtExpiresAtMs,scenario.expireAt,scenario.abandonAt));
+      }
       else if (![400,413].includes(expected)) {
         if (Object.values(ROUTES).includes(route)) assert.equal(response.headers.get('cache-control'),'no-store');
       }
@@ -157,6 +177,7 @@ async function main(configPath, output) {
       await new Promise(resolve=>setTimeout(resolve,60)); // retain original 30/s throttler
     }
     const contextBody=()=>JSON.stringify({identitySha256:'a'.repeat(64),conversationId:IDS.conversation,clientId:IDS.client});
+    if(config.runAuthorCases!==false) {
     await check('identity real POST200 and canonical principal',async()=>{const {json}=await request('identity-valid',ROUTES.identity,'{}');assert.deepEqual(json().principal,{tenantId:IDS.tenant,actorId:IDS.user});assert.equal(scenario.sessionReads,1);});
     await check('context current owned client POST200 echo-only correlation',async()=>{const {json}=await request('context-valid',ROUTES.context,contextBody());assert.equal(json().identitySha256,'a'.repeat(64));assert.equal(json().selectedClientId,IDS.client);assert.equal(scenario.sessionReads,2);});
     await check('wrong meri alias has no route',()=>request('wrong-route','/api/meri/application-authority/identity','{}',{expected:404}));
@@ -193,6 +214,11 @@ async function main(configPath, output) {
     await check('wall revoked during second session await403',async()=>{await prisma.client.update({where:{id:IDS.client},data:{memoryWall:true}});await prisma.clientMemoryAccess.create({data:{id:IDS.grant,tenantId:IDS.tenant,clientId:IDS.client,userId:IDS.user}});scenario.duringSession=async(db,n)=>{if(n===2)await db.clientMemoryAccess.deleteMany({where:{clientId:IDS.client}});};await request('wall-revoked-mid-read',ROUTES.context,contextBody(),{expected:403});});
     await check('malformed persisted prospect scope403',async()=>{await prisma.clioConversation.update({where:{id:IDS.conversation},data:{metadata:{bizdevProspectScope:{prospectId:'bad'}}}});await request('malformed-prospect-scope',ROUTES.context,contextBody(),{expected:403});});
     await check('RP scope cannot transfer bound client403',async()=>{await prisma.clioConversation.update({where:{id:IDS.conversation},data:{metadata:{researchPortfolioScope:{kind:'research_portfolio'}}}});await request('incompatible-rp-scope',ROUTES.context,contextBody(),{expected:403});});
+    await check('empty JSON body observed as framework empty object200',()=>request('empty-json-body',ROUTES.identity,'',{expected:200}));
+    await check('duplicate lexical key uses observed JSON last-value semantics',()=>request('duplicate-json-key',ROUTES.context,`{"identitySha256":"${'a'.repeat(64)}","conversationId":"${IDS.conversation}","clientId":"${IDS.foreignClient}","clientId":"${IDS.client}"}`,{expected:200}));
+    await check('uppercase context selector400 per lower-case wire',()=>request('uppercase-context-id',ROUTES.context,JSON.stringify({identitySha256:'a'.repeat(64),conversationId:IDS.conversation.toUpperCase(),clientId:IDS.client}),{expected:400}));
+    await check('nil syntactic selector cannot grant403',()=>request('nil-context-id',ROUTES.context,JSON.stringify({identitySha256:'a'.repeat(64),conversationId:'00000000-0000-0000-0000-000000000000',clientId:IDS.client}),{expected:403}));
+    }
     if(config.privateClientConsumer) {
       await check('unchanged private Meri client consumes actual HTTP receipts test-only mapping',async()=>{
         const consumer=await import(pathToFileURL(config.privateClientConsumer).href);
@@ -208,12 +234,13 @@ async function main(configPath, output) {
         receipts.push({case:'private-client-consumer',actualConsumer:capture});
       });
     }
+    if(supplementary) await supplementary({check,request,getScenario:()=>scenario,prisma,IDS,ROUTES,contextBody,receipts,results});
     const settings=await prisma.withTenant(IDS.tenant,tx=>tx.$queryRaw`SELECT current_user AS "currentUser",session_user AS "sessionUser",current_setting('app.current_tenant',true) AS "tenantGuc",current_setting('app.bypass_rls',true) AS "bypassGuc"`);
     const tables=await prisma.$queryRaw`SELECT c.relname,r.rolname AS owner,c.relrowsecurity AS "rowSecurity",c.relforcerowsecurity AS "forceRowSecurity",pg_has_role(current_user,c.relowner,'MEMBER') AS "ownerMembership" FROM pg_class c JOIN pg_roles r ON r.oid=c.relowner JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname`;
     const receipt={sourceHead:SOURCE_HEAD,sourceTree:'77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2',actualLoopbackHttp:true,nativePrisma:true,
       wholeAppBootstrap:false,fullMigrations:false,liveClerk:false,TLS:false,currentRunAuthority:false,
       targetIdentity,settings,tables,sourceReads:host.reads,unrelatedBlockedImports:host.blocked,hostPortCalls:host.hostCalls,sdkCalls,
-      cases:results,total:results.length,passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,receipts};
+      nativeQueries,containment:require('./containment-preload.cjs').audit,cases:results,total:results.length,passed:results.filter(r=>r.passed).length,failed:results.filter(r=>!r.passed).length,receipts};
     fs.writeFileSync(output,JSON.stringify(receipt,null,2)+'\n',{flag:'wx'});
     if(receipt.failed) process.exitCode=1;
   } finally {
