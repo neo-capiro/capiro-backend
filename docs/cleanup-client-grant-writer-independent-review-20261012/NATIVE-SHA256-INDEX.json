@@ -1,0 +1,25 @@
+{
+  "schema": "capiro.cleanup-client-grant-writer-native-review.sha256.v1",
+  "sourceReviewHead": "0b9989ccb5e3abbd20f62dcaa114ff67a20f5f8e",
+  "priorSourceReviewIndexedFilesVerified": 20,
+  "priorSourceReviewIndexUnchanged": true,
+  "nativeEvidenceHead": "aa187db9cce3a3611eb42b2312978756fe2efa66",
+  "nativeFinalIndexPath": "docs/cleanup-client-memory-access-native-concurrency-20261012/SHA256-FINAL-INDEX.json",
+  "nativeFinalIndexSha256": "d2ec2d371bf1ce95f5e7fb6747df2df72cd03b8c9b69f5f9c7ddb12f5269ef3d",
+  "nativeFinalIndexBytes": 8295,
+  "nativeFinalIndexedFilesVerified": 32,
+  "priorNativePreparationIndexedFilesVerified": 20,
+  "files": [
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/NATIVE-RECEIPT-REVIEW.md",
+      "bytes": 1935,
+      "sha256": "62a03dada6eb9ee7a4e462c5874e4b9aca1973e50d0bde04a8084ef22f08f4c7"
+    },
+    {
+      "path": "docs/cleanup-client-grant-writer-independent-review-20261012/NATIVE-RECEIPT-REVIEW.json",
+      "bytes": 3739,
+      "sha256": "413d593f4c9cbe6502cdb82ed77ad8eb7fe3a84da5c448300449bc0f2ebd2775"
+    }
+  ],
+  "indexSelfExcluded": true
+}

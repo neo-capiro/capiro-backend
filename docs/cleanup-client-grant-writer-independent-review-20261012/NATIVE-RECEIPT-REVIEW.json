@@ -1,0 +1,97 @@
+{
+  "schema": "capiro.cleanup-client-grant-writer-native-receipt-independent-review.v1",
+  "verdict": "ACCEPT scoped native source/receipt evidence",
+  "sourceReviewHead": "0b9989ccb5e3abbd20f62dcaa114ff67a20f5f8e",
+  "applicationHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "applicationTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "nativeEvidenceHead": "aa187db9cce3a3611eb42b2312978756fe2efa66",
+  "nativeEvidenceTree": "ecacb6ac645b49cc8bbd6cae0ec353d7dba56280",
+  "runnerHead": "cf30727ad5dfba61d2d153b2983eae8163a73ffd",
+  "runnerTree": "f751283cbcff8e22cd49ae1dbf03c537be04534a",
+  "preparationHead": "1f85971181932612ace636bca61c6aab4e8aaf48",
+  "finalIndexedHashesVerified": 32,
+  "priorPreparationIndexedHashesVerifiedAndPreserved": 20,
+  "oldPreparationIndexByteExact": true,
+  "sourceBindingsVerified": 2,
+  "runnerFixtureBindingsVerified": 2,
+  "applicationDeltaAfter926": 0,
+  "recordedNativeGroups": 8,
+  "recordedNativeFailed": 0,
+  "recordedNativeExecutorExit": 0,
+  "originalUnionDefectReproducedNotAccepted": true,
+  "recordedGroups": [
+    {
+      "name": "original two-writer negative schedule leaves a union, not the last complete roster",
+      "status": "PASS"
+    },
+    {
+      "name": "candidate serializes complete writers 00000000-0000-4000-8000-000000000008 then 00000000-0000-4000-8000-000000000009",
+      "status": "PASS"
+    },
+    {
+      "name": "candidate serializes complete writers 00000000-0000-4000-8000-000000000009 then 00000000-0000-4000-8000-000000000008",
+      "status": "PASS"
+    },
+    {
+      "name": "reader finishes before the blocked client-first writer; fresh reader denies revocation",
+      "status": "PASS"
+    },
+    {
+      "name": "foreign and absent client return404 before membership/grant/audit work",
+      "status": "PASS"
+    },
+    {
+      "name": "membership failure rolls back without changes and releases the client lock",
+      "status": "PASS"
+    },
+    {
+      "name": "another same-tenant client can finish while the first client remains locked",
+      "status": "PASS"
+    },
+    {
+      "name": "post-audit adapter error rolls back all native writes and releases the client lock",
+      "status": "PASS"
+    }
+  ],
+  "recordedPrivateServer": {
+    "version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "sourceControls": {
+    "exactSocketAndServerIdentityBeforeMutation": true,
+    "invocationOwnedNoLoginAppOwnerRoles": true,
+    "appNonSuperNoBypassNoOwnerInheritanceChecked": true,
+    "tenantFixtureForcedRls": true,
+    "unknownOrmArgumentsRefused": true,
+    "exactSourceAndFixtureHashesCheckedBeforeRun": true
+  },
+  "cleanup": {
+    "independentProbeExit": 0,
+    "readOnlySelects": 5,
+    "ownedSchemas": 0,
+    "ownedRoles": 0,
+    "otherOwnedRunnerSessions": 0,
+    "publicTables": 0
+  },
+  "limits": {
+    "nativePostgres": true,
+    "nativePrisma": false,
+    "fullClientAuditLogSchema": false,
+    "fullMigrationReplay": false,
+    "productionRlsAcceptance": false,
+    "postAuditFailureIsAdapterFault": true,
+    "automaticPrismaRollbackNotProven": true,
+    "httpAuthenticationNotExecuted": true,
+    "globalDeadlockFreedomNotProven": true
+  },
+  "reviewerOperations": {
+    "databaseConnections": 0,
+    "sqlExecution": 0,
+    "nativeReplay": 0,
+    "productionEdits": 0
+  },
+  "reviewerExploratoryReadCorrection": "Preparation index does not exist at earlier runner cf307; it is introduced at preparation1f859 and remains byte-exact. Original read error preserved in the review transcript.",
+  "sourceAndReceiptMismatchFound": false
+}
