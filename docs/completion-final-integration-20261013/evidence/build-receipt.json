@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "check": "build",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    ".completion-final-receiving-build.tsconfig.json"
+  ],
+  "cwd": "/tmp/capirov2-completion-final-integration-20261013/apps/api",
+  "sourceHead": "ffb021d2e790d24e5e81c6ddaa99153251f6c70c",
+  "sourceTree": "c85996327f7c0fb4373b4d6c273e34a56cc64381",
+  "elapsedSeconds": 112.736,
+  "exitCode": 0,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/completion-final-integration-20261013/evidence/build.log",
+  "logBytes": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

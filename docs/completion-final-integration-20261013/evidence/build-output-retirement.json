@@ -1,0 +1,67 @@
+{
+  "sourceHead": "ffb021d2e790d24e5e81c6ddaa99153251f6c70c",
+  "sourceTree": "c85996327f7c0fb4373b4d6c273e34a56cc64381",
+  "check": "actual receiving Nest build",
+  "outputRoot": "/tmp/completion-final-api-build-20261013",
+  "emittedFiles": 3844,
+  "emittedBytes": 36439828,
+  "namesAndSizesInventory": "evidence/build-output-names-sizes.tsv.gz",
+  "uncompressedInventoryBytes": 212475,
+  "uncompressedInventorySha256": "c41e811bd88396519a9014b47cc4042ae75800613328983e458000c597dc57c2",
+  "reviewedProductionDeltaJs": [
+    {
+      "path": "clients/client-profile-fill-completion-audit.js",
+      "bytes": 5588,
+      "sha256": "6133e4442a091b8ee7da57ab88a88996a0247c1be58b30bd28a0578f767183e2"
+    },
+    {
+      "path": "clients/client-profile-fill-completion-persistence.js",
+      "bytes": 5322,
+      "sha256": "56706aa9e738e8b9dd51f0a0f9ea04adf5d2a33c96a4fb990b773b4d70ef63b2"
+    },
+    {
+      "path": "clients/client-profile-fill-completion.composition.js",
+      "bytes": 7594,
+      "sha256": "a5cb87e0ff7751332bab8bc325d966d1a89481bc161265667603ae1899a59679"
+    },
+    {
+      "path": "clients/client-profile-fill-completion.exports.js",
+      "bytes": 4879,
+      "sha256": "2c48b4b9c56608033e12add77018887ed21d1ca19c37fa5c63d1d43f62959b69"
+    },
+    {
+      "path": "clients/client-profile-fill-completion.service.js",
+      "bytes": 13949,
+      "sha256": "ca1332fcc540b0832a928822c9554be669e505c764f0b1bb13230d7240ab1bd4"
+    },
+    {
+      "path": "clients/client-profile-fill-lifecycle-outcome-findings.js",
+      "bytes": 8907,
+      "sha256": "7d62bda7ef5c6f15c93b2c71ace10645ff95b22799880f48a3fd4aeffba1e544"
+    },
+    {
+      "path": "clients/client-profile-fill-lifecycle-outcomes.js",
+      "bytes": 6948,
+      "sha256": "54e4faa3791e6ab326ab8c7b21f7741a5a8b8f3f7543a8ea6410c030907da116"
+    },
+    {
+      "path": "clients/client-profile-fill-profile-discovery.js",
+      "bytes": 11709,
+      "sha256": "548db61b66f59af2f979511c04a43e8fc2d962489b2ce9a80f41091138978f59"
+    },
+    {
+      "path": "clients/client-profile-fill-reconciliation.js",
+      "bytes": 11043,
+      "sha256": "685beb03d48653faa9fd1b4b35d1d94f766b261571fcfcad1e54910db1246540"
+    },
+    {
+      "path": "clients/client-profile-fill-run-read-model.js",
+      "bytes": 7937,
+      "sha256": "df4d11a46bb1aa017f20f042d1d4265683b3ff009d757d68ab175fe6247b6549"
+    }
+  ],
+  "protectedReportingBodiesInspectedForThisInventory": false,
+  "frontendArtifactOrNativeABIClaim": false,
+  "ownGeneratedOutputRetiredAfterReceiptAndInventory": true,
+  "sourceSharedCachesAndOtherOwnerArtifactsRetained": true
+}

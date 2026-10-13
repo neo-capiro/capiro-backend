@@ -1,0 +1,12 @@
+{
+  "sourceHead": "ffb021d2e790d24e5e81c6ddaa99153251f6c70c",
+  "sourceTree": "c85996327f7c0fb4373b4d6c273e34a56cc64381",
+  "node": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "cachedRootDependencies": "/workspace/capirov2/node_modules",
+  "borrowedApiDependencySymlinks": 53,
+  "existingExactCoreClientSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "newInstallDownloadGeneration": false,
+  "newNativeDatabaseProviderArtifactOperation": false,
+  "checksRunSequentially": true,
+  "effectDenialAndProtectedReportingBodyReadRefusalReused": true
+}

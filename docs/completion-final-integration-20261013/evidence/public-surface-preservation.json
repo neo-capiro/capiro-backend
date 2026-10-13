@@ -1,0 +1,160 @@
+{
+  "sourceHead": "ffb021d2e790d24e5e81c6ddaa99153251f6c70c",
+  "baseHead": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773",
+  "serviceLines": {
+    "old": 1725,
+    "new": 415,
+    "oldNonblank": 1645,
+    "newNonblank": 367
+  },
+  "publicMethods": 18,
+  "publicSignatures": [
+    {
+      "name": "onModuleInit",
+      "signature": "onModuleInit(): void",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "onModuleDestroy",
+      "signature": "onModuleDestroy(): void",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getSetup",
+      "signature": "async getSetup(ctx: TenantContext, clientId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "startRun",
+      "signature": "async startRun(ctx: TenantContext, clientId: string, input: StartClientProfileFillWorkflowInput)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "refreshNow",
+      "signature": "async refreshNow(ctx: TenantContext, clientId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getAdvocacyHistoryHealth",
+      "signature": "async getAdvocacyHistoryHealth(\n    ctx: TenantContext,\n    clientId: string,\n  ): Promise<AdvocacyHistoryHealth>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getLatest",
+      "signature": "async getLatest(ctx: TenantContext, clientId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getRun",
+      "signature": "async getRun(ctx: TenantContext, clientId: string, runId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "cancelRun",
+      "signature": "async cancelRun(ctx: TenantContext, clientId: string, runId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "retryTask",
+      "signature": "async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "applyFindings",
+      "signature": "async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[])",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "rejectFinding",
+      "signature": "rejectFinding(ctx: TenantContext, clientId: string, findingId: string, reason?: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "restoreFinding",
+      "signature": "restoreFinding(ctx: TenantContext, clientId: string, findingId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getSchedule",
+      "signature": "async getSchedule(ctx: TenantContext, clientId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "updateSchedule",
+      "signature": "async updateSchedule(\n    ctx: TenantContext,\n    clientId: string,\n    input: UpdateClientProfileFillScheduleInput,\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "sweepOnce",
+      "signature": "async sweepOnce(): Promise<void>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "sweepSchedulesOnce",
+      "signature": "async sweepSchedulesOnce(): Promise<void>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "applyAdvocacyFindingToMatter",
+      "signature": "async applyAdvocacyFindingToMatter(\n    ctx: TenantContext,\n    clientId: string,\n    runId: string,\n    findingId: string,\n    target:\n      | { matterId: string }\n      | { newMatter: { title: string; matterType?: string; summary?: string | null } },\n  ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }>",
+      "literalSignatureExact": true
+    }
+  ],
+  "constructorParameterTexts": [
+    "private readonly prisma: PrismaService",
+    "private readonly workflow: ClientProfileFillWorkflowService",
+    "private readonly fill: ClientProfileFillService",
+    "private readonly intelligence: IntelligenceService",
+    "private readonly facilities: ClientFacilitiesService",
+    "private readonly httpAdapterHost: HttpAdapterHost",
+    "private readonly advocacyMatters: ClientAdvocacyMatterService"
+  ],
+  "constructorParameterTextsExact": true,
+  "exportNames": [
+    "ADVOCACY_SOURCE_NAMES",
+    "AdvocacyBackfillOverallStatus",
+    "AdvocacyBackfillStatus",
+    "AdvocacyHistoryHealth",
+    "AdvocacyOverallHealth",
+    "AdvocacySourceAvailability",
+    "AdvocacySourceBackfillState",
+    "AdvocacySourceFreshness",
+    "AdvocacySourceHealth",
+    "CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES",
+    "ClientProfileFillCompletionService",
+    "ClientProfileFillCompletionTaskType",
+    "ProfileCompletionInput",
+    "ProfileCompletionResult",
+    "RefreshScheduleRow",
+    "UpdateClientProfileFillScheduleInput",
+    "buildAdvocacyHistoryHealth",
+    "buildClientProfileFillCompletionPlan",
+    "buildRegulatoryOutcomeFinding",
+    "calculateProfileCompletion",
+    "deriveAdvocacyBackfillOverallStatus",
+    "deriveAdvocacyFreshness",
+    "deriveAdvocacyOverallHealth",
+    "deriveRegulatoryCommentSubmitterLabel",
+    "faraMatchConfidence",
+    "matchAdvocacyOutcomeDeterministically",
+    "mergeFillProgress",
+    "planTestimonyScanBatch",
+    "resolveFaraMatchedRole",
+    "sameActivityDay",
+    "scoreAdvocacyOutcome",
+    "testimonyMatchConfidence",
+    "titleOverlapRatio",
+    "updateAdvocacySourceHealth"
+  ],
+  "exportNamesExactThroughCompatibilityReexport": true,
+  "unrelatedRetainedMemberTextsExact": [
+    "logger",
+    "workerId",
+    "rejectFinding",
+    "restoreFinding",
+    "assertClient",
+    "safeError"
+  ],
+  "constructorBodyByteEqualityClaimed": false,
+  "movedBodyOrTypeExportSyntaxEqualityClaimed": false
+}

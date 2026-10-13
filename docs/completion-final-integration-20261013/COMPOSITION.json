@@ -1,0 +1,57 @@
+{
+  "baseHead": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773",
+  "sourceHead": "ffb021d2e790d24e5e81c6ddaa99153251f6c70c",
+  "sourceTree": "c85996327f7c0fb4373b4d6c273e34a56cc64381",
+  "baseTrackedPaths": 26300,
+  "exactDonorDeltaPaths": 29,
+  "addedSourcePaths": 24,
+  "changedExistingSourcePaths": [
+    "apps/api/src/clients/client-advocacy-matter.contract.spec.ts",
+    "apps/api/src/clients/client-profile-fill-completion.service.ts",
+    "apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts",
+    "apps/api/src/clients/client-profile-fill-run-read-model.ts",
+    "apps/api/test/fixtures/client-profile-fill-advocacy-history.ts"
+  ],
+  "unchangedBaseModeBlobPaths": 26295,
+  "deletedBasePaths": [],
+  "resolvedPriorMaster": {
+    "head": "5c9eec18045f75704f99593855537d422b8f9bd1",
+    "path": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+    "rows": 4426,
+    "layers": [
+      {
+        "head": "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+        "path": "docs/files-qualified-source-policy-20261013/PRESERVATION.json",
+        "sha256": "2bd3bc89a9ea49051e4c60a4081d122e853d48437e0156949e791f2efd0ef3d8"
+      },
+      {
+        "head": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773",
+        "path": "docs/fill-runtime-integration-20261013/PRESERVATION.json",
+        "sha256": "107163a34976418287a88e7cd051070a92aa56327f9bd120aa623d18512cd5e0"
+      }
+    ],
+    "all4426EffectiveBaseModesAndBlobsVerified": true,
+    "sourceUnchangedRows": 4422,
+    "sourceSupersededPaths": [
+      "apps/api/src/clients/client-advocacy-matter.contract.spec.ts",
+      "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts",
+      "apps/api/test/fixtures/client-profile-fill-advocacy-history.ts"
+    ]
+  },
+  "priorDeltaIndex": {
+    "head": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773",
+    "path": "docs/fill-runtime-integration-20261013/SHA256SUMS.json",
+    "rows": 49,
+    "sourceUnchangedRows": 47,
+    "sourceSupersededPaths": [
+      "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "apps/api/src/clients/client-profile-fill-run-read-model.ts"
+    ]
+  },
+  "allPriorIndexModeBlobsUnchanged": true,
+  "ordinaryMergePreservesAllHeads": true,
+  "noCodeChangesAfterFrozenSource": true,
+  "nativeAcceptanceRepeated": false,
+  "completionComponentOnly": true
+}

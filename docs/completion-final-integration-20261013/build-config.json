@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/tmp/completion-final-api-build-20261013",
+    "tsBuildInfoFile": "/tmp/completion-final-api-build-20261013.tsbuildinfo"
+  }
+}

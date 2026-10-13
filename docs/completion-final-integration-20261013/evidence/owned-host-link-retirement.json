@@ -1,0 +1,7 @@
+{
+  "path": "node_modules",
+  "previousSymlinkTarget": "/workspace/capirov2/node_modules",
+  "action": "unlink only own receiving worktree symlink after completed checks",
+  "borrowedDependencyTargetChanged": false,
+  "sourceOrOtherOwnerPathsChanged": false
+}

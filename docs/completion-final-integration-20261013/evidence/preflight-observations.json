@@ -1,0 +1,20 @@
+{
+  "donorObjectInitiallyUncached": {
+    "observation": "git show/diff/ls-tree reported bad object for exact PR2465 before fetch",
+    "resolution": "fetched only published codex/backend-fill-domain-ownership-20261013, then verified exact head/tree/parent"
+  },
+  "initialMainRefreshWrongCwd": {
+    "cwd": "/workspace",
+    "observation": "origin not a repository at workspace root",
+    "resolution": "read-only refresh from receiving Git worktree confirms main 4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+  },
+  "initialNewWorktreeMerge": {
+    "exitCode": 2,
+    "observation": "merge refused because --no-checkout left new owned index empty; 0 index rows, 26300 staged deletion observations, no MERGE_HEAD",
+    "resolution": "materialized exact PR2464 via reset --hard only in fresh owned worktree, then ordinary merge succeeded",
+    "baseBranchOrDonorChanged": false
+  },
+  "allFailedAndPassingSourceEvidenceRetained": true,
+  "protectedUnpublishedReportingInspected": false,
+  "authorisationDeniedOrBypassed": false
+}
