@@ -1,0 +1,15 @@
+{
+  "head": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/cleanup-newsletter-current-source-pin-audit-20261013/current-admission-probe.mjs"
+  ],
+  "environment": {
+    "PATH": "/usr/bin:/bin"
+  },
+  "exit": 0,
+  "scope": "Four existing pure create-plan calls only; no filesystem/client/native/app build",
+  "programSHA256": "d1c3695dae38af70bf99b6fcb660c4a532dd0be40612bfc189d8e45b99f546a7",
+  "stdoutSHA256": "0cdd04f411f9b78609f3d71b2d825d2510498fb56f824165d54ad58476b943f4",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

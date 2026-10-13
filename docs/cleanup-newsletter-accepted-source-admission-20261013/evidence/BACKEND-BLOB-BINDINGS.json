@@ -1,0 +1,34 @@
+[
+  {
+    "head": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+    "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "blob": "4ade69f2bb34f8124b489883776b3c119525fdd2",
+    "sha256": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461",
+    "bytes": 17184,
+    "local": "backend-source/scripts/lib/newsletter-artifact-packaging-plan.mjs"
+  },
+  {
+    "head": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+    "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "blob": "d9868f30a0e39acd2893c39643f606d56c2c80bf",
+    "sha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816",
+    "bytes": 17659,
+    "local": "backend-source/scripts/lib/frontend-standalone-artifact-contract.mjs"
+  },
+  {
+    "head": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+    "path": "scripts/lib/newsletter-static-release-contract.mjs",
+    "blob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+    "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d",
+    "bytes": 36528,
+    "local": "backend-source/scripts/lib/newsletter-static-release-contract.mjs"
+  },
+  {
+    "head": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+    "path": "apps/web/Dockerfile.frontend-artifact",
+    "blob": "1df389777949a6df4cc5c8f1eb43e2db4beb9265",
+    "sha256": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea",
+    "bytes": 1737,
+    "local": "backend-source/apps/web/Dockerfile.frontend-artifact"
+  }
+]

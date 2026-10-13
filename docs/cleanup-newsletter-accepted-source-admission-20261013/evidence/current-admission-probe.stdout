@@ -1,0 +1,4 @@
+{"name":"historical7c","accepted":true,"assemblyPerformed":false,"buildUsedSourceVerified":false,"nativeRuntimeCompatibilityVerified":false}
+{"name":"pendingc8","accepted":false,"error":"Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"}
+{"name":"unknownSHA","accepted":false,"error":"Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"}
+{"name":"glibc","accepted":false,"error":"Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"}

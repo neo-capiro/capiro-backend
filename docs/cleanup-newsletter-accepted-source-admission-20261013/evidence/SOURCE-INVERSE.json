@@ -1,0 +1,39 @@
+{
+  "base": "07e92408d9c396de2003259d125f828cc99c7e2c",
+  "canonicalGeneralOwnerInverseExact": true,
+  "shippingCLIIntentionalChange": "accepted wrapper before artifact ports, same seven flags",
+  "existingPackagingTestDeclarationsExact": 18,
+  "existingStandaloneSpecExact": true,
+  "source": [
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "mode": "100644",
+      "sha256": "959a74ca0ff87131ecea9244289ed803da33e4a7518d1ec9d6d6545915294d73",
+      "bytes": 24168
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "mode": "100644",
+      "sha256": "f4028cd46e71a99d0fb8b8f26b171108871b8cd5abe4cd640a29b31ee1b5245e",
+      "bytes": 17741
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "mode": "100644",
+      "sha256": "cbb5b500b909b55c71b18f71364165e8f90f06e19310ee2ab18fbe1feb1ff8bc",
+      "bytes": 393
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "mode": "100644",
+      "sha256": "c0fd40743506ef18fbdbddad6c579f96598617da66d4e74676a9725ac116fb37",
+      "bytes": 21359
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "mode": "100644",
+      "sha256": "1f82e04c49fc7bc686d6195c1c1daab21150a7d007d924a5a5aed9248de9693a",
+      "bytes": 9725
+    }
+  ]
+}
