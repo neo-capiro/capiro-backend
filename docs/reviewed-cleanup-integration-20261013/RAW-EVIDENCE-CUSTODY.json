@@ -1,0 +1,39 @@
+{
+  "noTrimNoNewException": true,
+  "originalDiagnostics": "docs/reviewed-cleanup-integration-20261013/evidence/13-affected-jest.stderr:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/reviewed-cleanup-integration-20261013/evidence/13-affected-jest.stderr:3: trailing whitespace.\n+  \ndocs/reviewed-cleanup-integration-20261013/evidence/17-affected-jest.stderr:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/reviewed-cleanup-integration-20261013/evidence/17-affected-jest.stderr:3: trailing whitespace.\n+  \ndocs/reviewed-cleanup-integration-20261013/evidence/19-affected-jest.stderr:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/reviewed-cleanup-integration-20261013/evidence/19-affected-jest.stderr:3: trailing whitespace.\n+  \ndocs/reviewed-cleanup-integration-20261013/evidence/20-affected-jest.stderr:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/reviewed-cleanup-integration-20261013/evidence/20-affected-jest.stderr:3: trailing whitespace.\n+  \n",
+  "rows": [
+    {
+      "path": "docs/reviewed-cleanup-integration-20261013/evidence/13-affected-jest.stderr",
+      "originalHead": "a5fe3cb6b2e9af8d80a7ec8e80b3f1738f8097d2",
+      "bytes": 11351,
+      "decodedSha256": "b3a46628e118d9ae896410e4738a8fbc661007ea7da510fcb6bc0eb793918d09",
+      "envelopeSha256": "a09ffafc8fdf5369ff195becfc643b6effad6ff90364a420e13905e456991905",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/reviewed-cleanup-integration-20261013/evidence/17-affected-jest.stderr",
+      "originalHead": "a5fe3cb6b2e9af8d80a7ec8e80b3f1738f8097d2",
+      "bytes": 10648,
+      "decodedSha256": "e89e290a35059ac9a366f09e3bdb9a9cb056318e449aaa10a0861d0cf0ae2cdb",
+      "envelopeSha256": "3f13c1d4ab3c3c3f985cc6ffdb0734dcacc8e00010e26399499a75a66fe227e9",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/reviewed-cleanup-integration-20261013/evidence/19-affected-jest.stderr",
+      "originalHead": "a5fe3cb6b2e9af8d80a7ec8e80b3f1738f8097d2",
+      "bytes": 4684,
+      "decodedSha256": "c9f23bc05a134722f2ec240a0c52fbeff1f5e97e5d1bee64b9bc8c936b07135c",
+      "envelopeSha256": "46c27d24b38158353e0b59c0bb1d78a372aa3ca783e12fc6b9883575f9e79297",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/reviewed-cleanup-integration-20261013/evidence/20-affected-jest.stderr",
+      "originalHead": "a5fe3cb6b2e9af8d80a7ec8e80b3f1738f8097d2",
+      "bytes": 3889,
+      "decodedSha256": "77db79cf9cd3de4fd6c7eb0e8a930f69d253293b2574a1245919e549b09981aa",
+      "envelopeSha256": "49b8ee1ae3f4e2607d54786900b51b86035953a258c7bae4f7870b5da0a25d38",
+      "decodedByteEqual": true
+    }
+  ],
+  "allPriorReceiptsAndHeadsPreserved": true
+}
