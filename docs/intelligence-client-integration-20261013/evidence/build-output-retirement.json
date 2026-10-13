@@ -1,0 +1,122 @@
+{
+  "sourceHead": "cd827868794a3197aa557070a8ae162949e6209f",
+  "sourceTree": "3326cbb0dca06a200a3937408b8af1cb6261013a",
+  "emittedFiles": 3922,
+  "emittedBytes": 36540251,
+  "outputRoot": "/workspace/intelligence-client-api-build-20261013",
+  "placementOnlySplitRoot": "/tmp/intelligence-client-api-build-split-20261013",
+  "placementOnlySplitDirectories": [
+    "defense-budget",
+    "meri",
+    "intelligence"
+  ],
+  "namesSizesInventorySha256": "74acfebd59974e89318e71d61e490c8071af79ca46d08ce440aec0fb352a59d7",
+  "reviewedProductionDeltaJs": [
+    {
+      "path": "intelligence/client-context-v1-graph-labels.js",
+      "bytes": 5486,
+      "sha256": "5f8e08dc7f8a2f04b684259b550a114c7db121ecaf2e4c965af44dcad415886c",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-context-v1-graph-presentation.js",
+      "bytes": 4155,
+      "sha256": "9f37642463c11fb79b218c4a321fa528d63ed8113d6c2aa2c86c404e288cc057",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-context-v1-graph.js",
+      "bytes": 6339,
+      "sha256": "8fd873ecdc310dfa105a82e298b0f17d846302947541e14b0d3253df235960a3",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-context-v1-health.js",
+      "bytes": 3978,
+      "sha256": "c12232a729e0bdeb9e5bbc2d5c68363449d89a925e3d52a5b6b66f05d7b448b4",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-context-v1-outreach.js",
+      "bytes": 6785,
+      "sha256": "355d2c8b7e4d3c2c7b3c65224fc2da7ce1342763538a63a6013cfd8bdb161e4f",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-identity-v1-catalog.js",
+      "bytes": 5068,
+      "sha256": "df25975a2832756b5a0ea8a77d4fe2f93cf6997334799fefdabbf3622d55bc7d",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-identity-v1-filings.js",
+      "bytes": 6080,
+      "sha256": "96d7a4cf211c0ffff45898efef4f3cbb8fb55b4849f96cd81b968f586445d47f",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-identity-v1-lda.js",
+      "bytes": 7725,
+      "sha256": "018d6855bde03ba5f90dbb8c8542d073c1c64ba2ae860c653d9540d0ae3cf56f",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-identity-v1.js",
+      "bytes": 4948,
+      "sha256": "1084a52d2b34cdf388363b61f70acc847d6493d27710738e30428273d13d0987",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-identity-v1.types.js",
+      "bytes": 129,
+      "sha256": "a4d3783e2cc7b42fc16d17631eeff4d5d36b89a698a0e1fc67196e3277808cb6",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-intelligence-values.js",
+      "bytes": 335,
+      "sha256": "7f0172a85339c7b122756e8586a1515cfab30b86f39d13ce8acfc70514095c2e",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-mapping-v1-catalog.js",
+      "bytes": 9474,
+      "sha256": "b5234447df6c616cf3237ae97cf4617fe4f7b250010239362f8df54e04655f3b",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-mapping-v1-review.js",
+      "bytes": 11660,
+      "sha256": "74d803d2a9103c7f650d9a75132678e49795d81b4c846e6e97873ce06e867ac7",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-mapping-v1-setup.js",
+      "bytes": 5405,
+      "sha256": "efd60413ac547db9cc6d694081355c5a7096ac2ad9639227d137ccafb098e1ea",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-mapping-v1.js",
+      "bytes": 5096,
+      "sha256": "2f3fc071358bf72228d38971451a205aeeed0003238ea8f1f905b459f9ce7890",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence.service.js",
+      "bytes": 129115,
+      "sha256": "66b46a4127a8cba740395a952fd7c32217ddbc9119209ffd51614ae52844a0b1",
+      "syntaxExitCode": 0
+    }
+  ],
+  "actualConstructorMetadata": "__metadata(\"design:paramtypes\", [prisma_service_js_1.PrismaService,\n        client_prepopulation_service_js_1.ClientPrepopulationService,\n        office_recommender_service_js_1.OfficeRecommenderService])",
+  "productionTestOrFixtureOutputs": false,
+  "protectedReportingOutputContentsRead": false,
+  "otherOwnersOutputsRemoved": false,
+  "ownedBuildInfo": {
+    "path": "/tmp/intelligence-client-api-build-20261013.tsbuildinfo",
+    "bytes": 1313857,
+    "sha256": "f9fcca1f6ebf30d02967d3a12b879790393f224e8609e9abcbeed6216d136d44"
+  },
+  "onlyOwnedOutputAndBuildInfoRetired": true
+}

@@ -1,0 +1,6 @@
+{
+  "path": "node_modules",
+  "target": "/workspace/capirov2/node_modules",
+  "onlyOwnedRootDependencySymlinkRemoved": true,
+  "borrowedCachesChanged": false
+}

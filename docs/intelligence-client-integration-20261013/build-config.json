@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/workspace/intelligence-client-api-build-20261013",
+    "tsBuildInfoFile": "/tmp/intelligence-client-api-build-20261013.tsbuildinfo"
+  }
+}

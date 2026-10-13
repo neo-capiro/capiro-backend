@@ -1,0 +1,198 @@
+{
+  "base": "6074d8a59d1fb5bc10bf9ccfbcb338bff68932e8",
+  "donor": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+  "donorParent": "4970927fe1951636ab002522a20a35310d3dc7c4",
+  "frozenSource": "cd827868794a3197aa557070a8ae162949e6209f",
+  "frozenTree": "3326cbb0dca06a200a3937408b8af1cb6261013a",
+  "exactDonorPaths": [
+    {
+      "path": "apps/api/src/intelligence/client-context-v1-graph-labels.ts",
+      "modeBlob": "100644 blob 4758820c8d11d016665708d29ca676a147b86faa"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-context-v1-graph-presentation.ts",
+      "modeBlob": "100644 blob ba7cb2c212d973e6abf50733ffee2869981a5ac2"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-context-v1-graph.ts",
+      "modeBlob": "100644 blob 34d8da80dc8784c812c5913acec005d7b3575de1"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-context-v1-health.ts",
+      "modeBlob": "100644 blob 685167e6a324e2f73e153cd2c80e5764410a09c0"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-context-v1-outreach.ts",
+      "modeBlob": "100644 blob fa380277464a174737ea2f2917ce175fa43507c1"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-identity-v1-catalog.ts",
+      "modeBlob": "100644 blob 26418e2f112a7f30351988ec23d91822b8bd49ef"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-identity-v1-filings.ts",
+      "modeBlob": "100644 blob 563e48e8ef8ee5daeefab86a51a31819c2a3423e"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-identity-v1-lda.ts",
+      "modeBlob": "100644 blob 66ebbba6db9fc626993af4d681afb81a9ac60a54"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-identity-v1.ts",
+      "modeBlob": "100644 blob 3cf88fd4667c7a2b41649d95f02a7b201c6f075f"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-identity-v1.types.ts",
+      "modeBlob": "100644 blob 93ac0c728f46137e5bb15113ae0fb4fdc64a7510"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-intelligence-values.ts",
+      "modeBlob": "100644 blob f9908609264b709878f14bf7005792bc276a36a1"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-mapping-v1-catalog.ts",
+      "modeBlob": "100644 blob 045cdf70d9753af39c3bfa375595ae6f3c9e9ddc"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-mapping-v1-review.ts",
+      "modeBlob": "100644 blob 504fa8987ef5aec734dc06f133565767834a9ada"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-mapping-v1-setup.ts",
+      "modeBlob": "100644 blob 4470532bb0ac7ce7199a2ab8edc08dfe36635c86"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-mapping-v1.ts",
+      "modeBlob": "100644 blob 06506e04890e537b4d812dd383b98e5f8f39b5b5"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts",
+      "modeBlob": "100644 blob 95e5580d8914e7eb76213a4c37cf748e9b98565b"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-context-v1-graph-access.characterization.spec.ts",
+      "modeBlob": "100644 blob 81e40ca6c4355472f216044729d8a84d0298cfee"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-context-v1-graph-labels.characterization.spec.ts",
+      "modeBlob": "100644 blob ca8ac938db1231c43e69d232de32af23599bfafb"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-context-v1-graph-projection.characterization.spec.ts",
+      "modeBlob": "100644 blob dee34ae10c1e7b1a45cdc9c5973257c4d24ee624"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-context-v1-health.characterization.spec.ts",
+      "modeBlob": "100644 blob cd3e57d2a790cf9264eb87444100bc9be9331662"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-context-v1-outreach-coverage.characterization.spec.ts",
+      "modeBlob": "100644 blob 5cdcd2d710de53ab2bf005c510c9576f0b36906d"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-context-v1-outreach.characterization.spec.ts",
+      "modeBlob": "100644 blob ed08979b372e3637abf58ffa21753f02ab8253d1"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-identity-v1-catalog.characterization.spec.ts",
+      "modeBlob": "100644 blob c8841e028b3108e6268c14129a2cb28028045f93"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-identity-v1-competitors.characterization.spec.ts",
+      "modeBlob": "100644 blob 95bf6547e97b34a163366ab1ece2b8a8134db738"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts",
+      "modeBlob": "100644 blob 6383d19c3103a9482393e3360083462e3a3fd6be"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts",
+      "modeBlob": "100644 blob 745bdcdffa82b752c9903c719d61d59b9f6fbf53"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-identity-v1-numerics.characterization.spec.ts",
+      "modeBlob": "100644 blob 7d422dadca3117f23afa0b653976b9c1b4581085"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-identity-v1-profile.characterization.spec.ts",
+      "modeBlob": "100644 blob dee327a77318b3198c940e05e0130c4470804b68"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.award-discovery.characterization.spec.ts",
+      "modeBlob": "100644 blob 4f41bee689fd633ad0e1175daf057b3ffb5ef256"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.callbacks.characterization.spec.ts",
+      "modeBlob": "100644 blob 8761d5296df0711d1efcadc8a458c08cbe5f5a7d"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.confirmation.characterization.spec.ts",
+      "modeBlob": "100644 blob c6faf169df4d418beaba28cc1386c8e6b5cfc9b1"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.discovery.characterization.spec.ts",
+      "modeBlob": "100644 blob 5c8296062cc284ab4ad444a667b6ec132b3baa4b"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.manual.characterization.spec.ts",
+      "modeBlob": "100644 blob 32fef5781f6271a1942cc94322f6dcadff86e7c7"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.pac-pins.characterization.spec.ts",
+      "modeBlob": "100644 blob 0238056a3d2a29912c70d8ec972f70a5e243eb76"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.reads.characterization.spec.ts",
+      "modeBlob": "100644 blob 0e9725c6cb4565a3d4900dbab0872d580612e704"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.rejection.characterization.spec.ts",
+      "modeBlob": "100644 blob cc91b083946ea38711275bf6ddcae8f221a30454"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.resolve.characterization.spec.ts",
+      "modeBlob": "100644 blob 04186214975f79c9f112757cfec63157d26ff50b"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-mapping-v1.setup.characterization.spec.ts",
+      "modeBlob": "100644 blob 393f349b6cc9b97a941adfc126940ec45a59ff12"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "modeBlob": "100644 blob 1f5d6755ba421d5796567b7fa4993a213c4097e1"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-context.ts",
+      "modeBlob": "100644 blob 07e37a2bb3a24e883fbbd5cccfffb3f9ec3399fb"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-identity.ts",
+      "modeBlob": "100644 blob c62b8c18b486815c3d24c15254ad1e9848281d7a"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-mapping.rows.ts",
+      "modeBlob": "100644 blob d7bb94b8dc768cfa9e4e7364f099d78a40c461c5"
+    },
+    {
+      "path": "apps/api/test/fixtures/intelligence-mapping.ts",
+      "modeBlob": "100644 blob 7fdd49a86ad52c6188a49b1a5905fc6e4c0b2567"
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-HANDOVER.md",
+      "modeBlob": "100644 blob 118229a502491e95e1469b938719ff2b5250bfb9"
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-REMAINING-4970927F.json",
+      "modeBlob": "100644 blob 55d56ebd07629d4bbaaff9f500182754f00a3e06"
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/INTELLIGENCE-REMAINING-AFTER-CLIENT.json",
+      "modeBlob": "100644 blob 27606763f4f6128e3e7d837e33c36b6bc36c4a5d"
+    }
+  ],
+  "unchangedBaseEntries": 26658,
+  "allUnrelatedBaseEntriesExact": true,
+  "calendarWorkspaceSharedNativeAuthorityReportingAndPolicyChanged": false,
+  "protectedReportingBodyInspected": false,
+  "mergeConflictOrReconstruction": false
+}

@@ -1,0 +1,223 @@
+{
+  "rootDependencyLink": {
+    "path": "node_modules",
+    "target": "/workspace/capirov2/node_modules"
+  },
+  "apiDependencyLinks": [
+    {
+      "path": "apps/api/node_modules/.prisma/client",
+      "target": "/tmp/capirov2-local-native-prerequisite-20261012/core-client"
+    },
+    {
+      "path": "apps/api/node_modules/@aws-sdk",
+      "target": "/workspace/capirov2/apps/api/node_modules/@aws-sdk"
+    },
+    {
+      "path": "apps/api/node_modules/@azure",
+      "target": "/workspace/capirov2/apps/api/node_modules/@azure"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/auth",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/auth"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/defense-contracts",
+      "target": "/workspace/capirov2-integrated-rc/packages/defense-contracts"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/defense-domain",
+      "target": "/workspace/capirov2-integrated-rc/packages/defense-domain"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/meriv2-core",
+      "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/meriv2-core"
+    },
+    {
+      "path": "apps/api/node_modules/@capiro/shared",
+      "target": "/tmp/prospect-brief-copy-shared-runtime-20261013"
+    },
+    {
+      "path": "apps/api/node_modules/@clerk",
+      "target": "/workspace/capirov2/apps/api/node_modules/@clerk"
+    },
+    {
+      "path": "apps/api/node_modules/@electric-sql",
+      "target": "/workspace/capirov2/apps/api/node_modules/@electric-sql"
+    },
+    {
+      "path": "apps/api/node_modules/@jest",
+      "target": "/workspace/capirov2/apps/api/node_modules/@jest"
+    },
+    {
+      "path": "apps/api/node_modules/@makegov",
+      "target": "/workspace/capirov2/apps/api/node_modules/@makegov"
+    },
+    {
+      "path": "apps/api/node_modules/@modelcontextprotocol",
+      "target": "/workspace/capirov2/apps/api/node_modules/@modelcontextprotocol"
+    },
+    {
+      "path": "apps/api/node_modules/@nestjs",
+      "target": "/workspace/capirov2/apps/api/node_modules/@nestjs"
+    },
+    {
+      "path": "apps/api/node_modules/@prisma/client",
+      "target": "/tmp/capirov2-local-native-prerequisite-20261012/core-client"
+    },
+    {
+      "path": "apps/api/node_modules/@types",
+      "target": "/workspace/capirov2/apps/api/node_modules/@types"
+    },
+    {
+      "path": "apps/api/node_modules/cheerio",
+      "target": "/workspace/capirov2/node_modules/.pnpm/cheerio@1.2.0/node_modules/cheerio"
+    },
+    {
+      "path": "apps/api/node_modules/class-transformer",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer"
+    },
+    {
+      "path": "apps/api/node_modules/class-validator",
+      "target": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator"
+    },
+    {
+      "path": "apps/api/node_modules/docx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/docx@9.7.2/node_modules/docx"
+    },
+    {
+      "path": "apps/api/node_modules/dotenv",
+      "target": "/workspace/capirov2/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv"
+    },
+    {
+      "path": "apps/api/node_modules/exceljs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/exceljs@4.4.0/node_modules/exceljs"
+    },
+    {
+      "path": "apps/api/node_modules/express",
+      "target": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express"
+    },
+    {
+      "path": "apps/api/node_modules/fast-xml-parser",
+      "target": "/workspace/capirov2/node_modules/.pnpm/fast-xml-parser@5.11.1/node_modules/fast-xml-parser"
+    },
+    {
+      "path": "apps/api/node_modules/ical.js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ical.js@2.2.1/node_modules/ical.js"
+    },
+    {
+      "path": "apps/api/node_modules/jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+    },
+    {
+      "path": "apps/api/node_modules/jpeg-js",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jpeg-js@0.4.4/node_modules/jpeg-js"
+    },
+    {
+      "path": "apps/api/node_modules/jszip",
+      "target": "/workspace/capirov2/node_modules/.pnpm/jszip@3.10.2/node_modules/jszip"
+    },
+    {
+      "path": "apps/api/node_modules/lru-cache",
+      "target": "/workspace/capirov2/node_modules/.pnpm/lru-cache@7.18.3/node_modules/lru-cache"
+    },
+    {
+      "path": "apps/api/node_modules/mammoth",
+      "target": "/workspace/capirov2/node_modules/.pnpm/mammoth@1.13.0/node_modules/mammoth"
+    },
+    {
+      "path": "apps/api/node_modules/pdf-lib",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pdf-lib@1.17.1/node_modules/pdf-lib"
+    },
+    {
+      "path": "apps/api/node_modules/pdf-parse",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pdf-parse@2.4.5/node_modules/pdf-parse"
+    },
+    {
+      "path": "apps/api/node_modules/pg",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg"
+    },
+    {
+      "path": "apps/api/node_modules/pptxgenjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/pptxgenjs@3.12.0/node_modules/pptxgenjs"
+    },
+    {
+      "path": "apps/api/node_modules/prisma",
+      "target": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma"
+    },
+    {
+      "path": "apps/api/node_modules/reflect-metadata",
+      "target": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata"
+    },
+    {
+      "path": "apps/api/node_modules/rxjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs"
+    },
+    {
+      "path": "apps/api/node_modules/sanitize-html",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html"
+    },
+    {
+      "path": "apps/api/node_modules/shpjs",
+      "target": "/workspace/capirov2/node_modules/.pnpm/shpjs@6.2.0/node_modules/shpjs"
+    },
+    {
+      "path": "apps/api/node_modules/simple-statistics",
+      "target": "/workspace/capirov2/node_modules/.pnpm/simple-statistics@7.12.0/node_modules/simple-statistics"
+    },
+    {
+      "path": "apps/api/node_modules/stripe",
+      "target": "/workspace/capirov2/node_modules/.pnpm/stripe@17.7.0/node_modules/stripe"
+    },
+    {
+      "path": "apps/api/node_modules/supertest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest"
+    },
+    {
+      "path": "apps/api/node_modules/svix",
+      "target": "/workspace/capirov2/node_modules/.pnpm/svix@1.92.2/node_modules/svix"
+    },
+    {
+      "path": "apps/api/node_modules/ts-jest",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+    },
+    {
+      "path": "apps/api/node_modules/ts-loader",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-loader@9.6.2_typescript@5.9.3_webpack@5.97.1_@swc+core@1.16.2_@swc+helpers@0.5.23__/node_modules/ts-loader"
+    },
+    {
+      "path": "apps/api/node_modules/ts-node",
+      "target": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node"
+    },
+    {
+      "path": "apps/api/node_modules/tsconfig-paths",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsconfig-paths@4.2.0/node_modules/tsconfig-paths"
+    },
+    {
+      "path": "apps/api/node_modules/tsx",
+      "target": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+    },
+    {
+      "path": "apps/api/node_modules/typescript",
+      "target": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+    },
+    {
+      "path": "apps/api/node_modules/undici",
+      "target": "/workspace/capirov2/node_modules/.pnpm/undici@6.28.1/node_modules/undici"
+    },
+    {
+      "path": "apps/api/node_modules/unpdf",
+      "target": "/workspace/capirov2/node_modules/.pnpm/unpdf@1.8.1_@napi-rs+canvas@1.0.9/node_modules/unpdf"
+    },
+    {
+      "path": "apps/api/node_modules/word-extractor",
+      "target": "/workspace/capirov2/node_modules/.pnpm/word-extractor@1.0.4/node_modules/word-extractor"
+    },
+    {
+      "path": "apps/api/node_modules/zod",
+      "target": "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod"
+    }
+  ],
+  "sharedProductRuntime": "/tmp/prospect-brief-copy-shared-runtime-20261013",
+  "installOrGenerationOrNativeDownloads": false,
+  "exactExistingDependencyCachesReused": true
+}

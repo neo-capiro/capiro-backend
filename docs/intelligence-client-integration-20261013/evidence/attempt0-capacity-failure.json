@@ -1,0 +1,13 @@
+{
+  "sourceHead": "cd827868794a3197aa557070a8ae162949e6209f",
+  "sourceTree": "3326cbb0dca06a200a3937408b8af1cb6261013a",
+  "ownedJestCache": "/tmp/intelligence-client-jest-cache-20261013",
+  "cacheFilesAtFailure": 194,
+  "cacheBytesAtFailure": 22225112,
+  "failure": "Jest transform cache exhausted /tmp; recorder could not write final receipt (Errno28); no successful qualification claimed",
+  "completeJestExitAndElapsedReceiptPersisted": false,
+  "recordedLogMayBeTruncatedAtFullFilesystem": true,
+  "ownedCacheOnlyRemoved": true,
+  "productSourceChanged": false,
+  "borrowedCachesRemovedOrModified": false
+}

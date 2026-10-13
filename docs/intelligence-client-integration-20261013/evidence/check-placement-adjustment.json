@@ -1,0 +1,11 @@
+{
+  "productSourceUnchanged": true,
+  "canonicalTypeAndProductionBuildConfigurationsUnchanged": true,
+  "jestTransformOverridesOnly": [
+    "sourceMap=false",
+    "inlineSourceMap=false"
+  ],
+  "reason": "Transform map cache filled /tmp despite --no-cache. Preserve executable test code and bound derived map/cache placement.",
+  "freshOwnedJestCache": "/workspace/intelligence-client-jest-cache-20261013",
+  "all56SelectedSuitesRetained": true
+}

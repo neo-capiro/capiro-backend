@@ -1,0 +1,5 @@
+{
+  "exitCode": 2,
+  "stdout": "apps/api/src/intelligence/client-identity-v1-lda.ts:112: trailing whitespace.\n+      SELECT c.id, c.name, c.total_filings, c.total_spending, \ndocs/intelligence-client-integration-20261013/evidence/attempt0-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/intelligence-client-integration-20261013/evidence/attempt0-jest.log:3: trailing whitespace.\n+  \ndocs/intelligence-client-integration-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/intelligence-client-integration-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+  "stderr": ""
+}
