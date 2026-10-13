@@ -1,0 +1,13 @@
+{
+  "ownedSymlinksRemoved": [
+    "node_modules",
+    "infra/cdk/node_modules"
+  ],
+  "borrowedTargetsPreserved": [
+    "/workspace/capirov2/node_modules",
+    "/workspace/capirov2/infra/cdk/node_modules"
+  ],
+  "ownedRenderedOutput": "/tmp/capiro-preview-rendered-proposal-42d6705b-20261013",
+  "ownedTypeInfo": "/tmp/preview-backend-type-42d6705b-20261013.tsbuildinfo",
+  "result": "PASS; owned derived paths absent, borrowed caches present"
+}

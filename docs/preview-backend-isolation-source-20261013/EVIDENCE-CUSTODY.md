@@ -1,0 +1,7 @@
+# Finite evidence custody
+
+Raw packet checkpoint `b14e14f04148e5afa9f1f6f8a21ff3a4562297b9`, tree `afb5b0a021e28d7b648e85a6b9fe7bae031f22b7`, retains every original log. Its full-packet source-hygiene attempt failed only on four whitespace-only lines in `evidence/attempt1-source-tests.log`. The earlier passing38-path check preceded force-adding ignored logs; it is not asserted as the final evidence check. Both observations are retained.
+
+Exactly that one log is represented in the final packet as `attempt1-source-tests.log.lossless.json`, using an escaped UTF8 JSON string. Decode `text` as UTF8 and check its byte count, SHA256 and pinned raw Git blob; no bytes were trimmed. This is not a broad evidence-path exemption. All other logs remain raw. The final patch runs normal source hygiene without a new exclusion.
+
+`EVIDENCE-SHA256.json` is a finite inventory of the packet's declared files, including the verifier itself. Its own bytes and the later `evidence/final-packet-checks.json` receipt are explicitly outside that inventory to avoid recursive hashes. The verifier checks that there are no undeclared packet files beyond those two exact names, compares every declared length/hash and verifies the lossless envelope against its immutable raw checkpoint. The final receipt records the verification and whole-patch hygiene results. Product source is fixed at42d6705b02af712f729150f51f11665290d696c7; only docs/evidence follow it.
