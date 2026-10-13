@@ -135,6 +135,11 @@ function manifestContract(manifestBytes, pins) {
   return { manifest, index, directories, dereference };
 }
 
+/** Canonical relative path grammar only; no I/O or normalization. */
+export function inspectFrontendStandalonePath(value) {
+  return safePath(value);
+}
+
 /** Canonical declaration grammar only; no I/O or byte/runtime admission. */
 export function inspectFrontendStandaloneManifest({ manifestBytes, pins }) {
   return manifestContract(manifestBytes, pins).manifest;

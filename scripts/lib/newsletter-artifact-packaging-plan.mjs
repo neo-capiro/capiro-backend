@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import { constants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inspectFrontendStandaloneManifest, validateFrontendStandaloneArtifact,
+import { inspectFrontendStandaloneManifest, inspectFrontendStandalonePath, validateFrontendStandaloneArtifact,
   readFrontendStandaloneArtifact } from './frontend-standalone-artifact-contract.mjs';
 
 export const NEWSLETTER_BACKEND_PACKAGING_SOURCE = Object.freeze({
@@ -31,9 +31,9 @@ const flags = new Map([['--standalone-dir', 'standaloneDir'], ['--public-dir', '
 const literal = value => typeof value === 'string' && value.length > 0 && value === value.trim()
   && !/[\u0000-\u001f\u007f\\]/.test(value);
 function absolute(value) {
-  if (!literal(value) || !value.startsWith('/') || value === '/' || path.posix.normalize(value) !== value
-      || value.split('/').some(part => ['.git', '.aws', '.ssh', '.env', '.gnupg'].includes(part)))
+  if (!literal(value) || !value.startsWith('/') || value === '/' || path.posix.normalize(value) !== value)
     refuse('literal canonical absolute input/output path');
+  inspectFrontendStandalonePath(value.slice(1));
   return value;
 }
 function optionsContract(options) {
@@ -100,9 +100,18 @@ async function regularBuffer(io, file, limit) {
     refuse('regular bounded input file required');
   const handle = await io.open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
-    const bytes = await handle.readFile();
-    if (!Buffer.isBuffer(bytes) || bytes.length !== stat.size || bytes.length > limit) refuse('bounded snapshot read');
-    return Buffer.from(bytes);
+    const chunks = []; let count = 0;
+    while (count <= limit) {
+      const chunk = Buffer.alloc(Math.min(65536, limit + 1 - count));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+      if (!Number.isInteger(bytesRead) || bytesRead < 0 || bytesRead > chunk.length) refuse('bounded snapshot read');
+      if (bytesRead === 0) break;
+      count += bytesRead;
+      if (count > limit) refuse('bounded snapshot read');
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+    if (count !== stat.size) refuse('bounded snapshot read');
+    return Buffer.concat(chunks, count);
   } finally { await handle.close(); }
 }
 async function syncDirectory(io, value) {
@@ -113,9 +122,10 @@ async function writeBuffer(io, value, bytes, mode = 0o644) {
   const handle = await io.open(value, 'wx', mode);
   try { await handle.writeFile(bytes); await handle.chmod(mode); await handle.sync(); } finally { await handle.close(); }
 }
-function receiptFor(options, artifact, counts, fixtureLabel) {
+function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem) {
   return { schemaVersion: 1, kind: 'newsletter-release-assembly', status: 'PASS',
     syntheticModel: fixtureLabel !== undefined, fixtureLabel: fixtureLabel ?? null,
+    builtinFilesystem, filesystemEffectsIndependentlyAttested: builtinFilesystem,
     approvedSource: { repository: options.sourceRepository, commit: options.sourceCommit },
     declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
     backendSourceIndependentlyVerified: false, manifestSha256: options.manifestSha256,
@@ -124,7 +134,7 @@ function receiptFor(options, artifact, counts, fixtureLabel) {
       privilegedBitsPreserved: false, manifestAuthenticatesPermissions: false, runtimePermissionsCompatibilityVerified: false },
     assemblyHost: { node: process.version, platform: process.platform, architecture: process.arch },
     outputDir: options.outputDir, receiptPath: options.outputDir + '/build-receipt.json',
-    atomicDirectoryPublishPerformed: true, durableFilesAndDirectorySyncPerformed: true,
+    atomicDirectoryPublishPerformed: builtinFilesystem, durableFilesAndDirectorySyncPerformed: builtinFilesystem,
     buildUsedSourceVerified: false, nativeRuntimeCompatibilityVerified: false,
     runtimeDependencyClosureVerified: false, localServingVerified: false,
     uiAcceptanceVerified: false, shippingAuthorized: false };
@@ -136,9 +146,10 @@ function receiptFor(options, artifact, counts, fixtureLabel) {
 export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsletterIdentity, fixtureLabel } = {}) {
   const options = optionsContract(input);
   if (process.versions.node.split('.')[0] !== '24' || process.platform !== 'linux') refuse('assembly host requires Linux/Node24');
-  if ((newsletterIdentity !== undefined && (typeof newsletterIdentity !== 'function'
-      || typeof fixtureLabel !== 'string' || !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixtureLabel)))
-      || (newsletterIdentity === undefined && fixtureLabel !== undefined)) refuse('explicit labelled synthetic identity port');
+  const customPort = newsletterIdentity !== undefined || io !== fs;
+  if ((newsletterIdentity !== undefined && typeof newsletterIdentity !== 'function')
+      || (customPort && (typeof fixtureLabel !== 'string' || !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixtureLabel)))
+      || (!customPort && fixtureLabel !== undefined)) refuse('explicit labelled synthetic identity/filesystem port');
   await directory(io, path.dirname(options.manifestPath));
   const manifestBytes = await regularBuffer(io, options.manifestPath, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxManifestBytes);
   const pins = pinsFor(options);
@@ -209,7 +220,7 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
         readlink: value => io.readlink(value), readFile: value => regularBuffer(io, value, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes) } });
     if (revalidated.artifactEntriesSha256 !== artifact.artifactEntriesSha256 || revalidated.actualArtifactBytesVerified !== artifact.actualArtifactBytesVerified)
       refuse('assembled output validation drift');
-    const receipt = receiptFor(options, revalidated, counts, fixtureLabel);
+    const receipt = receiptFor(options, revalidated, counts, fixtureLabel, io === fs);
     await writeBuffer(io, temporary + '/build-receipt.json', Buffer.from(JSON.stringify(receipt, null, 2) + '\n'));
     for (const folder of [...dirs].sort((a, b) => b.length - a.length)) await syncDirectory(io, folder);
     await syncDirectory(io, temporary);
