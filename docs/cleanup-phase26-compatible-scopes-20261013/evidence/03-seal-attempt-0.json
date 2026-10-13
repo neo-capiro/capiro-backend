@@ -1,0 +1,9 @@
+{
+  "sourceUnchanged": "61453eca11f5aa93d67285c2016db34f66eaf6b6",
+  "partialEvidenceHead": "4cc015ddf2ee97284752ddcbc126fcc3b86538ff",
+  "failedOperation": "Python protected-path identity assertion",
+  "reason": "absent Git paths yield same nonzero status but echo head-specific unresolved ref text; stdout compared despite absence",
+  "partialCommit": "only existing command JSON; ignored raw logs remain physical and untouched",
+  "repair": "compare bytes only when both paths exist, then explicitly stage raw packet logs",
+  "noSourceTestNativeReplay": true
+}

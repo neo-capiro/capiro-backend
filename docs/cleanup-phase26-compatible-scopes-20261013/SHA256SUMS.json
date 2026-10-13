@@ -1,0 +1,66 @@
+{
+  "entries": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 3444,
+      "sha256": "266ebe4b2dfa9f92ab27989a4e5222fd1fbe730c927e0dda90b32f104c250541"
+    },
+    {
+      "path": "evidence/01-fake-io-controls.json",
+      "bytes": 573,
+      "sha256": "66c54d95672d36d2c382451c629c85ffc9562f6b52bf04568ac7dec2eef55f2f"
+    },
+    {
+      "path": "evidence/01-fake-io-controls.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/01-fake-io-controls.stdout.log",
+      "bytes": 2923,
+      "sha256": "c2c405b33af75fa04d78125d69cc11a19b0c93a89acd92326ca05b13ef08fead"
+    },
+    {
+      "path": "evidence/02-source-whitespace.json",
+      "bytes": 720,
+      "sha256": "0164ddda327944464380448ca8d7a1df75dae69ab1800459f673a2a00cdf2fff"
+    },
+    {
+      "path": "evidence/02-source-whitespace.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-source-whitespace.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/03-seal-attempt-0.json",
+      "bytes": 564,
+      "sha256": "ca7829c5ca407d5fec6df416f0b8f296923a0e016046b9036dc1a103a5df8213"
+    },
+    {
+      "path": "evidence/03-seal-attempt-0.tool-transcript.txt",
+      "bytes": 503,
+      "sha256": "d831383602ccf1fae97ad8bbeda4a2805004773046c38dcd52a24db32ce21389"
+    },
+    {
+      "path": "evidence/SOURCE-BINDINGS.json",
+      "bytes": 3708,
+      "sha256": "7ada845325be587477a269bfba41b21578f5bab97c613f717e7827f436a4616b"
+    },
+    {
+      "path": "evidence/preparation-warning.txt",
+      "bytes": 228,
+      "sha256": "8078a374437cda6c43db545afd87e3f9b192f9de97baf23a85755e3e338a62a2"
+    },
+    {
+      "path": "evidence/source-eight-path.diff",
+      "bytes": 58209,
+      "sha256": "4b18a738fb9010427fabff10619c71035401de15748cc090649c8fa709ef1b64"
+    }
+  ],
+  "sourceBindings": 8,
+  "nativeRun": false
+}

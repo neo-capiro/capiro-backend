@@ -1,0 +1,1026 @@
+diff --git a/scripts/check-context-plane-new-bypasses.mjs b/scripts/check-context-plane-new-bypasses.mjs
+index ac3fef59c..ba0c23b04 100644
+--- a/scripts/check-context-plane-new-bypasses.mjs
++++ b/scripts/check-context-plane-new-bypasses.mjs
+@@ -2,12 +2,36 @@
+ /** @cleanup-smoke noArgsExit=0 helpExit=0 */
+ 
+ import { execFileSync } from 'node:child_process';
+-import { readFileSync, readdirSync, statSync } from 'node:fs';
++import { readFileSync as readSourceFileSync, readdirSync, statSync, lstatSync } from 'node:fs';
+ import { join } from 'node:path';
+ 
+-import { architectureGuardBase } from './cleanup-gates/lib/cli.mjs';
++import { architectureGuardBase, guardRef } from './cleanup-gates/lib/cli.mjs';
++import {
++  parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
++  contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
++} from './lib/context-plane-scope.mjs';
+ 
+-const base = architectureGuardBase('check-context-plane-new-bypasses');
++let invocation;
++try {
++  invocation = parseContextPlaneInvocation(process.argv.slice(2));
++  if (invocation.scope !== 'full') guardRef(invocation.base, { name: 'base-ref' });
++} catch (error) {
++  console.error(`Context Plane scoped invocation refused: ${error.message}`);
++  process.exit(2);
++}
++const { scope } = invocation;
++const base = scope === 'full' ? architectureGuardBase('check-context-plane-new-bypasses') : invocation.base;
++
++function readFileSync(path, encoding) {
++  if (scope === 'full') return readSourceFileSync(path, encoding);
++  try {
++    assertContextPlaneReadPath(path, scope, { lstatSync });
++    return readSourceFileSync(path, encoding);
++  } catch (error) {
++    violations.push({ file: path, added: `scoped source read refused: ${error.message}`, pattern: 'scope input refusal' });
++    throw error;
++  }
++}
+ 
+ /**
+  * Files that ARE the shared Context Plane (or the shared Retrieval V2 it owns).
+@@ -277,7 +301,7 @@ const EXPECTED_OPERATIONS = [
+ 
+ let diff = '';
+ try {
+-  diff = execFileSync(
++  diff = projectContextPlaneDiff(execFileSync(
+     'git',
+     [
+       'diff',
+@@ -289,9 +313,10 @@ try {
+       ':(glob)**/*.tsx',
+     ],
+     { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
+-  );
++  ), scope);
+ } catch (error) {
+   console.error(`Context Plane guard could not diff against ${base}.`);
++  if (scope !== 'full') console.error(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`);
+   throw error;
+ }
+ 
+@@ -314,6 +339,8 @@ for (const line of diff.split('\n')) {
+   if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
+ }
+ 
++// Product adoption/neutralization invariants remain backend/full obligations.
++if (scope !== 'frontend') {
+ /**
+  * Phase 26 closes the bounded product migration sequence. These HEAD invariants
+  * are intentionally stronger than the added-line guard: once adopted, a product
+@@ -507,13 +534,17 @@ const meriModule = stripComments(read(MERI_MODULE));
+ requireText(MERI_MODULE, meriModule, 'useFactory: createMeriRuntimeService');
+ requireText(MERI_MODULE, meriModule, '{ provide: RAW_MERI_SERVICE, useClass: MeriService }');
+ 
++}
++
+ /**
+  * Repo-wide census sweep. Anything naming a shared-plane internal outside the
+  * plane itself must be an exact, reviewed census line.
+  */
+ const censusSeen = new Set();
++let censusSourceCount = 0;
+ for (const root of ['apps', 'packages']) {
+   for (const censusFile of sourceFilesUnder(root)) {
++    censusSourceCount += 1;
+     if (IMPLEMENTATION_PREFIXES.some((prefix) => censusFile.startsWith(prefix))) continue;
+     const code = stripComments(readOptional(censusFile));
+     if (!SHARED_PLANE_SYMBOL_PATTERNS.some((pattern) => pattern.test(code))) continue;
+@@ -536,10 +567,15 @@ for (const root of ['apps', 'packages']) {
+   }
+ }
+ 
+-const staleCensus = SHARED_PLANE_CONSUMER_CENSUS.filter(
++if (scope !== 'full' && censusSourceCount === 0) {
++  violations.push({ file: scope, added: 'empty scoped TypeScript census', pattern: 'scope input refusal' });
++}
++
++const scopedCensus = SHARED_PLANE_CONSUMER_CENSUS.filter((entry) => contextPlaneIncludesPath(entry.file, scope));
++const staleCensus = scopedCensus.filter(
+   (entry) => !censusSeen.has(`${entry.file} ${entry.line}`),
+ );
+-const unmigrated = SHARED_PLANE_CONSUMER_CENSUS.filter(
++const unmigrated = scopedCensus.filter(
+   (entry) => entry.status === 'unmigrated' && censusSeen.has(`${entry.file} ${entry.line}`),
+ );
+ 
+@@ -551,6 +587,7 @@ if (violations.length > 0) {
+   for (const violation of violations) {
+     console.error(`- ${violation.file}: ${violation.added}`);
+   }
++  if (scope !== 'full') console.error(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`);
+   process.exit(1);
+ }
+ 
+@@ -560,9 +597,13 @@ for (const entry of staleCensus) {
+   );
+ }
+ 
++if (scope === 'full') {
+ console.log(
+   `Context Plane architecture guard: no new direct bypass imports; all ${EXPECTED_OPERATIONS.length} adopted-product invariants hold.`,
+ );
++} else {
++  console.log(`CONTEXT_PLANE_${scope.toUpperCase()}_COMPLETE`);
++}
+ console.log(
+   `Repo-wide census: ${censusSeen.size} reviewed shared-plane reference(s) outside the plane, ${unmigrated.length} still unmigrated.`,
+ );
+@@ -585,6 +626,16 @@ function readOptional(path) {
+ 
+ /** Every non-spec TypeScript file under a directory, relative-pathed. */
+ function sourceFilesUnder(root) {
++  if (scope !== 'full') {
++    try {
++      return contextPlaneSourceFilesUnder(root, scope, {
++        skipDirectories: CENSUS_SKIP_DIRECTORIES, testSuffixes: TEST_SUFFIXES,
++      }, { readdirSync, lstatSync });
++    } catch (error) {
++      violations.push({ file: root, added: `scoped source census refused: ${error.message}`, pattern: 'scope input refusal' });
++      return [];
++    }
++  }
+   const out = [];
+   const walk = (directory) => {
+     let entries;
+diff --git a/scripts/ci/context-plane-scope.contract.spec.mjs b/scripts/ci/context-plane-scope.contract.spec.mjs
+new file mode 100644
+index 000000000..898cdb8a3
+--- /dev/null
++++ b/scripts/ci/context-plane-scope.contract.spec.mjs
+@@ -0,0 +1,269 @@
++import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
++import { createHash } from 'node:crypto';
++import { readFileSync } from 'node:fs';
++import { dirname, join, resolve } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import vm from 'node:vm';
++import test from 'node:test';
++import {
++  parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
++  contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
++} from '../lib/context-plane-scope.mjs';
++
++const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
++const baseline = 'c8c109f7d796d5a50ae57ff6cb214d576c757847';
++const path = 'scripts/check-context-plane-new-bypasses.mjs';
++const before = (file) => execFileSync('git', ['show', `${baseline}:${file}`], { cwd: root, encoding: 'utf8' });
++const original = before(path);
++const current = readFileSync(join(root, path), 'utf8');
++const hash = (source) => createHash('sha256').update(source).digest('hex');
++assert.equal(hash(original), 'c42def8003206269bd21e5c127ded616c1ab3a194a671514f5e64e2a34021bd6');
++
++// Bounded immutable backend source data, never application imports or SQL execution.
++const sourcePaths = [...new Set([...original.matchAll(/['"]((?:apps|packages)\/[^'"]+\.(?:ts|tsx))['"]/g)].map((match) => match[1]))];
++const seed = Object.fromEntries(sourcePaths.map((file) => [file, before(file)]));
++seed['apps/web/src/safe.ts'] = 'export const safe = 1;';
++seed['apps/onboard-web/src/safe.tsx'] = 'export const safe = 2;';
++seed['packages/future-context/src/safe.ts'] = 'export const safe = 3;';
++const policy = { skipDirectories: new Set(['node_modules', 'dist', 'build', 'coverage', '.turbo']), testSuffixes: ['.spec.ts', '.test.ts'] };
++
++function legacyProjection(source) {
++  let result = source.replace("import { readFileSync as readSourceFileSync, readdirSync, statSync, lstatSync } from 'node:fs';",
++    "import { readFileSync, readdirSync, statSync } from 'node:fs';");
++  result = result.replace(/^import \{ architectureGuardBase, guardRef \} from '\.\/cleanup-gates\/lib\/cli\.mjs';\nimport \{\n[\s\S]*?\} from '\.\/lib\/context-plane-scope\.mjs';[\s\S]*?(\n\/\*\*)/m,
++    "import { architectureGuardBase } from './cleanup-gates/lib/cli.mjs';\n\nconst base = architectureGuardBase('check-context-plane-new-bypasses');\n$1");
++  result = result.replace('diff = projectContextPlaneDiff(execFileSync(', 'diff = execFileSync(')
++    .replace('  ), scope);', '  );');
++  result = result.replaceAll("  if (scope !== 'full') console.error(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`);\n", '');
++  result = result.replace("// Product adoption/neutralization invariants remain backend/full obligations.\nif (scope !== 'frontend') {\n", '')
++    .replace('\n}\n\n/**\n * Repo-wide census sweep.', '\n/**\n * Repo-wide census sweep.');
++  result = result.replace('let censusSourceCount = 0;\n', '').replace('    censusSourceCount += 1;\n', '');
++  result = result.replace("if (scope !== 'full' && censusSourceCount === 0) {\n  violations.push({ file: scope, added: 'empty scoped TypeScript census', pattern: 'scope input refusal' });\n}\n\nconst scopedCensus = SHARED_PLANE_CONSUMER_CENSUS.filter((entry) => contextPlaneIncludesPath(entry.file, scope));\n", '')
++    .replaceAll('= scopedCensus.filter(', '= SHARED_PLANE_CONSUMER_CENSUS.filter(');
++  result = result.replace("if (scope === 'full') {\nconsole.log(", 'console.log(')
++    .replace("\n} else {\n  console.log(`CONTEXT_PLANE_${scope.toUpperCase()}_COMPLETE`);\n}\nconsole.log(", '\nconsole.log(');
++  result = result.replace(`function sourceFilesUnder(root) {
++  if (scope !== 'full') {
++    try {
++      return contextPlaneSourceFilesUnder(root, scope, {
++        skipDirectories: CENSUS_SKIP_DIRECTORIES, testSuffixes: TEST_SUFFIXES,
++      }, { readdirSync, lstatSync });
++    } catch (error) {
++      violations.push({ file: root, added: \`scoped source census refused: \${error.message}\`, pattern: 'scope input refusal' });
++      return [];
++    }
++  }
++`, 'function sourceFilesUnder(root) {\n');
++  return result;
++}
++
++function filesystem(files, options = {}) {
++  const dirs = new Map([['apps', []], ['packages', []]]);
++  for (const file of Object.keys(files)) {
++    const segments = file.split('/');
++    for (let i = 1; i < segments.length; i++) {
++      const dir = segments.slice(0, i).join('/');
++      if (!dirs.has(dir)) dirs.set(dir, []);
++      if (!dirs.get(dir).includes(segments[i])) dirs.get(dir).push(segments[i]);
++    }
++  }
++  const calls = [];
++  const touch = (kind, file) => {
++    calls.push([kind, file]);
++    if (options.denyWeb && /^(?:apps\/web|apps\/onboard-web)(?:\/|$)/.test(file)) throw new Error('DENIED_WEB');
++    if (options.denyBackend && /^(?:packages|apps\/(?!web(?:\/|$)|onboard-web(?:\/|$))[^/]+)(?:\/|$)/.test(file)) throw new Error('DENIED_BACKEND');
++    if (options.unreadable === file) throw new Error('UNREADABLE');
++  };
++  const stat = (kind, file) => {
++    touch(kind, file);
++    if (!dirs.has(file) && !Object.hasOwn(files, file)) throw Object.assign(new Error('missing: ' + file), { code: 'ENOENT' });
++    return { isDirectory: () => dirs.has(file), isSymbolicLink: () => file === options.symlink };
++  };
++  return { calls,
++    readdirSync: (file) => { touch('readdir', file); if (!dirs.has(file)) throw new Error('missing directory'); return dirs.get(file); },
++    statSync: (file) => stat('stat', file), lstatSync: (file) => stat('lstat', file),
++    readFileSync: (file) => { touch('read', file); if (!Object.hasOwn(files, file)) throw new Error('missing file'); return files[file]; },
++  };
++}
++
++function run(source, args, files = seed, options = {}) {
++  const fs = filesystem(files, options);
++  const messages = { log: [], warn: [], error: [] };
++  const gitCalls = [];
++  const stopped = {};
++  const fatal = new Error('inert Git failure');
++  let exit = 0;
++  let thrown = null;
++  const context = vm.createContext({
++    ...fs, readSourceFileSync: fs.readFileSync, join,
++    parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
++    contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
++    process: { argv: ['node', 'guard.mjs', ...args], exit: (code) => { exit = code; throw stopped; }, stdout: { write: (value) => messages.log.push(value.trimEnd()) }, stderr: { write: (value) => messages.error.push(value.trimEnd()) } },
++    console: Object.fromEntries(Object.keys(messages).map((key) => [key, (...values) => messages[key].push(values.join(' '))])),
++    execFileSync: (command, args, settings) => {
++      gitCalls.push({ command, args: [...args], settings: { ...settings } });
++      if (options.gitError) throw fatal;
++      return options.diff ?? '';
++    },
++  });
++  const body = source.replace(/^#![^\n]*\n/, '').replace(/^import [\s\S]*?from ['"][^'"]+['"];\n/gm, '');
++  const cli = before('scripts/cleanup-gates/lib/cli.mjs').replace(/^export /gm, '');
++  try { vm.runInContext(cli + '\n' + body, context, { timeout: 3000 }); }
++  catch (error) { if (error !== stopped) { exit = 1; thrown = error === fatal ? 'original Git error identity' : error.message; } }
++  return { exit, thrown, messages, calls: fs.calls, gitCalls };
++}
++
++const added = (file, code) => `diff --git a/${file} b/${file}\nindex 1111111..2222222 100644\n--- a/${file}\n+++ b/${file}\n@@ -0,0 +1 @@\n+${code}\n`;
++
++test('complete original guard/predicates/regex/allowlist/census/operations/catches reconstruct byte-exact', () => {
++  assert.equal(legacyProjection(current), original);
++  for (const [needle, replacement] of [["'meri.chat'", "'meri.changed'"], ['ContextCompilerService\\b', 'OtherService\\b'], ['requireInternalContextProxy(req);\', 3', 'requireInternalContextProxy(req);\', 2'], ["status: 'unmigrated'", "status: 'neutralized'"]]) {
++    const changed = current.replace(needle, replacement);
++    assert.notEqual(changed, current);
++    assert.notEqual(legacyProjection(changed), original);
++  }
++});
++
++test('published helper custody has only unused Phase27 walker removal and strict ref addition', () => {
++  const published = execFileSync('git', ['show', 'ed1bb4b539b297086413e7060979ea02226dc485:scripts/lib/knowledge-census-scope.mjs'], { cwd: root, encoding: 'utf8' });
++  const omitted = published.slice(published.indexOf('function canTraverse('), published.indexOf('function headerPath('));
++  const expected = published.replace(omitted, '').replace('      base = arg;', "      if (!/^[A-Za-z0-9._/@^~-]+$/.test(arg)) throw new Error('invalid scoped Git ref');\n      base = arg;");
++  assert.equal(readFileSync(join(root, 'scripts/lib/knowledge-census-scope.mjs'), 'utf8'), expected);
++  for (const file of ['context-plane-scope.mjs', 'knowledge-census-scope.mjs']) {
++    assert.doesNotMatch(readFileSync(join(root, 'scripts/lib/' + file), 'utf8'), /from ['"]node:|\b(?:require|process|globalThis|execFileSync|readFileSync|fetch)\b/);
++  }
++});
++
++test('full first/fallback/ignored-tail behavior, statuses, original Git identity and all traces remain exact', () => {
++  for (const args of [[], [baseline], [baseline, 'ignored'], [baseline, '--run'], [''], [' padded-base '], ['--run'], ['bad\nref'], ['--help'], ['-h'], ['--help', baseline], ['--base', baseline]]) {
++    for (const options of [{}, { gitError: true }, { diff: added('apps/web/src/new.ts', 'ContextCompilerService') }]) {
++      assert.deepEqual(run(current, args, seed, options), run(original, args, seed, options));
++    }
++  }
++});
++
++test('explicit scopes preserve base/default but malformed requests refuse before Git or source effects', () => {
++  for (const scope of ['backend', 'frontend']) for (const args of [[baseline, `--${scope}-only`], [`--${scope}-only`, baseline]]) {
++    assert.deepEqual(parseContextPlaneInvocation(args), { base: baseline, scope });
++  }
++  for (const args of [['--backend-only', ''], [' --backend-only'], ['--FRONTEND-only'], ['--backend-only=1'], ['--scope', 'backend'], ['--backend-only', '--frontend-only'], ['--frontend-only', '--frontend-only'], ['--backend-only', 'a', 'b'], ['--backend-only', '--unknown'], ['--backend-only', 'ref;echo'], ['--frontend-only', 'x$y'], ['--backend-only', '--help']]) {
++    const result = run(current, args);
++    assert.equal(result.exit, 2); assert.equal(result.calls.length, 0); assert.equal(result.gitCalls.length, 0); assert.equal(result.messages.log.length, 0);
++  }
++});
++
++test('backend preserves all HEAD predicates and pinned status lines with both UI trees denied/absent', () => {
++  for (const files of [seed, Object.fromEntries(Object.entries(seed).filter(([file]) => !/apps\/(?:web|onboard-web)\//.test(file)))]) {
++    const result = run(current, [baseline, '--backend-only'], files, { denyWeb: true });
++    assert.equal(result.exit, 0, result.messages.error.join('\n'));
++    assert.ok(result.messages.log.includes('CONTEXT_PLANE_BACKEND_COMPLETE'));
++    assert.equal(result.calls.filter(([, file]) => /^(?:apps\/web|apps\/onboard-web)(?:\/|$)/.test(file)).length, 0);
++    assert.deepEqual(result.messages.log.filter((line) => !line.startsWith('CONTEXT_PLANE_')), run(original, [baseline], seed).messages.log.slice(1));
++  }
++});
++
++test('frontend proves complementary census/diff without any backend invariant reads/status claims', () => {
++  const files = { 'apps/web/src/safe.ts': 'safe', 'apps/onboard-web/src/safe.tsx': 'safe' };
++  const result = run(current, [baseline, '--frontend-only'], files, { denyBackend: true });
++  assert.equal(result.exit, 0, result.messages.error.join('\n'));
++  assert.ok(result.messages.log.includes('CONTEXT_PLANE_FRONTEND_COMPLETE'));
++  assert.equal(result.messages.warn.length, 0);
++  assert.equal(result.calls.filter(([, file]) => file !== 'apps' && !/^(?:apps\/web|apps\/onboard-web)(?:\/|$)/.test(file)).length, 0);
++  assert.ok(!result.messages.log.some((line) => line.includes('adopted-product invariants hold')));
++});
++
++test('scope walks preserve original skip directories and suffixes, future roots and complete partition', () => {
++  const files = { ...seed, 'apps/future/src/a.ts': 'safe', 'packages/future/src/a.ts': 'safe', 'apps/web/src/a.spec.ts': 'ignored', 'apps/web/src/a.spec.tsx': 'included' };
++  for (const dir of policy.skipDirectories) files[`apps/web/${dir}/a.ts`] = 'ignored';
++  const list = (scope, ports) => ['apps', 'packages'].flatMap((root) => contextPlaneSourceFilesUnder(root, scope, policy, ports));
++  const full = list('full', filesystem(files));
++  const back = list('backend', filesystem(files, { denyWeb: true }));
++  const front = list('frontend', filesystem(files, { denyBackend: true }));
++  assert.deepEqual([...back, ...front].sort(), full.sort());
++  assert.ok(back.includes('packages/future/src/a.ts') && back.includes('apps/future/src/a.ts'));
++  assert.ok(front.includes('apps/web/src/a.spec.tsx') && !front.includes('apps/web/src/a.spec.ts'));
++  for (const dir of policy.skipDirectories) assert.ok(!front.includes(`apps/web/${dir}/a.ts`));
++});
++
++test('whole diff sections preserve header/hunk/target identity and no wrong-scope bans', () => {
++  const back = added('packages/future/src/a.ts', 'ContextCompilerService');
++  const front = added('apps/web/src/a.ts', 'ContextCompilerService');
++  assert.equal(projectContextPlaneDiff(front + back, 'backend'), back);
++  assert.equal(projectContextPlaneDiff(front + back, 'frontend'), front);
++  for (const [scope, diff] of [['backend', front], ['frontend', back]]) {
++    assert.equal(run(current, [baseline, `--${scope}-only`], seed, { diff }).exit, 0);
++  }
++});
++
++test('future app/package/Web/Onboard positive diff+census failures keep original target/refusal', () => {
++  for (const file of ['apps/future/src/a.ts', 'packages/future/src/a.ts', 'apps/web/src/a.ts', 'apps/onboard-web/src/a.tsx']) {
++    const scope = /apps\/(?:web|onboard-web)\//.test(file) ? 'frontend' : 'backend';
++    for (const options of [{ diff: added(file, 'ContextCompilerService') }, {}]) {
++      const files = { ...seed, ...(options.diff ? {} : { [file]: 'ContextCompilerService' }) };
++      const result = run(current, [baseline, `--${scope}-only`], files, options);
++      assert.equal(result.exit, 1); assert.ok(result.messages.error.some((line) => line.includes(file)));
++      assert.ok(result.messages.error.includes(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`));
++      assert.ok(!result.messages.log.some((line) => line.endsWith('_COMPLETE')));
++      assert.equal(run(original, [baseline], files, options).exit, 1);
++    }
++  }
++});
++
++test('exact adapter/census exceptions never allow changed lines, relocated symbols or stale neutralization', () => {
++  const module = 'apps/api/src/workspace-assistant/workspace-assistant.module.ts';
++  const approved = "import { ContextCompilerService } from '../context/context-compiler.service.js';";
++  assert.equal(run(current, [baseline, '--backend-only'], seed, { diff: added(module, approved) }).exit, 0);
++  for (const [file, line] of [[module, approved.replace(".js'", ".changed.js'")], ['apps/web/src/new.ts', approved]]) {
++    const scope = file.startsWith('apps/web/') ? 'frontend' : 'backend';
++    assert.equal(run(current, [baseline, `--${scope}-only`], seed, { diff: added(file, line) }).exit, 1);
++  }
++  const files = { ...seed, [module]: seed[module].replaceAll('useExisting: WorkspaceEditorContextCompilerAdapter', 'useClass: ContextCompilerService') };
++  assert.equal(run(current, [baseline, '--backend-only'], files).exit, 1);
++  assert.equal(run(original, [baseline], files).exit, 1);
++});
++
++test('operation, call floors, read-only tables, gateway, neutralization and governance failures remain active', () => {
++  const mutations = [
++    ['apps/api/src/context/context-plane-operation-registry.ts', (s) => s.replace("id: 'meri.chat'", "id: 'removed'")],
++    ['apps/meriv2-orchestrator/src/meri/strategy/strategy.controller.ts', (s) => s.replaceAll('requireInternalContextProxy(req);', '')],
++    ['apps/api/src/retrieval/adapters/strategy-work-retrieval.adapter.ts', (s) => s + '\nsp_send_token'],
++    ['apps/api/src/engagement/generation/generation-gateway.service.ts', (s) => s.replaceAll('failClosedOnPersist: true', 'failClosedOnPersist: false')],
++    ['apps/api/src/meri/meriv3-runtime.proxy.ts', (s) => s.replaceAll('governedRuntime.runChatTurn(', 'ungoverned(')],
++  ];
++  for (const [file, mutate] of mutations) {
++    const files = { ...seed, [file]: mutate(seed[file]) };
++    assert.notEqual(files[file], seed[file]);
++    assert.equal(run(current, [baseline, '--backend-only'], files).exit, 1);
++    assert.deepEqual(run(current, [baseline], files), run(original, [baseline], files));
++  }
++  assert.equal(run(current, [baseline, '--backend-only'], { ...seed, 'apps/api/src/engagement/future.ts': 'gateway.enabled' }).exit, 1);
++});
++
++test('missing/unreadable/symbolic fixed HEAD inputs fail before contents, including ancestor escapes', () => {
++  const file = 'apps/api/src/context/context-plane-operation-registry.ts';
++  for (const options of [{ unreadable: file }, { symlink: file }, { symlink: 'apps/api' }, { symlink: 'apps' }]) {
++    const result = run(current, [baseline, '--backend-only'], seed, options);
++    assert.equal(result.exit, 1);
++    if (options.symlink) assert.equal(result.calls.filter(([kind, path]) => kind === 'read' && path === file).length, 0);
++  }
++  const files = { ...seed }; delete files[file];
++  assert.equal(run(current, [baseline, '--backend-only'], files).exit, 1);
++  assert.equal(run(current, [baseline, '--frontend-only'], {}, { denyBackend: true }).exit, 1);
++});
++
++test('missing/unreadable/symbolic census inputs cannot silently shrink scoped obligations', () => {
++  for (const options of [{ unreadable: 'apps/web/src/safe.ts' }, { symlink: 'apps/web' }, { symlink: 'apps/web/src/safe.ts' }]) {
++    const result = run(current, [baseline, '--frontend-only'], seed, options);
++    assert.equal(result.exit, 1); assert.ok(result.messages.error.includes('CONTEXT_PLANE_FRONTEND_FAILED'));
++  }
++});
++
++test('unavailable Git and malformed/truncated/quoted/binary sections fail before any source access', () => {
++  const valid = added('apps/web/a.ts', 'ContextCompilerService');
++  for (const scope of ['backend', 'frontend']) for (const options of [{ gitError: true }, { diff: '+orphan\n' }, { diff: valid.replace('+1 @@', '+1,2 @@') }, { diff: 'diff --git "a/apps/web/a.ts" "b/apps/web/a.ts"\n' }, { diff: 'diff --git a/a.ts b/a.ts\nBinary files differ\n' }]) {
++    const result = run(current, [baseline, `--${scope}-only`], seed, options);
++    assert.equal(result.exit, 1); assert.equal(result.calls.length, 0);
++    assert.ok(result.messages.error.includes(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`));
++  }
++});
+diff --git a/scripts/ci/context-plane-validation-scope.spec.mjs b/scripts/ci/context-plane-validation-scope.spec.mjs
+new file mode 100644
+index 000000000..4ebbaffed
+--- /dev/null
++++ b/scripts/ci/context-plane-validation-scope.spec.mjs
+@@ -0,0 +1,190 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++import path from 'node:path';
++import vm from 'node:vm';
++import { execFileSync } from 'node:child_process';
++import { createHash } from 'node:crypto';
++import { fileURLToPath } from 'node:url';
++import { contextPlaneValidationScope, contextPlaneValidationMarker } from '../lib/context-plane-validation-scope.mjs';
++
++// Source/fake-process qualification only. No native compiler/Jest/CLI executes.
++const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
++const current = fs.readFileSync(path.join(ROOT, 'scripts/validate-knowledge-plane-phase26.mjs'), 'utf8');
++const ORIGINAL_HEAD = 'c8c109f7d796d5a50ae57ff6cb214d576c757847';
++const boundOriginal = execFileSync('git', ['show', ORIGINAL_HEAD + ':scripts/validate-knowledge-plane-phase26.mjs'], {cwd: ROOT, encoding: 'utf8'});
++const baselineBytes = fs.readFileSync(path.join(ROOT, 'scripts/knowledge-plane-phase26-typecheck-baseline.json'), 'utf8');
++const baseline = JSON.parse(baselineBytes);
++const digest = (value) => createHash('sha256').update(value).digest('hex');
++const plain = (value) => JSON.parse(JSON.stringify(value));
++const typingControl = `if (selectedScope?.scope === 'frontend' || selectedScope?.sourceOnly) {
++  console.log('SKIP  backend typing (explicit source policy)');
++} else {
++`;
++const suiteControl = `if (selectedScope?.scope === 'frontend' || selectedScope?.sourceOnly) {
++  console.log('SKIP  backend test suites (explicit source policy)');
++} else if (skipTests) {`;
++const compilerControl = `
++  const diagnostics = (text.match(/error TS\\d+/g) ?? []).length;
++  const compilerEvidence = !out.error && !out.signal && (
++    (out.status === 0 && total === 0 && diagnostics === 0) ||
++    ([1, 2].includes(out.status) && total > 0 && diagnostics === total)
++  );`;
++const processControl = `    const processEvidence = !out.error && !out.signal && (out.status === 0 ||
++      (out.status === 1 && failedSuites.length > 0));
++`;
++function restore(source) {
++  return source
++    .replace("import { contextPlaneValidationScope, contextPlaneValidationMarker } from './lib/context-plane-validation-scope.mjs';\n", '')
++    .replace(`let selectedScope;
++try {
++  selectedScope = contextPlaneValidationScope(argv);
++} catch (error) {
++  console.error(\`\${usage}\\n\${error.message}\`);
++  process.exit(2);
++}
++`, '')
++    .replace("let base = selectedScope?.base ?? 'origin/main';\nlet skipTests = selectedScope?.skipTests ?? false;", "let base = 'origin/main';\nlet skipTests = false;")
++    .replace('!selectedScope && i < argv.length', 'i < argv.length')
++    .replaceAll(' [--backend-only | --frontend-only] [--source-only]', '')
++    .replace(', ...(selectedScope ? [selectedScope.flag] : [])', '')
++    .replace(typingControl, '')
++    .replace('}\n\n// ── 4. Context Plane + adoption test surface', '// ── 4. Context Plane + adoption test surface')
++    .replace(compilerControl, '')
++    .replace('regressions.length === 0 && (!selectedScope || compilerEvidence)', 'regressions.length === 0')
++    .replace(suiteControl, 'if (skipTests) {')
++    .replace(processControl, '')
++    .replace('ranAtAll && unexpected.length === 0 && (!selectedScope || processEvidence)', 'ranAtAll && unexpected.length === 0')
++    .replace('  if (selectedScope) console.error(contextPlaneValidationMarker(selectedScope, true));\n', '')
++    .replace("if (selectedScope) console.log(contextPlaneValidationMarker(selectedScope));\nelse console.log('Knowledge Plane Phase 26 validation: all checks passed.');", "console.log('Knowledge Plane Phase 26 validation: all checks passed.');");
++}
++const original = restore(current);
++function traceCLI(source, args, response = () => undefined, platform = 'linux', controls = baselineBytes) {
++  const calls = []; const reads = []; const output = []; let error;
++  const ctx = vm.createContext({ contextPlaneValidationScope, contextPlaneValidationMarker,
++    fileURLToPath: () => path.join(ROOT, 'scripts/wrapper.mjs'), dirname: path.dirname, join: path.join, resolve: path.resolve,
++    readFileSync: (filename, encoding) => {
++      reads.push(filename); assert.equal(encoding, 'utf8');
++      assert.equal(filename, path.join(ROOT, 'scripts/knowledge-plane-phase26-typecheck-baseline.json'));
++      return controls;
++    },
++    spawnSync: (command, argv, options) => {
++      calls.push(plain([command, argv, options]));
++      return response(command, argv, options) ?? {status: 0, stdout: argv[0] === 'jest' ? 'Test Suites: 1 passed\nTests: 1 passed\n' : '', stderr: ''};
++    },
++    process: {argv: ['node','wrapper',...args],platform, stdout:{write:(value)=>output.push(['write',value])},
++      exit: (code) => {const error = new Error(`exit ${code}`);error.exitCode=code;throw error;}},
++    console:{log:(...values)=>output.push(['log',...values]),error:(...values)=>output.push(['error',...values])},
++  });
++  try {vm.runInContext(source.replace(/^#![^\n]*\n/,'').replace(/^import .*;\n/gm,'')
++    .replaceAll('import.meta.url',"'fake-module-url'"),ctx);} catch(failure){error={message:failure.message,exitCode:failure.exitCode};}
++  const legacyUsage = (value) => typeof value === 'string' ? value.replaceAll(' [--backend-only | --frontend-only] [--source-only]', '') : value;
++  return {calls,reads,output:output.map((row)=>row.map(legacyUsage)),error};
++}
++const trace = (source, args, ...options) => traceCLI(source, ['--run', ...args], ...options);
++const resultText = (result) => result.output.flat().join('\n');
++const attributedDiagnostics = Object.entries(baseline.errors).flatMap(([key,count]) => {
++  const [filename,code]=key.split('|');return Array.from({length:count},()=>`${filename}(1,1): error ${code}: inherited fixture`);
++}).join('\n');
++
++test('whole original Phase26 caller and exact16-error/two-suite baseline reconstruct',()=>{
++  assert.equal(original, boundOriginal);
++  assert.equal(digest(original),'3363dfbe27f2cf7c33a209e4b4bce140751357382479abe3c0411ce8af27fe37');
++  assert.equal(digest(baselineBytes),'5a27105dcea7bd48b33d12f222ee959eae2b8cd03b093eb7caaf480da0705fe8');
++  assert.equal(Object.values(baseline.errors).reduce((a,b)=>a+b,0),16);
++  assert.equal(Object.keys(baseline.knownFailingSuites).length,2);
++});
++test('full default/typing-fast/legacy unknown/Windows traces and receipts remain exact',()=>{
++  for(const platform of ['linux','win32'])for(const args of [[],['--skip-tests'],['--base','pinned'],['--legacy'],['--base']]) {
++    assert.deepEqual(trace(current,args,undefined,platform),trace(original,args,undefined,platform));
++  }
++  assert.equal(trace(original,['--skip-tests']).calls.filter(([,args])=>args[0]==='tsc').length,6);
++});
++test('new source-only and malformed named modes require explicit valid scope before any effect',()=>{
++  for(const args of [['--source-only'],['--SOURCE-ONLY','--backend-only'],[' --source-only ','--frontend-only'],
++    ['--source-only=false','--backend-only'],['--backend-only','--source-only','--source-only'],
++    ['--backend-only','--frontend-only'],['--backend-only','--base',' padded '],['--backend-only','unknown']]) {
++    const result=trace(current,args);assert.ok(result.error);assert.deepEqual(result.calls,[]);assert.deepEqual(result.reads,[]);
++  }
++  assert.equal(contextPlaneValidationScope(['--legacy']),null);
++});
++test('backend source and frontend scope run only exact scoped guard/whitespace with no typing baseline read',()=>{
++  for(const args of [['--backend-only','--source-only'],['--frontend-only'],['--frontend-only','--source-only']]) {
++    const result=trace(current,[...args,'--base','pinned']);assert.equal(result.error,undefined);
++    const scope=args[0];assert.deepEqual(result.calls.map(x=>x.slice(0,2)),[
++      ['node',['scripts/check-context-plane-new-bypasses.mjs','pinned',scope]],['git',['diff','--check']],
++    ]);assert.deepEqual(result.reads,[]);
++    assert.match(resultText(result),new RegExp(`KNOWLEDGE_PLANE_PHASE26_${scope==='--backend-only'?'BACKEND':'FRONTEND'}_SOURCE_COMPLETE`));
++    assert.doesNotMatch(resultText(result),/validation: all checks passed/);
++  }
++});
++test('backend native and typing retain all original selectors/process options and distinct receipts',()=>{
++  for(const platform of ['linux','win32'])for(const fast of [false,true]) {
++    const args=['--base','pinned',...(fast?['--skip-tests']:[])];
++    const before=trace(original,args,undefined,platform);const after=trace(current,[...args,'--backend-only'],undefined,platform);
++    assert.equal(after.error,undefined);assert.deepEqual(after.calls.slice(1),before.calls.slice(1));assert.deepEqual(after.reads,before.reads);
++    assert.equal(after.calls.filter(([,args])=>args[0]==='tsc').length,6);
++    assert.match(resultText(after),new RegExp(`BACKEND_${fast?'TYPING':'NATIVE'}_COMPLETE`));
++    assert.doesNotMatch(resultText(after),/BACKEND_SOURCE_COMPLETE/);
++  }
++});
++test('all16 attributed diagnostics and exacttwo attributed Jest failures remain allowed',()=>{
++  const response=(command,args,options)=>{
++    if(args[0]==='tsc'&&options.cwd.endsWith('/apps/api'))return {status:2,stdout:attributedDiagnostics,stderr:''};
++    if(args[0]==='jest'&&options.cwd.endsWith('/apps/api'))return {status:1,stdout:Object.keys(baseline.knownFailingSuites).map(p=>'FAIL '+p).join('\n')+'\nTest Suites: 2 failed\nTests: 0 total\n',stderr:''};
++  };
++  for(const args of [[],['--skip-tests']]) {
++    assert.deepEqual(trace(current,args,response),trace(original,args,response));
++    assert.equal(trace(current,[...args,'--backend-only'],response).error,undefined);
++  }
++});
++test('new scoped typing refuses unmatched/increased diagnostics and failed compiler without attributed evidence',()=>{
++  for(const bad of [{status:127,stdout:'compiler unavailable',stderr:''},{status:null,stdout:'',stderr:'crash'},
++    {status:1,stdout:'error TS5000: unknown global failure',stderr:''},{status:0,stdout:attributedDiagnostics,stderr:''},
++    {status:2,stdout:attributedDiagnostics+'\nsrc/unknown.ts(1,1): error TS2345: new',stderr:''},
++    {status:2,stdout:attributedDiagnostics,stderr:'',signal:'SIGTERM'},
++    {status:2,stdout:attributedDiagnostics,stderr:'',error:{message:'spawn failed'}}]) {
++    const response=(command,args,options)=>args[0]==='tsc'&&options.cwd.endsWith('/apps/api')?bad:undefined;
++    const result=trace(current,['--backend-only','--skip-tests'],response);
++    assert.equal(result.error.exitCode,1);assert.match(resultText(result),/BACKEND_TYPING_FAILED/);assert.doesNotMatch(resultText(result),/BACKEND_TYPING_COMPLETE/);
++  }
++});
++test('inherited full API compiler false-green remains characterized and scoped mode refuses it',()=>{
++  const response=(command,args,options)=>args[0]==='tsc'&&options.cwd.endsWith('/apps/api')?{status:127,stdout:'compiler missing',stderr:''}:undefined;
++  assert.deepEqual(trace(current,[],response),trace(original,[],response));assert.equal(trace(original,[],response).error,undefined);
++  assert.equal(trace(current,['--backend-only'],response).error.exitCode,1);
++});
++test('new native mode cannot accept missing/unattributed Jest exit evidence or unknownfailed suite',()=>{
++  for(const bad of [{status:3,stdout:'Test Suites: 1 passed\nTests: 1 passed\n',stderr:''},
++    {status:1,stdout:'Test Suites: 1 passed\nTests: 1 passed\n',stderr:''},
++    {status:0,stdout:'',stderr:''},{status:1,stdout:'FAIL src/new.spec.ts\nTest Suites: 1 failed\n',stderr:''}]) {
++    const response=(command,args)=>args[0]==='jest'?bad:undefined;
++    const result=trace(current,['--backend-only'],response);assert.equal(result.error.exitCode,1);
++    assert.match(resultText(result),/BACKEND_NATIVE_FAILED/);
++  }
++});
++test('guard and whitespace failures cannot produce any scoped completion',()=>{
++  for(const args of [['--backend-only','--source-only'],['--frontend-only']])for(const target of ['node','git']) {
++    const result=trace(current,args,(command)=>command===target?{status:1,stdout:'',stderr:'failure'}:undefined);
++    assert.equal(result.error.exitCode,1);assert.doesNotMatch(resultText(result),/PHASE26_\w+_SOURCE_COMPLETE/);
++  }
++});
++test('root package/CI aliases are untouched by this caller slice',()=>{
++  const currentPackage = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
++  const originalPackage = execFileSync('git', ['show', ORIGINAL_HEAD + ':package.json'], {cwd: ROOT, encoding: 'utf8'});
++  assert.equal(currentPackage, originalPackage);
++});
++
++test('strict run/help/noargs/unknown/base grammar fails before any process or baseline read',()=>{
++  const validHelp = [['--help'], ['-h']];
++  for (const args of validHelp) {
++    const result=traceCLI(current,args); assert.equal(result.error.exitCode,0); assert.deepEqual(result.calls,[]); assert.deepEqual(result.reads,[]);
++    assert.deepEqual(result,traceCLI(original,args));
++  }
++  for (const args of [[], ['--backend-only'], ['--run','--run'], ['--run','--backend-only','--run'], ['--help','--run'],
++    ['--run','--help'], ['--run','--base'], ['--run','--base','x;echo'], ['--run','--base','ref','--base','ref'],
++    ['--run','--backend-only','--base','x;echo'], ['--run','--backend-only','--base','ref','--base','ref'],
++    ['--run','--skip-tests','--skip-tests'], ['--run','--unknown'], ['--run','--backend-only','--skip-tests','--skip-tests']]) {
++    const result=traceCLI(current,args);assert.equal(result.error.exitCode,2,JSON.stringify(args));assert.deepEqual(result.calls,[]);assert.deepEqual(result.reads,[]);
++  }
++});
+diff --git a/scripts/lib/context-plane-scope.mjs b/scripts/lib/context-plane-scope.mjs
+new file mode 100644
+index 000000000..943526ce7
+--- /dev/null
++++ b/scripts/lib/context-plane-scope.mjs
+@@ -0,0 +1,41 @@
++import {
++  knowledgeCensusIncludesPath, knowledgeCensusPathScope, assertKnowledgeCensusReadPath,
++} from './knowledge-census-scope.mjs';
++
++export {
++  parseKnowledgeCensusInvocation as parseContextPlaneInvocation,
++  projectKnowledgeCensusDiff as projectContextPlaneDiff,
++  assertKnowledgeCensusReadPath as assertContextPlaneReadPath,
++  knowledgeCensusIncludesPath as contextPlaneIncludesPath,
++} from './knowledge-census-scope.mjs';
++
++function canTraverse(path, scope) {
++  knowledgeCensusPathScope(path);
++  return knowledgeCensusIncludesPath(path, scope) || (scope === 'frontend' && path === 'apps');
++}
++
++/** Original suffixes/exclusions are inputs; all filesystem effects are ports. */
++export function contextPlaneSourceFilesUnder(root, scope, policy, ports) {
++  const files = [];
++  const walk = (directory) => {
++    if (!canTraverse(directory, scope)) return;
++    const stat = ports.lstatSync(directory);
++    if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`invalid source directory: ${directory}`);
++    for (const name of ports.readdirSync(directory)) {
++      if (policy.skipDirectories.has(name)) continue;
++      const path = directory + '/' + name;
++      // Excluded membership is resolved before any stat/readdir/read of a path.
++      if (!canTraverse(path, scope)) continue;
++      const entry = ports.lstatSync(path);
++      if (entry.isSymbolicLink()) throw new Error(`symbolic source path: ${path}`);
++      if (entry.isDirectory()) walk(path);
++      else if ((path.endsWith('.ts') || path.endsWith('.tsx')) &&
++          !policy.testSuffixes.some((suffix) => path.endsWith(suffix))) files.push(path);
++    }
++  };
++  if (!canTraverse(root, scope)) return files;
++  // A bounded implementation root must not be reached through a parent symlink.
++  if (!(scope === 'frontend' && root === 'apps')) assertKnowledgeCensusReadPath(root, scope, ports);
++  walk(root);
++  return files;
++}
+diff --git a/scripts/lib/context-plane-validation-scope.mjs b/scripts/lib/context-plane-validation-scope.mjs
+new file mode 100644
+index 000000000..8a059bd40
+--- /dev/null
++++ b/scripts/lib/context-plane-validation-scope.mjs
+@@ -0,0 +1,22 @@
++import { knowledgeValidationScope } from './knowledge-validation-scope.mjs';
++
++/** Phase26's legacy fast mode still performs typing; source-only is explicit. */
++export function contextPlaneValidationScope(args) {
++  const sourceIntent = args.some((arg) => typeof arg === 'string' &&
++    /^--source/i.test(arg.trim()));
++  if (!sourceIntent) return knowledgeValidationScope(args);
++  if (args.filter((arg) => arg === '--source-only').length !== 1 ||
++      args.some((arg) => /^--source/i.test(String(arg).trim()) && arg !== '--source-only')) {
++    throw new Error('Use exactly one literal --source-only with an explicit scope');
++  }
++  const selected = knowledgeValidationScope(args.filter((arg) => arg !== '--source-only'));
++  if (!selected) throw new Error('--source-only requires --backend-only or --frontend-only');
++  return { ...selected, sourceOnly: true };
++}
++
++export function contextPlaneValidationMarker(selected, failed = false) {
++  if (!selected || !['backend', 'frontend'].includes(selected.scope)) throw new Error('Explicit scope required');
++  const kind = selected.scope === 'frontend' || selected.sourceOnly ? 'SOURCE'
++    : selected.skipTests ? 'TYPING' : 'NATIVE';
++  return `KNOWLEDGE_PLANE_PHASE26_${selected.scope.toUpperCase()}_${kind}_${failed ? 'FAILED' : 'COMPLETE'}`;
++}
+diff --git a/scripts/lib/knowledge-census-scope.mjs b/scripts/lib/knowledge-census-scope.mjs
+new file mode 100644
+index 000000000..0bce92f30
+--- /dev/null
++++ b/scripts/lib/knowledge-census-scope.mjs
+@@ -0,0 +1,163 @@
++/** Pure scope and source-walk policy. All filesystem effects are supplied ports. */
++const FRONTEND_ROOTS = ['apps/web', 'apps/onboard-web'];
++
++export function parseKnowledgeCensusInvocation(args) {
++  // The legacy full command consumes only argv[2] and ignores tail operands.
++  // Strict grammar belongs to an explicitly requested new scope, including
++  // malformed scope spellings, so a typo cannot silently request full mode.
++  if (!args.some((arg) => typeof arg === 'string' && /^--(?:backend|frontend|scope)/i.test(arg.trim()))) {
++    return { scope: 'full', base: args[0] || 'origin/main' };
++  }
++  let scope = 'full';
++  let base;
++  let selected = false;
++  for (const arg of args) {
++    if (typeof arg !== 'string' || !arg || arg.trim() !== arg || /[\s\0]/.test(arg)) {
++      throw new Error('arguments must be nonempty, unpadded strings');
++    }
++    if (arg === '--backend-only' || arg === '--frontend-only') {
++      if (selected) throw new Error('select exactly one scope, once');
++      scope = arg === '--backend-only' ? 'backend' : 'frontend';
++      selected = true;
++    } else {
++      if (arg.startsWith('-')) throw new Error(`unknown option: ${arg}`);
++      if (base !== undefined) throw new Error('provide at most one Git base');
++      if (!/^[A-Za-z0-9._/@^~-]+$/.test(arg)) throw new Error('invalid scoped Git ref');
++      base = arg;
++    }
++  }
++  return { scope, base: base ?? 'origin/main' };
++}
++
++function validPath(path) {
++  if (typeof path !== 'string' || !path || /[\0\r\n\t\\"]/.test(path) ||
++      path.startsWith('/') || path.endsWith('/') ||
++      path.split('/').some((part) => !part || part === '.' || part === '..')) {
++    throw new Error(`noncanonical source path: ${path}`);
++  }
++  return path;
++}
++
++export function knowledgeCensusPathScope(path) {
++  validPath(path);
++  return FRONTEND_ROOTS.some((root) => path === root || path.startsWith(root + '/'))
++    ? 'frontend' : 'backend';
++}
++
++function validScope(scope) {
++  if (!['full', 'backend', 'frontend'].includes(scope)) throw new Error(`unknown scope: ${scope}`);
++}
++
++export function knowledgeCensusIncludesPath(path, scope) {
++  validScope(scope);
++  return scope === 'full' || knowledgeCensusPathScope(path) === scope;
++}
++
++export function assertKnowledgeCensusReadPath(path, scope, ports) {
++  validPath(path);
++  if (!knowledgeCensusIncludesPath(path, scope)) throw new Error('source read is outside the selected scope');
++  const segments = path.split('/');
++  for (let i = 1; i <= segments.length; i++) {
++    if (ports.lstatSync(segments.slice(0, i).join('/')).isSymbolicLink()) {
++      throw new Error('symbolic source paths are not qualified for a scoped census');
++    }
++  }
++}
++
++function headerPath(value, prefix) {
++  if (value === '/dev/null') return null;
++  if (!value.startsWith(prefix + '/')) throw new Error('unsupported or malformed diff path header');
++  return validPath(value.slice(2));
++}
++
++/** Validate complete sections before selecting them; no added-line filtering. */
++export function partitionKnowledgeCensusDiff(diff) {
++  if (typeof diff !== 'string') throw new Error('Git diff must be a string');
++  if (diff === '') return [];
++  const starts = [...diff.matchAll(/^diff --git /gm)].map((match) => match.index);
++  if (starts[0] !== 0) throw new Error('diff has content outside a complete Git section');
++  return starts.map((start, index) => {
++    const text = diff.slice(start, starts[index + 1] ?? diff.length);
++    const lines = text.split('\n');
++    const header = /^diff --git a\/(.+) b\/(.+)$/.exec(lines[0]);
++    if (!header) throw new Error('unsupported or malformed Git section header');
++    const from = validPath(header[1]);
++    const to = validPath(header[2]);
++    let old;
++    let next;
++    let hunk;
++    let metadata = 0;
++    let metadataChange = false;
++    const fields = new Map();
++    const finishHunk = () => {
++      if (hunk && (hunk.old !== hunk.wantOld || hunk.next !== hunk.wantNext)) {
++        throw new Error('truncated or malformed diff hunk');
++      }
++    };
++    for (let i = 1; i < lines.length; i++) {
++      const line = lines[i];
++      if (!line && i === lines.length - 1) continue;
++      if (line.startsWith('@@ ')) {
++        finishHunk();
++        if (old === undefined || next === undefined) throw new Error('hunk is missing both file headers');
++        const match = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?:.*)$/.exec(line);
++        if (!match) throw new Error('malformed diff hunk header');
++        hunk = { old: 0, next: 0, wantOld: Number(match[2] ?? 1), wantNext: Number(match[4] ?? 1) };
++      } else if (hunk) {
++        if (line === '\\ No newline at end of file') continue;
++        if (line.startsWith('--- ') || line.startsWith('+++ ')) {
++          throw new Error('ambiguous file header inside a hunk');
++        }
++        if (line.startsWith('+')) hunk.next += 1;
++        else if (line.startsWith('-')) hunk.old += 1;
++        else if (line.startsWith(' ')) { hunk.old += 1; hunk.next += 1; }
++        else throw new Error('unsupported diff hunk content');
++      } else if (line.startsWith('--- ')) {
++        if (old !== undefined) throw new Error('duplicate old diff path');
++        old = headerPath(line.slice(4), 'a');
++        if (old !== null && old !== from) throw new Error('old diff path disagrees with section');
++      } else if (line.startsWith('+++ ')) {
++        if (next !== undefined) throw new Error('duplicate new diff path');
++        next = headerPath(line.slice(4), 'b');
++        if (next !== null && next !== to) throw new Error('new diff path disagrees with section');
++      } else if (/^(?:index |old mode |new mode |new file mode |deleted file mode |similarity index |dissimilarity index |rename from |rename to |copy from |copy to )/.test(line)) {
++        const field = /^(index|old mode|new mode|new file mode|deleted file mode|similarity index|dissimilarity index|rename from|rename to|copy from|copy to) (.+)$/.exec(line);
++        if (!field || fields.has(field[1])) throw new Error('empty or duplicate diff metadata');
++        const [, key, value] = field;
++        if ((key === 'index' && !/^[0-9a-f]+\.\.[0-9a-f]+(?: \d{6})?$/.test(value)) ||
++            (key.endsWith('mode') && !/^\d{6}$/.test(value)) ||
++            (key.endsWith('index') && key !== 'index' && !/^(?:100|[0-9]{1,2})%$/.test(value))) {
++          throw new Error('malformed diff metadata');
++        }
++        if (key.endsWith('from') || key.endsWith('to')) {
++          validPath(value);
++          if (value !== (key.endsWith('from') ? from : to)) throw new Error('rename/copy path disagrees with section');
++        }
++        fields.set(key, value);
++        metadata += 1;
++        if (key.endsWith('mode') || key.startsWith('rename ') || key.startsWith('copy ')) metadataChange = true;
++      } else {
++        throw new Error('unsupported diff metadata (including binary or quoted paths)');
++      }
++    }
++    finishHunk();
++    if ((old === undefined) !== (next === undefined)) throw new Error('diff is missing one file header');
++    if (!hunk && !metadata) throw new Error('empty or malformed Git section');
++    if (!hunk && (old !== undefined || !metadataChange)) throw new Error('file diff is missing its hunks');
++    if (old === null && next === null) throw new Error('diff has no source identity');
++    for (const [left, right] of [['old mode', 'new mode'], ['rename from', 'rename to'], ['copy from', 'copy to']]) {
++      if (fields.has(left) !== fields.has(right)) throw new Error('diff has incomplete paired metadata');
++    }
++    if (fields.has('new file mode') && fields.has('deleted file mode')) throw new Error('conflicting diff file modes');
++    const path = next ?? old ?? to;
++    return { path, scope: knowledgeCensusPathScope(path), text };
++  });
++}
++
++export function projectKnowledgeCensusDiff(diff, scope) {
++  validScope(scope);
++  // Legacy full behavior, including Git warning/skip semantics, stays exact.
++  if (scope === 'full') return diff;
++  return partitionKnowledgeCensusDiff(diff).filter((part) => part.scope === scope)
++    .map((part) => part.text).join('');
++}
+diff --git a/scripts/lib/knowledge-validation-scope.mjs b/scripts/lib/knowledge-validation-scope.mjs
+new file mode 100644
+index 000000000..34edc2ba7
+--- /dev/null
++++ b/scripts/lib/knowledge-validation-scope.mjs
+@@ -0,0 +1,33 @@
++/** Pure explicit-scope parsing. Legacy invocations keep their original parser. */
++export function knowledgeValidationScope(args) {
++  const flags = ['--backend-only', '--frontend-only'];
++  // Misspelled casing, padding or assignments of the new scope names must
++  // refuse, rather than accidentally dispatching the legacy native plan.
++  const requestsScope = args.some((arg) => typeof arg === 'string' &&
++    /^--(?:backend|frontend|scope)/i.test(arg.trim()));
++  if (!requestsScope) return null;
++  let flag;
++  let base = 'origin/main';
++  let skipTests = false;
++  let hasBase = false;
++  for (let i = 0; i < args.length; i++) {
++    const arg = args[i];
++    if (flags.includes(arg)) {
++      if (flag) throw new Error('Choose exactly one Knowledge Plane scope');
++      flag = arg;
++    } else if (arg === '--base') {
++      if (hasBase || typeof args[i + 1] !== 'string' || !args[i + 1] ||
++          !/^[A-Za-z0-9._/@^~-]+$/.test(args[i + 1]) || args[i + 1].startsWith('-')) {
++        throw new Error('Scoped --base requires one nonempty Git ref');
++      }
++      base = args[++i];
++      hasBase = true;
++    } else if (arg === '--skip-tests') {
++      if (skipTests) throw new Error('Duplicate --skip-tests');
++      skipTests = true;
++    } else {
++      throw new Error(`Unknown scoped Knowledge Plane argument: ${arg}`);
++    }
++  }
++  return { flag, scope: flag === '--backend-only' ? 'backend' : 'frontend', base, skipTests };
++}
+diff --git a/scripts/validate-knowledge-plane-phase26.mjs b/scripts/validate-knowledge-plane-phase26.mjs
+index ce236c766..eb3b691e2 100644
+--- a/scripts/validate-knowledge-plane-phase26.mjs
++++ b/scripts/validate-knowledge-plane-phase26.mjs
+@@ -19,7 +19,7 @@
+  *    than a slower run.
+  *
+  * Usage:
+- *   node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests]
++ *   node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests] [--backend-only | --frontend-only] [--source-only]
+  *
+  * Prerequisites (not run here, because they mutate the workspace):
+  *   pnpm install --frozen-lockfile
+@@ -28,6 +28,7 @@
+  *   pnpm -C apps/<api|api-strategy|workspace|intel-api> prisma:generate
+  */
+ 
++import { contextPlaneValidationScope, contextPlaneValidationMarker } from './lib/context-plane-validation-scope.mjs';
+ import { spawnSync } from 'node:child_process';
+ import { readFileSync } from 'node:fs';
+ import { fileURLToPath } from 'node:url';
+@@ -36,7 +37,7 @@ import { dirname, join, resolve } from 'node:path';
+ const here = dirname(fileURLToPath(import.meta.url));
+ const repoRoot = resolve(here, '..');
+ 
+-const usage = 'Usage: node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests]';
++const usage = 'Usage: node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests] [--backend-only | --frontend-only] [--source-only]';
+ const cliArgs = process.argv.slice(2);
+ if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
+   console.log(usage);
+@@ -47,11 +48,18 @@ if (cliArgs[0] !== '--run') {
+   process.exit(2);
+ }
+ const argv = cliArgs.slice(1);
+-let base = 'origin/main';
+-let skipTests = false;
++let selectedScope;
++try {
++  selectedScope = contextPlaneValidationScope(argv);
++} catch (error) {
++  console.error(`${usage}\n${error.message}`);
++  process.exit(2);
++}
++let base = selectedScope?.base ?? 'origin/main';
++let skipTests = selectedScope?.skipTests ?? false;
+ let baseSeen = false;
+ let invalid = false;
+-for (let i = 0; i < argv.length; i += 1) {
++for (let i = 0; !selectedScope && i < argv.length; i += 1) {
+   if (argv[i] === '--base' && !baseSeen) {
+     const value = argv[++i];
+     if (!value || value.startsWith('-') || !/^[A-Za-z0-9._/@^~-]+$/.test(value)) {
+@@ -105,13 +113,16 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+ 
+ // ── 1. Architecture guard ───────────────────────────────────────────────────
+ {
+-  const out = run('node', ['scripts/check-context-plane-new-bypasses.mjs', base]);
++  const out = run('node', ['scripts/check-context-plane-new-bypasses.mjs', base, ...(selectedScope ? [selectedScope.flag] : [])]);
+   const text = `${out.stdout ?? ''}${out.stderr ?? ''}`;
+   if (out.status !== 0) console.error(text);
+   else process.stdout.write(text);
+   record('architecture guard (no-bypass)', out.status === 0);
+ }
+ 
++if (selectedScope?.scope === 'frontend' || selectedScope?.sourceOnly) {
++  console.log('SKIP  backend typing (explicit source policy)');
++} else {
+ // ── 2. Zero-error typechecks ────────────────────────────────────────────────
+ const ZERO_ERROR_TYPECHECKS = [
+   ['meriv2-core typecheck', 'packages/meriv2-core'],
+@@ -158,6 +169,11 @@ for (const [name, dir] of ZERO_ERROR_TYPECHECKS) {
+   }
+ 
+   const total = Object.values(observed).reduce((a, b) => a + b, 0);
++  const diagnostics = (text.match(/error TS\d+/g) ?? []).length;
++  const compilerEvidence = !out.error && !out.signal && (
++    (out.status === 0 && total === 0 && diagnostics === 0) ||
++    ([1, 2].includes(out.status) && total > 0 && diagnostics === total)
++  );
+   if (regressions.length > 0) {
+     console.error('\napps/api typecheck REGRESSIONS vs pinned baseline:');
+     for (const item of regressions) console.error(`- ${item}`);
+@@ -168,13 +184,17 @@ for (const [name, dir] of ZERO_ERROR_TYPECHECKS) {
+   }
+   record(
+     'apps/api typecheck (no new errors vs pinned baseline)',
+-    regressions.length === 0,
++    regressions.length === 0 && (!selectedScope || compilerEvidence),
+     `${total} error(s), 0 regressions`,
+   );
+ }
+ 
++}
++
+ // ── 4. Context Plane + adoption test surface ────────────────────────────────
+-if (skipTests) {
++if (selectedScope?.scope === 'frontend' || selectedScope?.sourceOnly) {
++  console.log('SKIP  backend test suites (explicit source policy)');
++} else if (skipTests) {
+   console.log('SKIP  test suites (--skip-tests)');
+ } else {
+   const API_SPEC_PATTERN =
+@@ -208,7 +228,9 @@ if (skipTests) {
+     ];
+     const unexpected = failedSuites.filter((suite) => !(suite in knownFailing));
+     const ranAtAll = suites !== 'no summary';
+-    const ok = ranAtAll && unexpected.length === 0;
++    const processEvidence = !out.error && !out.signal && (out.status === 0 ||
++      (out.status === 1 && failedSuites.length > 0));
++    const ok = ranAtAll && unexpected.length === 0 && (!selectedScope || processEvidence);
+ 
+     if (!ok) {
+       console.error(text.split('\n').slice(-80).join('\n'));
+@@ -244,6 +266,8 @@ console.log(`\n${results.length - failed.length}/${results.length} checks passed
+ if (failed.length > 0) {
+   console.error('\nFAILED:');
+   for (const item of failed) console.error(`- ${item.name}`);
++  if (selectedScope) console.error(contextPlaneValidationMarker(selectedScope, true));
+   process.exit(1);
+ }
+-console.log('Knowledge Plane Phase 26 validation: all checks passed.');
++if (selectedScope) console.log(contextPlaneValidationMarker(selectedScope));
++else console.log('Knowledge Plane Phase 26 validation: all checks passed.');

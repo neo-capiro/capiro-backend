@@ -1,0 +1,9 @@
+Tool result transcription, original also retained in session history:
+Traceback (most recent call last):
+  File "<stdin>", line 16, in <module>
+AssertionError
+[codex/cleanup-phase26-compatible-scopes-20261013 4cc015ddf] docs: seal Phase26 fake I/O scope integration evidence [skip ci]
+ 1 file changed, 18 insertions(+)
+ create mode 100644 docs/cleanup-phase26-compatible-scopes-20261013/evidence/01-fake-io-controls.json
+4cc015ddf2ee97284752ddcbc126fcc3b86538ff
+bd64f2e7c65b3ee7b2fa357c1802bc586b7a51ea
