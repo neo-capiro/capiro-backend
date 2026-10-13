@@ -106,7 +106,7 @@ export class PreviewBackendServices extends cdk.Stack {
       const role = new iam.Role(this, `${owner.name}TaskRole`, {
         assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       });
-      if (owner.name === 'core' || owner.name === 'workspace') {
+      if (owner.name === 'core') {
         role.addToPrincipalPolicy(
           new iam.PolicyStatement({
             actions: [
