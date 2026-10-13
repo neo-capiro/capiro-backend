@@ -1,0 +1,63 @@
+{
+  "results": [
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "increment",
+      "scope": "backend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "increment",
+      "scope": "frontend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "decrement",
+      "scope": "backend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "decrement",
+      "scope": "frontend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "increment",
+      "scope": "backend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "increment",
+      "scope": "frontend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "decrement",
+      "scope": "backend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "decrement",
+      "scope": "frontend",
+      "accepted": false,
+      "detail": "ambiguous file header inside a hunk"
+    }
+  ],
+  "passed": 0,
+  "total": 8,
+  "noIO": true
+}

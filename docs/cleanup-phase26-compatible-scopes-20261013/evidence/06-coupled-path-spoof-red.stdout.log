@@ -1,0 +1,50 @@
+✖ scoped hunk additions stay bound to actual product path despite +++ content (177.649718ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 593.471542
+
+✖ failing tests:
+
+test at scripts/ci/context-plane-scope.contract.spec.mjs:306:1
+✖ scoped hunk additions stay bound to actual product path despite +++ content (177.649718ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      {
+  +     completion: true,
+  +     exit: 0,
+  +     originalPathRefusal: false,
+  -     completion: false,
+  -     exit: 1,
+  -     originalPathRefusal: true,
+        scope: 'backend'
+      },
+      {
+  +     completion: true,
+  +     exit: 0,
+  +     originalPathRefusal: false,
+  -     completion: false,
+  -     exit: 1,
+  -     originalPathRefusal: true,
+        scope: 'frontend'
+      }
+    ]
+  
+      at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/scripts/ci/context-plane-scope.contract.spec.mjs:317:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { scope: 'backend', exit: 0, originalPathRefusal: false, completion: true }, { scope: 'frontend', exit: 0, originalPathRefusal: false, completion: true } ],
+    expected: [ { scope: 'backend', exit: 1, originalPathRefusal: true, completion: false }, { scope: 'frontend', exit: 1, originalPathRefusal: true, completion: false } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
