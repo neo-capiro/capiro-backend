@@ -159,13 +159,13 @@ function plain(value: object): boolean {
   const prototype = Object.getOwnPropertyDescriptor(constructor.value, 'prototype');
   return Boolean(prototype && 'value' in prototype && prototype.value === proto);
 }
-function snapshot(input: unknown): NewsletterJson {
+function snapshot(input: unknown, documentCount = 1): NewsletterJson {
   let nodes = 0;
   let characters = 0;
   const active = new Set<object>();
   const visit = (value: unknown, path: string, depth: number): NewsletterJson => {
     if (
-      ++nodes > NEWSLETTER_RECEIVE_LIMITS.jsonNodes ||
+      ++nodes > NEWSLETTER_RECEIVE_LIMITS.jsonNodes * documentCount ||
       depth > NEWSLETTER_RECEIVE_LIMITS.jsonDepth
     )
       refuse(path, 'limit_exceeded');
@@ -206,6 +206,12 @@ function snapshot(input: unknown): NewsletterJson {
     for (const key of keys) {
       if (isArray && key === 'length') continue;
       if (typeof key !== 'string') refuse(path, 'invalid_json');
+      characters += key.length;
+      if (
+        key.length > NEWSLETTER_RECEIVE_LIMITS.stringLength ||
+        characters > NEWSLETTER_RECEIVE_LIMITS.totalStringLength
+      )
+        refuse(path, 'limit_exceeded');
       if (isArray && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length))
         refuse(path, 'invalid_json');
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
@@ -645,7 +651,7 @@ const draftVersion = object(
     subject: text,
     body: text,
     contentHash: (value, path) => {
-      if (typeof value !== 'string' || !/^[a-f\d]{64}$/i.test(value)) refuse(path);
+      if (typeof value !== 'string' || !/^sha256:[a-f\d]{64}$/i.test(value)) refuse(path);
     },
     generationStatus: literal('generated', 'manually_authored', 'generation_failed'),
     auditStatus: literal('not_required', 'pending', 'passed', 'warning', 'held', 'unavailable'),
@@ -666,9 +672,10 @@ function receive<T>(
   input: unknown,
   rule: Rule,
   inspect?: (value: NewsletterJson) => void,
+  documentCount = 1,
 ): NewsletterReceiveResult<T> {
   try {
-    const value = snapshot(input);
+    const value = snapshot(input, documentCount);
     rule(value, '$');
     inspect?.(value);
     // Every known nested field has been structurally validated; extra JSON is preserved, not cast unchecked.
@@ -738,7 +745,8 @@ export function parseNewsletterCampaign(
 export function parseNewsletterDocumentList(
   value: unknown,
 ): NewsletterReceiveResult<NewsletterDocumentList> {
-  return receive(value, object({ items: array(campaign, 100) }));
+  // Each list member can be a full independently bounded document.
+  return receive(value, object({ items: array(campaign, 100) }), undefined, 100);
 }
 export function parseNewsletterChecks(value: unknown): NewsletterReceiveResult<NewsletterCheck[]> {
   return receive(value, array(check));
@@ -869,9 +877,9 @@ export function parseNewsletterReservedMetadata(
   );
   if (!result.ok) return result;
   const parsed: NewsletterReservedMetadata = {};
-  if ('newsletterStageId' in result.value)
+  if (Object.prototype.hasOwnProperty.call(result.value, 'newsletterStageId'))
     parsed.newsletterStageId = result.value.newsletterStageId as string;
-  if ('newsletterRevision' in result.value)
+  if (Object.prototype.hasOwnProperty.call(result.value, 'newsletterRevision'))
     parsed.newsletterRevision = result.value.newsletterRevision as number;
   return { ok: true, value: parsed };
 }
@@ -891,9 +899,16 @@ export function parseNewsletterRecordDiscriminator(
     ),
   );
   if (!input.ok) return input;
-  const reserved = parseNewsletterReservedMetadata(input.value.metadata);
+  const reserved = parseNewsletterReservedMetadata(
+    Object.prototype.hasOwnProperty.call(input.value, 'metadata')
+      ? input.value.metadata
+      : undefined,
+  );
   if (!reserved.ok) return reserved;
-  if (reserved.value.newsletterStageId === undefined)
+  const stageId = Object.prototype.hasOwnProperty.call(reserved.value, 'newsletterStageId')
+    ? reserved.value.newsletterStageId
+    : undefined;
+  if (stageId === undefined)
     return { ok: true, value: { kind: 'ordinary', metadata: reserved.value } };
   if (input.value.type !== 'outbound_campaign')
     return { ok: false, error: { code: 'invalid_shape', path: '$.type' } };
@@ -901,7 +916,7 @@ export function parseNewsletterRecordDiscriminator(
     ok: true,
     value: {
       kind: 'rich',
-      metadata: { ...reserved.value, newsletterStageId: reserved.value.newsletterStageId },
+      metadata: { ...reserved.value, newsletterStageId: stageId },
     },
   };
 }

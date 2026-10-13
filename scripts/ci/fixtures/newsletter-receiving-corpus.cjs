@@ -129,7 +129,7 @@ function runNewsletterReceivingCorpus(api) {
     audienceKind: 'individual',
     subject: 'Subject',
     body: '<p>Body</p>',
-    contentHash: 'ab'.repeat(32),
+    contentHash: 'sha256:3ee115206fa8b6523e5fd464a180dd692d49324fceb078c2e4b795e1ab137208',
     generationStatus: 'manually_authored',
     auditStatus: 'held',
     approvalStatus: 'pending',
@@ -255,6 +255,11 @@ function runNewsletterReceivingCorpus(api) {
       record,
     ),
   );
+  check('rich record refuses a bare digest instead of canonical sha256-prefixed hash', () => {
+    const value = clone(record);
+    value.versions[0].contentHash = value.versions[0].contentHash.slice(7);
+    denied(api.parseNewsletterOutreachRecord(value));
+  });
   check('sendable is a supplied server boolean never recomputed', () => {
     const value = clone(record);
     value.versions[0].sendable = true;
@@ -719,6 +724,39 @@ function runNewsletterReceivingCorpus(api) {
       }),
     ),
   );
+  check('inherited reserved hints and absent metadata cannot discriminate a wire record', () => {
+    const names = ['newsletterStageId', 'newsletterRevision', 'metadata'];
+    const originals = names.map((name) => Object.getOwnPropertyDescriptor(Object.prototype, name));
+    try {
+      Object.defineProperty(Object.prototype, 'newsletterStageId', {
+        value: id,
+        configurable: true,
+      });
+      Object.defineProperty(Object.prototype, 'newsletterRevision', {
+        value: 99,
+        configurable: true,
+      });
+      Object.defineProperty(Object.prototype, 'metadata', {
+        value: { newsletterStageId: id },
+        configurable: true,
+      });
+      same(accepted(api.parseNewsletterReservedMetadata({ unrelated: true })), {});
+      assert(
+        accepted(api.parseNewsletterRecordDiscriminator({ type: 'outbound_campaign' })).kind ===
+          'ordinary',
+      );
+      assert(
+        accepted(
+          api.parseNewsletterRecordDiscriminator({ type: 'outbound_campaign', metadata: {} }),
+        ).kind === 'ordinary',
+      );
+    } finally {
+      names.forEach((name, index) => {
+        if (originals[index]) Object.defineProperty(Object.prototype, name, originals[index]);
+        else delete Object.prototype[name];
+      });
+    }
+  });
   check('nonobject metadata refuses', () => {
     for (const value of [[], 1, 'x', true]) denied(api.parseNewsletterReservedMetadata(value));
   });
