@@ -1,0 +1,513 @@
+{
+  "acceptedSource": "579af9e4b826be308f0db289109c233350bbf34d",
+  "acceptedSourceTree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "authorEvidence": "4061ea3fd617c8ab6f8c616b68c31aabd5da2669",
+  "files": [
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/ACCEPTANCE.json",
+      "bytes": 3779,
+      "sha256": "626f50ae218cf4f43bd255ba7cc62f005479234d02d7c3657ce3d307f82f7a2d"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/HANDOFF.md",
+      "bytes": 8018,
+      "sha256": "9c44f4f6d79f4d90b7c4e65a8ea983052a40b70ae597c4562dcac203eaca1aea"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/REVIEW-OUTLINE.md",
+      "bytes": 2443,
+      "sha256": "0aba5dd1ac5e2fe7fa77f2035ac42f0a98959cbe5ae526f4100da03dc1301e7a"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/01-pinned-wire.command.json",
+      "bytes": 539,
+      "sha256": "505eec61547e253f22d48f0dd871a1bac1996818e36b47479695c1be1b30f9b2"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/01-pinned-wire.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/01-pinned-wire.stdout.log",
+      "bytes": 50,
+      "sha256": "b5207f1774f81f26662b211b3727a146ec9eecd3987f528dafbcac644522b35c"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/02-baseline-context.command.json",
+      "bytes": 551,
+      "sha256": "66f141fed34020a38f850f07032899673f4325b9ab0a9f2ac52e420dc8987ce8"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/02-baseline-context.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/02-baseline-context.stdout.log",
+      "bytes": 50,
+      "sha256": "5d19e233cc19290986b3dafcc32f7829277d98702e8b62e328f511eaf27e5742"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/03-7d-composition-red.command.json",
+      "bytes": 626,
+      "sha256": "292dfb260464ec8148655c2335af6597fbdb434c3c410c54c9fddfee96e8a536"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/03-7d-composition-red.json",
+      "bytes": 5397,
+      "sha256": "d3a4d81deec96b0782d7dcd0f7f8f76c791f94b03107494006d373cf00ca84b5"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/03-7d-composition-red.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/03-7d-composition-red.stdout.log",
+      "bytes": 5397,
+      "sha256": "d3a4d81deec96b0782d7dcd0f7f8f76c791f94b03107494006d373cf00ca84b5"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/04-d5-composition-replay.command.json",
+      "bytes": 629,
+      "sha256": "b0f5da5abf7623fc931f5cbbad07958096e1bae2f82c32fcf5011b0765b46d6d"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/04-d5-composition-replay.json",
+      "bytes": 980,
+      "sha256": "c8f5c9282e3b94a12a3fcf83bd1fcd230dc57ec0fdbd5d703e8a39a6ccecb6d2"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/04-d5-composition-replay.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/04-d5-composition-replay.stdout.log",
+      "bytes": 980,
+      "sha256": "c8f5c9282e3b94a12a3fcf83bd1fcd230dc57ec0fdbd5d703e8a39a6ccecb6d2"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63-jest.json",
+      "bytes": 26402,
+      "sha256": "add4099f3ecc902a4bd98f7a4c320c277bee379560f608a790f1550e83c5e00f"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63.command.json",
+      "bytes": 850,
+      "sha256": "8e2ebf1c8779eeda560c93842751b2e07992df9756b10d8a2c16d6e4ce233a24"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63.stderr.log",
+      "bytes": 4940,
+      "sha256": "6adaf3ff2d71cca4f57a27039178498795c0595e56a409c5563b785741547c75"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/06-d5-independent-authority.command.json",
+      "bytes": 549,
+      "sha256": "bc11d9dd911b24413a98ea7b11590b0f3a448e5c635758370057f8b857c88ac1"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/06-d5-independent-authority.json",
+      "bytes": 5631,
+      "sha256": "b67ce3d1a014f00b84316ab2fa830fdbd2cc769bc352adf28cc6aee7d92abd37"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/06-d5-independent-authority.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/06-d5-independent-authority.stdout.log",
+      "bytes": 50,
+      "sha256": "eabf1c913e5681e67772fc3a0e07ca542af7b0c5adc24d2d296ebfa1c4a922fd"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/07-d5-source-preservation.command.json",
+      "bytes": 547,
+      "sha256": "afb4c61b95dc6deb2b5d9000113f5173ef574246a1ff3262913ba887835e03b0"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/07-d5-source-preservation.json",
+      "bytes": 70872,
+      "sha256": "3e69b789054dbc8e4b3491568b172d962544faa3ed49bf061b2763803689049d"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/07-d5-source-preservation.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/07-d5-source-preservation.stdout.log",
+      "bytes": 114,
+      "sha256": "6b329ae9bb0894bf8c1daef6cde6541fc3219d0067c4bd297b2e64d1c4421998"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/08-author-custody-initial-red.json",
+      "bytes": 447,
+      "sha256": "c5f52d67651584d30d28f18df61af5aeed3a51428ff2bd8ca25cd1fd3e56c9cd"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/08-author-custody-initial-red.stderr.log",
+      "bytes": 91,
+      "sha256": "4815f8d906e4cd51ffb09375a26508b2e7ef46a361f5a5773a96c464f9c2879f"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/08-author-custody.json",
+      "bytes": 16273,
+      "sha256": "a8c7e52ff09cbdb808f34e3db8410f963d2208e87c561923e970056aa567ffb3"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/09-d5-grant-tenant-red.command.json",
+      "bytes": 627,
+      "sha256": "59d7fd9c2d17f36a2a75a7d8a1130b3e8967fb4f66767796dcf128c73b598fcc"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/09-d5-grant-tenant-red.json",
+      "bytes": 12797,
+      "sha256": "84374a583b7feeb2f6f17ceaeced244a99656a6c3aaea7721fb366376499ce9c"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/09-d5-grant-tenant-red.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/09-d5-grant-tenant-red.stdout.log",
+      "bytes": 12797,
+      "sha256": "84374a583b7feeb2f6f17ceaeced244a99656a6c3aaea7721fb366376499ce9c"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/10-579-grant-tenant-replay.command.json",
+      "bytes": 631,
+      "sha256": "c328b357195deaca876047b1b2c97f4e157523654e5c96a32d47d20321614e7d"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/10-579-grant-tenant-replay.json",
+      "bytes": 8154,
+      "sha256": "3b629b9105992f257122811a1f18711a0150d1ec388db8f2ffbf04bd835730f4"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/10-579-grant-tenant-replay.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/10-579-grant-tenant-replay.stdout.log",
+      "bytes": 8154,
+      "sha256": "3b629b9105992f257122811a1f18711a0150d1ec388db8f2ffbf04bd835730f4"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64-jest.json",
+      "bytes": 26924,
+      "sha256": "3789ce8b7132a1f559f72bf264c3a76f11859d1b32b40f7eff4192d4a488de2d"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64.command.json",
+      "bytes": 902,
+      "sha256": "a6f362585b97528ca8542fa82898c00a1382bee523b9bbf5f334bf60fdb14b03"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64.stderr.log",
+      "bytes": 5145,
+      "sha256": "9122d3012fbc895366983478bdcc1be970dcac8008b6302ce8d1ec079bfc35fa"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-stage-source-bindings.json",
+      "bytes": 2541,
+      "sha256": "2dd2386a0ea25a3c6096ea4f8205662b90b7f31b72cad0c97f1575312b292446"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/12-579-source-preservation.command.json",
+      "bytes": 604,
+      "sha256": "208638e116adeb955b79460aa76215f256c8e44e0facd720ac52cc0b257805ec"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/12-579-source-preservation.json",
+      "bytes": 71050,
+      "sha256": "614799e6bd77c9d61bbca577216da3587806643c2be66cedd7e7b68948b41cd3"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/12-579-source-preservation.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/12-579-source-preservation.stdout.log",
+      "bytes": 114,
+      "sha256": "6b329ae9bb0894bf8c1daef6cde6541fc3219d0067c4bd297b2e64d1c4421998"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/13-579-existing-context-grant.command.json",
+      "bytes": 702,
+      "sha256": "f439e220f7a7878f6fe532a33ddc2393ac6602402bc52773b1594d602c8d7a6b"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/13-579-existing-context-grant.json",
+      "bytes": 4510,
+      "sha256": "74fd832f0796c2133a5a1c2ec684a6e127ca4a3511c3187f1045c739876b786a"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/13-579-existing-context-grant.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/13-579-existing-context-grant.stdout.log",
+      "bytes": 4510,
+      "sha256": "74fd832f0796c2133a5a1c2ec684a6e127ca4a3511c3187f1045c739876b786a"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/14-final-custody-and-reuse.command.json",
+      "bytes": 476,
+      "sha256": "589968868b097acc35c72e7b1d8b2e94728197777594160e6804512ebf533a1d"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/14-final-custody-and-reuse.stderr.log",
+      "bytes": 393,
+      "sha256": "9b104372bfc5732ac1b654a0672fe7de0f5382d4a488dc56595cfdc1cc20973a"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/14-final-custody-and-reuse.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/15-final-custody-and-reuse.command.json",
+      "bytes": 486,
+      "sha256": "93e2158d73cd8f66a0ccb4b84f073ad5d53c3882e1c54097a20787c4b1c4c225"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/15-final-custody-and-reuse.json",
+      "bytes": 20257,
+      "sha256": "9ceee6f720113d248977995ce8bfec113c4cb5d62f257c4f125cb5a1a4a95d87"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/15-final-custody-and-reuse.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/15-final-custody-and-reuse.stdout.log",
+      "bytes": 137,
+      "sha256": "f8bf4566b745f93acc4cdae6b0ee14ad747527870e29a7d427b0330b692ef7e3"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/16-final-custody-and-reuse.command.json",
+      "bytes": 496,
+      "sha256": "7a8d251c30018952102a5a2cfee5a248bfbe1b621e14f9757d1db12639388db8"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/16-final-custody-and-reuse.json",
+      "bytes": 20265,
+      "sha256": "d8f9f5069bd2356a7d4399ce8101e76825837ab260339bfd97ffb7f033dec885"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/16-final-custody-and-reuse.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/16-final-custody-and-reuse.stdout.log",
+      "bytes": 137,
+      "sha256": "f8bf4566b745f93acc4cdae6b0ee14ad747527870e29a7d427b0330b692ef7e3"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/17-source-whitespace.command.json",
+      "bytes": 455,
+      "sha256": "b972338f1412f8676992c3f49c1805525fded01adf2bef66bfa7e5d9f08c484c"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/17-source-whitespace.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/17-source-whitespace.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/18-whole-author-whitespace.command.json",
+      "bytes": 425,
+      "sha256": "aff667661c96ced66a3915b2d991054df427161a825a1617b541aaceda9eec18"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/18-whole-author-whitespace.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/18-whole-author-whitespace.stdout.log",
+      "bytes": 2307,
+      "sha256": "9fd3f863910e46960d7ad304c57b3ffd17f59ada06868b851abb20fac8053ebc"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/baseline-context-owners.json",
+      "bytes": 5606,
+      "sha256": "9af9c7a33ad61b000e0359139546993e8b273c6d6f0bbb1952665197aa8c3e0c"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/cached-clerk-read-contract.json",
+      "bytes": 3331,
+      "sha256": "420b02b571f7a6b715df5001ea24313ae94433dc6d5ff4d85e3818bd34888927"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/discovery-failures.json",
+      "bytes": 1590,
+      "sha256": "593f7531e5bd8a3aa7d5f3daa9af7dc70d02b1240b96cc66b774a401eb833dbe"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/independent-jest.safe.cjs",
+      "bytes": 542,
+      "sha256": "54e8eaa192da27bbc540d41831fc52bc3c346666e47ffef683868e4c5dbb4ffa"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/independent-stage-source-bindings.json",
+      "bytes": 2323,
+      "sha256": "3791ac0ffc4ba672bd1f76a5464ed6b9245f2cdad54ec006b8ca49960b343a3e"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/pinned-wire-probe.json",
+      "bytes": 13410,
+      "sha256": "f4440f7ba6ec368eec29985946b0ccafa47f467d6622e25795ff65e7d145ab61"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-baseline-context-owners.cjs",
+      "bytes": 10523,
+      "sha256": "975f3918334856e58510ecf2afa00d6a74ae8e3dcd252c0a769b49282f476803"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs",
+      "bytes": 8257,
+      "sha256": "1e3c65fdfb57f45c51469f58ecc1eaa3acfa689bb16b5fad7b46d97782065a26"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-existing-context-grant-tenant-boundary.cjs",
+      "bytes": 5583,
+      "sha256": "b43e3f420d017aab67b004030357a586b163f2b5c12269b4d73d754b954f579e"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-grant-tenant-boundary.cjs",
+      "bytes": 5481,
+      "sha256": "498e40fce37fc4cb40588034de16b19d8af892062a71df028600c8ace1a800ab"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-independent-authority.cjs",
+      "bytes": 15103,
+      "sha256": "27e127dcaa506d00a2f765b0c802c8fd7a10214cbe47dfdd70bab3c940f42f09"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-pinned-wire.mjs",
+      "bytes": 7374,
+      "sha256": "3e7243fd4e38cd74c1d296122c84bd5d9f223169d0d5cdaeb5b9a2f064d72668"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/prove-final-source-preservation.cjs",
+      "bytes": 8578,
+      "sha256": "f424b800743aef960a0308562e0b3b965d17b12f332956d240aac3b18c1a125a"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/prove-source-preservation.cjs",
+      "bytes": 7385,
+      "sha256": "83fc3639a44b505dfca522f2380f935688d7b6c36daf02655c2238c5c960034a"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/reference-identities.json",
+      "bytes": 4965,
+      "sha256": "071e9a50a473a8ca01da8ce2f747f397373b4d5c3af3c0e9d91ede0baec35a32"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/runtime-composition-metadata.json",
+      "bytes": 2155,
+      "sha256": "1e69797bea298ae6d7a8cc068eb04ec77bde5ff883b1f5682a0969629b802716"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/verify-final-custody-clock-qualification.py",
+      "bytes": 5388,
+      "sha256": "3695d9af21a99010178bf1d9fecefb868cf86f04b28b3195b7b56a054ea2fb75"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/verify-final-custody-corrected.py",
+      "bytes": 5367,
+      "sha256": "ecd4d1ecd5738de38e809ec75a529e2d4d21ce34695d93eaae6a61c89d3fc562"
+    },
+    {
+      "path": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/verify-final-custody.py",
+      "bytes": 4702,
+      "sha256": "eb2ab4420d44aa3e96f02896a8be4adf523fe27d0825bc322ffe22e5c5f3ad52"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "bytes": 8258,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "bytes": 30010,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24",
+      "bytes": 7013,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9",
+      "bytes": 2627,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "bytes": 295936,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467",
+      "bytes": 45695,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "bytes": 9325,
+      "receiptAndPhysicalEqualSource": true
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "gitBlob": "cefec1060990ec56e449d45ec70c438966cd2134",
+      "sha256": "b738b2dbc1917255b062af225b08063f5092551c75fceddfff2542ed5bf9338c",
+      "bytes": 28650,
+      "receiptAndPhysicalEqualSource": true
+    }
+  ],
+  "physicalRawBytesPreserved": true,
+  "fullWhitespaceFloor": "OPEN",
+  "qualification": "SOURCE/MOCK only; no application/database/provider/credential execution"
+}

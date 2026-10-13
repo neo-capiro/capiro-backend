@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/verify-final-custody.py", line 46, in <module>
+    assert len(oldCases)==63 and len(newCases)==64 and newCases[:63]==oldCases
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

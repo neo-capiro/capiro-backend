@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -24,6 +24,33 @@ export interface ResolveContextSecurityScopeInput {
 export class ContextSecurityScopeService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Minimal current client/wall facts for a selected-client application receipt.
+   * Uses this owner's existing client resolver; requested IDs never grant access.
+   * Facts are hashed by the caller, not returned as a roster or profile. */
+  async resolveApplicationAuthorityClient(tenantId: string, actorUserId: string, clientId: string) {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      await this.resolveClients(tx, tenantId, actorUserId, [clientId], true);
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId, status: { not: 'archived' } },
+        select: {
+          id: true, tenantId: true, status: true, memoryWall: true,
+          memoryAccessGrants: {
+            where: { tenantId, clientId, userId: actorUserId },
+            select: { id: true, tenantId: true, clientId: true, userId: true, createdAt: true },
+            orderBy: { id: 'asc' },
+          },
+        },
+      });
+      if (!client || client.id !== clientId || client.tenantId !== tenantId || client.status === 'archived') {
+        throw new ForbiddenException('Application authority unavailable');
+      }
+      // Recheck through the canonical predicate after the fact read as well.
+      await this.resolveClients(tx, tenantId, actorUserId, [clientId], true);
+      return [client.id, client.tenantId, client.status, client.memoryWall,
+        client.memoryAccessGrants.map((grant) => [grant.id, grant.tenantId, grant.clientId, grant.userId, grant.createdAt.getTime()])];
+    });
+  }
+
   async resolve(input: ResolveContextSecurityScopeInput): Promise<ResolvedContextSecurityScope> {
     const tenantId = requiredId(input.tenantId, 'tenantId');
     const actorUserId = requiredId(input.actorUserId, 'actorUserId');
@@ -36,6 +63,7 @@ export class ContextSecurityScopeService {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const authorizedClientIds = await this.resolveClients(
         tx,
+        tenantId,
         actorUserId,
         requestedClientIds,
         clientConstraintProvided,
@@ -63,6 +91,7 @@ export class ContextSecurityScopeService {
 
   private async resolveClients(
     tx: Prisma.TransactionClient,
+    tenantId: string,
     actorUserId: string,
     requestedIds: string[],
     constraintProvided: boolean,
@@ -71,8 +100,9 @@ export class ContextSecurityScopeService {
 
     const rows = await tx.client.findMany({
       where: {
+        tenantId,
         ...(constraintProvided ? { id: { in: requestedIds } } : {}),
-        OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: actorUserId } } }],
+        OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { tenantId, userId: actorUserId } } }],
       },
       select: { id: true },
       orderBy: { id: 'asc' },

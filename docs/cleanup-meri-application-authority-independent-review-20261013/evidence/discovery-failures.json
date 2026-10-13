@@ -1,0 +1,44 @@
+{
+  "discoveryMisses": [
+    {
+      "command": "git rev-parse/show Meri7ad beforeread-onlyfetch",
+      "exitCode": 128,
+      "error": "unknown revision/path before exact origin object fetch; successful immutable read followed"
+    },
+    {
+      "command": "gitshow Capiro9db apps/api/src/auth/tenant.middleware.ts",
+      "exitCode": 128,
+      "error": "path absent; actualowner apps/api/src/tenant/tenant-context.middleware.ts"
+    },
+    {
+      "command": "gitshow Capiro9db apps/api/src/meri/context-security-scope.ts",
+      "exitCode": 128,
+      "error": "path absent; actualowner apps/api/src/context/context-security-scope.service.ts"
+    },
+    {
+      "command": "gitshow Capiro9db apps/api/src/auth/auth.guard.ts",
+      "exitCode": 128,
+      "error": "path absent; no speculative guard source adopted"
+    },
+    {
+      "command": "gitcat-file Merifinal84 beforeoriginfetch",
+      "exitCode": 128,
+      "error": "object absent before exact authorized read-only fetch"
+    },
+    {
+      "command": "inlineNode anchor sanity helper initial",
+      "exitCode": 1,
+      "error": "SyntaxError: Unexpected token ) from extra terminalparenthesis; corrected purehelper exit0 shaFinalLF:false,uuidFinalLF:false"
+    }
+  ],
+  "notes": [
+    "No failed probe established an authorization or wire defect.",
+    "Initial broad SDK search accidentally included sourcemaps; subsequent read used exact Session.d.ts, SessionApi.d.ts and narrow existingGETimplementation only."
+  ],
+  "actualCalls": {
+    "Clerk": 0,
+    "database": 0,
+    "provider": 0,
+    "MeriFixtures": 0
+  }
+}

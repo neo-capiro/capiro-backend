@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/prove-final-source-preservation.cjs"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "startedAt": "2026-10-13T05:36:51.655645+00:00",
+  "finishedAt": "2026-10-13T05:36:53.695645+00:00",
+  "exitCode": 0
+}

@@ -7,6 +7,15 @@ import {
   compactedAttachmentContext,
 } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
+import type { Request } from 'express';
+import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js';
+import { ContextSecurityScopeService } from '../context/context-security-scope.service.js';
+import {
+  assertApplicationAuthorityIdentityBody,
+  parseApplicationAuthorityContextBody,
+  applicationAuthorityIdentityReceipt,
+  readApplicationAuthorityContext,
+} from '../auth/application-authority.js';
 import {
   BadRequestException,
   ConflictException,
@@ -379,7 +388,37 @@ export class MeriService implements MeriTurnMaintenance {
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
+    @Optional() private readonly applicationAuthorityTenant?: TenantContextMiddleware,
+    @Optional() private readonly applicationAuthorityScope?: ContextSecurityScopeService,
   ) {}
+
+  async applicationAuthorityIdentity(ctx: TenantContext, req: Request, body: unknown) {
+    assertApplicationAuthorityIdentityBody(body);
+    if (!this.applicationAuthorityTenant) throw new ForbiddenException('Application authority unavailable');
+    return applicationAuthorityIdentityReceipt(await this.applicationAuthorityTenant.readApplicationAuthority(req, ctx));
+  }
+
+  async applicationAuthorityContext(ctx: TenantContext, req: Request, body: unknown) {
+    const input = parseApplicationAuthorityContextBody(body);
+    const tenant = this.applicationAuthorityTenant;
+    const securityScope = this.applicationAuthorityScope;
+    if (!tenant || !securityScope) throw new ForbiddenException('Application authority unavailable');
+    try {
+      return await readApplicationAuthorityContext(input, {
+        identity: () => tenant.readApplicationAuthority(req, ctx),
+        conversation: (id) => this.ensureConversation(ctx, id),
+        conversationScope: async (conversation) => {
+          const prospect = await authorizeMeriProspectScope(this.bizdevScope, ctx, (conversation as { metadata?: unknown }).metadata);
+          if (prospect && prospect.linkedClientId !== input.clientId) throw new ForbiddenException('Application authority unavailable');
+          return prospect ? [prospect.prospectId, prospect.canonicalOrganizationId, prospect.linkedClientId, prospect.scopeVersion] : null;
+        },
+        clientVisible: (id) => this.ensureClientVisible(ctx, id),
+        clientAuthority: (id) => securityScope.resolveApplicationAuthorityClient(ctx.tenantId, ctx.userId, id),
+      });
+    } catch {
+      throw new ForbiddenException('Application authority unavailable');
+    }
+  }
 
   async status(ctx: TenantContext) {
     const profile = await this.currentProfile(ctx);

@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Header,
   Logger,
   Param,
   Patch,
@@ -330,6 +331,22 @@ export class MeriController {
   @Get('status')
   status(@CurrentTenant() ctx: TenantContext) {
     return this.service.status(ctx);
+  }
+
+  @Post('application-authority/identity')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @Header('Content-Type', 'application/json; charset=utf-8')
+  applicationAuthorityIdentity(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.service.applicationAuthorityIdentity(ctx, req, body);
+  }
+
+  @Post('application-authority/context')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @Header('Content-Type', 'application/json; charset=utf-8')
+  applicationAuthorityContext(@CurrentTenant() ctx: TenantContext, @Req() req: Request, @Body() body: unknown) {
+    return this.service.applicationAuthorityContext(ctx, req, body);
   }
 
   @Get('conversations')

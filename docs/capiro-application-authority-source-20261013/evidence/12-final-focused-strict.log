@@ -1,0 +1,6 @@
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m179[0m:[93m95[0m - [91merror[0m[90m TS2345: [0mArgument of type 'typeof Clock' is not assignable to parameter of type 'DateConstructor'.
+  Type 'typeof Clock' provides no match for the signature '(): string'.
+
+[7m179[0m     const f = clerkFixture({ setTimeout: (() => 1) as any, clearTimeout: (() => {}) as any }, Clock);
+[7m   [0m [91m                                                                                              ~~~~~[0m
+{"diagnostics":1,"roots":7,"actualOwners":5,"selectedMeriMethods":4,"selectedControllerMethods":2,"fullCore":false,"protectedImplementationRead":false,"prismaRuntime":false}

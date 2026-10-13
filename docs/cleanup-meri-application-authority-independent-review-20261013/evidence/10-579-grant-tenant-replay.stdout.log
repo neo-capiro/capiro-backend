@@ -1,0 +1,286 @@
+{
+  "sourceHead": "579af9e4b826be308f0db289109c233350bbf34d",
+  "total": 3,
+  "passed": 3,
+  "failed": [],
+  "cases": [
+    {
+      "name": "walled same-tenant actor grant remains allowed",
+      "expectedAllowed": true,
+      "allowed": true,
+      "passed": true,
+      "facts": [
+        "44444444-4444-4444-8444-444444444444",
+        "11111111-1111-4111-8111-111111111111",
+        "active",
+        true,
+        [
+          [
+            "grant_fixture",
+            "11111111-1111-4111-8111-111111111111",
+            "44444444-4444-4444-8444-444444444444",
+            "33333333-3333-4333-8333-333333333333",
+            1
+          ]
+        ]
+      ],
+      "queries": [
+        {
+          "kind": "canonical",
+          "args": {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "id": {
+                "in": [
+                  "44444444-4444-4444-8444-444444444444"
+                ]
+              },
+              "OR": [
+                {
+                  "memoryWall": false
+                },
+                {
+                  "memoryAccessGrants": {
+                    "some": {
+                      "tenantId": "11111111-1111-4111-8111-111111111111",
+                      "userId": "33333333-3333-4333-8333-333333333333"
+                    }
+                  }
+                }
+              ]
+            },
+            "select": {
+              "id": true
+            },
+            "orderBy": {
+              "id": "asc"
+            }
+          }
+        },
+        {
+          "kind": "facts",
+          "args": {
+            "where": {
+              "id": "44444444-4444-4444-8444-444444444444",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "status": {
+                "not": "archived"
+              }
+            },
+            "select": {
+              "id": true,
+              "tenantId": true,
+              "status": true,
+              "memoryWall": true,
+              "memoryAccessGrants": {
+                "where": {
+                  "tenantId": "11111111-1111-4111-8111-111111111111",
+                  "clientId": "44444444-4444-4444-8444-444444444444",
+                  "userId": "33333333-3333-4333-8333-333333333333"
+                },
+                "select": {
+                  "id": true,
+                  "tenantId": true,
+                  "clientId": true,
+                  "userId": true,
+                  "createdAt": true
+                },
+                "orderBy": {
+                  "id": "asc"
+                }
+              }
+            }
+          }
+        },
+        {
+          "kind": "canonical",
+          "args": {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "id": {
+                "in": [
+                  "44444444-4444-4444-8444-444444444444"
+                ]
+              },
+              "OR": [
+                {
+                  "memoryWall": false
+                },
+                {
+                  "memoryAccessGrants": {
+                    "some": {
+                      "tenantId": "11111111-1111-4111-8111-111111111111",
+                      "userId": "33333333-3333-4333-8333-333333333333"
+                    }
+                  }
+                }
+              ]
+            },
+            "select": {
+              "id": true
+            },
+            "orderBy": {
+              "id": "asc"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "walled foreign-tenant actor grant must not authorize selected tenant client",
+      "expectedAllowed": false,
+      "allowed": false,
+      "passed": true,
+      "error": "requested_client_scope_not_fully_authorized",
+      "queries": [
+        {
+          "kind": "canonical",
+          "args": {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "id": {
+                "in": [
+                  "44444444-4444-4444-8444-444444444444"
+                ]
+              },
+              "OR": [
+                {
+                  "memoryWall": false
+                },
+                {
+                  "memoryAccessGrants": {
+                    "some": {
+                      "tenantId": "11111111-1111-4111-8111-111111111111",
+                      "userId": "33333333-3333-4333-8333-333333333333"
+                    }
+                  }
+                }
+              ]
+            },
+            "select": {
+              "id": true
+            },
+            "orderBy": {
+              "id": "asc"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "unwalled same-tenant client remains allowed without matching grant",
+      "expectedAllowed": true,
+      "allowed": true,
+      "passed": true,
+      "facts": [
+        "44444444-4444-4444-8444-444444444444",
+        "11111111-1111-4111-8111-111111111111",
+        "active",
+        false,
+        []
+      ],
+      "queries": [
+        {
+          "kind": "canonical",
+          "args": {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "id": {
+                "in": [
+                  "44444444-4444-4444-8444-444444444444"
+                ]
+              },
+              "OR": [
+                {
+                  "memoryWall": false
+                },
+                {
+                  "memoryAccessGrants": {
+                    "some": {
+                      "tenantId": "11111111-1111-4111-8111-111111111111",
+                      "userId": "33333333-3333-4333-8333-333333333333"
+                    }
+                  }
+                }
+              ]
+            },
+            "select": {
+              "id": true
+            },
+            "orderBy": {
+              "id": "asc"
+            }
+          }
+        },
+        {
+          "kind": "facts",
+          "args": {
+            "where": {
+              "id": "44444444-4444-4444-8444-444444444444",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "status": {
+                "not": "archived"
+              }
+            },
+            "select": {
+              "id": true,
+              "tenantId": true,
+              "status": true,
+              "memoryWall": true,
+              "memoryAccessGrants": {
+                "where": {
+                  "tenantId": "11111111-1111-4111-8111-111111111111",
+                  "clientId": "44444444-4444-4444-8444-444444444444",
+                  "userId": "33333333-3333-4333-8333-333333333333"
+                },
+                "select": {
+                  "id": true,
+                  "tenantId": true,
+                  "clientId": true,
+                  "userId": true,
+                  "createdAt": true
+                },
+                "orderBy": {
+                  "id": "asc"
+                }
+              }
+            }
+          }
+        },
+        {
+          "kind": "canonical",
+          "args": {
+            "where": {
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "id": {
+                "in": [
+                  "44444444-4444-4444-8444-444444444444"
+                ]
+              },
+              "OR": [
+                {
+                  "memoryWall": false
+                },
+                {
+                  "memoryAccessGrants": {
+                    "some": {
+                      "tenantId": "11111111-1111-4111-8111-111111111111",
+                      "userId": "33333333-3333-4333-8333-333333333333"
+                    }
+                  }
+                }
+              ]
+            },
+            "select": {
+              "id": true
+            },
+            "orderBy": {
+              "id": "asc"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "scope": "Actual canonical client owner and actual applyTenantScope function, synthetic relational rows. Models bypassed DB RLS as current PrismaService documents; no native SQL, Prisma, app or provider execution. Separate source FK fields permit inconsistent tenant/client grant rows; no assertion these rows exist in production."
+}

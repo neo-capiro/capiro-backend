@@ -1,0 +1,53 @@
+{
+  "sourceHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "sourceIdentities": [
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "gitBlob": "8e4ec3ea811f7b2e8895760269e3b297099abea4",
+      "bytes": 12478,
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "gitBlob": "28f02937c824fdbf1f6655f87bd94a52969aa360",
+      "bytes": 11027,
+      "sha256": "34abf99eb804afba2b598d430d4ed4d9806f4bb35b0254b9ccda1b1ef5f956e5"
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "517d5edc2d6861ff390b3681aa557830fb92bd85",
+      "bytes": 2478,
+      "sha256": "12786b23a4899b30c709fa652aa5d017c695074018acd4070047aaffc2bfbe98"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+      "bytes": 44992,
+      "sha256": "c9562a30e6a67ed75eaf74850d1e4d67c133f040035fb4df8ac80605a3123586"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "gitBlob": "60fbbc8a1de21962a95af60842d25087f58a612d",
+      "bytes": 2703,
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "path": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "gitBlob": "40fbcf7d5ad5c4bf1b75963c97ac41207ebf64b6",
+      "bytes": 776,
+      "sha256": "4709acfb1164a4e71fa508e03534a9015a0c8e7fc4ccc452264099e913281647"
+    }
+  ],
+  "existingControllerMinimumRole": "standard_user",
+  "existingMeriServiceProvider": "RAW_MERI_SERVICE -> createMeriRuntimeService default unmatched method binds actualrawtarget",
+  "ContextModuleAlreadyImportedByMeriModule": true,
+  "ContextSecurityScopeServiceCurrentlyNotContextModuleProviderOrExport": true,
+  "noDefenseRuntimeMirrorMatchingRequestedOwners": true,
+  "discoveryMiss": {
+    "path": "apps/api/src/meri/meri-read.service-proxy.ts",
+    "exitCode": 128,
+    "result": "pathabsent; canonicalactualfactoryowner meriv3-runtime.proxy.ts readatimmutablehead"
+  },
+  "sourceBodiesCopiedIntoPacket": false,
+  "applicationOrProviderBootstrap": false
+}
