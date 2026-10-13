@@ -1,0 +1,77 @@
+{
+  "source": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "tree": "0724ac3f46a9e13d077343ec8049471addaab595",
+  "base": "ed62dd1e67be152b6b760815f79bc475925659e7",
+  "checks": {
+    "hermetic": {
+      "pass": 54,
+      "fail": 0,
+      "files": 3,
+      "groups": {
+        "Defense": 17,
+        "auth": 28,
+        "Florida": 9
+      },
+      "receipt": "evidence/hermetic-final.command.json"
+    },
+    "cliPreflight": {
+      "pass": 30,
+      "fail": 0,
+      "scope": "exact first-preflight source projection; configured default stops before any work",
+      "receipt": "evidence/preflight-probes.command.json"
+    },
+    "currentRoute": {
+      "pass": 2,
+      "fail": 0,
+      "physicalFiles": 1,
+      "nestedSuiteNodes": 2,
+      "receipt": "evidence/route-attempt-1.command.json"
+    },
+    "originalRouteProjection": {
+      "pass": 2,
+      "fail": 0,
+      "receipt": "evidence/route-before.command.json"
+    },
+    "sourceWhitespace": {
+      "exit": 0,
+      "receipt": "evidence/source-whitespace.command.json"
+    }
+  },
+  "retainedFailedAttempts": [
+    {
+      "receipt": "evidence/hermetic-attempt-0.command.json",
+      "pass": 45,
+      "fail": 1,
+      "cause": "real missing118 API asset prerequisite; Florida file initialization ENOENT; other45 cases pass"
+    },
+    {
+      "receipt": "evidence/hermetic-attempt-1.command.json",
+      "pass": 53,
+      "fail": 1,
+      "cause": "real remaining API Docker Web COPY input; targeted owned-input contract rejects it"
+    },
+    {
+      "receipt": "evidence/route-attempt-0.command.json",
+      "cause": "test-host startup attempted DNS; refusal before case collection; evidence-only numeric hostname config avoids it"
+    }
+  ],
+  "runtimeHosts": {
+    "source": "Node24.19 cached, Node test isolation none, pinned readonly Git inputs + fake I/O",
+    "ui": "Vitest2.1.9 cached/JSdom, current setup/config plus numeric server hostname override; threads serial, original20s caps; sanitized environment; exact cached esbuild child only; outgoing network/listener/other child refused",
+    "boundary": "process preload/mock refusal, not general syscall or JavaScript containment"
+  },
+  "unrun": [
+    "Docker build/install",
+    "native/default operator CLI",
+    "real endpoints/auth/browser",
+    "DB/SQL/Prisma/provider",
+    "full floor/main merge/deploy"
+  ],
+  "independentReview": "pending separate owner",
+  "newRawEvidenceWhitespace": {
+    "exit": 2,
+    "receipt": "evidence/raw-evidence-whitespace.command.json",
+    "rawBytesRetained": true,
+    "fullFloorAcceptance": false
+  }
+}

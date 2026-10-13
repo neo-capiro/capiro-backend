@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "git",
+    "rev-parse",
+    "af5f208961e6c9a01a6e489a7f5b1a6e6edfd736^{tree}"
+  ],
+  "exit": 128,
+  "scope": "local commit/tree object presence only; no content/fetch"
+}

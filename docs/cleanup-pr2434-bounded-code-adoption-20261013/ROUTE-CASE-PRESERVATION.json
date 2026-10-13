@@ -1,0 +1,29 @@
+{
+  "before": [
+    {
+      "name": "vNext client entry path puts clientId in the URL when a client is opened",
+      "status": "passed"
+    },
+    {
+      "name": "vNext client entry path lists the portfolio so there is a way in at all",
+      "status": "passed"
+    }
+  ],
+  "after": [
+    {
+      "name": "vNext client entry path puts clientId in the URL when a client is opened",
+      "status": "passed"
+    },
+    {
+      "name": "vNext client entry path lists the portfolio so there is a way in at all",
+      "status": "passed"
+    }
+  ],
+  "originalCasesUnchanged": true,
+  "physicalFilesPerRun": 1,
+  "nestedSuiteNodesPerRun": 2,
+  "noSkips": true,
+  "beforeHost": "exact original two files temporarily placed at original relative import locations; all remaining unchanged imports from frozen current source",
+  "afterHost": "real unchanged current VNextClientCrmRoute + Portfolio model/route helper; auth/charts/dialog/profile collaborators mocked; exact API read operands and all write methods refused",
+  "hostLimit": "process preload refusal plus explicit mocking, not syscall/network or actual browser/real-auth acceptance"
+}

@@ -1,0 +1,5 @@
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.stdout:69: trailing whitespace.
++  
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.stdout:223: trailing whitespace.
++  
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-0.stderr:14: new blank line at EOF.

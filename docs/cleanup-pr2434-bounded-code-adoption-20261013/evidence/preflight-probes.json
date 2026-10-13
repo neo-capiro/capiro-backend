@@ -1,0 +1,369 @@
+{
+  "scope": "exact current CLI preflight projection only; imports and all work after first configuration constant excluded; no native/default body",
+  "pass": 30,
+  "rows": [
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "noargs",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "short-help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "unknown",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ],
+        [
+          "err",
+          "[phase3-resilience] unknown argument: --unknown"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "unsupported-run",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ],
+        [
+          "err",
+          "[phase3-resilience] unknown argument: --run"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "mixed-help",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ],
+        [
+          "err",
+          "[phase3-resilience] unknown argument: --help --run"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "blank-required-env",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "configured-help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "configured-unknown",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)"
+        ],
+        [
+          "err",
+          "[phase3-resilience] unknown argument: --unknown"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/engagement-phase3-resilience.mjs",
+      "name": "configured-default-stops-before-work",
+      "result": "stop",
+      "output": []
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "noargs",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "short-help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "unknown",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ],
+        [
+          "err",
+          "[phase3-resilience-runner] unknown argument: --unknown"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "unsupported-run",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ],
+        [
+          "err",
+          "[phase3-resilience-runner] unknown argument: --run"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "mixed-help",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ],
+        [
+          "err",
+          "[phase3-resilience-runner] unknown argument: --help --run"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "blank-required-env",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "configured-help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "configured-unknown",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)"
+        ],
+        [
+          "err",
+          "[phase3-resilience-runner] unknown argument: --unknown"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/run-engagement-phase3-resilience.mjs",
+      "name": "configured-default-stops-before-work",
+      "result": "stop",
+      "output": []
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "noargs",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "short-help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "unknown",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ],
+        [
+          "err",
+          "[phase3-evidence] unknown argument: --unknown"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "unsupported-run",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ],
+        [
+          "err",
+          "[phase3-evidence] unknown argument: --run"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "mixed-help",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ],
+        [
+          "err",
+          "[phase3-evidence] unknown argument: --help --run"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "blank-required-env",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "configured-help",
+      "result": 0,
+      "output": [
+        [
+          "out",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "configured-unknown",
+      "result": 2,
+      "output": [
+        [
+          "err",
+          "Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)"
+        ],
+        [
+          "err",
+          "[phase3-evidence] unknown argument: --unknown"
+        ]
+      ]
+    },
+    {
+      "file": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "name": "configured-default-stops-before-work",
+      "result": "stop",
+      "output": []
+    }
+  ]
+}

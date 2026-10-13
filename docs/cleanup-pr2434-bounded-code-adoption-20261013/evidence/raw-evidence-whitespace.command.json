@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--cached",
+    "--check"
+  ],
+  "exit": 2,
+  "scope": "new evidence packet before adding this receipt; raw outputs retained, no exclusion/trim/waiver"
+}
