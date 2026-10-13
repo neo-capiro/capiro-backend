@@ -1,0 +1,11 @@
+# Bounded source-profile architecture correction
+
+Source358d953a42129a19ba82fdd8373c86c9a455f49a (tree79457baad024618e16ebf2b580e126edf566be87) preserves f18f918/0ac13d44 as actual ancestors. Exactly two existing source paths change: the owner compares array length and each exact primitive string with strict equality; the profile spec adds one object/proxy/symbol/number zero-coercion control. No join/string conversion occurs before typing. No other source, profile data, CLI/default/image/runtime target or root wiring changes.
+
+Independent original767662fe corpus on f18/current43c had20PASS/2RED: a malformed object architecture invoked toString twice, and arm64 could yield a fixture-accepted result containing mutable object data. This was a labelled-model schema defect; production active=null remained blocked and all source/native proof flags remained false. The byte-exact original program, JSON and stdout/stderr are retained as REVIEW-ORIGINAL files. No artifact/private filesystem, provider or native action occurs in that corpus.
+
+The SAME22-case program is copied byte-exact and now produces22PASS/0RED/coercions0. It retains historical f18/43c labels inside its JSON because its program is unchanged; those are original-corpus provenance, not current-source claims. 03-architecture-corpus-replay.command.json binds the actual358d source/tree and the correct sparse import paths. The original failing JSON has a distinct REVIEW-ORIGINAL filename and was not overwritten.
+
+Actual affected permanent suites pass101/101 =19profile +32preserved assembly +50unchanged standalone cases, no skips. The prior100-pass raw log and original38-binding index remain byte-exact at0ac. The append index intentionally supersedes ONLY the two changed source hashes and verifies original bindings against their original commit. Active source policy remains null/empty, pending c8aa and historical7c remain unadmitted, and all existing false source-build/native/frontend/shipping proof qualifiers remain.
+
+No new actual frontend artifact/build/server, Docker/image/install, native/database/provider/AWS or deployment action was performed. Independent reviewer replay/acceptance belongs to its own receipt; root owns integration/publication and frontend final-source activation.
