@@ -1,0 +1,109 @@
+{
+  "entries": [
+    {
+      "path": "INTERIM-RECEIPT.json",
+      "bytes": 708,
+      "sha256": "0a6c958d207199f43313a7740b7391520a07ab871b8b075d8e013c7c754abb29"
+    },
+    {
+      "path": "INTERIM-REVIEW.md",
+      "bytes": 3532,
+      "sha256": "3bbc4924da8b3e7f64af3f7ea8813001eb6885de380f2c350f56bb2239616b74"
+    },
+    {
+      "path": "evidence/00-initial-audit-driver-error.log",
+      "bytes": 332,
+      "sha256": "38bc72aa794b06b3d1ca3272032d0342d1d06669422244f6a9d0fe2cba30b26e"
+    },
+    {
+      "path": "evidence/01-tar-source-declaration-audit.stderr",
+      "bytes": 305,
+      "sha256": "1a43fe7f700da0b71f2c06530662e6c5432bde1f15d81a659ae84569e0528b70"
+    },
+    {
+      "path": "evidence/01-tar-source-declaration-audit.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-tar-source-declaration-audit.json",
+      "bytes": 59164,
+      "sha256": "8bf04b30b3ef038d7d5a692756feda27979575e95219464c9fc1c9492ddf7e2a"
+    },
+    {
+      "path": "evidence/02-tar-source-declaration-audit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-tar-source-declaration-audit.stdout",
+      "bytes": 109,
+      "sha256": "0f4242ac0ef7422703cdc8c2095debc1d4aa4e9f9bf7a8dc6601c1a25590a046"
+    },
+    {
+      "path": "evidence/03-consumer-receipt-audit.stderr",
+      "bytes": 973,
+      "sha256": "20d5ada49fd5df69c3739fff4d573f1558b97e676e611944e6f63d9fe8b3698e"
+    },
+    {
+      "path": "evidence/03-consumer-receipt-audit.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/04-historical-test-producer.cjs",
+      "bytes": 3759,
+      "sha256": "a12c19266234fdad841e0752cb12a2c909f7aa49f23b87e5d0e22a109fce872b"
+    },
+    {
+      "path": "evidence/04-historical-test-producer.json",
+      "bytes": 11229,
+      "sha256": "14c9016ff09c70a0ae9bd18bcf4ffde56e3ea9febd04f8db4cfd6c234bb1cdee"
+    },
+    {
+      "path": "evidence/04-historical-test-producer.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/04-historical-test-producer.stdout",
+      "bytes": 11229,
+      "sha256": "14c9016ff09c70a0ae9bd18bcf4ffde56e3ea9febd04f8db4cfd6c234bb1cdee"
+    },
+    {
+      "path": "evidence/05-consumer-receipt-audit.json",
+      "bytes": 13855,
+      "sha256": "360c91c627c33bf3e738e080111663d280820ca2221648030dfda4afc8335690"
+    },
+    {
+      "path": "evidence/05-consumer-receipt-audit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/05-consumer-receipt-audit.stdout",
+      "bytes": 50,
+      "sha256": "342206abf3fb1c90b6ad3b6609c208b15d4a426e10f7b85dceb62f3aed4129cd"
+    },
+    {
+      "path": "evidence/audit-consumer-receipts-v2.py",
+      "bytes": 9578,
+      "sha256": "ee1b301b3681008f162295fbd8713a43865bd184343b258c4960245d3546946a"
+    },
+    {
+      "path": "evidence/audit-consumer-receipts.py",
+      "bytes": 9381,
+      "sha256": "b5703f6ee681f06319bff99a8d581fbbcc831aab22500d59f21f404ae0a2d215"
+    },
+    {
+      "path": "evidence/audit-distribution-v2.py",
+      "bytes": 8091,
+      "sha256": "a04b03ef3f67d61332ec40d03b0a36bfb9ddbab3dc2d368be976cf91cd968c41"
+    },
+    {
+      "path": "evidence/audit-distribution.py",
+      "bytes": 8021,
+      "sha256": "40d5ce5866989bbadcacbce6ef9a76734b265fd9c1ea3c9eec954bc8881f22d5"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/shared-newsletter-receiving-distribution-independent-review-20261013/evidence/audit-distribution.py", line 59, in <module>
+    for r in index['files']:
+             ~~~~~^^^^^^^^^
+KeyError: 'files'
