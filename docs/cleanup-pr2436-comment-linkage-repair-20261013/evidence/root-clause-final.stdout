@@ -1,0 +1,44 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "scope": "inert source strings only; no JavaScript/CSS execution or browser",
+  "results": [
+    {
+      "name": "quoted comment in import clause",
+      "code": "import {x /* \"ignored\" */} from \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "parenthesis comment in export clause",
+      "code": "export {x /* ) */} from \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "quoted comment in export clause",
+      "code": "export {x /* \"ignored\" */} from \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "valid simple source control",
+      "code": "export const valid=1;",
+      "css": null,
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    }
+  ],
+  "pass": 4,
+  "red": 0
+}

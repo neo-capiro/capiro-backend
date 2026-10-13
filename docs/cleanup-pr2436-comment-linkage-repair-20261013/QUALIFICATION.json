@@ -1,0 +1,37 @@
+{
+  "source": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "tree": "f856da3e3f0df6941fbb3837a41c19615ed78cd9",
+  "base": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "sourcePaths": 2,
+  "cases": {
+    "onboardLatest": 37,
+    "newsletterCarriedByExactSource": 53,
+    "original72Retained": true,
+    "addedPermanent": 18,
+    "immutableInitialReview": 9,
+    "immutableRootClauseReview": 4,
+    "immutableLineTerminatorReview": 4
+  },
+  "preservedRed": {
+    "6503Escapes": 5,
+    "3769ClauseEscapes": 3,
+    "eafLineTerminatorEscapes": 2
+  },
+  "sourceWhitespace": 0,
+  "precedingSources": [
+    "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+    "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+    "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2"
+  ],
+  "earlierSuccessfulRawReceipts": "initial-3769-* and initial-eaf-* copied byte-exact",
+  "hardcodedProbeSourceFields": "old6503/3769/eaf unchanged; actual7a02 separately bound by command receipts",
+  "sourceScope": "comment/clause and all JS line-terminator tokens in existing Onboard guard/spec only",
+  "grammarLimit": "bounded static lexical recognizers, not complete language/FS race/runtime proof",
+  "independentReview": "O separately reports37+9+4+4+18 passing; final immutable review packet separate",
+  "unaccepted": [
+    "actual Onboard SPA artifact/replacement/browser/auth",
+    "backend179 assets/frontend parity/historical serving",
+    "Clio/workflow activation",
+    "full floor/native/database/deploy"
+  ]
+}

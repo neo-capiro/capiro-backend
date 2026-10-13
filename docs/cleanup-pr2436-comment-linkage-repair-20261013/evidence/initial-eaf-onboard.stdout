@@ -1,0 +1,40 @@
+✔ opt-in Docker inverse restores the entire original; default/runtime/API/security/entrypoint bytes remain intact (36.437099ms)
+✔ only the supplied site enters the unchanged runtime path; pins are required before frozen workspace installation (1.337559ms)
+✔ API/auth/shared dependency manifests and frozen lock importers close without legacy frontend packages (20.120705ms)
+✔ original public PDF/favicon bytes and URLs are pinned without reading a frontend source directory (0.527001ms)
+✔ digest/source-bound static fixture succeeds with a distinct byte-only receipt and exact file inventory (14.19616ms)
+✔ empty/malformed/duplicate/conflicting invocation refuses before filesystem operations (2.346409ms)
+✔ missing supplied directory never falls back to existing Web trees (1.928386ms)
+✔ manifest digest/source mismatch, truncation, duplicate keys and malformed file proofs fail closed (3.704939ms)
+✔ escaping, encoded, hidden, absolute and executable file names refuse even with fresh valid digests (7.961798ms)
+✔ missing/unlisted/truncated/changed files and absent or replaced protected public assets refuse (7.278406ms)
+✔ HTML/module/dynamic-import/export/CSS/font/SVG/Vite-table local closure remains mandatory (16.402068ms)
+✔ unsafe/bare/nonstatic module or local resource references refuse; inert data images require no file (12.371323ms)
+✔ empty/incomplete index or metadata-only artifact cannot yield an application-shell receipt (2.603512ms)
+✔ port reader rejects missing/unlisted roots, file/ancestor symlinks and nonregular entries before content reads (3.868685ms)
+✔ physical supplied fixture qualifies with legacy frontend denied, and physical symlink escape refuses (7.149796ms)
+✔ case/control regression preserves all former cases and limits the helper change to canonical paths and pins (0.906982ms)
+✔ uppercase JS/CSS/HTML/MJS/SVG missing-resource counterexamples now refuse, while uppercase basenames remain valid (20.93115ms)
+✔ trailing-LF manifest/file names now refuse before payload reads or stat of unsafe filesystem names (2.436805ms)
+✔ pure pins refuse coerced/non-string/control values before filesystem operations; original LF refusal is preserved (3.639842ms)
+✔ actual static guard refuses comment-separated bare static import without executing payloads (1.431799ms)
+✔ actual static guard refuses comment-separated nonstatic dynamic import without executing payloads (1.488846ms)
+✔ actual static guard refuses comment-separated bare dynamic import without executing payloads (1.773911ms)
+✔ actual static guard refuses comment-separated bare export without executing payloads (4.158253ms)
+✔ actual static guard refuses comment-separated local CSS import without executing payloads (1.746429ms)
+✔ comment token gaps retain legitimate closed references and quoted remote URL text (1.197223ms)
+✔ recognized unsupported or escaped module and URL argument forms refuse before resource lookup (8.242837ms)
+✔ binding clause cannot hide an unbundled module: import {x /* "ignored" */} from "react"; (1.445564ms)
+✔ binding clause cannot hide an unbundled module: export {x /* ) */} from "react"; (1.881404ms)
+✔ binding clause cannot hide an unbundled module: export {x /* "ignored" */} from "react"; (2.01449ms)
+✔ binding clause cannot hide an unbundled module: import {"foo" as x} from "react"; (1.481395ms)
+✔ binding clause cannot hide an unbundled module: export {x as "foo"} from "react"; (1.430487ms)
+✔ comment and quoted binding tokens retain closed module references without swallowing later declarations (4.640282ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 287.044811

@@ -1,0 +1,44 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "scope": "inert source strings only; no JavaScript/CSS execution or browser",
+  "results": [
+    {
+      "name": "quoted comment in import clause",
+      "code": "import {x /* \"ignored\" */} from \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "parenthesis comment in export clause",
+      "code": "export {x /* ) */} from \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "quoted comment in export clause",
+      "code": "export {x /* \"ignored\" */} from \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "valid simple source control",
+      "code": "export const valid=1;",
+      "css": null,
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    }
+  ],
+  "pass": 1,
+  "red": 3
+}

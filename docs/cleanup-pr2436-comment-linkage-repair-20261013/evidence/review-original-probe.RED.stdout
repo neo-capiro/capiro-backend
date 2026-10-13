@@ -1,0 +1,89 @@
+{
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "scope": "inert source strings only; no JavaScript/CSS execution or browser",
+  "results": [
+    {
+      "name": "direct bare import control",
+      "code": "import \"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "direct nonstatic import control",
+      "code": "import(variable);",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: nonstatic module reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "direct missing CSS control",
+      "code": "export const valid=1;",
+      "css": "@import \"./missing.css\";",
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: missing asset closure: assets/main.css -> ./missing.css",
+      "pass": true
+    },
+    {
+      "name": "comment-separated bare static import",
+      "code": "import/*review*/\"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "comment-separated nonstatic dynamic import",
+      "code": "import/*review*/(variable);",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "comment-separated bare dynamic import",
+      "code": "import/*review*/(\"react\");",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "comment-separated bare export",
+      "code": "export/*review*/{x}/*review*/from/*review*/\"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "comment-separated local CSS import",
+      "code": "export const valid=1;",
+      "css": "@import/**/\"./missing.css\";",
+      "expectedRefusal": true,
+      "accepted": true,
+      "error": null,
+      "pass": false
+    },
+    {
+      "name": "complete inert source control",
+      "code": "export const valid=1;",
+      "css": null,
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    }
+  ],
+  "pass": 4,
+  "red": 5
+}

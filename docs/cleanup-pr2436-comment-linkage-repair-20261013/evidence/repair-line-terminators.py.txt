@@ -1,0 +1,17 @@
+from pathlib import Path
+import subprocess,json,os,shutil
+repo=Path('/workspace/capirov2');stage=Path('/workspace/cleanup-pr2436-compatible-artifact-guards-20261013');e=stage/'docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence';freeze=json.loads((e/'SOURCE-FREEZE.json').read_text());previous=freeze['source'];hp,sp=freeze['onlyPaths'];s=(stage/hp).read_text();old=r'\/\/[^\r\n]*(?:\r?\n|$)';new=r'\/\/[^\r\n\u2028\u2029]*(?:\r\n|[\r\n\u2028\u2029]|$)';assert s.count(old)==2;s=s.replace(old,new);(stage/hp).write_text(s)
+blocks=json.loads((e/'EXACT-REPAIR-BLOCKS.json').read_text());beforeBlock=blocks['new'];start=s.index('  // Token separators may contain comments;');end=s.index('    // Covers emitted Vite',start);blocks['new']=s[start:end];shutil.copyfile(e/'EXACT-REPAIR-BLOCKS.json',e/'EXACT-REPAIR-BLOCKS-EAF.json');(e/'EXACT-REPAIR-BLOCKS.json').write_text(json.dumps(blocks,indent=2)+'\n');t=(stage/sp).read_text();oldLiteral='  const block = '+json.dumps(beforeBlock)+';';newLiteral='  const block = '+json.dumps(blocks['new'])+';';assert t.count(oldLiteral)==1;t=t.replace(oldLiteral,newLiteral)
+t+=r'''
+for (const [name, end] of [['LF', '\n'], ['CRLF', '\r\n'], ['CR', '\r'], ['LS', '\u2028'], ['PS', '\u2029']]) {
+  test(`line comments stop at ${name} and cannot hide an unbundled import`, () => {
+    assert.throws(() => validate(fixture({ 'assets/main.js': 'import//review' + end + '"react";' })), /unbundled module/);
+    assert.throws(() => validate(fixture({ 'assets/main.js': 'export {x //review' + end + '} from "react";' })), /unbundled module/);
+    assert.equal(validate(fixture({ 'assets/main.js': 'import//review' + end + '"./chunk.js"; export {x //review' + end + '} from "./export.js";' })).qualification, 'static-byte-contract-only');
+  });
+}
+''';(stage/sp).write_text(t)
+env=dict(os.environ,GIT_INDEX_FILE=str(stage/'virtual.index'));subprocess.run(['git','-C',str(repo),'read-tree',previous],env=env,check=True)
+for p in [hp,sp]:
+ oid=subprocess.check_output(['git','-C',str(repo),'hash-object','-w',str(stage/p)],text=True).strip();subprocess.run(['git','-C',str(repo),'update-index','--cacheinfo','100644',oid,p],env=env,check=True)
+tree=subprocess.check_output(['git','-C',str(repo),'write-tree'],env=env,text=True).strip();head=subprocess.check_output(['git','-C',str(repo),'commit-tree',tree,'-p',previous],input=b'Recognize all ECMAScript line-comment terminators [skip ci]\n').decode().strip();subprocess.run(['git','-C',str(repo),'update-ref',freeze['branch'],head,previous],check=True);shutil.copyfile(e/'SOURCE-FREEZE.json',e/'SOURCE-FREEZE-EAF.json');freeze.update(source=head,tree=tree,previousSource=previous,repair='LF/CRLF/CR/LS/PS line-comment token terminators only');(e/'SOURCE-FREEZE.json').write_text(json.dumps(freeze,indent=2)+'\n');print('frozen',head,tree)

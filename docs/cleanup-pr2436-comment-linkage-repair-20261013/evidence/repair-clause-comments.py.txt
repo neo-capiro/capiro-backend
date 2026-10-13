@@ -1,0 +1,31 @@
+from pathlib import Path
+import subprocess,json,os
+repo=Path('/workspace/capirov2');stage=Path('/workspace/cleanup-pr2436-compatible-artifact-guards-20261013');e=stage/'docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence';freeze=json.loads((e/'SOURCE-FREEZE.json').read_text());previous=freeze['source'];hp,sp=freeze['onlyPaths'];s=(stage/hp).read_text()
+# Comment tokens stop at their first delimiter; binding clauses admit comments and quoted names atomically.
+s=s.replace(r'\/\*[\s\S]*?\*\/',r'\/\*(?:(?!\*\/)[\s\S])*\*\/')
+old=r'''(?:[^;'"()]*?\bfrom\b${jsTrivia})?'''
+new=r'''(?:(?:[^;'"()/]|\/\*(?:(?!\*\/)[\s\S])*\*\/|\/\/[^\r\n]*(?:\r?\n|$)|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*?\bfrom\b${jsTrivia})?'''
+assert s.count(old)==1;s=s.replace(old,new);(stage/hp).write_text(s)
+blocks=json.loads((e/'EXACT-REPAIR-BLOCKS.json').read_text());beforeBlock=blocks['new'];start=s.index('  // Token separators may contain comments;');end=s.index('    // Covers emitted Vite',start);blocks['new']=s[start:end];(e/'EXACT-REPAIR-BLOCKS-INITIAL.json').write_text(json.dumps(json.loads((e/'EXACT-REPAIR-BLOCKS.json').read_text()),indent=2)+'\n');(e/'EXACT-REPAIR-BLOCKS.json').write_text(json.dumps(blocks,indent=2)+'\n')
+t=(stage/sp).read_text();oldLiteral='  const block = '+json.dumps(beforeBlock)+';';newLiteral='  const block = '+json.dumps(blocks['new'])+';';assert t.count(oldLiteral)==1;t=t.replace(oldLiteral,newLiteral)
+t+=r'''
+for (const js of [
+  'import {x /* "ignored" */} from "react";',
+  'export {x /* ) */} from "react";',
+  'export {x /* "ignored" */} from "react";',
+  'import {"foo" as x} from "react";',
+  'export {x as "foo"} from "react";',
+]) test(`binding clause cannot hide an unbundled module: ${js}`, () => {
+  assert.throws(() => validate(fixture({ 'assets/main.js': js })), /unbundled module/);
+});
+
+test('comment and quoted binding tokens retain closed module references without swallowing later declarations', () => {
+  const data = fixture({ 'assets/main.js': 'import {c /* "ignored" */} from "./chunk.js"; export {x /* ) */} from "./export.js"; import {"c" as named} from "./chunk.js"; const note="/* quoted text stays */";' });
+  assert.equal(validate(data).qualification, 'static-byte-contract-only');
+  assert.throws(() => validate(fixture({ 'assets/main.js': 'import /* harmless */ "./chunk.js"; /* second */ import "react";' })), /unbundled module/);
+});
+''';(stage/sp).write_text(t)
+env=dict(os.environ,GIT_INDEX_FILE=str(stage/'virtual.index'));subprocess.run(['git','-C',str(repo),'read-tree',previous],env=env,check=True)
+for p in [hp,sp]:
+ oid=subprocess.check_output(['git','-C',str(repo),'hash-object','-w',str(stage/p)],text=True).strip();subprocess.run(['git','-C',str(repo),'update-index','--cacheinfo','100644',oid,p],env=env,check=True)
+tree=subprocess.check_output(['git','-C',str(repo),'write-tree'],env=env,text=True).strip();head=subprocess.check_output(['git','-C',str(repo),'commit-tree',tree,'-p',previous],input=b'Keep comment and quoted binding tokens distinct in static clauses [skip ci]\n').decode().strip();subprocess.run(['git','-C',str(repo),'update-ref',freeze['branch'],head,previous],check=True);(e/'SOURCE-FREEZE-INITIAL.json').write_text(json.dumps(freeze,indent=2)+'\n');freeze.update(source=head,tree=tree,previousSource=previous,repair='clause comments and quoted names, comment terminator cannot swallow code');(e/'SOURCE-FREEZE.json').write_text(json.dumps(freeze,indent=2)+'\n');print('frozen',head,tree)
