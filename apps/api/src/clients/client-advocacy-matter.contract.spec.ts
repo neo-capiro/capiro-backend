@@ -8,7 +8,7 @@ describe('Advocacy Matter architecture contract', () => {
   );
   const service = readFileSync(resolve(process.cwd(), 'src/clients/client-advocacy-matter.service.ts'), 'utf8');
   const completion = readFileSync(
-    resolve(process.cwd(), 'src/clients/client-profile-fill-completion.service.ts'),
+    resolve(process.cwd(), 'src/clients/client-profile-fill-completion-persistence.ts'),
     'utf8',
   );
   const tenantHistory = readFileSync(
