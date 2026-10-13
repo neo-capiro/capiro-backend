@@ -1,0 +1,46 @@
+[
+  {
+    "argv": [
+      "python3",
+      "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+    ],
+    "exit": 0,
+    "stdout": "docs/native-replay-reviewed-composition-20261013/evidence/03-affected-source-guards.stdout",
+    "stderr": "docs/native-replay-reviewed-composition-20261013/evidence/03-affected-source-guards.stderr"
+  },
+  {
+    "argv": [
+      "node",
+      "--test",
+      "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+      "scripts/ci/reviewed-source-hygiene.spec.mjs"
+    ],
+    "exit": 0,
+    "stdout": "docs/native-replay-reviewed-composition-20261013/evidence/04-affected-source-guards.stdout",
+    "stderr": "docs/native-replay-reviewed-composition-20261013/evidence/04-affected-source-guards.stderr"
+  },
+  {
+    "argv": [
+      "node",
+      "--test",
+      "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "scripts/ci/rebuild-verification-scopes.spec.mjs"
+    ],
+    "exit": 1,
+    "stdout": "docs/native-replay-reviewed-composition-20261013/evidence/05-affected-source-guards.stdout",
+    "stderr": "docs/native-replay-reviewed-composition-20261013/evidence/05-affected-source-guards.stderr"
+  },
+  {
+    "argv": [
+      "node",
+      "--test",
+      "scripts/ci/rebuild-verification-scopes.spec.mjs"
+    ],
+    "exit": 0,
+    "stdout": "docs/native-replay-reviewed-composition-20261013/evidence/06-same-rebuild-guards-green.stdout",
+    "stderr": "docs/native-replay-reviewed-composition-20261013/evidence/06-same-rebuild-guards-green.stderr",
+    "priorFailure": "sparse checkout omitted workspace manifests; same source/spec bytes now materialized",
+    "sourceOrTestChanges": false
+  }
+]
