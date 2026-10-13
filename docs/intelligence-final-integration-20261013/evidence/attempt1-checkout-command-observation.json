@@ -1,0 +1,13 @@
+{
+  "command": [
+    "git",
+    "read-tree",
+    "--reset",
+    "-mu",
+    "HEAD"
+  ],
+  "gitExitCode": 128,
+  "stderr": "fatal: Which one? -m, --reset, or --prefix?\n",
+  "scope": "conflicting read-tree CLI flags; no merge or source edit",
+  "fullToolTracebackPersisted": false
+}

@@ -1,0 +1,25 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-intelligence-final-integration-20261013/docs/intelligence-final-integration-20261013/network-fence.cjs",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-intelligence-final-integration-20261013/docs/intelligence-final-integration-20261013/inert-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/intelligence/intelligence.mapping-governance.spec.ts",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-intelligence-final-integration-20261013/docs/intelligence-final-integration-20261013/evidence/fixture-jest-results.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 6.712,
+  "logBytes": 3036,
+  "logSha256": "a84fc31e6f6881594f142ba9f080cea4cb889431554511929d8179b14dc76979",
+  "scope": "only corrected fixture-dependent suite; prior93 passing suites retained, not repeated"
+}

@@ -1,0 +1,20 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--config",
+    "/tmp/capirov2-intelligence-final-integration-20261013/docs/intelligence-final-integration-20261013/build-cli-config.json",
+    "--path",
+    "/tmp/capirov2-intelligence-final-integration-20261013/docs/intelligence-final-integration-20261013/build-config.json"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 0.437,
+  "logBytes": 235,
+  "logSha256": "8d309664077b4ab80025c0edbe4958980d35eef8b64ae2f935a6f5ebd94488eb",
+  "scope": "actual Nest build; production build config unchanged except owned output placement; no native DB/provider/app execution",
+  "outputSpill": "/workspace/intelligence-final-api-build-spill-20261013"
+}

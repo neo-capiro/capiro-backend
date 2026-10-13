@@ -1,0 +1,5 @@
+{
+  "compilationBegan": false,
+  "cause": "Nest CLI joins --config to cwd rather than accepting an absolute path",
+  "correction": "task-owned relative CLI and tsconfig filenames in API cwd; production configs untouched"
+}

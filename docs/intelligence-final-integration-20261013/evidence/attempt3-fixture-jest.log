@@ -1,0 +1,25 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-intelligence-final-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/intelligence/intelligence.mapping-governance.spec.ts
+  ● Test suite failed to run
+
+    ENOENT: no such file or directory, open '/tmp/capirov2-intelligence-final-integration-20261013/apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'
+
+      282 |   test('bulk confirm still excludes them too', () => {
+      283 |     const src = readFileSync(
+    > 284 |       join(__dirname, '__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'),
+          |                                            ^
+      285 |       'utf8',
+      286 |     );
+      287 |     const confirmAll = src.slice(src.indexOf('async function handleConfirmAll'));
+
+      at src/intelligence/intelligence.mapping-governance.spec.ts:284:44
+      at Object.<anonymous> (src/intelligence/intelligence.mapping-governance.spec.ts:283:24)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        5.484 s
+Ran all test suites within paths "src/intelligence/intelligence.mapping-governance.spec.ts".
+Test results written to: ../../docs/intelligence-final-integration-20261013/evidence/fixture-jest-results.json

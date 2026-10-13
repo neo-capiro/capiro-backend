@@ -1,0 +1,12 @@
+{
+  "checkExecutedTests": false,
+  "scope": "derived transformer helper could not resolve ts-jest from the docs directory",
+  "correction": "resolve unchanged cached ts-jest from the accepted API overlay, without installs",
+  "ownedPartialCacheFiles": [
+    {
+      "path": "haste-map-a663fa476758019798c5fd4d80dcac28-3502504e080a9c92b14ef80e807494df-2ae014d6bda725a1d1d70a5462b1dd73",
+      "bytes": 665883
+    }
+  ],
+  "ownedPartialCacheRemoved": true
+}

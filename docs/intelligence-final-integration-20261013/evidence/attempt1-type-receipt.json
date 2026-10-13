@@ -1,0 +1,23 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-intelligence-final-integration-20261013/apps/api/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/workspace/intelligence-final-api-type-20261013.tsbuildinfo"
+  ],
+  "cwd": "/tmp/capirov2-intelligence-final-integration-20261013/apps/api",
+  "exitCode": 2,
+  "elapsedSeconds": 119.491,
+  "logBytes": 49321,
+  "logSha256": "9ca7528a3840fb32f75ea4e06cabede34b787bff5722ad9006819c39df463e54",
+  "inheritedCredentials": false,
+  "scope": "fresh strict actual API tsconfig noEmit; no native generation/DB/provider/app execution"
+}
