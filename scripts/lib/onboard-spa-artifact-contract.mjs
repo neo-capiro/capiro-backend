@@ -110,21 +110,35 @@ function resourceReferences(path, text) {
     // Public download links are resources; application navigation is a browser-flow obligation.
     for (const match of text.matchAll(/\bhref\s*=\s*["']([^"']+\.(?:pdf|svg|ico)(?:[?#][^"']*)?)["']/gi)) add(match[1]);
   }
+  // Token separators may contain comments; quoted reference bytes are never stripped.
+  const cssTrivia = String.raw`(?:\s|\/\*[\s\S]*?\*\/)*`;
+  const jsTrivia = String.raw`(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*`;
   if (path.endsWith('.css')) {
-    for (const match of text.matchAll(/url\(\s*(?:"([^"]+)"|'([^']+)'|([^\s)]+))\s*\)/gi)) add(match[1] ?? match[2] ?? match[3]);
-    for (const match of text.matchAll(/@import\s+["']([^"']+)["']/gi)) add(match[1]);
+    for (const match of text.matchAll(new RegExp(String.raw`\burl${cssTrivia}\(${cssTrivia}(?:"([^"]+)"|'([^']+)'|([^\s)]+))${cssTrivia}\)`, 'gi'))) add(match[1] ?? match[2] ?? match[3]);
+    for (const match of text.matchAll(new RegExp(String.raw`@import\b${cssTrivia}["']([^"']+)["']`, 'gi'))) add(match[1]);
   }
   if (/\.(?:m?js)$/.test(path)) {
-    for (const match of text.matchAll(/\b(?:import|export)\s*(?:[^;'"()]*?\bfrom\s*)?["']([^"']+)["']/g)) add(match[1], 'module');
-    for (const match of text.matchAll(/\bimport\s*\(([^)]*)\)/g)) {
-      const value = /^\s*(["'])([^"']+)\1\s*$/.exec(match[1]);
+    for (const match of text.matchAll(new RegExp(String.raw`\b(?:import|export)\b${jsTrivia}(?:[^;'"()]*?\bfrom\b${jsTrivia})?["']([^"']+)["']`, 'g'))) add(match[1], 'module');
+    const literal = new RegExp(String.raw`^${jsTrivia}(["'])([^"']+)\1${jsTrivia}$`);
+    const imports = new Set();
+    for (const match of text.matchAll(new RegExp(String.raw`\bimport\b${jsTrivia}\(([^)]*)\)`, 'g'))) {
+      imports.add(match.index);
+      const value = literal.exec(match[1]);
       if (!value) fail(`nonstatic module reference in ${path}`);
       add(value[2], 'module');
     }
-    for (const match of text.matchAll(/\bnew\s+URL\s*\(([^)]*),\s*import\.meta\.url\s*\)/g)) {
-      const value = /^\s*(["'])([^"']+)\1\s*$/.exec(match[1]);
+    for (const match of text.matchAll(new RegExp(String.raw`\bimport\b${jsTrivia}\(`, 'g'))) {
+      if (!imports.has(match.index)) fail(`unsupported module reference in ${path}`);
+    }
+    const urls = new Set();
+    for (const match of text.matchAll(new RegExp(String.raw`\bnew\b${jsTrivia}URL\b${jsTrivia}\(([^)]*),${jsTrivia}import\b${jsTrivia}\.${jsTrivia}meta\b${jsTrivia}\.${jsTrivia}url\b${jsTrivia}\)`, 'g'))) {
+      urls.add(match.index);
+      const value = literal.exec(match[1]);
       if (!value) fail(`nonstatic asset reference in ${path}`);
       add(value[2]);
+    }
+    for (const match of text.matchAll(new RegExp(String.raw`\bnew\b${jsTrivia}URL\b${jsTrivia}\(`, 'g'))) {
+      if (!urls.has(match.index)) fail(`unsupported asset reference in ${path}`);
     }
     // Covers emitted Vite dependency/asset tables as well as direct public asset paths.
     for (const match of text.matchAll(/["']((?:\.?\.?\/|assets\/)[^"'\\\s]+\.(?:js|mjs|css|pdf|svg|ico|png|jpe?g|gif|webp|avif|woff2?|ttf|otf|eot|json|wasm|mp4|webm)(?:[?#][^"'\\\s]*)?)["']/gi)) {
