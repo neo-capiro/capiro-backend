@@ -263,8 +263,8 @@ const savedSurveyTime: Rule = (value, path) => {
 const timestamp: Rule = (value, path) => {
   if (
     typeof value !== 'string' ||
-    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value) ||
-    !Number.isFinite(Date.parse(value))
+    !Number.isFinite(Date.parse(value)) ||
+    new Date(value).toISOString() !== value
   )
     refuse(path);
 };
