@@ -1,0 +1,11 @@
+{
+  "observed_at": "2026-10-13T19:19:28.957139+00:00",
+  "command": [
+    "python3",
+    "docs/backend-repository-split-preparation-20261013/verify-plan.py"
+  ],
+  "exit_code": 0,
+  "stdout": "{\n  \"status\": \"PASS\",\n  \"source_head\": \"b9da0ae2938821e08a3bfea563c6267608ae9909\",\n  \"source_tree\": \"91436b73ebff4c9807c5c877093e8502430a50c9\",\n  \"source_tree_entries\": 26754,\n  \"reachable_commits\": 9680,\n  \"open_prs\": 301,\n  \"original_ledger_heads\": 15,\n  \"workflow_quarantine_rows\": 74,\n  \"new_destination_operations\": [],\n  \"protected_body_reads\": [],\n  \"product_or_live_config_changes\": [],\n  \"limit\": \"frozen metadata and proposal validation only; no final-source, destination-creation or deployment acceptance\"\n}\n",
+  "stderr": "",
+  "helper_sha256": "eb3dc8176eb115e0c8beb2759fa2ec0ee5c477873c0c403571cfd6cf2bac6d6c"
+}

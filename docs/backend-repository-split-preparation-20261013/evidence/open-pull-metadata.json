@@ -1,0 +1,4221 @@
+{
+  "observed_at": "2026-10-13T19:12:10.020385+00:00",
+  "source_repository": "neo-capiro/capirov2",
+  "operation": "read-only open PR metadata; no patches or protected branch/source body",
+  "pulls": [
+    {
+      "base": {
+        "sha": "6074d8a59d1fb5bc10bf9ccfbcb338bff68932e8"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2477",
+      "number": 2477,
+      "state": "open",
+      "title": "refactor(intelligence): integrate exact identity, mapping and context owners",
+      "updated_at": "2026-10-13T18:48:41Z"
+    },
+    {
+      "base": {
+        "sha": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3d76ab21c1dcf9020b050988b315d11ab986a5d9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2476",
+      "number": 2476,
+      "state": "open",
+      "title": "Own final Intelligence method families",
+      "updated_at": "2026-10-13T18:44:36Z"
+    },
+    {
+      "base": {
+        "sha": "76f50b2667d06a121b2dd772abc9d64adb556c36"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6074d8a59d1fb5bc10bf9ccfbcb338bff68932e8"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2475",
+      "number": 2475,
+      "state": "open",
+      "title": "test(workspace): qualify exact brief copy and atomic save on native PostgreSQL",
+      "updated_at": "2026-10-13T18:26:04Z"
+    },
+    {
+      "base": {
+        "sha": "4970927fe1951636ab002522a20a35310d3dc7c4"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2474",
+      "number": 2474,
+      "state": "open",
+      "title": "Own three client Intelligence families",
+      "updated_at": "2026-10-13T17:15:31Z"
+    },
+    {
+      "base": {
+        "sha": "e0446e3f865899b03d654657db903cea54dfaf0a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "76f50b2667d06a121b2dd772abc9d64adb556c36"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2473",
+      "number": 2473,
+      "state": "open",
+      "title": "Compose bill and supporting Intelligence owners on the reviewed product stack",
+      "updated_at": "2026-10-13T17:05:25Z"
+    },
+    {
+      "base": {
+        "sha": "46aa2164c299151225c6cdb9f3cc565fee347657"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e0446e3f865899b03d654657db903cea54dfaf0a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2472",
+      "number": 2472,
+      "state": "open",
+      "title": "Pin editable Workspace brief copies with atomic save receipts",
+      "updated_at": "2026-10-13T16:33:22Z"
+    },
+    {
+      "base": {
+        "sha": "b78f9d4ce28089139d60b2c7a601750c99f67e69"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4970927fe1951636ab002522a20a35310d3dc7c4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2471",
+      "number": 2471,
+      "state": "open",
+      "title": "Own five supporting Intelligence families",
+      "updated_at": "2026-10-13T16:00:54Z"
+    },
+    {
+      "base": {
+        "sha": "35374ac826edf10c84061b255380d1165538b6b9"
+      },
+      "draft": true,
+      "head": {
+        "sha": "46aa2164c299151225c6cdb9f3cc565fee347657"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2470",
+      "number": 2470,
+      "state": "open",
+      "title": "Add bounded cached comment calendar and frontend receiving contract",
+      "updated_at": "2026-10-13T15:37:44Z"
+    },
+    {
+      "base": {
+        "sha": "348e542a44a6b842a5f0531280105f8e73dd3188"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b78f9d4ce28089139d60b2c7a601750c99f67e69"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2469",
+      "number": 2469,
+      "state": "open",
+      "title": "Own Intelligence bill discovery, tracking and enrichment",
+      "updated_at": "2026-10-13T15:05:11Z"
+    },
+    {
+      "base": {
+        "sha": "f075a3a9b903b3234c64b1770ef76b1bd8bebae1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "35374ac826edf10c84061b255380d1165538b6b9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2468",
+      "number": 2468,
+      "state": "open",
+      "title": "Integrate reviewed Intelligence profile aggregation",
+      "updated_at": "2026-10-13T14:08:16Z"
+    },
+    {
+      "base": {
+        "sha": "51d2a9753e3c8d85b6114bedca36f338a35db923"
+      },
+      "draft": true,
+      "head": {
+        "sha": "348e542a44a6b842a5f0531280105f8e73dd3188"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2467",
+      "number": 2467,
+      "state": "open",
+      "title": "Decompose the complete Intelligence profile aggregate",
+      "updated_at": "2026-10-13T13:50:15Z"
+    },
+    {
+      "base": {
+        "sha": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f075a3a9b903b3234c64b1770ef76b1bd8bebae1"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2466",
+      "number": 2466,
+      "state": "open",
+      "title": "Integrate reviewed Completion component ownership",
+      "updated_at": "2026-10-13T12:52:18Z"
+    },
+    {
+      "base": {
+        "sha": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+      },
+      "draft": true,
+      "head": {
+        "sha": "51d2a9753e3c8d85b6114bedca36f338a35db923"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2465",
+      "number": 2465,
+      "state": "open",
+      "title": "Finish Completion domain ownership and bound its facade",
+      "updated_at": "2026-10-13T12:33:13Z"
+    },
+    {
+      "base": {
+        "sha": "579beebf92360d3d3b28256bcb44ec9a1ae42687"
+      },
+      "draft": true,
+      "head": {
+        "sha": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2464",
+      "number": 2464,
+      "state": "open",
+      "title": "Compose reviewed fill run, worker, and refresh ownership",
+      "updated_at": "2026-10-13T11:59:59Z"
+    },
+    {
+      "base": {
+        "sha": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2463",
+      "number": 2463,
+      "state": "open",
+      "title": "Give completion run, worker and schedules bounded owners",
+      "updated_at": "2026-10-13T11:29:12Z"
+    },
+    {
+      "base": {
+        "sha": "5c9eec18045f75704f99593855537d422b8f9bd1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "579beebf92360d3d3b28256bcb44ec9a1ae42687"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2462",
+      "number": 2462,
+      "state": "open",
+      "title": "Record qualified Files source candidate while preserving frozen artifact source",
+      "updated_at": "2026-10-13T11:08:08Z"
+    },
+    {
+      "base": {
+        "sha": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5c9eec18045f75704f99593855537d422b8f9bd1"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2461",
+      "number": 2461,
+      "state": "open",
+      "title": "Compose complete Advocacy History ownership",
+      "updated_at": "2026-10-13T10:53:11Z"
+    },
+    {
+      "base": {
+        "sha": "e05f9d69357600243a333395119337bf01cd0e7d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2460",
+      "number": 2460,
+      "state": "open",
+      "title": "Give the complete Advocacy History task bounded backend owners",
+      "updated_at": "2026-10-13T10:36:04Z"
+    },
+    {
+      "base": {
+        "sha": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2459",
+      "number": 2459,
+      "state": "open",
+      "title": "Compose reviewed advanced finding-review ownership",
+      "updated_at": "2026-10-13T10:02:48Z"
+    },
+    {
+      "base": {
+        "sha": "d54a857b1f8edd279e8798ff41f56389c2efeb69"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e05f9d69357600243a333395119337bf01cd0e7d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2458",
+      "number": 2458,
+      "state": "open",
+      "title": "Give advanced finding review a complete backend owner",
+      "updated_at": "2026-10-13T09:44:05Z"
+    },
+    {
+      "base": {
+        "sha": "bc429e038b3e1faa9f13de4df0828de821b841e4"
+      },
+      "draft": true,
+      "head": {
+        "sha": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2457",
+      "number": 2457,
+      "state": "open",
+      "title": "Compose regulatory comment source owners and qualified frontend admission",
+      "updated_at": "2026-10-13T09:31:41Z"
+    },
+    {
+      "base": {
+        "sha": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15"
+      },
+      "draft": true,
+      "head": {
+        "sha": "bc429e038b3e1faa9f13de4df0828de821b841e4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2456",
+      "number": 2456,
+      "state": "open",
+      "title": "Compose reviewed PE Intel and client fill cleanup on qualified source",
+      "updated_at": "2026-10-13T09:09:44Z"
+    },
+    {
+      "base": {
+        "sha": "6a4014f88183c735ff1bd0545dc122ce96b27f31"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d54a857b1f8edd279e8798ff41f56389c2efeb69"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2455",
+      "number": 2455,
+      "state": "open",
+      "title": "Give regulatory comment discovery and caching dedicated backend owners",
+      "updated_at": "2026-10-13T08:53:35Z"
+    },
+    {
+      "base": {
+        "sha": "bbb38185058fdc64c204da723943aee055b3dad3"
+      },
+      "draft": true,
+      "head": {
+        "sha": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2454",
+      "number": 2454,
+      "state": "open",
+      "title": "Qualify exact Meri authority receipts with real HTTP and native fixture",
+      "updated_at": "2026-10-13T08:20:27Z"
+    },
+    {
+      "base": {
+        "sha": "39093acbdf3e603f477b4e6e76e79e01f4e2beec"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6a4014f88183c735ff1bd0545dc122ce96b27f31"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2453",
+      "number": 2453,
+      "state": "open",
+      "title": "Extract pure client-fill completion rules from backend service",
+      "updated_at": "2026-10-13T08:05:11Z"
+    },
+    {
+      "base": {
+        "sha": "bbb38185058fdc64c204da723943aee055b3dad3"
+      },
+      "draft": true,
+      "head": {
+        "sha": "39093acbdf3e603f477b4e6e76e79e01f4e2beec"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2452",
+      "number": 2452,
+      "state": "open",
+      "title": "Compose reviewed plan retirements and backend-owned Intel inputs",
+      "updated_at": "2026-10-13T07:28:10Z"
+    },
+    {
+      "base": {
+        "sha": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f74aeef3f23f5dfe145058564e6b1665b0a0bfdd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2451",
+      "number": 2451,
+      "state": "open",
+      "title": "Reuse canonical PE read helpers behind the API facade",
+      "updated_at": "2026-10-13T06:49:14Z"
+    },
+    {
+      "base": {
+        "sha": "60cf2e51129f8358e6afe5fc600ffcdb6de01759"
+      },
+      "draft": true,
+      "head": {
+        "sha": "bbb38185058fdc64c204da723943aee055b3dad3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2450",
+      "number": 2450,
+      "state": "open",
+      "title": "Compose reviewed PE replay fix with strict source guards",
+      "updated_at": "2026-10-13T06:31:40Z"
+    },
+    {
+      "base": {
+        "sha": "cac35b007917127b0b78dc38c62b14ff99e90d4e"
+      },
+      "draft": true,
+      "head": {
+        "sha": "60cf2e51129f8358e6afe5fc600ffcdb6de01759"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2449",
+      "number": 2449,
+      "state": "open",
+      "title": "Add reviewed Meri application authority receipts through canonical owners",
+      "updated_at": "2026-10-13T06:11:59Z"
+    },
+    {
+      "base": {
+        "sha": "920c69b9273ea5846cbfcea2aa6d36760c91526a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "cac35b007917127b0b78dc38c62b14ff99e90d4e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2448",
+      "number": 2448,
+      "state": "open",
+      "title": "Admit the exact qualified Newsletter source",
+      "updated_at": "2026-10-13T05:51:25Z"
+    },
+    {
+      "base": {
+        "sha": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "920c69b9273ea5846cbfcea2aa6d36760c91526a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2447",
+      "number": 2447,
+      "state": "open",
+      "title": "Compose reviewed PE and Newsletter source contracts",
+      "updated_at": "2026-10-13T05:25:15Z"
+    },
+    {
+      "base": {
+        "sha": "457e84e7d50f401985355cf22eedc480fd72ad8b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2446",
+      "number": 2446,
+      "state": "open",
+      "title": "Fix owned Phase 9 migration replay prerequisites and discovery",
+      "updated_at": "2026-10-13T06:04:58Z"
+    },
+    {
+      "base": {
+        "sha": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2445",
+      "number": 2445,
+      "state": "open",
+      "title": "Assemble approved frontend artifacts through the canonical backend owner",
+      "updated_at": "2026-10-13T04:01:44Z"
+    },
+    {
+      "base": {
+        "sha": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"
+      },
+      "draft": true,
+      "head": {
+        "sha": "457e84e7d50f401985355cf22eedc480fd72ad8b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2444",
+      "number": 2444,
+      "state": "open",
+      "title": "Add an explicit backend scope to the PE Phase 9 rehearsal",
+      "updated_at": "2026-10-13T04:37:45Z"
+    },
+    {
+      "base": {
+        "sha": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2443",
+      "number": 2443,
+      "state": "open",
+      "title": "Preserve duplicate header refusal in current newsletter edge declarations",
+      "updated_at": "2026-10-13T03:46:01Z"
+    },
+    {
+      "base": {
+        "sha": "89107485cd8432d0c7f29544c94c570acc32deda"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c3173dbdbf809e4a867b264cb473d8a4d8a9cf77"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2442",
+      "number": 2442,
+      "state": "open",
+      "title": "Refuse special-name duplicate request headers in the edge model",
+      "updated_at": "2026-10-13T03:16:55Z"
+    },
+    {
+      "base": {
+        "sha": "0a76666dc57aa852586c35167426a540939c9918"
+      },
+      "draft": true,
+      "head": {
+        "sha": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2441",
+      "number": 2441,
+      "state": "open",
+      "title": "Add reviewed standalone artifact consumer and loopback guards",
+      "updated_at": "2026-10-13T02:58:34Z"
+    },
+    {
+      "base": {
+        "sha": "1090322d9a4067b605e91afef10cef5f86900b61"
+      },
+      "draft": true,
+      "head": {
+        "sha": "89107485cd8432d0c7f29544c94c570acc32deda"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2440",
+      "number": 2440,
+      "state": "open",
+      "title": "Test declared newsletter edge routing and publication origins",
+      "updated_at": "2026-10-13T02:56:24Z"
+    },
+    {
+      "base": {
+        "sha": "9ffab390ef444d7ea0bf4eb0d68224f810245e25"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0a76666dc57aa852586c35167426a540939c9918"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2439",
+      "number": 2439,
+      "state": "open",
+      "title": "Adopt reviewed bounded retirement sources and strict artifact guards",
+      "updated_at": "2026-10-13T02:23:30Z"
+    },
+    {
+      "base": {
+        "sha": "7b5a9644d30d22389b23f0e07f923c8925682047"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1090322d9a4067b605e91afef10cef5f86900b61"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2438",
+      "number": 2438,
+      "state": "open",
+      "title": "Validate supplied frontend artifacts and newsletter serving inputs",
+      "updated_at": "2026-10-13T02:23:20Z"
+    },
+    {
+      "base": {
+        "sha": "ed62dd1e67be152b6b760815f79bc475925659e7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9ffab390ef444d7ea0bf4eb0d68224f810245e25"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2437",
+      "number": 2437,
+      "state": "open",
+      "title": "Add public rich newsletter receiving contracts and current record admission",
+      "updated_at": "2026-10-13T01:50:17Z"
+    },
+    {
+      "base": {
+        "sha": "af5f208961e6c9a01a6e489a7f5b1a6e6edfd736"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7b5a9644d30d22389b23f0e07f923c8925682047"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2436",
+      "number": 2436,
+      "state": "open",
+      "title": "Account existing main routes and prepare static artifact consumers",
+      "updated_at": "2026-10-13T01:15:08Z"
+    },
+    {
+      "base": {
+        "sha": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ed62dd1e67be152b6b760815f79bc475925659e7"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2435",
+      "number": 2435,
+      "state": "open",
+      "title": "Add compatible scoped Phase26 validation commands",
+      "updated_at": "2026-10-13T00:37:39Z"
+    },
+    {
+      "base": {
+        "sha": "ed1bb4b539b297086413e7060979ea02226dc485"
+      },
+      "draft": true,
+      "head": {
+        "sha": "af5f208961e6c9a01a6e489a7f5b1a6e6edfd736"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2434",
+      "number": 2434,
+      "state": "open",
+      "title": "Retire obsolete frontend inputs and add auth recovery acceptance",
+      "updated_at": "2026-10-13T00:29:57Z"
+    },
+    {
+      "base": {
+        "sha": "2956443fb92efac356506cc06364735cca80fe7c"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2433",
+      "number": 2433,
+      "state": "open",
+      "title": "Serialize client grant replacement and qualify isolated native contracts",
+      "updated_at": "2026-10-13T00:10:08Z"
+    },
+    {
+      "base": {
+        "sha": "0e59d26d5d96f805165b370e051d9d9d610342b4"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ed1bb4b539b297086413e7060979ea02226dc485"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2432",
+      "number": 2432,
+      "state": "open",
+      "title": "Scope Context Plane and Phase26 verification for backend cleanup",
+      "updated_at": "2026-10-12T23:43:31Z"
+    },
+    {
+      "base": {
+        "sha": "277053c8196dc1be4789c42ea304b0de0553fe00"
+      },
+      "draft": true,
+      "head": {
+        "sha": "2956443fb92efac356506cc06364735cca80fe7c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2431",
+      "number": 2431,
+      "state": "open",
+      "title": "Fix Memory approval source contract to follow canonical helpers",
+      "updated_at": "2026-10-12T23:36:21Z"
+    },
+    {
+      "base": {
+        "sha": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0e59d26d5d96f805165b370e051d9d9d610342b4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2430",
+      "number": 2430,
+      "state": "open",
+      "title": "Scope backend operators and correct operating marker validation",
+      "updated_at": "2026-10-12T23:29:20Z"
+    },
+    {
+      "base": {
+        "sha": "f76a101fd8b4fe9e1437a2d433924d1b81d82325"
+      },
+      "draft": true,
+      "head": {
+        "sha": "277053c8196dc1be4789c42ea304b0de0553fe00"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2429",
+      "number": 2429,
+      "state": "open",
+      "title": "Adopt additional exact test inputs and correct operating marker guard",
+      "updated_at": "2026-10-12T22:57:40Z"
+    },
+    {
+      "base": {
+        "sha": "62d057b4a17b2c038920f10b93e83e51e46239bc"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f76a101fd8b4fe9e1437a2d433924d1b81d82325"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2428",
+      "number": 2428,
+      "state": "open",
+      "title": "Adopt reviewed backend fixture and durable HTTP test inputs",
+      "updated_at": "2026-10-12T22:37:38Z"
+    },
+    {
+      "base": {
+        "sha": "d587441261fd356ee5144a8fc29cb2f771d062b8"
+      },
+      "draft": true,
+      "head": {
+        "sha": "62d057b4a17b2c038920f10b93e83e51e46239bc"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2427",
+      "number": 2427,
+      "state": "open",
+      "title": "Deliver immutable newsletter exports and existing response routing contract",
+      "updated_at": "2026-10-12T22:32:07Z"
+    },
+    {
+      "base": {
+        "sha": "61e9b467295235829e7d8097368ce41b0434818a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d587441261fd356ee5144a8fc29cb2f771d062b8"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2426",
+      "number": 2426,
+      "state": "open",
+      "title": "Qualify exact parser and reviewed backend local acceptance",
+      "updated_at": "2026-10-12T22:16:45Z"
+    },
+    {
+      "base": {
+        "sha": "5470c6df029c9553dd49e531229c3c91b26275ef"
+      },
+      "draft": true,
+      "head": {
+        "sha": "61e9b467295235829e7d8097368ce41b0434818a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2425",
+      "number": 2425,
+      "state": "open",
+      "title": "ci: adopt bounded backend/frontend verification on reviewed rebuild",
+      "updated_at": "2026-10-12T21:14:07Z"
+    },
+    {
+      "base": {
+        "sha": "bcad60272fa300383f117f3a08a554e9e070e85b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5470c6df029c9553dd49e531229c3c91b26275ef"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2424",
+      "number": 2424,
+      "state": "open",
+      "title": "Preserve both newsletter contracts through existing backend owners",
+      "updated_at": "2026-10-12T20:38:10Z"
+    },
+    {
+      "base": {
+        "sha": "bd9e44b2589abec03ef87a7c1715c3b3edb4874d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2423",
+      "number": 2423,
+      "state": "open",
+      "title": "Migrate backend qualification inputs and preserve full CI results",
+      "updated_at": "2026-10-12T22:14:36Z"
+    },
+    {
+      "base": {
+        "sha": "674a856d7fee69cd133cf358f9262ed42300388f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "bcad60272fa300383f117f3a08a554e9e070e85b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2422",
+      "number": 2422,
+      "state": "open",
+      "title": "Preserve Meri dispatch behavior through reviewed lazy callbacks",
+      "updated_at": "2026-10-12T20:03:39Z"
+    },
+    {
+      "base": {
+        "sha": "83ac1bddeefca2e75f913abbd04e3cb5e0b98f9d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "674a856d7fee69cd133cf358f9262ed42300388f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2421",
+      "number": 2421,
+      "state": "open",
+      "title": "Consolidate Workspace product descriptors while preserving mutable compatibility behavior",
+      "updated_at": "2026-10-12T19:41:11Z"
+    },
+    {
+      "base": {
+        "sha": "09c5fdfb6bbea268195d3fbe15c9070c9efd3fbc"
+      },
+      "draft": true,
+      "head": {
+        "sha": "83ac1bddeefca2e75f913abbd04e3cb5e0b98f9d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2420",
+      "number": 2420,
+      "state": "open",
+      "title": "Consolidate Strategy template and report metadata with exact compatible exports",
+      "updated_at": "2026-10-12T19:33:58Z"
+    },
+    {
+      "base": {
+        "sha": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+      },
+      "draft": true,
+      "head": {
+        "sha": "09c5fdfb6bbea268195d3fbe15c9070c9efd3fbc"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2419",
+      "number": 2419,
+      "state": "open",
+      "title": "Consolidate Tango REST page leaves with independently reviewed source ownership controls",
+      "updated_at": "2026-10-12T19:21:41Z"
+    },
+    {
+      "base": {
+        "sha": "1e99f0921b207318c6d2abf03927b5c4daa5768b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "bd9e44b2589abec03ef87a7c1715c3b3edb4874d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2418",
+      "number": 2418,
+      "state": "open",
+      "title": "Draft: backend cleanup baseline, portrait ownership and plan retirement",
+      "updated_at": "2026-10-12T18:31:19Z"
+    },
+    {
+      "base": {
+        "sha": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7286700fb80c43ec66e1330bed7b5c64b10804e0"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2417",
+      "number": 2417,
+      "state": "open",
+      "title": "Preserve declared newsletter lineage and reserve exact extraction paths",
+      "updated_at": "2026-10-12T18:19:55Z"
+    },
+    {
+      "base": {
+        "sha": "cc489e7e33a4f451e12a94612fb01968d8e7a568"
+      },
+      "draft": true,
+      "head": {
+        "sha": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2416",
+      "number": 2416,
+      "state": "open",
+      "title": "Compose reviewed ownership control, Phase1 caller and operator parity repairs",
+      "updated_at": "2026-10-12T18:06:08Z"
+    },
+    {
+      "base": {
+        "sha": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fa8bd32059c62f9b0dd5a5b10e935c2452a07f11"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2415",
+      "number": 2415,
+      "state": "open",
+      "title": "Reconcile three mandatory operator mirrors with canonical source",
+      "updated_at": "2026-10-12T17:53:18Z"
+    },
+    {
+      "base": {
+        "sha": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5f49b1ae05782bbaedcabda51ae293e5c4b5c373"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2414",
+      "number": 2414,
+      "state": "open",
+      "title": "Restore the required Phase1 root caller run mode",
+      "updated_at": "2026-10-12T17:53:17Z"
+    },
+    {
+      "base": {
+        "sha": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70"
+      },
+      "draft": true,
+      "head": {
+        "sha": "cc489e7e33a4f451e12a94612fb01968d8e7a568"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2413",
+      "number": 2413,
+      "state": "open",
+      "title": "Guard existing Strategy vocabulary ownership and preserve slice evidence",
+      "updated_at": "2026-10-12T17:50:33Z"
+    },
+    {
+      "base": {
+        "sha": "fa28aa3945be41c31463d669940d17fb32968f3d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2412",
+      "number": 2412,
+      "state": "open",
+      "title": "Reconcile migration source checks with canonical operator recovery",
+      "updated_at": "2026-10-12T16:46:36Z"
+    },
+    {
+      "base": {
+        "sha": "1bf52945b9fa01496ce41a349f8eaace490ad4ac"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fa28aa3945be41c31463d669940d17fb32968f3d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2411",
+      "number": 2411,
+      "state": "open",
+      "title": "Compose reviewed public-law and Strategy time source slices",
+      "updated_at": "2026-10-12T16:15:09Z"
+    },
+    {
+      "base": {
+        "sha": "1bf52945b9fa01496ce41a349f8eaace490ad4ac"
+      },
+      "draft": true,
+      "head": {
+        "sha": "acd663314fffcad32e64e20217da6f4b018e8599"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2410",
+      "number": 2410,
+      "state": "open",
+      "title": "Inject Strategy grounding clock and retry runtime",
+      "updated_at": "2026-10-12T15:59:04Z"
+    },
+    {
+      "base": {
+        "sha": "1bf52945b9fa01496ce41a349f8eaace490ad4ac"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2409",
+      "number": 2409,
+      "state": "open",
+      "title": "Verify permanent public-law inspection containment without restoring writes",
+      "updated_at": "2026-10-12T15:03:23Z"
+    },
+    {
+      "base": {
+        "sha": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1bf52945b9fa01496ce41a349f8eaace490ad4ac"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2408",
+      "number": 2408,
+      "state": "open",
+      "title": "Close executable Cleanup source prerequisites with preserved acceptance gates",
+      "updated_at": "2026-10-12T14:09:02Z"
+    },
+    {
+      "base": {
+        "sha": "243248e726243c44bd4b9d24fd1ed220da18c56a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2407",
+      "number": 2407,
+      "state": "open",
+      "title": "Qualify Cleanup source gates and repair composed shared formatting",
+      "updated_at": "2026-10-12T11:53:19Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "243248e726243c44bd4b9d24fd1ed220da18c56a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2406",
+      "number": 2406,
+      "state": "open",
+      "title": "Compose reviewed Portfolio source contracts into one integrated candidate",
+      "updated_at": "2026-10-12T10:28:44Z"
+    },
+    {
+      "base": {
+        "sha": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2405",
+      "number": 2405,
+      "state": "open",
+      "title": "Resolve Objective destinations for exact saved Workspace revisions",
+      "updated_at": "2026-10-12T08:58:03Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0716767e8b6ff323b2516d166b22edb4d2413e57"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2404",
+      "number": 2404,
+      "state": "open",
+      "title": "Resolve current Objective revisions through Strategy and Planner owners",
+      "updated_at": "2026-10-12T08:25:50Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "39b4ae45db578d121b18db9f95029a8c3ec293a2"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2403",
+      "number": 2403,
+      "state": "open",
+      "title": "Federal Register: qualify effective-date calendar with source evidence",
+      "updated_at": "2026-10-12T09:08:04Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4a784b58a0d41251ae6d7dea75a9b4858abc8665"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2402",
+      "number": 2402,
+      "state": "open",
+      "title": "Resolve exact Objective revisions through the canonical Outreach destination owner",
+      "updated_at": "2026-10-12T07:38:59Z"
+    },
+    {
+      "base": {
+        "sha": "6c26ac2dad3756a61b6733329dea7ce3c9138ece"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2401",
+      "number": 2401,
+      "state": "open",
+      "title": "Stage exact saved Workspace newsletter revisions into Outreach",
+      "updated_at": "2026-10-12T07:09:17Z"
+    },
+    {
+      "base": {
+        "sha": "b1ac2649e134af560d41bee790cacbd61de01c9b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6c26ac2dad3756a61b6733329dea7ce3c9138ece"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2400",
+      "number": 2400,
+      "state": "open",
+      "title": "Prospects: bind Files and Workspace drafts to canonical origins",
+      "updated_at": "2026-10-12T05:06:12Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0783423aeaaa8b65f289d0927d605142816d8cfe"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2399",
+      "number": 2399,
+      "state": "open",
+      "title": "feat(clients): atomic versioned Primary\u2013Quaternary ownership",
+      "updated_at": "2026-10-12T04:02:24Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "797e3a59158cff56b017ab7d01ee445bf624fced"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2398",
+      "number": 2398,
+      "state": "open",
+      "title": "docs: exact PR2396 frontend contract and backend dependency ledger",
+      "updated_at": "2026-10-12T04:03:35Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4915f3fa5c938182b2624377375674654baa5337"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2397",
+      "number": 2397,
+      "state": "open",
+      "title": "Align memory messages with the existing administrator approval exception",
+      "updated_at": "2026-10-12T03:28:15Z"
+    },
+    {
+      "base": {
+        "sha": "c5e41e320af4b4d841d4b3136777d712116916ed"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e2c2c110edd986e799d47d43b0db50b24fab0201"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2396",
+      "number": 2396,
+      "state": "open",
+      "title": "Compose Core activity logs with recoverable Planner follow-ups",
+      "updated_at": "2026-10-12T03:24:09Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c5e41e320af4b4d841d4b3136777d712116916ed"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2395",
+      "number": 2395,
+      "state": "open",
+      "title": "Planner: add durable task-create command and receipt recovery",
+      "updated_at": "2026-10-12T02:39:16Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2394",
+      "number": 2394,
+      "state": "open",
+      "title": "Portfolio: reconcile reviewed facility CAS with current Cleanup lifecycle",
+      "updated_at": "2026-10-12T02:26:41Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b1ac2649e134af560d41bee790cacbd61de01c9b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2393",
+      "number": 2393,
+      "state": "open",
+      "title": "Portfolio: select exact single-mail mailbox and preserve sender provenance",
+      "updated_at": "2026-10-12T02:40:40Z"
+    },
+    {
+      "base": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "draft": true,
+      "head": {
+        "sha": "03d85a40e390f8f52614aab20427a3a9433786bb"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2392",
+      "number": 2392,
+      "state": "open",
+      "title": "CleanUp1 integration candidate and final gate evidence",
+      "updated_at": "2026-10-11T23:23:27Z"
+    },
+    {
+      "base": {
+        "sha": "d5a4e0ac82f8a313ae44c6b8f6b199adc71f1ed7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "952272ec657937da47ada998534c382fb73955d2"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2391",
+      "number": 2391,
+      "state": "open",
+      "title": "test(cleanup1): bind final d5 native gate carrier",
+      "updated_at": "2026-10-11T11:52:27Z"
+    },
+    {
+      "base": {
+        "sha": "845b6a45f74c6ad9a39b0a0d51eb727e746f368e"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d5a4e0ac82f8a313ae44c6b8f6b199adc71f1ed7"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2390",
+      "number": 2390,
+      "state": "open",
+      "title": "Cleanup1: preserve CLI contracts and exact verifier prerequisites",
+      "updated_at": "2026-10-11T11:41:00Z"
+    },
+    {
+      "base": {
+        "sha": "f1e65fada01b1491cecc04882309c9cf8bb67a62"
+      },
+      "draft": true,
+      "head": {
+        "sha": "8f52dcaf0b18da79681d02a8f208a3b28deeae98"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2389",
+      "number": 2389,
+      "state": "open",
+      "title": "fix(cleanup-runtime): keep CI seed clean and prove volume absence",
+      "updated_at": "2026-10-11T11:31:43Z"
+    },
+    {
+      "base": {
+        "sha": "116629b12f2281819da1c188844536761e03c9c3"
+      },
+      "draft": true,
+      "head": {
+        "sha": "845b6a45f74c6ad9a39b0a0d51eb727e746f368e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2388",
+      "number": 2388,
+      "state": "open",
+      "title": "fix(cleanup): distinguish network syscalls from quoted payloads",
+      "updated_at": "2026-10-11T11:29:09Z"
+    },
+    {
+      "base": {
+        "sha": "0995f9ce009f48d99417ebd0fb93659b5bbc5770"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f1e65fada01b1491cecc04882309c9cf8bb67a62"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2387",
+      "number": 2387,
+      "state": "open",
+      "title": "fix(cleanup-runtime): bind exact Python matrix source schemas",
+      "updated_at": "2026-10-11T11:26:48Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3883306fd14aa2bf7072b023873762174231d0f3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2386",
+      "number": 2386,
+      "state": "open",
+      "title": "Portfolio: durable calendar sync operation candidate (disabled)",
+      "updated_at": "2026-10-11T11:25:47Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "46937ce53506657658fd85d9e6ef840abb842013"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2385",
+      "number": 2385,
+      "state": "open",
+      "title": "feat(portfolio): propose versioned personal card ordering contract",
+      "updated_at": "2026-10-11T10:03:17Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d75b3c767c14d1d2d666d843c8d7efecad58215e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2384",
+      "number": 2384,
+      "state": "open",
+      "title": "fix(api): enforce canonical client wall access on activity",
+      "updated_at": "2026-10-11T09:40:09Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "320878e63835334d6babf1b59a77e7dffbbf2d5d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2383",
+      "number": 2383,
+      "state": "open",
+      "title": "Portfolio: preserve meeting PDF evidence and prepare reviewed export contract",
+      "updated_at": "2026-10-11T09:01:35Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d39471218cd4e73c64ef5bafd296d5194fc2bd7e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2382",
+      "number": 2382,
+      "state": "open",
+      "title": "Portfolio: stage client research suggestions before reviewed apply",
+      "updated_at": "2026-10-11T09:01:31Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "171ec869ed3928c96172c8790a9aeb3b4de901ae"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2381",
+      "number": 2381,
+      "state": "open",
+      "title": "fix(engagement): enforce outbound attachment viewer and parent access",
+      "updated_at": "2026-10-11T08:12:51Z"
+    },
+    {
+      "base": {
+        "sha": "116629b12f2281819da1c188844536761e03c9c3"
+      },
+      "draft": true,
+      "head": {
+        "sha": "931301bba5f677fdf69ebd19652c606a7bea452f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2380",
+      "number": 2380,
+      "state": "open",
+      "title": "Bind final116 Cleanup1 native runtime carrier",
+      "updated_at": "2026-10-11T06:47:54Z"
+    },
+    {
+      "base": {
+        "sha": "064ef75b756fb4038fe41395c813d3b7f6b62370"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0995f9ce009f48d99417ebd0fb93659b5bbc5770"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2379",
+      "number": 2379,
+      "state": "open",
+      "title": "Cleanup1 final-source native runtime qualification",
+      "updated_at": "2026-10-11T06:34:02Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "87de0da25ff950fc7b7af12e0bd51ad268fba07b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2378",
+      "number": 2378,
+      "state": "open",
+      "title": "Portfolio: immutable reviewed brief refresh contract candidate",
+      "updated_at": "2026-10-11T06:19:31Z"
+    },
+    {
+      "base": {
+        "sha": "217d3e3f3a4e93def54c4ed09d8dc4860696ef21"
+      },
+      "draft": true,
+      "head": {
+        "sha": "116629b12f2281819da1c188844536761e03c9c3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2377",
+      "number": 2377,
+      "state": "open",
+      "title": "Cleanup1 prerequisite: federal corpus CLI before input access",
+      "updated_at": "2026-10-11T06:15:09Z"
+    },
+    {
+      "base": {
+        "sha": "e5cf7fcc4e9b1ce2f44f836bd0f90e1cedf02e4a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "217d3e3f3a4e93def54c4ed09d8dc4860696ef21"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2376",
+      "number": 2376,
+      "state": "open",
+      "title": "Cleanup1 prerequisite: explicit heavy CLI actions, same suite aliases",
+      "updated_at": "2026-10-11T06:08:46Z"
+    },
+    {
+      "base": {
+        "sha": "e554f814ba2f2888403c376074a2209a64297f7f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e5cf7fcc4e9b1ce2f44f836bd0f90e1cedf02e4a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2375",
+      "number": 2375,
+      "state": "open",
+      "title": "Cleanup1 prerequisite: smoke TSX readiness and setup evidence",
+      "updated_at": "2026-10-11T06:05:24Z"
+    },
+    {
+      "base": {
+        "sha": "71435c9b51d8f50c119cee66994ee8a015049ea6"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e554f814ba2f2888403c376074a2209a64297f7f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2374",
+      "number": 2374,
+      "state": "open",
+      "title": "Cleanup1 prerequisite: verifier paths across declared cwd",
+      "updated_at": "2026-10-11T05:56:55Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2373",
+      "number": 2373,
+      "state": "open",
+      "title": "Portfolio: guard reviewed facility choices and geocode worker writes",
+      "updated_at": "2026-10-11T05:52:17Z"
+    },
+    {
+      "base": {
+        "sha": "4ca62bb61a6ed03e76f5f967278f5b861666b1c7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "71435c9b51d8f50c119cee66994ee8a015049ea6"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2372",
+      "number": 2372,
+      "state": "open",
+      "title": "Cleanup1 prerequisite: forward CPF test interpreter through Turbo",
+      "updated_at": "2026-10-11T05:47:13Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2371",
+      "number": 2371,
+      "state": "open",
+      "title": "Portfolio: scoped prospect Contacts contract candidate",
+      "updated_at": "2026-10-11T05:35:31Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "372ea02d7484f7698fb04264580a138f6fe3750a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2370",
+      "number": 2370,
+      "state": "open",
+      "title": "Portfolio: review inline invoice consent and payment contract candidate",
+      "updated_at": "2026-10-11T11:00:04Z"
+    },
+    {
+      "base": {
+        "sha": "a0c0f50a604d1e76757ad7301d71e4cd21f518e2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4ca62bb61a6ed03e76f5f967278f5b861666b1c7"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2369",
+      "number": 2369,
+      "state": "open",
+      "title": "Cleanup1: preserve retired CLI guard after safe help prerequisite",
+      "updated_at": "2026-10-11T05:14:45Z"
+    },
+    {
+      "base": {
+        "sha": "fced07a55cd84683676bb49a79f169aec45112f2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "a0c0f50a604d1e76757ad7301d71e4cd21f518e2"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2368",
+      "number": 2368,
+      "state": "open",
+      "title": "Cleanup1: repair scoped formatting prerequisite",
+      "updated_at": "2026-10-11T05:04:01Z"
+    },
+    {
+      "base": {
+        "sha": "c0a63d8f07931e5cd7f489974f444e663c293e5f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fced07a55cd84683676bb49a79f169aec45112f2"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2367",
+      "number": 2367,
+      "state": "open",
+      "title": "Complete remaining Cleanup1 CLI contracts without narrowing smoke scope",
+      "updated_at": "2026-10-11T04:01:45Z"
+    },
+    {
+      "base": {
+        "sha": "e359a9a201774fec57c1a0c9a8375ee50f00c9bf"
+      },
+      "draft": true,
+      "head": {
+        "sha": "064ef75b756fb4038fe41395c813d3b7f6b62370"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2366",
+      "number": 2366,
+      "state": "open",
+      "title": "Bound D4 fullgate heap and disposable schema prerequisites",
+      "updated_at": "2026-10-11T02:43:01Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fd6ed6c017ae91ab774fd34f74475a746de13b68"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2365",
+      "number": 2365,
+      "state": "open",
+      "title": "Portfolio 3.1 prospect stages: additive contract candidate",
+      "updated_at": "2026-10-11T02:02:23Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4b3c672574ed3738e42b1c5e1f7483e32f358095"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2364",
+      "number": 2364,
+      "state": "open",
+      "title": "fix(engagement): authorize reply threads before provider send",
+      "updated_at": "2026-10-11T01:34:22Z"
+    },
+    {
+      "base": {
+        "sha": "9d436b90e627c9988469b9c3eb019b233f596e4a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c0a63d8f07931e5cd7f489974f444e663c293e5f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2363",
+      "number": 2363,
+      "state": "open",
+      "title": "Cleanup1: preserve denied-write proof and disposable test flags",
+      "updated_at": "2026-10-11T02:41:23Z"
+    },
+    {
+      "base": {
+        "sha": "fd8765ec01d292013758606204f2c9d886cd31c1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2362",
+      "number": 2362,
+      "state": "open",
+      "title": "Persist standalone client Objective drafts and four-field readiness",
+      "updated_at": "2026-10-11T10:30:06Z"
+    },
+    {
+      "base": {
+        "sha": "277c8dbb93270a1b1bc12a19e5578b6c4b2bf671"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ec83bb297f70291607e5c932a11a3920ddccc6ea"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2361",
+      "number": 2361,
+      "state": "open",
+      "title": "Cleanup1: bind Prisma XLARGE repair to native diagnostic",
+      "updated_at": "2026-10-10T23:58:16Z"
+    },
+    {
+      "base": {
+        "sha": "f37a3672884d9822faac2e11e6d8d28f9cb519b6"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e359a9a201774fec57c1a0c9a8375ee50f00c9bf"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2360",
+      "number": 2360,
+      "state": "open",
+      "title": "CleanUp1 runtime: bound default Prisma generation after XLARGE OOM",
+      "updated_at": "2026-10-10T23:57:17Z"
+    },
+    {
+      "base": {
+        "sha": "9d436b90e627c9988469b9c3eb019b233f596e4a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9dbe11344603704815b39ddbc49cd06334d5ab95"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2359",
+      "number": 2359,
+      "state": "open",
+      "title": "Cleanup1: exact-current native visual repeat diagnostic",
+      "updated_at": "2026-10-11T00:54:57Z"
+    },
+    {
+      "base": {
+        "sha": "9d436b90e627c9988469b9c3eb019b233f596e4a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "277c8dbb93270a1b1bc12a19e5578b6c4b2bf671"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2358",
+      "number": 2358,
+      "state": "open",
+      "title": "Cleanup1: bind integrated XLARGE native diagnostic carrier",
+      "updated_at": "2026-10-10T23:34:54Z"
+    },
+    {
+      "base": {
+        "sha": "41de70eb9603f4a633b01016750b71b42b01e3db"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9d436b90e627c9988469b9c3eb019b233f596e4a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2357",
+      "number": 2357,
+      "state": "open",
+      "title": "Cleanup1: pass native test fixture environment through Turbo",
+      "updated_at": "2026-10-10T23:34:07Z"
+    },
+    {
+      "base": {
+        "sha": "1e7d5ddd2f83f335360a06d8b416635f0fd0fc5d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f37a3672884d9822faac2e11e6d8d28f9cb519b6"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2356",
+      "number": 2356,
+      "state": "open",
+      "title": "Cleanup1 runtime: retain raw Docker wait frames on deadline",
+      "updated_at": "2026-10-10T23:30:37Z"
+    },
+    {
+      "base": {
+        "sha": "ebc5478c3d34a19fd07020499833ee8e82e60d7c"
+      },
+      "draft": true,
+      "head": {
+        "sha": "41de70eb9603f4a633b01016750b71b42b01e3db"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2355",
+      "number": 2355,
+      "state": "open",
+      "title": "Cleanup1: close bounded Docker wait evidence frames",
+      "updated_at": "2026-10-10T23:31:13Z"
+    },
+    {
+      "base": {
+        "sha": "c1b0d87272b13dc8dcf2a684b7885b69e26a8bfd"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1e7d5ddd2f83f335360a06d8b416635f0fd0fc5d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2354",
+      "number": 2354,
+      "state": "open",
+      "title": "Draft: high-memory native fullgate option",
+      "updated_at": "2026-10-10T23:19:48Z"
+    },
+    {
+      "base": {
+        "sha": "4b6ff413c6de7b8885dbd03a4307802a27580690"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ebc5478c3d34a19fd07020499833ee8e82e60d7c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2353",
+      "number": 2353,
+      "state": "open",
+      "title": "Cleanup1: pass Playwright runtime through Turbo and retain pinned regression evidence",
+      "updated_at": "2026-10-10T23:17:25Z"
+    },
+    {
+      "base": {
+        "sha": "dbd228be5e9189c62819bc91bba237ed1ddbb558"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c1b0d87272b13dc8dcf2a684b7885b69e26a8bfd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2352",
+      "number": 2352,
+      "state": "open",
+      "title": "Keep CleanUp1 runtime scratch outside evidence and generate API Prisma client",
+      "updated_at": "2026-10-10T22:30:40Z"
+    },
+    {
+      "base": {
+        "sha": "e9605669482e3f1c855027c206cb68bd2e8b06be"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4b6ff413c6de7b8885dbd03a4307802a27580690"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2351",
+      "number": 2351,
+      "state": "open",
+      "title": "Preserve CleanUp1 smoke failure packets for untracked manifests",
+      "updated_at": "2026-10-10T22:20:54Z"
+    },
+    {
+      "base": {
+        "sha": "a0292134a719f872645d68987d6aad0bc45019f5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e9605669482e3f1c855027c206cb68bd2e8b06be"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2350",
+      "number": 2350,
+      "state": "open",
+      "title": "Keep CleanUp1 visual receipt outside clean source checkout",
+      "updated_at": "2026-10-10T21:45:17Z"
+    },
+    {
+      "base": {
+        "sha": "a0292134a719f872645d68987d6aad0bc45019f5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3fc856a97011b0757ca5a1929d145dff1bf73dc4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2349",
+      "number": 2349,
+      "state": "open",
+      "title": "Draft: prepare Cleanup2 migrated-helper ratchet",
+      "updated_at": "2026-10-10T21:29:38Z"
+    },
+    {
+      "base": {
+        "sha": "a0292134a719f872645d68987d6aad0bc45019f5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c98f8a2d6f4f0cc5a883763c0fdce45606519903"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2348",
+      "number": 2348,
+      "state": "open",
+      "title": "Prepare source-bound Cleanup1 visual diagnostic carrier",
+      "updated_at": "2026-10-10T21:19:32Z"
+    },
+    {
+      "base": {
+        "sha": "a0292134a719f872645d68987d6aad0bc45019f5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c7e4f2d0d8c90bdfb2f71799e51df4235ea2664a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2347",
+      "number": 2347,
+      "state": "open",
+      "title": "CleanUp1: exact-source native diagnostic carrier",
+      "updated_at": "2026-10-10T21:14:02Z"
+    },
+    {
+      "base": {
+        "sha": "73de5c40eb348c0f58841b6c672b0ac67113e3c5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "82da745249dfb49c3de1f6e4f4243742ec7e8979"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2346",
+      "number": 2346,
+      "state": "open",
+      "title": "WIP: collect engagement entrypoint spec in API Jest",
+      "updated_at": "2026-10-10T18:53:03Z"
+    },
+    {
+      "base": {
+        "sha": "73de5c40eb348c0f58841b6c672b0ac67113e3c5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d173f299dcbe3f6ce572d9abd31a4fbc0526a3b3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2345",
+      "number": 2345,
+      "state": "open",
+      "title": "WIP: restore Phase 12 provider guard after CLI repair",
+      "updated_at": "2026-10-10T18:52:51Z"
+    },
+    {
+      "base": {
+        "sha": "73de5c40eb348c0f58841b6c672b0ac67113e3c5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "8936e7b4799193622a8e2e7f7561589920e98e34"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2344",
+      "number": 2344,
+      "state": "open",
+      "title": "WIP: account for Clio routes in preview manifest",
+      "updated_at": "2026-10-10T18:52:35Z"
+    },
+    {
+      "base": {
+        "sha": "935dafaa9ea26ccbf17e5a148d0617c4f841d05b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "16632db6d022d3c28b59739872d2171d82c87018"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2343",
+      "number": 2343,
+      "state": "open",
+      "title": "WIP: bind native cleanup diagnostics to current source",
+      "updated_at": "2026-10-10T19:05:09Z"
+    },
+    {
+      "base": {
+        "sha": "f1cbebb040e73a8ebb3ef36ad66fd17462d056c6"
+      },
+      "draft": true,
+      "head": {
+        "sha": "239705d410b142821fe64f0aa2c928fba6d611cd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2342",
+      "number": 2342,
+      "state": "open",
+      "title": "CleanUp2: keep generated Prisma clients out of duplicate inventory",
+      "updated_at": "2026-10-10T19:00:38Z"
+    },
+    {
+      "base": {
+        "sha": "b9c25b954ad86f7ff89289535156e378dd5e282d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "dbd228be5e9189c62819bc91bba237ed1ddbb558"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2341",
+      "number": 2341,
+      "state": "open",
+      "title": "CleanUp1: recover native evidence and remove probe source writes",
+      "updated_at": "2026-10-10T19:35:06Z"
+    },
+    {
+      "base": {
+        "sha": "73de5c40eb348c0f58841b6c672b0ac67113e3c5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "a0292134a719f872645d68987d6aad0bc45019f5"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2340",
+      "number": 2340,
+      "state": "open",
+      "title": "CleanUp1: document domain test CLI contracts",
+      "updated_at": "2026-10-10T21:32:15Z"
+    },
+    {
+      "base": {
+        "sha": "997510836116373b8552a07ad670278b9e7365b5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "73de5c40eb348c0f58841b6c672b0ac67113e3c5"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2339",
+      "number": 2339,
+      "state": "open",
+      "title": "CleanUp1: guard Phase 8 seed CLI resource boundaries",
+      "updated_at": "2026-10-10T18:13:02Z"
+    },
+    {
+      "base": {
+        "sha": "14d8beaa75a0da7869f9b1b4ebee32f18d06cf39"
+      },
+      "draft": true,
+      "head": {
+        "sha": "997510836116373b8552a07ad670278b9e7365b5"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2338",
+      "number": 2338,
+      "state": "open",
+      "title": "fix: classify visual source inventory paths in prototype guard",
+      "updated_at": "2026-10-10T17:14:31Z"
+    },
+    {
+      "base": {
+        "sha": "339de667329c13fb44d6a8830be6252dd702d6f4"
+      },
+      "draft": true,
+      "head": {
+        "sha": "14d8beaa75a0da7869f9b1b4ebee32f18d06cf39"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2337",
+      "number": 2337,
+      "state": "open",
+      "title": "fix: document static verifier CLI invocation contracts",
+      "updated_at": "2026-10-10T17:05:08Z"
+    },
+    {
+      "base": {
+        "sha": "e3ef63883d275462e1acdd16ff1421ba9feebdf6"
+      },
+      "draft": true,
+      "head": {
+        "sha": "339de667329c13fb44d6a8830be6252dd702d6f4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2336",
+      "number": 2336,
+      "state": "open",
+      "title": "fix: keep J-book inspection independent of database startup",
+      "updated_at": "2026-10-10T16:59:05Z"
+    },
+    {
+      "base": {
+        "sha": "eb24b5cac9a72ef5e41ccb4b41e6f01458c0b725"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e3ef63883d275462e1acdd16ff1421ba9feebdf6"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2335",
+      "number": 2335,
+      "state": "open",
+      "title": "fix: document ingestion worker CLI configuration boundaries",
+      "updated_at": "2026-10-10T16:54:27Z"
+    },
+    {
+      "base": {
+        "sha": "a65bb14e87e47629946bd42038673565b9ce0e52"
+      },
+      "draft": true,
+      "head": {
+        "sha": "eb24b5cac9a72ef5e41ccb4b41e6f01458c0b725"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2334",
+      "number": 2334,
+      "state": "open",
+      "title": "fix(cli): refuse missing configuration in personnel workers",
+      "updated_at": "2026-10-10T16:43:09Z"
+    },
+    {
+      "base": {
+        "sha": "22b081cf873909050045304bbaa1162878f34721"
+      },
+      "draft": true,
+      "head": {
+        "sha": "a65bb14e87e47629946bd42038673565b9ce0e52"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2333",
+      "number": 2333,
+      "state": "open",
+      "title": "fix(verification): refresh current UI consumer inventory",
+      "updated_at": "2026-10-10T16:33:01Z"
+    },
+    {
+      "base": {
+        "sha": "c607ec469faec7c74a0e3c5aefc13a8a2e2a2640"
+      },
+      "draft": true,
+      "head": {
+        "sha": "22b081cf873909050045304bbaa1162878f34721"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2332",
+      "number": 2332,
+      "state": "open",
+      "title": "fix(cli): validate fixture input and document evidence-tool exits",
+      "updated_at": "2026-10-10T16:28:32Z"
+    },
+    {
+      "base": {
+        "sha": "35bf599d9e14890e06a99eedb2c450ae94a30070"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c607ec469faec7c74a0e3c5aefc13a8a2e2a2640"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2331",
+      "number": 2331,
+      "state": "open",
+      "title": "fix(verification): handle large historical scope diffs",
+      "updated_at": "2026-10-10T16:21:58Z"
+    },
+    {
+      "base": {
+        "sha": "de4de656c9e5558ccd9ed89170f91a3432c32fe0"
+      },
+      "draft": true,
+      "head": {
+        "sha": "35bf599d9e14890e06a99eedb2c450ae94a30070"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2330",
+      "number": 2330,
+      "state": "open",
+      "title": "fix(cli): refuse missing database before Nest worker startup",
+      "updated_at": "2026-10-10T16:15:10Z"
+    },
+    {
+      "base": {
+        "sha": "66eeacd325a831f16b1df26f08b7cead286d62fd"
+      },
+      "draft": true,
+      "head": {
+        "sha": "de4de656c9e5558ccd9ed89170f91a3432c32fe0"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2329",
+      "number": 2329,
+      "state": "open",
+      "title": "fix(cli): document budget operator input-error usage",
+      "updated_at": "2026-10-10T16:09:18Z"
+    },
+    {
+      "base": {
+        "sha": "f5c6f805e2cbe01086a1dc2862d94e99cacd0cbf"
+      },
+      "draft": true,
+      "head": {
+        "sha": "66eeacd325a831f16b1df26f08b7cead286d62fd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2328",
+      "number": 2328,
+      "state": "open",
+      "title": "fix(cli): show usage for unconfigured diagnostic tools",
+      "updated_at": "2026-10-10T16:04:25Z"
+    },
+    {
+      "base": {
+        "sha": "c60da213cb105d511bd4b39bd6ca03878c2ea795"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f5c6f805e2cbe01086a1dc2862d94e99cacd0cbf"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2327",
+      "number": 2327,
+      "state": "open",
+      "title": "fix(cli): show evaluation usage without provider configuration",
+      "updated_at": "2026-10-10T16:01:39Z"
+    },
+    {
+      "base": {
+        "sha": "412d003491e9219772b5b28205573141bce39f2f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c60da213cb105d511bd4b39bd6ca03878c2ea795"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2326",
+      "number": 2326,
+      "state": "open",
+      "title": "fix(cli): close reference job clients when initialization fails",
+      "updated_at": "2026-10-10T15:49:53Z"
+    },
+    {
+      "base": {
+        "sha": "332ca7a37ff4bce81a09d9936134642e3dc1144b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "412d003491e9219772b5b28205573141bce39f2f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2325",
+      "number": 2325,
+      "state": "open",
+      "title": "fix(cli): explain missing inputs for budget operators",
+      "updated_at": "2026-10-10T15:42:17Z"
+    },
+    {
+      "base": {
+        "sha": "90575554814fdbec5600829b674974f8dcd4c94d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "332ca7a37ff4bce81a09d9936134642e3dc1144b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2324",
+      "number": 2324,
+      "state": "open",
+      "title": "fix(cli): preserve migration and wall verification with safe usage",
+      "updated_at": "2026-10-10T15:36:50Z"
+    },
+    {
+      "base": {
+        "sha": "6b0695465fd45bff0bcd8ef52e09c29d23bd5495"
+      },
+      "draft": true,
+      "head": {
+        "sha": "90575554814fdbec5600829b674974f8dcd4c94d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2323",
+      "number": 2323,
+      "state": "open",
+      "title": "fix(cli): preserve architecture checks with explicit usage contracts",
+      "updated_at": "2026-10-10T15:30:22Z"
+    },
+    {
+      "base": {
+        "sha": "3e1efd77cf1cbcc0dc1ed8f11b30f605d0fee328"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6b0695465fd45bff0bcd8ef52e09c29d23bd5495"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2322",
+      "number": 2322,
+      "state": "open",
+      "title": "fix(cli): validate usage before application startup",
+      "updated_at": "2026-10-10T15:25:29Z"
+    },
+    {
+      "base": {
+        "sha": "9bfc150086dee8bfa4c0e6e87fa4bd417fbca2e1"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3e1efd77cf1cbcc0dc1ed8f11b30f605d0fee328"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2321",
+      "number": 2321,
+      "state": "open",
+      "title": "docs(cli): document existing empty invocation exits",
+      "updated_at": "2026-10-10T15:22:41Z"
+    },
+    {
+      "base": {
+        "sha": "779c3d47b07373e21583254c3234fddc36b63eb5"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9bfc150086dee8bfa4c0e6e87fa4bd417fbca2e1"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2320",
+      "number": 2320,
+      "state": "open",
+      "title": "fix(cli): make empty operator invocations safe and explicit",
+      "updated_at": "2026-10-10T15:07:47Z"
+    },
+    {
+      "base": {
+        "sha": "d1cab3bdf97c06d7fca7d5d7281d3be545933a4d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "779c3d47b07373e21583254c3234fddc36b63eb5"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2319",
+      "number": 2319,
+      "state": "open",
+      "title": "test(cli): document complex smoke contracts explicitly",
+      "updated_at": "2026-10-10T15:02:21Z"
+    },
+    {
+      "base": {
+        "sha": "2ae4cf14614d5811452b5f2befe68af0af1d6366"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d1cab3bdf97c06d7fca7d5d7281d3be545933a4d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2318",
+      "number": 2318,
+      "state": "open",
+      "title": "fix(cli): resolve command paths for the requested platform",
+      "updated_at": "2026-10-10T14:55:07Z"
+    },
+    {
+      "base": {
+        "sha": "4f693924e3ea0b110e9768c85f9fa11cf17f07c9"
+      },
+      "draft": true,
+      "head": {
+        "sha": "2ae4cf14614d5811452b5f2befe68af0af1d6366"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2317",
+      "number": 2317,
+      "state": "open",
+      "title": "fix(cli): preserve exported callers when guarding database configuration",
+      "updated_at": "2026-10-10T14:52:30Z"
+    },
+    {
+      "base": {
+        "sha": "32257cad8e6914f0c379b5f0915218db2d0538ec"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4f693924e3ea0b110e9768c85f9fa11cf17f07c9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2316",
+      "number": 2316,
+      "state": "open",
+      "title": "fix(cli): refuse missing database configuration before side effects",
+      "updated_at": "2026-10-10T14:44:24Z"
+    },
+    {
+      "base": {
+        "sha": "a704e29a5ff4f07fb397f9256bdf5dd65b50fbd4"
+      },
+      "draft": true,
+      "head": {
+        "sha": "32257cad8e6914f0c379b5f0915218db2d0538ec"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2315",
+      "number": 2315,
+      "state": "open",
+      "title": "fix(cli): protect special resource ownership and conditional execution",
+      "updated_at": "2026-10-10T14:28:37Z"
+    },
+    {
+      "base": {
+        "sha": "b3b2675ed3fab6cd8777076ebc989a0fa5bfe7ff"
+      },
+      "draft": true,
+      "head": {
+        "sha": "a704e29a5ff4f07fb397f9256bdf5dd65b50fbd4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2314",
+      "number": 2314,
+      "state": "open",
+      "title": "fix(cli): await private client cleanup before completing commands",
+      "updated_at": "2026-10-10T14:07:59Z"
+    },
+    {
+      "base": {
+        "sha": "1239f07f5b86df04c639c5b672f58143c04d9caf"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b3b2675ed3fab6cd8777076ebc989a0fa5bfe7ff"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2313",
+      "number": 2313,
+      "state": "open",
+      "title": "fix(api): guard missing database configuration in 132 CLI scripts",
+      "updated_at": "2026-10-10T13:10:06Z"
+    },
+    {
+      "base": {
+        "sha": "68081577eab824d2abd8d62617ac771b3836bbbd"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1239f07f5b86df04c639c5b672f58143c04d9caf"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2312",
+      "number": 2312,
+      "state": "open",
+      "title": "fix(cleanup): retain static warnings without blanket smoke rejection",
+      "updated_at": "2026-10-10T10:52:08Z"
+    },
+    {
+      "base": {
+        "sha": "3044c69c3d680e3e62440ff4eac02acf442fb9bb"
+      },
+      "draft": true,
+      "head": {
+        "sha": "68081577eab824d2abd8d62617ac771b3836bbbd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2311",
+      "number": 2311,
+      "state": "open",
+      "title": "fix(cleanup): verify every smoke invocation context",
+      "updated_at": "2026-10-10T10:38:30Z"
+    },
+    {
+      "base": {
+        "sha": "1cf2a2f12118156ed70f6409c763d7dec5f93185"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3044c69c3d680e3e62440ff4eac02acf442fb9bb"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2310",
+      "number": 2310,
+      "state": "open",
+      "title": "Show usage for a bare cleanup gate invocation",
+      "updated_at": "2026-10-10T08:09:23Z"
+    },
+    {
+      "base": {
+        "sha": "c37b12e1a0f9b11a6be98e52f02748922bc9a482"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1cf2a2f12118156ed70f6409c763d7dec5f93185"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2309",
+      "number": 2309,
+      "state": "open",
+      "title": "Add canonical script invocation contexts",
+      "updated_at": "2026-10-10T07:49:52Z"
+    },
+    {
+      "base": {
+        "sha": "087452178fcfa2446c01f6cd15eed6e08440dbb8"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c37b12e1a0f9b11a6be98e52f02748922bc9a482"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2308",
+      "number": 2308,
+      "state": "open",
+      "title": "Verify suspected cleanup architecture findings",
+      "updated_at": "2026-10-10T07:08:43Z"
+    },
+    {
+      "base": {
+        "sha": "cf75f66d2033dc8f39dbf8bc29a8895339939d9b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "087452178fcfa2446c01f6cd15eed6e08440dbb8"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2307",
+      "number": 2307,
+      "state": "open",
+      "title": "Bind CLI usage contracts to reachable argv guards",
+      "updated_at": "2026-10-10T06:56:53Z"
+    },
+    {
+      "base": {
+        "sha": "6062aaf09d26a59172d0cb77dc9366f936c1d1ab"
+      },
+      "draft": true,
+      "head": {
+        "sha": "cf75f66d2033dc8f39dbf8bc29a8895339939d9b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2306",
+      "number": 2306,
+      "state": "open",
+      "title": "Preserve script declaration working directories",
+      "updated_at": "2026-10-10T06:34:22Z"
+    },
+    {
+      "base": {
+        "sha": "e47bd141f2410fc2ae27470a7a4d5964dbdc8387"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6062aaf09d26a59172d0cb77dc9366f936c1d1ab"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2305",
+      "number": 2305,
+      "state": "open",
+      "title": "Fix analysis eval sandbox import",
+      "updated_at": "2026-10-10T05:44:48Z"
+    },
+    {
+      "base": {
+        "sha": "d7eb26f3fc7c401ace6c8823b4fcab4ad39edfca"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e47bd141f2410fc2ae27470a7a4d5964dbdc8387"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2304",
+      "number": 2304,
+      "state": "open",
+      "title": "Stream large syscall traces during cleanup auditing",
+      "updated_at": "2026-10-10T05:10:51Z"
+    },
+    {
+      "base": {
+        "sha": "411433b3e814c7c5ccb1a47dc2a380cd925731de"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d7eb26f3fc7c401ace6c8823b4fcab4ad39edfca"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2303",
+      "number": 2303,
+      "state": "open",
+      "title": "Publish green five-target cleanup coverage floor",
+      "updated_at": "2026-10-10T04:43:07Z"
+    },
+    {
+      "base": {
+        "sha": "76d5e61f6c51a3d284814e5d37a04ec8dfc6a800"
+      },
+      "draft": true,
+      "head": {
+        "sha": "411433b3e814c7c5ccb1a47dc2a380cd925731de"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2302",
+      "number": 2302,
+      "state": "open",
+      "title": "Fix archive pagination fixture across the UTC and New York date boundary",
+      "updated_at": "2026-10-10T04:52:35Z"
+    },
+    {
+      "base": {
+        "sha": "19cac96b641b78770963d55cee57d643ae5418b9"
+      },
+      "draft": true,
+      "head": {
+        "sha": "76d5e61f6c51a3d284814e5d37a04ec8dfc6a800"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2301",
+      "number": 2301,
+      "state": "open",
+      "title": "Fix eval:l2 help and invalid-argument handling before live configuration",
+      "updated_at": "2026-10-10T03:16:43Z"
+    },
+    {
+      "base": {
+        "sha": "9c20a589f6400ef4031c9e4bb15197da1abe70ee"
+      },
+      "draft": true,
+      "head": {
+        "sha": "19cac96b641b78770963d55cee57d643ae5418b9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2300",
+      "number": 2300,
+      "state": "open",
+      "title": "Record helper equivalence and qualified public-owner contracts",
+      "updated_at": "2026-10-10T02:03:23Z"
+    },
+    {
+      "base": {
+        "sha": "9a91cb85954889dd56233cfad8bab353fa548c25"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9c20a589f6400ef4031c9e4bb15197da1abe70ee"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2299",
+      "number": 2299,
+      "state": "open",
+      "title": "Characterize public credential, watch query and funding headline contracts",
+      "updated_at": "2026-10-10T01:28:46Z"
+    },
+    {
+      "base": {
+        "sha": "eff1bca1e92e207dc8643570d28c4b8db5a7413f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9a91cb85954889dd56233cfad8bab353fa548c25"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2298",
+      "number": 2298,
+      "state": "open",
+      "title": "docs(cleanup): publish the original baseline and complete failure record",
+      "updated_at": "2026-10-10T00:15:37Z"
+    },
+    {
+      "base": {
+        "sha": "9df67c1b8fcc1217f40ead5c8de00e529b06188f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "eff1bca1e92e207dc8643570d28c4b8db5a7413f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2297",
+      "number": 2297,
+      "state": "open",
+      "title": "docs(cleanup): bind five readiness dispositions to verified owner evidence",
+      "updated_at": "2026-10-10T00:03:33Z"
+    },
+    {
+      "base": {
+        "sha": "3df6833973d32bed1bd5466410d4504a9f37075d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9df67c1b8fcc1217f40ead5c8de00e529b06188f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2296",
+      "number": 2296,
+      "state": "open",
+      "title": "fix(cleanup): validate fresh CLI evidence in the declared live mode",
+      "updated_at": "2026-10-09T23:56:30Z"
+    },
+    {
+      "base": {
+        "sha": "7a54ba6e5a4c8cc9fa949fea9c0cd12f32b5c2fe"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3df6833973d32bed1bd5466410d4504a9f37075d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2295",
+      "number": 2295,
+      "state": "open",
+      "title": "test(cleanup): characterize public provider response contracts",
+      "updated_at": "2026-10-10T00:04:39Z"
+    },
+    {
+      "base": {
+        "sha": "884169fad72e095633011e43068b9a847da93eab"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7a54ba6e5a4c8cc9fa949fea9c0cd12f32b5c2fe"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2294",
+      "number": 2294,
+      "state": "open",
+      "title": "Preserve per-file browser environments with one test worker",
+      "updated_at": "2026-10-10T00:30:07Z"
+    },
+    {
+      "base": {
+        "sha": "11f4a90a6ce8a4caf94f1ec4d15c714f2a3aa15c"
+      },
+      "draft": true,
+      "head": {
+        "sha": "884169fad72e095633011e43068b9a847da93eab"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2293",
+      "number": 2293,
+      "state": "open",
+      "title": "Include standalone Node suites in cleanup gates",
+      "updated_at": "2026-10-09T23:36:27Z"
+    },
+    {
+      "base": {
+        "sha": "4022527748015aa155d05a19660aada424a37102"
+      },
+      "draft": true,
+      "head": {
+        "sha": "11f4a90a6ce8a4caf94f1ec4d15c714f2a3aa15c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2292",
+      "number": 2292,
+      "state": "open",
+      "title": "Select the intended single-thread pool for web test commands",
+      "updated_at": "2026-10-09T23:36:24Z"
+    },
+    {
+      "base": {
+        "sha": "09e666879c4513ca0b8e4fe9dac3f2a1fbd06cdb"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4022527748015aa155d05a19660aada424a37102"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2291",
+      "number": 2291,
+      "state": "open",
+      "title": "Add HTTP authorization characterization and integrate current cleanup evidence",
+      "updated_at": "2026-10-09T23:36:22Z"
+    },
+    {
+      "base": {
+        "sha": "09e666879c4513ca0b8e4fe9dac3f2a1fbd06cdb"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b94c29d560d9bce977638e0152137edff0d0e032"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2290",
+      "number": 2290,
+      "state": "open",
+      "title": "docs: record defense-budget pipeline boundaries across both languages",
+      "updated_at": "2026-10-09T20:45:43Z"
+    },
+    {
+      "base": {
+        "sha": "e1a4ef39fd3dce3a2f9d4173d6da7a613f66f16d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "09e666879c4513ca0b8e4fe9dac3f2a1fbd06cdb"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2289",
+      "number": 2289,
+      "state": "open",
+      "title": "test: characterize Outreach capability error boundaries",
+      "updated_at": "2026-10-09T20:42:49Z"
+    },
+    {
+      "base": {
+        "sha": "e1a4ef39fd3dce3a2f9d4173d6da7a613f66f16d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f68b7f9dbd6eb331545a779ce8bf81a2f083a1db"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2288",
+      "number": 2288,
+      "state": "open",
+      "title": "Publish current eight subject cleanup inventory with measured provenance",
+      "updated_at": "2026-10-09T19:55:28Z"
+    },
+    {
+      "base": {
+        "sha": "be2504241f9dfa1e0d46b3818c10b5c5090545d7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "72b023dce7b9955e0e2bc5434d9db1c6abf538c0"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2287",
+      "number": 2287,
+      "state": "open",
+      "title": "Resolve declared CLI owners and canonical smoke discovery",
+      "updated_at": "2026-10-09T19:46:07Z"
+    },
+    {
+      "base": {
+        "sha": "be2504241f9dfa1e0d46b3818c10b5c5090545d7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "13f054fa2db4efbaac86a3e54ae720fa7c2c834e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2286",
+      "number": 2286,
+      "state": "open",
+      "title": "Reconcile six stale API command operands with current source owners",
+      "updated_at": "2026-10-09T19:32:27Z"
+    },
+    {
+      "base": {
+        "sha": "be2504241f9dfa1e0d46b3818c10b5c5090545d7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "732c408b6af87b680d0b81f38703565429cdd0ba"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2285",
+      "number": 2285,
+      "state": "open",
+      "title": "Fix canonical backfill contract after safe CLI refusal change",
+      "updated_at": "2026-10-09T20:42:51Z"
+    },
+    {
+      "base": {
+        "sha": "f4085359e663a5c276e3dd9c4c3e430d0994c4bb"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f80da6f1a7ffb0cf2e8d616c5236ba6db66d1185"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2284",
+      "number": 2284,
+      "state": "open",
+      "title": "Report measured cleanup harness configuration and unsupported definitions",
+      "updated_at": "2026-10-09T18:49:55Z"
+    },
+    {
+      "base": {
+        "sha": "f4085359e663a5c276e3dd9c4c3e430d0994c4bb"
+      },
+      "draft": true,
+      "head": {
+        "sha": "a45236de7b2c3201198aedb8f54fa0398f903213"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2283",
+      "number": 2283,
+      "state": "open",
+      "title": "Bind cleanup smoke evidence to its actual runtime and complete receipts",
+      "updated_at": "2026-10-09T18:49:53Z"
+    },
+    {
+      "base": {
+        "sha": "f4085359e663a5c276e3dd9c4c3e430d0994c4bb"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0c41492fde75600d42e179606d1f2ebc6419a175"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2282",
+      "number": 2282,
+      "state": "open",
+      "title": "Enable bounded API test workers with isolated disposable databases",
+      "updated_at": "2026-10-09T17:59:36Z"
+    },
+    {
+      "base": {
+        "sha": "c180165f212298fedd0d3136fcb1690d9bfb6e5b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "f4085359e663a5c276e3dd9c4c3e430d0994c4bb"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2280",
+      "number": 2280,
+      "state": "open",
+      "title": "Fix seed suggestion tenant-call baseline fixture",
+      "updated_at": "2026-10-09T17:02:58Z"
+    },
+    {
+      "base": {
+        "sha": "32483dac26abba38f66865c5ba618ed816eabe7a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "27a8932a5a61edd826b8ed11d2a895678bbcba2d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2279",
+      "number": 2279,
+      "state": "open",
+      "title": "Fix owned approval fixtures in API cleanup baseline",
+      "updated_at": "2026-10-09T17:37:26Z"
+    },
+    {
+      "base": {
+        "sha": "c180165f212298fedd0d3136fcb1690d9bfb6e5b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fcbc60fdf09608e798dd160bd2f67842be428bc3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2278",
+      "number": 2278,
+      "state": "open",
+      "title": "Refresh verified visual regression baselines against current rendering source",
+      "updated_at": "2026-10-09T17:48:16Z"
+    },
+    {
+      "base": {
+        "sha": "a983e3fa08576546c523ff085e78db76d6176c34"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0cc78c9b3fdcb988620cd152649c064b9458184b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2277",
+      "number": 2277,
+      "state": "open",
+      "title": "Repair disposable Planner and Intel test prerequisites",
+      "updated_at": "2026-10-09T15:20:20Z"
+    },
+    {
+      "base": {
+        "sha": "0afe75252a0fb219568306ba5135c26fb0af3f8a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4f008c688aa249706087f1153a5ebe804e299583"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2272",
+      "number": 2272,
+      "state": "open",
+      "title": "fix(meri): bound PowerPoint discovery XML reads and cancellation",
+      "updated_at": "2026-10-09T14:33:26Z"
+    },
+    {
+      "base": {
+        "sha": "e1a7156705716999caf9f034ab2d1c02d9bcc9fa"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7bbae9f2f34541ad59a3ef8fda99f29f6d6264ed"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2271",
+      "number": 2271,
+      "state": "open",
+      "title": "Isolate defense review integration fixtures and clean owned approvals",
+      "updated_at": "2026-10-09T14:14:48Z"
+    },
+    {
+      "base": {
+        "sha": "5a40a950429904bb5cd771ba9306fd2362f96660"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7e9510645297f1772728ceb8ecf7353ef7b2ae33"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2269",
+      "number": 2269,
+      "state": "open",
+      "title": "fix(meri): preserve complete governed evidence in knowledge search bundles",
+      "updated_at": "2026-10-09T13:58:49Z"
+    },
+    {
+      "base": {
+        "sha": "cc3d9cda4a3eb1916ea6b52eca4b9bd450404988"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0afe75252a0fb219568306ba5135c26fb0af3f8a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2267",
+      "number": 2267,
+      "state": "open",
+      "title": "fix(meri): align discovery locators with canonical document sections",
+      "updated_at": "2026-10-09T13:11:11Z"
+    },
+    {
+      "base": {
+        "sha": "cc3d9cda4a3eb1916ea6b52eca4b9bd450404988"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5a40a950429904bb5cd771ba9306fd2362f96660"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2266",
+      "number": 2266,
+      "state": "open",
+      "title": "fix(meri): authorize knowledge search and document returns at owner boundaries",
+      "updated_at": "2026-10-09T12:45:35Z"
+    },
+    {
+      "base": {
+        "sha": "e1a7156705716999caf9f034ab2d1c02d9bcc9fa"
+      },
+      "draft": true,
+      "head": {
+        "sha": "37c4a0d87955dfcc05c3e6a9503ad65d7f59e65f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2265",
+      "number": 2265,
+      "state": "open",
+      "title": "fix(api): document missing-argument maintenance CLI refusals",
+      "updated_at": "2026-10-09T12:38:30Z"
+    },
+    {
+      "base": {
+        "sha": "76090d6192f875704c21c9a25954ffa88531c00f"
+      },
+      "draft": true,
+      "head": {
+        "sha": "c195f9bc9d86b639de84c5f00ca44abe8950fdd0"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2264",
+      "number": 2264,
+      "state": "open",
+      "title": "fix(cleanup): require complete redirect capture obligations",
+      "updated_at": "2026-10-09T13:43:50Z"
+    },
+    {
+      "base": {
+        "sha": "ea19431dd680e258fccfffcd27dda65703164579"
+      },
+      "draft": true,
+      "head": {
+        "sha": "cc3d9cda4a3eb1916ea6b52eca4b9bd450404988"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2263",
+      "number": 2263,
+      "state": "open",
+      "title": "Use visible PowerPoint slides and notes for exact reads",
+      "updated_at": "2026-10-09T10:40:35Z"
+    },
+    {
+      "base": {
+        "sha": "fe7c885b630cc2ab10c6a61c0e73330fe7f22a4a"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ea19431dd680e258fccfffcd27dda65703164579"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2262",
+      "number": 2262,
+      "state": "open",
+      "title": "Reject stale attachment reads at extraction finish",
+      "updated_at": "2026-10-09T07:34:14Z"
+    },
+    {
+      "base": {
+        "sha": "91d8cd9cfb9f2b1b6d72bec7fef6dfb97d6bae14"
+      },
+      "draft": true,
+      "head": {
+        "sha": "fe7c885b630cc2ab10c6a61c0e73330fe7f22a4a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2260",
+      "number": 2260,
+      "state": "open",
+      "title": "Preserve exact document passages and resumable qualifier context",
+      "updated_at": "2026-10-09T06:29:35Z"
+    },
+    {
+      "base": {
+        "sha": "8fdf8955707861f7953155ca17e5521396521340"
+      },
+      "draft": true,
+      "head": {
+        "sha": "91d8cd9cfb9f2b1b6d72bec7fef6dfb97d6bae14"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2259",
+      "number": 2259,
+      "state": "open",
+      "title": "Give ordinary Meri chat a governed canonical client brief",
+      "updated_at": "2026-10-09T06:16:06Z"
+    },
+    {
+      "base": {
+        "sha": "e1a7156705716999caf9f034ab2d1c02d9bcc9fa"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b9c25b954ad86f7ff89289535156e378dd5e282d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2258",
+      "number": 2258,
+      "state": "open",
+      "title": "chore(cleanup): package native validation and complete evidence transport",
+      "updated_at": "2026-10-10T14:52:59Z"
+    },
+    {
+      "base": {
+        "sha": "8c6bad2e0a3b76db5dd031d4eddd52226dbf8b66"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e74ac981082970a0787362ca94dfa1ec000b4d1c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2255",
+      "number": 2255,
+      "state": "open",
+      "title": "feat(meri): expose governed exact identifier retrieval",
+      "updated_at": "2026-10-09T02:39:05Z"
+    },
+    {
+      "base": {
+        "sha": "5012109b70629ec2ad6cfbb95ef976060340d8a7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "8c6bad2e0a3b76db5dd031d4eddd52226dbf8b66"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2254",
+      "number": 2254,
+      "state": "open",
+      "title": "feat(meri): share authenticated client reader and bounded brief evidence",
+      "updated_at": "2026-10-09T02:20:02Z"
+    },
+    {
+      "base": {
+        "sha": "8c6bad2e0a3b76db5dd031d4eddd52226dbf8b66"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d1a0be16396d8d6704dbb1b1afe0ba59d80fe373"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2253",
+      "number": 2253,
+      "state": "open",
+      "title": "feat(meri): add governed canonical client source seam",
+      "updated_at": "2026-10-09T02:25:22Z"
+    },
+    {
+      "base": {
+        "sha": "5012109b70629ec2ad6cfbb95ef976060340d8a7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "eaf99a4ba0b6f8dbc3f5333526c24a66881a6393"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2250",
+      "number": 2250,
+      "state": "open",
+      "title": "test(defense-budget): isolate synthetic candidate correction fixtures",
+      "updated_at": "2026-10-09T00:14:52Z"
+    },
+    {
+      "base": {
+        "sha": "5012109b70629ec2ad6cfbb95ef976060340d8a7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "bd4f879bc52eb5e52efcf06b19f8e0a1b8b14d20"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2249",
+      "number": 2249,
+      "state": "open",
+      "title": "test: repair workspace and Meri coverage prerequisites",
+      "updated_at": "2026-10-09T11:00:22Z"
+    },
+    {
+      "base": {
+        "sha": "5012109b70629ec2ad6cfbb95ef976060340d8a7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7bc8cb15d585c00f019df2eaf2c962da13d71a2c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2248",
+      "number": 2248,
+      "state": "open",
+      "title": "test(api): align cleanup baseline fixtures with current contracts",
+      "updated_at": "2026-10-08T23:53:41Z"
+    },
+    {
+      "base": {
+        "sha": "5012109b70629ec2ad6cfbb95ef976060340d8a7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1bbc3108f730f7f98a4e42ee7473e0615408cb73"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2247",
+      "number": 2247,
+      "state": "open",
+      "title": "test(api): exercise defense budget factsheet artifact generation",
+      "updated_at": "2026-10-08T23:53:25Z"
+    },
+    {
+      "base": {
+        "sha": "5012109b70629ec2ad6cfbb95ef976060340d8a7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ecd85124ad09c73e876e6e89592b24e069f3da06"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2246",
+      "number": 2246,
+      "state": "open",
+      "title": "Planner: share timeline expansion and add project/portfolio health",
+      "updated_at": "2026-10-08T21:19:23Z"
+    },
+    {
+      "base": {
+        "sha": "9f276f66f07a4c1ee7ba0cb48547d13f15288cd8"
+      },
+      "draft": true,
+      "head": {
+        "sha": "8632ac6a713b1ca18b8263c01121f8cb8bb1506b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2239",
+      "number": 2239,
+      "state": "open",
+      "title": "fix(api): make baseline PDF, SDK and scheduler tests portable",
+      "updated_at": "2026-10-08T20:54:12Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "70befab7753cac1b6d785ae85ce8f2ad3aae42d1"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2238",
+      "number": 2238,
+      "state": "open",
+      "title": "fix(web): use the public Vite Rollup bundle type",
+      "updated_at": "2026-10-08T12:38:54Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ab1c4b94dcd0dbf57b91956379217534254a50aa"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2237",
+      "number": 2237,
+      "state": "open",
+      "title": "test(release): repoint web-vnext deploy race guard to scripts/meri-release.mjs (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T07:33:51Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6f7c77778c8bc239db9980a75ef7d2387494ac1e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2236",
+      "number": 2236,
+      "state": "open",
+      "title": "test(engagement): native read coverage for the four outreach-v3 reads (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T09:34:35Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "9cefe5fae8553af03d3f51ff79384ee88987a9d3"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2235",
+      "number": 2235,
+      "state": "open",
+      "title": "test(engagement): deterministic route manifest + regenerated fixture (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T07:30:18Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "beedd9b9c8cfb081bcdfd9ac0133a91666b20d0a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2234",
+      "number": 2234,
+      "state": "open",
+      "title": "test(pe): scope migration-history safety to the automatic entrypoint path (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T07:44:48Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "05f135cd1ca7b79de548c731b33dc864d3d8dc70"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2233",
+      "number": 2233,
+      "state": "open",
+      "title": "test(memory): anchor the self-approval UI promise to the extracted helpers (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T07:23:51Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "436c31a61635f2e14bcf8fc5fd36274cc9ca83e7"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2232",
+      "number": 2232,
+      "state": "open",
+      "title": "test(intelligence): model the keyword deadline transaction client in the issue-code spec (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T06:41:53Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1a215a511c07d96109b668c896a39f000e52acc9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2231",
+      "number": 2231,
+      "state": "open",
+      "title": "test(acquisition-personnel): relocate SAM POC-email privacy assertion to the read layer (packet)",
+      "updated_at": "2026-10-08T06:00:48Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "7c4b939aa501553b3489836933cb860412a60cc7"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2230",
+      "number": 2230,
+      "state": "open",
+      "title": "test(meri): repair the debrief ethical-wall replay fixture to the real CAS contract (packet)",
+      "updated_at": "2026-10-08T06:14:52Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d8e8d4f18d07a1d0ded47af2209fa0aca480aa2e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2229",
+      "number": 2229,
+      "state": "open",
+      "title": "fix(api): CPE office-type precedence over generic PEO (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T05:02:30Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "4b99f5c978466fb47f3a19429c6b5284c6faf52d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2228",
+      "number": 2228,
+      "state": "open",
+      "title": "test(api): repin workspace-assistant shared domain primer literal (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T05:01:30Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d9071d3ac5b865cff9805dcbf76764938c4753dc"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2227",
+      "number": 2227,
+      "state": "open",
+      "title": "test(api): repin phase26 retrieval registry literal (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T05:00:19Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "8ca4130d1921eafad163a9244638f99320724cdd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2226",
+      "number": 2226,
+      "state": "open",
+      "title": "test(api): repin CPF geography-repair reason expectations (CleanUp1 prerequisite)",
+      "updated_at": "2026-10-08T04:59:21Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "1cc207a711bbca8017088c2852ed01f90684a11f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2225",
+      "number": 2225,
+      "state": "open",
+      "title": "test(api): enable research-portfolio flag in the meri manifest-parity spec (prerequisite)",
+      "updated_at": "2026-10-08T03:58:32Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "e0b8ec8279246918c49adbc1f2daa4f9e7d9857b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2224",
+      "number": 2224,
+      "state": "open",
+      "title": "CleanUp1 scripts: validated staging and bounded audited execution",
+      "updated_at": "2026-10-08T19:16:31Z"
+    },
+    {
+      "base": {
+        "sha": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d15a04376eee4450700479ef12aac1c0060cb5ec"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2223",
+      "number": 2223,
+      "state": "open",
+      "title": "CleanUp1 visual: pinned Linux capture and source-bound route checks",
+      "updated_at": "2026-10-08T18:04:29Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "37cd1b83a051acfb94baa45f2e1ad4f7cce4f390"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2222",
+      "number": 2222,
+      "state": "open",
+      "title": "test(api): bind the ordinary-read authorization helpers in the RP retrieval mock",
+      "updated_at": "2026-10-08T02:45:59Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "30356f7e31e5f03059e4429fe594e09941e363b8"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2221",
+      "number": 2221,
+      "state": "open",
+      "title": "fix(api): run the memory-phase2 script contract specs under the CJS jest runner",
+      "updated_at": "2026-10-08T02:41:51Z"
+    },
+    {
+      "base": {
+        "sha": "4e43e4c3cb0deb644e78a49d2b43213f1fbb5ab9"
+      },
+      "draft": true,
+      "head": {
+        "sha": "76090d6192f875704c21c9a25954ffa88531c00f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2220",
+      "number": 2220,
+      "state": "open",
+      "title": "test(cleanup): enforce complete source and pinned visual evidence",
+      "updated_at": "2026-10-08T21:59:38Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "74f7a44843d788d5b74e21d185dd40a5ec6d799a"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2219",
+      "number": 2219,
+      "state": "open",
+      "title": "fix(defense-budget-parser): CleanUp1 Python baseline prerequisite (ruff/mypy/numpy dev dep)",
+      "updated_at": "2026-10-08T02:40:09Z"
+    },
+    {
+      "base": {
+        "sha": "4d5becd9f88d6459a25380aad8796eab107bc8ca"
+      },
+      "draft": true,
+      "head": {
+        "sha": "94eb3cd7fbe47acdcd87393e5c11e234ce2cd8e5"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2217",
+      "number": 2217,
+      "state": "open",
+      "title": "Add Workspace weekly newsletter builder and Outreach delivery",
+      "updated_at": "2026-10-08T03:11:16Z"
+    },
+    {
+      "base": {
+        "sha": "4d5becd9f88d6459a25380aad8796eab107bc8ca"
+      },
+      "draft": true,
+      "head": {
+        "sha": "55bd4c2c951024d0a828099630687c69def70ef9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2216",
+      "number": 2216,
+      "state": "open",
+      "title": "test(web): pin the PE profile pathname contract to lowercase\u2192uppercase normalization",
+      "updated_at": "2026-10-08T01:45:35Z"
+    },
+    {
+      "base": {
+        "sha": "4d5becd9f88d6459a25380aad8796eab107bc8ca"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b8eafa91cdcf67cd3d297da74ad30dfcb079248b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2215",
+      "number": 2215,
+      "state": "open",
+      "title": "fix(meriv2): refresh combined Meri tool catalog count to 139",
+      "updated_at": "2026-10-08T01:45:22Z"
+    },
+    {
+      "base": {
+        "sha": "4d5becd9f88d6459a25380aad8796eab107bc8ca"
+      },
+      "draft": true,
+      "head": {
+        "sha": "2095e997901a52687c7a50285cfcd68e5af66274"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2214",
+      "number": 2214,
+      "state": "open",
+      "title": "test(api): re-pin the ethical-wall fail-closed guards (prerequisite test repair)",
+      "updated_at": "2026-10-08T04:46:56Z"
+    },
+    {
+      "base": {
+        "sha": "649f9dfb5ee6230e03491606c6dfe8966ba36818"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b682e2aed6b196ecfa748870745ad25dafd18e3e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2212",
+      "number": 2212,
+      "state": "open",
+      "title": "PKT-2: reproducible source-derived duplicate inventory tooling (CleanUp2)",
+      "updated_at": "2026-10-08T10:22:24Z"
+    },
+    {
+      "base": {
+        "sha": "11b02a5312ebac7fbbe83d1d2f6efec07c67dd45"
+      },
+      "draft": true,
+      "head": {
+        "sha": "99375fe5efe619975c81a6073095c6e98d68bf96"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2211",
+      "number": 2211,
+      "state": "open",
+      "title": "CleanUp1 support: five-runner test preservation proof (dump + diff tooling)",
+      "updated_at": "2026-10-07T23:48:32Z"
+    },
+    {
+      "base": {
+        "sha": "d3d7d7b9edc73faf3fdb7b964ed0fb7b59fab96c"
+      },
+      "draft": true,
+      "head": {
+        "sha": "96b6dda036db9c85dcadb37f450ed5514d07c266"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2161",
+      "number": 2161,
+      "state": "open",
+      "title": "Fix X dashboard outage handling and depleted-credit disclosure",
+      "updated_at": "2026-10-07T01:55:14Z"
+    },
+    {
+      "base": {
+        "sha": "2b529f026e581803eb66ca75acb6b85cbe085553"
+      },
+      "draft": false,
+      "head": {
+        "sha": "034a306cc08070dd9c59ce97019778d03bbb6479"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2035",
+      "number": 2035,
+      "state": "open",
+      "title": "Meri Stage 1 \u00a74.3: delete the V1 chat loop and the MeriV2 chat client from apps/api",
+      "updated_at": "2026-10-05T22:41:32Z"
+    },
+    {
+      "base": {
+        "sha": "5231b9a48263540471cef6704b778416c8107455"
+      },
+      "draft": false,
+      "head": {
+        "sha": "bbab4d2b8a64ae439790c4a7c5d5c526deb6474c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/2032",
+      "number": 2032,
+      "state": "open",
+      "title": "Meri Stage 1 \u00a74.3: delete the MeriV2 orchestrator /chat loop (move V3 shared contract)",
+      "updated_at": "2026-10-06T23:31:30Z"
+    },
+    {
+      "base": {
+        "sha": "4964bc0530b6d0d1c98d16a7d18471c79e5692dd"
+      },
+      "draft": false,
+      "head": {
+        "sha": "d1fd02f03fe1120fd5edc180de4e4ba0ad409c84"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1755",
+      "number": 1755,
+      "state": "open",
+      "title": "fix(outreach): personal notes reach drafts; Improve keeps campaign context",
+      "updated_at": "2026-09-23T20:54:17Z"
+    },
+    {
+      "base": {
+        "sha": "dc591b07d84f1ed34332cf4577c893236fb5dc0e"
+      },
+      "draft": false,
+      "head": {
+        "sha": "2119207c8ef0ccb3148f71ff5acd50387f33bd74"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1754",
+      "number": 1754,
+      "state": "open",
+      "title": "feat(ios): implement Meri Phase 2 chat client",
+      "updated_at": "2026-09-24T02:20:29Z"
+    },
+    {
+      "base": {
+        "sha": "e070ef0127ca424df7bdd914155bb5f06dace6db"
+      },
+      "draft": false,
+      "head": {
+        "sha": "6e3f25a31a49fea30908ed2cb1932cf4fa5f7d4b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1740",
+      "number": 1740,
+      "state": "open",
+      "title": "build(deps-dev): bump @nestjs/testing from 10.4.22 to 12.0.3",
+      "updated_at": "2026-09-21T10:52:48Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "a5715731bfd6ade1dfea6d8df202caa99cad0f38"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1739",
+      "number": 1739,
+      "state": "open",
+      "title": "build(deps-dev): bump @types/node from 20.19.39 to 26.6.3",
+      "updated_at": "2026-09-30T18:57:05Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "b76258ff6455f4371fc45fdda9d9645be4bcba02"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1738",
+      "number": 1738,
+      "state": "open",
+      "title": "build(deps-dev): bump lighthouse from 12.8.2 to 13.5.0",
+      "updated_at": "2026-09-30T18:57:04Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "6403687599ad223600a34ad246e645096e27204b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1737",
+      "number": 1737,
+      "state": "open",
+      "title": "build(deps): bump @nestjs/config from 3.3.0 to 12.0.1",
+      "updated_at": "2026-09-30T18:57:03Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "21b4037f145b00a6a3cc70cba37abebeca82f07d"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1736",
+      "number": 1736,
+      "state": "open",
+      "title": "build(deps): bump antd from 5.29.3 to 6.6.5",
+      "updated_at": "2026-09-30T18:57:03Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "96d98be7af236514981ca2c6f52842957807cc00"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1735",
+      "number": 1735,
+      "state": "open",
+      "title": "build(deps): bump react-markdown from 9.1.0 to 10.1.0",
+      "updated_at": "2026-09-30T18:57:01Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "42e3935d8816b417b6008a4e5394be52bba67502"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1733",
+      "number": 1733,
+      "state": "open",
+      "title": "build(deps): bump docker/build-push-action from 6 to 7",
+      "updated_at": "2026-09-30T17:45:02Z"
+    },
+    {
+      "base": {
+        "sha": "e070ef0127ca424df7bdd914155bb5f06dace6db"
+      },
+      "draft": false,
+      "head": {
+        "sha": "0d5b472250dcc94312f89e9d8762f23f32887f39"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1732",
+      "number": 1732,
+      "state": "open",
+      "title": "build(deps): bump actions/setup-python from 5 to 7",
+      "updated_at": "2026-09-21T10:15:47Z"
+    },
+    {
+      "base": {
+        "sha": "fc8133d50a41d10f5549f1cf7f73787ffc7e4965"
+      },
+      "draft": false,
+      "head": {
+        "sha": "933a75fcab2a2a3a3a22e52571086a0b58096e7b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1731",
+      "number": 1731,
+      "state": "open",
+      "title": "build(deps): bump aws-actions/configure-aws-credentials from 4 to 6",
+      "updated_at": "2026-09-30T17:45:05Z"
+    },
+    {
+      "base": {
+        "sha": "c32b4a1731a6db5604d5a09cb003758ef5bf952b"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ceeb1bd87ff8f644fe43949a98e4921a2cecc48e"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1703",
+      "number": 1703,
+      "state": "open",
+      "title": "fix(defense-budget): harden approval-replacement orchestrator (PR #1680 follow-up)",
+      "updated_at": "2026-09-19T10:23:37Z"
+    },
+    {
+      "base": {
+        "sha": "70f5fe8a9f2b8287b0cd7f2c3f8d242a1d32861d"
+      },
+      "draft": true,
+      "head": {
+        "sha": "863e1ddf94266220cffb1dadeeaa22359ee4fa2b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1605",
+      "number": 1605,
+      "state": "open",
+      "title": "feat(workspace): edit the first page of Hill Day schedules",
+      "updated_at": "2026-09-11T17:55:06Z"
+    },
+    {
+      "base": {
+        "sha": "4adc8893b6bfa1cb5690722868efbfc30ebf8499"
+      },
+      "draft": false,
+      "head": {
+        "sha": "8a2ce49024063a6c5093ed55a40a009af3a035d4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1596",
+      "number": 1596,
+      "state": "open",
+      "title": "fix: client set-aside save error + funding priority length 120->1000",
+      "updated_at": "2026-09-10T21:12:48Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d762fa6c5187c5882a64547e206d14f5fe633ef0"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1534",
+      "number": 1534,
+      "state": "open",
+      "title": "docs(defense-budget): Phase 10B-32 release report + deferred canary packet",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "cc714ce83c8a834f71fac377d63a5833aec6a4bd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1483",
+      "number": 1483,
+      "state": "open",
+      "title": "fix(web): surface errors and pending state when saving default X accounts",
+      "updated_at": "2026-09-09T02:34:32Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "91e29b2d0c697c7db85816ad5b08a7013ea99bcd"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1469",
+      "number": 1469,
+      "state": "open",
+      "title": "feat(legiwatch): build V2 Wave 1 backend",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "26159120e649be3f449352deec409e4a9fcc4796"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1438",
+      "number": 1438,
+      "state": "open",
+      "title": "feat(defense-budget): govern acceptance of review-only R-2 evidence",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "7dc4e32fa275861124e44859f6b78d1f9235daad"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1403",
+      "number": 1403,
+      "state": "open",
+      "title": "Stack Opportunities and Relevant budget programs vertically",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "63eebb6ca952131f00715dad2644d183be4e8fbe"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1336",
+      "number": 1336,
+      "state": "open",
+      "title": "fix(wire): honor news lookback and populate intel article taxonomy",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "c258f441f9891d93851010e3e67a49243a707b9c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1317",
+      "number": 1317,
+      "state": "open",
+      "title": "fix(meri): humanize raw context degraded-reason codes in the CONTEXT tab",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "99ca2d701f2173e45f8c5076f80ff7c2901c0766"
+      },
+      "draft": true,
+      "head": {
+        "sha": "6b97c7230ae74afef1235813fb17fe21a2fcd023"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1170",
+      "number": 1170,
+      "state": "open",
+      "title": "LegiWatch Live Hearings: use the complete committee registry",
+      "updated_at": "2026-08-21T21:52:30Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "99ca2d701f2173e45f8c5076f80ff7c2901c0766"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1167",
+      "number": 1167,
+      "state": "open",
+      "title": "LegiWatch Live Hearings: pixel-parity UI + structural gap closure",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "cb93e236a591a629ba98d3625df9ae10160d63d4"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/1035",
+      "number": 1035,
+      "state": "open",
+      "title": "Phase 8 Session 4: dark Phase 1\u20137 runtime boundary + FY27 dual-path replay",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "118cfe2d95fefc28b73c424677fd0ddd80cbdadf"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/987",
+      "number": 987,
+      "state": "open",
+      "title": "fix(workspace): finish durable Max intake, generation, editor and deployment",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "4c2ffa6595ac66978a4f640c2b435f4d15dbdef1"
+      },
+      "draft": false,
+      "head": {
+        "sha": "a339d571173ca9f281162398df3504004d16c744"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/963",
+      "number": 963,
+      "state": "open",
+      "title": "restack(vnext): Engagement UI foundation onto Outreach V3 integration",
+      "updated_at": "2026-08-15T14:23:34Z"
+    },
+    {
+      "base": {
+        "sha": "4c2ffa6595ac66978a4f640c2b435f4d15dbdef1"
+      },
+      "draft": false,
+      "head": {
+        "sha": "b22bd5c8a21138a46ca30bb81c3973b7dbf55b4c"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/962",
+      "number": 962,
+      "state": "open",
+      "title": "restack(outreach-v3): governed generation onto accepted Phase 4\u20136 head",
+      "updated_at": "2026-09-09T02:35:58Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "83214af2854230d321ed2fd51f7b10dd4b1b5f55"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/898",
+      "number": 898,
+      "state": "open",
+      "title": "infra: add isolated web-vnext Fargate service for os.capiro.ai",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "835cdef35cd8ecb23faf1b100ecfc743bcd31128"
+      },
+      "draft": true,
+      "head": {
+        "sha": "ab45f984f33f56da7ad2ab9dbbaae6cab831fbda"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/891",
+      "number": 891,
+      "state": "open",
+      "title": "feat(outreach-v3): Phase 6 conversational planning UI",
+      "updated_at": "2026-08-10T14:52:26Z"
+    },
+    {
+      "base": {
+        "sha": "208dae611d9f5636f3b7507f8782ff7cc864c4ed"
+      },
+      "draft": true,
+      "head": {
+        "sha": "835cdef35cd8ecb23faf1b100ecfc743bcd31128"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/890",
+      "number": 890,
+      "state": "open",
+      "title": "feat(outreach-v3): Phase 5 governed context and strategy",
+      "updated_at": "2026-08-09T19:40:57Z"
+    },
+    {
+      "base": {
+        "sha": "b043a995928314f7085b7f9df94bdba02cee9640"
+      },
+      "draft": true,
+      "head": {
+        "sha": "208dae611d9f5636f3b7507f8782ff7cc864c4ed"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/883",
+      "number": 883,
+      "state": "open",
+      "title": "feat(outreach-v3): Phase 4 target intelligence and canonical selection",
+      "updated_at": "2026-08-09T06:36:44Z"
+    },
+    {
+      "base": {
+        "sha": "89b0a8e08e1cfcc7210a8684335faf6f8405bdf2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b043a995928314f7085b7f9df94bdba02cee9640"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/881",
+      "number": 881,
+      "state": "open",
+      "title": "feat(outreach-v3): Revised Phase 3 thin reasoning gateway",
+      "updated_at": "2026-08-09T04:02:57Z"
+    },
+    {
+      "base": {
+        "sha": "cf0aa80d8d16fbd1e775fc054e8de34570535e23"
+      },
+      "draft": true,
+      "head": {
+        "sha": "89b0a8e08e1cfcc7210a8684335faf6f8405bdf2"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/862",
+      "number": 862,
+      "state": "open",
+      "title": "feat(outreach-v3): Revised Phase 2 campaign state command engine",
+      "updated_at": "2026-08-09T00:38:50Z"
+    },
+    {
+      "base": {
+        "sha": "5d2c72ceaf6c546720953cbc41d6e3e2934018ca"
+      },
+      "draft": false,
+      "head": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/832",
+      "number": 832,
+      "state": "open",
+      "title": "chore: update Tango shared-consumers branch from main",
+      "updated_at": "2026-10-11T18:14:03Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "5d2c72ceaf6c546720953cbc41d6e3e2934018ca"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/831",
+      "number": 831,
+      "state": "open",
+      "title": "feat(federal-market): share Tango intelligence across District Nexus, spending, and Meriv3",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b0dd1d47892d2cf5b7054b2cec9abb9106185ada"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/728",
+      "number": 728,
+      "state": "open",
+      "title": "feat(legiwatch): V3 Phase 0 \u2014 foundation flags, CI migration replay, ops contract",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "225c56398e954b6fb649dc5f7bb3bf994df90abe"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/724",
+      "number": 724,
+      "state": "open",
+      "title": "MeriV2 Phase 10 clean-history exact-tree validation (do not merge)",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "3e06995b35c2cac5415e28e82f8f7ef525ebc7c7"
+      },
+      "draft": true,
+      "head": {
+        "sha": "d2f988ba068999d2d600ed7baf2c3799b0a22e1b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/674",
+      "number": 674,
+      "state": "open",
+      "title": "feat(meri): Phase 4 government-affairs assurance and eval gates",
+      "updated_at": "2026-07-29T02:28:43Z"
+    },
+    {
+      "base": {
+        "sha": "0e3dbe34385e8d368e2cadedf5a0788083389d10"
+      },
+      "draft": true,
+      "head": {
+        "sha": "3e06995b35c2cac5415e28e82f8f7ef525ebc7c7"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/673",
+      "number": 673,
+      "state": "open",
+      "title": "MeriV2 Phase 3 \u2014 institutional memory governance / Context Packet v2 (independent closeout)",
+      "updated_at": "2026-07-29T00:46:32Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": true,
+      "head": {
+        "sha": "0e3dbe34385e8d368e2cadedf5a0788083389d10"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/664",
+      "number": 664,
+      "state": "open",
+      "title": "feat(meri): Phase 2 trust UX and generation reliability",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "54b5d5c48040ea88a8a3597e90a7e7b855098ae3"
+      },
+      "draft": false,
+      "head": {
+        "sha": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/662",
+      "number": 662,
+      "state": "open",
+      "title": "chore: sync main into hearing hardening branch",
+      "updated_at": "2026-10-11T18:14:03Z"
+    },
+    {
+      "base": {
+        "sha": "37d571e41d7186832ca656939fd6560121e2e1cf"
+      },
+      "draft": true,
+      "head": {
+        "sha": "b34eb70ac7cd8e9d9e0a547c588a99413adf4777"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/645",
+      "number": 645,
+      "state": "open",
+      "title": "MeriV2 Phase 1 (orchestrator only): effective request context, runtime schemas, chat budgets \u2014 needs proposal-ID re-integration",
+      "updated_at": "2026-07-28T19:11:20Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "34758a9a0bd2ecc0e8af1794170dcc609277562b"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/584",
+      "number": 584,
+      "state": "open",
+      "title": "build(api): typecheck apps/api/scripts in CI",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "3bade6a5337323b015bfaf0835260d8bd5882efb"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/550",
+      "number": 550,
+      "state": "open",
+      "title": "chore(deps-dev): bump vite from 5.4.21 to 8.1.5",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "7d3c7408b2c9a8dd13b6a5c14f030fe510ca1a3f"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/545",
+      "number": 545,
+      "state": "open",
+      "title": "chore(deps): bump pnpm/action-setup from 4 to 6",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "bb6043785a29af4bf6e24ef34667aff581344ae6"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/544",
+      "number": 544,
+      "state": "open",
+      "title": "chore(deps): bump actions/checkout from 4 to 7",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "211086cda2af35505687287f5d0fc5fdce4c0bb6"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/504",
+      "number": 504,
+      "state": "open",
+      "title": "chore(meriv2): formalize codex/meriv2-pr1 (PR1 containment + service boundary) for review",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "c0cb277355690f66313299c04d90fa722f681de2"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/375",
+      "number": 375,
+      "state": "open",
+      "title": "docs(state): comprehensive state-legislation platform plan",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "00754d4d013e8fbf2e0ffcec9bca2a0f97f37d73"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/61",
+      "number": 61,
+      "state": "open",
+      "title": "Workspace: kanban Workflows board + delete workflows & strategies",
+      "updated_at": "2026-09-09T02:34:33Z"
+    },
+    {
+      "base": {
+        "sha": "0a06b9b64158b351ed29c158b504a21d3179a3f1"
+      },
+      "draft": false,
+      "head": {
+        "sha": "02a002d2d6664dca12005c7c8ce35d0031769501"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/13",
+      "number": 13,
+      "state": "open",
+      "title": "feat(clients): company-info create wizard + Overview + bulk import",
+      "updated_at": "2026-06-02T02:49:09Z"
+    },
+    {
+      "base": {
+        "sha": "0f8897c14bc40b9a658276c993a67bc800ed0df2"
+      },
+      "draft": false,
+      "head": {
+        "sha": "a59fc1da39f9044be43f7e9ad986a9c1618689b9"
+      },
+      "html_url": "https://github.com/neo-capiro/capirov2/pull/12",
+      "number": 12,
+      "state": "open",
+      "title": "chore(infra): correct AWS account for GHA image builds",
+      "updated_at": "2026-09-09T02:34:33Z"
+    }
+  ]
+}

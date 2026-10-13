@@ -1,0 +1,813 @@
+{
+  "source_head": "b9da0ae2938821e08a3bfea563c6267608ae9909",
+  "records": [
+    {
+      "path": "infra/iam/github-oidc/trust-proddeploy.json",
+      "blob": "9ebe83b6491107c1f0d3f92fa251dc24beff8d87",
+      "selected_literal_references": [
+        "repo:neo-capiro/capirov2:environment:production"
+      ]
+    },
+    {
+      "path": "infra/iam/github-oidc/trust-readonly.json",
+      "blob": "bfc55a954445a38b99b0e3ca47fb17fbd51daa4c",
+      "selected_literal_references": [
+        "repo:neo-capiro/capirov2:*"
+      ]
+    },
+    {
+      "path": "infra/deploy/codebuild-intel-api.json",
+      "blob": "0576e475ea5004472349ab739a7ddbc391a7ca80",
+      "selected_literal_references": [
+        "capiro/dev/intel-api",
+        "https://github.com/neo-capiro/capirov2.git"
+      ],
+      "repository_url": "https://github.com/neo-capiro/capirov2.git",
+      "source_version": "feat/intel-api-live-hearing",
+      "build_context_coupling": "monorepo root Docker context; exact apps/<service>/Dockerfile"
+    },
+    {
+      "path": "infra/deploy/codebuild-intel-api-prod.json",
+      "blob": "243e7007d0e89316168eb547790e311b9df68ac5",
+      "selected_literal_references": [
+        "capiro/prod-os-capiro/intel-api",
+        "https://github.com/neo-capiro/capirov2.git"
+      ],
+      "repository_url": "https://github.com/neo-capiro/capirov2.git",
+      "source_version": "feat/intel-api-live-hearing",
+      "build_context_coupling": "monorepo root Docker context; exact apps/<service>/Dockerfile"
+    },
+    {
+      "path": "infra/deploy/codebuild-web-dev.json",
+      "blob": "7bb13d41248febeef3d6ccd995d856f773855d59",
+      "selected_literal_references": [
+        "capiro/dev/web",
+        "https://github.com/neo-capiro/capirov2.git"
+      ],
+      "repository_url": "https://github.com/neo-capiro/capirov2.git",
+      "source_version": "main",
+      "build_context_coupling": "monorepo root Docker context; exact apps/<service>/Dockerfile"
+    },
+    {
+      "path": "infra/cdk/lib/config.ts",
+      "blob": "4028db5fd43b46bfba9db6e69f4975ba0d10feaa",
+      "selected_literal_references": [
+        "capiro/dev/GOOGLE_CLIENT_ID",
+        "capiro/dev/GOOGLE_CLIENT_ID-Y59j1r",
+        "capiro/dev/GOOGLE_CLIENT_SECRET-EBWpbt",
+        "capiro/dev/ai-credential-encryption-key-ohnjaH",
+        "capiro/dev/anthropic-api-key-3nhKhF",
+        "capiro/dev/microsoft-cert-private-key-rW9ERB",
+        "capiro/dev/microsoft-cert-thumbprint-gJsG0v",
+        "capiro/dev/microsoft-client-id-AU8xuO",
+        "capiro/dev/microsoft-tenant-id-cC9TIB",
+        "capiro/dev/notes-encryption-key-Vf2rhI",
+        "capiro/dev/oauth-state-secret-XOOzYB",
+        "capiro/dev/oauth-token-encryption-key-VQCjD8",
+        "capiro/dev/openai-api-key-7nAmib",
+        "capiro/dev/recall-api-key-WDNzEP",
+        "capiro/dev/recall-webhook-secret-FxKv9v",
+        "capiro/dev/sam-gov-api-key-0gcMpp",
+        "capiro/dev/tango-api-key"
+      ]
+    },
+    {
+      "path": "infra/cdk/lib/compute-stack.ts",
+      "blob": "53342a3c988be078f1b081501da939366e332652",
+      "selected_literal_references": [
+        "capiro/${cfg.envName}/GOOGLE_CLIENT_ID",
+        "capiro/${cfg.envName}/GOOGLE_CLIENT_SECRET",
+        "capiro/${cfg.envName}/ai-credential-encryption-key",
+        "capiro/${cfg.envName}/anthropic-api-key",
+        "capiro/${cfg.envName}/api",
+        "capiro/${cfg.envName}/api-embed-backfill",
+        "capiro/${cfg.envName}/api-migrate",
+        "capiro/${cfg.envName}/api-promoter",
+        "capiro/${cfg.envName}/api-strategy",
+        "capiro/${cfg.envName}/api-strategy-migrate",
+        "capiro/${cfg.envName}/api-sync-jobs",
+        "capiro/${cfg.envName}/census_api_key",
+        "capiro/${cfg.envName}/govinfo_api_key",
+        "capiro/${cfg.envName}/legiscan_api_key",
+        "capiro/${cfg.envName}/legistorm-api-key",
+        "capiro/${cfg.envName}/marketing",
+        "capiro/${cfg.envName}/meriv2-orchestrator",
+        "capiro/${cfg.envName}/microsoft-cert-private-key",
+        "capiro/${cfg.envName}/microsoft-cert-thumbprint",
+        "capiro/${cfg.envName}/microsoft-client-id",
+        "capiro/${cfg.envName}/microsoft-tenant-id",
+        "capiro/${cfg.envName}/notes-encryption-key",
+        "capiro/${cfg.envName}/oauth-state-secret",
+        "capiro/${cfg.envName}/oauth-token-encryption-key",
+        "capiro/${cfg.envName}/openai-api-key",
+        "capiro/${cfg.envName}/recall-api-key",
+        "capiro/${cfg.envName}/recall-webhook-secret",
+        "capiro/${cfg.envName}/sam-gov-api-key",
+        "capiro/${cfg.envName}/tango-webhook-secret",
+        "capiro/${cfg.envName}/typesafe-api-key",
+        "capiro/${cfg.envName}/web",
+        "capiro/${cfg.envName}/workspace",
+        "capiro/${cfg.envName}/workspace-migrate"
+      ]
+    },
+    {
+      "path": ".github/workflows/oidc-verify.yml",
+      "blob": "3c35ad8d9d91e07f5130945f47562c28a470f34f",
+      "selected_literal_references": [
+        "AWS_PROD_GHA_ROLE_ARN",
+        "AWS_READONLY_GHA_ROLE_ARN",
+        "capiro/dev/anthropic-api-key",
+        "capiro/dev/aurora",
+        "capiro/dev/deploy",
+        "repo:neo-capiro/capirov2:environment:production"
+      ]
+    },
+    {
+      "path": "package.json",
+      "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102",
+      "selected_literal_references": [],
+      "script_references_to_frontend": [
+        "typecheck:backend",
+        "typecheck:frontend",
+        "validate:knowledge-plane:phase26:frontend",
+        "verify:engagement-phase-1",
+        "verify:engagement-phase-1:frontend",
+        "verify:engagement-phase-2:frontend",
+        "verify:engagement-phase-3:frontend",
+        "verify:outreach-v3-phase-1:frontend",
+        "verify:outreach-v3-phase-3:frontend",
+        "verify:outreach-v3-phase-4:frontend"
+      ]
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "blob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5",
+      "selected_literal_references": []
+    },
+    {
+      "path": "turbo.json",
+      "blob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf",
+      "selected_literal_references": []
+    },
+    {
+      "path": ".dockerignore",
+      "blob": "ed20b648bdc2849a9d83d255138c90b4b467349f",
+      "selected_literal_references": []
+    },
+    {
+      "path": "apps/api/Dockerfile",
+      "blob": "dcbb443eeccc9ad4adef2899ed1e4552d6d065af",
+      "root_context_COPY_references": [
+        {
+          "line": 36,
+          "text": "COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./"
+        },
+        {
+          "line": 37,
+          "text": "COPY apps/api/package.json apps/api/package.json"
+        },
+        {
+          "line": 38,
+          "text": "COPY packages/shared/package.json packages/shared/package.json"
+        },
+        {
+          "line": 39,
+          "text": "COPY packages/meriv2-core/package.json packages/meriv2-core/package.json"
+        },
+        {
+          "line": 40,
+          "text": "COPY packages/defense-contracts/package.json packages/defense-contracts/package.json"
+        },
+        {
+          "line": 41,
+          "text": "COPY packages/defense-domain/package.json packages/defense-domain/package.json"
+        },
+        {
+          "line": 45,
+          "text": "COPY packages/shared/src packages/shared/src"
+        },
+        {
+          "line": 46,
+          "text": "COPY packages/shared/tsconfig.json packages/shared/tsconfig.json"
+        },
+        {
+          "line": 47,
+          "text": "COPY packages/meriv2-core/src packages/meriv2-core/src"
+        },
+        {
+          "line": 48,
+          "text": "COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json"
+        },
+        {
+          "line": 49,
+          "text": "COPY packages/defense-contracts/src packages/defense-contracts/src"
+        },
+        {
+          "line": 50,
+          "text": "COPY packages/defense-contracts/tsconfig.json packages/defense-contracts/tsconfig.json"
+        },
+        {
+          "line": 51,
+          "text": "COPY packages/defense-domain/src packages/defense-domain/src"
+        },
+        {
+          "line": 52,
+          "text": "COPY packages/defense-domain/tsconfig.json packages/defense-domain/tsconfig.json"
+        },
+        {
+          "line": 53,
+          "text": "COPY apps/api/src apps/api/src"
+        },
+        {
+          "line": 54,
+          "text": "COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/"
+        },
+        {
+          "line": 55,
+          "text": "COPY apps/api/prisma apps/api/prisma"
+        },
+        {
+          "line": 56,
+          "text": "COPY apps/api/scripts apps/api/scripts"
+        },
+        {
+          "line": 57,
+          "text": "COPY apps/api/data apps/api/data"
+        },
+        {
+          "line": 100,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules"
+        },
+        {
+          "line": 101,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist"
+        },
+        {
+          "line": 102,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json"
+        },
+        {
+          "line": 103,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist"
+        },
+        {
+          "line": 104,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json"
+        },
+        {
+          "line": 110,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules"
+        },
+        {
+          "line": 111,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist"
+        },
+        {
+          "line": 112,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json"
+        },
+        {
+          "line": 113,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist"
+        },
+        {
+          "line": 114,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json"
+        },
+        {
+          "line": 117,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules"
+        },
+        {
+          "line": 118,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist"
+        },
+        {
+          "line": 119,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules"
+        },
+        {
+          "line": 120,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma"
+        },
+        {
+          "line": 121,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data"
+        },
+        {
+          "line": 122,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json"
+        },
+        {
+          "line": 127,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/scripts /app/apps/api/scripts"
+        },
+        {
+          "line": 128,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/src"
+        },
+        {
+          "line": 134,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json"
+        },
+        {
+          "line": 135,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api/tsconfig.json /app/apps/api/tsconfig.json"
+        },
+        {
+          "line": 139,
+          "text": "COPY --chown=capiro:capiro apps/api/scripts/entrypoint-legacy.sh /usr/local/lib/capiro/entrypoint-legacy.sh"
+        },
+        {
+          "line": 140,
+          "text": "COPY --chown=capiro:capiro apps/api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh"
+        }
+      ]
+    },
+    {
+      "path": "apps/workspace/Dockerfile",
+      "blob": "095eda0b4c260c22a7aa6043817f1470fbfb4734",
+      "root_context_COPY_references": [
+        {
+          "line": 36,
+          "text": "COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./"
+        },
+        {
+          "line": 37,
+          "text": "COPY apps/workspace/package.json apps/workspace/package.json"
+        },
+        {
+          "line": 38,
+          "text": "COPY packages/auth/package.json packages/auth/package.json"
+        },
+        {
+          "line": 39,
+          "text": "COPY packages/shared/package.json packages/shared/package.json"
+        },
+        {
+          "line": 43,
+          "text": "COPY packages/meriv2-core/package.json packages/meriv2-core/package.json"
+        },
+        {
+          "line": 47,
+          "text": "COPY packages/shared/src packages/shared/src"
+        },
+        {
+          "line": 48,
+          "text": "COPY packages/shared/tsconfig.json packages/shared/tsconfig.json"
+        },
+        {
+          "line": 49,
+          "text": "COPY packages/auth/src packages/auth/src"
+        },
+        {
+          "line": 50,
+          "text": "COPY packages/auth/tsconfig.json packages/auth/tsconfig.json"
+        },
+        {
+          "line": 51,
+          "text": "COPY packages/meriv2-core/src packages/meriv2-core/src"
+        },
+        {
+          "line": 52,
+          "text": "COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json"
+        },
+        {
+          "line": 53,
+          "text": "COPY apps/workspace/src apps/workspace/src"
+        },
+        {
+          "line": 54,
+          "text": "COPY apps/workspace/prisma apps/workspace/prisma"
+        },
+        {
+          "line": 55,
+          "text": "COPY apps/workspace/tsconfig.json apps/workspace/tsconfig.build.json apps/workspace/nest-cli.json apps/workspace/"
+        },
+        {
+          "line": 87,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules"
+        },
+        {
+          "line": 88,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist"
+        },
+        {
+          "line": 89,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json"
+        },
+        {
+          "line": 95,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist"
+        },
+        {
+          "line": 96,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json"
+        },
+        {
+          "line": 97,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules"
+        },
+        {
+          "line": 104,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist"
+        },
+        {
+          "line": 105,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json"
+        },
+        {
+          "line": 106,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules"
+        },
+        {
+          "line": 107,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/dist /app/apps/workspace/dist"
+        },
+        {
+          "line": 108,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/node_modules /app/apps/workspace/node_modules"
+        },
+        {
+          "line": 109,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/package.json /app/apps/workspace/package.json"
+        },
+        {
+          "line": 112,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/generated /app/apps/workspace/generated"
+        },
+        {
+          "line": 113,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/prisma /app/apps/workspace/prisma"
+        },
+        {
+          "line": 114,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json"
+        },
+        {
+          "line": 115,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/tsconfig.json /app/apps/workspace/tsconfig.json"
+        },
+        {
+          "line": 116,
+          "text": "COPY --chown=capiro:capiro apps/workspace/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh"
+        }
+      ]
+    },
+    {
+      "path": "apps/api-strategy/Dockerfile",
+      "blob": "317fdeb1d486b1b835d8205b4830f10948d622d2",
+      "root_context_COPY_references": [
+        {
+          "line": 31,
+          "text": "COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./"
+        },
+        {
+          "line": 32,
+          "text": "COPY apps/api-strategy/package.json apps/api-strategy/package.json"
+        },
+        {
+          "line": 33,
+          "text": "COPY packages/auth/package.json packages/auth/package.json"
+        },
+        {
+          "line": 34,
+          "text": "COPY packages/shared/package.json packages/shared/package.json"
+        },
+        {
+          "line": 35,
+          "text": "COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json"
+        },
+        {
+          "line": 39,
+          "text": "COPY packages/auth/src packages/auth/src"
+        },
+        {
+          "line": 40,
+          "text": "COPY packages/auth/tsconfig.json packages/auth/tsconfig.json"
+        },
+        {
+          "line": 41,
+          "text": "COPY packages/shared/src packages/shared/src"
+        },
+        {
+          "line": 42,
+          "text": "COPY packages/shared/tsconfig.json packages/shared/tsconfig.json"
+        },
+        {
+          "line": 43,
+          "text": "COPY packages/strategy-verifier/src packages/strategy-verifier/src"
+        },
+        {
+          "line": 44,
+          "text": "COPY packages/strategy-verifier/tsconfig.json packages/strategy-verifier/tsconfig.json"
+        },
+        {
+          "line": 45,
+          "text": "COPY apps/api-strategy/src apps/api-strategy/src"
+        },
+        {
+          "line": 46,
+          "text": "COPY apps/api-strategy/prisma apps/api-strategy/prisma"
+        },
+        {
+          "line": 47,
+          "text": "COPY apps/api-strategy/tsconfig.json apps/api-strategy/tsconfig.build.json apps/api-strategy/nest-cli.json apps/api-strategy/"
+        },
+        {
+          "line": 81,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules"
+        },
+        {
+          "line": 87,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist"
+        },
+        {
+          "line": 88,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json"
+        },
+        {
+          "line": 89,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules"
+        },
+        {
+          "line": 90,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist"
+        },
+        {
+          "line": 91,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json"
+        },
+        {
+          "line": 93,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/dist /app/packages/strategy-verifier/dist"
+        },
+        {
+          "line": 94,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/package.json /app/packages/strategy-verifier/package.json"
+        },
+        {
+          "line": 95,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/dist /app/apps/api-strategy/dist"
+        },
+        {
+          "line": 96,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/node_modules /app/apps/api-strategy/node_modules"
+        },
+        {
+          "line": 97,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/package.json /app/apps/api-strategy/package.json"
+        },
+        {
+          "line": 100,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/generated /app/apps/api-strategy/generated"
+        },
+        {
+          "line": 101,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/prisma /app/apps/api-strategy/prisma"
+        },
+        {
+          "line": 102,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json"
+        },
+        {
+          "line": 103,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/tsconfig.json /app/apps/api-strategy/tsconfig.json"
+        },
+        {
+          "line": 104,
+          "text": "COPY --chown=capiro:capiro apps/api-strategy/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh"
+        }
+      ]
+    },
+    {
+      "path": "apps/intel-api/Dockerfile",
+      "blob": "0b06a5ed6c3b18de7862a730db9def840be61e82",
+      "root_context_COPY_references": [
+        {
+          "line": 34,
+          "text": "COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./"
+        },
+        {
+          "line": 35,
+          "text": "COPY apps/intel-api/package.json apps/intel-api/package.json"
+        },
+        {
+          "line": 36,
+          "text": "COPY packages/shared/package.json packages/shared/package.json"
+        },
+        {
+          "line": 37,
+          "text": "COPY packages/meriv2-core/package.json packages/meriv2-core/package.json"
+        },
+        {
+          "line": 41,
+          "text": "COPY packages/shared/src packages/shared/src"
+        },
+        {
+          "line": 42,
+          "text": "COPY packages/shared/tsconfig.json packages/shared/tsconfig.json"
+        },
+        {
+          "line": 43,
+          "text": "COPY packages/meriv2-core/src packages/meriv2-core/src"
+        },
+        {
+          "line": 44,
+          "text": "COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json"
+        },
+        {
+          "line": 45,
+          "text": "COPY apps/intel-api/src apps/intel-api/src"
+        },
+        {
+          "line": 46,
+          "text": "COPY apps/intel-api/prisma apps/intel-api/prisma"
+        },
+        {
+          "line": 47,
+          "text": "COPY apps/intel-api/tsconfig.json apps/intel-api/tsconfig.build.json apps/intel-api/nest-cli.json apps/intel-api/"
+        },
+        {
+          "line": 76,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules"
+        },
+        {
+          "line": 77,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist"
+        },
+        {
+          "line": 78,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json"
+        },
+        {
+          "line": 79,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist"
+        },
+        {
+          "line": 80,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json"
+        },
+        {
+          "line": 81,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules"
+        },
+        {
+          "line": 82,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/dist /app/apps/intel-api/dist"
+        },
+        {
+          "line": 83,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/node_modules /app/apps/intel-api/node_modules"
+        },
+        {
+          "line": 84,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/package.json /app/apps/intel-api/package.json"
+        },
+        {
+          "line": 85,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/generated /app/apps/intel-api/generated"
+        },
+        {
+          "line": 86,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/prisma /app/apps/intel-api/prisma"
+        },
+        {
+          "line": 87,
+          "text": "COPY --chown=capiro:capiro apps/intel-api/scripts/legiwatch-import.mjs apps/intel-api/scripts/legiwatch-import-apply.mjs apps/intel-api/scripts/legiwatch-evidence.mjs /app/apps/intel-api/scripts/"
+        },
+        {
+          "line": 88,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json"
+        },
+        {
+          "line": 89,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/tsconfig.json /app/apps/intel-api/tsconfig.json"
+        },
+        {
+          "line": 90,
+          "text": "COPY --chown=capiro:capiro apps/intel-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh"
+        }
+      ]
+    },
+    {
+      "path": "apps/onboard-api/Dockerfile",
+      "blob": "38c18bdfdaa83a5d5a9665e2ec93cb7aaa0544b2",
+      "root_context_COPY_references": [
+        {
+          "line": 33,
+          "text": "COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./"
+        },
+        {
+          "line": 34,
+          "text": "COPY apps/onboard-api/package.json apps/onboard-api/package.json"
+        },
+        {
+          "line": 35,
+          "text": "COPY apps/onboard-web/package.json apps/onboard-web/package.json"
+        },
+        {
+          "line": 36,
+          "text": "COPY packages/shared/package.json packages/shared/package.json"
+        },
+        {
+          "line": 37,
+          "text": "COPY packages/auth/package.json packages/auth/package.json"
+        },
+        {
+          "line": 43,
+          "text": "COPY packages/shared/src packages/shared/src"
+        },
+        {
+          "line": 44,
+          "text": "COPY packages/shared/tsconfig.json packages/shared/tsconfig.json"
+        },
+        {
+          "line": 45,
+          "text": "COPY packages/auth/src packages/auth/src"
+        },
+        {
+          "line": 46,
+          "text": "COPY packages/auth/tsconfig.json packages/auth/tsconfig.json"
+        },
+        {
+          "line": 47,
+          "text": "COPY apps/onboard-api/src apps/onboard-api/src"
+        },
+        {
+          "line": 48,
+          "text": "COPY apps/onboard-api/prisma apps/onboard-api/prisma"
+        },
+        {
+          "line": 49,
+          "text": "COPY apps/onboard-api/tsconfig.json apps/onboard-api/tsconfig.build.json apps/onboard-api/nest-cli.json apps/onboard-api/"
+        },
+        {
+          "line": 50,
+          "text": "COPY apps/onboard-web apps/onboard-web"
+        },
+        {
+          "line": 81,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules"
+        },
+        {
+          "line": 82,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist"
+        },
+        {
+          "line": 83,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json"
+        },
+        {
+          "line": 84,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist"
+        },
+        {
+          "line": 85,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json"
+        },
+        {
+          "line": 89,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules"
+        },
+        {
+          "line": 90,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/dist /app/apps/onboard-api/dist"
+        },
+        {
+          "line": 91,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/node_modules /app/apps/onboard-api/node_modules"
+        },
+        {
+          "line": 92,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/package.json /app/apps/onboard-api/package.json"
+        },
+        {
+          "line": 93,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/generated /app/apps/onboard-api/generated"
+        },
+        {
+          "line": 94,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/prisma /app/apps/onboard-api/prisma"
+        },
+        {
+          "line": 95,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-web/dist /app/apps/onboard-web/dist"
+        },
+        {
+          "line": 96,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json"
+        },
+        {
+          "line": 97,
+          "text": "COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/tsconfig.json /app/apps/onboard-api/tsconfig.json"
+        },
+        {
+          "line": 98,
+          "text": "COPY --chown=capiro:capiro apps/onboard-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh"
+        }
+      ]
+    }
+  ],
+  "read_scope": "finite reviewed source config/manifests/Dockerfiles only; no .env or protected reporting body"
+}

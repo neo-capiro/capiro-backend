@@ -1,0 +1,9 @@
+{
+  "status": "FAIL",
+  "exit_code": 1,
+  "original_helper_sha256": "c5076bbfd725c143c9b97e1373796f03b489b0ebffbe32977127fbe3dce4a0b7",
+  "observed_failure": "AssertionError at source_tree_entry_count comparison, original helper line33",
+  "cause": "git ls-tree from helper subdirectory omitted the --full-tree option; metadata reader saw only the relative subtree",
+  "resource_changes": [],
+  "receipt_kind": "observed tool failure summary; no invented complete raw command receipt"
+}
