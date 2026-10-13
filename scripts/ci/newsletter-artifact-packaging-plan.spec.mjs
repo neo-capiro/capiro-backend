@@ -74,6 +74,8 @@ test('physical synthetic assembly publishes complete bytes, links and durable re
     assert.deepEqual(receipt.runtimeTarget, { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 });
     assert.equal(receipt.counts.regularFiles, files.size); assert.equal(receipt.counts.symlinks, links.size);
     assert.equal(receipt.backendSourceIndependentlyVerified, false);
+    assert.equal(receipt.builtinFilesystemEffectsPerformed, true);
+    assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
     const saved = JSON.parse(await fs.readFile(options.outputDir + '/build-receipt.json', 'utf8')); assert.deepEqual(saved, receipt);
     assert.deepEqual(await fs.readFile(options.outputDir + '/manifest.json'), manifestBytes);
     for (const [name, bytes] of files) assert.deepEqual(await fs.readFile(options.outputDir + '/rootfs/' + name), bytes);
@@ -238,5 +240,60 @@ for (const phase of ['prepublication', 'postrename']) test(`${phase} directory f
     assert.equal(failed, true); await absent(options.outputDir); await absent(options.outputDir + '.newsletter-assembly.lock');
     assert.deepEqual(await fs.readFile(options.manifestPath), manifestBytes);
     assert.equal((await fs.readdir(root)).some(name => name.startsWith('.newsletter-assembly-')), false);
+  });
+});
+
+
+for (const [name, key, value] of [
+  ['credentials.json manifest', 'manifestPath', '/tmp/credentials.json'],
+  ['envrc manifest', 'manifestPath', '/tmp/.envrc'],
+  ['npmrc manifest', 'manifestPath', '/tmp/.npmrc'],
+  ['service account manifest', 'manifestPath', '/tmp/service-account.json'],
+  ['private key manifest', 'manifestPath', '/tmp/private.key'],
+  ['uppercase AWS output', 'outputDir', '/tmp/.AWS/output'],
+  ['env variant output', 'outputDir', '/tmp/.env.local/output'],
+]) test(`canonical path owner refuses ${name} before filesystem callbacks`, async () => {
+  await fixture(async ({ options }) => {
+    let calls = 0;
+    await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, [key]: value }, { ...model,
+      io: ioWith({ lstat: async () => { calls++; throw new Error('private input must not be touched'); } }) }));
+    assert.equal(calls, 0);
+  });
+});
+
+test('unlabelled filesystem injection refuses before callbacks and extra labels cannot alter production mode', async () => {
+  await fixture(async ({ options }) => {
+    let calls = 0; await assert.rejects(assembleNewsletterReleaseArtifact(options,
+      { io: ioWith({ lstat: async () => { calls++; throw new Error('synthetic callback'); } }) }), /labelled synthetic/);
+    assert.equal(calls, 0);
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { fixtureLabel: 'not a port' }), /labelled synthetic/);
+  });
+});
+
+test('explicit filesystem model cannot attest atomic or durable native filesystem effects', async () => {
+  await fixture(async ({ options }) => {
+    const receipt = await assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({}) });
+    assert.equal(receipt.status, 'PASS'); assert.equal(receipt.syntheticModel, true);
+    assert.equal(receipt.builtinFilesystem, false);
+    assert.equal(receipt.builtinFilesystemEffectsPerformed, false);
+    assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
+    assert.equal(receipt.atomicDirectoryPublishPerformed, false);
+    assert.equal(receipt.durableFilesAndDirectorySyncPerformed, false);
+    assert.equal(receipt.artifact.actualArtifactBytesVerified, false);
+    assert.equal(receipt.shippingAuthorized, false);
+  });
+});
+
+test('stat/read growth consumes at most manifest budget+1 bytes and never calls whole-file readFile', async () => {
+  await fixture(async ({ options }) => {
+    let consumed = 0, wholeReads = 0;
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ open: async (value, ...args) => {
+      const handle = await fs.open(value, ...args);
+      if (value !== options.manifestPath) return handle;
+      return { readFile: async () => { wholeReads++; throw new Error('unbounded read'); },
+        read: async (buffer, offset, length) => { consumed += length; buffer.fill(120, offset, offset + length); return { bytesRead: length }; },
+        close: () => handle.close() };
+    } }) }), /bounded snapshot read/);
+    assert.equal(wholeReads, 0); assert.equal(consumed, PROFILE.maxManifestBytes + 1); await absent(options.outputDir);
   });
 });
