@@ -255,8 +255,8 @@
     },
     {
       "path": "docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/source-proof.py",
-      "bytes": 4769,
-      "sha256": "6e30715dbbb0d67a3d3b827a42164534526872722b944f5196047886fb8e2885"
+      "bytes": 4910,
+      "sha256": "fde33df3219142379519e05484c27d69f22e397e7800acda02ca29b6e305f599"
     },
     {
       "path": "docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/source-whitespace.command.json",

@@ -30,7 +30,8 @@ assert code==sorted([
  'scripts/run-engagement-phase3-resilience.mjs','scripts/verify-engagement-phase3-local-evidence.mjs'])
 unchanged=[p for p in before if p not in changed]
 assert all(before[p]==after[p] for p in unchanged)
-assert not git('diff','--name-only',SOURCE,'--').strip()
+working_changes=git('diff','--name-only',SOURCE,'--').decode().splitlines()
+assert all(p.startswith('docs/cleanup-pr2434-bounded-code-adoption-20261013/') for p in working_changes), working_changes
 rows=[]
 for p in changed:
  if p in after:
