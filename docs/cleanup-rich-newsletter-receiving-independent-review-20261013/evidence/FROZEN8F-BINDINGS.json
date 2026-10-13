@@ -1,0 +1,54 @@
+{
+  "head": "8f19f4d7c77c621f8ea3a2d1c3d9b551e0d60414",
+  "tree": "0d90dd28ec51050df39ab53494f253d67f40f1a6",
+  "sources": [
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter.ts.txt",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7",
+      "blob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05"
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter-receiving.ts.txt",
+      "sha256": "a6713725166d43776e88ec83fb03c5b17b64ab0920e097b691b5f50d5a18ae33",
+      "blob": "6c2c71355f5db0e5ade916762034bb3badeb43a7"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter-fonts.ts.txt",
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "blob": "98286f542da05527fb124a16dd1e831ae40cf558"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter-fonts.catalog.ts.txt",
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "blob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32"
+    },
+    {
+      "path": "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "rawFile": "frozen8f-scripts__ci__fixtures__newsletter-receiving-corpus.cjs.txt",
+      "sha256": "5d65cab28ca546f24f3beb5dc499ea5d95fc8f9b2c93f18cbe3ed7c1991dc979",
+      "blob": "f854418e0c06cacd0e6a0a420449ea6446e1cc52"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "rawFile": "frozen8f-apps__api__src__engagement__newsletter-outreach.service.ts.txt",
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+      "blob": "15b6d76e025165264115c6081616311f7be639aa"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "rawFile": "frozen8f-apps__workspace__src__hillday__hillday-source.service.ts.txt",
+      "sha256": "87674714c36948cf1ae2d508deccd9ca9a39d98f0b7a7b5cd912a530bf863676",
+      "blob": "8a2b18461133695db9f82768f91d89fb576aea71"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "rawFile": "frozen8f-apps__api__src__engagement__outreach-draft.service.ts.txt",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701",
+      "blob": "1ebc1eed09a9bee3c89ef859febd316d56217eee"
+    }
+  ]
+}
