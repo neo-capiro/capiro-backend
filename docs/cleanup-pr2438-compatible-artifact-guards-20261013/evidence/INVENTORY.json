@@ -1,0 +1,118 @@
+{
+  "donor": "1090322d9a4067b605e91afef10cef5f86900b61",
+  "donorTree": "9e579c97363947b105c288d5228d3a8a8c8e413f",
+  "donorBase": "7b5a9644d30d22389b23f0e07f923c8925682047",
+  "receiving": "0a76666dc57aa852586c35167426a540939c9918",
+  "receivingTree": "205d88a21a25fa338f82bf4273cba6d42f77c550",
+  "changedPathCount": 11,
+  "groups": {
+    "held workflow/current sourcejob": [
+      ".github/workflows/backend-cleanup-preservation.yml",
+      "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+    ],
+    "standalone consumer/helper/spec": [
+      "apps/web/Dockerfile.frontend-artifact",
+      "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+      "scripts/lib/frontend-standalone-artifact-contract.mjs"
+    ],
+    "held packaging absent active canonical script": [
+      "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "scripts/lib/newsletter-artifact-packaging-plan.mjs"
+    ],
+    "loopback helper/operator/spec; source-only subset": [
+      "scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "scripts/lib/newsletter-loopback-serving.mjs",
+      "scripts/verify-newsletter-loopback-serving.mjs"
+    ]
+  },
+  "imports": {
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs": [
+      "node:assert/strict",
+      "node:crypto",
+      "node:child_process",
+      "node:fs",
+      "node:path",
+      "node:url",
+      "node:test"
+    ],
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs": [
+      "node:assert/strict",
+      "node:crypto",
+      "node:test",
+      "../lib/newsletter-static-release-contract.mjs",
+      "../lib/frontend-standalone-artifact-contract.mjs"
+    ],
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs": [
+      "node:assert/strict",
+      "node:crypto",
+      "node:fs",
+      "node:test",
+      "../lib/newsletter-artifact-packaging-plan.mjs",
+      "../lib/newsletter-static-release-contract.mjs"
+    ],
+    "scripts/ci/newsletter-loopback-serving.spec.mjs": [
+      "node:test",
+      "node:assert/strict",
+      "node:http",
+      "node:net",
+      "node:zlib",
+      "../lib/newsletter-loopback-serving.mjs",
+      "../lib/newsletter-static-release-contract.mjs",
+      "../verify-newsletter-loopback-serving.mjs"
+    ],
+    "scripts/lib/frontend-standalone-artifact-contract.mjs": [
+      "node:crypto",
+      "node:path",
+      "node:url",
+      "./newsletter-static-release-contract.mjs"
+    ],
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs": [
+      "node:crypto",
+      "./newsletter-static-release-contract.mjs",
+      "./frontend-standalone-artifact-contract.mjs",
+      "./newsletter-loopback-serving.mjs"
+    ],
+    "scripts/lib/newsletter-loopback-serving.mjs": [
+      "node:http",
+      "node:net",
+      "node:crypto",
+      "node:zlib",
+      "node:perf_hooks",
+      "./newsletter-static-release-contract.mjs"
+    ],
+    "scripts/verify-newsletter-loopback-serving.mjs": [
+      "node:path",
+      "node:url",
+      "./lib/newsletter-loopback-serving.mjs"
+    ]
+  },
+  "activeCanonicalScriptAbsent": "scripts/build-newsletter-release.sh",
+  "missingScriptDonorBlob": "1fcd26f8c9fba14bd4c251ebe8ebb745034e2420",
+  "currentOnboardBlob": "3afe06de20d333b9a5a9afac3f67f823bce4672d",
+  "oldDonorOnboardBlobHeld": "669733c773f10e151b29ead069f9883f34053bdb",
+  "computeStack": {
+    "path": "infra/cdk/lib/compute-stack.ts",
+    "donorAndDonorBaseAndReceivingBlob": "53342a3c988be078f1b081501da939366e332652",
+    "bodyRetrievedByThisLane": false,
+    "routingInterpretation": "root source review only; actual topology/live response parity unverified"
+  },
+  "limits": [
+    "no whole workflow/sourcejob/current carrier adoption",
+    "no donor documentation/report content fetched",
+    "no frontend app/artifact/assets retrieval or execution",
+    "3054files/5208trace references not independently measured",
+    "full loopback tests include real sockets, held under source-only authorization"
+  ],
+  "initialLocalInspection": {
+    "command": [
+      "git",
+      "cat-file",
+      "-t",
+      "1090322d9a4067b605e91afef10cef5f86900b61"
+    ],
+    "exit": 128,
+    "stderr": "fatal: git cat-file: could not get object info\n",
+    "fallback": "authorized metadata-only git/commits/git/trees then11 individual code Git blobs"
+  }
+}

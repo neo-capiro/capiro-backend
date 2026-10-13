@@ -1,0 +1,20 @@
+import pathlib,subprocess,json,hashlib,os
+D=pathlib.Path('/workspace/cleanup-pr2438-code-metadata-20261013');S=pathlib.Path('/workspace/cleanup-pr2438-compatible-artifact-guards-20261013');R=pathlib.Path('/workspace/capirov2'); BASE='0a76666dc57aa852586c35167426a540939c9918'
+paths=['apps/web/Dockerfile.frontend-artifact','scripts/ci/frontend-artifact-docker.contract.spec.mjs','scripts/ci/frontend-standalone-artifact.contract.spec.mjs','scripts/ci/newsletter-loopback-serving.spec.mjs','scripts/lib/frontend-standalone-artifact-contract.mjs','scripts/lib/newsletter-loopback-serving.mjs','scripts/verify-newsletter-loopback-serving.mjs']
+S.mkdir(exist_ok=True)
+for p in paths:
+ f=S/p;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes((D/'code'/p).read_bytes())
+p=S/'scripts/ci/frontend-artifact-docker.contract.spec.mjs';t=p.read_text();t=t.replace("import { readFileSync } from 'node:fs';","import { readFileSync, existsSync } from 'node:fs';").replace("const BASE = '7b5a9644d30d22389b23f0e07f923c8925682047';",f"const BASE = '{BASE}';")
+t=t.replace("for (const file of ['apps/web/Dockerfile', 'scripts/build-newsletter-release.sh',", "for (const file of ['apps/web/Dockerfile',")
+t=t.replace("  assert.equal(digest(read('scripts/build-newsletter-release.sh')), 'e6067f99745802f1df9ac284d8a923354725628e4d2c4e33bfbaafcb9f747e0e');", "  // The receiving branch has no active legacy release operator. Do not restore it as a dependency.\n  assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), false);")
+assert t!=p.read_text();p.write_text(t)
+needed=['scripts/lib/newsletter-static-release-contract.mjs','apps/web/Dockerfile','package.json','pnpm-lock.yaml','pnpm-workspace.yaml','apps/onboard-api/Dockerfile']
+for path in needed:
+ f=S/path;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes(subprocess.check_output(['git','-C',str(R),'show',BASE+':'+path]))
+# Only seven approved path mutations; canonical owner/carriers copied solely as isolated host inputs.
+env=os.environ.copy();env['GIT_INDEX_FILE']=str(S/'virtual.index');subprocess.run(['git','-C',str(R),'read-tree',BASE],env=env,check=True)
+rows=[]
+for path in paths:
+ b=(S/path).read_bytes();oid=subprocess.check_output(['git','-C',str(R),'hash-object','-w','--stdin'],env=env,input=b).decode().strip();subprocess.run(['git','-C',str(R),'update-index','--add','--cacheinfo','100644',oid,path],env=env,check=True);rows.append({'path':path,'gitBlob':oid,'mode':'100644','sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b),'donorExact':b==(D/'code'/path).read_bytes()})
+tree=subprocess.check_output(['git','-C',str(R),'write-tree'],env=env).decode().strip();head=subprocess.check_output(['git','-C',str(R),'commit-tree',tree,'-p',BASE],env=env,input=b'Add isolated frontend artifact consumer and explicit mock-qualified serving guards [skip ci]\n').decode().strip();branch='refs/heads/codex/cleanup-pr2438-compatible-artifact-guards-20261013';subprocess.run(['git','-C',str(R),'update-ref',branch,head,'0000000000000000000000000000000000000000'],check=True)
+result={'source':head,'tree':tree,'base':BASE,'donor':'1090322d9a4067b605e91afef10cef5f86900b61','branch':branch,'paths':rows,'held':['.github/workflows/backend-cleanup-preservation.yml','scripts/ci/backend-retirement-source-jobs.contract.spec.py','scripts/lib/newsletter-artifact-packaging-plan.mjs','scripts/ci/newsletter-artifact-packaging-plan.spec.mjs']};(S/'SOURCE-FREEZE.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))

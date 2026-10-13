@@ -1,0 +1,9 @@
+{
+  "exactDonorTree": "9e579c97363947b105c288d5228d3a8a8c8e413f",
+  "rawMetadataFile": "/workspace/cleanup-pr2438-code-metadata-20261013/tree.stdout",
+  "rawMetadataBytes": 6236826,
+  "rawMetadataSha256": "0455fe1d7e582bab5e38c38e42e03ce43555010ca9e9a015eaeb961031eef3a3",
+  "bodyContentsRetrieved": "only11 approved code blobs; metadata tree includes names/modes/blob IDs only",
+  "truncated": false,
+  "deniedDocumentContentsRetrieved": false
+}

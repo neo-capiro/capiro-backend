@@ -1,0 +1,1 @@
+SOURCE_MOCK_HOST_JOURNAL {"bindings":[],"connections":0,"refused":["non-ephemeral/nonliteral mock bind","non-ephemeral/nonliteral mock bind","connection outside own mock ports","connection outside own mock ports","nonliteral DNS lookup","node:tls:connect","child spawn","fetch","protected reporting source"],"closed":[],"ownedPortsRemaining":[]}

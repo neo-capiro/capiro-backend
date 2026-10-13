@@ -1,0 +1,36 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "donor": "1090322d9a4067b605e91afef10cef5f86900b61",
+  "sourcePaths": 7,
+  "pass": {
+    "docker": 3,
+    "standalone": 50,
+    "loopback": 50
+  },
+  "totalPass": 103,
+  "syntheticTransport": {
+    "ephemeralBindings": 27,
+    "connections": 740,
+    "closedBindings": 27,
+    "remainingBindings": 0
+  },
+  "hostRefusalControls": 9,
+  "initialHost23Pass27RedPreserved": true,
+  "allOriginalCasesRetained": true,
+  "newerOnboardSourceExact": true,
+  "sourceWhitespaceExit": 0,
+  "held": [
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+  ],
+  "actualFrontendArtifactMeasured": false,
+  "actual179AssetsOrLiveServingQualified": false,
+  "defaultOperatorExecuted": false,
+  "nativeSqlProviderAppDockerInstallExecuted": false,
+  "fullFloorAcceptance": false,
+  "independentReview": "O separate frozen review pending"
+}

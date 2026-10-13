@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs",
+    "/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-host-refusal-controls.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin"
+  },
+  "cwd": "/workspace/cleanup-pr2438-compatible-artifact-guards-20261013",
+  "exit": 0,
+  "stdoutSha256": "07f9033017e55108dccee637bd922765fc9fe8e206c6ad3a0a8cb153de516fec",
+  "stderrSha256": "93cb1cf93b6e261fb2309f97ba1beb8555629f14c197ce792558b31072869e13",
+  "scope": "preload refusals happen before original network/child/protected read operation"
+}
