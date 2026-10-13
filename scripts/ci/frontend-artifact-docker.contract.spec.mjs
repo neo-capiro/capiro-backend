@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -9,7 +8,6 @@ import test from 'node:test';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = '0a76666dc57aa852586c35167426a540939c9918';
 const read = file => readFileSync(path.join(ROOT, file), 'utf8');
-const digest = text => createHash('sha256').update(text).digest('hex');
 const DOCKER = read('apps/web/Dockerfile.frontend-artifact');
 const RUNTIME = `FROM base AS runtime
 ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
