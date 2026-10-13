@@ -1,0 +1,14 @@
+{
+  "rawCheckpoint": "5bd3cf59861916e094ae5ac21241e99125fa45ea",
+  "rawCheckpointTree": "259222746e54af92f060d83d677a390c60eb7308",
+  "exactLosslessEnvelopes": [
+    {
+      "path": "docs/intelligence-bills-integration-20261013/evidence/jest.log",
+      "rawBytes": 14466,
+      "rawSha256": "4a92b604482100264b2fd6bf03939705b5d50bab3a8e53c30e39362767f7001f"
+    }
+  ],
+  "noTrimmingOrGeneralWhitespaceExemption": true,
+  "allOtherReceivingRawLogsUnchanged": true,
+  "preliminaryInventoryFailureAndCorrectedDiagnosisRetained": true
+}
