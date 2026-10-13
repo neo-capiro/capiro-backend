@@ -1,0 +1,75 @@
+{
+  "head": {
+    "parents": [
+      "4799e980433b6e244acc15a9bd311f5af36c0db7"
+    ],
+    "sha": "7b5a9644d30d22389b23f0e07f923c8925682047",
+    "tree": "21f3d57846340c158a3113df34aa4e93bab07338"
+  },
+  "files": [
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "gitBlob": "d63b85c6be7c73541f4da484705c1c45f41ae1d6",
+      "mode": "100644",
+      "bytes": 7010,
+      "sha256": "b2089aab19a55cde6ed0c5acfc6fd0ac41abb9921104ebef8a40ba182f79b3a7"
+    },
+    {
+      "path": "apps/onboard-api/Dockerfile.spa-artifact",
+      "gitBlob": "274557224d218a3c5545022d5273fe2c13562b8d",
+      "mode": "100644",
+      "bytes": 6362,
+      "sha256": "5f365d2dfb7d47f44d697e680a69bbd4ad82db72493cc3294393177d93be90a9"
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "gitBlob": "9dbbfaf7d7b9cff94b82af8b1442767cbaaf02a8",
+      "mode": "100644",
+      "bytes": 18697,
+      "sha256": "b2137588621f2521b7d24aaf5ceee3072b71cd838c98acddefd122470142b994"
+    },
+    {
+      "path": "scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "gitBlob": "debf432a07381ba49bffbc4200570b75fda77c00",
+      "mode": "100644",
+      "bytes": 19019,
+      "sha256": "baa564d67a76b2b3c8c902dc23514b7bb4c62ec329e218574f2551448edf5f56"
+    },
+    {
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "gitBlob": "943ab7e2c5e66fc1f092fbb27da8c6b58c0126f3",
+      "mode": "100644",
+      "bytes": 27039,
+      "sha256": "45795f65419213cc14cbe730d61a6ff30a579b7313a32e864b047128c6fd156b"
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-inputs.mjs",
+      "gitBlob": "cf17e709d380f06648ab4894c931c4544cccc18e",
+      "mode": "100644",
+      "bytes": 18561,
+      "sha256": "73b5f5a77c911e1fc4233557b56d3b68a654c32f80a49959bde29c3d3bb61c80"
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-inputs.spec.mjs",
+      "gitBlob": "54a314d7d5363ab238958eebc22674c645851f0a",
+      "mode": "100644",
+      "bytes": 31528,
+      "sha256": "aacd7d630a7f82f3833247c24796052944b6f228197d0d8cdeca182199870c77"
+    },
+    {
+      "path": "scripts/lib/newsletter-static-release-contract.mjs",
+      "gitBlob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+      "mode": "100644",
+      "bytes": 36528,
+      "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d"
+    },
+    {
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "gitBlob": "669733c773f10e151b29ead069f9883f34053bdb",
+      "mode": "100644",
+      "bytes": 12915,
+      "sha256": "47a5ba0c0164cebd9ed1721a14cf9ca907a024a4cd12044dcc297b8c562c0eb6"
+    }
+  ],
+  "retrieval": "nine individual authorized code blobs only; no broad fetch/report body"
+}

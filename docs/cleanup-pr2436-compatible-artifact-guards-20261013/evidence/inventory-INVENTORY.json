@@ -1,0 +1,65 @@
+{
+  "publishedHead": "7b5a9644d30d22389b23f0e07f923c8925682047",
+  "publishedTree": "21f3d57846340c158a3113df34aa4e93bab07338",
+  "publishedBeforeFive": "af5f208961e6c9a01a6e489a7f5b1a6e6edfd736",
+  "observedCurrentPin": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "observedCurrentTree": "2cc09dd632cc008248af6ec9639ae9156ef24bf5",
+  "headMetadataOnly": true,
+  "codeBlobsRetrieved": 9,
+  "deniedDocumentsRetrieved": 0,
+  "currentBindings": {
+    "pnpm-lock.yaml": {
+      "bytes": 728135,
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+      "gitBlob": "08d78e3dbca937f82ada2eb344b961477e9dfc58",
+      "publishedTestExpectedSha256": "f13f155b17c83564261e5560f3d26ac36fc6715cd1f6d7c166425818a39cb720",
+      "publishedWholeLockBindingMatchesCurrent": false
+    },
+    "apps/onboard-api/Dockerfile": {
+      "bytes": 5633,
+      "sha256": "21a92046e8c14538577d84cc313ace4757830c9a98e1a1813b24173b0a33a738",
+      "gitBlob": "38c18bdfdaa83a5d5a9665e2ec93cb7aaa0544b2"
+    },
+    "apps/onboard-api/package.json": {
+      "bytes": 1462,
+      "sha256": "18960f0d08fda87965a4454b63dee9dc5901d9e10c5d3eafaa8fdb05ddfddc54",
+      "gitBlob": "be1945a1c588f7ded952f17cad981834aee3d901"
+    },
+    "packages/auth/package.json": {
+      "bytes": 820,
+      "sha256": "8b5a075eada39a5ba9ca9388006ee9aeacde910e0fd771c3fa58df5f70b5bb73",
+      "gitBlob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08"
+    },
+    "packages/shared/package.json": {
+      "bytes": 3761,
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+      "gitBlob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+    }
+  },
+  "proposedCompatibleOwnerPaths": [
+    "apps/onboard-api/Dockerfile.spa-artifact",
+    "scripts/lib/onboard-spa-artifact-contract.mjs",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+    "scripts/lib/newsletter-static-release-contract.mjs",
+    "scripts/ci/newsletter-static-release.contract.spec.mjs"
+  ],
+  "heldPaths": {
+    "scripts/engagement-phase3-backend-inputs.mjs": "absent current owner; depends on unadopted main-route-accounting and existing canonical UI/preview parsers; actual Phase3 caller/wiring closure requires distinct bounded review",
+    "scripts/engagement-phase3-backend-inputs.spec.mjs": "same missing dependency closure; top-level loads canonical API source/controller inputs; oldbaseline8failure accounting not automatically current",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py": "absent current owner and checks whole older retirement workflow; not destination-compatible wiring",
+    ".github/workflows/backend-cleanup-preservation.yml": "absent current; broad carrier36commands cannot be adopted wholesale without exact current guards/caller closure"
+  },
+  "requiredAdaptation": {
+    "onboardSpec": "pin receiving baseline/default/runtime/lock/dependency manifests; preserve real dependency/negative tests rather than pretend old full lock hash matches",
+    "newsletterSpec": "default in-memory qualification, optional179legacybyte parity; keep source/controller response claims as contract only and historical serving explicitly unqualified"
+  },
+  "sourceMutations": 0,
+  "unrun": [
+    "Docker build/install",
+    "SPA replacement/browser/runtime/auth",
+    "newsletter historical HTTP serving",
+    "default operator graphs",
+    "CI dispatch",
+    "native/DB/provider"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "historicalCommit": "4799e980433b6e244acc15a9bd311f5af36c0db7",
+  "helperSha256": "1fd6adc7466f0e49e2d582e3072a3a2dadfcc032ebba05055c524084869b2b59",
+  "originalSpecSha256": "3ef4815748e85b9f50b5070a6ff4785edad78c787f4228b59e97dbfa5216e21c",
+  "adaptedFormerSpecPrefixSha256": "ecae39d24423d4cd8f0e87a9bfcad67c54808751b97c34544315c1788685e27e",
+  "onlyPrefixChanges": "immutable receiving baseline and current whole-lock SHA; all former case source preserved",
+  "reconstruction": "known published4-hunk inverse must equal fixed original helper SHA; actual before bytes retained, no fake ancestry/foreign git dependency"
+}

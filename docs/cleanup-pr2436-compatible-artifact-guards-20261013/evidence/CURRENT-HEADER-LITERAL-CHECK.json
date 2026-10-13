@@ -1,0 +1,9 @@
+{
+  "source": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+  "pass": 8,
+  "paths": [
+    "apps/api/src/engagement/newsletter-outreach.controller.ts",
+    "apps/workspace/src/newsletters/newsletter.controller.ts"
+  ],
+  "scope": "eight existing header literal bindings only; no methods invoked/no public capability storage/GET effects qualified"
+}

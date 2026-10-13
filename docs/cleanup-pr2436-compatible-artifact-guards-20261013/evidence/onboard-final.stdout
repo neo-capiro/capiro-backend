@@ -1,0 +1,27 @@
+✔ opt-in Docker inverse restores the entire original; default/runtime/API/security/entrypoint bytes remain intact (28.889251ms)
+✔ only the supplied site enters the unchanged runtime path; pins are required before frozen workspace installation (0.802209ms)
+✔ API/auth/shared dependency manifests and frozen lock importers close without legacy frontend packages (27.763056ms)
+✔ original public PDF/favicon bytes and URLs are pinned without reading a frontend source directory (0.778744ms)
+✔ digest/source-bound static fixture succeeds with a distinct byte-only receipt and exact file inventory (14.83624ms)
+✔ empty/malformed/duplicate/conflicting invocation refuses before filesystem operations (1.773388ms)
+✔ missing supplied directory never falls back to existing Web trees (0.648863ms)
+✔ manifest digest/source mismatch, truncation, duplicate keys and malformed file proofs fail closed (5.484229ms)
+✔ escaping, encoded, hidden, absolute and executable file names refuse even with fresh valid digests (8.078038ms)
+✔ missing/unlisted/truncated/changed files and absent or replaced protected public assets refuse (6.93294ms)
+✔ HTML/module/dynamic-import/export/CSS/font/SVG/Vite-table local closure remains mandatory (16.694088ms)
+✔ unsafe/bare/nonstatic module or local resource references refuse; inert data images require no file (8.765198ms)
+✔ empty/incomplete index or metadata-only artifact cannot yield an application-shell receipt (3.264257ms)
+✔ port reader rejects missing/unlisted roots, file/ancestor symlinks and nonregular entries before content reads (3.603647ms)
+✔ physical supplied fixture qualifies with legacy frontend denied, and physical symlink escape refuses (6.573651ms)
+✔ case/control regression preserves all former cases and limits the helper change to canonical paths and pins (0.48555ms)
+✔ uppercase JS/CSS/HTML/MJS/SVG missing-resource counterexamples now refuse, while uppercase basenames remain valid (23.041532ms)
+✔ trailing-LF manifest/file names now refuse before payload reads or stat of unsafe filesystem names (2.67195ms)
+✔ pure pins refuse coerced/non-string/control values before filesystem operations; original LF refusal is preserved (6.696766ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 237.478248

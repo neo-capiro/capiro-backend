@@ -1,0 +1,18 @@
+{
+  "commit": "4799e980433b6e244acc15a9bd311f5af36c0db7",
+  "tree": "73bbc904d8d4c08d4e3330333560ac44c585c33f",
+  "codeOnly": [
+    {
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "gitBlob": "294dda2c946e462c11f37a9208aa68fd27362f3e",
+      "sha256": "1fd6adc7466f0e49e2d582e3072a3a2dadfcc032ebba05055c524084869b2b59",
+      "bytes": 12635
+    },
+    {
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "gitBlob": "4b15e959f2ccfd5fe2e05300ada4d34b6153580e",
+      "sha256": "3ef4815748e85b9f50b5070a6ff4785edad78c787f4228b59e97dbfa5216e21c",
+      "bytes": 20003
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "scope": "read-only two canonical public/newsletter controller sources, header provenance only; no imports/GETs/providers, protected EngagementService body excluded",
+  "bindings": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "source": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "bytes": 5292,
+      "selectedHeaderLines": [
+        {
+          "line": 94,
+          "text": "        'Content-Type': 'text/html; charset=utf-8',"
+        },
+        {
+          "line": 95,
+          "text": "        'Cache-Control': 'private, no-store',"
+        },
+        {
+          "line": 96,
+          "text": "        'Referrer-Policy': 'no-referrer',"
+        },
+        {
+          "line": 97,
+          "text": "        'X-Content-Type-Options': 'nosniff',"
+        },
+        {
+          "line": 98,
+          "text": "        'Content-Security-Policy':"
+        }
+      ]
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "source": "b5ddf4556b86d0169dd4f77d0b9da971f0c7dc08",
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "bytes": 16288,
+      "selectedHeaderLines": [
+        {
+          "line": 504,
+          "text": "        'Content-Type': asset.mimeType,"
+        },
+        {
+          "line": 505,
+          "text": "        'X-Content-Type-Options': 'nosniff',"
+        },
+        {
+          "line": 506,
+          "text": "        'Cache-Control': 'public, max-age=31536000, immutable',"
+        },
+        {
+          "line": 507,
+          "text": "        'Content-Security-Policy': \"default-src 'none'\","
+        }
+      ]
+    }
+  ]
+}
