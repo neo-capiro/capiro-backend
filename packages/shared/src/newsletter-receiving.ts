@@ -552,7 +552,9 @@ const design: Rule = (value, path) => {
         50,
       ),
     },
-    { sourceClientIds: clients, fonts },
+    // Save unions current and historical authorized clients after request normalization.
+    // Persisted root provenance therefore uses the explicit receiving array budget.
+    { sourceClientIds: array(workspaceUuid, NEWSLETTER_RECEIVE_LIMITS.arrayLength), fonts },
   )(value, path);
   const record = row(value, path);
   let count = 0;

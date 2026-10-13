@@ -320,6 +320,22 @@ function runNewsletterReceivingCorpus(api) {
     );
     denied(api.parseNewsletterOutreachRecord({ ...record, id: foreign }));
   });
+  check('persisted root provenance preserves post-save client union beyond request100', () => {
+    const value = clone(doc);
+    value.design.sourceClientIds = Array.from(
+      { length: 201 },
+      (_, index) => index.toString(16).padStart(8, '0') + '-1111-7111-8111-111111111111',
+    );
+    same(accepted(api.parseNewsletterCampaign(value)), value);
+  });
+  check('persisted root provenance has an explicit receiving array budget', () => {
+    const value = clone(doc);
+    value.design.sourceClientIds = Array.from(
+      { length: api.NEWSLETTER_RECEIVE_LIMITS.arrayLength + 1 },
+      () => clientId,
+    );
+    denied(api.parseNewsletterCampaign(value), 'limit_exceeded');
+  });
   check('embedded saved survey preserves legacy formatted nil ID and date-only timestamp', () => {
     const value = clone(doc);
     const saved = value.design.sections[additionIndex].blocks[0].columns[0][0].survey.saved;
@@ -973,7 +989,7 @@ function runNewsletterReceivingCorpus(api) {
     [
       'source client count',
       (d) => {
-        d.design.sourceClientIds = Array.from({ length: 101 }, () => clientId);
+        d.design.sections[0].sourceClientIds = Array.from({ length: 101 }, () => clientId);
       },
     ],
     [
