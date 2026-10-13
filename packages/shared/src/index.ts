@@ -5756,6 +5756,7 @@ export * from './schedule/synthesis';
 export * from './tenant-feature.js';
 export * from './client-memory-wall.js';
 export * from './prospect-resource-scope.js';
+export * from './prospect-brief-source.js';
 
 export * from './workspace-saved-revision.js';
 

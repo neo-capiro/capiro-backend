@@ -82,6 +82,7 @@ function fixture() {
     ),
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: any[]) => {
       const sql = strings.join('?');
+      if (sql.includes('FROM ws_document') && sql.includes('source_brief_version')) return [];
       if (sql.includes('FROM ws_source_action')) return state.sourceRows;
       if (sql.includes('FROM ws_draft'))
         return state.exists

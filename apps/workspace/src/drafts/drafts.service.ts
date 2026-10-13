@@ -1,5 +1,9 @@
 import { createProspectDraft } from '../prospect-resources/prospect-draft-create.js';
-import { withProspectDraft, assertProspectDraft, assertImmutableProspectInput } from '../prospect-resources/prospect-draft-access.js';
+import {
+  withProspectDraft,
+  assertProspectDraft,
+  assertImmutableProspectInput,
+} from '../prospect-resources/prospect-draft-access.js';
 import {
   Injectable,
   NotFoundException,
@@ -359,28 +363,36 @@ export class DraftsService {
       'Only owners and editors can edit this document',
     );
 
-    const mergedConfig: Record<string, unknown> = {
-      ...(existing.config as Record<string, unknown>),
-      ...(dto.config ?? {}),
-    };
-
-    const product = dto.product ?? existing.product ?? '';
-    const funding = product ? WSC.isFunding(product) : false;
-    const coverLetter = Boolean(
-      (mergedConfig.coverLetter as boolean | undefined) ?? existing.isPacket,
-    );
-    const docCount = existing.documents.length;
-    const isPacket = coverLetter || docCount > 1;
-
-    // Funding-only ask. Non-funding products always store "n/a"; never auto-fill.
-    let ask: unknown = existing.ask;
-    if (dto.ask !== undefined) {
-      ask = funding ? dto.ask : 'n/a';
-    } else if (!funding) {
-      ask = 'n/a';
-    }
-
     return withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', async (db) => {
+      // Prospect writes hold the parent lock. Re-read before merging so a queued
+      // legacy autosave cannot restore config/doc counts read before a copy save.
+      const current = existing.prospectId
+        ? await db.wsDraft.findFirstOrThrow({
+            where: { id, tenantId },
+            include: { documents: { select: { id: true } } },
+          })
+        : existing;
+      const mergedConfig: Record<string, unknown> = {
+        ...(current.config as Record<string, unknown>),
+        ...(dto.config ?? {}),
+      };
+
+      const product = dto.product ?? current.product ?? '';
+      const funding = product ? WSC.isFunding(product) : false;
+      const coverLetter = Boolean(
+        (mergedConfig.coverLetter as boolean | undefined) ?? current.isPacket,
+      );
+      const docCount = current.documents.length;
+      const isPacket = coverLetter || docCount > 1;
+
+      // Funding-only ask. Non-funding products always store "n/a"; never auto-fill.
+      let ask: unknown = current.ask;
+      if (dto.ask !== undefined) {
+        ask = funding ? dto.ask : 'n/a';
+      } else if (!funding) {
+        ask = 'n/a';
+      }
+
       const updated = await db.wsDraft.update({
         where: { id },
         data: {

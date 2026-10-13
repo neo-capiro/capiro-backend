@@ -1,5 +1,12 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { prospectResourceScope } from '@capiro/shared';
+import {
+  prospectResourceScope,
+  prospectBriefVersionIdentity,
+  prospectBriefSourceWithinTx,
+  ProspectBriefSourceUnavailable,
+  MAX_PROSPECT_BRIEF_COPIES,
+  canonicalWorkspaceSnapshot,
+} from '@capiro/shared';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { canRead, type ResolvedRole } from '../collaborators/role-policy.js';
@@ -10,7 +17,7 @@ type Policy = (role: ResolvedRole) => boolean;
 /** Core owns identity/conversion/client walls; Workspace owns draft/collaborator ACL.
  * No cross-Core ORM model, RLS bypass, external share or implicit collaborator grant.
  */
-export async function requireProspectDraftInTx(
+export async function requireProspectDraftScopeInTx(
   tx: Prisma.TransactionClient,
   draft: DraftOrigin,
   actorId: string | undefined,
@@ -43,6 +50,40 @@ export async function requireProspectDraftInTx(
     role = collaborators[0]?.role ?? null;
   }
   if (!policy(role)) throw new NotFoundException('Draft not found');
+  // Copied brief content retains the Core brief flag and exact saved-source
+  // authority on every existing Workspace read/write, not only the copy route.
+  const copies = await tx.$queryRaw<Array<{ sourceBriefVersion: unknown }>>`
+    SELECT source_brief_version AS "sourceBriefVersion" FROM ws_document
+    WHERE tenant_id=${draft.tenantId}::uuid AND draft_id=${draft.id}::uuid
+      AND source_brief_version IS NOT NULL ORDER BY id LIMIT ${MAX_PROSPECT_BRIEF_COPIES + 1}`;
+  try {
+    if (copies.length > MAX_PROSPECT_BRIEF_COPIES) throw new ProspectBriefSourceUnavailable();
+    const unique = new Map(
+      copies.map((copy) => [canonicalWorkspaceSnapshot(copy.sourceBriefVersion), copy]),
+    );
+    for (const copy of unique.values())
+      await prospectBriefSourceWithinTx(
+        tx,
+        scope,
+        prospectBriefVersionIdentity(copy.sourceBriefVersion),
+      );
+  } catch (error) {
+    if (error instanceof ProspectBriefSourceUnavailable)
+      throw new NotFoundException('Draft not found');
+    throw error;
+  }
+  return scope;
+}
+
+/** Preserve the existing void-return contract for all established callers. */
+export async function requireProspectDraftInTx(
+  tx: Prisma.TransactionClient,
+  draft: DraftOrigin,
+  actorId: string | undefined,
+  policy: Policy = canRead,
+  mode: 'read' | 'write' = 'read',
+): Promise<void> {
+  await requireProspectDraftScopeInTx(tx, draft, actorId, policy, mode);
 }
 
 /** The callback performs the existing operation; prospect authorization and its
@@ -69,6 +110,24 @@ export async function assertProspectDraft(
   policy: Policy = canRead,
 ) {
   await withProspectDraft(prisma, draft, actorId, policy, 'read', async () => undefined);
+}
+
+/** Legacy body mutation/restore cannot bypass the copy's atomic save receipt.
+ * Check inside the existing parent lock; a pre-lock read can miss a new copy. */
+export async function assertNoBoundBriefCopy(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  draftId: string,
+  documentId?: string,
+) {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM ws_document WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid
+      AND source_brief_version IS NOT NULL
+      AND (${documentId ?? null}::text IS NULL OR id::text=lower(${documentId ?? null}::text)) LIMIT 1`;
+  if (rows.length)
+    throw new ConflictException({
+      code: 'WORKSPACE_BRIEF_ATOMIC_SAVE_REQUIRED',
+    });
 }
 
 /** Source access is an AND with existing owner/collaborator resolution, but is

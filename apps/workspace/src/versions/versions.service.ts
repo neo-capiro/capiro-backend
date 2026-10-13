@@ -1,11 +1,25 @@
 import {
-  workspaceSavedOutreachRevisionWithinTx, WorkspaceRevisionUnavailable,
-  normalizeClientObjectiveDestination, requireClientObjectiveDestinationRevision,
-  ClientObjectiveDestinationError, type ClientObjectiveDestinationInput,
+  workspaceSavedOutreachRevisionWithinTx,
+  WorkspaceRevisionUnavailable,
+  normalizeClientObjectiveDestination,
+  requireClientObjectiveDestinationRevision,
+  ClientObjectiveDestinationError,
+  type ClientObjectiveDestinationInput,
 } from '@capiro/shared';
 import { createHash } from 'node:crypto';
-import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  withProspectDraft,
+  assertProspectDraft,
+  denyProspectTransfer,
+  requireProspectDraftInTx,
+  assertNoBoundBriefCopy,
+} from '../prospect-resources/prospect-draft-access.js';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead, type ResolvedRole } from '../collaborators/role-policy.js';
@@ -151,6 +165,13 @@ export class VersionsService {
           where: { tenantId, id: draftId },
           include: { documents: { orderBy: { ordinal: 'asc' } } },
         });
+      const sources = draft.prospectId
+        ? await db.$queryRaw<Array<{ id: string; sourceBriefVersion: unknown }>>`
+        SELECT id::text,source_brief_version AS "sourceBriefVersion" FROM ws_document
+        WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid
+          AND source_brief_version IS NOT NULL ORDER BY id`
+        : [];
+      const byDocument = new Map(sources.map((source) => [source.id, source.sourceBriefVersion]));
       const snapshot = {
         docTitle: draft.docTitle,
         config: draft.config,
@@ -160,6 +181,7 @@ export class VersionsService {
           name: d.name,
           ordinal: d.ordinal,
           body: d.body,
+          ...(byDocument.has(d.id) ? { sourceBriefVersion: byDocument.get(d.id) } : {}),
         })),
       };
       return db.wsDocVersion.create({
@@ -193,6 +215,7 @@ export class VersionsService {
     const snap = (version.snapshot as Snapshot) ?? {};
     await this.prisma.$transaction(async (tx) => {
       await requireProspectDraftInTx(tx, draft, actorId, canEdit, 'write');
+      if (draft.prospectId) await assertNoBoundBriefCopy(tx, tenantId, draftId);
       await tx.wsDraft.update({
         where: { id: draftId },
         data: {
@@ -228,5 +251,10 @@ interface Snapshot {
   docTitle?: string;
   config?: unknown;
   ask?: unknown;
-  documents?: Array<{ id: string; name?: string; ordinal?: number; body?: unknown }>;
+  documents?: Array<{
+    id: string;
+    name?: string;
+    ordinal?: number;
+    body?: unknown;
+  }>;
 }

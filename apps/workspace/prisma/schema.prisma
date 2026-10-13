@@ -387,6 +387,8 @@ model WsDocument {
   // Rich document body: ordered blocks (sections, photo, table, logo).
   // Stored as JSONB so the editor's block model round-trips losslessly.
   body      Json     @default("{}")
+  // Server-created immutable Core prospect/brief/version tuple. Edits remain Workspace-owned.
+  sourceBriefVersion Json? @map("source_brief_version")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

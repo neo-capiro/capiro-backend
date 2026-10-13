@@ -1,10 +1,25 @@
-import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
+import {
+  withProspectDraft,
+  assertProspectDraft,
+  denyProspectTransfer,
+  requireProspectDraftInTx,
+  assertNoBoundBriefCopy,
+} from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead } from '../collaborators/role-policy.js';
 import type { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js';
 import { meriImportText } from './meri-import-text.js';
+import {
+  prospectBriefCopyState,
+  copyProspectBrief,
+  saveProspectBriefCopy,
+} from './prospect-brief-copy.js';
+import type {
+  CopyProspectBriefDto,
+  SaveProspectBriefCopyDto,
+} from './dto/prospect-brief-copy.dto.js';
 
 /**
  * Packet document tabs (Phase 3, AC-3.4 / handoff §12.12). Each tab is a
@@ -18,6 +33,24 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly collaborators: CollaboratorsService,
   ) {}
+
+  briefCopyState(tenantId: string, draftId: string, actorId: string, documentId?: string) {
+    return prospectBriefCopyState(this.prisma, tenantId, draftId, actorId, documentId);
+  }
+
+  copyBrief(tenantId: string, draftId: string, actorId: string, dto: CopyProspectBriefDto) {
+    return copyProspectBrief(this.prisma, tenantId, draftId, actorId, dto);
+  }
+
+  saveBriefCopy(
+    tenantId: string,
+    draftId: string,
+    docId: string,
+    actorId: string,
+    dto: SaveProspectBriefCopyDto,
+  ) {
+    return saveProspectBriefCopy(this.prisma, tenantId, draftId, docId, actorId, dto);
+  }
 
   private async assertDraft(tenantId: string, draftId: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
@@ -120,6 +153,7 @@ export class DocumentsService {
     const draft = await this.assertDraft(tenantId, draftId);
     return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
       await this.assertCanEdit(tenantId, draftId, actorId);
+      if (draft.prospectId) await assertNoBoundBriefCopy(db, tenantId, draftId, docId);
       const existing = await db.wsDocument.findFirst({
         where: { id: docId, tenantId, draftId },
       });
@@ -144,6 +178,7 @@ export class DocumentsService {
     const draft = await this.assertDraft(tenantId, draftId);
     return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
       await this.assertCanEdit(tenantId, draftId, actorId);
+      if (draft.prospectId) await assertNoBoundBriefCopy(db, tenantId, draftId, docId);
       const existing = await db.wsDocument.findFirst({
         where: { id: docId, tenantId, draftId },
       });
