@@ -1,0 +1,63 @@
+{
+  "name": "Backend artifact source contracts",
+  "on": {
+    "pull_request": {
+      "paths": [
+        "package.json",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml",
+        "apps/**",
+        "packages/**",
+        "scripts/**",
+        "infra/**",
+        "tests/**",
+        "docs/**",
+        ".github/workflows/**"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "artifact-source-contracts": {
+      "runs-on": "ubuntu-22.04",
+      "timeout-minutes": 10,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0,
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7",
+          "with": {
+            "node-version": "24"
+          }
+        },
+        {
+          "name": "Check the receiving source job and unchanged deployment defaults",
+          "run": "python3 scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+        },
+        {
+          "name": "Exercise standalone assembly and Docker consumer refusals",
+          "run": "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+        },
+        {
+          "name": "Preserve static artifact owner contracts",
+          "run": "node --test scripts/ci/onboard-spa-artifact.contract.spec.mjs scripts/ci/newsletter-static-release.contract.spec.mjs"
+        },
+        {
+          "name": "Preserve reviewed backend retirement and command scopes",
+          "run": "node --test scripts/ci/florida-owned-portrait-release.spec.mjs scripts/ci/defense-backend-workspace.contract.spec.mjs scripts/ci/engagement-resilience-recovery.contract.spec.mjs scripts/ci/context-plane-scope.contract.spec.mjs scripts/ci/context-plane-validation-scope.spec.mjs scripts/ci/rebuild-verification-scopes.spec.mjs"
+        },
+        {
+          "name": "Exercise isolated loopback fixtures with synthetic asset identities",
+          "run": "node --test scripts/ci/newsletter-loopback-serving.spec.mjs"
+        }
+      ]
+    }
+  }
+}

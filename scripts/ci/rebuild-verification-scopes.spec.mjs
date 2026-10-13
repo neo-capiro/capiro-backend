@@ -26,12 +26,26 @@ for (const [prefix, phases] of [
       aliasKeys.push(`${prefix}${phase}:${scope}`);
     }
 const guardAlias = 'gate:cleanup4:verification-scopes';
+// PR2435 added these four independently reviewed operators after this guard's
+// original baseline. Recognize exactly their commands before the original
+// package inverse; every other alias and all package metadata remain checked.
+const phase26Aliases = {
+  'validate:knowledge-plane:phase26:backend': 'node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only',
+  'validate:knowledge-plane:phase26:backend:typing': 'node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --skip-tests',
+  'validate:knowledge-plane:phase26:backend:source': 'node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --source-only',
+  'validate:knowledge-plane:phase26:frontend': 'node scripts/validate-knowledge-plane-phase26.mjs --run --frontend-only',
+};
 const webStart = before('.github/workflows/ci-pr.yml').indexOf('      # CleanUp1 §5.3.2');
 const webEnd = before('.github/workflows/ci-pr.yml').indexOf('      # CleanUp1 §5.3.3', webStart);
 const webStep = before('.github/workflows/ci-pr.yml').slice(webStart, webEnd);
 
 function assertPackagePreserved(pkg) {
   const inverse = structuredClone(pkg);
+  for (const [key, command] of Object.entries(phase26Aliases)) {
+    assert.equal(Object.hasOwn(originalPackage.scripts, key), false);
+    assert.equal(inverse.scripts[key], command, key);
+    delete inverse.scripts[key];
+  }
   for (const key of [...aliasKeys, guardAlias]) {
     assert.equal(Object.hasOwn(originalPackage.scripts, key), false);
     assert.equal(typeof inverse.scripts[key], 'string');
@@ -90,6 +104,24 @@ test('destination package preserves all 107 existing aliases and all metadata', 
     actualPackage.scripts[guardAlias],
     'node --test scripts/ci/rebuild-verification-scopes.spec.mjs',
   );
+});
+
+test('only the four reviewed Phase26 aliases extend the original package inverse', () => {
+  assert.equal(Object.keys(phase26Aliases).length, 4);
+  for (const key of Object.keys(phase26Aliases)) {
+    const missing = structuredClone(actualPackage);
+    delete missing.scripts[key];
+    assert.throws(() => assertPackagePreserved(missing));
+    const changed = structuredClone(actualPackage);
+    changed.scripts[key] += ' --skip-tests';
+    assert.throws(() => assertPackagePreserved(changed));
+  }
+  const extra = structuredClone(actualPackage);
+  extra.scripts['validate:unreviewed'] = 'node scripts/unreviewed.mjs';
+  assert.throws(() => assertPackagePreserved(extra));
+  const changedMetadata = structuredClone(actualPackage);
+  changedMetadata.engines.node = '>=1';
+  assert.throws(() => assertPackagePreserved(changedMetadata));
 });
 
 test('Phase1 scoped operands retain one explicit run and every current syntax check', () => {
