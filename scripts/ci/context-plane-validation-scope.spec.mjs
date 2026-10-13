@@ -169,10 +169,33 @@ test('guard and whitespace failures cannot produce any scoped completion',()=>{
     assert.equal(result.error.exitCode,1);assert.doesNotMatch(resultText(result),/PHASE26_\w+_SOURCE_COMPLETE/);
   }
 });
-test('root package/CI aliases are untouched by this caller slice',()=>{
-  const currentPackage = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
-  const originalPackage = execFileSync('git', ['show', ORIGINAL_HEAD + ':package.json'], {cwd: ROOT, encoding: 'utf8'});
-  assert.equal(currentPackage, originalPackage);
+test('current package metadata/aliases survive the four exact scoped run aliases',()=>{
+  const currentPackage = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const originalPackage = JSON.parse(execFileSync('git', ['show', ORIGINAL_HEAD + ':package.json'], {cwd: ROOT, encoding: 'utf8'}));
+  const aliases = Object.fromEntries([
+    ['backend', '--backend-only'], ['backend:typing', '--backend-only --skip-tests'],
+    ['backend:source', '--backend-only --source-only'], ['frontend', '--frontend-only'],
+  ].map(([suffix, flags]) => ['validate:knowledge-plane:phase26:' + suffix,
+    'node scripts/validate-knowledge-plane-phase26.mjs --run ' + flags]));
+  const verify = (value) => {
+    const data = structuredClone(value);
+    for (const [name, command] of Object.entries(aliases)) {
+      if (Object.hasOwn(data.scripts, name)) {
+        assert.equal(data.scripts[name], command);
+        delete data.scripts[name];
+      }
+    }
+    assert.deepEqual(data, originalPackage);
+  };
+  verify(currentPackage);
+  verify({...originalPackage, scripts: {...originalPackage.scripts, ...aliases}});
+  for (const [name, command] of Object.entries(aliases)) {
+    assert.throws(() => verify({...originalPackage, scripts: {...originalPackage.scripts,
+      [name]: command.replace(' --run ', ' ')}}));
+  }
+  const deleted = structuredClone(originalPackage);
+  delete deleted.scripts[Object.keys(deleted.scripts)[0]];
+  assert.throws(() => verify(deleted));
 });
 
 test('strict run/help/noargs/unknown/base grammar fails before any process or baseline read',()=>{
