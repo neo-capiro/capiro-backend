@@ -1,0 +1,25 @@
+{
+  "historicalAuthor": "0ac13d445a90032272aa2397e25e7a12a93192a9",
+  "historicalMasterBindingsVerifiedAgainstHistoricalCommit": 38,
+  "historicalMasterBytesUnchanged": true,
+  "currentSource": "358d953a42129a19ba82fdd8373c86c9a455f49a",
+  "supersededOnlyTheseTwoSourceBindings": [
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "beforeSHA256": "959a74ca0ff87131ecea9244289ed803da33e4a7518d1ec9d6d6545915294d73",
+      "currentSHA256": "5afdc4aaaee02f14477edeebf92fb124fba5d114344057d1838a53e3d383e380"
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "beforeSHA256": "1f82e04c49fc7bc686d6195c1c1daab21150a7d007d924a5a5aed9248de9693a",
+      "currentSHA256": "5e1a7acd3cf45f67774baba004b85cf3b60e22e3f5270893017ec630382c3893"
+    }
+  ],
+  "otherThreeOwnedSourceFilesExact": true,
+  "standalone50CaseSpecExact": true,
+  "policyActiveCommit": null,
+  "acceptedSources": [],
+  "reviewOriginalFailureHead": "767662fe3dd554c812a66c0c09d6a588feafdf19",
+  "reviewOriginalFailureTree": "a08feb59e5ae049a79d14aa694f1ef3e836c4ae3",
+  "noProductionOrPolicyActivation": true
+}

@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs"
+  ],
+  "cwd": "/workspace/cleanup-newsletter-accepted-source-admission-20261013",
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/tmp"
+  },
+  "exit": 0,
+  "durationSeconds": 5.514268636703491,
+  "scope": "Same physical synthetic32/purestandalone50 plus19 profile cases; no payload/app/native execution",
+  "stdoutSha256": "b8ca0b626432952089d37647597dca45dd4ef69a0bfa27d1f7428d0affa9aeba",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
