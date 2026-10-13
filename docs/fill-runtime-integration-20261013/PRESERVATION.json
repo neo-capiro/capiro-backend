@@ -1,0 +1,48 @@
+{
+  "priorMasterHead": "5c9eec18045f75704f99593855537d422b8f9bd1",
+  "priorMasterPath": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+  "priorRows": 4426,
+  "resolvedBaseHead": "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+  "priorCandidateLayerPath": "docs/files-qualified-source-policy-20261013/PRESERVATION.json",
+  "allPriorCandidateSupersessionsAppliedAndVerified": true,
+  "unchangedResolvedMasterBlobModeRows": 4424,
+  "explicitReviewedFacadeOrHandoffSupersessions": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "oldModeBlob": [
+        "100644",
+        "8f40f6f4caeabca6ba402359f67f0fd2af59117c"
+      ],
+      "oldSha256": "8533a0a1816f42aaf9c37353d6f58261f86cde839c548534185fa6b0afe81297",
+      "newModeBlob": [
+        "100644",
+        "d6255fa7a0f96ea51bb11833936c99f5897adbac"
+      ],
+      "newSha256": "4056c48173c95328505d2e7364fdb0b822794164baf9a1b47c9191fa2a376854",
+      "reason": "exact reviewed donor facade"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldModeBlob": [
+        "100644",
+        "8ca9f6212e11ae19cbcb886fbe6fee457b0b590c"
+      ],
+      "oldSha256": "655d51bcc554ddada852ed53cc6a3c0e7a27314b1b0e5564d3baadde9b2f5db8",
+      "newModeBlob": [
+        "100644",
+        "7b276a6f0c5b1d36b2697753e6b0938b3a82c2ab"
+      ],
+      "newSha256": "005f010569909a8aa4342935de8fcef52bf9df40bd50bbddd13cd3726ed463ec",
+      "reason": "append current integration and overlap matrix"
+    }
+  ],
+  "priorMasterAndCandidateLayerUnchanged": true,
+  "canonicalHandoffOriginalBytesRetainedAsPrefix": true,
+  "noPriorEvidenceDeletedOrNormalized": true,
+  "independentReviewHead": "c1cd2a476719259c39702ca2f797079262ab04af",
+  "rawEvidenceCheckpointHead": "1f8c40ad2976880f8fed0acb67c3a8f841d9129d",
+  "sourceHead": "f3a6bf7210650755bb19413782738b926c5b9fd2",
+  "codeChangesAfterSourceFreeze": 0,
+  "allOriginalHeadsRetained": true,
+  "sourceActive83Inactive90AndQualifiedAuthorityInputsUnchanged": true
+}
