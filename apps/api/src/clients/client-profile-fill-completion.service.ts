@@ -44,6 +44,8 @@ import {
   isCommunityFundingAdvocacyRecord,
   matchCommunityFundingAppropriationsDeterministically,
 } from './community-funding-appropriations-outcome.js';
+import { ClientProfileFillRegulatoryCommentDiscovery } from './client-profile-fill-regulatory-comment-discovery.js';
+import { ClientProfileFillRegulatoryCommentSource } from './client-profile-fill-regulatory-comment-source.js';
 import {
   buildClientProfileFillCompletionPlan,
   calculateProfileCompletion,
@@ -64,7 +66,6 @@ import {
 import {
   buildRegulatoryOutcomeFinding,
   containsAdvocacyTerm,
-  deriveRegulatoryCommentSubmitterLabel,
   faraMatchConfidence,
   matchAdvocacyOutcomeDeterministically,
   normalizeEvidenceClass,
@@ -224,7 +225,6 @@ const SCHEDULE_SWEEP_MS = 60_000;
 const TASK_CLAIM_BATCH = 4;
 const MAX_ADVOCACY_FINDINGS = 200;
 const LDA_BACKFILL_BATCH_SIZE = 250;
-const REGULATORY_COMMENT_MAX_SEARCH_RESULTS = 250;
 // Same trigram-similarity floor client-profile-fill-workflow.service.ts uses
 // for LDA identity suggestion (0.42), lightly raised because FARA registrant
 // names are matched against a client's own registered legal name (a tighter
@@ -257,35 +257,11 @@ const TESTIMONY_INTEL_MAPPING_SOURCE = 'testimony';
 // advances at all when a page contains zero matches. See
 // `planTestimonyScanBatch` for the pagination/cursor-advancement contract.
 const TESTIMONY_SCAN_BATCH_SIZE = 500;
-// Regulations.gov public-comment auto-discovery. Confirmed live against the
-// real API 2026-08-26: a single docket (FS-2025-0001) alone carries 270,651
-// comments — a bulk "ingest every comment platform-wide" crawl is NOT a
-// bounded-cost operation, unlike FARA/testimony's small/synced source
-// tables. This adapter therefore does NOT read from a locally-synced table
-// at all; it calls Regulations.gov's own `filter[searchTerm]` comments
-// search API live, at Fill-time, scoped to one exact-phrase query for THIS
-// client's name — the same "search this source FOR this client" shape as
-// every other adapter, just via a live HTTP call instead of a pre-synced
-// table. Matched comments are cached into `regulatory_comment` (global, no
-// tenant_id) purely so a repeat Fill run doesn't re-fetch comment DETAIL
-// (the only endpoint carrying real submitter identity: firstName/lastName/
-// organization/city/state/country — the list/search endpoint's `title` is
-// a free-text label like "Comment from McNair, Carl", never structured
-// data) for a comment ID already resolved once.
-const REGULATIONS_GOV_COMMENTS_BASE_URL = 'https://api.regulations.gov/v4/comments';
-const REGULATIONS_GOV_TIMEOUT_MS = 15_000;
-// Regulations.gov's own page[size] validation floor is 5; this adapter only
-// ever needs a handful of top hits for one client-name search, not a full
-// paginated crawl.
-const REGULATORY_COMMENT_SEARCH_PAGE_SIZE = 10;
 // Bounded page for the CPF/CDS canonical-request KEYSET SCAN. Distinct from
 // MAX_ADVOCACY_FINDINGS (which caps FINDINGS emitted). community_funding_request
 // is global and can hold thousands of rows per FY; the scan must be a real
 // bounded, resumable page that advances even when a page yields zero matches.
 const COMMUNITY_FUNDING_SCAN_BATCH_SIZE = 500;
-// client_intel_mapping.source value for Regulations.gov comment client-match
-// confirmations. Same named-constant reasoning as FARA_INTEL_MAPPING_SOURCE.
-const REGULATORY_COMMENT_INTEL_MAPPING_SOURCE = 'regulatory_comment';
 
 class TaskDeferredError extends Error {}
 
@@ -304,6 +280,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   private scheduleTimer?: ReturnType<typeof setInterval>;
   private taskSweepRunning = false;
   private scheduleSweepRunning = false;
+  private readonly regulatoryCommentSource: ClientProfileFillRegulatoryCommentSource;
+  private readonly regulatoryCommentDiscovery: ClientProfileFillRegulatoryCommentDiscovery;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -313,7 +291,25 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     private readonly facilities: ClientFacilitiesService,
     private readonly httpAdapterHost: HttpAdapterHost,
     private readonly advocacyMatters: ClientAdvocacyMatterService,
-  ) {}
+  ) {
+    const reporter = {
+      warn: (message: string) => this.logger.warn(message),
+      safeError: (error: unknown) => this.safeError(error),
+    };
+    this.regulatoryCommentSource = new ClientProfileFillRegulatoryCommentSource(this.prisma, reporter);
+    this.regulatoryCommentDiscovery = new ClientProfileFillRegulatoryCommentDiscovery(
+      this.regulatoryCommentSource,
+      {
+        ...reporter,
+        resolveClientName: (ctx, clientId) => this.resolveClientNameForDiscovery(ctx, clientId),
+        confirmedMappingKeys: (ctx, clientId, source) =>
+          this.getConfirmedIntelMappingKeys(ctx, clientId, source),
+        emitFinding: (ctx, clientId, runId, input) =>
+          this.emitDiscoveryFinding(ctx, clientId, runId, input),
+      },
+      MAX_ADVOCACY_FINDINGS,
+    );
+  }
 
   onModuleInit(): void {
     if (
@@ -2195,39 +2191,6 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     });
   }
 
-  /**
-   * Public-source auto-discovery, source 3 of N (Regulations.gov public
-   * comments). Unlike FARA/testimony, there is NO locally-synced source
-   * table to scan — see REGULATIONS_GOV_COMMENTS_BASE_URL's own comment
-   * above for why a bulk crawl is unbounded-cost (one docket alone: 270,651
-   * comments, confirmed live 2026-08-26). Instead this calls
-   * Regulations.gov's own comments search API live, at Fill-time, with an
-   * exact-phrase `filter[searchTerm]="<client name>"` query — confirmed
-   * live to correctly narrow to real, on-topic matches (e.g. a search for
-   * `"Pike Robotics"` returns exactly the one comment actually submitted by
-   * that company, not the broader unquoted-term noise a bare `robotics`
-   * search returns).
-   *
-   * The search/list response's `title` is a free-text label ("Comment
-   * submitted by Pike Robotics") with NO structured submitter fields — only
-   * the per-comment DETAIL endpoint carries `firstName`/`lastName`/
-   * `organization`/`city`/`stateProvinceRegion`/`country`. So this adapter
-   * fetches detail for each search hit (bounded to
-   * REGULATORY_COMMENT_SEARCH_PAGE_SIZE hits, a small number), and caches
-   * the result into `regulatory_comment` — not because Advocacy History
-   * needs a local mirror of the corpus, but so a REPEAT Fill run for the
-   * same client doesn't re-fetch detail for a comment ID already resolved.
-   *
-   * Same deterministic-match-or-manual-rationale gate as every other
-   * adapter: a CONFIRMED `client_intel_mapping`
-   * (source='regulatory_comment', externalId = the Regulations.gov comment
-   * id) always surfaces via a direct-by-id detail fetch, bypassing the
-   * search call entirely (a human already knows the exact comment).
-   *
-   * No REGULATIONS_GOV_API_KEY configured, or the API call failing/timing
-   * out, is SOURCE UNAVAILABLE — never silently reported as "0 comments
-   * found," matching every other public-source adapter's error handling.
-   */
   private async gatherRegulatoryCommentAdvocacyCandidates(
     ctx: TenantContext,
     clientId: string,
@@ -2235,203 +2198,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     currentCount: number,
     priorState: Record<string, unknown>,
   ): Promise<{ count: number; backfill: AdvocacySourceBackfillState }> {
-    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
-    const priorCheckpoint = asRecord(priorState.checkpoint);
-    const pageNumber = Math.max(1, Number(priorCheckpoint.nextPage ?? 1));
-    const pageOffset = Math.max(0, Number(priorCheckpoint.offset ?? 0));
-    const state = (
-      status: AdvocacyBackfillStatus,
-      examined: number,
-      candidates: number,
-      checkpoint: Record<string, unknown> | null,
-      lastError: string | null = null,
-      limitation: string | null = null,
-    ): AdvocacySourceBackfillState => ({
-      status,
-      startedAt,
-      completedAt: status === 'complete' ? new Date().toISOString() : undefined,
-      checkpoint,
-      historyStart: null,
-      examined: Number(priorState.examined ?? 0) + examined,
-      candidates: Number(priorState.candidates ?? 0) + candidates,
-      lastError,
-      limitation,
-    });
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
-      return { count: 0, backfill: state('in_progress', 0, 0, priorCheckpoint) };
-    }
-    const apiKey = process.env.REGULATIONS_GOV_API_KEY;
-    if (!apiKey) {
-      const lastError = 'REGULATIONS_GOV_API_KEY not configured';
-      this.logger.warn(`Regulatory comment discovery rail unavailable: ${lastError}`);
-      return { count: 0, backfill: state('partial', 0, 0, priorCheckpoint, lastError) };
-    }
-
-    const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
-    if (!clientName) return { count: 0, backfill: state('complete', 0, 0, null) };
-
-    const confirmedCommentIds = await this.getConfirmedIntelMappingKeys(
-      ctx,
-      clientId,
-      REGULATORY_COMMENT_INTEL_MAPPING_SOURCE,
-    );
-
-    const searchCommentIds: string[] = [];
-    let searchHitCount = 0;
-    let totalElements: number | null = null;
-    let searchError: string | null = null;
-    try {
-      const params = new URLSearchParams({
-        api_key: apiKey,
-        'filter[searchTerm]': `"${clientName}"`,
-        'page[size]': String(REGULATORY_COMMENT_SEARCH_PAGE_SIZE),
-        'page[number]': String(pageNumber),
-        sort: '-postedDate',
-      });
-      const res = await fetch(`${REGULATIONS_GOV_COMMENTS_BASE_URL}?${params}`, {
-        signal: AbortSignal.timeout(REGULATIONS_GOV_TIMEOUT_MS),
-      });
-      if (!res.ok) {
-        throw new Error(`Regulations.gov comments search HTTP ${res.status}`);
-      }
-      const body = (await res.json()) as {
-        data?: Array<{ id: string }>;
-        meta?: { totalElements?: number; totalPages?: number };
-      };
-      searchHitCount = body.data?.length ?? 0;
-      totalElements = Number.isFinite(Number(body.meta?.totalElements))
-        ? Number(body.meta?.totalElements)
-        : null;
-      for (const hit of body.data ?? []) {
-        searchCommentIds.push(hit.id);
-      }
-    } catch (error) {
-      searchError = this.safeError(error);
-      this.logger.warn(`Regulatory comment search rail unavailable: ${searchError}`);
-      // A search failure still lets a confirmed-mapping id through — a
-      // human's prior decision must not be silently lost because the live
-      // search call happened to fail this run.
-      if (confirmedCommentIds.size === 0) {
-        return { count: 0, backfill: state('partial', 0, 0, priorCheckpoint, searchError) };
-      }
-    }
-
-    let count = 0;
-    let processedSearchHits = 0;
-    let detailFailures = 0;
-    const remainingSearchIds = searchCommentIds
-      .slice(pageOffset)
-      .filter((id) => !confirmedCommentIds.has(id));
-    const candidateCommentIds = [...confirmedCommentIds, ...remainingSearchIds];
-    for (const commentId of candidateCommentIds) {
-      if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
-      const isConfirmed = confirmedCommentIds.has(commentId);
-      if (!isConfirmed) processedSearchHits += 1;
-      const detail = await this.fetchOrCacheRegulatoryCommentDetail(commentId, apiKey);
-      if (!detail) {
-        detailFailures += 1;
-        continue;
-      }
-      const confidence = isConfirmed ? 1 : 0.75; // no similarity score from a full-text search hit to scale on
-      const externalKey = `regulatory-comment:${commentId}`;
-      const submitterLabel = deriveRegulatoryCommentSubmitterLabel(
-        detail.firstName,
-        detail.lastName,
-        detail.organization,
-      );
-      const proposedValue = {
-        externalKey,
-        recordType: 'regulatory_comment',
-        title: `Public comment — ${submitterLabel} on ${detail.docketId ?? detail.commentId}`,
-        summary: detail.commentText?.slice(0, 500) ?? null,
-        activityDate: detail.postedDate?.toISOString() ?? null,
-        status: null,
-        outcome: null,
-        sourceType: 'regulatory_comment',
-        sourceId: commentId,
-        sourceUrl: detail.sourceUrl,
-        evidenceClass: 'PUBLIC_VERIFIED',
-        confidence,
-        metadata: {
-          commentId,
-          docketId: detail.docketId,
-          agencyId: detail.agencyId,
-          organization: detail.organization,
-          firstName: detail.firstName,
-          lastName: detail.lastName,
-          city: detail.city,
-          stateProvince: detail.stateProvince,
-          country: detail.country,
-          clientMatch: {
-            method: isConfirmed ? 'confirmed_client_intel_mapping' : 'full_text_search',
-            confidence,
-          },
-        },
-      };
-      const inserted = await this.emitDiscoveryFinding(ctx, clientId, runId, {
-        externalKey,
-        isConfirmed,
-        confidence,
-        proposedValue,
-        evidence: [
-          {
-            label: proposedValue.title,
-            source: 'Regulations.gov public comment',
-            metadata: { commentId, docketId: detail.docketId },
-          },
-        ],
-      });
-      if (inserted) count += 1;
-    }
-    const examinedThrough = pageNumber * REGULATORY_COMMENT_SEARCH_PAGE_SIZE;
-    const pageFullyExamined = processedSearchHits === remainingSearchIds.length;
-    const capped = totalElements != null && totalElements > REGULATORY_COMMENT_MAX_SEARCH_RESULTS;
-    const reachedEnd =
-      pageFullyExamined &&
-      (searchHitCount < REGULATORY_COMMENT_SEARCH_PAGE_SIZE ||
-        (totalElements != null && examinedThrough >= totalElements));
-    const reachedCap =
-      pageFullyExamined && examinedThrough >= REGULATORY_COMMENT_MAX_SEARCH_RESULTS;
-    const detailError =
-      detailFailures > 0 ? `${detailFailures} comment detail request(s) unavailable` : null;
-    const status: AdvocacyBackfillStatus =
-      searchError || detailError
-        ? 'partial'
-        : capped && reachedCap
-          ? 'partial'
-          : reachedEnd
-            ? 'complete'
-            : 'in_progress';
-    const limitation =
-      capped && reachedCap
-        ? `Exact-phrase search capped at ${REGULATORY_COMMENT_MAX_SEARCH_RESULTS} of ${totalElements} results`
-        : null;
-    return {
-      count,
-      backfill: state(
-        status,
-        processedSearchHits,
-        count,
-        status === 'complete' || reachedCap
-          ? null
-          : pageFullyExamined
-            ? { nextPage: pageNumber + 1, offset: 0 }
-            : { nextPage: pageNumber, offset: pageOffset + processedSearchHits },
-        searchError ?? detailError,
-        limitation,
-      ),
-    };
+    return this.regulatoryCommentDiscovery.gather(ctx, clientId, runId, currentCount, priorState);
   }
 
-  /**
-   * Fetch a single Regulations.gov comment's DETAIL (the only endpoint with
-   * structured submitter fields), upserting the result into the global
-   * `regulatory_comment` cache so a repeat Fill run for any client never
-   * re-fetches the same comment ID's detail twice. Returns the cached row
-   * (freshly fetched or previously cached) or null if the id genuinely
-   * can't be resolved (a transient API failure, not a real 404 — a real
-   * 404 is still returned as null since there's nothing to emit either way).
-   */
   private async fetchOrCacheRegulatoryCommentDetail(
     commentId: string,
     apiKey: string,
@@ -2449,104 +2218,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     postedDate: Date | null;
     sourceUrl: string | null;
   } | null> {
-    const cached = await this.prisma.regulatoryComment.findUnique({ where: { commentId } });
-    // Cache hit: reuse it. This table has no tenant scoping (global source
-    // cache, same posture as fara_registration/committee_hearing), so a
-    // second client searching for an unrelated term that happens to surface
-    // the SAME comment id reuses the identical cached submitter detail —
-    // correct, since the underlying Regulations.gov record is one object.
-    if (cached) {
-      return {
-        commentId: cached.commentId,
-        docketId: cached.docketId,
-        agencyId: cached.agencyId,
-        commentText: cached.commentText,
-        firstName: cached.firstName,
-        lastName: cached.lastName,
-        organization: cached.organization,
-        city: cached.city,
-        stateProvince: cached.stateProvince,
-        country: cached.country,
-        postedDate: cached.postedDate,
-        sourceUrl: cached.sourceUrl,
-      };
-    }
-    try {
-      const params = new URLSearchParams({ api_key: apiKey });
-      const res = await fetch(
-        `${REGULATIONS_GOV_COMMENTS_BASE_URL}/${encodeURIComponent(commentId)}?${params}`,
-        {
-          signal: AbortSignal.timeout(REGULATIONS_GOV_TIMEOUT_MS),
-        },
-      );
-      if (!res.ok) return null;
-      const body = (await res.json()) as {
-        data?: {
-          id: string;
-          attributes?: {
-            docketId?: string | null;
-            agencyId?: string | null;
-            title?: string | null;
-            comment?: string | null;
-            firstName?: string | null;
-            lastName?: string | null;
-            organization?: string | null;
-            city?: string | null;
-            stateProvinceRegion?: string | null;
-            country?: string | null;
-            postedDate?: string | null;
-          };
-        };
-      };
-      const attrs = body.data?.attributes;
-      if (!attrs) return null;
-      const title = attrs.title ?? `Comment ${commentId}`;
-      const sourceUrl = `${REGULATIONS_GOV_COMMENTS_BASE_URL}/${encodeURIComponent(commentId)}`;
-      const postedDate = attrs.postedDate ? new Date(attrs.postedDate) : null;
-      await this.prisma.regulatoryComment.upsert({
-        where: { commentId },
-        create: {
-          commentId,
-          docketId: attrs.docketId ?? null,
-          agencyId: attrs.agencyId ?? null,
-          title,
-          commentText: attrs.comment ?? null,
-          firstName: attrs.firstName ?? null,
-          lastName: attrs.lastName ?? null,
-          organization: attrs.organization ?? null,
-          city: attrs.city ?? null,
-          stateProvince: attrs.stateProvinceRegion ?? null,
-          country: attrs.country ?? null,
-          postedDate,
-          sourceUrl,
-        },
-        update: {
-          title,
-          commentText: attrs.comment ?? null,
-          organization: attrs.organization ?? null,
-          syncedAt: new Date(),
-        },
-      });
-      return {
-        commentId,
-        docketId: attrs.docketId ?? null,
-        agencyId: attrs.agencyId ?? null,
-        commentText: attrs.comment ?? null,
-        firstName: attrs.firstName ?? null,
-        lastName: attrs.lastName ?? null,
-        organization: attrs.organization ?? null,
-        city: attrs.city ?? null,
-        stateProvince: attrs.stateProvinceRegion ?? null,
-        country: attrs.country ?? null,
-        postedDate,
-        sourceUrl,
-      };
-    } catch (error) {
-      this.logger.warn(
-        `Regulatory comment detail fetch unavailable for ${commentId}: ${this.safeError(error)}`,
-      );
-      return null;
-    }
+    return this.regulatoryCommentSource.getDetail(commentId, apiKey);
   }
 
   /**
