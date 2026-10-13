@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "incremental": false,
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "src/tracker/tracker-action-ownership*.spec.ts",
+    "src/tracker/tracker-action-worker-ownership.spec.ts",
+    "src/tracker/fixtures/tracker-action-ownership/**/*.ts",
+    "src/tracker/fixtures/tracker-action-guard/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

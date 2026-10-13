@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import * as ts from 'typescript';
+import {
+  retainedIntelActionAsset,
+  trackerBoardFixedPaths as fixedPaths,
+} from '../../api/src/tracker/fixtures/tracker-action-guard/semantic.js';
 
 const root = resolve(__dirname, '../../..');
 const directory = 'apps/intel-api/src/tracker';
@@ -62,50 +66,8 @@ const pins = {
   originalData: 'deb83545b4976147bf9bdbca9bf3ab59f214de83313170999a7b38b4bd523ec3',
   moduleWiring: '596120b8195e9fea987edd8a880f75811d518696e09619487308e6d2508d589d',
   publicHelpers: 'f72ffd327953adc480d51cd40c116a8a9ee316141dccc2287d86b7763f90af8e',
-  fixedAssets: '58e389ab750d87897f55220a7fb969ffa2d2de9c8168a2e852e48e50170970c6',
+  fixedAssets: 'f919723ead2b8670cd11550dfe4bda407da2d23c007dc15153ea40546940e10d',
 };
-const fixedPaths = [
-  'apps/intel-api/src/tracker/tracker-board.controller.ts',
-  'apps/intel-api/src/tracker/tracker-watchlist.controller.ts',
-  'apps/intel-api/src/tracker/tracker-channel.controller.ts',
-  'apps/intel-api/src/tracker/tracker.dto.ts',
-  'apps/intel-api/src/tracker/tracker.module.ts',
-  'apps/intel-api/src/tracker/tracker-owner.guard.ts',
-  'apps/intel-api/src/sourcedata/source-data.repository.ts',
-  'apps/intel-api/src/sourcedata/state-source-data.repository.ts',
-  'apps/intel-api/src/prisma/prisma.service.ts',
-  'apps/intel-api/src/tracker/tracker-watchlist.service.ts',
-  'apps/intel-api/src/watchlist/watchlist-compiler.ts',
-  'apps/intel-api/src/watchlist/term-routing.ts',
-  'apps/intel-api/src/tracker/bill-fit.util.ts',
-  'apps/intel-api/src/tracker/bill-stage.util.ts',
-  'apps/intel-api/src/tracker/relevance.util.ts',
-  'apps/intel-api/src/tracker/change-detector.util.ts',
-  'apps/intel-api/src/tracker/new-match-detector.service.ts',
-  'apps/intel-api/src/tasks/task-runner.ts',
-  'apps/intel-api/src/tracker/tracker-board-state-stage.spec.ts',
-  'apps/intel-api/src/tracker/tracker-tenant-scoping.spec.ts',
-  'apps/intel-api/test/tracker-board-guards.spec.ts',
-  'apps/intel-api/test/tracker-board-pagination.spec.ts',
-  'apps/intel-api/test/tracker-board-highfit.spec.ts',
-  'apps/intel-api/test/tracker-board-feedback.spec.ts',
-  'apps/intel-api/test/bill-search.spec.ts',
-  'apps/intel-api/test/bill-search-jurisdictions.spec.ts',
-  'apps/intel-api/test/tracker-summary.spec.ts',
-  'apps/intel-api/test/tracker-portfolio-counts.spec.ts',
-  'apps/intel-api/test/tracker-dto-validation.spec.ts',
-  'apps/intel-api/test/tracker-watchlist.spec.ts',
-  'apps/intel-api/test/bill-fit.spec.ts',
-  'apps/intel-api/test/bill-fit-routing.spec.ts',
-  'apps/intel-api/test/bill-stage.spec.ts',
-  'apps/intel-api/test/watchlist-compiler.spec.ts',
-  'apps/intel-api/test/term-routing.spec.ts',
-  'apps/intel-api/test/term-routing-perf.spec.ts',
-  'apps/intel-api/test/watchlist-mapping.spec.ts',
-  'apps/intel-api/test/watchlist-weighting.spec.ts',
-  'apps/intel-api/test/task-runner.spec.ts',
-  'apps/intel-api/test/new-match-detector.spec.ts',
-];
 
 function hash(bytes: string | Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
@@ -403,7 +365,10 @@ it('keeps all eight original standalone helpers in their exact single canonical 
 });
 
 it('retains positive controller, DTO, module, source, compiler, watchlist, worker and original-test identities', () => {
-  const actual = fixedPaths.map((path) => ({ path, sha256: hash(readFileSync(join(root, path))) }));
-  expect(actual).toHaveLength(40);
+  const actual = fixedPaths
+    .filter((path) => path !== 'apps/intel-api/src/tracker/change-detector.util.ts')
+    .map((path) => ({ path, sha256: hash(readFileSync(join(root, path))) }));
+  expect(actual).toHaveLength(39);
   expect(digest(actual)).toBe(pins.fixedAssets);
+  expect(retainedIntelActionAsset(root)).toBe(true);
 });

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "incremental": false,
+    "types": ["node", "jest"]
+  },
+  "include": ["test/tracker-action-ownership.spec.ts"],
+  "exclude": ["node_modules", "dist"]
+}
