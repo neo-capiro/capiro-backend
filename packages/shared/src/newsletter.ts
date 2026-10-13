@@ -1138,3 +1138,6 @@ export function newsletterBlockVisible(
     }
   });
 }
+
+/** Pure receiving parsers and canonical read envelopes; no action is performed by parsing. */
+export * from './newsletter-receiving.js';

@@ -10,9 +10,9 @@ import type { TenantContext } from '@capiro/shared';
 import {
   findNewsletterBlock,
   newsletterSourceClients,
-  type NewsletterCampaignConfig,
   type NewsletterDesign,
   type NewsletterRecipient,
+  type NewsletterOutreachStage,
 } from '@capiro/shared/newsletter';
 import {
   newsletterEscape,
@@ -26,14 +26,7 @@ import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
-export interface NewsletterOutreachStage {
-  id: string;
-  documentId: string;
-  revision: number;
-  name: string;
-  config: NewsletterCampaignConfig;
-  design: NewsletterDesign;
-}
+export type { NewsletterOutreachStage } from '@capiro/shared/newsletter';
 export interface NewsletterDestination {
   email: string;
   name?: string;
@@ -176,9 +169,34 @@ export class NewsletterOutreachService {
   private async record(ctx: TenantContext, id: string) {
     if (!uuid.test(id)) throw new NotFoundException('Newsletter outreach not found');
     const row = await this.engagement.getOutreachRecord(ctx, id);
-    const stageId = (row.metadata as Record<string, unknown> | null)?.newsletterStageId;
-    if (typeof stageId !== 'string') throw new NotFoundException('Newsletter outreach not found');
+    const metadata = row.metadata as Record<string, unknown> | null;
+    const stageId = metadata?.newsletterStageId;
+    if (row.type !== 'outbound_campaign' || typeof stageId !== 'string')
+      throw new NotFoundException('Newsletter outreach not found');
     const stage = await this.stage(ctx, stageId);
+    const rowClient = row.clientId;
+    const stageClient = stage.config.clientId;
+    const sameClient =
+      (rowClient === null && stageClient === null) ||
+      (typeof rowClient === 'string' &&
+        uuid.test(rowClient) &&
+        typeof stageClient === 'string' &&
+        uuid.test(stageClient) &&
+        rowClient.toLowerCase() === stageClient.toLowerCase());
+    const hasRevision =
+      metadata !== null &&
+      metadata !== undefined &&
+      Object.prototype.hasOwnProperty.call(metadata, 'newsletterRevision');
+    const stageRevision = metadata?.newsletterRevision;
+    if (
+      !sameClient ||
+      (hasRevision &&
+        (typeof stageRevision !== 'number' ||
+          !Number.isSafeInteger(stageRevision) ||
+          stageRevision < 1 ||
+          stageRevision !== stage.revision))
+    )
+      throw new NotFoundException('Newsletter outreach not found');
     await this.assertClient(ctx, row.clientId);
     return { row, stage };
   }

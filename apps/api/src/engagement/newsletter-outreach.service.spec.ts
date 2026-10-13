@@ -31,6 +31,7 @@ function harness() {
   };
   const row = {
     id: recordId,
+    type: 'outbound_campaign',
     clientId: null,
     status: 'draft',
     metadata: { newsletterStageId: stageId },

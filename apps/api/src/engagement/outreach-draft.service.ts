@@ -34,6 +34,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import type { DraftAuditCheckDto, OutreachDraftVersionDto } from '@capiro/shared/newsletter';
 import type { LedgerEntry } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -94,38 +95,8 @@ export interface CreateEditedVersionInput {
   editKind: DraftEditKind;
 }
 
-/** One check name + severity. Never spans, evidence or raw auditor internals. */
-export interface DraftAuditCheckDto {
-  check: string;
-  severity: string;
-}
-
-export interface OutreachDraftVersionDto {
-  id: string;
-  artifactId: string;
-  outreachRecordId: string;
-  version: number;
-  sourceVersionId: string | null;
-  generationKey: string;
-  recipientKey: string;
-  audienceKind: string;
-  subject: string;
-  body: string;
-  contentHash: string;
-  generationStatus: DraftGenerationStatus;
-  auditStatus: DraftAuditStatus;
-  approvalStatus: DraftApprovalStatus;
-  auditDecision: string | null;
-  auditChecks: DraftAuditCheckDto[];
-  reviewRequestId: string | null;
-  provider: string | null;
-  model: string | null;
-  promptSpecVersion: string | null;
-  /** Derived from the lifecycle fields — the wizard must never compute this. */
-  sendable: boolean;
-  createdAt: string;
-  contextNote?: string;
-}
+// Canonical browser-safe response types are shared; lifecycle decisions remain in Core.
+export type { DraftAuditCheckDto, OutreachDraftVersionDto } from '@capiro/shared/newsletter';
 
 /** Version metadata only (no text) — enough to render a history strip. */
 export interface DraftVersionSummaryDto {
