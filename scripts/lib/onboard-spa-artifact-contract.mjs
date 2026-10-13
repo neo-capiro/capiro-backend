@@ -111,14 +111,14 @@ function resourceReferences(path, text) {
     for (const match of text.matchAll(/\bhref\s*=\s*["']([^"']+\.(?:pdf|svg|ico)(?:[?#][^"']*)?)["']/gi)) add(match[1]);
   }
   // Token separators may contain comments; quoted reference bytes are never stripped.
-  const cssTrivia = String.raw`(?:\s|\/\*[\s\S]*?\*\/)*`;
-  const jsTrivia = String.raw`(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*`;
+  const cssTrivia = String.raw`(?:\s|\/\*(?:(?!\*\/)[\s\S])*\*\/)*`;
+  const jsTrivia = String.raw`(?:\s|\/\*(?:(?!\*\/)[\s\S])*\*\/|\/\/[^\r\n]*(?:\r?\n|$))*`;
   if (path.endsWith('.css')) {
     for (const match of text.matchAll(new RegExp(String.raw`\burl${cssTrivia}\(${cssTrivia}(?:"([^"]+)"|'([^']+)'|([^\s)]+))${cssTrivia}\)`, 'gi'))) add(match[1] ?? match[2] ?? match[3]);
     for (const match of text.matchAll(new RegExp(String.raw`@import\b${cssTrivia}["']([^"']+)["']`, 'gi'))) add(match[1]);
   }
   if (/\.(?:m?js)$/.test(path)) {
-    for (const match of text.matchAll(new RegExp(String.raw`\b(?:import|export)\b${jsTrivia}(?:[^;'"()]*?\bfrom\b${jsTrivia})?["']([^"']+)["']`, 'g'))) add(match[1], 'module');
+    for (const match of text.matchAll(new RegExp(String.raw`\b(?:import|export)\b${jsTrivia}(?:(?:[^;'"()/]|\/\*(?:(?!\*\/)[\s\S])*\*\/|\/\/[^\r\n]*(?:\r?\n|$)|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*?\bfrom\b${jsTrivia})?["']([^"']+)["']`, 'g'))) add(match[1], 'module');
     const literal = new RegExp(String.raw`^${jsTrivia}(["'])([^"']+)\1${jsTrivia}$`);
     const imports = new Set();
     for (const match of text.matchAll(new RegExp(String.raw`\bimport\b${jsTrivia}\(([^)]*)\)`, 'g'))) {
