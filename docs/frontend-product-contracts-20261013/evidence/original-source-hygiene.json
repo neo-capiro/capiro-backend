@@ -1,0 +1,12 @@
+{
+  "sourceHygiene": "FAIL",
+  "base": "35374ac826edf10c84061b255380d1165538b6b9",
+  "checkedPaths": 37,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "rawArchivesClassified": [],
+  "checkedDiagnostics": "docs/frontend-product-contracts-20261013/evidence/initial-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/frontend-product-contracts-20261013/evidence/initial-jest.log:3: trailing whitespace.\n+  \ndocs/frontend-product-contracts-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/frontend-product-contracts-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+}

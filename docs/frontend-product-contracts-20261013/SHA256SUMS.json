@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "scope": "finite new contract packet; inherited accepted qualification indices remain exact",
+  "files": [
+    {
+      "path": "docs/frontend-product-contracts-20261013/INDEPENDENT-BACKEND-REVIEW.md",
+      "bytes": 3158,
+      "sha256": "4530399cbc04f4d39be3a325bcd7e49652c8ef55d1fe2b551491ce9138a4ca26"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/JEST-SELECTION.json",
+      "bytes": 555,
+      "sha256": "1a53c945551708c20d09bad3093041a603f38596cac061a7c41032e3401749e4"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/QUALIFICATION.md",
+      "bytes": 3645,
+      "sha256": "c5882f194a7d12973d96cf56e7b6369c04f2aef9156c775e6e7ea625124a456e"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/RECEIVING-CONTRACT.md",
+      "bytes": 12998,
+      "sha256": "84fc4f3bf3c889df690f99b17849fd0d79c2efc57cadd4207e2ef799b2401fcb"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/build-config.json",
+      "bytes": 205,
+      "sha256": "261aeaf931af5d8b90309d721ec109a7e2b2f7d5dc50afba7f0681ffd221ec7a"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/deny-source-effects.cjs",
+      "bytes": 1233,
+      "sha256": "64de96b82202a0a6e72067f238bb040830f8f81af1a70be16db5c7154a13dfa5"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/POST-BATCH-DELTA.json",
+      "bytes": 20486,
+      "sha256": "8cbd12c3d5380fdf41d86935f694d701379ee7ad5580cf1f06a89aa74d73f143"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/build-output-inventory.json.gz",
+      "bytes": 35318,
+      "sha256": "739aeb806905845fba40a3c6b5d7d9b9597e32375f90f842a1e272c15832747e"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/build-receipt.json",
+      "bytes": 855,
+      "sha256": "30c7ae4c8c72fc579608f895495cf8dba5c0721018a2584d2198dcd1e321307d"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/check-host-provenance.json",
+      "bytes": 744,
+      "sha256": "838f5d40fcf6bd927dd5d6a9e069a2cf94bbd9e4f99d8462f9536e9ab3f015af"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/check-host-setup-original-failure.json",
+      "bytes": 263,
+      "sha256": "2e3f7b8a79df685850146b1b2ba10f7351f70554c09120153fad4d53455f5a47"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/emitted-build-receipt.json",
+      "bytes": 1188,
+      "sha256": "5eabc223e81903cc31fec3f69ff0e71762f6719ec91979a4159b5d7a85c1d63c"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/federal-register-existing-bodies.json",
+      "bytes": 446,
+      "sha256": "9a41e2fc031e21185d5b5ef2b306cfab73ea87e914dd05bbd019c7b089c5f45c"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/frontend-source-bindings.json",
+      "bytes": 3700,
+      "sha256": "fd0568c2ada6d04d93a58def57e93297327bedcd2ab26cec670906f913bb4e86"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/independent-review-pin.json",
+      "bytes": 370,
+      "sha256": "e389adb5e6d0abde9d3bef49b74ebf8cdf6d6085bc041677db8abd5aee7f7164"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/initial-jest-receipt.json",
+      "bytes": 1476,
+      "sha256": "15a125dd3375f6c16875c0fe6fcbc332e24e7c4a1888c22bd4c84609f5b4be1e"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/initial-jest-results.json",
+      "bytes": 12748,
+      "sha256": "e591e4944921dd1886b643ffbe0d7237b6f3ecea785a86be0953ffc5c357498f"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/initial-jest.log.lossless.json",
+      "bytes": 1559,
+      "sha256": "dd301b625abff23ff37effc4023eddb6f771ac382c9a9571e6d1d0260b6ed0e7"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/initial-type-receipt.json",
+      "bytes": 975,
+      "sha256": "4063d8fb55f4cb24dcfb57a2e5c219a6467e630c4ea5e98a5aefd426c64a294e"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/initial-type.log",
+      "bytes": 117,
+      "sha256": "e5ae4b401282c9d94c22eb061a115c34d897125053f0b0c9aa67c222e9ca6d86"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/jest-receipt.json",
+      "bytes": 1476,
+      "sha256": "a36436724fe1e769a78f4876be43059b2174ca435b3813421043b1b208156889"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/jest-results.json",
+      "bytes": 12748,
+      "sha256": "be91c7de64ce836ee7674dbf73f657a35e1007982e1fa73a745604aff44c5b05"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/jest.log.lossless.json",
+      "bytes": 1539,
+      "sha256": "755ccbaf9a7e38afd58562fbc740ff3f4c120353871e59a4db66f435dabc8212"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/mapping-provenance.json",
+      "bytes": 736,
+      "sha256": "e3a32e1660c830f8908162f4f8069540aa07dea81bc2c7dace45a905c38b4e44"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/original-check-bindings.json",
+      "bytes": 772,
+      "sha256": "e8785407c36e3223064cd88d127c1e9f901347f2573eeefc3c09a1a6c0ff93b4"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/original-source-hygiene.json",
+      "bytes": 703,
+      "sha256": "e88345a299e341968ef7f774718c1c8aa828deba98269efc463ad51d4326e877"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/pr2469-queued-source-pins.json",
+      "bytes": 1451,
+      "sha256": "80e8286313f94d72051b4322145fe2abee89994543dd9334ae5576d23f5f6824"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/raw-checkpoint-bindings.json",
+      "bytes": 1007,
+      "sha256": "93fa793c2bfbbb1e46a47138d00f41e6d001220b247766534efda91073b27287"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/source-composition-audit.json",
+      "bytes": 2265,
+      "sha256": "5fa223e921a10c81f6532e9b49d90a038b264c45e9f56b5755c2dd96307fa5f8"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/source-hygiene.json",
+      "bytes": 1386,
+      "sha256": "fd15016c4decbae3c57452053f1461dae9b38ff74d6d442cb61119015f50a1a4"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/type-receipt.json",
+      "bytes": 973,
+      "sha256": "1b6167aea8daebda884b84afbaf9534a32e2d07af2c15e6c7080eb8f5dfa8ddb"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/evidence/type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/excluded-reporting-token.cjs",
+      "bytes": 223,
+      "sha256": "2288905cc7adf9214ba50e627f2c0b56a3199b2c8b3eae475d061fdb5319b008"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/inert-jest.config.cjs",
+      "bytes": 1227,
+      "sha256": "a552c81d5c79f358b6118eeeb02ef0390e6d4ec92360a04a7346a907c5349a4c"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/inert-native-parser-environment.cjs",
+      "bytes": 527,
+      "sha256": "efce0cb69787684dc33f24c93485554ad94de5adcfb6096deafac203a5f8c57c"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/run-source-check.py",
+      "bytes": 2588,
+      "sha256": "8bae31db76e0c10e83226d29e598b484c715dcffbb0197b3eb88b4b337f96ce7"
+    }
+  ]
+}

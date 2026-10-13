@@ -1,0 +1,20 @@
+{
+  "rawCommit": "333094abfbacf30b8d49dc90e6499bcee21b7d9f",
+  "rawTree": "54f428551f793c1f1fe179ed57f0cef22f69720b",
+  "reviewCommit": "66e8adbdcf97b3f24bf07e1c83209f7d6df40996",
+  "envelopes": [
+    {
+      "originalPath": "docs/frontend-product-contracts-20261013/evidence/initial-jest.log",
+      "envelopePath": "docs/frontend-product-contracts-20261013/evidence/initial-jest.log.lossless.json",
+      "bytes": 922,
+      "sha256": "7fea05690e8190f898efb9beefc856821ccafdd1975cac7f911d65e319bf9dad"
+    },
+    {
+      "originalPath": "docs/frontend-product-contracts-20261013/evidence/jest.log",
+      "envelopePath": "docs/frontend-product-contracts-20261013/evidence/jest.log.lossless.json",
+      "bytes": 913,
+      "sha256": "01829b60e62b96962e566a7857f4ee9400bc4d80ede8f6f68f8a3e96081aeb42"
+    }
+  ],
+  "reason": "ts-jest warnings contain literal trailing spaces. Two finite logs are losslessly encoded; originals stay at the published raw ancestor. No trimming or general hygiene exception."
+}
