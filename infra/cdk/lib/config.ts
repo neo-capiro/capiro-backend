@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 
-export type EnvName = 'dev' | 'staging' | 'prod';
+export type EnvName = 'dev' | 'staging' | 'prod' | 'preview';
 
 export interface EnvConfig {
   envName: EnvName;
@@ -142,6 +142,34 @@ const BASE: Omit<EnvConfig, 'envName' | 'account' | 'region'> = {
   logRetentionDays: 90,
   typesafeApiKeySecretEnabled: false,
 };
+
+/** Preview uses its dedicated entry point; loadConfig continues refusing it. */
+export function previewConfig(clerkJwtIssuer: string): EnvConfig {
+  if (!/^https:\/\/[a-z0-9-]+\.clerk\.accounts\.dev$/.test(clerkJwtIssuer)) {
+    throw new Error('Preview requires an explicit Clerk test issuer');
+  }
+  return {
+    ...BASE,
+    envName: 'preview',
+    account: '967807252336',
+    region: 'us-east-1',
+    appHost: 'portfolio-preview.app.capiro.ai',
+    rootDomain: 'portfolio-preview.app.capiro.ai',
+    wildcardHost: '*.portfolio-preview.app.capiro.ai',
+    clerkJwtIssuer,
+    auroraMinAcu: 0.5,
+    auroraMaxAcu: 1,
+    auroraBackupRetentionDays: 7,
+    apiDesiredCount: 0,
+    webDesiredCount: 0,
+    marketingDesiredCount: 0,
+    workspaceDesiredCount: 0,
+    meriv2OrchestratorDesiredCount: 0,
+    apiStrategyDesiredCount: 0,
+    protectFromDestroy: true,
+    logRetentionDays: 14,
+  };
+}
 
 export function loadConfig(app: cdk.App): EnvConfig {
   const envName = (app.node.tryGetContext('env') as EnvName | undefined) ?? 'dev';

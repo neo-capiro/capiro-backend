@@ -86,7 +86,7 @@ export class DataStack extends cdk.Stack {
     // the isolated staging environment to be rebuilt on the oldest available
     // compatible 16.x minor.
     const auroraPostgresVersion =
-      cfg.envName === 'staging'
+      cfg.envName === 'staging' || cfg.envName === 'preview'
         ? rds.AuroraPostgresEngineVersion.VER_16_8
         : rds.AuroraPostgresEngineVersion.VER_16_4;
 
@@ -149,7 +149,8 @@ export class DataStack extends cdk.Stack {
         retention: cdk.Duration.days(cfg.auroraBackupRetentionDays),
       },
       cloudwatchLogsExports: ['postgresql'],
-      cloudwatchLogsRetention: logs.RetentionDays.ONE_YEAR,
+      cloudwatchLogsRetention:
+        cfg.envName === 'preview' ? logs.RetentionDays.TWO_WEEKS : logs.RetentionDays.ONE_YEAR,
       iamAuthentication: true,
       deletionProtection: cfg.protectFromDestroy,
       removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
@@ -157,14 +158,14 @@ export class DataStack extends cdk.Stack {
       serverlessV2MaxCapacity: cfg.auroraMaxAcu,
       writer: rds.ClusterInstance.serverlessV2('writer', {
         publiclyAccessible: false,
-        enablePerformanceInsights: true,
-        performanceInsightEncryptionKey: this.key,
+        enablePerformanceInsights: cfg.envName !== 'preview',
+        performanceInsightEncryptionKey: cfg.envName === 'preview' ? undefined : this.key,
       }),
       readers: [
         rds.ClusterInstance.serverlessV2('reader1', {
           publiclyAccessible: false,
-          enablePerformanceInsights: true,
-          performanceInsightEncryptionKey: this.key,
+          enablePerformanceInsights: cfg.envName !== 'preview',
+          performanceInsightEncryptionKey: cfg.envName === 'preview' ? undefined : this.key,
           scaleWithWriter: true,
         }),
       ],
@@ -172,7 +173,14 @@ export class DataStack extends cdk.Stack {
 
     // `Credentials.fromSecret(masterSecret)` attaches the secret to the cluster
     // automatically, calling masterSecret.attach() again throws.
-    if (cfg.envName === 'staging') {
+    if (cfg.envName === 'preview') {
+      // Source proposal only: preview role/bootstrap and rotation approval are held.
+      // No rotation worker or schedule is introduced into the imported VPC.
+      this.node.addMetadata(
+        'PreviewRotationGate',
+        'held until independent credential/bootstrap approval',
+      );
+    } else if (cfg.envName === 'staging') {
       // The retained staging rotation was created by the hosted-rotation
       // transform. Re-expanding that transform during drift repair produces a
       // spurious nested-stack update, which in turn attempts to rewrite the
@@ -187,24 +195,18 @@ export class DataStack extends cdk.Stack {
       const commaSeparatedSubnetIds = privateSubnetIds.flatMap((subnetId, index) =>
         index === 0 ? [subnetId] : [',', subnetId],
       );
-      const hostedRotationStack = new cloudformation.CfnStack(
-        this,
-        'StagingMasterRotationLambda',
-        {
-          templateUrl: `https://secrets-manager-rotation-apps-c0de1e0412b469545054417cc38af3c3.s3.${cfg.region}.amazonaws.com/SecretsManagerRDSPostgreSQLRotationSingleUser/sam_template_v2.yml`,
-          parameters: {
-            endpoint: `https://secretsmanager.${cfg.region}.amazonaws.com`,
-            functionName: `capiro-${cfg.envName}-aurora-rotation`,
-            excludeCharacters: " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
-            kmsKeyArn: this.key.keyArn,
-            vpcSecurityGroupIds: stagingRotationSecurityGroup.securityGroupId,
-            vpcSubnetIds: cdk.Fn.join('', commaSeparatedSubnetIds),
-          },
+      const hostedRotationStack = new cloudformation.CfnStack(this, 'StagingMasterRotationLambda', {
+        templateUrl: `https://secrets-manager-rotation-apps-c0de1e0412b469545054417cc38af3c3.s3.${cfg.region}.amazonaws.com/SecretsManagerRDSPostgreSQLRotationSingleUser/sam_template_v2.yml`,
+        parameters: {
+          endpoint: `https://secretsmanager.${cfg.region}.amazonaws.com`,
+          functionName: `capiro-${cfg.envName}-aurora-rotation`,
+          excludeCharacters: ' %+~`#$&*()|[]{}:;<>?!\'/@"\\',
+          kmsKeyArn: this.key.keyArn,
+          vpcSecurityGroupIds: stagingRotationSecurityGroup.securityGroupId,
+          vpcSubnetIds: cdk.Fn.join('', commaSeparatedSubnetIds),
         },
-      );
-      hostedRotationStack.overrideLogicalId(
-        'DbMasterSecretRotationCECF4B07HostedRotationLambda',
-      );
+      });
+      hostedRotationStack.overrideLogicalId('DbMasterSecretRotationCECF4B07HostedRotationLambda');
       hostedRotationStack.cfnOptions.metadata = {
         'aws:cdk:path': `${this.node.path}/DbMasterSecret/Rotation/Resource`,
       };

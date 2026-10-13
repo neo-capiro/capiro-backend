@@ -31,17 +31,13 @@ export class AssetsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: AssetsStackProps) {
     super(scope, id, props);
     const { cfg } = props;
-    Object.entries(commonTags(cfg)).forEach(([k, v]) =>
-      cdk.Tags.of(this).add(k, v),
-    );
+    Object.entries(commonTags(cfg)).forEach(([k, v]) => cdk.Tags.of(this).add(k, v));
 
     this.key = new kms.Key(this, 'AssetsKey', {
       alias: `alias/capiro/${cfg.envName}/assets`,
       description: `Capiro ${cfg.envName} tenant assets bucket CMK`,
       enableKeyRotation: true,
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
     this.bucket = new s3.Bucket(this, 'AssetsBucket', {
@@ -52,32 +48,33 @@ export class AssetsStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
       versioned: true,
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !cfg.protectFromDestroy,
       cors: [
         {
           // The browser PUTs files via presigned URLs from app.capiro.ai and
           // any tenant subdomain; SPA must read the response status.
-          allowedOrigins: [
-            ...new Set([
-              `https://${cfg.appHost}`,
-              `https://${cfg.rootDomain}`,
-              // The isolated vNext surface. os.capiro.ai runs the SAME presign →
-              // S3 POST → confirm upload flow, so leaving it out of this list
-              // made every browser upload from os.capiro.ai fail the CORS
-              // preflight — the API minted a valid presigned POST (201) and the
-              // browser then refused to send it ("Failed to fetch"), which is
-              // what broke the client Files tab and per-capability documents.
-              // compute-stack.ts already carries this host in WEB_ORIGIN;
-              // this bucket was the half of the rollout that was missed.
-              'https://os.capiro.ai',
-            ]),
-            // Vanity tenant subdomain wildcard, S3 CORS supports the
-            // `*.app.capiro.ai` form natively.
-            `https://*.${cfg.appHost}`,
-          ],
+          allowedOrigins:
+            cfg.envName === 'preview'
+              ? [`https://${cfg.appHost}`]
+              : [
+                  ...new Set([
+                    `https://${cfg.appHost}`,
+                    `https://${cfg.rootDomain}`,
+                    // The isolated vNext surface. os.capiro.ai runs the SAME presign →
+                    // S3 POST → confirm upload flow, so leaving it out of this list
+                    // made every browser upload from os.capiro.ai fail the CORS
+                    // preflight — the API minted a valid presigned POST (201) and the
+                    // browser then refused to send it ("Failed to fetch"), which is
+                    // what broke the client Files tab and per-capability documents.
+                    // compute-stack.ts already carries this host in WEB_ORIGIN;
+                    // this bucket was the half of the rollout that was missed.
+                    'https://os.capiro.ai',
+                  ]),
+                  // Vanity tenant subdomain wildcard, S3 CORS supports the
+                  // `*.app.capiro.ai` form natively.
+                  `https://*.${cfg.appHost}`,
+                ],
           allowedMethods: [
             s3.HttpMethods.PUT,
             s3.HttpMethods.POST,
@@ -192,12 +189,7 @@ export class AssetsStack extends cdk.Stack {
   grantApiAccess(grantee: iam.IGrantable): void {
     grantee.grantPrincipal.addToPrincipalPolicy(
       new iam.PolicyStatement({
-        actions: [
-          's3:GetObject',
-          's3:PutObject',
-          's3:DeleteObject',
-          's3:GetObjectVersion',
-        ],
+        actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject', 's3:GetObjectVersion'],
         resources: [`${this.bucket.bucketArn}/tenants/*`],
       }),
     );

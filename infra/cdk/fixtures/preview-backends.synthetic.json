@@ -1,0 +1,33 @@
+{
+  "vpcId": "vpc-00000000000000001",
+  "vpcCidr": "10.90.0.0/16",
+  "clusterArn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-portfolio-preview",
+  "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-portfolio-preview/0000000000000001/0000000000000002",
+  "albSecurityGroupId": "sg-00000000000000001",
+  "publicSubnetIds": ["subnet-00000000000000001", "subnet-00000000000000002"],
+  "availabilityZones": ["us-east-1a", "us-east-1b"],
+  "frontendTargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/portfolio-preview/0000000000000001",
+  "clerkIssuer": "https://synthetic-preview.clerk.accounts.dev",
+  "clerkApplicationId": "app_SYNTHETICPREVIEW",
+  "clerkSecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf",
+  "clerkPublishableKeyArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/publishable-key-AbCdEf",
+  "clerkKeyArn": "arn:aws:kms:us-east-1:967807252336:key/00000000-0000-4000-8000-000000000001",
+  "neoTenantId": "10000000-0000-4000-8000-000000000001",
+  "automationTenantId": "10000000-0000-4000-8000-000000000002",
+  "neoActorId": "20000000-0000-4000-8000-000000000001",
+  "automationActorId": "20000000-0000-4000-8000-000000000002",
+  "images": {
+    "core": {
+      "uri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+    },
+    "workspace": {
+      "uri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-workspace@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+    },
+    "intelligence": {
+      "uri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-intelligence@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+    }
+  }
+}
