@@ -138,11 +138,11 @@ test('shipping CLI keeps all seven flags, refuses pending pins and exposes no pr
   const shipping = parseFrontendStandaloneInvocation(shippingArgs());
   assert.equal(shipping.pins.sourceCommit, current);
   assert.throws(() => assertAcceptedNewsletterArtifactSource(shipping.pins, pendingFixture()), /final accepted frontend source/);
-  const build = parseNewsletterBuildInvocation(buildArgs('--run'));
+  const build = parseNewsletterBuildInvocation(buildArgs('--run', qualified));
   assert.throws(() => assertAcceptedNewsletterArtifactSource(pins(build.options.sourceCommit), pendingFixture()), /final accepted frontend source/);
   for (const flag of ['--source-profile', '--source-admission-fixture']) {
     assert.throws(() => parseFrontendStandaloneInvocation([...shippingArgs(), flag, '{}']));
-    assert.throws(() => parseNewsletterBuildInvocation([...buildArgs('--run'), flag, '{}']));
+    assert.throws(() => parseNewsletterBuildInvocation([...buildArgs('--run', qualified), flag, '{}']));
   }
 });
 });
