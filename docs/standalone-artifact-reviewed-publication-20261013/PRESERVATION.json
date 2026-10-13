@@ -1,0 +1,13 @@
+{
+  "previousIndex": "docs/bounded-retirement-reviewed-publication-20261013/SHA256SUMS.json",
+  "previousEntries": 2787,
+  "unchangedPhysicalEntries": 2786,
+  "canonicalHandoffSupersession": [
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "preservedCopy": "docs/standalone-artifact-reviewed-publication-20261013/HANDOFF-PR2439.md",
+      "sha256": "5ea51c322305ca1e19ba627db70653c2dd0fa3fff902972a9c5b83fe69193c3f"
+    }
+  ],
+  "originalIndicesUnchanged": true
+}

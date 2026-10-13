@@ -1,0 +1,83 @@
+    // Listener rules, ORDER MATTERS, lower priority wins.
+    //   3  /api/*, /webhooks/*, /health (any host) → api  [must beat marketing host rule]
+    //   5  apex (capiro.ai) → marketing
+    //   20 app.capiro.ai + *.app.capiro.ai → web
+    //   default → 404 (set on the listener itself)
+    //
+    // ApiPaths is priority 3 (not 5+) because in dev rootDomain === appHost
+    // ('app-dev.capiro.ai'), so the Marketing host rule at priority 5 would
+    // otherwise intercept /health and /api/* before the path rule could fire.
+    httpsListener.addAction('ApiPaths', {
+      priority: 3,
+      conditions: [
+        elb.ListenerCondition.pathPatterns([
+          '/api/*',
+          '/webhooks/*',
+          '/health',
+        ]),
+      ],
+      action: elb.ListenerAction.forward([this.apiTargetGroup]),
+    });
+    // Workspace engine: /workspace-api/* → workspace service. Priority 10 sits
+    // between ApiPaths (3) and WebDefault (20). The path is distinct from
+    // /api/* (the API) and from /workspace/* (which stays a WEB SPA route).
+    // ⚠️ This rule is added to the CDK-managed `Alb` — which is NOT what serves
+    // live prod (see the PROD ROUTING DRIFT note at the ALB definition above).
+    // Until the wedged stack is reconciled, the EFFECTIVE prod wiring for the
+    // workspace must be added to the MANUAL `capiro-prod-alb` HTTPS:443 listener
+    // (e.g. `aws elbv2 create-rule --priority 12 --conditions path-pattern
+    // /workspace-api/* --actions forward capiro-prod-workspace-tg`).
+    httpsListener.addAction('WorkspaceApi', {
+      priority: 10,
+      conditions: [elb.ListenerCondition.pathPatterns(['/workspace-api/*'])],
+      action: elb.ListenerAction.forward([this.workspaceTargetGroup]),
+    });
+    // MeriV2 orchestrator: /meri-api/* → orchestrator service. Same PROD ROUTING
+    // DRIFT caveat as the WorkspaceApi rule above: this attaches to the
+    // CDK-managed `Alb`, which is NOT the live prod ALB. The EFFECTIVE prod rule
+    // is added out-of-band to the MANUAL `capiro-prod-alb` HTTPS:443 listener —
+    // codified in scripts/meri-alb-rules.sh + docs/runbooks/meri-alb-rule.md.
+    // NOTE: on the LIVE prod ALB that rule is priority 13 → capiro-prod-meriv2-orch-tg
+    // (verified 2026-07-14); /webhooks/* owns priority 15 there. The priority 15
+    // used HERE is only valid on this (phantom) CDK ALB's ordering.
+    httpsListener.addAction('MeriApi', {
+      priority: 15,
+      conditions: [elb.ListenerCondition.pathPatterns(['/meri-api/*'])],
+      action: elb.ListenerAction.forward([this.meriv2OrchestratorTargetGroup]),
+    });
+    // Strategy Planner API: /strategy-api/* → api-strategy service. Distinct
+    // from /api/* and /workspace-api/*. Priority 12 sits between WorkspaceApi
+    // (10) and MeriApi (15) on this CDK ALB.
+    // ⚠️ SAME PROD ROUTING DRIFT caveat as WorkspaceApi/MeriApi: this attaches to
+    // the CDK-managed `Alb`, which is NOT the live prod ALB. The EFFECTIVE prod
+    // rule must be added out-of-band to the MANUAL `capiro-prod-alb` HTTPS:443
+    // listener (`aws elbv2 create-rule --priority <N> --conditions
+    // path-pattern /strategy-api/* --actions forward capiro-prod-api-strategy-tg`).
+    // On the live ALB workspace≈12, meriv2-orch=13, /webhooks/*=15 are taken —
+    // pick a free priority < 20 (e.g. 14 or 16-19); the CDK number here is
+    // independent of the real-ALB number.
+    httpsListener.addAction('StrategyApi', {
+      priority: 12,
+      conditions: [elb.ListenerCondition.pathPatterns(['/strategy-api/*'])],
+      action: elb.ListenerAction.forward([this.apiStrategyTargetGroup]),
+    });
+    if (cfg.rootDomain !== cfg.appHost) {
+      httpsListener.addAction('Marketing', {
+        priority: 5,
+        conditions: [
+          elb.ListenerCondition.hostHeaders([
+            cfg.rootDomain,
+            `www.${cfg.rootDomain}`,
+          ]),
+        ],
+        action: elb.ListenerAction.forward([this.marketingTargetGroup]),
+      });
+    }
+    httpsListener.addAction('WebDefault', {
+      priority: 20,
+      conditions: [
+        elb.ListenerCondition.hostHeaders([cfg.appHost, cfg.wildcardHost]),
+      ],
+      action: elb.ListenerAction.forward([this.webTargetGroup]),
+    });
+

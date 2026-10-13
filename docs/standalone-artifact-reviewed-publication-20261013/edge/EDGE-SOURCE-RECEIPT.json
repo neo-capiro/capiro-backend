@@ -1,0 +1,59 @@
+{
+  "completedAtUtc": "2026-10-13T02:35:53.505258+00:00",
+  "receivingHead": "0a76666dc57aa852586c35167426a540939c9918",
+  "donorHead": "1090322d9a4067b605e91afef10cef5f86900b61",
+  "path": "infra/cdk/lib/compute-stack.ts",
+  "gitBlob": "53342a3c988be078f1b081501da939366e332652",
+  "sha256": "9297f3a0c7642433dba9f5ffa5a376490d427806e93c3c8790ef68bd1770debe",
+  "donorBaseAndReceivingBlobEquality": "verified by code-only donor tree inventory",
+  "intendedSourceRules": {
+    "ApiPaths": {
+      "priority": 3,
+      "patterns": [
+        "/api/*",
+        "/webhooks/*",
+        "/health"
+      ],
+      "target": "apiTargetGroup"
+    },
+    "WorkspaceApi": {
+      "priority": 10,
+      "patterns": [
+        "/workspace-api/*"
+      ],
+      "target": "workspaceTargetGroup"
+    },
+    "MeriApi": {
+      "priority": 15,
+      "patterns": [
+        "/meri-api/*"
+      ],
+      "target": "meriv2OrchestratorTargetGroup"
+    },
+    "StrategyApi": {
+      "priority": 12,
+      "patterns": [
+        "/strategy-api/*"
+      ],
+      "target": "apiStrategyTargetGroup"
+    },
+    "WebDefault": {
+      "priority": 20,
+      "hosts": [
+        "cfg.appHost",
+        "cfg.wildcardHost"
+      ],
+      "target": "webTargetGroup"
+    }
+  },
+  "sourceInterpretation": {
+    "historicalStaticNewsletterAndNextPaths": "/newsletter/* and /_next/* match WebDefault for app/wildcard host; they do not match ApiPaths",
+    "publicCapability": "/api/engagement/newsletter-public/* matches ApiPaths",
+    "uploadedNewsletterFiles": "/workspace-api/newsletters/assets/file/* matches WorkspaceApi"
+  },
+  "historicDriftCommentPresent": true,
+  "sourceDoesNotEstablishCurrentProductionTopology": true,
+  "liveFailureClaim": false,
+  "awsRequests": 0,
+  "cdkSynthDeployOrInfraMutation": false
+}

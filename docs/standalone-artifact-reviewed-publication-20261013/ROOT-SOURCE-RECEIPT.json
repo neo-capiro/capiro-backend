@@ -1,0 +1,21 @@
+{
+  "completedAtUtc": "2026-10-13T02:43:49.397021+00:00",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "sourceTree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "sourcePaths": {
+    "apps/web/Dockerfile.frontend-artifact": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs": "5f83948bcddd8fa77a22c568277c5c7073657d35f3aaca9c19a64f8917f9c72d",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs": "d7baed581ff402f9a86ff9b192848737e62041e0b31f87d3880c38b7ffe54b3a",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs": "32e500e57cb3daa93df598512b39f7f25df1c8d7111218756f572e17a98157ab",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs": "5f7f5d8342184a7118e4ac009afd3732cb63dd20ef8fb78a44ec804ba5949feb",
+    "scripts/lib/newsletter-loopback-serving.mjs": "eab39962b8ec4553279ba04c0463a4fa4852e9cbc0f79da38202f943215f527e",
+    "scripts/verify-newsletter-loopback-serving.mjs": "a583be57df864107cc41e8c887f1579e4bd1ad037cbec735926cb257cd78c13e"
+  },
+  "authorHashesVerified": 45,
+  "sourceWhitespaceExit": 0,
+  "outsideSourceScopeChange": "docs only",
+  "edgeSourceHash": "53342a3c988be078f1b081501da939366e332652",
+  "liveTopologyClaim": false,
+  "awsOperations": false
+}

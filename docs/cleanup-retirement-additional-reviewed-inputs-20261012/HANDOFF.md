@@ -1,6 +1,6 @@
 # Current contract and bounded retirement handoff
 
-This is the current combined handoff. It adds bounded compatible retirement inputs to PR2437's producer-owned rich newsletter contracts and immutable public package. The client-first grant writer, consolidated native acceptance, Memory source repair, PR2435 scopes and earlier bounded adoptions remain preserved. Default suites, qualified guards/aliases/process policies, original plans, package/workflow fields, renderer bodies, schema/migration history and every original/new source head remain preserved. Broader frontend deletion and full release acceptance remain separate.
+This is the current combined handoff. It adds a bounded standalone artifact consumer and explicit loopback guards to PR2439's reviewed retirement composition. The rich newsletter contracts/package, client-first grant writer, consolidated native acceptance, Memory source repair, PR2435 scopes and earlier bounded adoptions remain preserved. Default suites, qualified guards/aliases/process policies, original plans, package/workflow fields, renderer bodies, schema/migration history and every original/new source head remain preserved. Broader frontend deletion and full release acceptance remain separate.
 
 ## Published stack and contract continuity
 
@@ -15,7 +15,8 @@ This is the current combined handoff. It adds bounded compatible retirement inpu
 | PR2433 | `c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4`: canonical client-first grant writer, method-fragment spec and reviewed native/coverage prerequisite evidence. |
 | PR2435 | `ed62dd1e67be152b6b760815f79bc475925659e7`, tree `6ebcb1ecd76662bb6358334f5f70c68b459a7ee2`: eight scoped Phase26 paths and four additive package aliases. |
 | PR2437 | `9ffab390ef444d7ea0bf4eb0d68224f810245e25`, tree `72cf15e81ad0adcd749cdf400be0c0d8d088fc7c`; receiving source `38fec5c83585850ed75a7d3693b3b90d517e70af` and exact package/review pins in the [publication receipt](../rich-newsletter-reviewed-publication-20261013/README.md). |
-| Bounded retirement continuation | Four-group source `bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627`; final artifact-guard source and review pins in the [composition receipt](../bounded-retirement-reviewed-publication-20261013/COMPOSITION.json). |
+| PR2439 | `0a76666dc57aa852586c35167426a540939c9918`, tree `205d88a21a25fa338f82bf4273cba6d42f77c550`; reviewed four-group and artifact-guard source pins in the [composition receipt](../bounded-retirement-reviewed-publication-20261013/COMPOSITION.json). |
+| Standalone/loopback continuation | Corrected source `2c95bd65c0d281d47c79a337d642feb7ef6d8103`, tree `56901a67cb899769bde4a07abf08a0bd35407ea0`; exact source/review and held dependency pins in the [current composition](../standalone-artifact-reviewed-publication-20261013/COMPOSITION.json). |
 
 | Canonical source contract | Preserved authority and overlap |
 | --- | --- |
@@ -111,3 +112,24 @@ Independent static-linkage review preserved the initial72 passes alongside five 
 | Native resilience, full cleanup/coverage and physical whitespace | OPEN with original floors and raw evidence; source markers do not authenticate an operator or prove native activity. |
 
 The safely removed completed independent checkout is hash-bound in the [custody packet](../bounded-retirement-reviewed-publication-20261013/custody/); branch, head/tree, original files and all candidate objects remain preserved. The denied report and protected unpublished reporting implementation are neither retrieved nor altered. No provider, database/migration, installer/Docker, AWS/security/network-policy operation, main merge or deployment occurs in this continuation.
+
+
+## Standalone artifact and loopback continuation
+
+PR2438 `1090322d9a4067b605e91afef10cef5f86900b61` supplies11 code-only inputs. Seven compatible paths are adopted: the standalone manifest/bytes/symlink/declared-trace consumer and spec, opt-in Web Docker and current-bound preservation spec, and explicit loopback helper/operator/spec. Current default Docker, newer7a02 Onboard guard, headers, runtime services, package/workflow/Windows/Phase26 fields and rich source remain exact. The Docker preservation proof uses the actual0a carrier and requires its absent `scripts/build-newsletter-release.sh` to remain absent. No builder/carrier is imported for a missing dependency.
+
+Original3e8 source passes103 affected cases and nine refusal-host controls. Its initial23PASS/27ENV-RED loopback host result remains: Node's literal127 fixture bind called dns.lookup, so the evidence host now supplies only that exact IPv4 callback without a resolver. All DNS, TLS, external/unowned-port, child and protected-source refusals remain. Actual HTTP/raw-TCP tests use synthetic task-owned127.0.0.1:0 servers with no app/provider/database/bootstrap; all owned sockets/servers close. These qualify bounded transport behavior, without actual artifact serving or native/backend authority acceptance.
+
+Independent review found duplicate special GET headers and own mixed-case `__proto__` keys were lost through two plain-object dictionary assignments. The exact four-input corpus had two escapes and two controls. Final2c95 changes only those dictionaries to null-prototype storage and adds three real guard cases. The same immutable corpus now passes4/4;53 affected loopback cases pass, and the prior Docker3/standalone50 cases carry by exact source identity. HEAD logic, header values/policy, CLI/defaults and artifact consumer bodies remain unchanged. All failed and passing programs, receipts and source heads remain physical and hash-bound in the [composition](../standalone-artifact-reviewed-publication-20261013/COMPOSITION.json).
+
+The source-only edge check verifies `infra/cdk/lib/compute-stack.ts` blob `53342a3c988be078f1b081501da939366e332652` is identical in donor109, donorbase7b5 and receiving0a. Source priorities route `/api/*` to API, `/workspace-api/*` to Workspace, and `/newsletter/*`/`/_next/*` to Web for app hosts. The file explicitly warns of historical manual production wiring differing from this CDK construct. This establishes source routing intent, not current deployed topology. No AWS lookup, synth/deploy or infrastructure change occurred; reported local header differences and dynamic404s are not promoted to live failures.
+
+| New dependency or acceptance | Disposition |
+| --- | --- |
+| Seven consumer/loopback code paths | Adopted on the current composition, with special-header refusal repair and exact source/pure/owned-mock evidence. |
+| Packaging helper/spec and workflow/source-job guard | Four paths held: canonical release builder is absent and broad retirement wiring is incompatible. |
+| Frontend source7c87678730538958ace9762f824dc3e588bf445b artifact3054files/5208trace references | Donor measurement only; this lane has not retrieved/re-measured the artifact, actual179 assets or dynamic runtime closure. |
+| Source/byte/trace equality and caller-pinned loopback receipts | No independent build-source/process provenance, native ABI/runtime dependency, UI, public DNS/TLS, deployed continuity or full replacement acceptance follows. |
+| Frontend Onboard14-route port and continuity investigation | Separately owned; no frontend edits or broad legacy deletion here. |
+
+The existing Objective destinations, exact WsDocVersion/OutreachV3 staging and authoritative effective-date contracts remain unchanged. Protected unpublished reporting and the separately pending native source publication remain outside scope. Full raw whitespace and prior full-release gates remain OPEN; no trim, exclusion or waiver manufactures acceptance. No real messages/uploads/provider or paid-model calls, customer mutations, credentials/permissions, paid AWS, database/migration, main merge or deployment occurred.

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "0a76666dc57aa852586c35167426a540939c9918",
+    "HEAD"
+  ],
+  "head": "737eadd73d209f387d8855c0c6227c032fff3c03",
+  "exitCode": 0,
+  "disposition": "OPEN; no trim/exclusion/waiver"
+}

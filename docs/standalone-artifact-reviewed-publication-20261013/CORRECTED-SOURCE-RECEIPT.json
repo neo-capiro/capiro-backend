@@ -1,0 +1,18 @@
+{
+  "completedAtUtc": "2026-10-13T02:49:23.211582+00:00",
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "paths": {
+    "apps/web/Dockerfile.frontend-artifact": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs": "5f83948bcddd8fa77a22c568277c5c7073657d35f3aaca9c19a64f8917f9c72d",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs": "d7baed581ff402f9a86ff9b192848737e62041e0b31f87d3880c38b7ffe54b3a",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs": "c6087c88f71ea0bd86b221bd1624b9befabac2038c48dce2de33d1a4ba552dd9",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs": "5f7f5d8342184a7118e4ac009afd3732cb63dd20ef8fb78a44ec804ba5949feb",
+    "scripts/lib/newsletter-loopback-serving.mjs": "701af5b5c0fba43bea6c11db9fe4931012a460d5392c7b6dcef2f69b53ac9459",
+    "scripts/verify-newsletter-loopback-serving.mjs": "a583be57df864107cc41e8c887f1579e4bd1ad037cbec735926cb257cd78c13e"
+  },
+  "sourceWhitespaceExit": 0,
+  "initial3e8ReceiptPreserved": "ROOT-SOURCE-RECEIPT.json",
+  "effectScope": "owned synthetic-loopback HTTP only; no app/native/database/provider/bootstrap or actual artifact reading"
+}
