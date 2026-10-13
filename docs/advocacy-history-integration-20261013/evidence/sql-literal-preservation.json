@@ -1,0 +1,25 @@
+{
+  "sourceHead": "2c365ed34d2e96261051c9dc7e2f61a3ecc743ab",
+  "donorParent": "e05f9d69357600243a333395119337bf01cd0e7d",
+  "oldLiteralOccurrences": 60,
+  "retainedLiteralOccurrences": 47,
+  "movedLiteralOccurrences": 13,
+  "allLiteralBytesAndMultiplicityExact": true,
+  "movedSqlSha256": [
+    "622b4a8addc9e305bcd3be621420c7e0e8d0246f95e8dfdd37788d5298d6580f",
+    "74c760eb4f56a9d18e161b4ac0811fa63c8a2dafccbd9518528650d6a13e23e2",
+    "51bfed9d6f70ac6c2934e680bbac217157bbeec0552b0d019a2c499b47e999d4",
+    "7baf7bc2b5d9662fec954a893b71bc5eb1c237e650fce9caef29aa4452d551b4",
+    "2497ccd6e30eb211005560acadc20bf2513b34f88ca3eb93093b84538662c671",
+    "c46dd06a4d6425fdc38623a2d380034e4d7bbe7f775c33a3179200a4a9b3e1c0",
+    "b02b999429a875b96e2c1ad9be7c9b6626c25a2f3b314892fbfa5d7746040933",
+    "6146fde1272bee459054ac85acae17c2b881a0eb769bde32c7eca7bdb3f205c4",
+    "665f0999a901ef0c4b556c0602673c971c213831e373bb26e5d54cd9e5c4b5c6",
+    "1ab5953cf1c1671ca94196ef7e4b1e2c8844ea13e8131511bb0715ff9fb4afef",
+    "00864cf202f86c7208b903eaf47eddcf4405fde7e380c5f0d05c49b19e400408",
+    "832b03f1f416ea4a82483ac3feb515254341cbb58a7ad2b2f9f0b2d22cc90378",
+    "7a346d04653db4b169aa60766490e37e98580fdae3e7f5c137a4c292c46a2313"
+  ],
+  "parameterBindingAndTenantScope": "separate independent semantic review",
+  "nativeSqlExecuted": false
+}

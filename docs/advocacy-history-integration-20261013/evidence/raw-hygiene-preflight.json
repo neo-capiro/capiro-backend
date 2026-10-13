@@ -1,0 +1,11 @@
+{
+  "offendingRawFiles": [
+    {
+      "path": "docs/advocacy-history-integration-20261013/evidence/jest.log",
+      "diagnostics": "docs/advocacy-history-integration-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/advocacy-history-integration-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+      "bytes": 5754,
+      "sha256": "d842def01655d4e48252e370fe0455f44f8ca8f68f55a18fc6955bbe9d19cbc2"
+    }
+  ],
+  "noIndexDifferenceExit1AloneIsNotHygieneFailure": true
+}

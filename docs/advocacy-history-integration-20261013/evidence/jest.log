@@ -1,0 +1,34 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-advocacy-history-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/clients/client-profile-fill-completion.service.spec.ts (9.929 s)
+PASS src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts
+[95m[Nest] 775380  - [39m10/13/2026, 10:43:00 AM [95m  DEBUG[39m [38;5;3m[ClientAdvocacyMatterService] [39m[95mAdvocacy matter access for client 22222222-2222-2222-2222-222222222222[39m
+[95m[Nest] 775380  - [39m10/13/2026, 10:43:00 AM [95m  DEBUG[39m [38;5;3m[ClientAdvocacyMatterService] [39m[95mAdvocacy matter access for client 22222222-2222-2222-2222-222222222222[39m
+PASS src/clients/client-profile-fill-finding-application.characterization.spec.ts
+PASS src/clients/client-profile-fill-testimony-discovery.characterization.spec.ts
+PASS src/clients/client-profile-fill-fara-discovery.characterization.spec.ts
+PASS src/clients/client-profile-fill-tenant-history-discovery.characterization.spec.ts
+PASS src/clients/client-advocacy-matter.contract.spec.ts
+PASS src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts
+PASS src/clients/client-profile-fill-community-funding-discovery.characterization.spec.ts
+PASS src/clients/client-profile-fill-regulatory-comments.characterization.spec.ts
+PASS src/clients/client-profile-fill-federal-register-discovery.characterization.spec.ts
+PASS src/clients/client-profile-fill-retry.spec.ts
+PASS src/clients/client-profile-fill-completion.characterization.spec.ts
+PASS src/clients/client-profile-fill-lda-discovery.characterization.spec.ts
+PASS src/clients/client-profile-fill-advocacy-history.characterization.spec.ts
+PASS src/clients/client-profile-fill-finding-review.characterization.spec.ts
+PASS src/clients/client-profile-fill-community-funding-evidence.characterization.spec.ts
+PASS src/clients/client-advocacy-matter-security.contract.spec.ts
+PASS src/clients/client-profile-fill-finding-source-check.contract.spec.ts
+PASS src/clients/client-profile-fill-regulatory-comment-source.characterization.spec.ts
+PASS src/clients/client-profile-qa-attribution.spec.ts
+PASS src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts
+
+Test Suites: 1 skipped, 22 passed, 22 of 23 total
+Tests:       5 skipped, 321 passed, 326 total
+Snapshots:   0 total
+Time:        21.685 s
+Ran all test suites within paths "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-regulatory-comment-source.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-regulatory-comments.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-finding-application.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-finding-review.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-advocacy-matter-security.contract.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-advocacy-matter.contract.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-qa-attribution.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-history.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-community-funding-discovery.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-community-funding-evidence.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-fara-discovery.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-federal-register-discovery.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-lda-discovery.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-tenant-history-discovery.characterization.spec.ts", "/tmp/capirov2-advocacy-history-integration-20261013/apps/api/src/clients/client-profile-fill-testimony-discovery.characterization.spec.ts".
+Test results written to: ../../docs/advocacy-history-integration-20261013/evidence/jest-results.json

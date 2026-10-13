@@ -1,0 +1,285 @@
+{
+  "sourceHead": "2c365ed34d2e96261051c9dc7e2f61a3ecc743ab",
+  "donorParent": "e05f9d69357600243a333395119337bf01cd0e7d",
+  "serviceBeforeLines": 4123,
+  "serviceAfterLines": 2372,
+  "byteExactMembers": 64,
+  "byteExactMemberNames": [
+    "logger",
+    "workerId",
+    "taskTimer",
+    "scheduleTimer",
+    "taskSweepRunning",
+    "scheduleSweepRunning",
+    "findingReview",
+    "regulatoryCommentSource",
+    "regulatoryCommentDiscovery",
+    "onModuleInit",
+    "onModuleDestroy",
+    "getSetup",
+    "startRun",
+    "refreshNow",
+    "getAdvocacyHistoryHealth",
+    "getLatest",
+    "getRun",
+    "cancelRun",
+    "retryTask",
+    "applyFindings",
+    "rejectFinding",
+    "restoreFinding",
+    "getSchedule",
+    "updateSchedule",
+    "sweepOnce",
+    "sweepSchedulesOnce",
+    "ensureCompletionTasks",
+    "hasCompletionTasks",
+    "latestActiveCompletionRun",
+    "mergeRun",
+    "loadCompletionTasks",
+    "requestTaskSweep",
+    "requestScheduleSweep",
+    "recoverStaleTasks",
+    "claimTasks",
+    "executeClaimedTask",
+    "executeTask",
+    "assertCoreDependencies",
+    "gatherFederalMarket",
+    "gatherFacilityResolution",
+    "gatherDistrictNexus",
+    "getConfirmedIntelMappingKeys",
+    "gatherRegulatoryCommentAdvocacyCandidates",
+    "fetchOrCacheRegulatoryCommentDetail",
+    "gatherLifecycleOutcomes",
+    "reconcileFindings",
+    "flagPossibleAdvocacyDuplicates",
+    "linkReconciledFindingsToMatters",
+    "runCompletionAudit",
+    "addFinding",
+    "applyAdvocacyRecord",
+    "applyAdvocacyFindingToMatter",
+    "getCursor",
+    "recordCursor",
+    "finishTask",
+    "deferTask",
+    "failTask",
+    "heartbeat",
+    "finalizeRuns",
+    "runScheduledRefresh",
+    "bumpSchedule",
+    "assertClient",
+    "withTaskTimeout",
+    "safeError"
+  ],
+  "changedMemberNames": [
+    "constructor",
+    "gatherAdvocacyHistory",
+    "resolveClientNameForDiscovery",
+    "emitDiscoveryFinding",
+    "gatherFaraAdvocacyCandidates",
+    "gatherTestimonyAdvocacyCandidates",
+    "gatherCommunityFundingAdvocacyCandidates",
+    "gatherClientSubmissionAdvocacy",
+    "gatherPrivateAdvocacyCandidates",
+    "gatherFederalRegisterBackfill",
+    "emitRegulatoryOutcomeFindings"
+  ],
+  "removedMemberNames": [
+    "addTestimonyFinding"
+  ],
+  "addedMemberNames": [
+    "advocacyHistory"
+  ],
+  "constructorParameters": [
+    "private readonly prisma: PrismaService",
+    "private readonly workflow: ClientProfileFillWorkflowService",
+    "private readonly fill: ClientProfileFillService",
+    "private readonly intelligence: IntelligenceService",
+    "private readonly facilities: ClientFacilitiesService",
+    "private readonly httpAdapterHost: HttpAdapterHost",
+    "private readonly advocacyMatters: ClientAdvocacyMatterService"
+  ],
+  "constructorPublicSignatureExact": true,
+  "publicMethods": [
+    {
+      "name": "onModuleInit",
+      "parameters": [],
+      "type": "void"
+    },
+    {
+      "name": "onModuleDestroy",
+      "parameters": [],
+      "type": "void"
+    },
+    {
+      "name": "getSetup",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "startRun",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "input: StartClientProfileFillWorkflowInput"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "refreshNow",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "getAdvocacyHistoryHealth",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "type": "Promise<AdvocacyHistoryHealth>",
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "getLatest",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "getRun",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "cancelRun",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "retryTask",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string",
+        "taskId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "applyFindings",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string",
+        "findingIds: string[]"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "rejectFinding",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "findingId: string",
+        "reason?: string"
+      ]
+    },
+    {
+      "name": "restoreFinding",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "findingId: string"
+      ]
+    },
+    {
+      "name": "getSchedule",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "updateSchedule",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "input: UpdateClientProfileFillScheduleInput"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "sweepOnce",
+      "parameters": [],
+      "type": "Promise<void>",
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "sweepSchedulesOnce",
+      "parameters": [],
+      "type": "Promise<void>",
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "applyAdvocacyFindingToMatter",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string",
+        "findingId: string",
+        "target:\n      | { matterId: string }\n      | { newMatter: { title: string; matterType?: string; summary?: string | null } }"
+      ],
+      "type": "Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }>",
+      "modifiers": [
+        "async"
+      ]
+    }
+  ],
+  "publicMethodCount": 18,
+  "publicMethodSignaturesExact": true,
+  "constructorBodyInitializesHistoryOwner": true,
+  "publicExportDeclarationsExact": true,
+  "publicExportDeclarationCount": 6
+}

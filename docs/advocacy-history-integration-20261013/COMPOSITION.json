@@ -1,0 +1,44 @@
+{
+  "receivingSourceHead": "2c365ed34d2e96261051c9dc7e2f61a3ecc743ab",
+  "sourceTree": "a0f4b7c523ddca800fa737eaf500d5327e6a3eb6",
+  "baseHead": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1",
+  "donorHead": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382",
+  "donorTree": "96332c019829bf55f39b8ac2d1838ab653f5bee0",
+  "codePaths": 24,
+  "exactDonorPaths": 24,
+  "independentReviewHead": "82f49eab08acbd3647efa464b017d61739c8808a",
+  "independentReviewTree": "585aa29b928cbf810b88d94a94525359de288223",
+  "independentReview": "INDEPENDENT-BACKEND-REVIEW.md",
+  "checks": {
+    "jest": {
+      "passed": 321,
+      "retainedSkipped": 5,
+      "failed": 0,
+      "elapsedSeconds": 23.533
+    },
+    "type": {
+      "exitCode": 0,
+      "elapsedSeconds": 155.029
+    },
+    "build": {
+      "exitCode": 0,
+      "elapsedSeconds": 96.126
+    }
+  },
+  "authorityInputsUnchanged": 33,
+  "unrelatedClassMembersUnchanged": 64,
+  "publicMethodSignaturesPreserved": 18,
+  "constructorParametersPreserved": 7,
+  "publicExportDeclarationsPreserved": 6,
+  "sqlLiteralOccurrences": {
+    "before": 60,
+    "retained": 47,
+    "moved": 13,
+    "bytesAndMultiplicityExact": true
+  },
+  "nativeAuthorityRepeated": false,
+  "artifactBuildPerformed": false,
+  "FilesQualificationTouched": false,
+  "mainMerge": false,
+  "deployment": false
+}

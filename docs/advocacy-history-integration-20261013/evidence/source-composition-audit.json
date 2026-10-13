@@ -1,0 +1,214 @@
+{
+  "receivingSourceHead": "2c365ed34d2e96261051c9dc7e2f61a3ecc743ab",
+  "sourceTree": "a0f4b7c523ddca800fa737eaf500d5327e6a3eb6",
+  "baseHead": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1",
+  "donorHead": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382",
+  "donorTree": "96332c019829bf55f39b8ac2d1838ab653f5bee0",
+  "donorParent": "e05f9d69357600243a333395119337bf01cd0e7d",
+  "codePaths": [
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter.contract.spec.ts",
+      "mode": "100644",
+      "blob": "fd67336d0436e2f4c76a4768314052c3da361213",
+      "bytes": 12975,
+      "sha256": "0542b096b002a417acd1abdf8a800ffcf8a998bb7680d2372a21d60b0b98f2f3",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-advocacy-discovery.shared.ts",
+      "mode": "100644",
+      "blob": "446c63acdd1136c61911b5b2a94ab891f538891f",
+      "bytes": 2144,
+      "sha256": "b11a44f04af81dacf9d8513ae3bde199384446daae4e8ce00cbc0e04ede5d007",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-advocacy-history.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "448e09ec3e71d3f7ea2eca02053b545e4a062e83",
+      "bytes": 9764,
+      "sha256": "fde2cbe279c4ed91f4bf874c9d8203a2a86493935b56763867948c641a0ab363",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-advocacy-history.ts",
+      "mode": "100644",
+      "blob": "f21182ce5c584180bd9cb92279837e18ced3b726",
+      "bytes": 12105,
+      "sha256": "baae013d8b9e0a2250c27232ea29cd20beeb325ae152e5e677cf9f87a0bd76cf",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-community-funding-discovery.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "7746d93a87aef9889ce683c165d097c4d8dd1845",
+      "bytes": 10865,
+      "sha256": "e75e857fc581726adc7637e69bb44dc99ae5af2d210e19f7c1e3429802f0cdc1",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-community-funding-discovery.ts",
+      "mode": "100644",
+      "blob": "4b6fa0e1f8880b25ebe0c61ae1b3e9dc7d6440e5",
+      "bytes": 12241,
+      "sha256": "2e82b4287b55e78ddea3f0087e734f3923c1a2bb189d1d06b61d6493ed855f48",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-community-funding-evidence.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "8716c20dc5a080cc078572cd9ed1ec550368a002",
+      "bytes": 7931,
+      "sha256": "df1882a7fdff86cdbcf940a2ae84583f3ca2eae1f66e475f0bb4eaf4d7253e29",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-community-funding-finding.ts",
+      "mode": "100644",
+      "blob": "26496f878bf1180f59e9376ffac033774a935df7",
+      "bytes": 5139,
+      "sha256": "c6288a54c89e488eb8526a7d22af1279f988e90cf85f3b48f27b1f5f12bb9f04",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-community-funding-source.ts",
+      "mode": "100644",
+      "blob": "74bc1338ef83f8fcd5af7e572b011939b7e7ecd7",
+      "bytes": 7833,
+      "sha256": "8d5d6ff5638d53c8598b1fb08b2a67475feea43c7d57546436aa68bd5a9cc83e",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "mode": "100644",
+      "blob": "8f40f6f4caeabca6ba402359f67f0fd2af59117c",
+      "bytes": 90328,
+      "sha256": "8533a0a1816f42aaf9c37353d6f58261f86cde839c548534185fa6b0afe81297",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-fara-discovery.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "fd836bacedd2b02e9cec38ceb15e4ff761fc12e5",
+      "bytes": 14889,
+      "sha256": "f7acc87ba7707987bde6e404b5ff02102227ff27bf3260e1b61769d842666b4f",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-fara-discovery.ts",
+      "mode": "100644",
+      "blob": "ee394d4b9c0160e18b855c67bac0fbeed45d3196",
+      "bytes": 7358,
+      "sha256": "8fdbd39223c96ecb7917ee9c61c498a5fbd2e4e998d48022bd79ce6f5f46700e",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-federal-register-discovery.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "067b937bdf8737165b070d27dd4e11cc06387558",
+      "bytes": 10764,
+      "sha256": "7cd8579f64695bebd1f5ebf94c4fe0632f14f09cf77da65ddfcba0d6aaf23b35",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-federal-register-discovery.ts",
+      "mode": "100644",
+      "blob": "2efb22a8c7a877c5781c47362b479bd674af9e2d",
+      "bytes": 7198,
+      "sha256": "b861ea71596960f25ac76f15b74e4032181d0267bb28466449c044a861c31970",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts",
+      "mode": "100644",
+      "blob": "3d2bba38147eb7d40c3d5ea511be69e92f8351e0",
+      "bytes": 5579,
+      "sha256": "8abdf8cfe6bd5dd3001bb6fbfdee795cb2df9e76088958f36e861e008e038e23",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-lda-discovery.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "38fda6ec73f59463806b8a922615054d895527fe",
+      "bytes": 10042,
+      "sha256": "dfe8733c2037cdf49ea914b574f743a45059aba8fdb34b146b798016437a19e0",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-lda-discovery.ts",
+      "mode": "100644",
+      "blob": "6f6fefb632651e9c2ec2a177e0d7d13a366b53ac",
+      "bytes": 9280,
+      "sha256": "09fea0b4b8e58963d61a45355ab0c8f7c6f7accef6f847e3435540c435f07942",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-tenant-history-discovery.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "25f9bf1c19b60b3f60f274c09deed8851e63aabc",
+      "bytes": 14283,
+      "sha256": "1706968eea428ba53680300b0351e0a3a494a63175f527b24ddb29a48c63f0cf",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-tenant-history-discovery.ts",
+      "mode": "100644",
+      "blob": "00c92ad652560f2b4ccb11c22b76cdda56d72a34",
+      "bytes": 12706,
+      "sha256": "07addecbfdb003c8f5cb4307103326655f3c1a2be94706156bf5ca246bae59a4",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-testimony-discovery.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "c351b6780433aac5dc926f11cfcd47214e36bd7d",
+      "bytes": 15132,
+      "sha256": "251d931179a54d34ee2a574e7d7a28421a37f8960885a620ef4513d2694c1ffe",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-testimony-discovery.ts",
+      "mode": "100644",
+      "blob": "50281e2319d35a80acc1713d2015931146e6a726",
+      "bytes": 11343,
+      "sha256": "e8dbc66fd5867e1baf7a0eb24ec2aa41fc269bbfda345b8776179c937cc5bf75",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-advocacy-history.io.ts",
+      "mode": "100644",
+      "blob": "63c5f3c3bc7d828ac8f1095a724c42a709b4e0ba",
+      "bytes": 8518,
+      "sha256": "faf65a098cfc155c556cca26a950e924f612a51c9b5f0494fe6fe9fb51d3a22f",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-advocacy-history.rows.ts",
+      "mode": "100644",
+      "blob": "2f1c638c28753ca341b6b2cc66fe502f0e0fbcb8",
+      "bytes": 3995,
+      "sha256": "85b198bbc922ae650a514f02eb37ce6f2bed1757e7b5b22e43b5078fcc4cc122",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-advocacy-history.ts",
+      "mode": "100644",
+      "blob": "5783f588d5c444a85ec26a379019ccfec84ba0c7",
+      "bytes": 7406,
+      "sha256": "68b0374b1d57a0929e7fb3efa7114457d45b19d5982d2e69998829fb2c464b39",
+      "exactDonor": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382"
+    }
+  ],
+  "exactDonorPaths": 24,
+  "authorityInputsUnchanged": 33,
+  "policyPackageAndLockPathsUnchanged": [
+    "scripts/lib/newsletter-accepted-source-profile.json",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "package.json",
+    "apps/api/package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "protectedUnpublishedReportingTouched": false,
+  "nativeProviderOrArtifactAcceptanceClaimed": false
+}
