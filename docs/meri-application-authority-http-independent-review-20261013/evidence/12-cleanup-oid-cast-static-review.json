@@ -1,0 +1,13 @@
+{
+  "decision": "ACCEPT single source type-cast correction",
+  "beforeSha256": "00de98e18eb41090e447c282ae50c02c4e616433c3fccd7cf508cd312293fb27",
+  "afterSha256": "100aafc398044d791e10dee55cb3df572d02f60f48963bb4931348ffeace9193",
+  "beforeBytes": 6426,
+  "afterBytes": 6431,
+  "exactOnlyDelta": "json_build_object('oid',oid,'name',datname...) -> json_build_object('oid',oid::int,'name',datname...)",
+  "inverseEntireSourceByteExact": true,
+  "ownershipScopeAndAllGuardsUnchanged": true,
+  "executedByReviewer": false,
+  "SQLOrPrivateConfigOrEnvironmentRead": false,
+  "rootReportedPriorAttempts": "minimal PATH omitted Docker; then PostgreSQL OID JSON string mismatched strict int16917 fence; both stopped before drops; raw/source retained by root"
+}

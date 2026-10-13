@@ -1,8 +1,12 @@
 {
-  "parent": "fe3a11e7b73eee6bd53d560706e028b160f056c5",
+  "parent": "7e2f8fd8d923bc4d51a7de5d5fdd17348748f58e",
   "source": "bbb38185058fdc64c204da723943aee055b3dad3",
-  "append": "static owned cleanup review only; no execution",
+  "append": "single cleanup OIDcast static inverse only; no execution",
   "files": {
+    "CLEANUP-INITIAL-SHA256-INDEX.json": {
+      "sha256": "aff80e9d5cb2f3656b394284e2e8b1b30631a80d5ca4fc03064bd96054f8f4c5",
+      "bytes": 4248
+    },
     "CLEANUP-STATIC-REVIEW.md": {
       "sha256": "1463f43fdd50dfebf917869b1cc8134eb57ca3bc384940eb0ca247c3f256ad58",
       "bytes": 1934
@@ -86,6 +90,10 @@
     "evidence/11-final-cleanup-static-review.json": {
       "sha256": "d11fcc7afa4ca41acc9be19c7d6ff064878adca7fb542688beda213b5d033d04",
       "bytes": 1717
+    },
+    "evidence/12-cleanup-oid-cast-static-review.json": {
+      "sha256": "97e950aa85c617b4be0f716d24afca3415004b67f4527fb5a7e6563832c0778d",
+      "bytes": 753
     },
     "evidence/direct-owned-rls-initial-unrun.cjs": {
       "sha256": "873f07eae08150dff34d5241ad7031d205f4e95d00f741fac273a75a04fb6fa7",
