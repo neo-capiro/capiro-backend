@@ -1,0 +1,30 @@
+{
+  "borrowedCachesChangedOrRemoved": false,
+  "defaultOutputBuildInfoFiles": 1,
+  "emittedSourceFiles": 660,
+  "ownedOutputsInventoriedAndRemoved": {
+    "freshSharedRuntime": {
+      "absent": true,
+      "root": "/tmp/workspace-brief-native-shared-runtime-20261013"
+    },
+    "freshWorkspaceClient": {
+      "absent": true,
+      "root": "/tmp/workspace-brief-native-client-20261013"
+    },
+    "ownedGeneratorCache": {
+      "absent": true,
+      "root": "/tmp/workspace-brief-native-generator-cache-20261013"
+    },
+    "workspaceNest": {
+      "absent": true,
+      "root": "/tmp/capirov2-workspace-brief-native-qualification-20261013/apps/workspace/dist"
+    }
+  },
+  "privateRuntimeConfigAbsent": true,
+  "removedOwnedLinks": {
+    "apps/workspace/generated/prisma-client": "/tmp/workspace-brief-native-client-20261013",
+    "apps/workspace/node_modules/@capiro/shared": "/tmp/workspace-brief-native-shared-runtime-20261013",
+    "node_modules": "/workspace/capirov2/node_modules"
+  },
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36"
+}

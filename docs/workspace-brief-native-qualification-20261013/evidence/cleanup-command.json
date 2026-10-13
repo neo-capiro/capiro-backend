@@ -1,0 +1,6 @@
+{
+  "exitCode": 0,
+  "elapsedSeconds": 1.59,
+  "action": "strict target-absent recovery after earlier DROP",
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36"
+}

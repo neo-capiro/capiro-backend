@@ -1,0 +1,352 @@
+{
+  "availableContainerFilesystemBytesAfterSchema": 30498816,
+  "availableContainerFilesystemBytesBefore": 35340288,
+  "clusterSystemIdentifier": "7695590366852821031",
+  "commentApplied": true,
+  "container": "capiro-postgres",
+  "containerBefore": {
+    "configurationSha256": "adb183f013b06fb307eaca48b2051b40ccd477628d4af7bbfff0bc009521e2ed",
+    "containerId": "3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183",
+    "healthy": true
+  },
+  "createdDatabase": true,
+  "database": "capiro_ws_copy_20261013_5d97526c6cff48bf",
+  "databaseComment": "owned /root Workspace copy fixture at 76f50b2667d06a121b2dd772abc9d64adb556c36 5d97526c6cff48bf9483a2dd601a1e9e",
+  "databaseOid": 18032,
+  "fixtureBindings": {
+    "coreCurrentDdlArchiveSha256": "a5c1d59d93f18d5f3ca6272ab142ba1b0bc408057d62a4888325805163f99793",
+    "coreCurrentSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+    "existingPrerequisiteBindings": [
+      {
+        "path": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+        "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788"
+      },
+      {
+        "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+        "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4"
+      }
+    ],
+    "fullHistoricalMigrationReplay": false,
+    "selectedCoreTables": [
+      "business_development_brief_versions",
+      "business_development_briefs",
+      "business_development_prospects",
+      "client_memory_access",
+      "clients",
+      "tenant_memberships",
+      "tenants",
+      "users"
+    ],
+    "workspaceBaseDdlSha256": "0d15663f559610adad4cae4082ac3c478a0784776736b331b506f4b768b93972"
+  },
+  "head": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "migrationBinding": {
+    "path": "apps/workspace/prisma/migrations/20261013090000_prospect_brief_workspace_copy/migration.sql",
+    "sha256": "01a8adc4a151fe29da5b68f4e55c9d6b3c37b2b22a5caa79f272020113f45d2a"
+  },
+  "mustNotPreexist": true,
+  "newMigrationApplied": true,
+  "newRoleCreated": false,
+  "ownershipToken": "5d97526c6cff48bf9483a2dd601a1e9e",
+  "preexistingOrdinaryTab": {
+    "documentId": "18aa75d2-98b0-4ba5-bcf2-6c31d5264986",
+    "draftId": "096c4484-960c-4953-91b0-44179d6e6e6d",
+    "sourceRemainsNull": true,
+    "tenantId": "d064d744-f923-4729-a804-8c2c8de41fc3"
+  },
+  "privateConfigIdentity": {
+    "device": 34,
+    "inode": 900274,
+    "mode": 384
+  },
+  "privateConfigSha256": "4039253c0b0f1440ddaaabb97bee9b8e432fee26ca2282541988099e3bcd3b9f",
+  "privateRuntimeConfig": "/tmp/workspace-brief-native-runtime-20261013.json",
+  "resourceOwner": "/root",
+  "rolesCredentialsGrantsSecurityOrContainerChanges": false,
+  "schemaApplied": true,
+  "selectedFixtureSha256": "cb9d639074eeb329907a4aedfd8efd1cd647dd2616bbe57404e5c28a7d6b23e8",
+  "tree": "d6e615533e4c36970779962b1391af90e5576314",
+  "unrelatedCatalogBefore": {
+    "sha256": "10b76a6eebb00c381d9ef25aaa8b2294cf150319f8ca91ec4fec54f86e52dc2b",
+    "snapshot": {
+      "databases": [
+        {
+          "datacl": [
+            "=c/capiro",
+            "capiro=CTc/capiro"
+          ],
+          "datallowconn": true,
+          "datconnlimit": -1,
+          "datdba": "10",
+          "datistemplate": true,
+          "datname": "template1",
+          "encoding": 6,
+          "oid": "1"
+        },
+        {
+          "datacl": [
+            "=c/capiro",
+            "capiro=CTc/capiro"
+          ],
+          "datallowconn": false,
+          "datconnlimit": -1,
+          "datdba": "10",
+          "datistemplate": true,
+          "datname": "template0",
+          "encoding": 6,
+          "oid": "4"
+        },
+        {
+          "datacl": null,
+          "datallowconn": true,
+          "datconnlimit": -1,
+          "datdba": "10",
+          "datistemplate": false,
+          "datname": "postgres",
+          "encoding": 6,
+          "oid": "5"
+        },
+        {
+          "datacl": [
+            "=Tc/capiro",
+            "capiro=CTc/capiro",
+            "capiro_app=c/capiro"
+          ],
+          "datallowconn": true,
+          "datconnlimit": -1,
+          "datdba": "10",
+          "datistemplate": false,
+          "datname": "capiro",
+          "encoding": 6,
+          "oid": "16384"
+        }
+      ],
+      "roles": [
+        {
+          "oid": "10",
+          "rolbypassrls": true,
+          "rolcanlogin": true,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": true,
+          "rolcreaterole": true,
+          "rolinherit": true,
+          "rolname": "capiro",
+          "rolreplication": true,
+          "rolsuper": true,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "3373",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_monitor",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "3374",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_read_all_settings",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "3375",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_read_all_stats",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "3377",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_stat_scan_tables",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "4200",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_signal_backend",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "4544",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_checkpoint",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "4550",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_use_reserved_connections",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "4569",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_read_server_files",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "4570",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_write_server_files",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "4571",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_execute_server_program",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "6171",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_database_owner",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "6181",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_read_all_data",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "6182",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_write_all_data",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "6304",
+          "rolbypassrls": false,
+          "rolcanlogin": false,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "pg_create_subscription",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        },
+        {
+          "oid": "16910",
+          "rolbypassrls": false,
+          "rolcanlogin": true,
+          "rolconfig": null,
+          "rolconnlimit": -1,
+          "rolcreatedb": false,
+          "rolcreaterole": false,
+          "rolinherit": true,
+          "rolname": "capiro_app",
+          "rolreplication": false,
+          "rolsuper": false,
+          "rolvaliduntil": null
+        }
+      ]
+    }
+  }
+}

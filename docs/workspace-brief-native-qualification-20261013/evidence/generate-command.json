@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/offline-generation-preload.cjs",
+    "/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/generate-workspace-client.cjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 2.097,
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "sourceTree": "d6e615533e4c36970779962b1391af90e5576314",
+  "databaseAccessRequested": false
+}

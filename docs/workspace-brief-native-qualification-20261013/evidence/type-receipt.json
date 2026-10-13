@@ -1,0 +1,24 @@
+{
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "sourceTree": "d6e615533e4c36970779962b1391af90e5576314",
+  "check": "type",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/workspace-brief-native-type-20261013.tsbuildinfo"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 21.544,
+  "logBytes": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "client": "/tmp/workspace-brief-native-client-20261013",
+  "usesExactNewSchemaClient": true,
+  "nativeDatabaseAccessRequestedByThisCheck": false
+}

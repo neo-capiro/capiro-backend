@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/schema-diff-preload.cjs",
+    "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js",
+    "migrate",
+    "diff",
+    "--from-empty",
+    "--to-schema-datamodel",
+    "/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-schema.prisma",
+    "--script"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 0.759,
+  "sourceSchemaHead": "46aa2164c299151225c6cdb9f3cc565fee347657",
+  "schemaSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+  "ddlBytes": 35254,
+  "ddlSha256": "0d15663f559610adad4cae4082ac3c478a0784776736b331b506f4b768b93972",
+  "databaseAccessRequested": false,
+  "cachedEngineHashVerified": true,
+  "downloadOrChecksumDisabling": false
+}

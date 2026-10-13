@@ -1,0 +1,13 @@
+{
+  "database": "capiro_ws_copy_20261013_5d97526c6cff48bf",
+  "databaseOid": 18032,
+  "existingMigration": "apps/workspace/prisma/migrations/20260913020000_legiwatch_preparation_actions/migration.sql",
+  "fullHistoricalMigrationReplay": false,
+  "onlyExistingTableFunctionTrigger": true,
+  "ownedScopeFencesRevalidated": true,
+  "roleGrantOrPermissionStatementsExecuted": false,
+  "selectedStatementSha256": "6012a70563b8b16eae9037d1c2a4554f531b4d49b503145be133b07ffbf2bcac",
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "sourceTableInitiallyAbsent": true,
+  "wholeMigrationSha256": "80dbc77755ba01033e9db4552c8aacacbc0a4d9cd59776c2afb9cc68f7c636e0"
+}

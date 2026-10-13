@@ -1,0 +1,28 @@
+{
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "sourceTree": "d6e615533e4c36970779962b1391af90e5576314",
+  "schemaPath": "apps/workspace/prisma/schema.prisma",
+  "schemaSha256": "5b42bad2611ae694120746d8f60902d62752f90bac4c65a50f4dae79e798e094",
+  "modelCount": 37,
+  "sourceBriefVersionFieldGenerated": true,
+  "output": "/tmp/workspace-brief-native-client-20261013",
+  "generatorSha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+  "engineVersion": "605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+  "binaries": [
+    {
+      "target": "debian-openssl-3.0.x",
+      "source": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node",
+      "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+      "bytes": 16161048
+    },
+    {
+      "target": "linux-arm64-openssl-3.0.x",
+      "source": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f",
+      "bytes": 14149792
+    }
+  ],
+  "nativeLibraryExecutedDuringGeneration": false,
+  "databaseConnectedDuringGeneration": false,
+  "installDownloadOrChecksumDisabling": false
+}

@@ -1,0 +1,1029 @@
+// Capiro Workspace engine schema.
+// Scope: the document-builder engine. Owns ONLY ws_* tables in the shared
+// Aurora cluster. Tenant-scoped: every row carries tenant_id NOT NULL and is
+// filtered in application code by the TenantGuard-resolved tenantId.
+//
+// This is a SEPARATE Prisma schema from apps/api. The engine service
+// (@capiro/workspace) is the only writer of these tables. It does NOT define
+// or migrate any apps/api-owned table (tenants, users, clients, etc.); it
+// references them by id only (no cross-schema FKs).
+//
+// State model mirrors the Hermes Handoff Brief (ws-config-v4): the full engine
+// config is persisted as JSONB on ws_draft, with hot filter fields promoted to
+// columns for indexed listing.
+
+generator client {
+  provider        = "prisma-client-js"
+  // Custom output isolates the engine's client from apps/api's @prisma/client
+  // in the shared pnpm monorepo. Import via `../generated/prisma-client`.
+  output          = "../generated/prisma-client"
+  previewFeatures = ["postgresqlExtensions"]
+  // Bookworm slim runtime is OpenSSL 3.x on linux-arm64. `native` covers the
+  // build host; the explicit target covers cross-arch buildx builds.
+  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Visual organize-only status on a document row (handoff §12.10). Purely a
+// label the user flips; gates nothing.
+enum WsDocStatus {
+  draft
+  complete
+
+  @@map("ws_doc_status")
+}
+
+// Collaboration roles (handoff §7 / WsCollab). Any role may comment;
+// commenter is comment-only.
+enum WsRole {
+  editor
+  reviewer
+  viewer
+  commenter
+
+  @@map("ws_role")
+}
+
+// A draft = one work product (or packet of documents) produced by the engine.
+// The full intake config lives in `config` (JSONB, ws-config-v4 shape). Hot
+// fields are promoted to columns for the Documents library filters.
+model WsDraft {
+  id        String      @id @default(uuid()) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  // Owner identity is the Clerk user id (e.g. "user_2abc..."). The engine does
+  // not own the Capiro user table, so it stores the verified Clerk subject
+  // rather than a Capiro user UUID. (Resolved by TenantGuard from the JWT.)
+  ownerId   String      @map("owner_id")
+  // Clerk user id of whoever last edited (autosaved) the draft; null for legacy
+  // rows → the UI falls back to the owner. Same id-space as ownerId.
+  lastEditedById String? @map("last_edited_by_id")
+  docTitle  String      @map("doc_title")
+  // Cascade hot-fields (promoted from config for indexed filtering).
+  industry  String?
+  product   String?
+  client    String?
+  // Canonical immutable Core origin; free-text client never grants authority.
+  prospectId String? @map("prospect_id") @db.Uuid
+  status    WsDocStatus @default(draft)
+  // Packet derivation (handoff §12.10): isPacket = coverLetter || documents>1.
+  isPacket  Boolean     @default(false) @map("is_packet")
+  docCount  Int         @default(1) @map("doc_count")
+  // Dollar ask (handoff §12.11): { amount, pb, delta } for funding products,
+  // else null. Human-set + lobbyist-gated; never auto-populated.
+  ask       Json?
+  // The full engine config (industry, product, pathways[], committees[],
+  // personalize, officeAssociated, offices[], selectedTemplate, sections[],
+  // pages, tone, linkedData[], anonymize, coverLetter, letterhead, ...).
+  config    Json        @default("{}")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  documents     WsDocument[]
+  context       WsContextItem[]
+  versions      WsDocVersion[]
+  editLock      WsEditLock?
+  collaborators WsCollaborator[]
+  agentMessages WsAgentMessage[]
+  proposals     WsAgentProposal[]
+  approvalRequests WsApprovalRequest[]
+  shareLinks    WsShareLink[]
+  guestComments WsGuestComment[]
+
+  @@index([tenantId])
+  @@index([tenantId, prospectId, updatedAt], map: "ws_draft_prospect_idx")
+  @@index([tenantId, ownerId])
+  @@index([tenantId, updatedAt])
+
+  // Two-step Max draft flow (PR #964).
+  intakes         WsIntake[]
+  generationRuns  WsGenerationRun[]
+  @@map("ws_draft")
+}
+
+// ── Document Agent: append-only conversational messages ────────────────────
+// (Workspace Document Agent vNext — documentAgent config lives on WsDraft.config)
+enum WsAgentMessageRole {
+  user
+  assistant
+  system
+
+  @@map("ws_agent_message_role")
+}
+
+model WsAgentMessage {
+  id        String             @id @default(uuid()) @db.Uuid
+  tenantId  String             @map("tenant_id") @db.Uuid
+  draftId   String             @map("draft_id") @db.Uuid
+  actorId   String?            @map("actor_id")
+  role      WsAgentMessageRole
+  phase     String
+  text      String
+  data      Json               @default("{}")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId, createdAt])
+  @@map("ws_agent_message")
+}
+
+// ── Firm Blueprints: reusable, immutable versioned document blueprints ──────
+enum WsBlueprintScope {
+  capiro
+  firm
+
+  @@map("ws_blueprint_scope")
+}
+
+enum WsBlueprintVersionStatus {
+  draft
+  published
+  retired
+
+  @@map("ws_blueprint_version_status")
+}
+
+model WsBlueprint {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String?          @map("tenant_id") @db.Uuid
+  scope       WsBlueprintScope
+  slug        String
+  name        String
+  product     String
+  description String?
+  ownerId     String?          @map("owner_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  versions WsBlueprintVersion[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, product])
+  @@map("ws_blueprint")
+}
+
+model WsBlueprintVersion {
+  id          String                   @id @default(uuid()) @db.Uuid
+  tenantId    String?                  @map("tenant_id") @db.Uuid
+  blueprintId String                   @map("blueprint_id") @db.Uuid
+  version     Int
+  status      WsBlueprintVersionStatus @default(draft)
+  definition  Json
+  definitionHash String                @map("definition_hash")
+  createdById String                   @map("created_by_id")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  publishedAt DateTime?                @map("published_at")
+  retiredAt   DateTime?                @map("retired_at")
+
+  blueprint WsBlueprint @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+
+  @@unique([blueprintId, version])
+  @@index([tenantId, status])
+  @@map("ws_blueprint_version")
+}
+
+// ── Revision Proposals: accept/reject workflow for agent-suggested edits ───
+enum WsAgentProposalStatus {
+  pending
+  accepted
+  rejected
+  stale
+
+  @@map("ws_agent_proposal_status")
+}
+
+model WsAgentProposal {
+  id           String                @id @default(uuid()) @db.Uuid
+  tenantId     String                @map("tenant_id") @db.Uuid
+  draftId      String                @map("draft_id") @db.Uuid
+  createdById  String                @map("created_by_id")
+  type         String
+  status       WsAgentProposalStatus @default(pending)
+  baseRevision Int                   @map("base_revision")
+  baseHash     String                @map("base_hash")
+  payload      Json
+  createdAt    DateTime              @default(now()) @map("created_at")
+  decidedAt    DateTime?             @map("decided_at")
+  decidedById  String?               @map("decided_by_id")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId, createdAt])
+  @@map("ws_agent_proposal")
+}
+
+// ── Delivery: approval requests + secure share links ──────────────────────
+enum WsApprovalStatus {
+  pending
+  approved
+  rejected
+  expired
+
+  @@map("ws_approval_status")
+}
+
+model WsApprovalRequest {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  draftId      String           @map("draft_id") @db.Uuid
+  requestedById String           @map("requested_by_id")
+  reviewerId    String?          @map("reviewer_id")
+  status       WsApprovalStatus @default(pending)
+  versionId    String?          @map("version_id") @db.Uuid
+  notes        String?
+  decisionNote String?           @map("decision_note")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  decidedAt    DateTime?         @map("decided_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId, createdAt])
+  @@map("ws_approval_request")
+}
+
+model WsShareLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  draftId     String    @map("draft_id") @db.Uuid
+  createdById String    @map("created_by_id")
+  tokenHash   String    @map("token_hash")
+  versionId   String?   @map("version_id") @db.Uuid
+  label       String?
+  expiresAt   DateTime? @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  guestComments WsGuestComment[]
+
+  @@index([tenantId, draftId])
+  @@index([tokenHash])
+  @@map("ws_share_link")
+}
+
+// A comment left by an unauthenticated guest viewing a public /share/:token link.
+// Guests carry no identity (no Clerk user, no tenant membership) — the record
+// exists so the internal team can actually see client-facing feedback; it is
+// never returned by the public share endpoint itself.
+model WsGuestComment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  draftId     String   @map("draft_id") @db.Uuid
+  shareLinkId String   @map("share_link_id") @db.Uuid
+  // Sanitized (HTML-stripped, length-capped) plain text — never raw guest input.
+  body        String
+  // Self-reported display label only (e.g. "Jane, Acme Corp") — NOT a verified
+  // identity. Sanitized the same way as body.
+  guestName   String?  @map("guest_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  draft     WsDraft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  shareLink WsShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId])
+  @@index([shareLinkId])
+  @@map("ws_guest_comment")
+}
+
+// Collaboration status on a WsCollaborator row.
+//   active  — an internal teammate resolved to a Clerk user (subjectId set);
+//             access is live now.
+//   pending — an external invite by raw email (no Clerk user yet). The row holds
+//             the intended role until the invitee accepts (Clerk org invite is a
+//             later phase — see Q-COL-invite).
+enum WsCollaboratorStatus {
+  active
+  pending
+
+  @@map("ws_collaborator_status")
+}
+
+// In-app notification kinds (E-19): a collaborator invite the recipient can
+// accept/decline, and the resolution notices sent back to the inviter.
+enum WsNotificationKind {
+  newsletter_review
+  newsletter_comment
+  collab_invite
+  collab_accepted
+  collab_declined
+
+  @@map("ws_notification_kind")
+}
+
+// A collaborator on a work product (the WsDraft the user is editing; surfaced in
+// the UI as "this document"). The draft owner (WsDraft.ownerId) is the implicit
+// Owner and is NEVER stored as a row — it is synthesized with role "owner" on
+// read. Every other person/email with access is a WsCollaborator row.
+//
+// Identity: an INTERNAL teammate carries `subjectId` (their Clerk user id; the
+// engine doesn't own the user table so it stores the verified Clerk subject,
+// mirroring WsDraft.ownerId / WsComment.authorId). An EXTERNAL invite carries
+// `email` only and is `pending` until accepted. Tenant-scoped.
+model WsCollaborator {
+  id          String               @id @default(uuid()) @db.Uuid
+  tenantId    String               @map("tenant_id") @db.Uuid
+  draftId     String               @map("draft_id") @db.Uuid
+  // Clerk user id for an internal member (null for a pending external invite).
+  subjectId   String?              @map("subject_id")
+  // Raw email for a pending/external invite (null once resolved to a member).
+  email       String?
+  // Denormalized display name for the People-with-access list (the engine does
+  // not own the user table; the web app refines this via useTenantMembers()).
+  name        String?
+  role        WsRole
+  status      WsCollaboratorStatus @default(active)
+  // Clerk user id of the inviter (audit / "invited by").
+  invitedById String?              @map("invited_by_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  // One row per (draft, member) and one per (draft, pending email).
+  @@unique([draftId, subjectId])
+  @@unique([draftId, email])
+  @@index([draftId])
+  @@index([tenantId])
+  @@map("ws_collaborator")
+}
+
+// In-app notification (E-19). Targets a Clerk user id (recipientId) so the
+// notification bell can list a member's notifications across all drafts in the
+// tenant. Display fields are denormalized (the engine doesn't own the user
+// table). `actionable` is true only while a collab_invite is still pending.
+model WsNotification {
+  id             String             @id @default(uuid()) @db.Uuid
+  tenantId       String             @map("tenant_id") @db.Uuid
+  recipientId    String             @map("recipient_id")
+  kind           WsNotificationKind
+  draftId        String?            @map("draft_id") @db.Uuid
+  collaboratorId String?            @map("collaborator_id") @db.Uuid
+  actorName      String?            @map("actor_name")
+  draftTitle     String?            @map("draft_title")
+  role           WsRole?
+  message        String
+  read           Boolean            @default(false)
+  actionable     Boolean            @default(false)
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  @@index([tenantId, recipientId])
+  @@index([recipientId, read])
+  @@map("ws_notification")
+  newsletterId String? @map("newsletter_id") @db.Uuid
+}
+
+// A document is one tab within a draft/packet. A simple draft has exactly one;
+// a packet has 2+ (cover letter, fact sheet, appendix, ...). (handoff §12.12)
+model WsDocument {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  draftId   String   @map("draft_id") @db.Uuid
+  name      String
+  ordinal   Int      @default(0)
+  // Rich document body: ordered blocks (sections, photo, table, logo).
+  // Stored as JSONB so the editor's block model round-trips losslessly.
+  body      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  draft    WsDraft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  comments WsComment[]
+
+  @@index([tenantId])
+  @@index([draftId])
+  @@map("ws_document")
+}
+
+// A reusable document structure (handoff Templates, §12.15). 2 per product
+// (primary + secondary) seeded globally; tenants may add their own later.
+model WsTemplate {
+  id            String   @id @default(uuid()) @db.Uuid
+  // GLOBAL templates have tenantId null; tenant-authored templates carry it.
+  tenantId      String?  @map("tenant_id") @db.Uuid
+  name          String
+  icon          String?
+  description    String?
+  // exact work-product name string the template applies to (must match).
+  product       String
+  style         String?  // "serif-formal" | "sans-open"
+  fontFamily    String?  @map("font_family")
+  accentColor   String?  @map("accent_color")
+  meriPrimary   Boolean  @default(false) @map("meri_primary")
+  meriSecondary Boolean  @default(false) @map("meri_secondary")
+  // subset of Photos · Tables · Logos · Cover letter · Budget exhibit · Charts
+  elements      String[] @default([])
+  // ordered section names — seeds cfg.sections[] on apply.
+  sections      String[] @default([])
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([product])
+  @@index([tenantId])
+  @@map("ws_template")
+}
+
+// In-editor comment (handoff §12.7). Anchored to a document range so the
+// highlight survives re-render. Threaded via parentId. Resolvable.
+model WsComment {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  documentId String    @map("document_id") @db.Uuid
+  // Clerk user id of the comment author (engine doesn't own the user table).
+  authorId   String    @map("author_id")
+  role       WsRole    @default(editor)
+  // Quoted text snapshot + serialized range anchor (start/end offsets, path).
+  quote      String?
+  anchor     Json?
+  body       String
+  resolved   Boolean   @default(false)
+  parentId   String?   @map("parent_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  document WsDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  parent   WsComment?  @relation("WsCommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  WsComment[] @relation("WsCommentThread")
+
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([parentId])
+  @@map("ws_comment")
+}
+
+// Author kind on a saved version (handoff §12.8 / AI-use disclosure). A version
+// authored by Meri renders with the Meri avatar + is logged for disclosure; a
+// person's version renders their tenant-member avatar.
+enum WsAuthorKind {
+  meri
+  person
+
+  @@map("ws_author_kind")
+}
+
+// A point-in-time snapshot of a draft (Phase 6b version history). Created on a
+// manual "Save draft" (and restorable). `snapshot` carries the full draft config
+// + each document body at save time so a restore is lossless. Tenant-scoped.
+model WsDocVersion {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  draftId    String       @map("draft_id") @db.Uuid
+  // Human label ("Edited The ask", "Drafted Problem statement"). Optional.
+  label      String?
+  // Clerk user id of the author (engine doesn't own the user table). For a
+  // Meri-authored version this is the user who triggered the save.
+  authorId   String       @map("author_id")
+  authorKind WsAuthorKind @default(person) @map("author_kind")
+  // Full draft state at save time: { docTitle, config, documents: [{id,name,
+  // ordinal,body}], ask }.
+  snapshot   Json         @default("{}")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([draftId])
+  @@index([draftId, createdAt])
+  @@map("ws_doc_version")
+}
+
+// Two-sided concurrent-edit lock (Phase 6b, Q-ED-2). One row per draft (draftId
+// is the PK). DB + polling, no websockets. The holder heartbeats while editing;
+// a viewer may `request` edit (the holder is notified) or `take over` once the
+// holder has been inactive (lastHeartbeatAt older than the inactivity window).
+// Tenant-scoped.
+model WsEditLock {
+  // The draft this lock guards (one lock per draft).
+  draftId         String   @id @map("draft_id") @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  // Current holder (Clerk user id) + a denormalized display name for the banner.
+  holderId        String   @map("holder_id")
+  holderName      String   @map("holder_name")
+  acquiredAt      DateTime @default(now()) @map("acquired_at")
+  lastHeartbeatAt DateTime @default(now()) @map("last_heartbeat_at")
+  // A pending "request to edit" from a viewer (cleared on take-over / release).
+  requestedById   String?  @map("requested_by_id")
+  requestedByName String?  @map("requested_by_name")
+  requestedAt     DateTime? @map("requested_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("ws_edit_lock")
+}
+
+// A piece of context attached to a draft for Meri grounding (handoff §12.16 +
+// Build Context). kind = source | news | free-text. Payload carries the item.
+model WsContextItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  draftId   String   @map("draft_id") @db.Uuid
+  kind      String // "source" | "news" | "free-text"
+  // For news: { headline, source, date, url, relevantClients, relevantOffices }.
+  // For source: { sourceType, refId, label }. For free-text: { text }.
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([draftId])
+  @@map("ws_context_item")
+}
+
+// ── Two-Step Max Draft Flow (PR #964) ──────────────────────────────────────
+// Durable intake + generation run. The intake is the aggregate, idempotent
+// start contract; the run is the durable worker record that survives
+// browser reloads, ECS restarts, and worker retries.
+
+// One row per intake request. The idempotency key (tenant + user + key) is
+// unique so a replay returns the same draftId/runId without new provider work.
+model WsIntake {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  // Clerk user id of the requester.
+  actorId         String   @map("actor_id")
+  // Caller-generated idempotency key (UUID recommended).
+  idempotencyKey  String   @map("idempotency_key")
+  // The draft created by this intake.
+  draftId         String   @map("draft_id") @db.Uuid
+  // The durable generation run created by this intake. @unique: each run is
+  // created by at most one intake (1-1).
+  runId           String   @unique @map("run_id") @db.Uuid
+  // The blueprint version pinned at intake time.
+  blueprintVersionId String @map("blueprint_version_id") @db.Uuid
+  // Immutable intake snapshot: goal, clientId, source IDs, context selections.
+  intakeSnapshot   Json    @map("intake_snapshot")
+  status          String  @default("accepted") // accepted | superseded
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  draft           WsDraft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  run             WsGenerationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, actorId, idempotencyKey])
+  @@index([draftId])
+  @@index([runId])
+  @@map("ws_intake")
+}
+
+// Durable generation run. The worker claims a lease, executes stages, and
+// updates per-section status. Survives browser reloads, ECS restarts, and
+// worker retries.
+model WsGenerationRun {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  draftId         String   @map("draft_id") @db.Uuid
+  // Clerk user id of the user who initiated the run.
+  actorId         String   @map("actor_id")
+  // Run status: queued | active | complete | partial | failed | cancelled
+  status          String   @default("queued")
+  // Current stage: queued | preflight | evidence_plan | narrative_plan |
+  //   drafting | editorial_pass | assurance | snapshot | complete
+  stage           String   @default("queued")
+  // Agent revision at run start (for optimistic concurrency on completion).
+  agentRevision   Int      @default(0) @map("agent_revision")
+  // Lease holder (worker id) and lease expiry. Atomic claim: a worker
+  // updates leaseHolder + leaseExpiresAt only if status is 'queued' or the
+  // lease has expired.
+  leaseHolder     String?  @map("lease_holder")
+  leaseExpiresAt  DateTime? @map("lease_expires_at")
+  attemptCount    Int      @default(0) @map("attempt_count")
+  // Provider telemetry (filled on completion).
+  provider        String?
+  model           String?
+  reasoningLevel  String?  @map("reasoning_level")
+  // Per-section status: { sectionId: { status, error, contentHash, citations } }
+  sectionStates   Json     @default("{}") @map("section_states")
+  // Stage history: [{ name, status, startedAt, completedAt, detail }]
+  stages          Json     @default("[]")
+  // Run-level error message (for failed runs).
+  errorMessage    String?  @map("error_message")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  draft           WsDraft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  intake          WsIntake?
+
+  @@index([tenantId, status])
+  @@index([draftId])
+  @@index([status, leaseExpiresAt])
+  @@map("ws_generation_run")
+}
+
+// ── Document Themes: versioned, immutable published themes (GAPS §15) ──────
+// Mirrors the blueprint versioning pattern: a theme has draft/published/retired
+// versions. A published version is immutable. The theme settings (page size,
+// margins, paper color, font families, letterhead) are stored as JSON on the
+// version's `settings` field.
+
+enum WsThemeVersionStatus {
+  draft
+  published
+  retired
+
+  @@map("ws_theme_version_status")
+}
+
+model WsTheme {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  slug        String
+  name        String
+  description String?
+  ownerId     String   @map("owner_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  versions WsThemeVersion[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("ws_theme")
+}
+
+model WsThemeVersion {
+  id          String               @id @default(uuid()) @db.Uuid
+  tenantId    String               @map("tenant_id") @db.Uuid
+  themeId     String               @map("theme_id") @db.Uuid
+  version     Int
+  status      WsThemeVersionStatus @default(draft)
+  // Theme settings: { pageSize, margins, paperColor, fontFamilies, letterhead, ... }
+  settings    Json                 @default("{}")
+  settingsHash String              @map("settings_hash")
+  createdById String               @map("created_by_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  publishedAt DateTime?            @map("published_at")
+  retiredAt   DateTime?            @map("retired_at")
+
+  theme WsTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([themeId, version])
+  @@index([tenantId, status])
+  @@map("ws_theme_version")
+}
+
+// ── Brand Assets: firm logos and marks uploaded for theme letterheads (GAPS §16)
+model WsBrandAsset {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  uploadedById String   @map("uploaded_by_id")
+  // S3 object key (the upload pipeline stores the object; we keep the key).
+  objectKey   String   @map("object_key")
+  // Original filename for display.
+  filename    String
+  // MIME type (image/png, image/svg+xml, etc.)
+  mimeType    String   @map("mime_type")
+  // Size in bytes.
+  sizeBytes   Int      @map("size_bytes")
+  // Public-facing URL (presigned or CDN) for the asset.
+  url         String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@map("ws_brand_asset")
+}
+
+// ── Hill Day workflow (Workspace vNext, 2026-09) ────────────────────────────
+// A Hill Day document turns a sponsoring client's calendar week into a
+// congressional briefing packet: one section per selected calendar event.
+// Deliberately separate from WsDraft: the document is meeting-structured,
+// carries a per-meeting resolution record (address → staffer → office →
+// member, plus the user's corrections, which govern for THIS document only)
+// and a per-meeting carry-over selection the generator must honour exactly.
+// None of that fits the free-form ws_draft.config shape. References apps/api
+// rows (clients, meetings) by id only — no cross-schema FKs.
+enum WsHillDayDocStatus {
+  draft
+  generating
+  generated
+  partial
+  delivered
+
+  @@map("ws_hillday_doc_status")
+}
+
+model WsHillDayDocument {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
+  // Clerk user id of the owner (same id-space as WsDraft.ownerId).
+  ownerId          String             @map("owner_id")
+  blueprintSlug    String             @map("blueprint_slug")
+  // apps/api clients.id — the sponsoring client. No FK (cross-schema).
+  clientId         String             @map("client_id") @db.Uuid
+  clientName       String             @map("client_name")
+  name             String
+  status           WsHillDayDocStatus @default(draft)
+  lookbackDays     Int                @default(90) @map("lookback_days")
+  timeZone         String             @default("America/New_York") @map("time_zone")
+  weekStart        DateTime?          @map("week_start") @db.Date
+  // clean | partial | null (resolution not run yet)
+  resolutionStatus String?            @map("resolution_status")
+  // As-generated provenance summary (source counts, corrections, model).
+  provenance       Json?
+  // User edits to the cover and schedule; independent of generated evidence.
+  firstPage        Json?              @map("first_page")
+  generatedAt      DateTime?          @map("generated_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  meetings WsHillDayMeeting[]
+  jobs     WsHillDayJob[]
+  exports  WsHillDayExport[]
+
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, clientId])
+  @@map("ws_hillday_document")
+}
+
+model WsHillDayMeeting {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  // apps/api meetings.id (the calendar event). No FK.
+  eventId    String   @map("event_id")
+  ordinal    Int      @default(0)
+  // Calendar event snapshot as selected (subject, times, attendees, reason).
+  event      Json     @default("{}")
+  // MeetingResolution — the chain plus user corrections (authoritative here).
+  resolution Json?
+  // MeetingContextRecord — { note, carry, threadIds }: what the user chose.
+  context    Json?
+  // MeetingSection — Focus / Background, status and flags.
+  section    Json?
+  // The source set actually assembled into the last prompt (provenance).
+  sourceSet  Json?    @map("source_set")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, eventId])
+  @@index([tenantId, documentId])
+  @@map("ws_hillday_meeting")
+}
+
+model WsHillDayJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  documentId  String    @map("document_id") @db.Uuid
+  actorId     String    @map("actor_id")
+  // queued | running | complete | failed
+  status      String    @default("queued")
+  // [{ meetingId, state, sectionId, reason, at }]
+  units       Json      @default("[]")
+  // Ordered SSE replay log: [{ seq, event, data }]
+  events      Json      @default("[]")
+  quality     Float?
+  error       String?
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId, createdAt])
+  @@map("ws_hillday_job")
+}
+
+model WsHillDayExport {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  documentId String    @map("document_id") @db.Uuid
+  actorId    String    @map("actor_id")
+  format     String    @default("pdf")
+  pageSize   String    @default("letter") @map("page_size")
+  // queued | ready | failed
+  status     String    @default("queued")
+  filename   String?
+  // Rendered bytes, kept so the signed URL serves exactly what was rendered.
+  file       Bytes?
+  sizeBytes  Int?      @map("size_bytes")
+  error      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readyAt    DateTime? @map("ready_at")
+
+  document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId])
+  @@map("ws_hillday_export")
+}
+
+/// Workspace-owned create receipt; survives draft deletion (no cascading FK).
+model WsProspectDraftReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  requestId String @map("request_id") @db.Uuid
+  prospectId String @map("prospect_id") @db.Uuid
+  inputHash String @map("input_hash") @db.VarChar(64)
+  draftId String @map("draft_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([tenantId, ownerId, requestId], map: "ws_prospect_draft_receipt_request_key")
+  @@index([tenantId, prospectId], map: "ws_prospect_draft_receipt_prospect_idx")
+  @@map("ws_prospect_draft_receipt")
+}
+
+
+model WsNewsletterDocument {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  name String
+  revision Int @default(1)
+  status String @default("draft")
+  config Json
+  design Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  comments WsNewsletterComment[]
+  stages WsNewsletterStage[]
+  reviewers WsNewsletterReviewer[]
+  invitations WsNewsletterInvitation[]
+  @@unique([id, tenantId], map: "ws_newsletter_document_tenant_key")
+  @@index([tenantId, ownerId, updatedAt])
+  @@map("ws_newsletter_document")
+}
+
+
+model WsNewsletterBrandKit {
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  revision Int @default(1)
+  payload Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@id([tenantId, ownerId])
+  @@map("ws_newsletter_brand_kit")
+}
+
+
+model WsNewsletterReviewer {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  userId String @map("user_id")
+  role String @default("commenter")
+  notifications String @default("mentions")
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@unique([documentId, userId])
+  @@index([tenantId, userId])
+  @@map("ws_newsletter_reviewer")
+}
+
+
+model WsNewsletterLibraryItem {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  kind String
+  name String
+  folder String @default("")
+  payload Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([tenantId, ownerId, kind])
+  @@map("ws_newsletter_library_item")
+}
+
+
+model WsNewsletterInvitation {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  authorId String @map("author_id")
+  requestKey String @map("request_key") @db.Uuid
+  email String @db.VarChar(320)
+  role String
+  message String
+  accountRole String @default("member") @map("account_role")
+  sourceClientIds String[] @default([]) @map("source_client_ids") @db.Uuid
+  recipientId String? @map("recipient_id")
+  activatedAt DateTime? @map("activated_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Cascade, map: "ws_newsletter_invitation_document_scope_fkey")
+  @@unique([tenantId, authorId, requestKey], map: "ws_newsletter_invitation_request_key")
+  @@index([tenantId, documentId, email])
+  @@index([activatedAt, createdAt])
+  @@map("ws_newsletter_invitation")
+}
+
+
+model WsNewsletterComment {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  authorId String @map("author_id")
+  blockId String? @map("block_id")
+  parentId String? @map("parent_id") @db.Uuid
+  message String
+  resolved Boolean @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Cascade)
+  watchers WsNewsletterThreadWatcher[]
+  emailRequests WsNewsletterReviewEmailRequest[] @relation("NewsletterEmailComment")
+  rootEmailRequests WsNewsletterReviewEmailRequest[] @relation("NewsletterEmailRoot")
+  @@unique([id, tenantId, documentId], map: "ws_newsletter_comment_scope_key")
+  @@index([tenantId, documentId, createdAt])
+  @@map("ws_newsletter_comment")
+}
+
+
+model WsNewsletterThreadWatcher {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  rootId String @map("root_id") @db.Uuid
+  userId String @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  root WsNewsletterComment @relation(fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: "ws_newsletter_thread_watcher_root_scope_fkey")
+  @@unique([rootId, userId])
+  @@index([tenantId, documentId])
+  @@map("ws_newsletter_thread_watcher")
+}
+
+
+model WsNewsletterReviewEmailRequest {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  rootId String @map("root_id") @db.Uuid
+  commentId String @map("comment_id") @db.Uuid
+  recipientId String @map("recipient_id")
+  sourceClientIds String[] @default([]) @map("source_client_ids") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  comment WsNewsletterComment @relation("NewsletterEmailComment", fields: [commentId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: "ws_newsletter_review_email_request_comment_scope_fkey")
+  root WsNewsletterComment @relation("NewsletterEmailRoot", fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: "ws_newsletter_review_email_request_root_scope_fkey")
+  @@unique([commentId, recipientId])
+  @@index([createdAt])
+  @@index([tenantId, documentId])
+  @@map("ws_newsletter_review_email_request")
+}
+
+
+model WsNewsletterAsset {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  name String
+  token String @unique
+  mimeType String @map("mime_type")
+  file Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+  revisionRootId String? @map("revision_root_id") @db.Uuid
+  revisionParentId String? @map("revision_parent_id") @db.Uuid
+  revisionNumber Int @default(1) @map("revision_number")
+  currentRevision Boolean @default(true) @map("current_revision")
+  revisionRoot WsNewsletterAsset? @relation("NewsletterImageRoot", fields: [revisionRootId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: "ws_newsletter_asset_revision_root_scope_fkey")
+  revisions WsNewsletterAsset[] @relation("NewsletterImageRoot")
+  revisionParent WsNewsletterAsset? @relation("NewsletterImageParent", fields: [revisionParentId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: "ws_newsletter_asset_revision_parent_scope_fkey")
+  derivedImages WsNewsletterAsset[] @relation("NewsletterImageParent")
+  folderId String? @map("folder_id") @db.Uuid
+  folder WsNewsletterAssetFolder? @relation(fields: [folderId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, map: "ws_newsletter_asset_folder_scope_fkey")
+  @@index([tenantId, ownerId])
+  @@index([tenantId, ownerId, folderId])
+  @@unique([id, tenantId, ownerId], map: "ws_newsletter_asset_scope_key")
+  @@unique([revisionRootId, revisionNumber], map: "ws_newsletter_asset_revision_number_key")
+  @@index([tenantId, ownerId, currentRevision, deletedAt])
+  @@map("ws_newsletter_asset")
+}
+
+
+model WsNewsletterAssetFolder {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  name String
+  createdAt DateTime @default(now()) @map("created_at")
+  assets WsNewsletterAsset[]
+  @@unique([id, tenantId, ownerId], map: "ws_newsletter_asset_folder_scope_key")
+  @@index([tenantId, ownerId])
+  @@map("ws_newsletter_asset_folder")
+}
+
+
+model WsNewsletterStage {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  ownerId String @map("owner_id")
+  revision Int
+  name String
+  config Json
+  design Json
+  html String
+  plainText String @map("plain_text")
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Restrict)
+  @@unique([documentId, revision, ownerId])
+  @@index([tenantId, ownerId, createdAt])
+  @@map("ws_newsletter_stage")
+}

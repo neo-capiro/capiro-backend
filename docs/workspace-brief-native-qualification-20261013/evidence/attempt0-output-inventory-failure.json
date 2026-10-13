@@ -1,0 +1,8 @@
+{
+  "actualWorkspaceNestFiles": 661,
+  "assumedWorkspaceNestFiles": 660,
+  "correction": "660 emitted source files plus the default Nest output .tsbuildinfo; prior override output inventory excluded that buildinfo",
+  "observation": "AssertionError at old count assertion before any inventory write or output removal",
+  "rerunRequired": false,
+  "sourceOrBuildChange": false
+}

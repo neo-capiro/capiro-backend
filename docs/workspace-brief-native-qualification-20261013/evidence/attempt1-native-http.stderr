@@ -1,0 +1,16 @@
+AssertionError [ERR_ASSERTION]: {"statusCode":500,"message":"Internal server error"}
+
+500 !== 409
+
+    at request (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:96:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async /tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:297:5
+    at async check (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:90:9)
+    at async main (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:295:3) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 500,
+  expected: 409,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

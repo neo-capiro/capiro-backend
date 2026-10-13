@@ -1,0 +1,34 @@
+{
+  "failure": "Current CollaboratorsService sourceAccess depends on manually migrated ws_source_action, absent from Prisma model DDL fixture",
+  "passedNativeCases": 15,
+  "failedNativeCases": 1,
+  "httpSourceChanged": false,
+  "missingTableMigration": "20260913020000_legiwatch_preparation_actions",
+  "retained": [
+    {
+      "path": "evidence/attempt1-native-http-command.json",
+      "bytes": 765,
+      "sha256": "aaca0f86bbd1621b58b2395576771803af9dd0e5f5e64b48bddd3f24264070e0"
+    },
+    {
+      "path": "evidence/attempt1-native-http.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/attempt1-native-http.stderr",
+      "bytes": 916,
+      "sha256": "0d2274201878d125c174c681db65172cde7050edceb1e873a4e26f173d006415"
+    },
+    {
+      "path": "evidence/attempt1-native-query-events.jsonl.gz",
+      "bytes": 14511,
+      "sha256": "c0d1eb6b5784e388eb9ee47315014c5a5868ec81e9e944389dcd31b6289fc5c1"
+    },
+    {
+      "path": "evidence/attempt1-native-final-consumers.json",
+      "bytes": 2565,
+      "sha256": "25c527836213167feeb797758ada4269df2b7d636aeeff6983046befb8ab5a2a"
+    }
+  ]
+}

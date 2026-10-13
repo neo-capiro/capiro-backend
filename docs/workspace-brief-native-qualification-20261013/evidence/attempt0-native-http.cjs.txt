@@ -1,0 +1,338 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const zlib = require('node:zlib');
+const { createRequire } = require('node:module');
+const root = path.resolve(__dirname, '../..');
+const workspaceRequire = createRequire(path.join(root, 'apps/workspace/package.json'));
+const sourceHead = '76f50b2667d06a121b2dd772abc9d64adb556c36';
+const sourceTree = 'd6e615533e4c36970779962b1391af90e5576314';
+const generated = '/tmp/workspace-brief-native-client-20261013';
+const privatePath = '/tmp/workspace-brief-native-runtime-20261013.json';
+const receipt = JSON.parse(fs.readFileSync(path.join(__dirname, 'OWNED-DB-RECEIPT.json')));
+const info = fs.lstatSync(privatePath);
+assert(info.isFile() && info.nlink === 1 && (info.mode & 0o777) === 0o600 && info.uid === process.getuid());
+assert.equal(info.ino, receipt.privateConfigIdentity.inode);
+assert.equal(info.dev, receipt.privateConfigIdentity.device);
+const fd = fs.openSync(privatePath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+const privateBytes = fs.readFileSync(fd);
+assert.equal(fs.fstatSync(fd).ino, info.ino);
+fs.closeSync(fd);
+const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+const sharedBinding = JSON.parse(fs.readFileSync(path.join(__dirname, 'evidence/shared-runtime-source-binding.json')));
+assert.equal(sharedBinding.sourceHead, sourceHead);
+assert.equal(sharedBinding.sourceTree, sourceTree);
+assert.equal(fs.realpathSync(workspaceRequire.resolve('@capiro/shared')), path.join(sharedBinding.sharedRealpath, 'dist/index.js'));
+for (const input of sharedBinding.sourceInputs) assert.equal(sha(fs.readFileSync(path.join(root, input.path))), input.sha256);
+for (const output of sharedBinding.emittedJs) assert.equal(sha(fs.readFileSync(path.join(sharedBinding.sharedRealpath, 'dist', output.path))), output.sha256);
+assert.equal(sha(privateBytes), receipt.privateConfigSha256);
+const config = JSON.parse(privateBytes);
+assert.equal(config.sourceHead, sourceHead);
+assert.equal(config.sourceTree, sourceTree);
+assert.equal(config.databaseName, receipt.database);
+assert.equal(config.databaseOid, receipt.databaseOid);
+assert.equal(config.databaseComment, receipt.databaseComment);
+assert.equal(config.systemIdentifier, '7695590366852821031');
+assert.equal(config.containerId, '3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183');
+assert.equal(config.approvedOwnedDatabase, true);
+const databaseUrl = new URL(config.databaseUrl);
+assert.equal(databaseUrl.hostname, '127.0.0.1');
+assert.equal(databaseUrl.port, '5432');
+assert.equal(databaseUrl.username, 'capiro');
+assert.equal(databaseUrl.pathname, '/' + receipt.database);
+assert.equal(databaseUrl.search, '?schema=public&connection_limit=4');
+process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(generated, 'libquery_engine-debian-openssl-3.0.x.so.node');
+assert.equal(sha(fs.readFileSync(process.env.PRISMA_QUERY_ENGINE_LIBRARY)), '35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8');
+assert.equal(sha(fs.readFileSync(path.join(generated, 'schema.prisma'))), sha(fs.readFileSync(path.join(root, 'apps/workspace/prisma/schema.prisma'))));
+
+// No provider/client can make external HTTP requests in this bounded graph.
+const originalFetch = global.fetch;
+global.fetch = function(url, options) {
+  const target = new URL(url);
+  assert.equal(target.hostname, '127.0.0.1');
+  assert.equal(target.protocol, 'http:');
+  return originalFetch(url, options);
+};
+for (const scheme of ['node:http', 'node:https']) for (const name of ['request', 'get']) {
+  const module = require(scheme), original = module[name];
+  module[name] = function(target, ...args) {
+    const hostname = typeof target === 'string' || target instanceof URL ? new URL(target).hostname : target.hostname ?? target.host;
+    assert.equal(hostname, '127.0.0.1');
+    return original.call(this, target, ...args);
+  };
+}
+const originalRead = fs.readFileSync;
+fs.readFileSync = function(file, ...args) {
+  assert(!/(?:^|\/)\.env(?:\.|$)|engagement[.]service[.](?:ts|js)$/.test(String(file)), 'Protected/environment body read refused');
+  return originalRead.call(this, file, ...args);
+};
+workspaceRequire('reflect-metadata');
+const { Test } = workspaceRequire('@nestjs/testing');
+const { ValidationPipe, UnauthorizedException } = workspaceRequire('@nestjs/common');
+const { json } = workspaceRequire('express');
+const emitted = name => require(path.join(root, 'apps/workspace/dist', name));
+const { PrismaService } = emitted('prisma/prisma.service.js');
+const { DocumentsService } = emitted('documents/documents.service.js');
+const { DocumentsController } = emitted('documents/documents.controller.js');
+const { CollaboratorsService } = emitted('collaborators/collaborators.service.js');
+const { VersionsService } = emitted('versions/versions.service.js');
+const { TenantGuard } = emitted('auth/tenant.guard.js');
+const { stateHash } = emitted('documents/prospect-brief-copy-contract.js');
+const newId = () => crypto.randomUUID();
+const ids = Object.fromEntries(['tenant', 'foreignTenant', 'client', 'otherClient', 'prospect', 'otherProspect', 'foreignProspect', 'brief', 'v1', 'v2', 'draft', 'foreignDraft'].map(name => [name, newId()]));
+const actors = Object.fromEntries(['owner', 'editor', 'viewer', 'outsider', 'admin', 'foreign'].map(name => [name, { userId: newId(), clerkUserId: 'native_ws_' + name + '_' + newId(), tenantId: name === 'foreign' ? ids.foreignTenant : ids.tenant }]));
+const results = [], observations = [], queryEvents = [];
+let app, prisma, blocker, base;
+const check = async (name, work) => {
+  const started = performance.now();
+  try { await work(); results.push({ name, passed: true, elapsedMs: Math.round(performance.now() - started) }); }
+  catch (error) { results.push({ name, passed: false, error: String(error), elapsedMs: Math.round(performance.now() - started) }); throw error; }
+};
+const request = async (method, route, body, actor = 'owner', expected = method === 'POST' ? 201 : 200) => {
+  const response = await fetch(base + route, { method, headers: { 'x-native-fixture-actor': actor, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const value = await response.json();
+  assert.equal(response.status, expected, JSON.stringify(value));
+  if (method === 'GET' && expected === 200) assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  return value;
+};
+const route = suffix => `/drafts/${ids.draft}/documents${suffix}`;
+const state = () => request('GET', route('/brief-copy-state'));
+const current = () => prisma.wsDocument.findFirstOrThrow({ where: { id: copyDocumentId } });
+const snapshot = async () => stateHash(JSON.parse(JSON.stringify({ draft: await prisma.wsDraft.findUniqueOrThrow({ where: { id: ids.draft } }), documents: await prisma.wsDocument.findMany({ where: { draftId: ids.draft }, orderBy: { id: 'asc' } }), versions: await prisma.wsDocVersion.findMany({ where: { draftId: ids.draft }, orderBy: { id: 'asc' } }) })));
+const body = label => ({ extra: { retained: [true, 3, null] }, blocks: [{ id: 'section', type: 'section', title: label, content: `<p>${label}</p>`, marks: ['bold'] }, { id: 'photo', type: 'photo', src: 'https://example.invalid/synthetic-photo', caption: label }, { id: 'table', type: 'table', rows: [[1, 'two']], extra: { alignment: 'right' } }, { id: 'logo', type: 'logo', source: 'fixture-only', visible: true }] });
+let source, copyInput, copyResponse, copyDocumentId;
+
+async function seed() {
+  for (const [tenantId, slug] of [[ids.tenant, 'native-main'], [ids.foreignTenant, 'native-foreign']])
+    await prisma.$executeRawUnsafe(`INSERT INTO tenants(id,slug,name,status,settings_jsonb,updated_at) VALUES ($1::uuid,$2,$2,'active',$3::jsonb,now())`, tenantId, slug + '-' + newId(), JSON.stringify({ clioFeatureFlags: { 'businessDevelopment.enabled': true, 'businessDevelopment.brief.enabled': true } }));
+  for (const [name, actor] of Object.entries(actors)) {
+    await prisma.$executeRawUnsafe(`INSERT INTO users(id,clerk_user_id,email,updated_at) VALUES ($1::uuid,$2,$3,now())`, actor.userId, actor.clerkUserId, name + '-' + newId() + '@example.invalid');
+    await prisma.$executeRawUnsafe(`INSERT INTO tenant_memberships(id,tenant_id,user_id,role,status,updated_at) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::tenant_role,'active',now())`, newId(), actor.tenantId, actor.userId, name === 'admin' ? 'capiro_admin' : 'standard_user');
+  }
+  for (const clientId of [ids.client, ids.otherClient])
+    await prisma.$executeRawUnsafe(`INSERT INTO clients(id,tenant_id,name,memory_wall,updated_at) VALUES ($1::uuid,$2::uuid,'Native synthetic client',true,now())`, clientId, ids.tenant);
+  for (const name of ['owner', 'editor', 'viewer', 'outsider'])
+    await prisma.$executeRawUnsafe(`INSERT INTO client_memory_access(id,tenant_id,client_id,user_id) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid)`, newId(), ids.tenant, ids.client, actors[name].userId);
+  for (const [prospectId, tenantId, clientId] of [[ids.prospect, ids.tenant, ids.client], [ids.otherProspect, ids.tenant, ids.otherClient], [ids.foreignProspect, ids.foreignTenant, null]])
+    await prisma.$executeRawUnsafe(`INSERT INTO business_development_prospects(id,tenant_id,display_name,linked_client_id,updated_at) VALUES ($1::uuid,$2::uuid,'Native synthetic prospect',$3::uuid,now())`, prospectId, tenantId, clientId);
+  await prisma.$executeRawUnsafe(`INSERT INTO business_development_briefs(id,tenant_id,prospect_id,title,updated_at) VALUES ($1::uuid,$2::uuid,$3::uuid,'Native original brief',now())`, ids.brief, ids.tenant, ids.prospect);
+  const citations = [{ title: 'Synthetic preserved citation', url: 'https://example.invalid/native-evidence' }];
+  const keys = ['companyAndFirmImplication', 'verifiedEvidence', 'judgment', 'practicalAction', 'missingInformation'];
+  for (const [versionId, number] of [[ids.v1, 1], [ids.v2, 2]]) {
+    const sections = Object.fromEntries(keys.map(key => [key, { text: `<synthetic>${key}: original ${number}</synthetic>`, provenance: 'generated', citationIndexes: [0] }]));
+    const sourceSnapshot = { fixture: true, savedVersion: number };
+    await prisma.$executeRawUnsafe(`INSERT INTO business_development_brief_versions(id,tenant_id,brief_id,version_number,sections,sections_hash,source_snapshot,snapshot_hash,citations,idempotency_key,idempotency_op,idempotency_fingerprint) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5::jsonb,$6,$7::jsonb,$8,$9::jsonb,$10,'generate',$11)`, versionId, ids.tenant, ids.brief, number, JSON.stringify(sections), stateHash(sections), JSON.stringify(sourceSnapshot), stateHash(sourceSnapshot), JSON.stringify(citations), 'fixture-' + versionId, stateHash({ versionId }));
+    if (number === 1) source = { kind: 'core_prospect_brief_version', prospectId: ids.prospect, briefId: ids.brief, versionId, versionNumber: number, sectionsHash: stateHash(sections), snapshotHash: stateHash(sourceSnapshot) };
+  }
+  await prisma.$executeRawUnsafe(`UPDATE business_development_briefs SET current_version_id=$1::uuid WHERE id=$2::uuid`, ids.v2, ids.brief);
+  for (const [id, tenantId, prospectId, ownerId] of [[ids.draft, ids.tenant, ids.prospect, actors.owner.clerkUserId], [ids.foreignDraft, ids.foreignTenant, ids.foreignProspect, actors.foreign.clerkUserId]]) {
+    await prisma.wsDraft.create({ data: { id, tenantId, prospectId, ownerId, docTitle: 'Native Workspace copy fixture', config: { preserved: true }, docCount: 1 } });
+    await prisma.wsDocument.create({ data: { id: newId(), tenantId, draftId: id, name: 'Original ordinary tab', ordinal: 0, body: { blocks: [] } } });
+  }
+  for (const name of ['editor', 'viewer']) await prisma.wsCollaborator.create({ data: { tenantId: ids.tenant, draftId: ids.draft, role: name, subjectId: actors[name].clerkUserId, invitedBy: actors.owner.clerkUserId, status: 'active' } });
+}
+
+async function main() {
+  const started = performance.now();
+  prisma = new PrismaService({ datasources: { db: { url: config.databaseUrl } }, log: [{ emit: 'event', level: 'query' }] });
+  prisma.$on('query', event => queryEvents.push({ query: event.query, params: event.params, durationMs: event.duration }));
+  await prisma.$connect();
+  const [target] = await prisma.$queryRawUnsafe(`SELECT current_database() AS database, current_user AS actor, (SELECT system_identifier::text FROM pg_control_system()) AS system, (SELECT oid::int FROM pg_database WHERE datname=current_database()) AS oid`);
+  assert.deepEqual(target, { database: receipt.database, actor: 'capiro', system: config.systemIdentifier, oid: receipt.databaseOid });
+  await seed();
+  const coreSource = () => prisma.$queryRawUnsafe(`SELECT * FROM (SELECT 'brief' AS kind,to_jsonb(b) AS row FROM business_development_briefs b UNION ALL SELECT 'version',to_jsonb(v) FROM business_development_brief_versions v) original ORDER BY kind,row->>'id'`);
+  const originalCoreHash = stateHash(await coreSource());
+  const collaborators = new CollaboratorsService(prisma, new Proxy({}, { get() { return () => { throw new Error('NOTIFICATION_PROVIDER_REFUSED'); }; } }));
+  const documents = new DocumentsService(prisma, collaborators);
+  const versions = new VersionsService(prisma, collaborators);
+  const graph = await Test.createTestingModule({ controllers: [DocumentsController], providers: [{ provide: DocumentsService, useValue: documents }, { provide: PrismaService, useValue: prisma }] }).overrideGuard(TenantGuard).useValue({ canActivate(context) {
+    const req = context.switchToHttp().getRequest(), actor = actors[req.headers['x-native-fixture-actor']];
+    if (!actor) throw new UnauthorizedException();
+    req.tenantContext = { ...actor };
+    return true;
+  } }).compile();
+  app = graph.createNestApplication({ logger: false });
+  app.setGlobalPrefix('workspace-api');
+  app.use(json({ limit: '8mb' }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true, transformOptions: { enableImplicitConversion: false } }));
+  await app.listen(0, '127.0.0.1');
+  assert.equal(app.getHttpServer().address().address, '127.0.0.1');
+  base = 'http://127.0.0.1:' + app.getHttpServer().address().port + '/workspace-api';
+
+  await check('historical exact copy and fresh generated-column read', async () => {
+    const before = await state();
+    copyInput = { requestId: newId(), expectedStateHash: before.stateHash, expectedClientId: ids.client, source };
+    copyResponse = await request('POST', route('/core-brief-copy'), copyInput);
+    assert.equal(copyResponse.replayed, false); copyDocumentId = copyResponse.receipt.documentId;
+    assert.deepEqual((await current()).sourceBriefVersion, source);
+    const detail = await request('GET', route('/' + copyDocumentId + '/brief-copy'));
+    assert(detail.document.body.blocks[0].content.includes('original 1'));
+    assert(detail.document.body.blocks[0].content.includes('&lt;synthetic&gt;'));
+    assert.deepEqual(detail.sourceEvidence.sourceSnapshot, { fixture: true, savedVersion: 1 });
+    assert.deepEqual(copyResponse.receipt.source, source);
+    const saved = await prisma.wsDocVersion.findUniqueOrThrow({ where: { id: copyInput.requestId } });
+    assert.deepEqual(saved.snapshot.sourceEvidence, detail.sourceEvidence);
+    assert.equal(copyResponse.receipt.snapshotHash, stateHash(saved.snapshot));
+    assert.equal((await prisma.wsDraft.findUniqueOrThrow({ where: { id: ids.draft } })).docCount, 2);
+  });
+  await check('lost-copy-response retry has one durable receipt', async () => {
+    const before = await snapshot(), retried = await request('POST', route('/core-brief-copy'), copyInput);
+    assert.equal(retried.replayed, true); assert.deepEqual(retried.receipt, copyResponse.receipt); assert.equal(await snapshot(), before);
+  });
+  await check('request UUID payload mismatch is conflict', async () => {
+    const before = await snapshot(); await request('POST', route('/core-brief-copy'), { ...copyInput, expectedStateHash: 'a'.repeat(64) }, 'owner', 409); assert.equal(await snapshot(), before);
+  });
+  await check('authorized different actor cannot replay another actor receipt', async () => {
+    const before = await snapshot(); await request('POST', route('/core-brief-copy'), copyInput, 'editor', 409); assert.equal(await snapshot(), before);
+  });
+  let saveA, responseA;
+  await check('complete rich edit and durable atomic save', async () => {
+    saveA = { requestId: newId(), expectedStateHash: (await state()).stateHash, expectedClientId: ids.client, body: body('first saved edit'), name: 'Native editable copy', ordinal: 3, docTitle: 'Independent title', label: 'native save A' };
+    responseA = await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), saveA, 'editor');
+    assert.deepEqual((await current()).body, saveA.body); assert.deepEqual((await current()).sourceBriefVersion, source);
+  });
+  await check('later edit then historical replay never rewinds', async () => {
+    const later = { requestId: newId(), expectedStateHash: (await state()).stateHash, expectedClientId: ids.client, body: body('later saved edit') };
+    await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), later);
+    const before = await snapshot(), replay = await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), saveA, 'editor');
+    assert.equal(replay.replayed, true); assert.deepEqual(replay.receipt, responseA.receipt); assert.equal(await snapshot(), before); assert.deepEqual((await current()).body, later.body);
+  });
+  await check('two real blocked transactions yield one conflict', async () => {
+    const baseline = (await state()).stateHash;
+    blocker = new (require(generated).PrismaClient)({ datasources: { db: { url: config.databaseUrl } } });
+    let release, locked;
+    const lockReady = new Promise(resolve => { locked = resolve; });
+    const hold = new Promise(resolve => { release = resolve; });
+    const transaction = blocker.$transaction(async tx => { await tx.$queryRawUnsafe('SELECT id FROM ws_draft WHERE id=$1::uuid FOR UPDATE', ids.draft); locked(); await hold; }, { timeout: 10000 });
+    await Promise.race([lockReady, transaction.then(() => { throw new Error('Blocker ended before signaling its lock'); })]);
+    const inputs = [1, 2].map(number => ({ requestId: newId(), expectedStateHash: baseline, expectedClientId: ids.client, body: body('concurrent ' + number) }));
+    const sends = inputs.map(input => fetch(base + route('/' + copyDocumentId + '/brief-copy-save'), { method: 'POST', headers: { 'x-native-fixture-actor': 'owner', 'content-type': 'application/json' }, body: JSON.stringify(input) }));
+    let waiters = 0;
+    try {
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const [row] = await prisma.$queryRawUnsafe(`SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%ws_draft%'`); waiters = row.count;
+        if (waiters >= 2) break;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      assert(waiters >= 2, 'Both native request sessions must be observed blocked on the actual draft');
+    } catch (error) {
+      release();
+      await transaction;
+      await Promise.allSettled(sends);
+      throw error;
+    } finally { release(); await transaction; }
+    const responses = await Promise.all(sends); assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
+    const values = await Promise.all(responses.map(r => r.json()));
+    const winner = responses.findIndex(r => r.status === 201), loser = 1 - winner;
+    assert.deepEqual((await current()).body, inputs[winner].body);
+    assert.equal(values[loser].code, 'WORKSPACE_BRIEF_STATE_CONFLICT');
+    assert.equal(await prisma.wsDocVersion.count({ where: { id: { in: inputs.map(i => i.requestId) } } }), 1);
+    observations.push({ name: 'native concurrent waiter evidence', observedBlockedRequestSessions: waiters });
+    await blocker.$disconnect(); blocker = null;
+  });
+  await check('parallel identical save request has one commit and one replay', async () => {
+    const input = { requestId: newId(), expectedStateHash: (await state()).stateHash, expectedClientId: ids.client, body: body('parallel identical request') };
+    const responses = await Promise.all([request('POST', route('/' + copyDocumentId + '/brief-copy-save'), input), request('POST', route('/' + copyDocumentId + '/brief-copy-save'), input)]);
+    assert.deepEqual(responses.map(response => response.replayed).sort(), [false, true]);
+    assert.deepEqual(responses[0].receipt, responses[1].receipt);
+    assert.equal(await prisma.wsDocVersion.count({ where: { id: input.requestId } }), 1);
+  });
+  await check('foreign tenant request UUID collision is concealed and rolls back copy', async () => {
+    const collision = newId();
+    const foreign = await prisma.wsDocVersion.create({ data: { id: collision, tenantId: ids.foreignTenant, draftId: ids.foreignDraft, authorId: actors.foreign.clerkUserId, authorKind: 'person', snapshot: { foreignReceiptMarker: 'concealed synthetic fixture' } } });
+    const before = await snapshot();
+    const response = await request('POST', route('/core-brief-copy'), { ...copyInput, requestId: collision, expectedStateHash: (await state()).stateHash }, 'owner', 409);
+    assert.equal(response.code, 'WORKSPACE_BRIEF_REQUEST_CONFLICT');
+    assert(!JSON.stringify(response).includes('concealed synthetic fixture'));
+    assert.equal(await snapshot(), before);
+    assert.deepEqual(await prisma.wsDocVersion.findUniqueOrThrow({ where: { id: collision } }), foreign);
+  });
+  await check('failed native receipt insert rolls back body/title then retry commits', async () => {
+    const interrupted = { requestId: newId(), expectedStateHash: (await state()).stateHash, expectedClientId: ids.client, body: body('interrupted native save'), docTitle: 'Must roll back' };
+    const before = await snapshot();
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION ws_native_fail_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.id='${interrupted.requestId}'::uuid THEN RAISE EXCEPTION 'owned native receipt interruption' USING ERRCODE='23514'; END IF; RETURN NEW; END $$`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER ws_native_fail_receipt BEFORE INSERT ON ws_doc_version FOR EACH ROW EXECUTE FUNCTION ws_native_fail_receipt()`);
+    try { await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), interrupted, 'owner', 500); assert.equal(await snapshot(), before); }
+    finally { await prisma.$executeRawUnsafe('DROP TRIGGER ws_native_fail_receipt ON ws_doc_version'); await prisma.$executeRawUnsafe('DROP FUNCTION ws_native_fail_receipt()'); }
+    await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), interrupted);
+    const after = await snapshot(); await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), interrupted); assert.equal(await snapshot(), after);
+  });
+  await check('wrong client, tenant, ACL, admin wall and malformed command fail closed', async () => {
+    const before = await snapshot();
+    await request('POST', route('/core-brief-copy'), { ...copyInput, requestId: newId(), expectedClientId: ids.otherClient }, 'owner', 404);
+    await request('GET', route('/brief-copy-state'), undefined, 'foreign', 404);
+    await request('GET', route('/brief-copy-state'), undefined, 'outsider', 404);
+    await request('GET', route('/brief-copy-state'), undefined, 'admin', 404);
+    await request('GET', route('/brief-copy-state'), undefined, 'viewer');
+    await request('POST', route('/core-brief-copy'), { ...copyInput, requestId: newId(), expectedStateHash: (await state()).stateHash }, 'viewer', 404);
+    const { expectedClientId, ...missingClient } = copyInput;
+    await request('POST', route('/core-brief-copy'), { ...missingClient, requestId: newId() }, 'owner', 400);
+    await request('POST', route('/core-brief-copy'), { ...copyInput, requestId: newId(), source: { ...source, versionId: newId() } }, 'owner', 404);
+    assert.equal(await snapshot(), before);
+  });
+  await check('replay rechecks current membership', async () => {
+    await prisma.$executeRawUnsafe(`UPDATE tenant_memberships SET status='removed' WHERE tenant_id=$1::uuid AND user_id=$2::uuid`, ids.tenant, actors.owner.userId);
+    try { await request('POST', route('/core-brief-copy'), copyInput, 'owner', 404); }
+    finally { await prisma.$executeRawUnsafe(`UPDATE tenant_memberships SET status='active' WHERE tenant_id=$1::uuid AND user_id=$2::uuid`, ids.tenant, actors.owner.userId); }
+  });
+  await check('replay rechecks current wall grant', async () => {
+    const [grant] = await prisma.$queryRawUnsafe('DELETE FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND user_id=$3::uuid RETURNING id', ids.tenant, ids.client, actors.owner.userId);
+    try { await request('POST', route('/core-brief-copy'), copyInput, 'owner', 404); }
+    finally { await prisma.$executeRawUnsafe('INSERT INTO client_memory_access(id,tenant_id,client_id,user_id) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid)', grant.id, ids.tenant, ids.client, actors.owner.userId); }
+  });
+  await check('replay rechecks current brief feature', async () => {
+    await prisma.$executeRawUnsafe(`UPDATE tenants SET settings_jsonb='{"clioFeatureFlags":{"businessDevelopment.enabled":true,"businessDevelopment.brief.enabled":false}}' WHERE id=$1::uuid`, ids.tenant);
+    try { await request('POST', route('/core-brief-copy'), copyInput, 'owner', 404); }
+    finally { await prisma.$executeRawUnsafe(`UPDATE tenants SET settings_jsonb='{"clioFeatureFlags":{"businessDevelopment.enabled":true,"businessDevelopment.brief.enabled":true}}' WHERE id=$1::uuid`, ids.tenant); }
+  });
+  await check('current client conversion invalidates old replay', async () => {
+    await prisma.$executeRawUnsafe('UPDATE business_development_prospects SET linked_client_id=$1::uuid WHERE id=$2::uuid', ids.otherClient, ids.prospect);
+    try { await request('POST', route('/core-brief-copy'), copyInput, 'owner', 404); }
+    finally { await prisma.$executeRawUnsafe('UPDATE business_development_prospects SET linked_client_id=$1::uuid WHERE id=$2::uuid', ids.client, ids.prospect); }
+  });
+  await check('legacy PATCH/delete/restore cannot bypass atomic save', async () => {
+    const before = await snapshot();
+    await request('PATCH', route('/' + copyDocumentId.toUpperCase()), { body: { blocks: [] } }, 'owner', 409);
+    await request('DELETE', route('/' + copyDocumentId), undefined, 'owner', 409);
+    await assert.rejects(() => versions.restore(ids.tenant, ids.draft, copyInput.requestId, actors.owner.clerkUserId), error => error.getStatus?.() === 409);
+    assert.equal(await snapshot(), before);
+  });
+  await check('migration rejects source mutation, identity transfer and malformed/new origin', async () => {
+    const before = await snapshot();
+    const states = [];
+    for (const [statement, sqlState] of [
+      [`UPDATE ws_document SET source_brief_version='{}' WHERE id='${copyDocumentId}'`, 'P0001'],
+      [`UPDATE ws_document SET tenant_id='${ids.foreignTenant}' WHERE id='${copyDocumentId}'`, 'P0001'],
+      [`UPDATE ws_document SET draft_id='${ids.foreignDraft}' WHERE id='${copyDocumentId}'`, 'P0001'],
+      [`UPDATE ws_document SET id='${newId()}' WHERE id='${copyDocumentId}'`, 'P0001'],
+      [`UPDATE ws_doc_version SET snapshot='{}' WHERE id='${copyInput.requestId}'`, '23514'],
+    ]) await assert.rejects(() => prisma.$executeRawUnsafe(statement), error => { states.push(error.meta?.code); return error.code === 'P2010' && error.meta?.code === sqlState; });
+    const insert = (tenantId, draftId, association) => prisma.$executeRawUnsafe(`INSERT INTO ws_document(id,tenant_id,draft_id,name,ordinal,body,source_brief_version,updated_at) VALUES ($1::uuid,$2::uuid,$3::uuid,'Rejected synthetic copy',50,'{"blocks":[]}',$4::jsonb,now())`, newId(), tenantId, draftId, JSON.stringify(association));
+    await assert.rejects(() => insert(ids.tenant, ids.draft, { ...source, extra: true }), error => { states.push(error.meta?.code); return error.code === 'P2010' && error.meta?.code === '23514'; });
+    await assert.rejects(() => insert(ids.foreignTenant, ids.foreignDraft, source), error => { states.push(error.meta?.code); return error.code === 'P2010' && error.meta?.code === 'P0001'; });
+    observations.push({ name: 'exact native constraint SQLSTATE evidence', sqlStates: states });
+    assert.equal(await snapshot(), before);
+  });
+  await check('deleted copy replay cannot recreate destination', async () => {
+    await prisma.wsDocument.delete({ where: { id: copyDocumentId } });
+    const before = await snapshot();
+    await request('POST', route('/core-brief-copy'), copyInput, 'owner', 409);
+    await request('POST', route('/' + copyDocumentId + '/brief-copy-save'), saveA, 'editor', 404);
+    assert.equal(await snapshot(), before);
+  });
+  await check('original Core root and both saved versions remain byte-equivalent', async () => { assert.equal(stateHash(await coreSource()), originalCoreHash); });
+  const result = { sourceHead, sourceTree, database: receipt.database, databaseOid: receipt.databaseOid, nativePostgresVersion: '16.15', clientSchemaSha256: sha(fs.readFileSync(path.join(generated, 'schema.prisma'))), passed: results.filter(r => r.passed).length, failed: results.filter(r => !r.passed).length, results, observations, elapsedSeconds: (performance.now() - started) / 1000, nativeQueryEvents: queryEvents.length, nativeBeginEvents: queryEvents.filter(e => /^BEGIN/.test(e.query)).length, nativeCommitEvents: queryEvents.filter(e => /^COMMIT/.test(e.query)).length, nativeRollbackEvents: queryEvents.filter(e => /^ROLLBACK/.test(e.query)).length, exactHistoricalCorePreserved: true, actualDocumentsControllerServiceAndSharedAuthority: true, syntheticVerifiedIdentityAdapter: true, fullAppModuleLiveAuthRlsProviderOrDeploymentQualified: false };
+  fs.writeFileSync(path.join(__dirname, 'evidence/native-results.json'), JSON.stringify(result, null, 2) + '\n', { flag: 'wx' });
+  console.log(JSON.stringify({ passed: result.passed, failed: result.failed, nativeQueryEvents: result.nativeQueryEvents, nativeBeginEvents: result.nativeBeginEvents, nativeRollbackEvents: result.nativeRollbackEvents, database: result.database }));
+}
+
+main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
+  if (app) await app.close();
+  if (blocker) await blocker.$disconnect();
+  if (prisma) await prisma.$disconnect();
+  const trace = Buffer.from(queryEvents.map(event => JSON.stringify(event) + '\n').join(''));
+  fs.writeFileSync(path.join(__dirname, 'evidence/native-query-events.jsonl.gz'), zlib.gzipSync(trace), { flag: 'wx' });
+  fs.writeFileSync(path.join(__dirname, 'evidence/native-final-consumers.json'), JSON.stringify({ sourceHead, results, observations, actualListenerClosed: !app || !app.getHttpServer().listening, allOwnedClientDisconnectsAwaited: true, rawQueryTraceBytes: trace.length, rawQueryTraceSha256: sha(trace) }, null, 2) + '\n', { flag: 'wx' });
+});

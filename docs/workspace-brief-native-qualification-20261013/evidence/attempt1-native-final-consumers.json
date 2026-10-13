@@ -1,0 +1,96 @@
+{
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "results": [
+    {
+      "name": "historical exact copy and fresh generated-column read",
+      "passed": true,
+      "elapsedMs": 215
+    },
+    {
+      "name": "lost-copy-response retry has one durable receipt",
+      "passed": true,
+      "elapsedMs": 74
+    },
+    {
+      "name": "request UUID payload mismatch is conflict",
+      "passed": true,
+      "elapsedMs": 39
+    },
+    {
+      "name": "authorized different actor cannot replay another actor receipt",
+      "passed": true,
+      "elapsedMs": 103
+    },
+    {
+      "name": "complete rich edit and durable atomic save",
+      "passed": true,
+      "elapsedMs": 262
+    },
+    {
+      "name": "later edit then historical replay never rewinds",
+      "passed": true,
+      "elapsedMs": 308
+    },
+    {
+      "name": "two real blocked transactions yield one conflict",
+      "passed": true,
+      "elapsedMs": 391
+    },
+    {
+      "name": "parallel identical save request has one commit and one replay",
+      "passed": true,
+      "elapsedMs": 95
+    },
+    {
+      "name": "foreign tenant request UUID collision is concealed and rolls back copy",
+      "passed": true,
+      "elapsedMs": 75
+    },
+    {
+      "name": "failed native receipt insert rolls back body/title then retry commits",
+      "passed": true,
+      "elapsedMs": 200
+    },
+    {
+      "name": "wrong client, tenant, ACL, admin wall and malformed command fail closed",
+      "passed": true,
+      "elapsedMs": 206
+    },
+    {
+      "name": "replay rechecks current membership",
+      "passed": true,
+      "elapsedMs": 16
+    },
+    {
+      "name": "replay rechecks current wall grant",
+      "passed": true,
+      "elapsedMs": 26
+    },
+    {
+      "name": "replay rechecks current brief feature",
+      "passed": true,
+      "elapsedMs": 30
+    },
+    {
+      "name": "current client conversion invalidates old replay",
+      "passed": true,
+      "elapsedMs": 28
+    },
+    {
+      "name": "legacy PATCH/delete/restore cannot bypass atomic save",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: {\"statusCode\":500,\"message\":\"Internal server error\"}\n\n500 !== 409\n",
+      "elapsedMs": 58
+    }
+  ],
+  "observations": [
+    {
+      "name": "native concurrent waiter evidence",
+      "observedBlockedRequestSessions": 2
+    }
+  ],
+  "actualListenerClosed": true,
+  "allOwnedClientDisconnectsAwaited": true,
+  "rawQueryTraceBytes": 341870,
+  "rawQueryTraceSha256": "f22da8b301f8a45056b97ec05491b34bed46f1e382d96af554fd47a526db2ffa"
+}

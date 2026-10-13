@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/owned-database.py", line 262, in <module>
+    {'plan': plan, 'prepare': prepare, 'cleanup': cleanup, 'recover-unsealed-create': recover_unsealed_create, 'add-source-action-prerequisite': add_source_action_prerequisite}[sys.argv[1]]()
+  File "/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/owned-database.py", line 214, in cleanup
+    assert after_container == value['containerBefore'] and after_catalog == value['unrelatedCatalogBefore']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

@@ -1,0 +1,14 @@
+{
+  "command": [
+    "git",
+    "-c",
+    "core.whitespace=blank-at-eol,blank-at-eof,space-before-tab",
+    "diff",
+    "--cached",
+    "--check",
+    "76f50b2667d06a121b2dd772abc9d64adb556c36"
+  ],
+  "exitCode": 2,
+  "stdout": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http.stderr:1: trailing whitespace.\n+PrismaClientValidationError: \ndocs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-ddl.sql:977: new blank line at EOF.\n",
+  "stderr": ""
+}

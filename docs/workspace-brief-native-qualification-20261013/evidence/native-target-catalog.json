@@ -1,0 +1,8 @@
+{
+  "sourceActionTable": "ws_source_action",
+  "sourceActionFunction": "ws_source_action_immutable()",
+  "sourceActionTrigger": 1,
+  "copyImmutableTrigger": 1,
+  "copyOriginTrigger": 1,
+  "newColumn": 1
+}

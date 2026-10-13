@@ -1,0 +1,35 @@
+PrismaClientValidationError: 
+Invalid `prisma.wsCollaborator.create()` invocation in
+/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:134:72
+
+  131   await prisma.wsDraft.create({ data: { id, tenantId, prospectId, ownerId, docTitle: 'Native Workspace copy fixture', config: { preserved: true }, docCount: 1 } });
+  132   await prisma.wsDocument.create({ data: { id: newId(), tenantId, draftId: id, name: 'Original ordinary tab', ordinal: 0, body: { blocks: [] } } });
+  133 }
+→ 134 for (const name of ['editor', 'viewer']) await prisma.wsCollaborator.create({
+        data: {
+          tenantId: "8113a079-92a4-495b-b511-fca395a722ab",
+          draftId: "7d77d5a1-8bcf-4231-adc2-5f4f1dd9f40c",
+          role: "editor",
+          subjectId: "native_ws_editor_eb204774-bc9e-4ed5-b2ce-9088e4e80266",
+          invitedBy: "native_ws_owner_6992e2f0-e9b7-4815-8da1-a6d41d160e1d",
+          ~~~~~~~~~
+          status: "active",
+      ?   id?: String,
+      ?   email?: String | Null,
+      ?   name?: String | Null,
+      ?   invitedById?: String | Null,
+      ?   createdAt?: DateTime,
+      ?   updatedAt?: DateTime
+        }
+      })
+
+Unknown argument `invitedBy`. Did you mean `invitedById`? Available options are marked with ?.
+    at wn (/tmp/workspace-brief-native-client-20261013/runtime/library.js:29:1363)
+    at $n.handleRequestError (/tmp/workspace-brief-native-client-20261013/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/tmp/workspace-brief-native-client-20261013/runtime/library.js:121:6623)
+    at $n.request (/tmp/workspace-brief-native-client-20261013/runtime/library.js:121:6307)
+    at async l (/tmp/workspace-brief-native-client-20261013/runtime/library.js:130:9633)
+    at async seed (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:134:44)
+    at async main (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:144:3) {
+  clientVersion: '5.22.0'
+}

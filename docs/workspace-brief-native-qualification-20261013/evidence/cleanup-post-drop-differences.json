@@ -1,0 +1,30 @@
+{
+  "containerBefore": {
+    "configurationSha256": "adb183f013b06fb307eaca48b2051b40ccd477628d4af7bbfff0bc009521e2ed",
+    "containerId": "3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183",
+    "healthy": true
+  },
+  "containerAfter": {
+    "containerId": "3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183",
+    "configurationSha256": "adb183f013b06fb307eaca48b2051b40ccd477628d4af7bbfff0bc009521e2ed",
+    "healthy": true
+  },
+  "containerUnchanged": true,
+  "catalogBeforeSha256": "10b76a6eebb00c381d9ef25aaa8b2294cf150319f8ca91ec4fec54f86e52dc2b",
+  "catalogAfterSha256": "10b76a6eebb00c381d9ef25aaa8b2294cf150319f8ca91ec4fec54f86e52dc2b",
+  "catalogSnapshotEqual": true,
+  "differences": {
+    "databases": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    },
+    "roles": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    }
+  },
+  "ownedDatabaseAbsent": true,
+  "privateConfigStillPresent": true
+}

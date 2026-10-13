@@ -1,0 +1,16 @@
+{
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "sourceTree": "d6e615533e4c36970779962b1391af90e5576314",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=2048",
+    "docs/workspace-brief-native-qualification-20261013/native-http.cjs"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 2.964,
+  "stdoutBytes": 0,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrBytes": 2122,
+  "stderrSha256": "e90449c8b52b6a15d106cfe301f4c9282ed5364bb98ea09654ceb6871f90e145",
+  "scope": "real PostgreSQL/Prisma/transactions and bounded actual Workspace HTTP/service graph; synthetic identity, owner-role, no live auth/RLS/provider/fullAppModule/deployment"
+}

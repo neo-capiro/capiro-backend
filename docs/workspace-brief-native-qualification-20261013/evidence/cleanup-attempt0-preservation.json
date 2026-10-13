@@ -1,0 +1,24 @@
+{
+  "observedFailure": "Post-drop container/catalog equality assertion failed; the failing in-process snapshot values were not persisted",
+  "ownedDatabaseDroppedBeforeFailure": true,
+  "readOnlyRecheck": "cleanup-post-drop-differences.json",
+  "readOnlyRecheckMatchesAllBaselineSnapshots": true,
+  "originalFailedOutputsRetained": [
+    {
+      "path": "evidence/attempt0-cleanup.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/attempt0-cleanup.stderr",
+      "sha256": "9235bad4615ff4137c14a066c22e1b19058582c4d07ee5048dd2af2d2d79f3fd",
+      "bytes": 779
+    },
+    {
+      "path": "evidence/attempt0-cleanup-command.json",
+      "sha256": "74981797ae6c18ca76de4e63ba60f8f3e26b7ded99b003b27becc07701eef5b8",
+      "bytes": 151
+    }
+  ],
+  "causeOfInitialComparisonFailureUnproven": true
+}

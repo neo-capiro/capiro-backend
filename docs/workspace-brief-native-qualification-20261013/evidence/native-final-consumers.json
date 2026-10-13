@@ -1,0 +1,122 @@
+{
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "results": [
+    {
+      "name": "historical exact copy and fresh generated-column read",
+      "passed": true,
+      "elapsedMs": 161
+    },
+    {
+      "name": "lost-copy-response retry has one durable receipt",
+      "passed": true,
+      "elapsedMs": 46
+    },
+    {
+      "name": "request UUID payload mismatch is conflict",
+      "passed": true,
+      "elapsedMs": 44
+    },
+    {
+      "name": "authorized different actor cannot replay another actor receipt",
+      "passed": true,
+      "elapsedMs": 39
+    },
+    {
+      "name": "complete rich edit and durable atomic save",
+      "passed": true,
+      "elapsedMs": 67
+    },
+    {
+      "name": "later edit then historical replay never rewinds",
+      "passed": true,
+      "elapsedMs": 95
+    },
+    {
+      "name": "two real blocked transactions yield one conflict",
+      "passed": true,
+      "elapsedMs": 202
+    },
+    {
+      "name": "parallel identical save request has one commit and one replay",
+      "passed": true,
+      "elapsedMs": 104
+    },
+    {
+      "name": "foreign tenant request UUID collision is concealed and rolls back copy",
+      "passed": true,
+      "elapsedMs": 90
+    },
+    {
+      "name": "failed native receipt insert rolls back body/title then retry commits",
+      "passed": true,
+      "elapsedMs": 167
+    },
+    {
+      "name": "wrong client, tenant, ACL, admin wall and malformed command fail closed",
+      "passed": true,
+      "elapsedMs": 136
+    },
+    {
+      "name": "replay rechecks current membership",
+      "passed": true,
+      "elapsedMs": 13
+    },
+    {
+      "name": "replay rechecks current wall grant",
+      "passed": true,
+      "elapsedMs": 14
+    },
+    {
+      "name": "replay rechecks current brief feature",
+      "passed": true,
+      "elapsedMs": 23
+    },
+    {
+      "name": "current client conversion invalidates old replay",
+      "passed": true,
+      "elapsedMs": 17
+    },
+    {
+      "name": "legacy PATCH/delete/restore cannot bypass atomic save",
+      "passed": true,
+      "elapsedMs": 126
+    },
+    {
+      "name": "migration rejects source mutation, identity transfer and malformed/new origin",
+      "passed": true,
+      "elapsedMs": 32
+    },
+    {
+      "name": "deleted copy replay cannot recreate destination",
+      "passed": true,
+      "elapsedMs": 66
+    },
+    {
+      "name": "original Core root and both saved versions remain byte-equivalent",
+      "passed": true,
+      "elapsedMs": 2
+    }
+  ],
+  "observations": [
+    {
+      "name": "native concurrent waiter evidence",
+      "observedBlockedRequestSessions": 2
+    },
+    {
+      "name": "exact native constraint SQLSTATE evidence",
+      "sqlStates": [
+        "P0001",
+        "P0001",
+        "P0001",
+        "P0001",
+        "23514",
+        "23514",
+        "P0001"
+      ]
+    }
+  ],
+  "actualListenerClosed": true,
+  "allOwnedClientDisconnectsAwaited": true,
+  "rawQueryTraceBytes": 390264,
+  "rawQueryTraceSha256": "cbd7e86de2805e6ee3f70990541d76a3aa56f466974a6ad8208bf80775012e99"
+}
