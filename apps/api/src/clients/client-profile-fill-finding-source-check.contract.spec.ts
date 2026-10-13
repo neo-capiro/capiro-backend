@@ -19,10 +19,20 @@ import { resolve } from 'node:path';
  * `client_profile_fill_finding_kind_check` drift class is guarded.
  */
 describe('client_profile_fill_finding_source_check stays in sync with addFinding call sites', () => {
-  const service = readFileSync(
-    resolve(process.cwd(), 'src/clients/client-profile-fill-completion.service.ts'),
-    'utf8',
-  );
+  const service = [
+    'src/clients/client-profile-fill-completion.service.ts',
+    'src/clients/client-profile-fill-advocacy-history.ts',
+    'src/clients/client-profile-fill-lda-discovery.ts',
+    'src/clients/client-profile-fill-fara-discovery.ts',
+    'src/clients/client-profile-fill-testimony-discovery.ts',
+    'src/clients/client-profile-fill-tenant-history-discovery.ts',
+    'src/clients/client-profile-fill-federal-register-discovery.ts',
+    'src/clients/client-profile-fill-community-funding-discovery.ts',
+    'src/clients/client-profile-fill-community-funding-finding.ts',
+    'src/clients/client-profile-fill-community-funding-source.ts',
+    'src/clients/client-profile-fill-regulatory-comment-discovery.ts',
+    'src/clients/client-profile-fill-regulatory-comment-source.ts',
+  ].map((path) => readFileSync(resolve(process.cwd(), path), 'utf8')).join('\n');
 
   // Every migration that has ever touched this constraint, in migration order.
   // The LATEST one wins (Postgres DROP+ADD), so only its value list matters --
