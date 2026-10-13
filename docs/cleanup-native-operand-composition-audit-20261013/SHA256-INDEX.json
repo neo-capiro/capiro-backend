@@ -1,0 +1,26 @@
+{
+  "current": "ce14fb20b60426fe465ae8ad3eb33f2d23cd7bbc",
+  "owner": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "files": [
+    {
+      "path": "docs/cleanup-native-operand-composition-audit-20261013/SCOPED-RECEIPT.md",
+      "bytes": 3551,
+      "sha256": "c094305483ab344eb479f3ab1ed3ceda4f5f691d0d5d1ecf6d8d102f0bf96cce"
+    },
+    {
+      "path": "docs/cleanup-native-operand-composition-audit-20261013/evidence/CODE-AND-OPERAND-IDENTITIES.json",
+      "bytes": 280279,
+      "sha256": "ca6ce24862ac6702625cd2c38bd694e465d710f3b37ed796fef5f4e400be3f0e"
+    },
+    {
+      "path": "docs/cleanup-native-operand-composition-audit-20261013/evidence/OWNER-RESULT-POINTERS.json",
+      "bytes": 1088,
+      "sha256": "32adf9a0db42fc332471966210110c4fa6b2fcd1502ee3a0592bd986b4120eac"
+    },
+    {
+      "path": "docs/cleanup-native-operand-composition-audit-20261013/evidence/PE-ENTRYPOINTS.json",
+      "bytes": 4765,
+      "sha256": "56edd8909511b438cbc16fcacfd1a46d368cc73e7396aab65937f4942c8acf95"
+    }
+  ]
+}
