@@ -21,6 +21,11 @@ import { resolve } from 'node:path';
 describe('client_profile_fill_finding_source_check stays in sync with addFinding call sites', () => {
   const service = [
     'src/clients/client-profile-fill-completion.service.ts',
+    'src/clients/client-profile-fill-profile-discovery.ts',
+    'src/clients/client-profile-fill-lifecycle-outcomes.ts',
+    'src/clients/client-profile-fill-lifecycle-outcome-findings.ts',
+    'src/clients/client-profile-fill-reconciliation.ts',
+    'src/clients/client-profile-fill-completion-audit.ts',
     'src/clients/client-profile-fill-advocacy-history.ts',
     'src/clients/client-profile-fill-lda-discovery.ts',
     'src/clients/client-profile-fill-fara-discovery.ts',

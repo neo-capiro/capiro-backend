@@ -47,57 +47,64 @@ interface WatermarkInput {
   priorState?: Record<string, unknown>;
 }
 interface DiscoveryFacade {
-  gatherAdvocacyHistory(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-  ): Promise<HistoryResult>;
   gatherFaraAdvocacyCandidates(
     ctx: TenantContext,
     clientId: string,
     runId: string,
     currentCount: number,
   ): Promise<RailResult>;
-  gatherTestimonyAdvocacyCandidates(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    currentCount: number,
-    lastSyncedAt: string | null,
-    lastKey: string | null,
-    priorState: Record<string, unknown>,
-  ): Promise<RailResult & { newestSyncedAt: string | null; newestKey: string | null }>;
-  gatherCommunityFundingAdvocacyCandidates(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    currentCount: number,
-    lastCreatedAt: string | null,
-    lastKey: string | null,
-    priorState: Record<string, unknown>,
-  ): Promise<RailResult & { newestCreatedAt: string | null; newestKey: string | null }>;
-  gatherClientSubmissionAdvocacy(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    currentCount: number,
-    lastCreatedAt: string | null,
-    priorState: Record<string, unknown>,
-  ): Promise<RailResult & { newestCreatedAt: string | null }>;
-  gatherPrivateAdvocacyCandidates(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    currentCount: number,
-    lastAppliedAt: string | null,
-    priorState: Record<string, unknown>,
-  ): Promise<RailResult & { newestAppliedAt: string | null }>;
-  gatherFederalRegisterBackfill(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    priorState: Record<string, unknown>,
-  ): Promise<AdvocacySourceBackfillState>;
+}
+
+interface HistoryOwner {
+  gather(ctx: TenantContext, clientId: string, runId: string): Promise<HistoryResult>;
+  testimony: {
+    gather(
+      ctx: TenantContext,
+      clientId: string,
+      runId: string,
+      currentCount: number,
+      lastSyncedAt: string | null,
+      lastKey: string | null,
+      priorState: Record<string, unknown>,
+    ): Promise<RailResult & { newestSyncedAt: string | null; newestKey: string | null }>;
+  };
+  communityFunding: {
+    gather(
+      ctx: TenantContext,
+      clientId: string,
+      runId: string,
+      currentCount: number,
+      lastCreatedAt: string | null,
+      lastKey: string | null,
+      priorState: Record<string, unknown>,
+    ): Promise<RailResult & { newestCreatedAt: string | null; newestKey: string | null }>;
+  };
+  tenantHistory: {
+    gatherClientSubmissions(
+      ctx: TenantContext,
+      clientId: string,
+      runId: string,
+      currentCount: number,
+      lastCreatedAt: string | null,
+      priorState: Record<string, unknown>,
+    ): Promise<RailResult & { newestCreatedAt: string | null }>;
+    gatherPrivateCandidates(
+      ctx: TenantContext,
+      clientId: string,
+      runId: string,
+      currentCount: number,
+      lastAppliedAt: string | null,
+      priorState: Record<string, unknown>,
+    ): Promise<RailResult & { newestAppliedAt: string | null }>;
+  };
+  federalRegister: {
+    gather(
+      ctx: TenantContext,
+      clientId: string,
+      runId: string,
+      priorState: Record<string, unknown>,
+    ): Promise<AdvocacySourceBackfillState>;
+  };
 }
 
 function matterStub(state: IoState) {
@@ -115,15 +122,16 @@ function matterStub(state: IoState) {
 
 function facades(service: ClientProfileFillCompletionService) {
   const discovery = service as unknown as DiscoveryFacade;
+  const history = (service as unknown as { owners: { advocacyHistory: HistoryOwner } }).owners
+    .advocacyHistory;
   return {
-    discover: (actor = ctx, client = clientId, run = runId) =>
-      discovery.gatherAdvocacyHistory(actor, client, run),
+    discover: (actor = ctx, client = clientId, run = runId) => history.gather(actor, client, run),
     fara: (currentCount = 0) =>
       discovery.gatherFaraAdvocacyCandidates(ctx, clientId, runId, currentCount),
     testimony: (
       input: WatermarkInput & { lastSyncedAt?: string | null; lastKey?: string | null } = {},
     ) =>
-      discovery.gatherTestimonyAdvocacyCandidates(
+      history.testimony.gather(
         ctx,
         clientId,
         runId,
@@ -135,7 +143,7 @@ function facades(service: ClientProfileFillCompletionService) {
     community: (
       input: WatermarkInput & { lastCreatedAt?: string | null; lastKey?: string | null } = {},
     ) =>
-      discovery.gatherCommunityFundingAdvocacyCandidates(
+      history.communityFunding.gather(
         ctx,
         clientId,
         runId,
@@ -145,7 +153,7 @@ function facades(service: ClientProfileFillCompletionService) {
         input.priorState ?? {},
       ),
     submissions: (input: WatermarkInput & { lastCreatedAt?: string | null } = {}) =>
-      discovery.gatherClientSubmissionAdvocacy(
+      history.tenantHistory.gatherClientSubmissions(
         ctx,
         clientId,
         runId,
@@ -154,7 +162,7 @@ function facades(service: ClientProfileFillCompletionService) {
         input.priorState ?? {},
       ),
     privateEvidence: (input: WatermarkInput & { lastAppliedAt?: string | null } = {}) =>
-      discovery.gatherPrivateAdvocacyCandidates(
+      history.tenantHistory.gatherPrivateCandidates(
         ctx,
         clientId,
         runId,
@@ -163,7 +171,7 @@ function facades(service: ClientProfileFillCompletionService) {
         input.priorState ?? {},
       ),
     federalRegister: (priorState: Record<string, unknown> = {}) =>
-      discovery.gatherFederalRegisterBackfill(ctx, clientId, runId, priorState),
+      history.federalRegister.gather(ctx, clientId, runId, priorState),
   };
 }
 
