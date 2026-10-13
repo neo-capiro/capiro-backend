@@ -26,13 +26,32 @@ import {
   type TenantContext,
   type TenantRole,
 } from '@capiro/shared';
-import { ClerkService, type ClerkSessionClaims } from '../auth/clerk.service.js';
+import { ClerkService, type ClerkSessionClaims, type ActiveApplicationAuthoritySession } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
 import { TenantContextStore } from './tenant-context.store.js';
+import {
+  applicationAuthorityRevision,
+  type ApplicationAuthorityIdentityEvidence,
+  type ApplicationAuthorityIdentityProof,
+} from '../auth/application-authority.js';
 
 type SystemTx = Prisma.TransactionClient;
 type MembershipWithTenant = Prisma.TenantMembershipGetPayload<{ include: { tenant: true } }>;
+
+interface ApplicationAuthorityRequestProvenance {
+  context: TenantContext;
+  claims: ClerkSessionClaims;
+  membershipId: string;
+  membershipTenantId: string;
+  requestedSlug: string | undefined;
+  impersonationId: string | null;
+}
+
+// Nest's middleware wrapper and injected provider can be separate instances.
+// The existing owner shares only private, ephemeral provenance keyed by the
+// actual request object; there is no reusable/durable authorization receipt.
+const applicationAuthorityRequests = new WeakMap<Request, ApplicationAuthorityRequestProvenance>();
 
 /**
  * Resolves the tenant context for an authenticated request.
@@ -66,6 +85,14 @@ export class TenantContextMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+    // Also cover authentication/authorization denials before the controller.
+    const authorityPaths = [
+      '/api/clio/application-authority/identity', '/api/clio/application-authority/context',
+      '/clio/application-authority/identity', '/clio/application-authority/context',
+    ];
+    if ([req.path, (req.originalUrl ?? req.url ?? '').split('?')[0]].some(
+      (path) => path !== undefined && authorityPaths.includes(path),
+    )) res.setHeader('Cache-Control', 'no-store');
     // Belt-and-suspenders bypass for paths that authenticate via a different
     // channel than the Clerk session. The OAuth callback is reached via a
     // top-level browser redirect from Microsoft and authenticates via the
@@ -142,6 +169,8 @@ export class TenantContextMiddleware implements NestMiddleware {
       tenantId?: string | null;
       claimedTenantId?: string | null;
     } | null = null;
+    let selectedAuthorityMembership: { id: string; tenantId: string } | undefined;
+    let selectedAuthorityImpersonation: string | null = null;
 
     // Step 3, resolve membership using RLS bypass. The lookup is not
     // tenant-scoped (we are still resolving the tenant), so it MUST run
@@ -300,6 +329,7 @@ export class TenantContextMiddleware implements NestMiddleware {
         denial = { reason: 'host_mismatch', tenantId: chosen.tenantId, claimedTenantId };
         throw new ForbiddenException('Subdomain/header tenant mismatch, re-auth required');
       }
+      selectedAuthorityMembership = { id: chosen.id, tenantId: chosen.tenantId };
 
       // Best-effort last_seen_at update, do not fail the request on error.
       await tx.user
@@ -328,6 +358,7 @@ export class TenantContextMiddleware implements NestMiddleware {
             `Impersonation session is for tenant ${session.tenant.slug}, header asks for ${wantsImpersonate}`,
           );
         }
+        selectedAuthorityImpersonation = session.id;
         const context: TenantContext = {
           tenantId: session.tenantId,
           tenantSlug: session.tenant.slug,
@@ -366,7 +397,90 @@ export class TenantContextMiddleware implements NestMiddleware {
     // services pull the context without prop drilling; req.tenantContext is
     // for the @CurrentTenant() decorator and direct controller access.
     (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
+    if (selectedAuthorityMembership) {
+      applicationAuthorityRequests.set(req, {
+        context: ctx,
+        claims: { ...claims },
+        membershipId: selectedAuthorityMembership.id,
+        membershipTenantId: selectedAuthorityMembership.tenantId,
+        requestedSlug,
+        impersonationId: selectedAuthorityImpersonation,
+      });
+    }
     this.store.run(ctx, () => next());
+  }
+
+  /** A fresh online session read followed by read-only current local checks.
+   * The original authentication pipeline can provision/update/audit; this
+   * method cannot repair missing authority or choose a different membership. */
+  async readApplicationAuthority(req: Request, ctx: TenantContext): Promise<ApplicationAuthorityIdentityProof> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    const provenance = applicationAuthorityRequests.get(req);
+    if (!provenance || provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
+    const session = await this.clerk.assertActiveApplicationAuthoritySession(provenance.claims);
+    const evidence = await this.readCurrentApplicationAuthority(provenance, ctx, session);
+    return { ...evidence, recheckCurrent: () => this.readCurrentApplicationAuthority(provenance, ctx, session) };
+  }
+
+  private async readCurrentApplicationAuthority(
+    provenance: ApplicationAuthorityRequestProvenance,
+    ctx: TenantContext,
+    session: ActiveApplicationAuthoritySession,
+  ): Promise<ApplicationAuthorityIdentityEvidence> {
+    const denied = () => new ForbiddenException('Application authority unavailable');
+    if (provenance.context !== ctx || ctx.clerkUserId !== provenance.claims.sub) throw denied();
+    try {
+      return await this.prisma.withSystem(async (tx) => {
+        const user = await tx.user.findFirst({
+          where: { id: ctx.userId, clerkUserId: provenance.claims.sub }, select: { id: true, clerkUserId: true },
+        });
+        const membership = await tx.tenantMembership.findFirst({
+          where: { id: provenance.membershipId, tenantId: provenance.membershipTenantId, userId: ctx.userId, status: 'active' },
+          include: { tenant: true },
+        });
+        if (!user || user.id !== ctx.userId || user.clerkUserId !== provenance.claims.sub ||
+            !membership || membership.id !== provenance.membershipId || membership.userId !== ctx.userId ||
+            membership.tenantId !== provenance.membershipTenantId || membership.status !== 'active' ||
+            membership.role !== ctx.role || membership.tenant.id !== membership.tenantId ||
+            membership.tenant.status !== 'active') throw denied();
+        const claims = provenance.claims;
+        if ((nonEmpty(claims.capiro_tenant_id) && membership.tenantId !== nonEmpty(claims.capiro_tenant_id)) ||
+            (nonEmpty(claims.org_id) && membership.tenant.clerkOrgId !== nonEmpty(claims.org_id)) ||
+            (nonEmpty(claims.capiro_tenant_slug) && membership.tenant.slug.toLowerCase() !== nonEmpty(claims.capiro_tenant_slug)?.toLowerCase()) ||
+            (provenance.requestedSlug && membership.tenant.slug !== provenance.requestedSlug)) throw denied();
+        let impersonationFacts: unknown = null;
+        let expiresAtMs = session.expiresAtMs;
+        if (provenance.impersonationId !== null) {
+          if (membership.role !== 'capiro_admin') throw denied();
+          const impersonation = await tx.impersonationSession.findFirst({
+            where: { id: provenance.impersonationId, actorUserId: ctx.userId, tenantId: ctx.tenantId, endedAt: null, expiresAt: { gt: new Date() } },
+            include: { tenant: true },
+          });
+          if (!impersonation || impersonation.id !== provenance.impersonationId ||
+              impersonation.actorUserId !== ctx.userId || impersonation.tenantId !== ctx.tenantId ||
+              impersonation.endedAt !== null || impersonation.tenant.id !== ctx.tenantId ||
+              impersonation.tenant.status !== 'active' || impersonation.tenant.slug !== ctx.tenantSlug) throw denied();
+          expiresAtMs = Math.min(expiresAtMs, impersonation.expiresAt.getTime());
+          impersonationFacts = [impersonation.id, impersonation.actorUserId, impersonation.tenantId,
+            impersonation.startedAt.getTime(), impersonation.expiresAt.getTime(), impersonation.endedAt,
+            impersonation.tenant.status, impersonation.tenant.clerkOrgId];
+        } else if (ctx.tenantId !== membership.tenantId || ctx.tenantSlug !== membership.tenant.slug) throw denied();
+        if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= Date.now()) throw denied();
+        return {
+          principal: { tenantId: ctx.tenantId, actorId: user.id },
+          identityRevision: applicationAuthorityRevision('identity', [
+            [session.id, session.userId, session.status, session.createdAt, session.expireAt, session.abandonAt, session.actor],
+            [user.id, user.clerkUserId],
+            [membership.id, membership.tenantId, membership.userId, membership.role, membership.status, membership.updatedAt.getTime()],
+            [membership.tenant.id, membership.tenant.status, membership.tenant.clerkOrgId],
+            impersonationFacts,
+          ]),
+          expiresAtMs,
+        };
+      });
+    } catch {
+      throw denied();
+    }
   }
 
   /**

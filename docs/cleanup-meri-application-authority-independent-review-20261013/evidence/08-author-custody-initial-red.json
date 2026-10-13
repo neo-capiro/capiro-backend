@@ -1,0 +1,8 @@
+{
+  "exitCode": 1,
+  "program": "Inline readonly inventory verifier required row[bytes] for every authorpacket/sourcebinding row.",
+  "actualAuthorSchema": "packetFiles include bytes; sourceBindings have path/gitBlob/sha256 only.",
+  "failure": "KeyError bytes",
+  "productSourceOrEvidenceMutation": false,
+  "correction": "Verify declared packet bytes; verify source Gitblob/hash and compute observed bytes independently. No schema rewriting."
+}

@@ -1,0 +1,57 @@
+{
+  "previousMasterHead": "920c69b9273ea5846cbfcea2aa6d36760c91526a",
+  "oldRows": 3467,
+  "unchangedBlobMode": 3464,
+  "explicitSupersessions": [
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldHead": "920c69b9273ea5846cbfcea2aa6d36760c91526a",
+      "oldSha256": "9ce6e5cba13507b08ee679e8d2a399e5451e2078baac6df458602077b6fa0e23",
+      "oldModeBlob": [
+        "100644",
+        "32ec8ece9a3aa320831f97683b35afbcc61b57e2"
+      ],
+      "currentSha256": "7edcb14b02162259800f0f7128b619b2f5e77f94cde691abf5cefda822a0c81d",
+      "currentModeBlob": [
+        "100644",
+        "1daf9e8030bbc3e7d7508447d7ca8267ea3fc294"
+      ],
+      "reason": "reviewed data/spec source activation or explicit current handoff successor"
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "oldHead": "920c69b9273ea5846cbfcea2aa6d36760c91526a",
+      "oldSha256": "5e1a7acd3cf45f67774baba004b85cf3b60e22e3f5270893017ec630382c3893",
+      "oldModeBlob": [
+        "100644",
+        "29936c684c107b04405c2a48a3c03c23ff555391"
+      ],
+      "currentSha256": "1a007adde20bf87929ce076ba7902a8e483df30de479005b0d884975f5075214",
+      "currentModeBlob": [
+        "100644",
+        "1791299834d532bc0020356c127b0ed555b6c010"
+      ],
+      "reason": "reviewed data/spec source activation or explicit current handoff successor"
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "oldHead": "920c69b9273ea5846cbfcea2aa6d36760c91526a",
+      "oldSha256": "cbb5b500b909b55c71b18f71364165e8f90f06e19310ee2ab18fbe1feb1ff8bc",
+      "oldModeBlob": [
+        "100644",
+        "b84b4efba2701a377092e73fbf0b8ab06e203437"
+      ],
+      "currentSha256": "1dfde9a004d61e64a292811b06bf0fddd36c799a53b399b227ec5a6fed87e27d",
+      "currentModeBlob": [
+        "100644",
+        "cde0de0fe3e2656baf7228030af5689651c8a6f3"
+      ],
+      "reason": "reviewed data/spec source activation or explicit current handoff successor"
+    }
+  ],
+  "allPriorSourceHeadsAndIndicesPreserved": true,
+  "outsideTwoCodePathsByteExact": true,
+  "originalRawDocumentBytesPreserved": true,
+  "noNewHygieneException": true,
+  "nativeOrDeploymentAcceptance": false
+}

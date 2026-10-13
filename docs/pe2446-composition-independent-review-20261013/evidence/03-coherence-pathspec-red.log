@@ -1,0 +1,1 @@
+Initial read-only coherence helper: git ls-tree -r -z457 -- '' refused exit128: empty string is not a valid pathspec. No mutation or SQL read. Corrected helper omits pathspec for whole-tree metadata.

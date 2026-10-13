@@ -1,0 +1,66 @@
+{
+  "observedAtUtc": "2026-10-13T04:47:40.120002+00:00",
+  "testedHead": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "testedTree": "19ee55e0a411f68b2a7e239544786e7f9987b892",
+  "source": "owner receipt relayed by parent",
+  "reportedInstall": "PASS frozen with frontend directories absent",
+  "reportedBuildTypeChecks": {
+    "passed": 11,
+    "apiTypecheckHeapGb": 6,
+    "apiProductionBuildHeapGb": 4,
+    "earlierOomsRetained": true
+  },
+  "files": [
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/INSTALL-BUILD-ONLY-RECEIPT.json",
+      "expectedSha256": "e998efc8e4778532a13a323ef765ec73289ec999add6020c569d3347a779074b",
+      "availableInThisEnvironment": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/selected-source.tar",
+      "expectedSha256": "1ecc2cb85f9b53bcc3b95fdd8fd3065241ee399162ae069ee6ecf63923217774",
+      "availableInThisEnvironment": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/PROJECTION-BEFORE.json",
+      "expectedSha256": "82f93cdb138e957c37861a89654732c31f9a5eaa3dbd209614fc7cef41ae2a15",
+      "availableInThisEnvironment": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/INSTALL-RESULT.json",
+      "expectedSha256": "d5bcb64fbb145609e0c8b734d0a129d8430cde7da7d84c57ef035c8b054c79f2",
+      "availableInThisEnvironment": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/FINAL-API-CHECKS.json",
+      "expectedSha256": "505f066246e69e38ef178695c1a4e841a5aeab6aa55a804525ac80f71bb9d570",
+      "availableInThisEnvironment": false
+    }
+  ],
+  "actualReceiptBytesVerified": false,
+  "actualInstallBuildAcceptanceVerifiedHere": false,
+  "approvedOwnerTransferRequired": false,
+  "duplicateInstallPerformed": false,
+  "privateDatabaseWorkPerformed": false,
+  "reportedOwnerDatabaseStatus": {
+    "finalPublishedDraft": 2446,
+    "head": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+    "finalQualificationSha256": "87e5cea3a7ca4e2f58ccdb46df2c7fb30e167a80e827ecc0b96da38ed58f99fd",
+    "rlsPassed": 23,
+    "cleanMigrations": 469,
+    "upgradeBaseMigrations": 458,
+    "upgradeDelta": 11,
+    "sameMigrationNames": true,
+    "nodeTrustCases": 49,
+    "jestTrustCases": 246,
+    "phaseKMarker": "PASS",
+    "originalMissingRoleAndPathFailuresPreserved": true,
+    "ownedContainersVolumesRemoved": true,
+    "cleanupOwnsActualRehearsal": true,
+    "sourceAdoption": "separate composition review pending; not in this reviewed source freeze",
+    "sqlChanged": false
+  },
+  "postCompositionOperandEquality": "independent comparison pending; receiving artifact/guard changes do not add dependencies/lock/workspace edits",
+  "rawReceiptTransport": "owner confirms no currently permitted internal transfer route; receiving byte verification remains unavailable, no bypass attempted",
+  "reuseDisposition": "owner-reported actual results with independently matching source/config operands; no claim of independent install/native replay"
+}

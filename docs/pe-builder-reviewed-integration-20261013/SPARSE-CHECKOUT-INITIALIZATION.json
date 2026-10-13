@@ -1,0 +1,10 @@
+{
+  "initialAttempt": "ordinary merge after newly created --no-checkout sparse worktree",
+  "exitCode": 2,
+  "failure": "empty new index looked like staged removals; merge refused local changes overwritten",
+  "correction": "git read-tree --reset -u HEAD on this new task-owned empty checkout only, then ordinary non-forced merge",
+  "originalToolEvidence": "initial failed tool call retained in session transcript; no invented raw transcript",
+  "originalRefsPreserved": true,
+  "otherWorktreesTouched": false,
+  "archivedSession5LiveExcludedFromOwnSparseCheckout": true
+}

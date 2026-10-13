@@ -1,0 +1,835 @@
+{
+  "base": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "head": "579af9e4b826be308f0db289109c233350bbf34d",
+  "tree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "total": 194,
+  "passed": 192,
+  "failed": 2,
+  "cases": [
+    {
+      "name": "exact eight changed paths",
+      "passed": false
+    },
+    {
+      "name": "physical equals frozen apps/api/src/auth/clerk.service.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/tenant/tenant-context.middleware.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/context/context-security-scope.service.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/context/context.module.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/meri/meri.service.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/meri/meri.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/auth/application-authority.ts",
+      "passed": true
+    },
+    {
+      "name": "physical equals frozen apps/api/src/auth/application-authority.spec.ts",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member logger byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member client byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member secretKey byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member issuer byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member constructor byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member backend byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member verifySessionToken byte-exact",
+      "passed": true
+    },
+    {
+      "name": "auth/clerk.service.ts original member assertIssuer byte-exact",
+      "passed": true
+    },
+    {
+      "name": "context/context-security-scope.service.ts original member constructor byte-exact",
+      "passed": true
+    },
+    {
+      "name": "exact one selected-tenant argument in existing resolve",
+      "passed": false
+    },
+    {
+      "name": "context/context-security-scope.service.ts original member resolve inverse exact outside approved tenant bindings",
+      "passed": true
+    },
+    {
+      "name": "exact one canonical resolver tenant parameter",
+      "passed": true
+    },
+    {
+      "name": "exact one canonical outer-client tenant binding",
+      "passed": true
+    },
+    {
+      "name": "exact one canonical nested-grant tenant binding",
+      "passed": true
+    },
+    {
+      "name": "context/context-security-scope.service.ts original member resolveClients inverse exact outside approved tenant bindings",
+      "passed": true
+    },
+    {
+      "name": "context/context-security-scope.service.ts original member resolveMailboxes byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member logger byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member toolBreaker byte-exact",
+      "passed": true
+    },
+    {
+      "name": "Meri original constructor parameters byte-exact",
+      "passed": true
+    },
+    {
+      "name": "Meri constructor only two optional canonical owner additions",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member status byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member listConversations byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member createConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member getConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member updateConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member archiveConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member restoreConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member listMessages byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member authorizeOrdinaryReportMessages byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member authorizeOrdinaryReportMessage byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member authorizeOrdinaryReportArtifact byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member authorizeOrdinaryConversationSummary byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member currentReportReadAuthorized byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member ensureConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member ensureConversationAnyStatus byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member resolveAttachmentText byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member ensureClientVisible byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member currentProfile byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member streamMessage byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member streamMessageViaMeriV2 byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member getArtifactImage byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member scheduleAfterTurnMaintenance byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member afterTurnMaintenance byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member indexRecentMessagesForSearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member maybeCompactConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member completeWithIntentModel byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member searchConversations byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member authorizedResearchPortfolioHistory byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member orchestrateContext byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member classifyIntent byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member verifyDeliverable byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member enrichDeliverableStructural byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member composeSystemParts byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member buildSystemBlocks byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member extractStreamControl byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member policyForIntent byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member skillsEnabled byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member suggestionsEnabled byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member generateSuggestions byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member templateForIntent byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member shouldAttemptMemoryLearning byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member normalizeMemoryCandidate byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member classifyMemoryType byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member userScopedMemoryKey byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member loadUserVoiceContext byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member loadClientRoster byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member loadRelevantMemories byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member recallBase byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member graphNeighborRecall byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member resolveMemoryRecallSource byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member resolveRecallConfig byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member clioRecall byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member projectionRecall byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member toRecalledRows byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member emitRecallMetric byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member emitGraphRecallMetric byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member fusionOpts byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member memoryAutolearnMetric byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member maybeLearnFromConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member listAlerts byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member dismissAlert byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member createArtifactVersion byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member recordMessageFeedback byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member exportFeedbackForEvaluation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member uploadAttachment byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member createAttachmentRow byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member generateProactiveAlerts byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member semanticMemorySearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member listRecentLearnedMemories byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member suggestMemoryCorrection byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member forgetMemory byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member listMemories byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.service.ts original member updateMemory byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member logger byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member constructor byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member status byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member conversations byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member createConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member searchConversations byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member conversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member updateConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member archiveConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member restoreConversation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member messages byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member streamMessage byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member toolManifest byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member toolSchemas byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member executeTool byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member validateProcedureRuntime byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member checkClientRef byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member checkApproval byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member recordPendingAction byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member approveAction byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member recordComplianceCheck byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listComplianceChecks byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member recordClaims byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listApprovals byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listEmails byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member sendEmail byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member replyEmail byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listAlerts byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member dismissAlert byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member createArtifactVersion byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member recordMessageFeedback byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member exportFeedbackForEvaluation byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member uploadAttachment byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member resolveAttachmentText byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member mcpCatalog byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listMcpServers byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member createMcpServer byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member addMcpFromCatalog byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member updateMcpServer byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member deleteMcpServer byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member refreshMcpServers byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member startMcpOAuth byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member disconnectMcpOAuth byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listFirmSkills byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member createFirmSkill byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member updateFirmSkill byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member setFirmSkillEnabled byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member deleteFirmSkill byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member restoreFirmSkill byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member testFirmSkill byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member kbStatus byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member kbReindex byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member recentLearnedMemories byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member forgetMemory byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member suggestMemoryCorrection byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listMemories byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member updateMemory byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member listResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member createResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member getResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member researchRunActive byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member reserveResearchSafeRead byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member reserveResearchProviderAttempt byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member settleResearchProviderAttempt byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member replayResearchSafeRead byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member commitResearchSafeRead byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member failResearchSafeRead byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member researchCoordinator byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member steerResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member cancelResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member deleteResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member answerResearch byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member exportResearchWord byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member exportResearchHtml byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member downloadArtifact byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member artifactImage byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member withResearchRequestTelemetry byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member streamResearchPlan byte-exact",
+      "passed": true
+    },
+    {
+      "name": "meri/meri.controller.ts original member streamResearchRun byte-exact",
+      "passed": true
+    },
+    {
+      "name": "tenant/tenant-context.middleware.ts original member logger byte-exact",
+      "passed": true
+    },
+    {
+      "name": "tenant/tenant-context.middleware.ts original member constructor byte-exact",
+      "passed": true
+    },
+    {
+      "name": "tenant/tenant-context.middleware.ts original member recordDenial byte-exact",
+      "passed": true
+    },
+    {
+      "name": "tenant/tenant-context.middleware.ts original member selfHealMembership byte-exact",
+      "passed": true
+    },
+    {
+      "name": "tenant/tenant-context.middleware.ts original member resolveRequestedTenantSlug byte-exact",
+      "passed": true
+    },
+    {
+      "name": "exact one middleware instrumentation block 0",
+      "passed": true
+    },
+    {
+      "name": "exact one middleware instrumentation block 1",
+      "passed": true
+    },
+    {
+      "name": "exact one middleware instrumentation block 2",
+      "passed": true
+    },
+    {
+      "name": "exact one middleware instrumentation block 3",
+      "passed": true
+    },
+    {
+      "name": "exact one middleware instrumentation block 4",
+      "passed": true
+    },
+    {
+      "name": "whole original middleware use byte-exact outside explicit instrumentation",
+      "passed": true
+    },
+    {
+      "name": "whole ContextModule inverse byte-exact",
+      "passed": true
+    },
+    {
+      "name": "only original lines replaced are three expanded imports and canonical wall predicate",
+      "passed": true
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24"
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "gitBlob": "cefec1060990ec56e449d45ec70c438966cd2134",
+      "sha256": "b738b2dbc1917255b062af225b08063f5092551c75fceddfff2542ed5bf9338c"
+    }
+  ],
+  "limits": {
+    "fullCore": false,
+    "appBootstrap": false,
+    "prismaRuntime": false,
+    "providerCalls": false,
+    "protectedImplementationRead": false
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-grant-tenant-boundary.cjs",
+    "d5c121973438a29a65515496f395f4ad7568d006",
+    "09-d5-grant-tenant-red"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 1,
+  "finishedAt": "2026-10-13T05:26:26.784091+00:00"
+}

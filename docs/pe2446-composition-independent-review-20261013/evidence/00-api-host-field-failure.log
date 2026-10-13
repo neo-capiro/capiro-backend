@@ -1,0 +1,1 @@
+Initial gh pr view2446 used unsupported baseRefOid field; exit1 before data read. Corrected to supported JSON fields and exact Git commit metadata API. No mutation.

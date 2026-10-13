@@ -1,0 +1,66 @@
+{
+  "head": "579af9e4b826be308f0db289109c233350bbf34d",
+  "tree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "stage": "/workspace/capiro-application-authority-independent-d5c12197-20261013",
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "gitBlob": "cefec1060990ec56e449d45ec70c438966cd2134",
+      "sha256": "b738b2dbc1917255b062af225b08063f5092551c75fceddfff2542ed5bf9338c",
+      "bytes": 28650,
+      "unchangedFromD5": false
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "bytes": 9325,
+      "unchangedFromD5": true
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "bytes": 8258,
+      "unchangedFromD5": true
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24",
+      "bytes": 7013,
+      "unchangedFromD5": false
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9",
+      "bytes": 2627,
+      "unchangedFromD5": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467",
+      "bytes": 45695,
+      "unchangedFromD5": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "bytes": 295936,
+      "unchangedFromD5": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "bytes": 30010,
+      "unchangedFromD5": true
+    }
+  ],
+  "configSha256": "54e8eaa192da27bbc540d41831fc52bc3c346666e47ffef683868e4c5dbb4ffa",
+  "onlyTwoOwnedStageSourcesReplaced": true,
+  "noInstallOrAppBootstrap": true
+}

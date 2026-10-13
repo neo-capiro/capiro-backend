@@ -1,0 +1,50 @@
+{
+  "sourceHead": "7d15120f61cbb1d378e452a1df27321682413648",
+  "sourceTree": "8bc1f6ab3f9f78b5c54a954ae8141c9a857111cd",
+  "total": 4,
+  "passed": 1,
+  "failed": [
+    {
+      "name": "separate Nest provider instance must consume framework middleware request provenance",
+      "passed": false,
+      "error": "Error: Application authority unavailable\n    at denied (evalmachine.<anonymous>:356:30)\n    at TenantContextMiddleware.readApplicationAuthority (evalmachine.<anonymous>:359:19)\n    at MethodOwner.applicationAuthorityIdentity (evalmachine.<anonymous>:11:106)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:94:45\n    at probe (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:68:15)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:92:9"
+    },
+    {
+      "name": "same pinned wire refuses identity proxy",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Missing expected exception.\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:103:54\n    at probe (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:68:15)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:102:12"
+    },
+    {
+      "name": "same pinned wire refuses context proxy",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Missing expected exception.\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:103:54\n    at probe (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:68:15)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:102:12"
+    }
+  ],
+  "cases": [
+    {
+      "name": "control same authenticated middleware instance produces valid identity receipt",
+      "passed": true
+    },
+    {
+      "name": "separate Nest provider instance must consume framework middleware request provenance",
+      "passed": false,
+      "error": "Error: Application authority unavailable\n    at denied (evalmachine.<anonymous>:356:30)\n    at TenantContextMiddleware.readApplicationAuthority (evalmachine.<anonymous>:359:19)\n    at MethodOwner.applicationAuthorityIdentity (evalmachine.<anonymous>:11:106)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:94:45\n    at probe (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:68:15)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:92:9"
+    },
+    {
+      "name": "same pinned wire refuses identity proxy",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Missing expected exception.\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:103:54\n    at probe (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:68:15)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:102:12"
+    },
+    {
+      "name": "same pinned wire refuses context proxy",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Missing expected exception.\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:103:54\n    at probe (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:68:15)\n    at /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-meri-application-authority-independent-review-20261013/evidence/probe-candidate-composition.cjs:102:12"
+    }
+  ],
+  "sameProviderAndMiddlewareWrapper": false,
+  "onlineCalls": 1,
+  "serverHeaders": {
+    "Cache-Control": "no-store"
+  },
+  "scope": "Actual frozen owner methods and actual cached Nest middleware registration with synthetic container/dependencies. No app bootstrap, listening HTTP server, live Clerk, Prisma/database, provider or Meri fixtures."
+}

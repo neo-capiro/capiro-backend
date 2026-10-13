@@ -1,0 +1,7 @@
+{
+  "command": "python /tmp/seal-meri-publication.py",
+  "exit": 1,
+  "error": "AssertionError: apps/api/src/context/context-security-scope.service.ts",
+  "cause": "initial validator compared earlier d5 source bindings to later 4061 evidence head; corrected validator resolves explicit source head separately",
+  "sourceOrIndexEdits": false
+}

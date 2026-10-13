@@ -1,0 +1,31 @@
+{
+  "sourceHead": "d5c121973438a29a65515496f395f4ad7568d006",
+  "sourceTree": "1cd183263053aa6848c8a0949540785b34c7c4c3",
+  "total": 4,
+  "passed": 4,
+  "failed": [],
+  "cases": [
+    {
+      "name": "control same authenticated middleware instance produces valid identity receipt",
+      "passed": true
+    },
+    {
+      "name": "separate Nest provider instance must consume framework middleware request provenance",
+      "passed": true
+    },
+    {
+      "name": "same pinned wire refuses identity proxy",
+      "passed": true
+    },
+    {
+      "name": "same pinned wire refuses context proxy",
+      "passed": true
+    }
+  ],
+  "sameProviderAndMiddlewareWrapper": false,
+  "onlineCalls": 2,
+  "serverHeaders": {
+    "Cache-Control": "no-store"
+  },
+  "scope": "Actual frozen owner methods and actual cached Nest middleware registration with synthetic container/dependencies. No app bootstrap, listening HTTP server, live Clerk, Prisma/database, provider or Meri fixtures."
+}

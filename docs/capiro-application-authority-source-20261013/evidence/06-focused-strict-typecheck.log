@@ -1,0 +1,4 @@
+[91merror[0m[90m TS2688: [0mCannot find type definition file for 'node'.
+  The file is in the program because:
+    Entry point of type library 'node' specified in compilerOptions
+{"diagnostics":1,"roots":7,"actualOwners":5,"selectedMeriMethods":4,"selectedControllerMethods":2,"fullCore":false,"protectedImplementationRead":false,"prismaRuntime":false}

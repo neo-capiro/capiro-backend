@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Phase 9 disposable PostgreSQL clean + production-equivalent upgrade migrate replay.
+# Phase 9 disposable PostgreSQL clean + main-comparator upgrade migrate replay.
 #
 # Proves:
 #   1) Empty DB: prisma migrate deploy → tip succeeds (clean replay)
@@ -165,41 +165,18 @@ if ! docker info >/dev/null 2>&1; then
   exit 75
 fi
 
-cleanup() {
-  if [ "$KEEP" = "1" ]; then
-    echo "KEEP=1 — leaving container $NAME"
-    return 0
-  fi
-  docker rm -f "$NAME" >/dev/null 2>&1 || true
-}
+source "$SCRIPT_DIR/lib/pe-phase-9-owned-postgres.sh"
 trap cleanup EXIT
 
 echo "== Phase 9 migration replay image=$IMAGE port=$PORT =="
 
-docker rm -f "$NAME" >/dev/null 2>&1 || true
-docker run -d --name "$NAME" \
-  -e POSTGRES_USER="$USER_NAME" \
-  -e POSTGRES_PASSWORD="$PASS" \
-  -e POSTGRES_DB=capiro \
-  -p "${PORT}:5432" \
-  "$IMAGE" >/dev/null
-
-echo "Waiting for postgres..."
-for i in $(seq 1 60); do
-  if docker exec "$NAME" pg_isready -U "$USER_NAME" -d capiro >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-  if [ "$i" -eq 60 ]; then
-    echo "FATAL: postgres did not become ready" >&2
-    exit 1
-  fi
-done
+start_owned_postgres
+bootstrap_owned_worker
 
 psql_d() {
   local db="$1"; shift
-  docker exec -e PGPASSWORD="$PASS" "$NAME" \
-    psql -U "$USER_NAME" -d "$db" -v ON_ERROR_STOP=1 "$@"
+  docker exec -e PGPASSWORD="$PASS" "$CONTAINER_ID" \
+    psql -h 127.0.0.1 -U "$USER_NAME" -d "$db" -v ON_ERROR_STOP=1 "$@"
 }
 
 # Resolve node + prisma entry without broken Windows/MSYS pnpm shims.
@@ -325,8 +302,9 @@ git_req ls-tree -r --name-only origin/main -- apps/api/prisma/migrations \
 MAIN_MIG_COUNT="$(count_lines "$MAIN_LIST")"
 echo "main_migration_dirs=$MAIN_MIG_COUNT"
 
-# HEAD filesystem migration dirs
-ls -1 "$MIG_DIR" 2>/dev/null | grep -v '^migration_lock.toml$' | sort >"$HEAD_LIST" || true
+# Only direct real directories with regular migration.sql files are migrations.
+DISCOVERY_JS="$(to_win_path "$SCRIPT_DIR/lib/pe-phase-9-migration-discovery.mjs")"
+"$NODE_BIN" "$DISCOVERY_JS" list "$(to_win_path "$MIG_DIR")" >"$HEAD_LIST"
 HEAD_MIG_COUNT="$(count_lines "$HEAD_LIST")"
 echo "head_migration_dirs=$HEAD_MIG_COUNT"
 
@@ -355,7 +333,7 @@ else
     rm -f "$BRANCH_ONLY_FILE" "$MAIN_LIST" "$HEAD_LIST" "$DIFF_LIST"
     exit 1
   fi
-  comm -13 "$MAIN_LIST" "$HEAD_LIST" >"$BRANCH_ONLY_FILE" || true
+  comm -13 "$MAIN_LIST" "$HEAD_LIST" >"$BRANCH_ONLY_FILE"
 fi
 
 BRANCH_ONLY_COUNT="$(count_lines "$BRANCH_ONLY_FILE")"
@@ -380,7 +358,7 @@ if [ "$BRANCH_ONLY_COUNT" -eq 0 ] && [ "$HEAD_MIG_COUNT" -ne "$MAIN_MIG_COUNT" ]
   exit 1
 fi
 
-# This PE tip expects the two PE migrations vs main (observation outbox + data issue).
+# Retain the minimum branch-overlay guard, independent of feature ownership.
 # Allow PE_PHASE_9_EXPECT_BRANCH_MIGS override; default ≥2 when tree shows PE overlay.
 EXPECT_MIN_BRANCH="${PE_PHASE_9_EXPECT_BRANCH_MIGS:-}"
 if [ -z "$EXPECT_MIN_BRANCH" ]; then
@@ -396,22 +374,19 @@ if [ "$BRANCH_ONLY_COUNT" -lt "$EXPECT_MIN_BRANCH" ]; then
   exit 1
 fi
 
-# Optional exact-name checks when defaults known on tip
-if [ "${PE_PHASE_9_STRICT_PE_MIG_NAMES:-1}" = "1" ] && [ "$EXPECT_MIN_BRANCH" -ge 2 ]; then
-  for need in \
-    20260729050000_pe_observation_idempotency_and_outbox \
-    20260811010000_program_element_data_issue
-  do
+# Require known PE migrations only when HEAD introduces them after main.
+if [ "${PE_PHASE_9_STRICT_PE_MIG_NAMES:-1}" = "1" ]; then
+  REQUIRED_PE="$("$NODE_BIN" "$DISCOVERY_JS" required-pe \
+    "$(to_win_path "$HEAD_LIST")" "$(to_win_path "$MAIN_LIST")")"
+  while IFS= read -r need; do
+    [ -n "$need" ] || continue
     if ! grep -qxF "$need" "$BRANCH_ONLY_FILE"; then
-      # Only require when the dir exists on HEAD (older tips may differ)
-      if [ -d "$MIG_DIR/$need" ]; then
-        echo "FATAL: expected PE branch-only migration missing from discovery: $need" >&2
-        sed 's/^/  /' "$BRANCH_ONLY_FILE" >&2
-        rm -f "$BRANCH_ONLY_FILE" "$MAIN_LIST" "$HEAD_LIST" "$DIFF_LIST"
-        exit 1
-      fi
+      echo "FATAL: expected PE branch-only migration missing from discovery: $need" >&2
+      sed 's/^/  /' "$BRANCH_ONLY_FILE" >&2
+      rm -f "$BRANCH_ONLY_FILE" "$MAIN_LIST" "$HEAD_LIST" "$DIFF_LIST"
+      exit 1
     fi
-  done
+  done <<<"$REQUIRED_PE"
 fi
 
 echo "-- upgrade replay DB=$DB_UPGRADE"
@@ -426,9 +401,20 @@ UP_URL="$(url_for "$DB_UPGRADE")"
 #  - pg_dump/pg_restore entirely inside the container (/tmp) to avoid MSYS path doubling
 #  - restore branch-only migrations
 #  - migrate deploy → tip
-ASIDE_HOST="${TMPDIR:-/tmp}/pe-phase9-mig-aside-$$"
-rm -rf "$ASIDE_HOST"
-mkdir -p "$ASIDE_HOST"
+ASIDE_HOST="$(mktemp -d "${TMPDIR:-/tmp}/pe-phase9-mig-aside.XXXXXX")"
+
+restore_branch_migs() {
+  if [ -d "$ASIDE_HOST" ]; then
+    for d in "$ASIDE_HOST"/*; do
+      [ -e "$d" ] || continue
+      base="$(basename "$d")"
+      if [ ! -d "$MIG_DIR/$base" ]; then
+        mv "$d" "$MIG_DIR/$base"
+      fi
+    done
+  fi
+}
+trap 'restore_branch_migs; cleanup' EXIT
 
 MOVED_ASIDE=0
 if [ "$BRANCH_ONLY_COUNT" -gt 0 ]; then
@@ -460,18 +446,6 @@ if [ "$MOVED_ASIDE" -ne "$BRANCH_ONLY_COUNT" ]; then
   exit 1
 fi
 
-restore_branch_migs() {
-  if [ -d "$ASIDE_HOST" ]; then
-    for d in "$ASIDE_HOST"/*; do
-      [ -e "$d" ] || continue
-      base="$(basename "$d")"
-      if [ ! -d "$MIG_DIR/$base" ]; then
-        mv "$d" "$MIG_DIR/$base"
-      fi
-    done
-  fi
-}
-trap 'restore_branch_migs; cleanup' EXIT
 
 set +e
 run_migrate "$UP_URL"
@@ -505,20 +479,25 @@ if [ "$BASE_APPLIED" -eq "$APPLIED_CLEAN" ] && [ "$BRANCH_ONLY_COUNT" -gt 0 ]; t
 fi
 
 # Dump + restore inside container only
-docker exec -e PGPASSWORD="$PASS" "$NAME" \
-  pg_dump -U "$USER_NAME" -d "$DB_UPGRADE" -Fc -f /tmp/pe_phase9_base.dump
+docker exec -e PGPASSWORD="$PASS" "$CONTAINER_ID" \
+  pg_dump -h 127.0.0.1 -U "$USER_NAME" -d "$DB_UPGRADE" -Fc -f /tmp/pe_phase9_base.dump
 
 psql_d postgres -qAtc "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${DB_UPGRADE}' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
 psql_d postgres -qAtc "DROP DATABASE IF EXISTS \"${DB_UPGRADE}\";"
 psql_d postgres -qAtc "CREATE DATABASE \"${DB_UPGRADE}\" OWNER \"${USER_NAME}\";"
-docker exec -e PGPASSWORD="$PASS" "$NAME" \
-  pg_restore -U "$USER_NAME" -d "$DB_UPGRADE" --no-owner --no-acl /tmp/pe_phase9_base.dump \
-  >/tmp/pe-phase9-pg_restore.log 2>&1 || true
+RESTORE_LOG="$(mktemp)"
+if ! docker exec -e PGPASSWORD="$PASS" "$CONTAINER_ID" \
+  pg_restore -h 127.0.0.1 -U "$USER_NAME" -d "$DB_UPGRADE" \
+  --no-owner --no-acl --exit-on-error /tmp/pe_phase9_base.dump >"$RESTORE_LOG" 2>&1; then
+  echo "FATAL: base dump restore failed; log=$RESTORE_LOG" >&2
+  cat "$RESTORE_LOG" >&2
+  exit 1
+fi
 
 HAS_TABLE="$(psql_d "$DB_UPGRADE" -qAtc "SELECT to_regclass('_prisma_migrations') IS NOT NULL;" | tr -d '[:space:]')"
 if [ "$HAS_TABLE" != "t" ] && [ "$HAS_TABLE" != "true" ]; then
   echo "FATAL: restore did not produce _prisma_migrations" >&2
-  cat /tmp/pe-phase9-pg_restore.log 2>/dev/null || true
+  cat "$RESTORE_LOG" >&2
   restore_branch_migs
   exit 1
 fi
@@ -581,7 +560,7 @@ if [ "$CLEAN_NAMES" != "$UP_NAMES" ]; then
   exit 1
 fi
 
-rm -f "$TIP_LOG" "$BRANCH_ONLY_FILE" "$MAIN_LIST" "$HEAD_LIST" "$DIFF_LIST"
+rm -f "$TIP_LOG" "$BRANCH_ONLY_FILE" "$MAIN_LIST" "$HEAD_LIST" "$DIFF_LIST" "$RESTORE_LOG"
 rm -rf "$ASIDE_HOST"
 
 echo "PE_PHASE_9_MIGRATION_REPLAY_OK clean_exit=$CLEAN_CODE upgrade_exit=$UP_CODE applied=$TIP_APPLIED base_applied=$BASE_APPLIED branch_only=$BRANCH_ONLY_COUNT tip_delta=$APPLIED_DELTA"

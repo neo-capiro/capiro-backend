@@ -1,0 +1,60 @@
+{
+  "startedAtUtc": "2026-10-13T04:52:28.873594+00:00",
+  "head": "43c14e3b5bde8eb76371394a50abbd718556382e",
+  "tree": "85a4efe7369aa938ba30e7583765da1669b7c2b1",
+  "environmentKeys": [
+    "PATH"
+  ],
+  "nodeVersion": "v24.19.0",
+  "commands": [
+    {
+      "step": "Check the receiving source job and unchanged deployment defaults",
+      "command": "python3 scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "log": "final-source-job-02.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Check exact reviewed manifest changes and raw archive classification",
+      "command": "node --test scripts/ci/reviewed-pe-manifest-contract.spec.mjs scripts/ci/reviewed-source-hygiene.spec.mjs",
+      "log": "final-source-job-03.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Check source and normal documentation whitespace with immutable raw observations classified",
+      "command": "node scripts/lib/reviewed-source-hygiene.mjs --run --base b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+      "log": "final-source-job-04.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Exercise standalone assembly and Docker consumer refusals",
+      "command": "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "log": "final-source-job-05.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Preserve static artifact owner contracts",
+      "command": "node --test scripts/ci/onboard-spa-artifact.contract.spec.mjs scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "log": "final-source-job-06.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Preserve reviewed backend retirement and command scopes",
+      "command": "node --test scripts/ci/florida-owned-portrait-release.spec.mjs scripts/ci/defense-backend-workspace.contract.spec.mjs scripts/ci/engagement-resilience-recovery.contract.spec.mjs scripts/ci/context-plane-scope.contract.spec.mjs scripts/ci/context-plane-validation-scope.spec.mjs scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "log": "final-source-job-07.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Preserve current-source edge declarations and header refusal",
+      "command": "node --test scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "log": "final-source-job-08.stdout",
+      "exitCode": 0
+    },
+    {
+      "step": "Exercise isolated loopback fixtures with synthetic asset identities",
+      "command": "node --test scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "log": "final-source-job-09.stdout",
+      "exitCode": 1
+    }
+  ],
+  "completedAtUtc": "2026-10-13T04:52:51.853312+00:00"
+}

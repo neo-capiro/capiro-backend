@@ -1,0 +1,65 @@
+{
+  "reviewedPeerSources": [
+    {
+      "pr": 2444,
+      "head": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+      "tree": "19ee55e0a411f68b2a7e239544786e7f9987b892",
+      "paths": 13,
+      "boundary": "existing PE Phase9 backend-scoped driver, root/API manifests, retained full driver"
+    },
+    {
+      "pr": 2445,
+      "head": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "tree": "a89206d77ac4c46fefbfb81551f5596110bab4ae",
+      "paths": 8,
+      "boundary": "existing standalone owner, canonical local assembly, receiving source CI, scoped-alias guard"
+    },
+    {
+      "head": "f18f918a8103e8e3cb36e47c65d2f6651cb1fd7b",
+      "tree": "d4d541ba047f1ba6a752248e4107a41e54052b51",
+      "paths": 5,
+      "boundary": "current accepted-source policy and existing owner/admission seams; active source pending"
+    }
+  ],
+  "peerPathOverlapAfterShared2443Base": [],
+  "intentionalRootGuardOverlap": [
+    "package.json reads in Docker, rebuild and context guards",
+    "apps/api/package.json read in receiving Python workflow guard"
+  ],
+  "guardReconciliation": "fixed PR2444 full-byte manifest inverse; no metadata/dependency/format exemption",
+  "currentInstallBuildReceipt": "CLEANUP-INSTALL-REUSE.json; exact source457 and five expected hashes supplied; all five paths absent here, approved owner transfer required before byte verification",
+  "duplicateHeavyInstallPerformed": false,
+  "postCompositionBuildDependencyChanges": false,
+  "sourceAdmission": {
+    "activeCommit": null,
+    "frontendCandidate": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+    "candidateAccepted": false,
+    "historicalCommit": "7c87678730538958ace9762f824dc3e588bf445b",
+    "historicalFallback": false,
+    "libc": "musl",
+    "nodeVersion": "24.21.0",
+    "frontendQualifiedEvidence": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+    "qualifiedForSourcePolicySuccessor": true,
+    "currentDraftActiveCommit": null,
+    "successorActivation": "separate data/spec slice under independent review"
+  },
+  "nativeImageAppBrowserDeployedAcceptance": false,
+  "applicationAuthorityLane": "separate existing-owner source worktree, not in this integration source freeze",
+  "protectedReporting": "owner task01a12dc9-21a3-7062-908e-b6fabc37c027 untouched",
+  "postCompositionBackendComparison": {
+    "evidenceHead": "dac6e7a6a8d44c15199c9055a3ab67aa2cbf5877",
+    "tree": "6a94a5723552bd5ecfecae523e8191eb770671ad",
+    "pePathsExact": 13,
+    "selectedPackageManifestsExact": 8,
+    "installBuildConfigsExact": 57,
+    "allWorkspaceManifestsExact": 20,
+    "wholeSelectedBackendTreesDiffEmpty": true,
+    "actualInstallReceiptBytesVerified": false
+  },
+  "architecturePolicyCorrection": {
+    "source": "358d953a42129a19ba82fdd8373c86c9a455f49a",
+    "tree": "79457baad024618e16ebf2b580e126edf566be87",
+    "bodyDelta": "strict literal architecture elements before any join/coercion",
+    "priorSourcePreserved": true
+  }
+}

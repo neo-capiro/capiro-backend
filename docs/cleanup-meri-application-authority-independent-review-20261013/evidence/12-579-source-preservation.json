@@ -1,0 +1,1493 @@
+{
+  "sourceHead": "579af9e4b826be308f0db289109c233350bbf34d",
+  "sourceTree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "baseHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "gitBlob": "cefec1060990ec56e449d45ec70c438966cd2134",
+      "bytes": 28650,
+      "sha256": "b738b2dbc1917255b062af225b08063f5092551c75fceddfff2542ed5bf9338c"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "bytes": 9325,
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "bytes": 8258,
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "bytes": 7013,
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24"
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "bytes": 2627,
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "bytes": 45695,
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "bytes": 295936,
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "bytes": 30010,
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    }
+  ],
+  "preservedMembersAndHelpersAndWholeFiles": [
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.logger",
+      "originalSha256": "f4a70f8175740973b213ab533b19197b5487b01bc069c7571cb316b063c3f060",
+      "candidateSha256": "f4a70f8175740973b213ab533b19197b5487b01bc069c7571cb316b063c3f060",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.client",
+      "originalSha256": "1fe9878c3d91840f0962d4fd7b3a3e47d1c56710e3278be792b500f873a8602f",
+      "candidateSha256": "1fe9878c3d91840f0962d4fd7b3a3e47d1c56710e3278be792b500f873a8602f",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.secretKey",
+      "originalSha256": "39bdf8ad6b43c2f274d2e4174982c1faf21aea5823ee645fd67d902b0ab7f955",
+      "candidateSha256": "39bdf8ad6b43c2f274d2e4174982c1faf21aea5823ee645fd67d902b0ab7f955",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.issuer",
+      "originalSha256": "8413bf7acd3f358e4610f22f00f74b1a3647b36eeadef56859eaa7628884a667",
+      "candidateSha256": "8413bf7acd3f358e4610f22f00f74b1a3647b36eeadef56859eaa7628884a667",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.constructor",
+      "originalSha256": "95416ffc6fe7c48f5e62b151527a592c9a25023fad4cd60c67780ff36f90b945",
+      "candidateSha256": "95416ffc6fe7c48f5e62b151527a592c9a25023fad4cd60c67780ff36f90b945",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.backend",
+      "originalSha256": "1efea0a315e485783e0442c8148202cae4b5562869b16953248545997f47f0ce",
+      "candidateSha256": "1efea0a315e485783e0442c8148202cae4b5562869b16953248545997f47f0ce",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.verifySessionToken",
+      "originalSha256": "c05ed4f822045dbf568ddcf40a6d60b59bf20de3f303da5f1819615057822c5f",
+      "candidateSha256": "c05ed4f822045dbf568ddcf40a6d60b59bf20de3f303da5f1819615057822c5f",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "ClerkService.assertIssuer",
+      "originalSha256": "c457fdcfc9cbabb27d4c3f2c5c348148a15d2db057046683ec09fbc92c121ef7",
+      "candidateSha256": "c457fdcfc9cbabb27d4c3f2c5c348148a15d2db057046683ec09fbc92c121ef7",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "normalizeClaims",
+      "originalSha256": "292906bfffc8bc4d072f0edf4dea7a31a8fe61cb738def9cb765547779322f60",
+      "candidateSha256": "292906bfffc8bc4d072f0edf4dea7a31a8fe61cb738def9cb765547779322f60",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/auth/clerk.service.ts",
+      "member": "normalizeOrgRole",
+      "originalSha256": "f057f6836809d69fbe91cd3fea6b13abdefb95df9dd2ab96475826f68d822031",
+      "candidateSha256": "f057f6836809d69fbe91cd3fea6b13abdefb95df9dd2ab96475826f68d822031",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "ContextSecurityScopeService.constructor",
+      "originalSha256": "00720ee7b1993fb37d0286e06992e082f8bb7ce967b8b055caaa8055283acf41",
+      "candidateSha256": "00720ee7b1993fb37d0286e06992e082f8bb7ce967b8b055caaa8055283acf41",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "ContextSecurityScopeService.resolve",
+      "originalSha256": "c6fe62640d56bedeb250b594aaa92e51d066bc2d0eeb2f70862dbf66b2b22a82",
+      "candidateSha256": "7de82f808939bdd3ddb8c51f1c9eeda0ae8368778a08215389371d1c6e0edbaa",
+      "qualifier": "byte-exact inverse after sole explicit selected-tenant argument to canonical client resolver"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "ContextSecurityScopeService.resolveClients",
+      "originalSha256": "ddc4a1974f192ca3bb558f226cc62c50c9c097d611c6ee062604d31673f00bad",
+      "candidateSha256": "71181a1bea7e60497558a4f1fe28c453edb31ac4bd4d11ceb2f4f6b6626210de",
+      "qualifier": "byte-exact inverse after explicit tenant parameter, outer client tenant and nested grant tenant predicates"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "ContextSecurityScopeService.resolveMailboxes",
+      "originalSha256": "f2ba5677288add1d296ffd7ecd29cd4ab8be8ad81f34199a876364063b2f21ea",
+      "candidateSha256": "f2ba5677288add1d296ffd7ecd29cd4ab8be8ad81f34199a876364063b2f21ea",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "requiredId",
+      "originalSha256": "e0f4d88c72b06c30ff374ae451e01bd765d2e2accb811e816de76dcdd1370e85",
+      "candidateSha256": "e0f4d88c72b06c30ff374ae451e01bd765d2e2accb811e816de76dcdd1370e85",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "normalizeIds",
+      "originalSha256": "f43376a5c9e59e32e1f0b510cf1c88af7f3bfd531443058b0e5b44454bc2e9a8",
+      "candidateSha256": "f43376a5c9e59e32e1f0b510cf1c88af7f3bfd531443058b0e5b44454bc2e9a8",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "dedupeGraphPartitions",
+      "originalSha256": "1285b9ffe5d6ec19e23c092b86eb3f7165ba700b5bf13793c0d8719de828aaab",
+      "candidateSha256": "1285b9ffe5d6ec19e23c092b86eb3f7165ba700b5bf13793c0d8719de828aaab",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/context/context-security-scope.service.ts",
+      "member": "stableJson",
+      "originalSha256": "1706d315ec1c579ed1b32959d3a7bc078b0c93c3f71b98219af1db26a3a52bfa",
+      "candidateSha256": "1706d315ec1c579ed1b32959d3a7bc078b0c93c3f71b98219af1db26a3a52bfa",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.logger",
+      "originalSha256": "a8bd9a1735a595d1948a79d46f1b579f3183ea0fe7ad18185014009cba3f2dc5",
+      "candidateSha256": "a8bd9a1735a595d1948a79d46f1b579f3183ea0fe7ad18185014009cba3f2dc5",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.toolBreaker",
+      "originalSha256": "97f4c0f549a62f966206e95e2f56b421bcc48f83d2a8d8ce5f97456950abc91d",
+      "candidateSha256": "97f4c0f549a62f966206e95e2f56b421bcc48f83d2a8d8ce5f97456950abc91d",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.constructor",
+      "originalSha256": "7e6db7a5701dcaed8f03e472c302ff710341d4f68d878fe57492b665e021a3c4",
+      "candidateSha256": "80c02a6bed67b34fc09ae5cce1df342e207371fa89142b9085bba7906270edc0",
+      "qualifier": "byte-exact after removing only two trailing optional canonical-owner injections"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.status",
+      "originalSha256": "79bebd8a739e8f91d46aae630d5af494f4186e39b115ed103ba765e64dd2720b",
+      "candidateSha256": "79bebd8a739e8f91d46aae630d5af494f4186e39b115ed103ba765e64dd2720b",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.listConversations",
+      "originalSha256": "0184756b9966bb698dc260c305b8b25967d4805ced87b47955c3101d210cc2dc",
+      "candidateSha256": "0184756b9966bb698dc260c305b8b25967d4805ced87b47955c3101d210cc2dc",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.createConversation",
+      "originalSha256": "43e0d838bb8bdafa2f472dca50e9173472ef7d8d6c1d4927661af22a53c1c8da",
+      "candidateSha256": "43e0d838bb8bdafa2f472dca50e9173472ef7d8d6c1d4927661af22a53c1c8da",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.getConversation",
+      "originalSha256": "2c14bca0ee1d115edbd3931c970facb1cc211c0f53571ddfef4ee42b66dd05a6",
+      "candidateSha256": "2c14bca0ee1d115edbd3931c970facb1cc211c0f53571ddfef4ee42b66dd05a6",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.updateConversation",
+      "originalSha256": "252749691b24b835cb315978a46ecdf6bb4b7722e49efbb92300a4180355a088",
+      "candidateSha256": "252749691b24b835cb315978a46ecdf6bb4b7722e49efbb92300a4180355a088",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.archiveConversation",
+      "originalSha256": "be0d977bbe73837b405493ebc92869e4680fd4d1e99b0d666fd4c1d3b9594742",
+      "candidateSha256": "be0d977bbe73837b405493ebc92869e4680fd4d1e99b0d666fd4c1d3b9594742",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.restoreConversation",
+      "originalSha256": "e527e7b0f729fa4e0695eadf436b8e039fad2ccb340a56e1c867c11c8f9c6a92",
+      "candidateSha256": "e527e7b0f729fa4e0695eadf436b8e039fad2ccb340a56e1c867c11c8f9c6a92",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.listMessages",
+      "originalSha256": "ae74c8bad3aad87084c15a926e607a5686d5e96a9af2820054089c91e5324c01",
+      "candidateSha256": "ae74c8bad3aad87084c15a926e607a5686d5e96a9af2820054089c91e5324c01",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.authorizeOrdinaryReportMessages",
+      "originalSha256": "5ce9fe1fe3ee5154b3684377fc2088e193b1e7c68ed40bf057b9561ee904a9ef",
+      "candidateSha256": "5ce9fe1fe3ee5154b3684377fc2088e193b1e7c68ed40bf057b9561ee904a9ef",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.authorizeOrdinaryReportMessage",
+      "originalSha256": "c5da612e2fcd0a3c90c73d0685cf2884637166b392173fc237ae6e70e5b44ca1",
+      "candidateSha256": "c5da612e2fcd0a3c90c73d0685cf2884637166b392173fc237ae6e70e5b44ca1",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.authorizeOrdinaryReportArtifact",
+      "originalSha256": "674801572a1c402aa349ad9ca8a3a494f52ef56c1dc62e74200cb0e3e910b8ce",
+      "candidateSha256": "674801572a1c402aa349ad9ca8a3a494f52ef56c1dc62e74200cb0e3e910b8ce",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.authorizeOrdinaryConversationSummary",
+      "originalSha256": "c678cd6fd1ccf0335a16b7744f7ce6f3009761d17b5dfb1b4517352edc47b334",
+      "candidateSha256": "c678cd6fd1ccf0335a16b7744f7ce6f3009761d17b5dfb1b4517352edc47b334",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.currentReportReadAuthorized",
+      "originalSha256": "bb255bd8b9c73a9b7157be8551244c89a8896fd80375f9f0530d756fb3cdf44b",
+      "candidateSha256": "bb255bd8b9c73a9b7157be8551244c89a8896fd80375f9f0530d756fb3cdf44b",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.ensureConversation",
+      "originalSha256": "37921f4a04ff2e64098ace3c638865d6988fd7c36854b6ea15a9d3b5ecc1e35b",
+      "candidateSha256": "37921f4a04ff2e64098ace3c638865d6988fd7c36854b6ea15a9d3b5ecc1e35b",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.ensureConversationAnyStatus",
+      "originalSha256": "84506743a3db6eedd808d421f0b3d0c44aacfb241b852cce05014b3f1acc0cbf",
+      "candidateSha256": "84506743a3db6eedd808d421f0b3d0c44aacfb241b852cce05014b3f1acc0cbf",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.resolveAttachmentText",
+      "originalSha256": "614f8c592bd848f11567b3dd3ffd8efc8224bdcae486d0420f14644e5c079de0",
+      "candidateSha256": "614f8c592bd848f11567b3dd3ffd8efc8224bdcae486d0420f14644e5c079de0",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.ensureClientVisible",
+      "originalSha256": "f3ed4702724636710917b49cc48e51da92097b6d93146c92b32cfc42e97aeecf",
+      "candidateSha256": "f3ed4702724636710917b49cc48e51da92097b6d93146c92b32cfc42e97aeecf",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.currentProfile",
+      "originalSha256": "2b33a089abae12205c9e5c230258be2cd9cc27a09778dc04ed5d8253ef6c6723",
+      "candidateSha256": "2b33a089abae12205c9e5c230258be2cd9cc27a09778dc04ed5d8253ef6c6723",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.streamMessage",
+      "originalSha256": "cafd79564df10149964a1d0e9aeda5bfdf0059f196407d69a292862ff5803976",
+      "candidateSha256": "cafd79564df10149964a1d0e9aeda5bfdf0059f196407d69a292862ff5803976",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.streamMessageViaMeriV2",
+      "originalSha256": "6ba2e7fda6ea6f8ba15de61e433b94e31b210a1ab0c7067dfda9a0c0c28bcc2c",
+      "candidateSha256": "6ba2e7fda6ea6f8ba15de61e433b94e31b210a1ab0c7067dfda9a0c0c28bcc2c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.getArtifactImage",
+      "originalSha256": "2664b3840d7ef16ddd4af621bf9862a02409a04155b9c0160b308b8d7acd4b89",
+      "candidateSha256": "2664b3840d7ef16ddd4af621bf9862a02409a04155b9c0160b308b8d7acd4b89",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.scheduleAfterTurnMaintenance",
+      "originalSha256": "5891ce430a25ef0efec6c91daad9f91b376a1ddc0c76879c0af2ec0570309636",
+      "candidateSha256": "5891ce430a25ef0efec6c91daad9f91b376a1ddc0c76879c0af2ec0570309636",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.afterTurnMaintenance",
+      "originalSha256": "1703c951cbb2fef053a1156057a6c54009768a1624191a8492dd8c2f7efefce0",
+      "candidateSha256": "1703c951cbb2fef053a1156057a6c54009768a1624191a8492dd8c2f7efefce0",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.indexRecentMessagesForSearch",
+      "originalSha256": "0a3d08acd7450e4c272c7a10b91ea090b03fc587224ae82c82f5d981eb5ebce5",
+      "candidateSha256": "0a3d08acd7450e4c272c7a10b91ea090b03fc587224ae82c82f5d981eb5ebce5",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.maybeCompactConversation",
+      "originalSha256": "5c826f172913b269a3fbcec7b7b4059d13c62e7542006e8789e3e61b43b29a3c",
+      "candidateSha256": "5c826f172913b269a3fbcec7b7b4059d13c62e7542006e8789e3e61b43b29a3c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.completeWithIntentModel",
+      "originalSha256": "4c230377ef7bd95c9bf7e49603e3db85a34f0b81592bf6ee9760a8f922e1c8b4",
+      "candidateSha256": "4c230377ef7bd95c9bf7e49603e3db85a34f0b81592bf6ee9760a8f922e1c8b4",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.searchConversations",
+      "originalSha256": "5a799f6217bf644b16eb818a18e65ce08342bf08c5f11699bf1379d4ff374361",
+      "candidateSha256": "5a799f6217bf644b16eb818a18e65ce08342bf08c5f11699bf1379d4ff374361",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.authorizedResearchPortfolioHistory",
+      "originalSha256": "4bfde0e5633d53c12026ec764c785745f62978caea095b074b652eb9af275d3c",
+      "candidateSha256": "4bfde0e5633d53c12026ec764c785745f62978caea095b074b652eb9af275d3c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.orchestrateContext",
+      "originalSha256": "d8faa5e4292d1001737324abbdcf0c131d16964bd26cc55090b403adae45aa6c",
+      "candidateSha256": "d8faa5e4292d1001737324abbdcf0c131d16964bd26cc55090b403adae45aa6c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.classifyIntent",
+      "originalSha256": "c08ab1ca3c0e320a798132b56524023bd79a215bf7272a65388bac7706fbfb08",
+      "candidateSha256": "c08ab1ca3c0e320a798132b56524023bd79a215bf7272a65388bac7706fbfb08",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.verifyDeliverable",
+      "originalSha256": "ead5bb9923a4c804a96e2f9eda4982c2c8426cf98f96ff2062cfabd2dd17c437",
+      "candidateSha256": "ead5bb9923a4c804a96e2f9eda4982c2c8426cf98f96ff2062cfabd2dd17c437",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.enrichDeliverableStructural",
+      "originalSha256": "5bfff1ce9f3fed1197ddfaa5f8c9c47314ccbbe26b710af94538c8968dd8ce87",
+      "candidateSha256": "5bfff1ce9f3fed1197ddfaa5f8c9c47314ccbbe26b710af94538c8968dd8ce87",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.composeSystemParts",
+      "originalSha256": "139c3cdeb6735d8552d8ae3b1c9e94737ee27de7f2a1d47f42aa40ab3c70e254",
+      "candidateSha256": "139c3cdeb6735d8552d8ae3b1c9e94737ee27de7f2a1d47f42aa40ab3c70e254",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.buildSystemBlocks",
+      "originalSha256": "83e769f22cb2eea52d411d30acd3fa93b88cbdeb55b9a98e2b84352c30d8af29",
+      "candidateSha256": "83e769f22cb2eea52d411d30acd3fa93b88cbdeb55b9a98e2b84352c30d8af29",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.extractStreamControl",
+      "originalSha256": "93671a93a4e56f0351775caedebc4020442791e060b565cb79a97f2059a11711",
+      "candidateSha256": "93671a93a4e56f0351775caedebc4020442791e060b565cb79a97f2059a11711",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.policyForIntent",
+      "originalSha256": "edefe968e9275d34eb90983e16bda1e6c0ae43386c1e23b79772d119ca9d5b1c",
+      "candidateSha256": "edefe968e9275d34eb90983e16bda1e6c0ae43386c1e23b79772d119ca9d5b1c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.skillsEnabled",
+      "originalSha256": "ad98650c109fa89232fca657c1cebafef679442a50697819753e095ca71ca892",
+      "candidateSha256": "ad98650c109fa89232fca657c1cebafef679442a50697819753e095ca71ca892",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.suggestionsEnabled",
+      "originalSha256": "f2072204a830d938f272d3f4012b74ce089e491143f0e3aecb85e001717603c9",
+      "candidateSha256": "f2072204a830d938f272d3f4012b74ce089e491143f0e3aecb85e001717603c9",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.generateSuggestions",
+      "originalSha256": "0a5e542f5586d2d8bd89ea200f8f34b995189d9baafa6d7ec30182f5fa1221af",
+      "candidateSha256": "0a5e542f5586d2d8bd89ea200f8f34b995189d9baafa6d7ec30182f5fa1221af",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.templateForIntent",
+      "originalSha256": "3897ab50ee74bd86dc8adc16d4ce9d255f300c46c6b78357dc2f2b7767c0808f",
+      "candidateSha256": "3897ab50ee74bd86dc8adc16d4ce9d255f300c46c6b78357dc2f2b7767c0808f",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.shouldAttemptMemoryLearning",
+      "originalSha256": "81b325f2a1769eb9cfd31978234bf9379bb796d54ae0b6433359df7d78d22182",
+      "candidateSha256": "81b325f2a1769eb9cfd31978234bf9379bb796d54ae0b6433359df7d78d22182",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.normalizeMemoryCandidate",
+      "originalSha256": "dfdf2a7a9802d6b0324ae87930c259247657eb2dc59578322e89696171a23fd2",
+      "candidateSha256": "dfdf2a7a9802d6b0324ae87930c259247657eb2dc59578322e89696171a23fd2",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.classifyMemoryType",
+      "originalSha256": "eb2396a6cd9419214735a3162cddb1b716159de0a495bf82a61a63561fd83fe8",
+      "candidateSha256": "eb2396a6cd9419214735a3162cddb1b716159de0a495bf82a61a63561fd83fe8",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.userScopedMemoryKey",
+      "originalSha256": "68d180378120957a77241fefe1ff5036af39e8201126190cb3bae966be9c1f20",
+      "candidateSha256": "68d180378120957a77241fefe1ff5036af39e8201126190cb3bae966be9c1f20",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.loadUserVoiceContext",
+      "originalSha256": "ca76f4cbd63f19e0a83b758bd0f15f122489dc519dee0f566e892b98d46e6d2a",
+      "candidateSha256": "ca76f4cbd63f19e0a83b758bd0f15f122489dc519dee0f566e892b98d46e6d2a",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.loadClientRoster",
+      "originalSha256": "ff7506ab0f1b75b33e3280ddcd8cab61f0d4f39f6ef1b4e8f542a428dc0cc9bd",
+      "candidateSha256": "ff7506ab0f1b75b33e3280ddcd8cab61f0d4f39f6ef1b4e8f542a428dc0cc9bd",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.loadRelevantMemories",
+      "originalSha256": "7166c135d0ea6a203b70981aaade20d55cbd3b3047cea0ac0bb803f1137716ad",
+      "candidateSha256": "7166c135d0ea6a203b70981aaade20d55cbd3b3047cea0ac0bb803f1137716ad",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.recallBase",
+      "originalSha256": "0a4e11541cb6bae4600c924ef86ef560af3a9012933aae81941c445d63c17416",
+      "candidateSha256": "0a4e11541cb6bae4600c924ef86ef560af3a9012933aae81941c445d63c17416",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.graphNeighborRecall",
+      "originalSha256": "94e217b4258b703bdb21267fc42c1202846f3b5d1a1673b8e3492602ee33d9da",
+      "candidateSha256": "94e217b4258b703bdb21267fc42c1202846f3b5d1a1673b8e3492602ee33d9da",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.resolveMemoryRecallSource",
+      "originalSha256": "cad418476490e49318da2a4ae51c0d283c06ff72c802128fad3c9f7061b20cba",
+      "candidateSha256": "cad418476490e49318da2a4ae51c0d283c06ff72c802128fad3c9f7061b20cba",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.resolveRecallConfig",
+      "originalSha256": "0333bda5dc2fb0adfdd7c490b9de4d534193ae42e2dd4e059ca42985f2575a1c",
+      "candidateSha256": "0333bda5dc2fb0adfdd7c490b9de4d534193ae42e2dd4e059ca42985f2575a1c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.clioRecall",
+      "originalSha256": "5233ca976d4ddedf2f3f56ec11efe7e0917a2f6d64be04426e10e214bbfe0384",
+      "candidateSha256": "5233ca976d4ddedf2f3f56ec11efe7e0917a2f6d64be04426e10e214bbfe0384",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.projectionRecall",
+      "originalSha256": "78f43781f62fed843113dbaefacac95cdea600f03955e74a9b11d57c8606584c",
+      "candidateSha256": "78f43781f62fed843113dbaefacac95cdea600f03955e74a9b11d57c8606584c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.toRecalledRows",
+      "originalSha256": "1a83a0e051b0eb18a14ec9f8951011d870ce920e21ba5dd37e1aad4cc7a9ac68",
+      "candidateSha256": "1a83a0e051b0eb18a14ec9f8951011d870ce920e21ba5dd37e1aad4cc7a9ac68",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.emitRecallMetric",
+      "originalSha256": "fac717c3145bb903cad24b3d6fcf8e08fab3d756020ba18f8c6584ba797b2849",
+      "candidateSha256": "fac717c3145bb903cad24b3d6fcf8e08fab3d756020ba18f8c6584ba797b2849",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.emitGraphRecallMetric",
+      "originalSha256": "69cc3ba04867bda4abc539b80d3e44ed8a1573b8d5339b3851f6d9353dd5b77d",
+      "candidateSha256": "69cc3ba04867bda4abc539b80d3e44ed8a1573b8d5339b3851f6d9353dd5b77d",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.fusionOpts",
+      "originalSha256": "f19d57fd2eb159d9422aaf7e28ca4a418fbbd43afae2190910160b285b5074c4",
+      "candidateSha256": "f19d57fd2eb159d9422aaf7e28ca4a418fbbd43afae2190910160b285b5074c4",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.memoryAutolearnMetric",
+      "originalSha256": "c56cd576a7c958502e6c74b10ff2b30a967d7ab6d4408406b994f8f1fb1520a1",
+      "candidateSha256": "c56cd576a7c958502e6c74b10ff2b30a967d7ab6d4408406b994f8f1fb1520a1",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.maybeLearnFromConversation",
+      "originalSha256": "5b6e10533f2d8d0306d8785802185927a6fb801ceee95b0e5c36b30d030f9e32",
+      "candidateSha256": "5b6e10533f2d8d0306d8785802185927a6fb801ceee95b0e5c36b30d030f9e32",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.listAlerts",
+      "originalSha256": "98c7757337e78f32e6cc3d7c9c4da40d3cf1a9797619bf459dc1e6fa8537fd4c",
+      "candidateSha256": "98c7757337e78f32e6cc3d7c9c4da40d3cf1a9797619bf459dc1e6fa8537fd4c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.dismissAlert",
+      "originalSha256": "795fd612bac2ed6bb95ffba3f9cf5ff96c8e3f3a8c75301dd87ff08c7bc7032b",
+      "candidateSha256": "795fd612bac2ed6bb95ffba3f9cf5ff96c8e3f3a8c75301dd87ff08c7bc7032b",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.createArtifactVersion",
+      "originalSha256": "2641ab687962aa8eaeaa2c2008bdab8d009165388f91d2cafe95d02fe1e65f16",
+      "candidateSha256": "2641ab687962aa8eaeaa2c2008bdab8d009165388f91d2cafe95d02fe1e65f16",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.recordMessageFeedback",
+      "originalSha256": "2dc59dfa2ecfefa792093c763223b652ad08adab936c67b45bed2dc9b3ebfbd3",
+      "candidateSha256": "2dc59dfa2ecfefa792093c763223b652ad08adab936c67b45bed2dc9b3ebfbd3",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.exportFeedbackForEvaluation",
+      "originalSha256": "f684dc7c9cfe60facba29f28fe4e7f1564e7c2a0dccbe2a6120ec608c4619b97",
+      "candidateSha256": "f684dc7c9cfe60facba29f28fe4e7f1564e7c2a0dccbe2a6120ec608c4619b97",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.uploadAttachment",
+      "originalSha256": "51bad354e00ceaf6595ef7904733aabe44d3f52e19fc9430522366b5f925866c",
+      "candidateSha256": "51bad354e00ceaf6595ef7904733aabe44d3f52e19fc9430522366b5f925866c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.createAttachmentRow",
+      "originalSha256": "35715ca92c6b1d7c5a66a2010c90148bcb0e7177161e312c06b1b1dbdb041e9c",
+      "candidateSha256": "35715ca92c6b1d7c5a66a2010c90148bcb0e7177161e312c06b1b1dbdb041e9c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.generateProactiveAlerts",
+      "originalSha256": "84e815816af56e5086c053721f0c586fe4f1b256c60a1c8ac007048eef71c4a6",
+      "candidateSha256": "84e815816af56e5086c053721f0c586fe4f1b256c60a1c8ac007048eef71c4a6",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.semanticMemorySearch",
+      "originalSha256": "dbb6d6de1960aab6a96e3382cfebf17f7bce0c6b0544f5af408c34f0fadf394e",
+      "candidateSha256": "dbb6d6de1960aab6a96e3382cfebf17f7bce0c6b0544f5af408c34f0fadf394e",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.listRecentLearnedMemories",
+      "originalSha256": "86eb46a5904f4230f93625b3b9d011c52754c0380437817d9c27d7c35df80583",
+      "candidateSha256": "86eb46a5904f4230f93625b3b9d011c52754c0380437817d9c27d7c35df80583",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.suggestMemoryCorrection",
+      "originalSha256": "6beb7d7de4e30d1b7ab9d2a184365626bfd3f5a0199b4fcd22bf466a3487ec64",
+      "candidateSha256": "6beb7d7de4e30d1b7ab9d2a184365626bfd3f5a0199b4fcd22bf466a3487ec64",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.forgetMemory",
+      "originalSha256": "72145f7ebbdf8b3ff094b19a1e25207be895feda5355d91b7e846bdc5462cb37",
+      "candidateSha256": "72145f7ebbdf8b3ff094b19a1e25207be895feda5355d91b7e846bdc5462cb37",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.listMemories",
+      "originalSha256": "3caa72e5890de4643318644ae9afa4242317d1c9b0de0135ff0cf2af811ff5c6",
+      "candidateSha256": "3caa72e5890de4643318644ae9afa4242317d1c9b0de0135ff0cf2af811ff5c6",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "MeriService.updateMemory",
+      "originalSha256": "c1cbddf984026f9f2723d157c3763818553d701457806c1e13eda0c88c4d93c3",
+      "candidateSha256": "c1cbddf984026f9f2723d157c3763818553d701457806c1e13eda0c88c4d93c3",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "summarizeJsonForPrompt",
+      "originalSha256": "2e4752213cf1c12e25c0c52a3feb7fbf70aa7dc5369fcad5146d9c0aeab7feab",
+      "candidateSha256": "2e4752213cf1c12e25c0c52a3feb7fbf70aa7dc5369fcad5146d9c0aeab7feab",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "truncateText",
+      "originalSha256": "90c447f19063e0a731509486e0cf1f3f620f18ecd01a5030c3daef50d66cbea1",
+      "candidateSha256": "90c447f19063e0a731509486e0cf1f3f620f18ecd01a5030c3daef50d66cbea1",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "redactToolInput",
+      "originalSha256": "67a8bb2ba39bcfb97dbecb1f7652d9ccaa8c9686a8c294b65f71852bde32e7c9",
+      "candidateSha256": "67a8bb2ba39bcfb97dbecb1f7652d9ccaa8c9686a8c294b65f71852bde32e7c9",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "humanToolLabel",
+      "originalSha256": "82ba771abc78deab1e355d70799a475a1329571261bccbf64e36955d552ab048",
+      "candidateSha256": "82ba771abc78deab1e355d70799a475a1329571261bccbf64e36955d552ab048",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "researchReportMetadata",
+      "originalSha256": "ac9ac7fd2d3ef809980524b347b0b0ac96905e7337bb89cdfb2211efe9b7afcd",
+      "candidateSha256": "ac9ac7fd2d3ef809980524b347b0b0ac96905e7337bb89cdfb2211efe9b7afcd",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "researchReportSessionId",
+      "originalSha256": "309cf7af8ed3f29178b38f82a8bd809aebba5559789fb7c7baa28ccfd85468e6",
+      "candidateSha256": "309cf7af8ed3f29178b38f82a8bd809aebba5559789fb7c7baa28ccfd85468e6",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "researchReportMessage",
+      "originalSha256": "f125dfd7929b518e4010400219bae6d11a33a9bb3fbddc02caa1227deb41da80",
+      "candidateSha256": "f125dfd7929b518e4010400219bae6d11a33a9bb3fbddc02caa1227deb41da80",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "withheldResearchReportMetadata",
+      "originalSha256": "703b9fc751c402ae0e8390b03e6be53766f2677f41eb18edc4202487970f1f24",
+      "candidateSha256": "703b9fc751c402ae0e8390b03e6be53766f2677f41eb18edc4202487970f1f24",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "summarizeToolResultForTrust",
+      "originalSha256": "6caa8f208e48aab4293a6e4943a9313bf680b5171e4077f9890356cff3f7f899",
+      "candidateSha256": "6caa8f208e48aab4293a6e4943a9313bf680b5171e4077f9890356cff3f7f899",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "extractToolArtifacts",
+      "originalSha256": "c05deee5d172a330a9b3af04a5d671d2bc2fb6b7a29f6b3405bd10605842ac60",
+      "candidateSha256": "c05deee5d172a330a9b3af04a5d671d2bc2fb6b7a29f6b3405bd10605842ac60",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.service.ts",
+      "member": "publicConversationMetadata",
+      "originalSha256": "dac34fdf9662282db849333fe0a702e108a86eeb482e223d94dcd1015c2e6baf",
+      "candidateSha256": "dac34fdf9662282db849333fe0a702e108a86eeb482e223d94dcd1015c2e6baf",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.logger",
+      "originalSha256": "498c3fea06cb217af06439cd062acef8ee814ebad14e48fbb72f6f99aec0c2e7",
+      "candidateSha256": "498c3fea06cb217af06439cd062acef8ee814ebad14e48fbb72f6f99aec0c2e7",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.constructor",
+      "originalSha256": "455fa14ddc7456e6c4dbdf59da61dd801b4f076aa263cc33767f93407db5e86a",
+      "candidateSha256": "455fa14ddc7456e6c4dbdf59da61dd801b4f076aa263cc33767f93407db5e86a",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.status",
+      "originalSha256": "b1397ca08ead4bc85972b4375f1dfb85286b450996f3a193055717c791706fad",
+      "candidateSha256": "b1397ca08ead4bc85972b4375f1dfb85286b450996f3a193055717c791706fad",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.conversations",
+      "originalSha256": "c3315e524bce3f70802d97199ab3f1ba7c2829b806dfb9fd87688d44c845985c",
+      "candidateSha256": "c3315e524bce3f70802d97199ab3f1ba7c2829b806dfb9fd87688d44c845985c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.createConversation",
+      "originalSha256": "d0e7b8b1f7979fc9dca166380830ac7bdbf06e18c2205f58d17e54fc6e1ee274",
+      "candidateSha256": "d0e7b8b1f7979fc9dca166380830ac7bdbf06e18c2205f58d17e54fc6e1ee274",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.searchConversations",
+      "originalSha256": "e6410f2851bfdddd4eb966008afe81f4c57dbcbafd00cae37567025069a327eb",
+      "candidateSha256": "e6410f2851bfdddd4eb966008afe81f4c57dbcbafd00cae37567025069a327eb",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.conversation",
+      "originalSha256": "37a41b692e818ad7d1b82c55396e9a7dfa5bdf7752362d8f183bd27d58408231",
+      "candidateSha256": "37a41b692e818ad7d1b82c55396e9a7dfa5bdf7752362d8f183bd27d58408231",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.updateConversation",
+      "originalSha256": "7ee317ddc7bd6f422d6b5c5f109ab5c353a86a723e91e7843fceff09afebb7b1",
+      "candidateSha256": "7ee317ddc7bd6f422d6b5c5f109ab5c353a86a723e91e7843fceff09afebb7b1",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.archiveConversation",
+      "originalSha256": "896a6dc9c0349c8f8df0457632ebecff7e2843f7b6256599e9bd684122da7769",
+      "candidateSha256": "896a6dc9c0349c8f8df0457632ebecff7e2843f7b6256599e9bd684122da7769",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.restoreConversation",
+      "originalSha256": "c814c878179aa301fa3d84c8a323efed6c7d0532badb0df7c5b57b262bd104ae",
+      "candidateSha256": "c814c878179aa301fa3d84c8a323efed6c7d0532badb0df7c5b57b262bd104ae",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.messages",
+      "originalSha256": "eb5046b61204dba89a22f1f8c728df29a4129d5a3aa92f97db10dd93d876035c",
+      "candidateSha256": "eb5046b61204dba89a22f1f8c728df29a4129d5a3aa92f97db10dd93d876035c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.streamMessage",
+      "originalSha256": "1fa9149c8f584bbb7fc04c904091084e6a75fab74ee7fd2684fe261ae8beff1a",
+      "candidateSha256": "1fa9149c8f584bbb7fc04c904091084e6a75fab74ee7fd2684fe261ae8beff1a",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.toolManifest",
+      "originalSha256": "9e13eceabcdd8708d406467fa88ed8584d6a23fe6062508fc9cae3082ad494e9",
+      "candidateSha256": "9e13eceabcdd8708d406467fa88ed8584d6a23fe6062508fc9cae3082ad494e9",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.toolSchemas",
+      "originalSha256": "b0d190f4687bfba4af6a53c01176063066981b53e8436cc97ae966e817336d0a",
+      "candidateSha256": "b0d190f4687bfba4af6a53c01176063066981b53e8436cc97ae966e817336d0a",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.executeTool",
+      "originalSha256": "a90bedae24efeb076f11507912a9236245fd2743d725eaf74cce34202cb0e0c6",
+      "candidateSha256": "a90bedae24efeb076f11507912a9236245fd2743d725eaf74cce34202cb0e0c6",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.validateProcedureRuntime",
+      "originalSha256": "a900fe6a4b932ab09b72dff229a7e06879c7f98d541f2de0b736934ff9722a9a",
+      "candidateSha256": "a900fe6a4b932ab09b72dff229a7e06879c7f98d541f2de0b736934ff9722a9a",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.checkClientRef",
+      "originalSha256": "58fc547f7b1a58a02d6d925c4d2a8a6457aecf6a15dca0294e791e06dbad8c13",
+      "candidateSha256": "58fc547f7b1a58a02d6d925c4d2a8a6457aecf6a15dca0294e791e06dbad8c13",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.checkApproval",
+      "originalSha256": "5713e58554b434c15f8982ab1a6c96c37c84546d61b61f07b0285f35ba4aebfa",
+      "candidateSha256": "5713e58554b434c15f8982ab1a6c96c37c84546d61b61f07b0285f35ba4aebfa",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.recordPendingAction",
+      "originalSha256": "030a6548ee366771bc9f02ba397961b292535211b2e260307c3ab291d9ff669f",
+      "candidateSha256": "030a6548ee366771bc9f02ba397961b292535211b2e260307c3ab291d9ff669f",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.approveAction",
+      "originalSha256": "379c3fb658abc285f5e2808727175f131a1decaceff1a96c31b95d30ea29799f",
+      "candidateSha256": "379c3fb658abc285f5e2808727175f131a1decaceff1a96c31b95d30ea29799f",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.recordComplianceCheck",
+      "originalSha256": "0eaff2b34a85c3d16f01929b6318c5ae4eff2cd72c327312e4a6fc4ab8db9169",
+      "candidateSha256": "0eaff2b34a85c3d16f01929b6318c5ae4eff2cd72c327312e4a6fc4ab8db9169",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listComplianceChecks",
+      "originalSha256": "3239592b39b04db19fb6da600422febe9bd7538c1d6fd0a2021228753573c2e1",
+      "candidateSha256": "3239592b39b04db19fb6da600422febe9bd7538c1d6fd0a2021228753573c2e1",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.recordClaims",
+      "originalSha256": "4fea7cc78284e894bbf2d873774f398e64d7fd2084e3058c7b844e178207c54c",
+      "candidateSha256": "4fea7cc78284e894bbf2d873774f398e64d7fd2084e3058c7b844e178207c54c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listApprovals",
+      "originalSha256": "abfe0682d0764c216d2fcec6f54cd96a8a08c5ef226c96a827cce0dd294bfefb",
+      "candidateSha256": "abfe0682d0764c216d2fcec6f54cd96a8a08c5ef226c96a827cce0dd294bfefb",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listEmails",
+      "originalSha256": "334881c31127a53ed87c5a719e9887c4a9667bd60a6fa33e372de214b2a72879",
+      "candidateSha256": "334881c31127a53ed87c5a719e9887c4a9667bd60a6fa33e372de214b2a72879",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.sendEmail",
+      "originalSha256": "f54c3014386ffd8b38f97610bb3e48fd4f5f76a4f2f58b642711a60ce9280254",
+      "candidateSha256": "f54c3014386ffd8b38f97610bb3e48fd4f5f76a4f2f58b642711a60ce9280254",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.replyEmail",
+      "originalSha256": "0298a589d311b5215d939927565cf0ed4342a18844f9393f46e4b7353c705a2a",
+      "candidateSha256": "0298a589d311b5215d939927565cf0ed4342a18844f9393f46e4b7353c705a2a",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listAlerts",
+      "originalSha256": "903f5913283a470e60f5270d032161f5df025eebe95da4d2096aab8695f247b5",
+      "candidateSha256": "903f5913283a470e60f5270d032161f5df025eebe95da4d2096aab8695f247b5",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.dismissAlert",
+      "originalSha256": "03eeaa76223c1716580c362df59705f28d83c91c5725700a903eef99b2932cd0",
+      "candidateSha256": "03eeaa76223c1716580c362df59705f28d83c91c5725700a903eef99b2932cd0",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.createArtifactVersion",
+      "originalSha256": "9be56e6e3c5443e4f1279357aaa5ba12c81335c4aa05d734189f0523d071d5f2",
+      "candidateSha256": "9be56e6e3c5443e4f1279357aaa5ba12c81335c4aa05d734189f0523d071d5f2",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.recordMessageFeedback",
+      "originalSha256": "033eb6292a3707147ea47f65d4c5a80f604dcdf46f15157bb868ad268b6da333",
+      "candidateSha256": "033eb6292a3707147ea47f65d4c5a80f604dcdf46f15157bb868ad268b6da333",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.exportFeedbackForEvaluation",
+      "originalSha256": "73597fafd9e77544af82daa6dc581897ae9f0fe1f9142919a1664a5e667e2711",
+      "candidateSha256": "73597fafd9e77544af82daa6dc581897ae9f0fe1f9142919a1664a5e667e2711",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.uploadAttachment",
+      "originalSha256": "d1918ab7324e2efc96e371b5c6f010dc2831d11953a696f08c3ed1d9b64b28f0",
+      "candidateSha256": "d1918ab7324e2efc96e371b5c6f010dc2831d11953a696f08c3ed1d9b64b28f0",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.resolveAttachmentText",
+      "originalSha256": "2e513a90674436a78ccbbf2a6c1e783ffd53cb3967f11b76359cc92e5ec52273",
+      "candidateSha256": "2e513a90674436a78ccbbf2a6c1e783ffd53cb3967f11b76359cc92e5ec52273",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.mcpCatalog",
+      "originalSha256": "913d586d3cc37cc54a83f9b38ae56860b98697e95fcd589470f943681a17db40",
+      "candidateSha256": "913d586d3cc37cc54a83f9b38ae56860b98697e95fcd589470f943681a17db40",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listMcpServers",
+      "originalSha256": "873eba6ecf36b8c03eebc6d55a141a760062eacd3e4dc102d43eefdcdd1962bd",
+      "candidateSha256": "873eba6ecf36b8c03eebc6d55a141a760062eacd3e4dc102d43eefdcdd1962bd",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.createMcpServer",
+      "originalSha256": "accd6ad6b08cb6fc3949ed43f9b3e8be9781dbc6008d6be555603b77a9d81adb",
+      "candidateSha256": "accd6ad6b08cb6fc3949ed43f9b3e8be9781dbc6008d6be555603b77a9d81adb",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.addMcpFromCatalog",
+      "originalSha256": "61e3ac4af241e67c29ef61ce0a3ad19dfd53df79c5ea7d8408c0edfb0d83e057",
+      "candidateSha256": "61e3ac4af241e67c29ef61ce0a3ad19dfd53df79c5ea7d8408c0edfb0d83e057",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.updateMcpServer",
+      "originalSha256": "c1a2356a66c6f9174152c61ff88998077298a82e73c5069e67d55ab597b66674",
+      "candidateSha256": "c1a2356a66c6f9174152c61ff88998077298a82e73c5069e67d55ab597b66674",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.deleteMcpServer",
+      "originalSha256": "da982f8741bd78a38158f2798da0d3b5590e3e5be6f2513556ffbff341bfb049",
+      "candidateSha256": "da982f8741bd78a38158f2798da0d3b5590e3e5be6f2513556ffbff341bfb049",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.refreshMcpServers",
+      "originalSha256": "16b34d4d469ce9e0c72179a847c763e18aedfcad842eb527c18dfda593cd1179",
+      "candidateSha256": "16b34d4d469ce9e0c72179a847c763e18aedfcad842eb527c18dfda593cd1179",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.startMcpOAuth",
+      "originalSha256": "6ca46d64b0113d0a403e6d268d12ec6db153c5b51fbfe3e767aaf753f74c3d21",
+      "candidateSha256": "6ca46d64b0113d0a403e6d268d12ec6db153c5b51fbfe3e767aaf753f74c3d21",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.disconnectMcpOAuth",
+      "originalSha256": "36b30be8ac053fee4630d35546ec711b9ad2d5a3e55b6da86b71db51e1b42e09",
+      "candidateSha256": "36b30be8ac053fee4630d35546ec711b9ad2d5a3e55b6da86b71db51e1b42e09",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listFirmSkills",
+      "originalSha256": "ca66727536f8e6e7e36fdfd302a412fdbe8defe1feb9454c157efde0832209c7",
+      "candidateSha256": "ca66727536f8e6e7e36fdfd302a412fdbe8defe1feb9454c157efde0832209c7",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.createFirmSkill",
+      "originalSha256": "a87687f88d81f9fd531f7b84b95f69cffaac379ea61df5fc171f485c455d311e",
+      "candidateSha256": "a87687f88d81f9fd531f7b84b95f69cffaac379ea61df5fc171f485c455d311e",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.updateFirmSkill",
+      "originalSha256": "84b3c2e49eefa46f77fe60ce9c56d59fae4312cf8ca154af0a4f614719f532ed",
+      "candidateSha256": "84b3c2e49eefa46f77fe60ce9c56d59fae4312cf8ca154af0a4f614719f532ed",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.setFirmSkillEnabled",
+      "originalSha256": "995cf54dbb883765d5b61fa82d473b10bf58b977e61a762ceda5553ed61e2c46",
+      "candidateSha256": "995cf54dbb883765d5b61fa82d473b10bf58b977e61a762ceda5553ed61e2c46",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.deleteFirmSkill",
+      "originalSha256": "0855db9dfda2ea207acac344f2ec3ce3513e2a3ad4879bf1c98cb6a555414447",
+      "candidateSha256": "0855db9dfda2ea207acac344f2ec3ce3513e2a3ad4879bf1c98cb6a555414447",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.restoreFirmSkill",
+      "originalSha256": "f739cd634745846224d7b4682ea83dba774e38a8c4a93eb4cd5d949679e29956",
+      "candidateSha256": "f739cd634745846224d7b4682ea83dba774e38a8c4a93eb4cd5d949679e29956",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.testFirmSkill",
+      "originalSha256": "1a7238e54c0a3df73b6e1a25cdd33cd32152f736a3ad9232e77bb7ee5e4e8263",
+      "candidateSha256": "1a7238e54c0a3df73b6e1a25cdd33cd32152f736a3ad9232e77bb7ee5e4e8263",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.kbStatus",
+      "originalSha256": "b95e90aa02aa0ab6b7b277cf600aa5c5d3601c29c2f6a0cfe0be4892377c9add",
+      "candidateSha256": "b95e90aa02aa0ab6b7b277cf600aa5c5d3601c29c2f6a0cfe0be4892377c9add",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.kbReindex",
+      "originalSha256": "dfee1857cf2df550925500c3f1d33b5295682df5289205469c7b403d62c0545b",
+      "candidateSha256": "dfee1857cf2df550925500c3f1d33b5295682df5289205469c7b403d62c0545b",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.recentLearnedMemories",
+      "originalSha256": "bea9bb19060c3cad33b31c3656af61f48cf4aa2abf03a76cf8e8ed255dc19579",
+      "candidateSha256": "bea9bb19060c3cad33b31c3656af61f48cf4aa2abf03a76cf8e8ed255dc19579",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.forgetMemory",
+      "originalSha256": "95dcfac27700211ecd05ee78d5920eaa38872eebeb7ee9fd20b4750fdf1bfc43",
+      "candidateSha256": "95dcfac27700211ecd05ee78d5920eaa38872eebeb7ee9fd20b4750fdf1bfc43",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.suggestMemoryCorrection",
+      "originalSha256": "711b400618944d034d52f212b41fb3a64ad4f679009b5620c42491535d055301",
+      "candidateSha256": "711b400618944d034d52f212b41fb3a64ad4f679009b5620c42491535d055301",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listMemories",
+      "originalSha256": "2c3fb9f1c50e22f632dd7a8d5771df332b1a8b0a0c3bc05cb12c6bead39924b1",
+      "candidateSha256": "2c3fb9f1c50e22f632dd7a8d5771df332b1a8b0a0c3bc05cb12c6bead39924b1",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.updateMemory",
+      "originalSha256": "cf004fa099bac2c0c80a62a7187b8a6662578213bf91227ff2fa18d4ad8fc570",
+      "candidateSha256": "cf004fa099bac2c0c80a62a7187b8a6662578213bf91227ff2fa18d4ad8fc570",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.listResearch",
+      "originalSha256": "002deec5ca20493ac2cd54d429d854747d4017889597d3504cb8401c0867914e",
+      "candidateSha256": "002deec5ca20493ac2cd54d429d854747d4017889597d3504cb8401c0867914e",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.createResearch",
+      "originalSha256": "fc82edada0e12a05f8dd3c3ad427900b5589ca817cc329950a398a285d6b4413",
+      "candidateSha256": "fc82edada0e12a05f8dd3c3ad427900b5589ca817cc329950a398a285d6b4413",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.getResearch",
+      "originalSha256": "f81a185bb9fa1e13a1af573c565d8e15b213c8e68c1b294f111f2367ece4ef32",
+      "candidateSha256": "f81a185bb9fa1e13a1af573c565d8e15b213c8e68c1b294f111f2367ece4ef32",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.researchRunActive",
+      "originalSha256": "b06d1777623a43fec60e28ad8a79f00412d6aa01403a4632196fd3e8bf296da3",
+      "candidateSha256": "b06d1777623a43fec60e28ad8a79f00412d6aa01403a4632196fd3e8bf296da3",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.reserveResearchSafeRead",
+      "originalSha256": "4aef14b94cbbfee7b8d0a08969f0bf5b66d5309fbec02170f5bc6abfffbe6a68",
+      "candidateSha256": "4aef14b94cbbfee7b8d0a08969f0bf5b66d5309fbec02170f5bc6abfffbe6a68",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.reserveResearchProviderAttempt",
+      "originalSha256": "ae6faeea3082074d48935ea2a018383c2afe2fbe02c16e36d69c0ac6ba1edb60",
+      "candidateSha256": "ae6faeea3082074d48935ea2a018383c2afe2fbe02c16e36d69c0ac6ba1edb60",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.settleResearchProviderAttempt",
+      "originalSha256": "8351de986bc585416283661206419b3251ae855af42143dfe04e467163d24f7c",
+      "candidateSha256": "8351de986bc585416283661206419b3251ae855af42143dfe04e467163d24f7c",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.replayResearchSafeRead",
+      "originalSha256": "5422a40c2031e8f6129f95a1809606b0d22cb4c9398aa72bce95e74b14e649cf",
+      "candidateSha256": "5422a40c2031e8f6129f95a1809606b0d22cb4c9398aa72bce95e74b14e649cf",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.commitResearchSafeRead",
+      "originalSha256": "24d898766d91d6b0e3ee4cedcd1003846346831d5c3843c8f1b6586b273f1332",
+      "candidateSha256": "24d898766d91d6b0e3ee4cedcd1003846346831d5c3843c8f1b6586b273f1332",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.failResearchSafeRead",
+      "originalSha256": "0cab9e6dd51735d78b4a7f4104a83bd666e136c758debe954cbf0c6bd9472144",
+      "candidateSha256": "0cab9e6dd51735d78b4a7f4104a83bd666e136c758debe954cbf0c6bd9472144",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.researchCoordinator",
+      "originalSha256": "ffdad90811ce4f31c212f94ee5d4e6b87dc244c182d800d0aed09e40ae7b53dd",
+      "candidateSha256": "ffdad90811ce4f31c212f94ee5d4e6b87dc244c182d800d0aed09e40ae7b53dd",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.steerResearch",
+      "originalSha256": "a85036a37d66744bba5025d6a15657a2b948ece8cfdfd428a0700cedc13ba7cb",
+      "candidateSha256": "a85036a37d66744bba5025d6a15657a2b948ece8cfdfd428a0700cedc13ba7cb",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.cancelResearch",
+      "originalSha256": "7cb5b616df64ff6a8fc88cd17162dd3c2df6b7e6e014f8649a3e9751a91da3f0",
+      "candidateSha256": "7cb5b616df64ff6a8fc88cd17162dd3c2df6b7e6e014f8649a3e9751a91da3f0",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.deleteResearch",
+      "originalSha256": "fb297139b147d393b3b61b6be9908bfb72c45e055fe296cc960e4a5853b9c856",
+      "candidateSha256": "fb297139b147d393b3b61b6be9908bfb72c45e055fe296cc960e4a5853b9c856",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.answerResearch",
+      "originalSha256": "bf717a6c870ca708dd53c439fc445d7a12bbae88f4b194086e626aa76eb2ba24",
+      "candidateSha256": "bf717a6c870ca708dd53c439fc445d7a12bbae88f4b194086e626aa76eb2ba24",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.exportResearchWord",
+      "originalSha256": "5b7634f86f1ca2a34faf436c48572a35e921ab817a5557a1e819f404af879d22",
+      "candidateSha256": "5b7634f86f1ca2a34faf436c48572a35e921ab817a5557a1e819f404af879d22",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.exportResearchHtml",
+      "originalSha256": "b1e81be7746e0d4e34c430df21a067ddbf6a3da0c8897672a6fe943268b8d200",
+      "candidateSha256": "b1e81be7746e0d4e34c430df21a067ddbf6a3da0c8897672a6fe943268b8d200",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.downloadArtifact",
+      "originalSha256": "99d5b48896d9f57b1224e8e607f3820ea49ce239a41d3abbd54c3993a41f8599",
+      "candidateSha256": "99d5b48896d9f57b1224e8e607f3820ea49ce239a41d3abbd54c3993a41f8599",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.artifactImage",
+      "originalSha256": "2554c56192c95f93e860e305aabc451a7fdfc8d030c79838a22568ccbae3db57",
+      "candidateSha256": "2554c56192c95f93e860e305aabc451a7fdfc8d030c79838a22568ccbae3db57",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.withResearchRequestTelemetry",
+      "originalSha256": "08b67a0ca83b1dc68cb81a305aafa62d40922fa122a570706e0aeb24992a7f87",
+      "candidateSha256": "08b67a0ca83b1dc68cb81a305aafa62d40922fa122a570706e0aeb24992a7f87",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.streamResearchPlan",
+      "originalSha256": "733782ef4c0184cd0a0f5a2c6fc3f94fa335e5ecf39e7840509ff51487ea7fe4",
+      "candidateSha256": "733782ef4c0184cd0a0f5a2c6fc3f94fa335e5ecf39e7840509ff51487ea7fe4",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "MeriController.streamResearchRun",
+      "originalSha256": "7c9fe6e82f93110ea502822d7f2ac7d88ce58296ae627e4c2129531821856185",
+      "candidateSha256": "7c9fe6e82f93110ea502822d7f2ac7d88ce58296ae627e4c2129531821856185",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "researchRuntimeAuth",
+      "originalSha256": "be82d05e0868c8be1b22c9a76a61b292eb4fd47314e8371b35c6b14b06864a91",
+      "candidateSha256": "be82d05e0868c8be1b22c9a76a61b292eb4fd47314e8371b35c6b14b06864a91",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/meri/meri.controller.ts",
+      "member": "slugifyFilename",
+      "originalSha256": "6d499c54734f32f36d61c15e313ff1582943585b3379477dcf9a303854bf7755",
+      "candidateSha256": "6d499c54734f32f36d61c15e313ff1582943585b3379477dcf9a303854bf7755",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "TenantContextMiddleware.logger",
+      "originalSha256": "1a7799a33bdcfe8243a86626d08dd40e2e94ba2d77844b5127c6c9928500f3a4",
+      "candidateSha256": "1a7799a33bdcfe8243a86626d08dd40e2e94ba2d77844b5127c6c9928500f3a4",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "TenantContextMiddleware.constructor",
+      "originalSha256": "cd898c6c947fc5bdf14d3eb4cc41bd8bdfbffdfcc725cdc637f34a66c4ee2257",
+      "candidateSha256": "cd898c6c947fc5bdf14d3eb4cc41bd8bdfbffdfcc725cdc637f34a66c4ee2257",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "TenantContextMiddleware.use",
+      "originalSha256": "162f78c93398872b49ff260deeeadea93ad85b1595664907ac2cdfcb2ce2a3a5",
+      "candidateSha256": "13f5ed2417e50b8b9efd0e250a59933ca15955ee94d39eab82d24edb8edaaedc",
+      "qualifier": "every original line byte-exact and in order; header/provenance insertions inspected"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "TenantContextMiddleware.recordDenial",
+      "originalSha256": "a3a1522de0225aba7f373d0f0871b2cc5744e09a639e0a25c4f87ead9bd2dab4",
+      "candidateSha256": "a3a1522de0225aba7f373d0f0871b2cc5744e09a639e0a25c4f87ead9bd2dab4",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "TenantContextMiddleware.selfHealMembership",
+      "originalSha256": "3b7305fc1044da4606dc2c195c1daa804b7959e6d3a7d43d3b1deef23cb1ad74",
+      "candidateSha256": "3b7305fc1044da4606dc2c195c1daa804b7959e6d3a7d43d3b1deef23cb1ad74",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "TenantContextMiddleware.resolveRequestedTenantSlug",
+      "originalSha256": "6b2cf6997bda143c6f0a8e1f711670c05f037f22bde6f45365942b2ad6c76b25",
+      "candidateSha256": "6b2cf6997bda143c6f0a8e1f711670c05f037f22bde6f45365942b2ad6c76b25",
+      "qualifier": "byte-exact"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "nonEmpty",
+      "originalSha256": "7d9f90dd2fdd6753cd20fc80fb4a981b6eda1e6820f4231b70fd56d3583b4035",
+      "candidateSha256": "7d9f90dd2fdd6753cd20fc80fb4a981b6eda1e6820f4231b70fd56d3583b4035",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "member": "isBypassPath",
+      "originalSha256": "3fb6340910796eaae34127ca32f3772f284345c8a3acb53291130e3fb333ee52",
+      "candidateSha256": "3fb6340910796eaae34127ca32f3772f284345c8a3acb53291130e3fb333ee52",
+      "qualifier": "byte-exact top-level canonical helper"
+    },
+    {
+      "file": "apps/api/src/context/context.module.ts",
+      "member": "entire module",
+      "qualifier": "whole file byte-exact after sole canonical-owner import/provider/export additions"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant.module.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "6858db17104b4f12a91c69a766bb6c93fc0d0d5cad8ebaf2f04503c9f4131616"
+    },
+    {
+      "file": "apps/api/src/tenant/tenant-context.store.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "33b46f43722694f12986ff4d535e1ee31f8834c2e8cec0d70e319cfe91be5181"
+    },
+    {
+      "file": "apps/api/src/auth/roles.guard.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "file": "apps/api/src/auth/auth.module.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "678d559f329735b77ebacbdea6cf9e3466e19ffe8ab0ddc5640f52b17f5f384d"
+    },
+    {
+      "file": "apps/api/src/app.module.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc"
+    },
+    {
+      "file": "apps/api/src/meri/meri.module.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67"
+    },
+    {
+      "file": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "34abf99eb804afba2b598d430d4ed4d9806f4bb35b0254b9ccda1b1ef5f956e5"
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267"
+    },
+    {
+      "file": "apps/api/src/prisma/prisma.service.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+    },
+    {
+      "file": "apps/api/prisma/schema.prisma",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a"
+    },
+    {
+      "file": "package.json",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "709c2b40e3e54112784fd2670faa999ce701edca1f879bafb26a131c3820f728"
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "qualifier": "whole file byte-exact outside source8",
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba"
+    }
+  ],
+  "proofCount": 208,
+  "onlineSessionOperations": [
+    "this.client.sessions.getSession"
+  ],
+  "requestProvenance": "single module-private WeakMap keyed by actualRequest with same selected-context identity; no public capability/persistence",
+  "endpointReceiptScope": "closed principal/revisions/times/correlation only; no run/fence/scopes/grant/approval minting",
+  "sourceOutsideExactlyEightPathsUnchanged": true,
+  "applicationDatabaseProviderOrCredentialExecution": false
+}

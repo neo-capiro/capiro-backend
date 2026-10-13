@@ -1,0 +1,351 @@
+{
+  "authorReceipt": "870d69004975c6608c8c874db92e391b33db6fd7",
+  "authorTree": "07b4535f28ec5939907855deabbf1e514adab4e4",
+  "sourceHead": "d5c121973438a29a65515496f395f4ad7568d006",
+  "sourceTree": "1cd183263053aa6848c8a0949540785b34c7c4c3",
+  "authorPacketHashesPhysicalAndGit": 45,
+  "sourceBindingsPhysicalAndGit": 8,
+  "all53ObservedBindings": [
+    {
+      "path": "docs/capiro-application-authority-source-20261013/COMMANDS.json",
+      "bytes": 11055,
+      "sha256": "14c3a541992a07c6b6c21fad4d872571261864770715079a5b7f60b9a8df4550",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/HANDOFF.md",
+      "bytes": 5417,
+      "sha256": "04cc4eb8d3a5dd073a3dc869db09c3fbde6951c9ec6ddcb3d61b4ed6be452f4c",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/OUTLINE.md",
+      "bytes": 1900,
+      "sha256": "1b76e97014800d9af6b7190f0af70b58bcf8b786ab4a1858b657719b030931e0",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE-CORRECTION.json",
+      "bytes": 806,
+      "sha256": "4053e50f266203bcb33e5b058239f228cebec1d13a18bb2ea48a043d55b2ada1",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE-FINAL.json",
+      "bytes": 304,
+      "sha256": "3b41d7969c6642f49221827db594c6ee7c94e1a6732db4d3c262e426dd2bf546",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE.json",
+      "bytes": 759,
+      "sha256": "7deb89665db59abb7a5ab449c38b43876723d0f787e6a1a692843eebd6739fba",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/00-baseline-equality-red.log",
+      "bytes": 251,
+      "sha256": "e08871aa4fea3f83c804e2ef7dd111bcc6e8872c91586d7c2f6082f00521faff",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.json",
+      "bytes": 22971,
+      "sha256": "e9834503b8987134f2c9c6a280e5b18c23e1347e23d9e779128ca46e76697c35",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.log",
+      "bytes": 4306,
+      "sha256": "ff5a282795e39c9d91efbe8c7b738e23556f9cfe0eedec69a144c5dc43e5d675",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.json",
+      "bytes": 33207,
+      "sha256": "bd16d996eafbe9c9842f96ad859f0442d7135a33fe63c740b2d163f1e076c512",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.log",
+      "bytes": 7278,
+      "sha256": "8861ea32579a33155f9ed0b36c27213a5131bbfd5f43693d649140d50627138d",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-gap-source-binding.json",
+      "bytes": 304,
+      "sha256": "79ab6ce88fb33ad6710962adf907b5d8577399f2ba9c974a306d28b46a981027",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-pre-gap-contract.ts.txt",
+      "bytes": 7598,
+      "sha256": "a7dee1ca0f450469cf059871e38502822a811cf28a69256720c9143150aa2d49",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/02-pre-gap-tests.ts.txt",
+      "bytes": 24032,
+      "sha256": "24fa53f958732959aacf9e8e9d98e15750575bfda847b3912254d508da015b03",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.json",
+      "bytes": 23874,
+      "sha256": "cef180bf43436ac6136daac496746d6179b1820895b46e7869cea558ed72bc61",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.log",
+      "bytes": 4463,
+      "sha256": "672b68f95a4cb3920e387d350ce5dfce297e2f364059de402fea5823c7476f53",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.json",
+      "bytes": 24309,
+      "sha256": "320cc5a127c1660be9ccddde21a562d602e2b0bebc43e07e6bfc71ddbddfadf5",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.log",
+      "bytes": 4503,
+      "sha256": "6e4574d8f38e1aad24f2a6cc206648b69397ce1f26d937c60bead75c1826e331",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/05-focused-strict-typecheck.log",
+      "bytes": 13204,
+      "sha256": "ab10b25f2945f0157bd2bd54e2b70fbf69dcabcfe0c26453699accd3ec6693bc",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/06-focused-strict-typecheck.log",
+      "bytes": 357,
+      "sha256": "0de04ab237f5157ac87b23966f916afdb826c3ea63f70e3f0a1c96b844e1d76e",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/07-focused-strict-typecheck.log",
+      "bytes": 174,
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-middleware.ts.txt",
+      "bytes": 29878,
+      "sha256": "4304f8e4140031d5d7b0ddb6e5a94e66af1cf1ffd6fd7871fb863a9229550e8c",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.json",
+      "bytes": 25593,
+      "sha256": "7590e2d5d7db9918c9bee3efb1424b84e83f9a6bc97dadd38f0ca3980bf87f79",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.log",
+      "bytes": 5071,
+      "sha256": "3ce1a083a4200087afb3b54a42b7e00881f01980771a6c06f02bbd40b4ae9a3b",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-tests.ts.txt",
+      "bytes": 25350,
+      "sha256": "a45eac29ecb3d1c29aa05a746c86ac51963958db944bdb6edb8410708c125fb6",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.json",
+      "bytes": 24798,
+      "sha256": "8f0a5d46b98fc3d0cd5a6873361087ae588fe0da009f1f60c1b80e5a8e3251ad",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.log",
+      "bytes": 4638,
+      "sha256": "96e083b039c0240d2af15e6b5454fd3eb9ce854e84483ece841f166091e84263",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/10-focused-strict-two-instance.log",
+      "bytes": 174,
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.json",
+      "bytes": 25280,
+      "sha256": "745f0df4b469130ddc265b3d15c818c4c75f8cbf51ec50400ac11d35880688c1",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.log",
+      "bytes": 4761,
+      "sha256": "1a80ce18530de34048948ebb5a7fca6a7c95ff1b6dedd82011e9d77d61bddda4",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/12-final-focused-strict.log",
+      "bytes": 688,
+      "sha256": "0ed5411154604e406e27595171b364cfe760330536003e8f18ab537a988b3bb8",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/13-final-focused-strict.log",
+      "bytes": 174,
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.json",
+      "bytes": 26382,
+      "sha256": "c5120f6361b9e1eb4ebc5453eb7de57278bf259ee93f81e0349bec5133a37503",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.log",
+      "bytes": 4906,
+      "sha256": "5f7dde6c6e27e9c25b6bd7b2ded40c9ac99b650d33c03478d57e9871bc44e31f",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/15-proxy-final-focused-strict.log",
+      "bytes": 174,
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/16-source-preservation-program-red.cjs.txt",
+      "bytes": 6075,
+      "sha256": "a67ca4344c1635e6f1cef33d7d9a79343f2f97c48dac1f9d61346cdbe4a527c5",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/16-source-preservation.log",
+      "bytes": 1159,
+      "sha256": "5d0e021a8d5183e29666cf8d0577589b0d3b1d84c80b4ea13d89dac41aae5665",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/17-source-preservation.json",
+      "bytes": 24557,
+      "sha256": "a3e48ec846e2286f4f7dad3e8a5b1e25f85b81be112d8875b8df94a8b8317694",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/17-source-preservation.log",
+      "bytes": 19269,
+      "sha256": "c5f82bf7fd0925b8ffffda95377312b82a7a671d2e3adf4fdb4eb850de6ff411",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/18-current-owner-and-sdk-bindings.json",
+      "bytes": 5563,
+      "sha256": "75c40ee39b32084cc97c4842770b135aad8274350f50b05636d86f6b8deffd39",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/19-source-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "bytes": 7516,
+      "sha256": "1c3dc45ab53daf1e7a6249c3f2ac4ea70ca5f0e6e3481e96cabd226d4c344914",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/jest.safe.cjs",
+      "bytes": 542,
+      "sha256": "54e8eaa192da27bbc540d41831fc52bc3c346666e47ffef683868e4c5dbb4ffa",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/scope-and-revision-inputs.json",
+      "bytes": 1417,
+      "sha256": "b1e05edf575cd7844357284c52defe90c08fd8587e178667f5f5d8c47b1220dc",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/source-preservation.cjs",
+      "bytes": 6517,
+      "sha256": "0d09d6e8e8984f7c1bd915c8d8bf472fb10133107612fcf011edd6b84e81c22a",
+      "head": "870d69004975c6608c8c874db92e391b33db6fd7"
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "bytes": 8258,
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "bytes": 30010,
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "bytes": 6925,
+      "sha256": "ccb1d13058394fb26b1885b8684177b49aacbf20f989c44110e8ef63e61cc689",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "bytes": 2627,
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "bytes": 295936,
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "bytes": 45695,
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "bytes": 9325,
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "bytes": 26614,
+      "sha256": "ac11427c5e4594cf423175a4e2ee49637f5c49d4b57be250f61900ca3d97d4ae",
+      "head": "d5c121973438a29a65515496f395f4ad7568d006"
+    }
+  ],
+  "actualIndependentJestConfigByteExact": true,
+  "authorLatestBoundedCompilerAndTestCommandReceipts": [
+    {
+      "name": "14-proxy-final-owner-tests",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.json",
+      "executorExitCode": 0,
+      "total": 63,
+      "failed": 0,
+      "rawLog": "evidence/14-proxy-final-owner-tests.log",
+      "rawJSON": "evidence/14-proxy-final-owner-tests.json"
+    },
+    {
+      "name": "15-proxy-final-focused-strict",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 0,
+      "diagnostics": 0,
+      "rawLog": "evidence/15-proxy-final-focused-strict.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    }
+  ],
+  "allRawAuthorEvidenceImportedAsAncestor": true,
+  "noAuthorRawFileMutation": true,
+  "noPrivateMeriBodiesCopiedIntoPacket": true
+}

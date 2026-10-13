@@ -1,0 +1,178 @@
+{
+  "historicalMasterHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "historicalMasterPath": "docs/newsletter-builder-reviewed-publication-20261013/SHA256SUMS.json",
+  "historicalEntries": 3214,
+  "sameCurrentModeBlobEntries": 3203,
+  "explicitReviewedSupersessions": [
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "34a9024fc7d9384b5d7d74f2eb69f7f6e9ceafb60eff4e7398804b18a6d78167",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "d017fb9ee86999f6c18cd4867238134728c8b551"
+      },
+      "currentSha256": "d70428e4827306a8da584f3d58925b62f7749fca62529d3e2474490ac3b7bee2",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "5025128bb1c20019e458dbfd35501aadc03d7217"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "apps/web/Dockerfile.frontend-artifact",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "1df389777949a6df4cc5c8f1eb43e2db4beb9265"
+      },
+      "currentSha256": "b271760dd15ea336f0ca439845d3bb0bb3f80e1cffdc92ae26a4cb225cdf5fa9",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "9e64bd16f929bace9961d10ad8576ecc5d4156ce"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "643eec5b4a2ef7196e92f262757839477fe642035f1a0606fd9f96c1c919c0cb",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "1cca305f7e70a6973bff4cce01b5ad3f5ecddde2"
+      },
+      "currentSha256": "9ce6e5cba13507b08ee679e8d2a399e5451e2078baac6df458602077b6fa0e23",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "32ec8ece9a3aa320831f97683b35afbcc61b57e2"
+      },
+      "reason": "explicit current handoff successor; old exact copy PR2445-HANDOFF.md.txt"
+    },
+    {
+      "path": "package.json",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "709c2b40e3e54112784fd2670faa999ce701edca1f879bafb26a131c3820f728",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "92e4dde88602fa6cfd3515bf1aed330f7087d12b"
+      },
+      "currentSha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "219e0b5ffd63e7ec6201380b388b43d21ce9a77790a2bb7aa8932ead4f633acd",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "2ea9050b511aff6fa530d1a3959caa66050030ff"
+      },
+      "currentSha256": "c471c5f1c86d79c3bd0916fcb65e5a2f6aaa0f64673707cde4db351c6bf4b557",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "52eb7fb74834a8649fc1814430c10ec32d3de26f"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "d00f1618841f8315afe4403f7bdd29d2a50b32c0f7d4c0b2691dd3478da6b66d",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "57d6b4a6307e01b9ee909be8297b88c080294bb6"
+      },
+      "currentSha256": "33ee1d7e26d1bbf6c0e976a88cf0521d5b05a6661cd02ca51bb04f57fa2b8d57",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "4e4ed24d8c79012ecbbfea8949da32317ba94cf6"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "9f70a4cfd0434a248440245ae63ee7552dcb3514"
+      },
+      "currentSha256": "89dc0ff0bff8af01e747bdde435ed9156674d140eebfffce104e2c918133a08b",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "65fe60604e650d431c39070aee9f79f45c6f3e10"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "44dbd36e9dcb8f6dbd1354fcd250615afd84d151d150f9523955278d805e6f79",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "62760cd00b366294fb2f7debbf68f16a63bc1380"
+      },
+      "currentSha256": "c0fd40743506ef18fbdbddad6c579f96598617da66d4e74676a9725ac116fb37",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "261bf0aa740250d53805da45005c721b3bf5109e"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "6584b8c6596a262c74f83b146faa412dd0c3c784"
+      },
+      "currentSha256": "23fad21bf4525a08f85e32bae02b9720d0be6dce104c9c1ba94c33ed59649d3e",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "8b329c3300accd3bf7878a27f8eac36c26948fd3"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "d9868f30a0e39acd2893c39643f606d56c2c80bf"
+      },
+      "currentSha256": "5afdc4aaaee02f14477edeebf92fb124fba5d114344057d1838a53e3d383e380",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "edaf8856d525880ba36f535694186fb40d4c6a42"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "historicalHead": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+      "historicalSha256": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461",
+      "historicalModeBlob": {
+        "mode": "100644",
+        "blob": "4ade69f2bb34f8124b489883776b3c119525fdd2"
+      },
+      "currentSha256": "f4028cd46e71a99d0fb8b8f26b171108871b8cd5abe4cd640a29b31ee1b5245e",
+      "currentModeBlob": {
+        "mode": "100644",
+        "blob": "ea181f0b3ff34af950594b75591cf7442818be93"
+      },
+      "reason": "declared source delta, independently reviewed exact e33 source and retained source/body/manifest inverses"
+    }
+  ],
+  "allHistoricalMasterBytesPreservedInGit": true,
+  "fourRawArchiveBytesAndModesUnchanged": true,
+  "allSourceHeadsPreserved": true,
+  "noBroadSkip": "all3214 inherited rows retained, exact10CODE+onecurrenthandoff supersession recorded; originalsource/indices reachable",
+  "protectedReportingBodyRead": false
+}

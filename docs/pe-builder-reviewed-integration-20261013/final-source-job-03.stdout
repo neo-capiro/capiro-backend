@@ -1,0 +1,18 @@
+✔ exact reviewed root manifest reconstructs every prior byte and retains its real entry points (36.207732ms)
+✔ root manifest mutations cannot turn this exact review into a general exemption (25.426393ms)
+✔ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (19.698062ms)
+✔ api manifest mutations cannot turn this exact review into a general exemption (25.069199ms)
+✔ unknown/coercible inputs refuse without executing application or coercion ports (0.509395ms)
+✔ only four immutable published raw observations are classified; source and normal docs remain checked (43.227702ms)
+✔ changed archive bytes, invented source exclusions, incomplete or extra identities refuse (269.349443ms)
+✔ duplicate, traversal, nonliteral, unbounded and coercible paths refuse without running coercion (307.450053ms)
+✔ local CLI requires explicit bounded mode and exact base; help and bad args do not touch Git (421.689213ms)
+✔ actual local CLI refuses staged cancellation, attribute/config suppression and archive mode drift (3243.222048ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4522.756307

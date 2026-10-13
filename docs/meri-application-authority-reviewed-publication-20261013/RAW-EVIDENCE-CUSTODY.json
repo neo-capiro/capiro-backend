@@ -1,0 +1,105 @@
+{
+  "originalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+  "sourceHead": "579af9e4b826be308f0db289109c233350bbf34d",
+  "sourceUnchanged": true,
+  "newHygieneExclusions": [],
+  "historicalIndicesAndHeadsPreserved": true,
+  "rows": [
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4306,
+      "sha256": "ff5a282795e39c9d91efbe8c7b738e23556f9cfe0eedec69a144c5dc43e5d675",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 7278,
+      "sha256": "8861ea32579a33155f9ed0b36c27213a5131bbfd5f43693d649140d50627138d",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4463,
+      "sha256": "672b68f95a4cb3920e387d350ce5dfce297e2f364059de402fea5823c7476f53",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4503,
+      "sha256": "6e4574d8f38e1aad24f2a6cc206648b69397ce1f26d937c60bead75c1826e331",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 5071,
+      "sha256": "3ce1a083a4200087afb3b54a42b7e00881f01980771a6c06f02bbd40b4ae9a3b",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4638,
+      "sha256": "96e083b039c0240d2af15e6b5454fd3eb9ce854e84483ece841f166091e84263",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4761,
+      "sha256": "1a80ce18530de34048948ebb5a7fca6a7c95ff1b6dedd82011e9d77d61bddda4",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4906,
+      "sha256": "5f7dde6c6e27e9c25b6bd7b2ded40c9ac99b650d33c03478d57e9871bc44e31f",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/capiro-application-authority-source-20261013/evidence/20-tenant-grant-owner-tests.log",
+      "encodedPath": "docs/capiro-application-authority-source-20261013/evidence/20-tenant-grant-owner-tests.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 5005,
+      "sha256": "eb27bc004f81306e9417cad8bc8ce8fc9d0382f8f9c4b690aab0c7aa5d25d475",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63.stderr.log",
+      "encodedPath": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/05-d5-actual63.stderr.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 4940,
+      "sha256": "6adaf3ff2d71cca4f57a27039178498795c0595e56a409c5563b785741547c75",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64.stderr.log",
+      "encodedPath": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/11-579-actual64.stderr.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 5145,
+      "sha256": "9122d3012fbc895366983478bdcc1be970dcac8008b6302ce8d1ec079bfc35fa",
+      "decodedEqualityVerified": true
+    },
+    {
+      "originalPath": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/18-whole-author-whitespace.stdout.log",
+      "encodedPath": "docs/cleanup-meri-application-authority-independent-review-20261013/evidence/18-whole-author-whitespace.stdout.log.lossless.json",
+      "historicalHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+      "bytes": 2307,
+      "sha256": "9fd3f863910e46960d7ad304c57b3ffd17f59ada06868b851abb20fac8053ebc",
+      "decodedEqualityVerified": true
+    }
+  ]
+}

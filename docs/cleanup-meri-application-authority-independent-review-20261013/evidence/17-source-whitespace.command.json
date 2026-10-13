@@ -1,0 +1,20 @@
+{
+  "command": [
+    "git",
+    "diff",
+    "--check",
+    "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+    "579af9e4b826be308f0db289109c233350bbf34d",
+    "--",
+    "apps/api/src"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "startedAt": "2026-10-13T05:39:55.882931+00:00",
+  "finishedAt": "2026-10-13T05:39:55.900026+00:00",
+  "exitCode": 0
+}

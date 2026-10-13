@@ -1,0 +1,85 @@
+{
+  "sourceHead": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "nodeCases": 378,
+  "pythonCases": 5,
+  "total": 383,
+  "failure": 0,
+  "skip": 0,
+  "todo": 0,
+  "jobs": [
+    {
+      "file": "reviewed-source-job-02.stdout",
+      "stats": {}
+    },
+    {
+      "file": "reviewed-source-job-03.stdout",
+      "stats": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "file": "reviewed-source-job-04.stdout",
+      "stats": {}
+    },
+    {
+      "file": "reviewed-source-job-05.stdout",
+      "stats": {
+        "tests": 104,
+        "pass": 104,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "file": "reviewed-source-job-06.stdout",
+      "stats": {
+        "tests": 90,
+        "pass": 90,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "file": "reviewed-source-job-07.stdout",
+      "stats": {
+        "tests": 91,
+        "pass": 91,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "file": "reviewed-source-job-08.stdout",
+      "stats": {
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "file": "reviewed-source-job-09.stdout",
+      "stats": {
+        "tests": 53,
+        "pass": 53,
+        "fail": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "earlierFullRun": "FINAL-SOURCE-JOBS.json: loopback52/1; originalrawviaRAW-EVIDENCE-CUSTODY.json",
+  "sameCleanEnvironmentUnchangedLoopbackReplay": "LOOPBACK-EXACT-CLEAN-REPLAY.json:53/53",
+  "completeFinalCommands": "REVIEWED-SOURCE-JOBS.json:all8PASS",
+  "transientFailureRootCauseEstablished": false,
+  "loopbackSourceOrTimeoutChanged": false,
+  "actualShippingRuntimeAbiAcceptance": false
+}

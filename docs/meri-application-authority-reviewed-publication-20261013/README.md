@@ -1,0 +1,13 @@
+# Reviewed Meri application-authority source
+
+This draft composes eight reviewed source paths onto PR2448. The existing Clerk, tenant, context and Meri owners issue current identity and context receipts under the exact private wire contract. Correlation hashes do not grant authority. Missing, stale, revoked, foreign-tenant and elapsed authority fails closed; ordered rechecks do not establish an atomic Clerk/Postgres lease.
+
+Accepted source: `579af9e4b826be308f0db289109c233350bbf34d`, tree `293a98c0aa526d9ab440b4122e6aedcec1ed92af`. Author evidence: `4061ea3fd617c8ab6f8c616b68c31aabd5da2669`. Independent acceptance: `910ff32b2219ea2c1b2dc533485d1519f18598f5`, tree `d9974c2e234ae9b7d8c3bbc73620f92577ea4dc6`. The receiving eight bodies and modes are exact. Every other source path remains PR2448.
+
+Evidence includes 72 wire cases, 14 baseline cases, 64 final mocked owner cases, 41 adversarial controls, four composition controls, two sets of three tenant-grant controls and 208 preservation proofs. These are separate scoped evidence sets, not an aggregate native acceptance count. Earlier async, two-instance wiring, Proxy admission, tenant-grant, disk and compilation failures remain under their exact historical heads and indexed bytes.
+
+Twelve framework observations containing whitespace diagnostics are now lossless JSON containers: all 57,323 decoded bytes match their originals. Historical indices still bind historical raw paths; the current master binds the encoded successors. No additional hygiene exception was added. The independent custody follow-up checked decoded bytes, all eight source bodies/modes and stable historical indices without semantic edits or test replay.
+
+Use [COMPOSITION.json](COMPOSITION.json), [SOURCE-BINDINGS.json](SOURCE-BINDINGS.json), [PRESERVATION.json](PRESERVATION.json), [RAW-EVIDENCE-CUSTODY.json](RAW-EVIDENCE-CUSTODY.json) and the single [canonical handoff](../cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md). The previous PR2448 handoff is retained byte-exact.
+
+Live Clerk, native RLS, HTTP bootstrap, cross-service clock, deployed/currentRun and atomic lease acceptance remain open. Existing tenant middleware may provision, self-heal, update activity and audit; this receipt implementation does not claim an entirely mutation-free request pipeline. No new service/store, run scope, grant, fence, approval or token is introduced. No provider operation, database/migration execution, main merge or deployment occurred in this lane. Protected unpublished reporting work and excluded Quick log commitment UI remain with their existing owners.

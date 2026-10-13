@@ -1,0 +1,8 @@
+{
+  "identity": ["current native Clerk session ID/user/status/creation/original expiry/abandon/actor", "current backend user ID and Clerk mapping", "exact selected active membership ID/tenant/user/role/status/updatedAt version", "active selected base tenant ID/status/Clerk org mapping", "exact selected current operator session ID/actor/target/start/expiry/end and target tenant status/org mapping"],
+  "context": ["current identity revision", "exact active unarchived owned conversation ID/tenant/user/stored client/status/archive state", "current canonical prospect IDs and scopeVersion if present", "current nonarchived client ID/tenant/status/wall and selected actor grant identities/createdAt"],
+  "excluded": ["JWT issuance refresh nonce", "user lastSeenAt", "session lastActiveAt/updatedAt/latestActivity", "conversation title/content/updatedAt", "client name/profile/updatedAt", "supplied identitySha256"],
+  "expiry": "minimum original verified JWT exp, current session expireAt and abandonAt, and selected operator expiresAt; never a fabricated extension",
+  "scope": "current selected-client receipt only; selectors/hash confer no authority and cannot authorize a portfolio, unbound conversation, run, fence, approval or worker",
+  "consistency": "ordered fresh cross-owner reads, including both sides of the final online session await; not an atomic Clerk/Postgres snapshot or durable authority lease"
+}

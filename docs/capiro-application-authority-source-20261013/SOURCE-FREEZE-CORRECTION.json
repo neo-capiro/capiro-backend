@@ -1,0 +1,21 @@
+{
+  "base": "7d15120f61cbb1d378e452a1df27321682413648",
+  "publishedBase": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "head": "228db9e425de6de859cbc3df02a184824e47f8c4",
+  "tree": "2401978760cd843c05bccb6a893891ce836c8e05",
+  "paths": [
+    "apps/api/src/auth/clerk.service.ts",
+    "apps/api/src/tenant/tenant-context.middleware.ts",
+    "apps/api/src/context/context-security-scope.service.ts",
+    "apps/api/src/context/context.module.ts",
+    "apps/api/src/meri/meri.service.ts",
+    "apps/api/src/meri/meri.controller.ts",
+    "apps/api/src/auth/application-authority.ts",
+    "apps/api/src/auth/application-authority.spec.ts"
+  ],
+  "checks": {
+    "actualOwnerCases": 60,
+    "status": "PASS; strict focused semantic compile PASS"
+  },
+  "scope": "source/mock only; independent review pending"
+}

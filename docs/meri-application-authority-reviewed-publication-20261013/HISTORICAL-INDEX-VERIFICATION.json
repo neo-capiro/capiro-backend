@@ -1,0 +1,20 @@
+[
+  {
+    "head": "4061ea3fd617c8ab6f8c616b68c31aabd5da2669",
+    "index": "docs/capiro-application-authority-source-20261013/SHA256-INDEX.json",
+    "sha256": "e60739ca495161da86b9a43da139a5f70791c849abdbe2a5c690fec08c89954f",
+    "verifiedHistoricalRows": 53
+  },
+  {
+    "head": "4061ea3fd617c8ab6f8c616b68c31aabd5da2669",
+    "index": "docs/capiro-application-authority-source-20261013/TENANT-GRANT-SHA256-INDEX.json",
+    "sha256": "6a6736f45f7843d39b73f849af02a6eee2afcc9e2c8e6566885dd0dabba3daa3",
+    "verifiedHistoricalRows": 23
+  },
+  {
+    "head": "910ff32b2219ea2c1b2dc533485d1519f18598f5",
+    "index": "docs/cleanup-meri-application-authority-independent-review-20261013/SHA256-INDEX.json",
+    "sha256": "845c9cff471c3654969848ba9b957271ee01bfebc9bd8091f0686701dce678a2",
+    "verifiedHistoricalRows": 97
+  }
+]

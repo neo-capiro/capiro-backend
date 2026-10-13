@@ -1,0 +1,66 @@
+{
+  "cachedOfficialPackageVersion": "1.34.0",
+  "artifacts": [
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/node_modules/@clerk/backend/package.json",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/package.json",
+      "bytes": 3817,
+      "sha256": "a043d3bfd76cdad72fc5dfacb0f2f9332f114159c7fc5d33298cb1ad06388bdf"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/node_modules/@clerk/backend/dist/api/resources/Session.d.ts",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/api/resources/Session.d.ts",
+      "bytes": 1614,
+      "sha256": "0cd1dccc2e87a38fe663ebc35556784090d9b1dc3bcf9bdbec0ea6d9e9408687"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/node_modules/@clerk/backend/dist/api/endpoints/SessionApi.d.ts",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/api/endpoints/SessionApi.d.ts",
+      "bytes": 1629,
+      "sha256": "f4e3068303e0447fbf6158a5513eece77eb85756aa4f061b8d46c67c744c8882"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/node_modules/@clerk/backend/dist/index.js",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/index.js",
+      "bytes": 143137,
+      "sha256": "a1501ae0a900a7e8cf657037270031b3f80e5c25c98302c9c6b0ea862335e949"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/node_modules/@clerk/backend/dist/index.js.map",
+      "realpath": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/index.js.map",
+      "bytes": 334656,
+      "sha256": "280e5e34d24373c166958743cf014ad3842ec1665c84092c5fa83a0b0f7bc620"
+    }
+  ],
+  "mappedSourceIdentities": [
+    {
+      "sourceMapName": "../src/api/resources/Session.ts",
+      "sourceSha256": "87a96e32dec943dd06c501d740559eb3a065b228091baf20cd223427f3b65909",
+      "sourceBytes": 1550
+    },
+    {
+      "sourceMapName": "../src/api/endpoints/SessionApi.ts",
+      "sourceSha256": "45188f61e03d9e232cc8e193f7cda77185141a77fdb72deb6ca7dcbce3d701d8",
+      "sourceBytes": 2896
+    }
+  ],
+  "readMethod": "backend.sessions.getSession(sessionId)",
+  "supportedReturnFacts": [
+    "id",
+    "userId",
+    "status",
+    "expireAt",
+    "abandonAt",
+    "createdAt",
+    "lastActiveAt",
+    "updatedAt",
+    "lastActiveOrganizationId",
+    "actor"
+  ],
+  "requestMethod": "GET",
+  "sessionExpiryNumericFieldsMappedUnchanged": true,
+  "getSessionHasNoPerCallAbortSignalParameter": true,
+  "methodMutationCreateRefreshRevokeCalled": false,
+  "actualSDKImportedConstructedOrQueried": false,
+  "reviewLimit": "Read-only cached declaration/source inspection; no live reachability, credentials, issuer configuration, permission or revocation-window acceptance."
+}

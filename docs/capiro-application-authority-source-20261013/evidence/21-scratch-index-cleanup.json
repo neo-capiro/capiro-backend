@@ -1,0 +1,13 @@
+{
+  "ownedScratchIndex": "/tmp/capiro-application-authority-index-20261013",
+  "bytes": 3790442,
+  "sha256": "9cea64068ed3edc21fedf04b675377907ee1104a48f65b39e8a576bbd8f101f5",
+  "sourceHeadsPreserved": [
+    "7d15120f61cbb1d378e452a1df27321682413648",
+    "228db9e425de6de859cbc3df02a184824e47f8c4",
+    "d5c121973438a29a65515496f395f4ad7568d006",
+    "870d69004975c6608c8c874db92e391b33db6fd7"
+  ],
+  "scratchPurpose": "virtual Git commit index, not any physical worktree index",
+  "productionSourceOrEvidenceRemoved": false
+}

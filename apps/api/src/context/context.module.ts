@@ -12,6 +12,7 @@ import { ContextPlaneAuditService } from './context-plane-audit.service.js';
 import { ContextStageTimerService, contextStageTimer } from './context-stage-timer.service.js';
 import { ContextPlaneGatewayService } from './context-plane-gateway.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
+import { ContextSecurityScopeService } from './context-security-scope.service.js';
 import { InternalStrategyContextController } from './internal-strategy-context.controller.js';
 import { StrategyContextPlaneService } from './strategy-context-plane.service.js';
 
@@ -26,6 +27,7 @@ import { StrategyContextPlaneService } from './strategy-context-plane.service.js
   imports: [PrismaModule, KnowledgeModule, RetrievalModule],
   controllers: [InternalStrategyContextController],
   providers: [
+    ContextSecurityScopeService,
     ContextPersistenceBoundaryService,
     ContextCompilerService,
     ContextResolverService,
@@ -41,6 +43,7 @@ import { StrategyContextPlaneService } from './strategy-context-plane.service.js
     },
   ],
   exports: [
+    ContextSecurityScopeService,
     ContextCompilerService,
     ContextPersistenceBoundaryService,
     ContextResolverService,
