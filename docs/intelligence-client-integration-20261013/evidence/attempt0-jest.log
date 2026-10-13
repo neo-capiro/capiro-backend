@@ -1,43 +1,10 @@
-ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-intelligence-client-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
-  
-FAIL src/intelligence/intelligence-financial-v1-flow.characterization.spec.ts
-  ● Test suite failed to run
-
-    jest: failed to cache transform results in: /tmp/intelligence-client-jest-cache-20261013/jest-transform-cache-e3cf0ad4cc5b79a492c4b4ac1640e157-79ef2876fae7ca75eedb2aa53dc48338/82/districtcodeutil_82f95adf148688557cda176eae0cc615
-    Failure message: ENOSPC: no space left on device, write
-
-      10 |   type DistrictNexusIdentitySeed,
-      11 | } from '../district-nexus/district-nexus.identity.js';
-    > 12 | import {
-         | ^
-      13 |   districtCodeForHouseMatch,
-      14 |   normalizeDistrictForCensus as normalizeDistrict,
-      15 | } from '../common/district-code.util.js';
-
-      at writeFileSync (../../../../workspace/capirov2/node_modules/.pnpm/write-file-atomic@4.0.2/node_modules/write-file-atomic/lib/index.js:223:10)
-      at writeCacheFile (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:908:33)
-      at writeCodeCacheFile (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:875:3)
-      at ScriptTransformer._buildTransformResult (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:514:5)
-      at ScriptTransformer.transformSource (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:554:17)
-      at ScriptTransformer._transformAndBuildScript (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:674:40)
-      at ScriptTransformer.transform (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:726:19)
-      at Object.<anonymous> (src/intelligence/client-district-v1-spend.ts:12:1)
-      at Object.<anonymous> (src/intelligence/intelligence.service.ts:20:1)
-      at Object.<anonymous> (test/fixtures/intelligence-financial.ts:1:1)
-      at Object.<anonymous> (src/intelligence/intelligence-financial-v1-flow.characterization.spec.ts:2:1)
-
-FAIL src/intelligence/intelligence-profile-v1-projections.characterization.spec.ts
-  ● Test suite failed to run
-
-    jest: failed to cache transform results in: /tmp/intelligence-client-jest-cache-20261013/jest-transform-cache-e3cf0ad4cc5b79a492c4b4ac1640e157-79ef2876fae7ca75eedb2aa53dc48338/2a/intelligenceprofilev1projectionscharacterizationspec_2a57463a859ed5c1cc1978725a625609.map
-    Failure message: ENOSPC: no space left on device, write
-
-      at writeFileSync (../../../../workspace/capirov2/node_modules/.pnpm/write-file-atomic@4.0.2/node_modules/write-file-atomic/lib/index.js:223:10)
-      at writeCacheFile (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:908:33)
-      at ScriptTransformer._buildTransformResult (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:510:7)
-      at ScriptTransformer.transformSource (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:554:17)
-      at ScriptTransformer._transformAndBuildScript (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:674:40)
-      at ScriptTransformer.transform (../../../../workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js:726:19)
-
-FAIL src/intelligence/intelligence-bills-e
+{
+  "format": "capiro-lossless-raw-v1",
+  "encoding": "base64",
+  "originalPath": "docs/intelligence-client-integration-20261013/evidence/attempt0-jest.log",
+  "rawCheckpoint": "4b4b2db3c4c7baedf42a2adcd51bc0b45b3a0e9c",
+  "rawGitBlob": "fd1bdf306227ed86aefbbae64f661ddbbfef6d0a",
+  "bytes": 4096,
+  "sha256": "52699bc24b80147ab9448b9ae900d0c41dba6464d4c6de7006ebc11ab36ea626",
+  "data": "dHMtamVzdFtjb25maWddIChXQVJOKSAKICAgIFRoZSAidHMtamVzdCIgY29uZmlnIG9wdGlvbiAiaXNvbGF0ZWRNb2R1bGVzIiBpcyBkZXByZWNhdGVkIGFuZCB3aWxsIGJlIHJlbW92ZWQgaW4gdjMwLjAuMC4gUGxlYXNlIHVzZSAiaXNvbGF0ZWRNb2R1bGVzOiB0cnVlIiBpbiAvdG1wL2NhcGlyb3YyLWludGVsbGlnZW5jZS1jbGllbnQtaW50ZWdyYXRpb24tMjAyNjEwMTMvYXBwcy9hcGkvdHNjb25maWcuanNvbiBpbnN0ZWFkLCBzZWUgaHR0cHM6Ly93d3cudHlwZXNjcmlwdGxhbmcub3JnL3RzY29uZmlnLyNpc29sYXRlZE1vZHVsZXMKICAKRkFJTCBzcmMvaW50ZWxsaWdlbmNlL2ludGVsbGlnZW5jZS1maW5hbmNpYWwtdjEtZmxvdy5jaGFyYWN0ZXJpemF0aW9uLnNwZWMudHMKICDil48gVGVzdCBzdWl0ZSBmYWlsZWQgdG8gcnVuCgogICAgamVzdDogZmFpbGVkIHRvIGNhY2hlIHRyYW5zZm9ybSByZXN1bHRzIGluOiAvdG1wL2ludGVsbGlnZW5jZS1jbGllbnQtamVzdC1jYWNoZS0yMDI2MTAxMy9qZXN0LXRyYW5zZm9ybS1jYWNoZS1lM2NmMGFkNGNjNWI3OWE0OTJjNGI0YWMxNjQwZTE1Ny03OWVmMjg3NmZhZTdjYTc1ZWVkYjJhYTUzZGM0ODMzOC84Mi9kaXN0cmljdGNvZGV1dGlsXzgyZjk1YWRmMTQ4Njg4NTU3Y2RhMTc2ZWFlMGNjNjE1CiAgICBGYWlsdXJlIG1lc3NhZ2U6IEVOT1NQQzogbm8gc3BhY2UgbGVmdCBvbiBkZXZpY2UsIHdyaXRlCgogICAgICAxMCB8ICAgdHlwZSBEaXN0cmljdE5leHVzSWRlbnRpdHlTZWVkLAogICAgICAxMSB8IH0gZnJvbSAnLi4vZGlzdHJpY3QtbmV4dXMvZGlzdHJpY3QtbmV4dXMuaWRlbnRpdHkuanMnOwogICAgPiAxMiB8IGltcG9ydCB7CiAgICAgICAgIHwgXgogICAgICAxMyB8ICAgZGlzdHJpY3RDb2RlRm9ySG91c2VNYXRjaCwKICAgICAgMTQgfCAgIG5vcm1hbGl6ZURpc3RyaWN0Rm9yQ2Vuc3VzIGFzIG5vcm1hbGl6ZURpc3RyaWN0LAogICAgICAxNSB8IH0gZnJvbSAnLi4vY29tbW9uL2Rpc3RyaWN0LWNvZGUudXRpbC5qcyc7CgogICAgICBhdCB3cml0ZUZpbGVTeW5jICguLi8uLi8uLi8uLi93b3Jrc3BhY2UvY2FwaXJvdjIvbm9kZV9tb2R1bGVzLy5wbnBtL3dyaXRlLWZpbGUtYXRvbWljQDQuMC4yL25vZGVfbW9kdWxlcy93cml0ZS1maWxlLWF0b21pYy9saWIvaW5kZXguanM6MjIzOjEwKQogICAgICBhdCB3cml0ZUNhY2hlRmlsZSAoLi4vLi4vLi4vLi4vd29ya3NwYWNlL2NhcGlyb3YyL25vZGVfbW9kdWxlcy8ucG5wbS9AamVzdCt0cmFuc2Zvcm1AMjkuNy4wL25vZGVfbW9kdWxlcy9AamVzdC90cmFuc2Zvcm0vYnVpbGQvU2NyaXB0VHJhbnNmb3JtZXIuanM6OTA4OjMzKQogICAgICBhdCB3cml0ZUNvZGVDYWNoZUZpbGUgKC4uLy4uLy4uLy4uL3dvcmtzcGFjZS9jYXBpcm92Mi9ub2RlX21vZHVsZXMvLnBucG0vQGplc3QrdHJhbnNmb3JtQDI5LjcuMC9ub2RlX21vZHVsZXMvQGplc3QvdHJhbnNmb3JtL2J1aWxkL1NjcmlwdFRyYW5zZm9ybWVyLmpzOjg3NTozKQogICAgICBhdCBTY3JpcHRUcmFuc2Zvcm1lci5fYnVpbGRUcmFuc2Zvcm1SZXN1bHQgKC4uLy4uLy4uLy4uL3dvcmtzcGFjZS9jYXBpcm92Mi9ub2RlX21vZHVsZXMvLnBucG0vQGplc3QrdHJhbnNmb3JtQDI5LjcuMC9ub2RlX21vZHVsZXMvQGplc3QvdHJhbnNmb3JtL2J1aWxkL1NjcmlwdFRyYW5zZm9ybWVyLmpzOjUxNDo1KQogICAgICBhdCBTY3JpcHRUcmFuc2Zvcm1lci50cmFuc2Zvcm1Tb3VyY2UgKC4uLy4uLy4uLy4uL3dvcmtzcGFjZS9jYXBpcm92Mi9ub2RlX21vZHVsZXMvLnBucG0vQGplc3QrdHJhbnNmb3JtQDI5LjcuMC9ub2RlX21vZHVsZXMvQGplc3QvdHJhbnNmb3JtL2J1aWxkL1NjcmlwdFRyYW5zZm9ybWVyLmpzOjU1NDoxNykKICAgICAgYXQgU2NyaXB0VHJhbnNmb3JtZXIuX3RyYW5zZm9ybUFuZEJ1aWxkU2NyaXB0ICguLi8uLi8uLi8uLi93b3Jrc3BhY2UvY2FwaXJvdjIvbm9kZV9tb2R1bGVzLy5wbnBtL0BqZXN0K3RyYW5zZm9ybUAyOS43LjAvbm9kZV9tb2R1bGVzL0BqZXN0L3RyYW5zZm9ybS9idWlsZC9TY3JpcHRUcmFuc2Zvcm1lci5qczo2NzQ6NDApCiAgICAgIGF0IFNjcmlwdFRyYW5zZm9ybWVyLnRyYW5zZm9ybSAoLi4vLi4vLi4vLi4vd29ya3NwYWNlL2NhcGlyb3YyL25vZGVfbW9kdWxlcy8ucG5wbS9AamVzdCt0cmFuc2Zvcm1AMjkuNy4wL25vZGVfbW9kdWxlcy9AamVzdC90cmFuc2Zvcm0vYnVpbGQvU2NyaXB0VHJhbnNmb3JtZXIuanM6NzI2OjE5KQogICAgICBhdCBPYmplY3QuPGFub255bW91cz4gKHNyYy9pbnRlbGxpZ2VuY2UvY2xpZW50LWRpc3RyaWN0LXYxLXNwZW5kLnRzOjEyOjEpCiAgICAgIGF0IE9iamVjdC48YW5vbnltb3VzPiAoc3JjL2ludGVsbGlnZW5jZS9pbnRlbGxpZ2VuY2Uuc2VydmljZS50czoyMDoxKQogICAgICBhdCBPYmplY3QuPGFub255bW91cz4gKHRlc3QvZml4dHVyZXMvaW50ZWxsaWdlbmNlLWZpbmFuY2lhbC50czoxOjEpCiAgICAgIGF0IE9iamVjdC48YW5vbnltb3VzPiAoc3JjL2ludGVsbGlnZW5jZS9pbnRlbGxpZ2VuY2UtZmluYW5jaWFsLXYxLWZsb3cuY2hhcmFjdGVyaXphdGlvbi5zcGVjLnRzOjI6MSkKCkZBSUwgc3JjL2ludGVsbGlnZW5jZS9pbnRlbGxpZ2VuY2UtcHJvZmlsZS12MS1wcm9qZWN0aW9ucy5jaGFyYWN0ZXJpemF0aW9uLnNwZWMudHMKICDil48gVGVzdCBzdWl0ZSBmYWlsZWQgdG8gcnVuCgogICAgamVzdDogZmFpbGVkIHRvIGNhY2hlIHRyYW5zZm9ybSByZXN1bHRzIGluOiAvdG1wL2ludGVsbGlnZW5jZS1jbGllbnQtamVzdC1jYWNoZS0yMDI2MTAxMy9qZXN0LXRyYW5zZm9ybS1jYWNoZS1lM2NmMGFkNGNjNWI3OWE0OTJjNGI0YWMxNjQwZTE1Ny03OWVmMjg3NmZhZTdjYTc1ZWVkYjJhYTUzZGM0ODMzOC8yYS9pbnRlbGxpZ2VuY2Vwcm9maWxldjFwcm9qZWN0aW9uc2NoYXJhY3Rlcml6YXRpb25zcGVjXzJhNTc0NjNhODU5ZWQ1YzFjYzE5Nzg3MjVhNjI1NjA5Lm1hcAogICAgRmFpbHVyZSBtZXNzYWdlOiBFTk9TUEM6IG5vIHNwYWNlIGxlZnQgb24gZGV2aWNlLCB3cml0ZQoKICAgICAgYXQgd3JpdGVGaWxlU3luYyAoLi4vLi4vLi4vLi4vd29ya3NwYWNlL2NhcGlyb3YyL25vZGVfbW9kdWxlcy8ucG5wbS93cml0ZS1maWxlLWF0b21pY0A0LjAuMi9ub2RlX21vZHVsZXMvd3JpdGUtZmlsZS1hdG9taWMvbGliL2luZGV4LmpzOjIyMzoxMCkKICAgICAgYXQgd3JpdGVDYWNoZUZpbGUgKC4uLy4uLy4uLy4uL3dvcmtzcGFjZS9jYXBpcm92Mi9ub2RlX21vZHVsZXMvLnBucG0vQGplc3QrdHJhbnNmb3JtQDI5LjcuMC9ub2RlX21vZHVsZXMvQGplc3QvdHJhbnNmb3JtL2J1aWxkL1NjcmlwdFRyYW5zZm9ybWVyLmpzOjkwODozMykKICAgICAgYXQgU2NyaXB0VHJhbnNmb3JtZXIuX2J1aWxkVHJhbnNmb3JtUmVzdWx0ICguLi8uLi8uLi8uLi93b3Jrc3BhY2UvY2FwaXJvdjIvbm9kZV9tb2R1bGVzLy5wbnBtL0BqZXN0K3RyYW5zZm9ybUAyOS43LjAvbm9kZV9tb2R1bGVzL0BqZXN0L3RyYW5zZm9ybS9idWlsZC9TY3JpcHRUcmFuc2Zvcm1lci5qczo1MTA6NykKICAgICAgYXQgU2NyaXB0VHJhbnNmb3JtZXIudHJhbnNmb3JtU291cmNlICguLi8uLi8uLi8uLi93b3Jrc3BhY2UvY2FwaXJvdjIvbm9kZV9tb2R1bGVzLy5wbnBtL0BqZXN0K3RyYW5zZm9ybUAyOS43LjAvbm9kZV9tb2R1bGVzL0BqZXN0L3RyYW5zZm9ybS9idWlsZC9TY3JpcHRUcmFuc2Zvcm1lci5qczo1NTQ6MTcpCiAgICAgIGF0IFNjcmlwdFRyYW5zZm9ybWVyLl90cmFuc2Zvcm1BbmRCdWlsZFNjcmlwdCAoLi4vLi4vLi4vLi4vd29ya3NwYWNlL2NhcGlyb3YyL25vZGVfbW9kdWxlcy8ucG5wbS9AamVzdCt0cmFuc2Zvcm1AMjkuNy4wL25vZGVfbW9kdWxlcy9AamVzdC90cmFuc2Zvcm0vYnVpbGQvU2NyaXB0VHJhbnNmb3JtZXIuanM6Njc0OjQwKQogICAgICBhdCBTY3JpcHRUcmFuc2Zvcm1lci50cmFuc2Zvcm0gKC4uLy4uLy4uLy4uL3dvcmtzcGFjZS9jYXBpcm92Mi9ub2RlX21vZHVsZXMvLnBucG0vQGplc3QrdHJhbnNmb3JtQDI5LjcuMC9ub2RlX21vZHVsZXMvQGplc3QvdHJhbnNmb3JtL2J1aWxkL1NjcmlwdFRyYW5zZm9ybWVyLmpzOjcyNjoxOSkKCkZBSUwgc3JjL2ludGVsbGlnZW5jZS9pbnRlbGxpZ2VuY2UtYmlsbHMtZQ=="
+}

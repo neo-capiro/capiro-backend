@@ -1,0 +1,34 @@
+{
+  "rawCheckpoint": "4b4b2db3c4c7baedf42a2adcd51bc0b45b3a0e9c",
+  "reviewCommit": "f2904f4b9da65249e36438de394cfb980ef5051d",
+  "finalHygieneReviewCommit": "4d79601154b6962d4105195157d46973737182ea",
+  "archives": [
+    {
+      "format": "capiro-lossless-raw-v1",
+      "encoding": "base64",
+      "originalPath": "docs/intelligence-client-integration-20261013/evidence/attempt0-jest.log",
+      "rawCheckpoint": "4b4b2db3c4c7baedf42a2adcd51bc0b45b3a0e9c",
+      "rawGitBlob": "fd1bdf306227ed86aefbbae64f661ddbbfef6d0a",
+      "bytes": 4096,
+      "sha256": "52699bc24b80147ab9448b9ae900d0c41dba6464d4c6de7006ebc11ab36ea626"
+    },
+    {
+      "format": "capiro-lossless-raw-v1",
+      "encoding": "base64",
+      "originalPath": "docs/intelligence-client-integration-20261013/evidence/jest.log",
+      "rawCheckpoint": "4b4b2db3c4c7baedf42a2adcd51bc0b45b3a0e9c",
+      "rawGitBlob": "9d5b079d53c5407fd508e45a3d7ea6d7c0719464",
+      "bytes": 19643,
+      "sha256": "ec26d8e1edcb56d36240fb636a2fbae6489157ff79bc840edc8f94a9283cf355"
+    },
+    {
+      "format": "capiro-lossless-raw-v1",
+      "encoding": "base64",
+      "originalPath": "docs/intelligence-client-integration-20261013/evidence/hygiene-jest.log",
+      "rawCheckpoint": "4b4b2db3c4c7baedf42a2adcd51bc0b45b3a0e9c",
+      "rawGitBlob": "7a7de486bb76ec694da6bc5cea6e5c6288ccfcb7",
+      "bytes": 1197,
+      "sha256": "12fa93cb515428cb7fe217b8356dabaa05f816aa8cc6fcdadce3a9684cb03c79"
+    }
+  ]
+}

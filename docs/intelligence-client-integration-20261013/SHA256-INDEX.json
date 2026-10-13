@@ -1,0 +1,250 @@
+{
+  "frozenReceivingSource": "cd827868794a3197aa557070a8ae162949e6209f",
+  "correctedProductSource": "6bb28db786d7328762a646e74f87c25d4bf22b3b",
+  "rows": [
+    {
+      "path": "docs/intelligence-client-integration-20261013/EVIDENCE-CUSTODY.md",
+      "bytes": 1245,
+      "sha256": "6ea4d3e709021dcfd792cb738247317ca49bc55d677548967ef03b3dda87b896"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/HANDOFF.md",
+      "bytes": 4498,
+      "sha256": "393494ccd3aa1b2c7e113ef7461784c4f0420bc574612d4310b5ddca4994a567"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/INDEPENDENT-BACKEND-REVIEW.md",
+      "bytes": 2673,
+      "sha256": "efe3cdbc39dbd25cde59d0b41398f47cda97698bcea61a71f94efd7dc0aac534"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/INDEPENDENT-FINAL-HYGIENE-REVIEW.md",
+      "bytes": 1629,
+      "sha256": "c36eb0e1c1c85de3e566907e9af9aaffa368c5ad4b981142edd37a88f2fc249f"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/JEST-SELECTION.json",
+      "bytes": 8335,
+      "sha256": "59eb6b082f9b1ed6d5e73dc45c40ae98a93b2a2bfe6ef6446fae3b15b2d830d0"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/QUALIFICATION.md",
+      "bytes": 3115,
+      "sha256": "bef01c30dbfa64f03c4f90492dc5906b15b55696ed580fccf3ea11a29a6c8fdc"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/RAW-EVIDENCE-CUSTODY.json",
+      "bytes": 1461,
+      "sha256": "7689a3e8b5fffe2e7dee00d68ec096f9d561ea9d0447ebc8c6442b004f44d119"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/build-cli-config.json",
+      "bytes": 215,
+      "sha256": "26bd9a9e4664db4c83d12877949416ebee25165de7ac4efdb31ade9a2110f3e7"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/build-config.json",
+      "bytes": 217,
+      "sha256": "32db03b0c5e9947c7ef5e803b237107aaa45b72a2d3b0c46716a3643995ebe36"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/deny-source-effects.cjs",
+      "bytes": 1233,
+      "sha256": "64de96b82202a0a6e72067f238bb040830f8f81af1a70be16db5c7154a13dfa5"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/attempt0-capacity-failure.json",
+      "bytes": 613,
+      "sha256": "6ba4b005549ca7d40f352d6d876cc6b4d4e26bb4cac3fb63197eeee1a21e2699"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/attempt0-inert-jest.config.cjs.txt",
+      "bytes": 1275,
+      "sha256": "3227aae11b989cfb4f7192a2fff9d8681e153f069af1e5628f353e64cf0a3072"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/attempt0-jest-receipt.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/attempt0-jest.log",
+      "bytes": 5857,
+      "sha256": "8344aa9f50f87b346e9dd55bac8f9b1903259bff6467822bde95520ff202098a"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/attempt0-owned-cache-inventory.json.gz",
+      "bytes": 4544,
+      "sha256": "16181cf48b7170f11886eee8034588e4458a456dd5f834376552ffbc45b29ef2"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/attempt0-run-source-check.py.txt",
+      "bytes": 3801,
+      "sha256": "f323fe1cbc54d88023245a304bb7b7a20fb928681ef361f075bc1ba4c5756478"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/build-output-names-sizes.tsv.gz",
+      "bytes": 34377,
+      "sha256": "796100072236fed6054400b892acb9067bc4be7ad8ea23583de0e521dadd6420"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/build-output-retirement.json",
+      "bytes": 4415,
+      "sha256": "bacba3fb656a73c5b92b53fe754a1debb00786598ab1dbf8120ed83e150a7c1a"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/build-receipt.json",
+      "bytes": 935,
+      "sha256": "3d24e021ca848f5f4c1f1631688d3d7f3a7b301320f0bb1fbb225ceb94ab3276"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/check-placement-adjustment.json",
+      "bytes": 447,
+      "sha256": "fff77dbe295d8a6fe7b2dd1a0054d5c215c7126774454a33656ded526fb96dbe"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/hygiene-jest-receipt.json",
+      "bytes": 1482,
+      "sha256": "cbd11fa1cdf5646a7f7529bffd0c45547cb3c60567124acd4288bda0391a5981"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/hygiene-jest-results.json",
+      "bytes": 17926,
+      "sha256": "393bb7bde9a8976173fcc7c32edd80ceb6fea816215261c761bf1e56c8852bbe"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/hygiene-jest.log",
+      "bytes": 1988,
+      "sha256": "a1fb381b7984873d87528e923e648c0a4c88c6bdba5120d83b720b5b6b4b11d7"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/hygiene-owned-cache-inventory.json.gz",
+      "bytes": 6181,
+      "sha256": "bc68759d7e4adfaa443f884089f68338c04b82acea508844fd6c468f054e161f"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/hygiene-owned-cache-retirement.json",
+      "bytes": 122,
+      "sha256": "14cd85c3462e3ad809899568450762af7f9ceefb63bed50ea605952ab3a8fc74"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/hygiene-transpile-proof.json",
+      "bytes": 992,
+      "sha256": "71d7ac2cb592e8d4768a9e32ddaa9e1905a920ddda16c83303bed455c078af9d"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/jest-receipt.json",
+      "bytes": 9288,
+      "sha256": "0403f8a18a5e91cc8ccaa349b6d6c18ff6c979a9569f8c4320880019d8922c37"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/jest-results.json",
+      "bytes": 369955,
+      "sha256": "5830910a9e312352f3a175db836c6e8d5b29851dac513d23200d1839de7aa1ec"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/jest-summary.json",
+      "bytes": 203,
+      "sha256": "2b5f2df0ab6744386677306836da0b6798e2de4d56f1da45dc085156731ad4f7"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/jest.log",
+      "bytes": 26577,
+      "sha256": "3c95d6cd2053f5874e4d557c7608d829d500796c5bf85e2d583af4e778302620"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/owned-check-host.json",
+      "bytes": 8709,
+      "sha256": "cd8b73b3c73ac17e61ce1459a07bfa23bbeef1671bf12e04dfb8a183f5138998"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/owned-jest-cache-retirement.json",
+      "bytes": 192,
+      "sha256": "1d7443341d34d34229e3eb2262db7a6876dab9574b3cd8e211341755fb82c540"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/owned-root-link-retirement.json",
+      "bytes": 160,
+      "sha256": "138e25d4a7f0f4aae9310903be8ca59c9723fea63800dd999e1a17614a988b69"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/owned-type-info-retirement.json",
+      "bytes": 213,
+      "sha256": "ea0ce880530c29fe7eb181e488288884c6e1ea52daee05ec43dc524f7b605d7b"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/passing-owned-jest-cache-inventory.json.gz",
+      "bytes": 9579,
+      "sha256": "7ebb64bea06684db4ff656de54808ee9db62971a651b466964867a58e58aed0f"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/raw-whitespace-observation.json",
+      "bytes": 632,
+      "sha256": "09e1502bdd77a2a67b37ab2b70c28df9661ce006472a3198f8bcf44c93e4e66b"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/source-ast-audit.json",
+      "bytes": 850,
+      "sha256": "e0a207e793a8b640d89dccd70434a74da954516866e413bb346c5cb1373c78c7"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/source-composition-audit.json",
+      "bytes": 8502,
+      "sha256": "4726130366a9c13c0ff76ad30dc1005159ee69a2795a192fd6426b17dae558cc"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/source-hygiene-correction.json",
+      "bytes": 622,
+      "sha256": "d2905265a84f8e9b95cfd08ff6b02e27da8827ea3a1035a47bcac862e32583d1"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/type-receipt.json",
+      "bytes": 991,
+      "sha256": "840410565f543789ac7e17d871619c3ed962327704dba3a00babed36bf168d8d"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/evidence/type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/excluded-reporting-token.cjs",
+      "bytes": 223,
+      "sha256": "2288905cc7adf9214ba50e627f2c0b56a3199b2c8b3eae475d061fdb5319b008"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/inert-jest.config.cjs",
+      "bytes": 1331,
+      "sha256": "3f9ebda513f892479d00482b20217101da312ff7798d09ba853b41a0ac9bbf32"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/inert-native-parser-environment.cjs",
+      "bytes": 532,
+      "sha256": "6396b0e2c46b04c2c63c18694918bca565f20fdb3c8dfec078a893d580c17a35"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/jest-transform-config.json",
+      "bytes": 178,
+      "sha256": "9527447aed273c10800ec93e500828d7365ce97475a9bdea058b82fc4b4e9e1d"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/run-source-check.py",
+      "bytes": 3801,
+      "sha256": "f323fe1cbc54d88023245a304bb7b7a20fb928681ef361f075bc1ba4c5756478"
+    },
+    {
+      "path": "docs/intelligence-client-integration-20261013/source-ast-audit.cjs",
+      "bytes": 5405,
+      "sha256": "2c4913ed95141774245aa209143c17af0d7ad1eeb63036b4c140883f0a2e2049"
+    }
+  ],
+  "excludedLiteralPaths": [
+    "docs/intelligence-client-integration-20261013/SHA256-INDEX.json",
+    "docs/intelligence-client-integration-20261013/evidence/source-hygiene.json"
+  ]
+}

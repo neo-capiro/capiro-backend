@@ -1,13 +1,10 @@
-ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-intelligence-client-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
-  
-PASS src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts
-PASS src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts
-PASS src/intelligence/intelligence-client-ownership.contract.spec.ts
-
-Test Suites: 3 passed, 3 total
-Tests:       46 passed, 46 total
-Snapshots:   0 total
-Time:        8.522 s
-Ran all test suites within paths "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts", "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts", "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts".
-Test results written to: ../../docs/intelligence-client-integration-20261013/evidence/hygiene-jest-results.json
+{
+  "format": "capiro-lossless-raw-v1",
+  "encoding": "base64",
+  "originalPath": "docs/intelligence-client-integration-20261013/evidence/hygiene-jest.log",
+  "rawCheckpoint": "4b4b2db3c4c7baedf42a2adcd51bc0b45b3a0e9c",
+  "rawGitBlob": "7a7de486bb76ec694da6bc5cea6e5c6288ccfcb7",
+  "bytes": 1197,
+  "sha256": "12fa93cb515428cb7fe217b8356dabaa05f816aa8cc6fcdadce3a9684cb03c79",
+  "data": "dHMtamVzdFtjb25maWddIChXQVJOKSAKICAgIFRoZSAidHMtamVzdCIgY29uZmlnIG9wdGlvbiAiaXNvbGF0ZWRNb2R1bGVzIiBpcyBkZXByZWNhdGVkIGFuZCB3aWxsIGJlIHJlbW92ZWQgaW4gdjMwLjAuMC4gUGxlYXNlIHVzZSAiaXNvbGF0ZWRNb2R1bGVzOiB0cnVlIiBpbiAvdG1wL2NhcGlyb3YyLWludGVsbGlnZW5jZS1jbGllbnQtaW50ZWdyYXRpb24tMjAyNjEwMTMvYXBwcy9hcGkvdHNjb25maWcuanNvbiBpbnN0ZWFkLCBzZWUgaHR0cHM6Ly93d3cudHlwZXNjcmlwdGxhbmcub3JnL3RzY29uZmlnLyNpc29sYXRlZE1vZHVsZXMKICAKUEFTUyBzcmMvaW50ZWxsaWdlbmNlL2ludGVsbGlnZW5jZS1pZGVudGl0eS12MS1maWxpbmdzLmNoYXJhY3Rlcml6YXRpb24uc3BlYy50cwpQQVNTIHNyYy9pbnRlbGxpZ2VuY2UvaW50ZWxsaWdlbmNlLWlkZW50aXR5LXYxLWxkYS5jaGFyYWN0ZXJpemF0aW9uLnNwZWMudHMKUEFTUyBzcmMvaW50ZWxsaWdlbmNlL2ludGVsbGlnZW5jZS1jbGllbnQtb3duZXJzaGlwLmNvbnRyYWN0LnNwZWMudHMKClRlc3QgU3VpdGVzOiAzIHBhc3NlZCwgMyB0b3RhbApUZXN0czogICAgICAgNDYgcGFzc2VkLCA0NiB0b3RhbApTbmFwc2hvdHM6ICAgMCB0b3RhbApUaW1lOiAgICAgICAgOC41MjIgcwpSYW4gYWxsIHRlc3Qgc3VpdGVzIHdpdGhpbiBwYXRocyAiL3RtcC9jYXBpcm92Mi1pbnRlbGxpZ2VuY2UtY2xpZW50LWludGVncmF0aW9uLTIwMjYxMDEzL2FwcHMvYXBpL3NyYy9pbnRlbGxpZ2VuY2UvaW50ZWxsaWdlbmNlLWNsaWVudC1vd25lcnNoaXAuY29udHJhY3Quc3BlYy50cyIsICIvdG1wL2NhcGlyb3YyLWludGVsbGlnZW5jZS1jbGllbnQtaW50ZWdyYXRpb24tMjAyNjEwMTMvYXBwcy9hcGkvc3JjL2ludGVsbGlnZW5jZS9pbnRlbGxpZ2VuY2UtaWRlbnRpdHktdjEtbGRhLmNoYXJhY3Rlcml6YXRpb24uc3BlYy50cyIsICIvdG1wL2NhcGlyb3YyLWludGVsbGlnZW5jZS1jbGllbnQtaW50ZWdyYXRpb24tMjAyNjEwMTMvYXBwcy9hcGkvc3JjL2ludGVsbGlnZW5jZS9pbnRlbGxpZ2VuY2UtaWRlbnRpdHktdjEtZmlsaW5ncy5jaGFyYWN0ZXJpemF0aW9uLnNwZWMudHMiLgpUZXN0IHJlc3VsdHMgd3JpdHRlbiB0bzogLi4vLi4vZG9jcy9pbnRlbGxpZ2VuY2UtY2xpZW50LWludGVncmF0aW9uLTIwMjYxMDEzL2V2aWRlbmNlL2h5Z2llbmUtamVzdC1yZXN1bHRzLmpzb24K"
+}
