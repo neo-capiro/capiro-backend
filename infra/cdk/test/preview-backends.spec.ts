@@ -122,21 +122,36 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
   }
   for (const service of resources.filter((r) => r.Type === 'AWS::ECS::Service'))
     assert.equal(service.Properties.DesiredCount, 0);
-  const route = services.Resources.FrontendProxyRoutes;
-  assert.equal(route.Properties.Priority, 609);
-  assert.deepEqual(route.Properties.Actions[0].TargetGroupArn, fixture.frontendTargetGroupArn);
-  assert.deepEqual(route.Properties.Conditions[1].PathPatternConfig.Values, [
-    '/api/capiro/*',
-    '/api/backend/*',
-    '/api/action-followthrough/*',
-    '/api/documents/*',
-    '/api/conversations/*',
-  ]);
-  assert.equal(services.Resources.UnavailableBackends.Properties.Priority, 608);
-  assert.equal(
-    services.Resources.UnavailableBackends.Properties.Actions[0].FixedResponseConfig.StatusCode,
-    '503',
+  const rules = resources.filter(
+    (r: any) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerRule',
   );
+  assert.equal(rules.length, 7);
+  assert.deepEqual(
+    rules.map((r: any) => r.Properties.Priority).sort(),
+    [608, 609, 610, 611, 612, 613, 614],
+  );
+  for (const rule of rules) {
+    const counts = rule.Properties.Conditions.map((c: any) =>
+      Object.values(c).find((v: any) => v && typeof v === 'object' && 'Values' in v),
+    ).map((v: any) => v.Values.length);
+    assert.ok(counts.every((n: number) => n <= 3));
+    assert.ok(counts.reduce((a: number, b: number) => a + b, 0) <= 5);
+  }
+  const proxies = rules.filter((r: any) => [610, 611].includes(r.Properties.Priority));
+  assert.deepEqual(
+    proxies.flatMap((r: any) => r.Properties.Conditions[1].PathPatternConfig.Values).sort(),
+    [
+      '/api/capiro/*',
+      '/api/backend/*',
+      '/api/action-followthrough/*',
+      '/api/documents/*',
+      '/api/conversations/*',
+    ].sort(),
+  );
+  for (const proxy of proxies)
+    assert.deepEqual(proxy.Properties.Actions[0].TargetGroupArn, fixture.frontendTargetGroupArn);
+  for (const held of rules.filter((r: any) => [608, 609].includes(r.Properties.Priority)))
+    assert.equal(held.Properties.Actions[0].FixedResponseConfig.StatusCode, '503');
   assert.equal(
     resources.filter((r) => r.Type === 'AWS::ElasticLoadBalancingV2::ListenerCertificate').length,
     0,
@@ -164,7 +179,7 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
   assert.equal(cluster.Properties.DeletionProtection, true);
   assert.equal(
     Object.values(data.Resources).filter((r: any) => r.Type === 'AWS::RDS::DBInstance').length,
-    2,
+    1,
   );
   for (const instance of Object.values(data.Resources).filter(
     (r: any) => r.Type === 'AWS::RDS::DBInstance',
@@ -178,6 +193,57 @@ test('held service templates use new DB/asset owners, preserve proxy routing and
     ),
     false,
   );
+  assert.equal(
+    Object.values(data.Resources).filter((r: any) => r.Type === 'AWS::SecretsManager::Secret')
+      .length,
+    2,
+  );
+  assert.equal(
+    Object.values(data.Resources).some(
+      (r: any) =>
+        r.Type === 'AWS::Lambda::Function' ||
+        r.Type === 'AWS::IAM::Role' ||
+        r.Type === 'Custom::LogRetention',
+    ),
+    false,
+  );
+  const dbLog = Object.values(data.Resources).find(
+    (r: any) => r.Type === 'AWS::Logs::LogGroup',
+  ) as any;
+  assert.equal(dbLog.Properties.RetentionInDays, 14);
+  assert.equal(dbLog.Properties.LogGroupName, '/aws/rds/cluster/capiro-preview/postgresql');
+  assert.equal(
+    Object.values(assets.Resources).some(
+      (r: any) => r.Type === 'AWS::IAM::Role' || r.Type === 'AWS::IAM::Policy',
+    ),
+    false,
+  );
+  const policies = resources.filter((r: any) => r.Type === 'AWS::IAM::Policy');
+  for (const policy of policies)
+    for (const statement of policy.Properties.PolicyDocument.Statement) {
+      const actions = [statement.Action].flat();
+      if (actions.includes('s3:ListBucket'))
+        assert.deepEqual(
+          statement.Condition.StringLike['s3:prefix'].sort(),
+          [fixture.neoTenantId, fixture.automationTenantId]
+            .flatMap((t) => [`tenants/${t}/*`, `tenants/client-logo-uploads/${t}/*`])
+            .sort(),
+        );
+      if (actions.includes('s3:PutObject')) {
+        const raw = JSON.stringify(statement.Resource);
+        for (const t of [fixture.neoTenantId, fixture.automationTenantId])
+          assert.ok(raw.includes(t));
+        assert.equal(actions.includes('s3:PutObjectLegalHold'), false);
+        assert.equal(actions.includes('s3:PutObjectRetention'), false);
+      }
+      if (actions.includes('kms:Decrypt'))
+        assert.ok(
+          ['s3.us-east-1.amazonaws.com', 'secretsmanager.us-east-1.amazonaws.com'].includes(
+            statement.Condition.StringEquals['kms:ViaService'],
+          ),
+        );
+      if (statement.Resource === '*') assert.deepEqual(actions, ['ecr:GetAuthorizationToken']);
+    }
   const bucket = Object.values(assets.Resources).find(
     (r: any) => r.Type === 'AWS::S3::Bucket',
   ) as any;

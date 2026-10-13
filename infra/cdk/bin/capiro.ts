@@ -52,6 +52,10 @@ const assets = new AssetsStack(app, stackName(cfg.envName, 'Assets'), {
   cfg,
 });
 
+if (!data.promoterSecret || !data.analyticsSecret)
+  throw new Error(
+    'Legacy compute requires full canonical credentials; preview uses its dedicated application',
+  );
 const compute = new ComputeStack(app, stackName(cfg.envName, 'Compute'), {
   env,
   tags,

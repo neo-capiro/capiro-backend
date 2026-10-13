@@ -19,15 +19,15 @@
   "images": {
     "core": {
       "uri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+      "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb"
     },
     "workspace": {
       "uri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-workspace@sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+      "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb"
     },
     "intelligence": {
       "uri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-intelligence@sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+      "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb"
     }
   }
 }

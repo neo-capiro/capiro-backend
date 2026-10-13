@@ -26,7 +26,7 @@ export interface AssetsStackProps extends cdk.StackProps {
 export class AssetsStack extends cdk.Stack {
   public readonly bucket: s3.Bucket;
   public readonly key: kms.Key;
-  public readonly strategyReportTaskRole: iam.Role;
+  public readonly strategyReportTaskRole?: iam.Role;
 
   constructor(scope: Construct, id: string, props: AssetsStackProps) {
     super(scope, id, props);
@@ -109,21 +109,24 @@ export class AssetsStack extends cdk.Stack {
     // This role lives with the deployable Assets stack rather than the currently
     // wedged Compute stack. The manual Strategy task definition can therefore
     // adopt least-privilege logo reads before Compute is reconciled.
-    this.strategyReportTaskRole = new iam.Role(this, 'StrategyReportTaskRole', {
-      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
-      description: 'Capiro Strategy report-serving task role',
-      roleName: `capiro-${cfg.envName}-api-strategy-task-role`,
-    });
-    this.grantClientLogoRead(this.strategyReportTaskRole);
-    this.grantPlannerAttachmentAccess(this.strategyReportTaskRole);
+    if (cfg.envName !== 'preview') {
+      this.strategyReportTaskRole = new iam.Role(this, 'StrategyReportTaskRole', {
+        assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+        description: 'Capiro Strategy report-serving task role',
+        roleName: `capiro-${cfg.envName}-api-strategy-task-role`,
+      });
+      this.grantClientLogoRead(this.strategyReportTaskRole);
+      this.grantPlannerAttachmentAccess(this.strategyReportTaskRole);
+    }
 
     new cdk.CfnOutput(this, 'AssetsBucketName', {
       value: this.bucket.bucketName,
     });
     new cdk.CfnOutput(this, 'AssetsKeyArn', { value: this.key.keyArn });
-    new cdk.CfnOutput(this, 'StrategyReportTaskRoleArn', {
-      value: this.strategyReportTaskRole.roleArn,
-    });
+    if (this.strategyReportTaskRole)
+      new cdk.CfnOutput(this, 'StrategyReportTaskRoleArn', {
+        value: this.strategyReportTaskRole.roleArn,
+      });
   }
 
   /** Planner-owned uploads and authorized downloads, isolated from document keys. */

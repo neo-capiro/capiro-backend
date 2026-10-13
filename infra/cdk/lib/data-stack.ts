@@ -54,7 +54,7 @@ export class DataStack extends cdk.Stack {
    * §5, which calls this "a significant favourable finding" for exactly this
    * reason.
    */
-  public readonly promoterSecret: secretsmanager.ISecret;
+  public readonly promoterSecret?: secretsmanager.ISecret;
   /**
    * `capiro_analytics_ro` credential — the SELECT-only role behind Meri's
    * `query_global_data` tool. Same pattern as `promoterSecret`: this Secret
@@ -62,7 +62,7 @@ export class DataStack extends cdk.Stack {
    * role's password to match (supports `ANALYTICS_USER`/`ANALYTICS_PASSWORD`
    * as of the same change that added this Secret).
    */
-  public readonly analyticsSecret: secretsmanager.ISecret;
+  public readonly analyticsSecret?: secretsmanager.ISecret;
   /**
    * The cluster's reader endpoint. Provisioned since day one (`readers:
    * [reader1]` below) but unused by any application until this — every other
@@ -133,7 +133,16 @@ export class DataStack extends cdk.Stack {
     });
     this.secret = masterSecret;
 
+    const previewPostgresLogs =
+      cfg.envName === 'preview'
+        ? new logs.LogGroup(this, 'PreviewPostgresLogs', {
+            logGroupName: '/aws/rds/cluster/capiro-preview/postgresql',
+            retention: logs.RetentionDays.TWO_WEEKS,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+          })
+        : undefined;
     this.cluster = new rds.DatabaseCluster(this, 'AuroraCluster', {
+      clusterIdentifier: cfg.envName === 'preview' ? 'capiro-preview' : undefined,
       engine: rds.DatabaseClusterEngine.auroraPostgres({
         version: auroraPostgresVersion,
       }),
@@ -149,8 +158,7 @@ export class DataStack extends cdk.Stack {
         retention: cdk.Duration.days(cfg.auroraBackupRetentionDays),
       },
       cloudwatchLogsExports: ['postgresql'],
-      cloudwatchLogsRetention:
-        cfg.envName === 'preview' ? logs.RetentionDays.TWO_WEEKS : logs.RetentionDays.ONE_YEAR,
+      cloudwatchLogsRetention: cfg.envName === 'preview' ? undefined : logs.RetentionDays.ONE_YEAR,
       iamAuthentication: true,
       deletionProtection: cfg.protectFromDestroy,
       removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
@@ -161,15 +169,20 @@ export class DataStack extends cdk.Stack {
         enablePerformanceInsights: cfg.envName !== 'preview',
         performanceInsightEncryptionKey: cfg.envName === 'preview' ? undefined : this.key,
       }),
-      readers: [
-        rds.ClusterInstance.serverlessV2('reader1', {
-          publiclyAccessible: false,
-          enablePerformanceInsights: cfg.envName !== 'preview',
-          performanceInsightEncryptionKey: cfg.envName === 'preview' ? undefined : this.key,
-          scaleWithWriter: true,
-        }),
-      ],
+      readers:
+        cfg.envName === 'preview'
+          ? []
+          : [
+              rds.ClusterInstance.serverlessV2('reader1', {
+                publiclyAccessible: false,
+                enablePerformanceInsights: cfg.envName !== 'preview',
+                performanceInsightEncryptionKey: cfg.envName === 'preview' ? undefined : this.key,
+                scaleWithWriter: true,
+              }),
+            ],
     });
+
+    if (previewPostgresLogs) this.cluster.node.addDependency(previewPostgresLogs);
 
     // `Credentials.fromSecret(masterSecret)` attaches the secret to the cluster
     // automatically, calling masterSecret.attach() again throws.
@@ -266,27 +279,29 @@ export class DataStack extends cdk.Stack {
     // secrets attach to this role's task; this Secret is the only credential
     // it needs.
     const promoterSecret =
-      cfg.envName === 'staging'
-        ? secretsmanager.Secret.fromSecretNameV2(
-            this,
-            'PromoterSecret',
-            `/capiro/${cfg.envName}/aurora/promoter`,
-          )
-        : new secretsmanager.Secret(this, 'PromoterSecret', {
-            secretName: `/capiro/${cfg.envName}/aurora/promoter`,
-            description:
-              'Capiro Aurora capiro_pe_promoter runtime credentials (Phase 7 canonical promotion)',
-            encryptionKey: this.key,
-            generateSecretString: {
-              secretStringTemplate: JSON.stringify({ username: 'capiro_pe_promoter' }),
-              generateStringKey: 'password',
-              excludePunctuation: true,
-              passwordLength: 32,
-            },
-            removalPolicy: cfg.protectFromDestroy
-              ? cdk.RemovalPolicy.RETAIN
-              : cdk.RemovalPolicy.DESTROY,
-          });
+      cfg.envName === 'preview'
+        ? undefined
+        : cfg.envName === 'staging'
+          ? secretsmanager.Secret.fromSecretNameV2(
+              this,
+              'PromoterSecret',
+              `/capiro/${cfg.envName}/aurora/promoter`,
+            )
+          : new secretsmanager.Secret(this, 'PromoterSecret', {
+              secretName: `/capiro/${cfg.envName}/aurora/promoter`,
+              description:
+                'Capiro Aurora capiro_pe_promoter runtime credentials (Phase 7 canonical promotion)',
+              encryptionKey: this.key,
+              generateSecretString: {
+                secretStringTemplate: JSON.stringify({ username: 'capiro_pe_promoter' }),
+                generateStringKey: 'password',
+                excludePunctuation: true,
+                passwordLength: 32,
+              },
+              removalPolicy: cfg.protectFromDestroy
+                ? cdk.RemovalPolicy.RETAIN
+                : cdk.RemovalPolicy.DESTROY,
+            });
     this.promoterSecret = promoterSecret;
 
     // Meri query_global_data's own secret. Deliberately separate from master
@@ -294,35 +309,42 @@ export class DataStack extends cdk.Stack {
     // capability beyond SELECT on the global-dataset-registry allowlist ever
     // attaches to this credential.
     const analyticsSecret =
-      cfg.envName === 'staging'
-        ? secretsmanager.Secret.fromSecretNameV2(
-            this,
-            'AnalyticsSecret',
-            `/capiro/${cfg.envName}/aurora/analytics-ro`,
-          )
-        : new secretsmanager.Secret(this, 'AnalyticsSecret', {
-            secretName: `/capiro/${cfg.envName}/aurora/analytics-ro`,
-            description:
-              'Capiro Aurora capiro_analytics_ro runtime credentials (Meri query_global_data, SELECT-only)',
-            encryptionKey: this.key,
-            generateSecretString: {
-              secretStringTemplate: JSON.stringify({ username: 'capiro_analytics_ro' }),
-              generateStringKey: 'password',
-              excludePunctuation: true,
-              passwordLength: 32,
-            },
-            removalPolicy: cfg.protectFromDestroy
-              ? cdk.RemovalPolicy.RETAIN
-              : cdk.RemovalPolicy.DESTROY,
-          });
+      cfg.envName === 'preview'
+        ? undefined
+        : cfg.envName === 'staging'
+          ? secretsmanager.Secret.fromSecretNameV2(
+              this,
+              'AnalyticsSecret',
+              `/capiro/${cfg.envName}/aurora/analytics-ro`,
+            )
+          : new secretsmanager.Secret(this, 'AnalyticsSecret', {
+              secretName: `/capiro/${cfg.envName}/aurora/analytics-ro`,
+              description:
+                'Capiro Aurora capiro_analytics_ro runtime credentials (Meri query_global_data, SELECT-only)',
+              encryptionKey: this.key,
+              generateSecretString: {
+                secretStringTemplate: JSON.stringify({ username: 'capiro_analytics_ro' }),
+                generateStringKey: 'password',
+                excludePunctuation: true,
+                passwordLength: 32,
+              },
+              removalPolicy: cfg.protectFromDestroy
+                ? cdk.RemovalPolicy.RETAIN
+                : cdk.RemovalPolicy.DESTROY,
+            });
     this.analyticsSecret = analyticsSecret;
-    this.readerEndpoint = this.cluster.clusterReadEndpoint.hostname;
+    this.readerEndpoint =
+      cfg.envName === 'preview'
+        ? this.cluster.clusterEndpoint.hostname
+        : this.cluster.clusterReadEndpoint.hostname;
 
     new cdk.CfnOutput(this, 'AuroraEndpoint', { value: this.cluster.clusterEndpoint.hostname });
     new cdk.CfnOutput(this, 'AuroraReaderEndpoint', { value: this.readerEndpoint });
     new cdk.CfnOutput(this, 'AuroraSecretArn', { value: masterSecret.secretArn });
     new cdk.CfnOutput(this, 'AuroraAppSecretArn', { value: appSecret.secretArn });
-    new cdk.CfnOutput(this, 'AuroraPromoterSecretArn', { value: promoterSecret.secretArn });
-    new cdk.CfnOutput(this, 'AuroraAnalyticsSecretArn', { value: analyticsSecret.secretArn });
+    if (promoterSecret)
+      new cdk.CfnOutput(this, 'AuroraPromoterSecretArn', { value: promoterSecret.secretArn });
+    if (analyticsSecret)
+      new cdk.CfnOutput(this, 'AuroraAnalyticsSecretArn', { value: analyticsSecret.secretArn });
   }
 }

@@ -87,7 +87,7 @@ export function previewBindings(input: unknown): PreviewBindings {
           `^${account}\\.dkr\\.ecr\\.${region}\\.amazonaws\\.com/capiro/preview-${name}@sha256:[0-9a-f]{64}$`,
         ),
       ),
-      sourceHead: text(image.sourceHead, /^b9da0ae2938821e08a3bfea563c6267608ae9909$/),
+      sourceHead: text(image.sourceHead, /^e50aed3c5b5cce58317b37de442482fa970842cb$/),
     };
   }
   const result: PreviewBindings = {

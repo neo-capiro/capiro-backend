@@ -114,6 +114,9 @@ export class ComputeStack extends cdk.Stack {
       hostedZone,
       assetsStack,
     } = props;
+    if (cfg.envName === 'preview' || !assetsStack.strategyReportTaskRole) {
+      throw new Error('Legacy compute requires full canonical asset owner; preview uses its dedicated application');
+    }
 
     Object.entries(commonTags(cfg)).forEach(([k, v]) =>
       cdk.Tags.of(this).add(k, v),

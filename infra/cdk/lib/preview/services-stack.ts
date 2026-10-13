@@ -50,50 +50,53 @@ export class PreviewBackendServices extends cdk.Stack {
       bindings.clerkSecretArn,
     );
     const encryptionKey = kms.Key.fromKeyArn(this, 'PreviewClerkEncryption', bindings.clerkKeyArn);
-    // Preserve canonical same-origin proxy and conversation namespaces before Core's /api/*.
-    new elb.CfnListenerRule(this, 'FrontendProxyRoutes', {
-      listenerArn: bindings.listenerArn,
-      priority: 609,
-      conditions: [
-        { field: 'host-header', hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] } },
-        {
-          field: 'path-pattern',
-          pathPatternConfig: {
-            values: [
-              '/api/capiro/*',
-              '/api/backend/*',
-              '/api/action-followthrough/*',
-              '/api/documents/*',
-              '/api/conversations/*',
-            ],
-          },
-        },
-      ],
-      actions: [{ type: 'forward', targetGroupArn: bindings.frontendTargetGroupArn }],
-    });
-    new elb.CfnListenerRule(this, 'UnavailableBackends', {
-      listenerArn: bindings.listenerArn,
-      priority: 608,
-      conditions: [
-        { field: 'host-header', hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] } },
-        {
-          field: 'path-pattern',
-          pathPatternConfig: {
-            values: ['/strategy-api/*', '/onboard-api/*', '/meri-api/*', '/api/meri/*'],
-          },
-        },
-      ],
-      actions: [
-        {
-          type: 'fixed-response',
-          fixedResponseConfig: {
-            statusCode: '503',
-            contentType: 'application/json',
-            messageBody: '{"error":"PREVIEW_SERVICE_UNAVAILABLE"}',
-          },
-        },
-      ],
-    });
+    const heldPaths = [['/strategy-api/*', '/onboard-api/*', '/meri-api/*'], ['/api/meri/*']];
+    heldPaths.forEach(
+      (values, index) =>
+        new elb.CfnListenerRule(this, `UnavailableBackends${index}`, {
+          listenerArn: bindings.listenerArn,
+          priority: 608 + index,
+          conditions: [
+            {
+              field: 'host-header',
+              hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] },
+            },
+            { field: 'path-pattern', pathPatternConfig: { values } },
+          ],
+          actions: [
+            {
+              type: 'fixed-response',
+              fixedResponseConfig: {
+                statusCode: '503',
+                contentType: 'application/json',
+                messageBody: '{"error":"PREVIEW_SERVICE_UNAVAILABLE"}',
+              },
+            },
+          ],
+        }),
+    );
+    const proxyPaths = [
+      ['/api/capiro/*', '/api/backend/*', '/api/action-followthrough/*'],
+      ['/api/documents/*', '/api/conversations/*'],
+    ];
+    proxyPaths.forEach(
+      (values, index) =>
+        new elb.CfnListenerRule(this, `FrontendProxyRoutes${index}`, {
+          listenerArn: bindings.listenerArn,
+          priority: 610 + index,
+          conditions: [
+            {
+              field: 'host-header',
+              hostHeaderConfig: { values: ['portfolio-preview.app.capiro.ai'] },
+            },
+            { field: 'path-pattern', pathPatternConfig: { values } },
+          ],
+          actions: [{ type: 'forward', targetGroupArn: bindings.frontendTargetGroupArn }],
+        }),
+    );
+    const tenantPrefixes = [bindings.neoTenantId, bindings.automationTenantId].flatMap(
+      (tenantId) => [`tenants/${tenantId}/*`, `tenants/client-logo-uploads/${tenantId}/*`],
+    );
     const owners = [
       { name: 'core' as const, port: 4000, path: '/api/*', health: '/api/health' },
       { name: 'workspace' as const, port: 4200, path: '/workspace-api/*', health: '/health' },
@@ -103,17 +106,60 @@ export class PreviewBackendServices extends cdk.Stack {
       const role = new iam.Role(this, `${owner.name}TaskRole`, {
         assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       });
-      if (owner.name === 'core' || owner.name === 'workspace') assetBucket.grantReadWrite(role);
+      if (owner.name === 'core' || owner.name === 'workspace') {
+        role.addToPrincipalPolicy(
+          new iam.PolicyStatement({
+            actions: [
+              's3:GetObject',
+              's3:GetObjectVersion',
+              's3:PutObject',
+              's3:DeleteObject',
+              's3:AbortMultipartUpload',
+              's3:ListMultipartUploadParts',
+            ],
+            resources: tenantPrefixes.map((prefix) => assetBucket.arnForObjects(prefix)),
+          }),
+        );
+        role.addToPrincipalPolicy(
+          new iam.PolicyStatement({
+            actions: ['s3:ListBucket'],
+            resources: [assetBucket.bucketArn],
+            conditions: { StringLike: { 's3:prefix': tenantPrefixes } },
+          }),
+        );
+        role.addToPrincipalPolicy(
+          new iam.PolicyStatement({
+            actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
+            resources: [assetKey.keyArn],
+            conditions: { StringEquals: { 'kms:ViaService': 's3.us-east-1.amazonaws.com' } },
+          }),
+        );
+      }
       const executionRole = new iam.Role(this, `${owner.name}ExecutionRole`, {
         assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
-        managedPolicies: [
-          iam.ManagedPolicy.fromAwsManagedPolicyName(
-            'service-role/AmazonECSTaskExecutionRolePolicy',
-          ),
-        ],
       });
-      encryptionKey.grantDecrypt(executionRole);
-      dataKey.grantDecrypt(executionRole);
+      executionRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({ actions: ['ecr:GetAuthorizationToken'], resources: ['*'] }),
+      );
+      executionRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: [
+            'ecr:BatchCheckLayerAvailability',
+            'ecr:GetDownloadUrlForLayer',
+            'ecr:BatchGetImage',
+          ],
+          resources: [`arn:aws:ecr:us-east-1:967807252336:repository/capiro/preview-${owner.name}`],
+        }),
+      );
+      executionRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: ['kms:Decrypt'],
+          resources: [encryptionKey.keyArn, dataKey.keyArn],
+          conditions: {
+            StringEquals: { 'kms:ViaService': 'secretsmanager.us-east-1.amazonaws.com' },
+          },
+        }),
+      );
       const task = new ecs.FargateTaskDefinition(this, `${owner.name}Task`, {
         family: `capiro-preview-${owner.name}`,
         cpu: 512,
@@ -174,7 +220,7 @@ export class PreviewBackendServices extends cdk.Stack {
       service.attachToApplicationTargetGroup(target);
       new elb.CfnListenerRule(this, `${owner.name}Route`, {
         listenerArn: bindings.listenerArn,
-        priority: 610 + index,
+        priority: 612 + index,
         conditions: [
           {
             field: 'host-header',
