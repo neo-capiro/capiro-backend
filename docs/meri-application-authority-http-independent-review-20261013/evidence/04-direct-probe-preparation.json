@@ -1,0 +1,12 @@
+{
+  "initialUnrun": {
+    "sha256": "873f07eae08150dff34d5241ad7031d205f4e95d00f741fac273a75a04fb6fa7",
+    "bytes": 10680
+  },
+  "correctedUnrun": {
+    "sha256": "5c863229e32b61d85505da790798e50145b85ae7eae9ac09ba8814447547b4a8",
+    "bytes": 11134
+  },
+  "correction": "shared database comments use shobj_description; URL exactport/user and SELECT-only role privileges explicit",
+  "executed": false
+}

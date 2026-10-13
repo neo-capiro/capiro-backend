@@ -1,0 +1,244 @@
+{
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "tree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+  "manifestSha256": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
+  "atUTC": "2026-10-13T07:05:33.053020+00:00",
+  "wholeSourceReads": true,
+  "protectedBodyRead": false,
+  "native": false,
+  "listener": false,
+  "rows": [
+    {
+      "path": "apps/api/src/app.module.ts",
+      "blob": "b7cf770413db5e5fab3c74ce07f7ed8ff873a993",
+      "bytes": 9137,
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/auth/auth.module.ts",
+      "blob": "38f8dd8b9df5d8f8e7e3025d7f1541d084b44391",
+      "bytes": 973,
+      "sha256": "678d559f329735b77ebacbdea6cf9e3466e19ffe8ab0ddc5640f52b17f5f384d",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "blob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "bytes": 8258,
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "blob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "bytes": 9325,
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/auth/clerk-role.util.ts",
+      "blob": "1577461f5d7cdf2d7f3867ad18e4fc4198d23a4a",
+      "bytes": 1991,
+      "sha256": "01ef5660e55db04465edbfc553318a50e2cd47414a6ca50e37874c2dbcb8ca6d",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "blob": "60fbbc8a1de21962a95af60842d25087f58a612d",
+      "bytes": 2703,
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/auth/roles.decorator.ts",
+      "blob": "ec576399d6ad69e4a42f8e87eb08df43663edde9",
+      "bytes": 447,
+      "sha256": "48273cb64384cd3b22c90e3abc8a0a0e0c77d774ac1d30602e1d0a1a26715a62",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant.module.ts",
+      "blob": "d617507143fbbf802fd70fcaebcf5455a6d77bf8",
+      "bytes": 358,
+      "sha256": "6858db17104b4f12a91c69a766bb6c93fc0d0d5cad8ebaf2f04503c9f4131616",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "blob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "bytes": 30010,
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.store.ts",
+      "blob": "5442923946ee98648b76b50700ca049ddff107e6",
+      "bytes": 884,
+      "sha256": "33b46f43722694f12986ff4d535e1ee31f8834c2e8cec0d70e319cfe91be5181",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/tenant/current-tenant.decorator.ts",
+      "blob": "40fbcf7d5ad5c4bf1b75963c97ac41207ebf64b6",
+      "bytes": 776,
+      "sha256": "4709acfb1164a4e71fa508e03534a9015a0c8e7fc4ccc452264099e913281647",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.module.ts",
+      "blob": "efb7a8dc0bb83ba5f2c99547abdd2c5023d1072d",
+      "bytes": 213,
+      "sha256": "8e32aa6e0aa74ae51df4642cc0da286fe53447e3c66d3609b6689f65b03a4641",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "blob": "677810b805210533034bf268a6c26014311cda1d",
+      "bytes": 12476,
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "blob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "bytes": 2627,
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "blob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "bytes": 7013,
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/context/context.types.ts",
+      "blob": "7c92a4a80fbc73ffba87644b37854ebe83a18d8e",
+      "bytes": 5392,
+      "sha256": "b61dfd755bd161a77cba40dd2c23a8e9723cf93527220a060d80de67f2892746",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/context/context-persistence-boundary.service.ts",
+      "blob": "79a4df92a5e533fe255a082a3fc2b83ca825877e",
+      "bytes": 1450,
+      "sha256": "21bdf2d100bcf29733f415bf787e44a1f24a4082b6189a5d55aa6a89ba8c7221",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/context/context-persistence-boundary.interceptor.ts",
+      "blob": "bef0927e4dc46b91d59110ea60062f43b4916b06",
+      "bytes": 1851,
+      "sha256": "bde48e68ccd4ddc9010182bb4477328218e77a82904438c5c40117b2d320ec51",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "blob": "8e4ec3ea811f7b2e8895760269e3b297099abea4",
+      "bytes": 12478,
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "blob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "bytes": 45695,
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "blob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "bytes": 295936,
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "blob": "28f02937c824fdbf1f6655f87bd94a52969aa360",
+      "bytes": 11027,
+      "sha256": "34abf99eb804afba2b598d430d4ed4d9806f4bb35b0254b9ccda1b1ef5f956e5",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-circuit-breaker.ts",
+      "blob": "c3c184db37aa2e39b460481f8b15c16b39bfb6b8",
+      "bytes": 2349,
+      "sha256": "4e045c01c38997146305f0ec73146fa36e413a6eb1bf9d5aec352a3aa419c067",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "blob": "89d87e7f83760ef04db46dd31a69796674f5dacf",
+      "bytes": 4140,
+      "sha256": "3a3089721a795836a4d4714e7f3fdc33869c0c1a26b1fa9a3726881170aee0ea",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "blob": "2cb7e71ff5929a6a78a97d60d27668409633572d",
+      "bytes": 8411,
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/common/tenant-flags.ts",
+      "blob": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d",
+      "bytes": 28465,
+      "sha256": "9a78b70d147496aadd94dfd7e11eb87f4e9300553670297987bead550de337a9",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "blob": "b09e0ed7d15c3d6c3834f4c878ee409bcff86460",
+      "bytes": 4785,
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-meri-scope.service.ts",
+      "blob": "1a1132aacc19d8565778ecf83614b2cff658cd3e",
+      "bytes": 6332,
+      "sha256": "35417378d7cdd373ccab8ecfc72f6e0c52ce521d80f93b52a8790c1e998e0ea9",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-access.ts",
+      "blob": "6f110e358145ff50e424e2f6805669c0081998fa",
+      "bytes": 1833,
+      "sha256": "927d3292d437c944d80ccb9be6f9e7f77a15906eb9408eb9b3aa1ca259fb7e08",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "blob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "bytes": 7222,
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "blob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+      "bytes": 7342,
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/common/prisma-exception.filter.ts",
+      "blob": "d692843be4331ef52deae9937a8230a4b9d57e0e",
+      "bytes": 5689,
+      "sha256": "2f5476ef3e5206c079480ff7a52a2f8c79c182583851d94042fbd9c93da81145",
+      "match": true
+    },
+    {
+      "path": "apps/api/src/observability/api-latency.middleware.ts",
+      "blob": "3b16d879c5e1a89813791b7816637ee486aeabdf",
+      "bytes": 1098,
+      "sha256": "2b5bd782c8c793c58af21f1c54aa5aa05b9dc43ea45a8f34bd2e44a4c1b80433",
+      "match": true
+    }
+  ],
+  "bad": 0
+}

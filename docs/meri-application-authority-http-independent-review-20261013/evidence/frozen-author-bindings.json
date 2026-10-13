@@ -1,0 +1,13 @@
+{
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "authorPin": "184da5ef70c0fd79bf7f099a8d98a7d17c679d0f",
+  "authorTree": "921d5b57ff0944f4f4267fe37f5edec36c262c75",
+  "files": {
+    "http-driver.cjs": "3fdf8bfee898c223fc026bd2673dcd43fe5aefd68195221825c4b573ff8b0f10",
+    "critical-loader.cjs": "28495b8661ac8c0d089c49d52dd97b59ddf2c1b9b44359bf8607bd688e1fce10",
+    "critical-source-sha256.json": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
+    "containment-preload.cjs": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a"
+  },
+  "capturedOnly": true,
+  "executed": false
+}

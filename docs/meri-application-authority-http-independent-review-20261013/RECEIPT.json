@@ -1,0 +1,100 @@
+{
+  "production": {
+    "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+    "tree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2"
+  },
+  "authorHarness": {
+    "head": "184da5ef70c0fd79bf7f099a8d98a7d17c679d0f",
+    "tree": "921d5b57ff0944f4f4267fe37f5edec36c262c75"
+  },
+  "authorEvidence": {
+    "head": "f59d9ee1cf75670c2d80a5f012fbe42474e0654d",
+    "tree": "8a2e8a4af49e1a182063c06c4c1bbb5f0bdead7f"
+  },
+  "decision": "ACCEPT bounded source/nativeHTTP/direct-controlled-role RLS qualification",
+  "independentExecution": {
+    "preflight": {
+      "passed": 28,
+      "failed": 0,
+      "actualHTTP": false,
+      "DB": false
+    },
+    "actualHTTP": {
+      "cases": 24,
+      "passed": 24,
+      "failed": 0,
+      "actualPOSTs": 26,
+      "nativeQueries": {
+        "count": 867,
+        "transactions": 76,
+        "parametersSerialized": false
+      },
+      "receiptSha256": "4d4e2de7bc8f20c97ed15448a6fd8521d63a1e6891456e0b9454815e60aa7750"
+    },
+    "directNativeRLS": {
+      "assertions": 30,
+      "passed": 30,
+      "failed": 0,
+      "readOnlyTransaction": true,
+      "rowsMutated": false,
+      "receiptSha256": "9487def457f77abde2913d9c5882e2f478a511836b41614d4be466a400114de5"
+    }
+  },
+  "verifiedAuthorCasesNotReplayed": 45,
+  "sourceBindings": {
+    "criticalWholeFiles": 33,
+    "bad": 0
+  },
+  "authorPacketBindings": {
+    "rows": 52,
+    "bad": 0
+  },
+  "runtimeDependencyBindings": {
+    "nativeCacheFiles": 21,
+    "sharedRuntimeFiles": 149,
+    "bad": 0
+  },
+  "fixture": {
+    "databaseName": "capiro_auth_http_20261013_4966f869fa",
+    "databaseOid": 16917,
+    "systemIdentifier": "7695590366852821031",
+    "schemaTables": 8,
+    "RLSCoveredTables": 6,
+    "nonvacuousWitnessEachTenantEachCoveredTable": true,
+    "APIRuntimeSuperuserBypass": true,
+    "controlledDirectRoleSuperuserBypassLogin": false,
+    "controlledDirectRoleOwnerMembership": false
+  },
+  "effectScope": {
+    "productionSourceChanges": 0,
+    "protectedReportingReadOrExecution": false,
+    "privateWireCopied": false,
+    "liveClerk": false,
+    "newCredentials": false,
+    "nativeDownloadGeneration": false,
+    "install": false,
+    "DockerAWSProvider": false,
+    "fullApplicationBootstrap": false,
+    "fullMigrations": false,
+    "productionRoleAcceptance": false,
+    "wholeNetworkContainment": false
+  },
+  "teardown": {
+    "ownedHTTPListenerClosed": true,
+    "nativePrismaPoolDisconnected": true,
+    "privateSupplementaryConfigRemoved": true,
+    "pgTransactionRolledBack": true,
+    "pgConnectionClosed": true,
+    "databaseRoleCleanupOwner": "/root"
+  },
+  "remainingUnqualified": [
+    "private canonical identity-to-context receiving-client pair",
+    "full main bootstrap/lifecycle",
+    "live Clerk/JWKS/signature/provider",
+    "full migration history",
+    "production/customer role/RLS acceptance",
+    "TLS",
+    "post-final-read atomic revocation"
+  ],
+  "priorReviewHeadPreserved": "239ee7a400dc0b6fdb9632bed2ae01f2356e92f2"
+}

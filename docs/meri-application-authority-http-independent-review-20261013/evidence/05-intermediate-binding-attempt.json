@@ -1,0 +1,41 @@
+{
+  "pin": "ae0e314a34473da203021348ebd2725d891659a9",
+  "initialStrictCapture": "failed AssertionError before output file/DB/listener",
+  "followupReadOnly": [
+    {
+      "path": "http-driver.cjs",
+      "committedSha256": "3fdf8bfee898c223fc026bd2673dcd43fe5aefd68195221825c4b573ff8b0f10",
+      "physicalSha256": "3fdf8bfee898c223fc026bd2673dcd43fe5aefd68195221825c4b573ff8b0f10",
+      "committedBytes": 25060,
+      "physicalBytes": 25060,
+      "same": true
+    },
+    {
+      "path": "critical-loader.cjs",
+      "committedSha256": "b0a66be8d1b5249511fdece7bc70a94a376907ef62a47e4007471d7e3c5af4d9",
+      "physicalSha256": "28495b8661ac8c0d089c49d52dd97b59ddf2c1b9b44359bf8607bd688e1fce10",
+      "committedBytes": 8461,
+      "physicalBytes": 8599,
+      "same": false
+    },
+    {
+      "path": "critical-source-sha256.json",
+      "committedSha256": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
+      "physicalSha256": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
+      "committedBytes": 3609,
+      "physicalBytes": 3609,
+      "same": true
+    },
+    {
+      "path": "containment-preload.cjs",
+      "committedSha256": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a",
+      "physicalSha256": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a",
+      "committedBytes": 4398,
+      "physicalBytes": 4398,
+      "same": true
+    }
+  ],
+  "movingHarnessUnaccepted": true,
+  "DB": false,
+  "listener": false
+}
