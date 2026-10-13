@@ -1,0 +1,2 @@
+Captured tool stderr during source test adaptation: <stdin>:36: SyntaxWarning: invalid escape sequence '\`'
+Python edit and both node --check commands returned0; this warning is retained without changing raw inherited evidence.

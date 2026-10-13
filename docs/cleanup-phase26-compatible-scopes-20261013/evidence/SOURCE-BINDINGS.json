@@ -1,0 +1,105 @@
+{
+  "base": "c8c109f7d796d5a50ae57ff6cb214d576c757847",
+  "sourceHead": "61453eca11f5aa93d67285c2016db34f66eaf6b6",
+  "sourceTree": "379f7160decccde3e678834fbe9b2bb5a8ceb6cf",
+  "publishedRoot": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "publishedRootDeltaFromBase": "docs only, actual ancestor",
+  "paths": [
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "gitBlob": "ba0c23b04ea27736c7d330ab3140203a0eab49b0",
+      "sha256": "e7f4585a108e9a80f5330d01c79d7967ea26127ad2f92d649ab4a5dd04b4180d",
+      "bytes": 28514
+    },
+    {
+      "path": "scripts/ci/context-plane-scope.contract.spec.mjs",
+      "gitBlob": "898cdb8a30ad629252ac2f7094114ecb802b031f",
+      "sha256": "221d99d23e5ce834d94dff5f87a6e07d056a9c93e34500891aba31d2895b7006",
+      "bytes": 18482
+    },
+    {
+      "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "gitBlob": "4ebbaffed2af34808bffe11b259c63340f72df5d",
+      "sha256": "5cf328c43ec1b9c43011b599699c4cf6fc2a3fe71e5a95927397cf6a2119113d",
+      "bytes": 13371
+    },
+    {
+      "path": "scripts/lib/context-plane-scope.mjs",
+      "gitBlob": "943526ce7914a30571530332cca8f3e65f4697fb",
+      "sha256": "ad08839f13952e3a2c581aeef5f01e8b5f5f91f5fec66154d822f35b165ded73",
+      "bytes": 1892
+    },
+    {
+      "path": "scripts/lib/context-plane-validation-scope.mjs",
+      "gitBlob": "8a059bd40f1b62ef6c301687ca2d1cc7477f3ce5",
+      "sha256": "6c28ff962723c98e14ff2103ec71d69fb2391a1c405721c6a4d4cfc72d1ae60a",
+      "bytes": 1287
+    },
+    {
+      "path": "scripts/lib/knowledge-census-scope.mjs",
+      "gitBlob": "0bce92f303e966862365f06eb7324a58cd440862",
+      "sha256": "ca6b54328df2a91d588994ed106b21d75fe0ab1c65b7d04c5484177300b9b32d",
+      "bytes": 8004
+    },
+    {
+      "path": "scripts/lib/knowledge-validation-scope.mjs",
+      "gitBlob": "34edc2ba766ab48b9e4d7db8b17d333f451bca84",
+      "sha256": "1c22d81de95b01ab3ef8d01c66ee9aeefff92df1896f8faa0d3470f55f3e9375",
+      "bytes": 1421
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase26.mjs",
+      "gitBlob": "eb3b691e20196e62326c026483d95b1a8ec073a2",
+      "sha256": "442590a1b00ce179cbe8489d3161daca4601f7f74f6f0bf7371f9e13a815dc91",
+      "bytes": 11415
+    }
+  ],
+  "protectedUnchanged": [
+    {
+      "path": "package.json",
+      "gitBlob": "564a9b83c0e92a0aa27998565cf6c3e1543aa160",
+      "absentBoth": false
+    },
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "gitBlob": null,
+      "absentBoth": true
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "gitBlob": "347f03d8b21a9d61f3cf534303473b1afb84752c",
+      "absentBoth": false
+    },
+    {
+      "path": "scripts/engagement-phase3-resilience.mjs",
+      "gitBlob": "e4d53d455819c4cd6baa4587131ab96515951a56",
+      "absentBoth": false
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase27.mjs",
+      "gitBlob": "fd8855374a5019ece2a406d8632be11ce51fc38d",
+      "absentBoth": false
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase27e.mjs",
+      "gitBlob": "45522b3c645cb1a1fc5cde84309f6598609adc9a",
+      "absentBoth": false
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase27f.mjs",
+      "gitBlob": "7c217c3c264f98b880c83dd97f92882315737ddd",
+      "absentBoth": false
+    },
+    {
+      "path": "scripts/knowledge-plane-phase26-typecheck-baseline.json",
+      "gitBlob": "e89ce6446c08c652352ecefd97621283141ab807",
+      "absentBoth": false
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/cli.mjs",
+      "gitBlob": "1a8b032dd615628c695d5d6b4af9ad5905313cec",
+      "absentBoth": false
+    }
+  ],
+  "nativeVerifierDefaultAppExecuted": false
+}
