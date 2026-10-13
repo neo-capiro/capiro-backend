@@ -1,0 +1,24 @@
+{
+  "source": "0132a1c8ffd0c04d0052c992bd361add4eefc020",
+  "specSha256": "1a007adde20bf87929ce076ba7902a8e483df30de479005b0d884975f5075214",
+  "allowedInlineProgramSha256": [
+    "fbd490ad3a072fd3a294a80952b43e4e04d1583f2c972cd0536f971b3308a20d",
+    "0a0456091dd379afe76be3492c4f04c9ba0d5fa34d60f582ae3e454df2c45990",
+    "d9164bbf5cd9dcff57c91fc4dc583019ef863a8dd9c7a9a0c13583bc29e38426",
+    "a9a54e196f0776fce7a2f0e54ac281c6efcd1a1ccf1a8fa8e60b977e9a7dcc03",
+    "e503a998f211e10eb18b9222969b3b399d291a93ae4ad41f65e2b69c564376f2",
+    "cc153065ba054e11df2d4fb4b77c7366a1229356dba7dddd201c28c05546c3d1",
+    "90d96598f2ea615eec46a965fe0548b9237b73d794c874b2b0c0f7152fda95e9",
+    "ca69b7ca93889d992c94a6e1946ad67b4b5eb6c52ad63009acb41b48156473ca",
+    "893b2df4252e802ec5f0ae1a5bc9ca67a345474838e733add013cab995d62383",
+    "6f82e4f40f29df89e42fbe68ef97294ea3a4a2fc4342d296b48cf5b53c01d799",
+    "6b8d8b19787761150591e1f656ecee1a484480c02b22d6b529a780ab809c6c86",
+    "5d332d717d6f819d17079ea5016edf70b3b22444bfbafeabeed8c8dae0f461a3",
+    "ad011fc8c6d509070232bf19eeee763b84cbda6cc3f6abea0913789456961fef",
+    "bd887883f56e5182f4044931508fb8fb80e32bf4a00b2f63bc4156128026c8cc"
+  ],
+  "inlineOwnerTemplateCapturedFromExactFrozenSpec": true,
+  "realArtifactFS": false,
+  "allowedChildCount": 14,
+  "scope": "only exact inert host programs patch fs.promises before importing actual CLI owner; source-policy JSON reads are ordinary module-loader reads; no app/provider/native"
+}

@@ -1,0 +1,7 @@
+{
+  "exit": 1,
+  "stdout": "containerkeys include contentBase64",
+  "stderr": "KeyError: 'base64'",
+  "classification": "reviewer assumed a field name rather than using the actual container schema; no source/evidence failure",
+  "correctField": "contentBase64"
+}

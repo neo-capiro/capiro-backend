@@ -1,0 +1,38 @@
+{
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "source": "0132a1c8ffd0c04d0052c992bd361add4eefc020",
+  "commands": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "./docs/cleanup-peer-manifests-integration-independent-review-20261013/evidence/profile-host.cjs",
+        "./docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs"
+      ],
+      "initialAttemptExit": 1,
+      "correctedExit": 0,
+      "passedCases": 25
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "./docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/newsletter-accepted-source-profile.spec.mjs"
+      ],
+      "exit": 0,
+      "passedCases": 22
+    },
+    {
+      "argv": [
+        "python3",
+        "docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-preservation.py"
+      ],
+      "exit": 0
+    }
+  ],
+  "network": "only prior authorized read-only primary GitHub connector receipt/source metadata; tests deny network",
+  "actualArtifactFs": "no; only fake lstat/other supplied ports, fixed source-policy module loader remains ordinary file access"
+}

@@ -1,0 +1,854 @@
+{
+  "repository_full_name": "neo-capiro/capiro-frontend",
+  "base": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "head": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+  "status": "ahead",
+  "ahead_by": 1,
+  "behind_by": 0,
+  "total_commits": 1,
+  "too_large": null,
+  "base_commit": {
+    "sha": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+    "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/commits/c8aa693e884de86001d2fc04fbb60d48db09341c",
+    "html_url": "https://github.com/neo-capiro/capiro-frontend/commit/c8aa693e884de86001d2fc04fbb60d48db09341c"
+  },
+  "merge_base_commit": {
+    "sha": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+    "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/commits/c8aa693e884de86001d2fc04fbb60d48db09341c",
+    "html_url": "https://github.com/neo-capiro/capiro-frontend/commit/c8aa693e884de86001d2fc04fbb60d48db09341c"
+  },
+  "files": [
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/.gitattributes",
+      "status": "added",
+      "additions": 3,
+      "deletions": 0,
+      "changes": 3,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/EVIDENCE-MANIFEST.json",
+      "status": "added",
+      "additions": 2596,
+      "deletions": 0,
+      "changes": 2596,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/PRODUCER-HANDOFF.md",
+      "status": "added",
+      "additions": 24,
+      "deletions": 0,
+      "changes": 24,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/QUALIFICATION.md",
+      "status": "added",
+      "additions": 54,
+      "deletions": 0,
+      "changes": 54,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/FROZEN-GIT-TREE.txt",
+      "status": "added",
+      "additions": 17197,
+      "deletions": 0,
+      "changes": 17197,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/actual-served-assets/asset-results.json",
+      "status": "added",
+      "additions": 1446,
+      "deletions": 0,
+      "changes": 1446,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/actual-served-assets/standalone.log",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "changes": 5,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/compile-cache-retirement.json",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "changes": 6,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/download-cache-retirement.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "changes": 8,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/earlier-browser-environment/CHROMIUM-PUBLIC-DOWNLOAD-HEAD.json",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "changes": 5,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/earlier-browser-environment/REPRODUCTION-ENVIRONMENT.json",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/elements-work/ssr/receipt.json",
+      "status": "added",
+      "additions": 30174,
+      "deletions": 0,
+      "changes": 30174,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/environment.json",
+      "status": "added",
+      "additions": 16,
+      "deletions": 0,
+      "changes": 16,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-build-exit.json",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-build-running.json",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "changes": 15,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-build.log",
+      "status": "added",
+      "additions": 76,
+      "deletions": 0,
+      "changes": 76,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-check-exit.json",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-check-running.json",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "changes": 15,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-check.log",
+      "status": "added",
+      "additions": 14762,
+      "deletions": 0,
+      "changes": 14762,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-clean-install-exit.json",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-clean-install-running.json",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "changes": 15,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-clean-install-v2-exit.json",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "changes": 27,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-clean-install-v2-running.json",
+      "status": "added",
+      "additions": 17,
+      "deletions": 0,
+      "changes": 17,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-clean-install-v2.log",
+      "status": "added",
+      "additions": 3,
+      "deletions": 0,
+      "changes": 3,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-clean-install.log",
+      "status": "added",
+      "additions": 2250,
+      "deletions": 0,
+      "changes": 2250,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-elements-exit.json",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-elements-running.json",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "changes": 15,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-elements.log",
+      "status": "added",
+      "additions": 66,
+      "deletions": 0,
+      "changes": 66,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-artifacts/newsletter-rich-local-rich-24c78-d-plain-text-without-writes/rich-editor-desktop.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-artifacts/newsletter-rich-local-rich-24c78-d-plain-text-without-writes/rich-editor-mobile.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-artifacts/newsletter-staging-explici-1d93f--opens-the-selected-session/newsletter-staging-desktop.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-artifacts/newsletter-staging-mobile--63cdc-ts-keyboard-acknowledgement/newsletter-staging-mobile.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-exit.json",
+      "status": "added",
+      "additions": 29,
+      "deletions": 0,
+      "changes": 29,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-results.json",
+      "status": "added",
+      "additions": 8282,
+      "deletions": 0,
+      "changes": 8282,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser-running.json",
+      "status": "added",
+      "additions": 19,
+      "deletions": 0,
+      "changes": 19,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-modules-browser.log",
+      "status": "added",
+      "additions": 252,
+      "deletions": 0,
+      "changes": 252,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-portfolio-browser-exit.json",
+      "status": "added",
+      "additions": 31,
+      "deletions": 0,
+      "changes": 31,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-portfolio-browser-results.json",
+      "status": "added",
+      "additions": 39451,
+      "deletions": 0,
+      "changes": 39451,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-portfolio-browser-running.json",
+      "status": "added",
+      "additions": 21,
+      "deletions": 0,
+      "changes": 21,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-portfolio-browser.log",
+      "status": "added",
+      "additions": 1164,
+      "deletions": 0,
+      "changes": 1164,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production-exit.json",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "changes": 27,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production-running.json",
+      "status": "added",
+      "additions": 17,
+      "deletions": 0,
+      "changes": 17,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production.log",
+      "status": "added",
+      "additions": 175,
+      "deletions": 0,
+      "changes": 175,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/preview-root-smoke.json",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "changes": 6,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/production-portfolio-1440-dark.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/production-portfolio-1440-light.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/production-portfolio-390-dark.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/production-portfolio-390-light.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/production-smoke.json",
+      "status": "added",
+      "additions": 164,
+      "deletions": 0,
+      "changes": 164,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/standalone-default.log",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "changes": 5,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-production/standalone-portfolio.log",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "changes": 5,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-public-newsletter-browser-exit.json",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-public-newsletter-browser-running.json",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "changes": 15,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-public-newsletter-browser.log",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "changes": 1,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-served-assets-exit.json",
+      "status": "added",
+      "additions": 24,
+      "deletions": 0,
+      "changes": 24,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-served-assets-running.json",
+      "status": "added",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/final-served-assets.log",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "changes": 1,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-exit.json",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "changes": 27,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-running.json",
+      "status": "added",
+      "additions": 17,
+      "deletions": 0,
+      "changes": 17,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2-exit.json",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "changes": 27,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2-running.json",
+      "status": "added",
+      "additions": 17,
+      "deletions": 0,
+      "changes": 17,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2.log",
+      "status": "added",
+      "additions": 10,
+      "deletions": 0,
+      "changes": 10,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/artifacts/.last-run.json",
+      "status": "added",
+      "additions": 4,
+      "deletions": 0,
+      "changes": 4,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-fields-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-full-after-paint.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-html-preview-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-plain-preview-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-structure-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/config.mts",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/mobile.spec.ts",
+      "status": "added",
+      "additions": 35,
+      "deletions": 0,
+      "changes": 35,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/results.json",
+      "status": "added",
+      "additions": 131,
+      "deletions": 0,
+      "changes": 131,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic-v2/serve.mjs",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic.log",
+      "status": "added",
+      "additions": 40,
+      "deletions": 0,
+      "changes": 40,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/.last-run.json",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "changes": 6,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/error-context.md",
+      "status": "added",
+      "additions": 206,
+      "deletions": 0,
+      "changes": 206,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-fields-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-full-after-paint.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-plain-preview-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/mobile-structure-viewport.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/artifacts/mobile-mobile-rich-editor--d0a9b--after-viewport-replacement/trace.zip",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "changes": 0,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/config.mts",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/mobile.spec.ts",
+      "status": "added",
+      "additions": 35,
+      "deletions": 0,
+      "changes": 35,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/results.json",
+      "status": "added",
+      "additions": 152,
+      "deletions": 0,
+      "changes": 152,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/mobile-visual-diagnostic/serve.mjs",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/public-newsletter-browser/browser-module-graph.json",
+      "status": "added",
+      "additions": 66,
+      "deletions": 0,
+      "changes": 66,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/public-newsletter-browser/browser-public-namespace.json",
+      "status": "added",
+      "additions": 51,
+      "deletions": 0,
+      "changes": 51,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/public-newsletter-browser/browser-receiving-results.json",
+      "status": "added",
+      "additions": 527,
+      "deletions": 0,
+      "changes": 527,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/public-newsletter-browser/browser-renderer-results.json",
+      "status": "added",
+      "additions": 679,
+      "deletions": 0,
+      "changes": 679,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/public-newsletter-browser/browser-results.json",
+      "status": "added",
+      "additions": 61,
+      "deletions": 0,
+      "changes": 61,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/run-gate.py",
+      "status": "added",
+      "additions": 25,
+      "deletions": 0,
+      "changes": 25,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/storage-relocation-existing-archive-after-browser.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "changes": 8,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/storage-relocation-existing-archive.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "changes": 8,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/qualification/verify-assets.mjs",
+      "status": "added",
+      "additions": 54,
+      "deletions": 0,
+      "changes": 54,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/VISUAL-REVIEW-PENDING.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "changes": 8,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/final-evidence-review.json",
+      "status": "added",
+      "additions": 804,
+      "deletions": 0,
+      "changes": 804,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/manifest-final-attempt1.json",
+      "status": "added",
+      "additions": 44,
+      "deletions": 0,
+      "changes": 44,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/manifest-final.json",
+      "status": "added",
+      "additions": 59,
+      "deletions": 0,
+      "changes": 59,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/manifest.json",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "changes": 27,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/review-draft.md",
+      "status": "added",
+      "additions": 19,
+      "deletions": 0,
+      "changes": 19,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/review-in-progress.json",
+      "status": "added",
+      "additions": 502,
+      "deletions": 0,
+      "changes": 502,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/review.md",
+      "status": "added",
+      "additions": 31,
+      "deletions": 0,
+      "changes": 31,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/seal-correction.json",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "changes": 6,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/visual-addendum.md",
+      "status": "added",
+      "additions": 21,
+      "deletions": 0,
+      "changes": 21,
+      "previous_filename": null
+    },
+    {
+      "filename": "docs/newsletter-receiving-final-20261013/reviews/visual-disposition.json",
+      "status": "added",
+      "additions": 269,
+      "deletions": 0,
+      "changes": 269,
+      "previous_filename": null
+    }
+  ]
+}

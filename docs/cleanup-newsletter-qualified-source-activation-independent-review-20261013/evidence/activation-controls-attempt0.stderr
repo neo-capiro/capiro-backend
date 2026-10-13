@@ -1,0 +1,27 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+
+Caught error:
+
+Error: Frontend standalone artifact refused: explicit filesystem ports
+    at async file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs:74:3
+    at async check (file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs:27:31)
+    at async file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs:72:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: Error: Frontend standalone artifact refused: explicit filesystem ports
+      at fail (file:///tmp/capirov2-four-runtime-controls-review/scripts/lib/frontend-standalone-artifact-contract.mjs:12:35)
+      at readFrontendStandaloneArtifact (file:///tmp/capirov2-four-runtime-controls-review/scripts/lib/frontend-standalone-artifact-contract.mjs:298:123)
+      at readAcceptedFrontendStandaloneArtifact (file:///tmp/capirov2-four-runtime-controls-review/scripts/lib/frontend-standalone-artifact-contract.mjs:231:26)
+      at file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs:74:24
+      at check (file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs:27:37)
+      at file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-qualified-source-activation-independent-review-20261013/evidence/activation-controls.mjs:72:7,
+  expected: [Function (anonymous)],
+  operator: 'rejects',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

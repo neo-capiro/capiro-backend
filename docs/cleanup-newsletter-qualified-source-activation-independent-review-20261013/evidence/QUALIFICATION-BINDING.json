@@ -1,0 +1,66 @@
+{
+  "evidencePublication": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+  "runtimeSource": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "runtimeTree": "9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4",
+  "applicationTree": "79ae91f7a119e98b7ba612ceed2a4ca661944888",
+  "qualificationSha256": "cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33",
+  "manifestSha256": "48ba2001e8b523986b60bbc6eaff3c3cfaf30c6f8304e09325b65c207a1ffb84",
+  "GitHub104ChangeRowsAllOneEvidencePrefix": true,
+  "currentRuntimeBodyChangesInEvidencePublication": false,
+  "receivedPrimaryFileGitBlobsVerified": [
+    {
+      "response": "github-evidence-manifest-response.json",
+      "sourceGitBlob": "f5b11359472c01ff1771a8b99271ef0fc19f59b5",
+      "sourceBytes": 116748,
+      "sourceSha256": "48ba2001e8b523986b60bbc6eaff3c3cfaf30c6f8304e09325b65c207a1ffb84"
+    },
+    {
+      "response": "github-producer-response.json",
+      "sourceGitBlob": "9105e33c5d070b3dc5969829e36e0eacf66e1d28",
+      "sourceBytes": 4058,
+      "sourceSha256": "2e59469ee2aed9a9a854b9d7add73760fbf075471231561bd99fdfb9fd124ad0"
+    },
+    {
+      "response": "github-qualification-response.json",
+      "sourceGitBlob": "3ad137932d3045123ff477f5e32d8199baa94975",
+      "sourceBytes": 8648,
+      "sourceSha256": "cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33"
+    },
+    {
+      "response": "github-reviews-final-evidence-review.json-response.json",
+      "sourceGitBlob": "8b616050ef74e04203d1873373be75096a0c54b6",
+      "sourceBytes": 30101,
+      "sourceSha256": "13b921516ed26b1aaec652dca443a0987c652d4f36de5590cad1735cf28ebe0a"
+    },
+    {
+      "response": "github-reviews-manifest-final.json-response.json",
+      "sourceGitBlob": "2721a1371ef88fcf9f7a8146282cca8416d18d90",
+      "sourceBytes": 1886,
+      "sourceSha256": "24d0fd2f3f4955b6dc35ca83373ffb398687c556d81bf73cbff6c379016b1c72"
+    },
+    {
+      "response": "github-reviews-review.md-response.json",
+      "sourceGitBlob": "e60f27873ed21c6701915cc3cdd92cfd6a7a785d",
+      "sourceBytes": 4487,
+      "sourceSha256": "ab34e0a3a3e6fcbf60f07660738523b60fd8db0ffaa24c840680d7709657d8dc"
+    },
+    {
+      "response": "github-reviews-visual-addendum.md-response.json",
+      "sourceGitBlob": "ca069eb25f2147a80493aab4021b9d489348c421",
+      "sourceBytes": 2669,
+      "sourceSha256": "339138059a3e594d0fd9f53ca45c2e48988046c87390342113a34f454ce875c0"
+    }
+  ],
+  "independentReviewTenGateReceiptsBoundSameSource": true,
+  "initialExit254Retained": true,
+  "independentFinalVisualHoldResolved": true,
+  "receivedIndependentSealBindingsVerified": [
+    "final-evidence-review.json",
+    "review.md",
+    "visual-addendum.md"
+  ],
+  "allOtherRetained430PhysicalFilesVerifiedByThisReviewer": false,
+  "targetMuslProducerOrManifestOrProvenanceOrABIOrImageOrShippingQualified": false,
+  "native337PortfolioRowsRemainUnaccepted": true,
+  "scope": "read-only published receipt/source metadata review; no frontend execution or screenshot reacceptance"
+}
