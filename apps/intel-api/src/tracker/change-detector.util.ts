@@ -1,13 +1,13 @@
 /**
- * Pure change classification (Phase 3, plan §6.3) — ported VERBATIM from
- * apps/api/src/tracker/tracker-change-detector.service.ts (`classifyChange`,
- * `selectMaterialEvents`) so the shadow detector byte-matches legacy for the
- * Phase 5 parity gate. No side effects, no DB — unit-testable in isolation.
+ * Action classification and event selection delegate to one canonical Shared
+ * owner, retaining the original API/Intel policy, outputs and Phase 5 parity.
+ * Intel-only derived/state event policy remains local. No side effects or DB.
  *
  * Correction carried from plan §6.3: `bill_rule_reported` → triggerKey
  * `floorVote` (matches source lines 79–80; the registry's `committeeVote` is
  * wrong).
  */
+import { classifyTrackerActionText, selectTrackerMaterialEvents } from '@capiro/shared';
 import { stateBillStatusLabel, type StateDeadlineCutoffType } from '@capiro/shared';
 export type ChangeTone = 'success' | 'critical' | 'notable' | 'info';
 export type AlertSeverity = 'info' | 'notable' | 'critical';
@@ -25,112 +25,7 @@ export interface ChangeClass {
  * routine churn we don't alert on. Ordered most-significant-first.
  */
 export function classifyChange(nextText: string | null): ChangeClass | null {
-  const t = (nextText ?? '').toLowerCase();
-  if (!t) return null;
-  if (/became (public )?law|public law no|signed by (the )?president|enacted/.test(t))
-    return {
-      changeType: 'bill_enacted',
-      triggerKey: 'enactedFailed',
-      label: 'Became law',
-      tone: 'success',
-      severity: 'critical',
-    };
-  if (/presented to (the )?president|cleared for white house/.test(t))
-    return {
-      changeType: 'bill_to_president',
-      triggerKey: 'enactedFailed',
-      label: 'Sent to President',
-      tone: 'success',
-      severity: 'critical',
-    };
-  // GAI-07: bill_failed requires MEASURE-level failure context. The old bare
-  // /failed|rejected|veto|tabled/ classified a failed procedural MOTION
-  // ("Motion to recommit failed", "Cloture motion rejected"), a failed
-  // amendment, or passage text that merely mentions a veto THREAT as a
-  // critical "Failed / rejected" alert for a bill that did not fail — and
-  // this alert fans out to email/SMS. Now: failure of passage itself, a
-  // rejected conference report, tabling of the MEASURE, or an actual veto.
-  if (
-    /failed of passage|failed passage|on passage[^.]*(failed|rejected)|conference report[^.]*rejected|motion to table (the )?(bill|resolution|measure|h\.? ?r|s\.)[^.]*agreed|vetoed by (the )?president|veto message received|pocket veto/.test(
-      t,
-    )
-  )
-    return {
-      changeType: 'bill_failed',
-      triggerKey: 'enactedFailed',
-      label: 'Failed / rejected',
-      tone: 'critical',
-      severity: 'critical',
-    };
-  if (
-    /passed\/agreed to in (the )?(house|senate)|passed (the )?(house|senate)|on passage[^.]*passed|agreed to in (the )?(house|senate)/.test(
-      t,
-    )
-  )
-    return {
-      changeType: 'bill_passed_chamber',
-      triggerKey: 'floorVote',
-      label: 'Passed a chamber',
-      tone: 'success',
-      severity: 'notable',
-    };
-  if (
-    /rules committee|committee on rules|provides for consideration|considered under the provisions|pursuant to (the provisions of )?(h\.? ?res|house resolution)|(closed|structured|open|special) rule/.test(
-      t,
-    )
-  )
-    return {
-      changeType: 'bill_rule_reported',
-      triggerKey: 'floorVote',
-      label: 'Rule granted (floor scheduled)',
-      tone: 'info',
-      severity: 'notable',
-    };
-  if (/placed on (the )?(union |senate )?calendar|scheduled for (floor|consideration)/.test(t))
-    return {
-      changeType: 'bill_floor_scheduled',
-      triggerKey: 'floorVote',
-      label: 'Floor action scheduled',
-      tone: 'info',
-      severity: 'notable',
-    };
-  if (
-    /ordered to be reported|reported (by|to|favorably)|committee agreed to seek consideration/.test(
-      t,
-    )
-  )
-    return {
-      changeType: 'bill_reported',
-      triggerKey: 'committeeVote',
-      label: 'Passed committee',
-      tone: 'success',
-      severity: 'notable',
-    };
-  if (/markup|marked up|committee consideration and mark/.test(t))
-    return {
-      changeType: 'bill_markup',
-      triggerKey: 'committeeVote',
-      label: 'Markup',
-      tone: 'info',
-      severity: 'notable',
-    };
-  if (/hearing/.test(t))
-    return {
-      changeType: 'bill_hearing',
-      triggerKey: 'hearing',
-      label: 'Hearing scheduled',
-      tone: 'info',
-      severity: 'info',
-    };
-  if (/amendment|amended|substitute/.test(t))
-    return {
-      changeType: 'bill_amendment',
-      triggerKey: 'amendment',
-      label: 'Amended',
-      tone: 'notable',
-      severity: 'notable',
-    };
-  return null;
+  return classifyTrackerActionText(nextText);
 }
 
 // ── LegiWatch B: derived-event classes (NOT from action text) ───────────────
@@ -388,27 +283,7 @@ export function selectMaterialEvents(
   actions: ActionLike[],
   latest: ActionLike | null,
 ): MaterialEvent[] {
-  const merged: ActionLike[] = [...actions];
-  if (latest && latest.text) {
-    const dup = merged.some(
-      (a) =>
-        (a.text ?? '') === (latest.text ?? '') &&
-        (a.date?.getTime() ?? 0) === (latest.date?.getTime() ?? 0),
-    );
-    if (!dup) merged.push(latest);
-  }
-  merged.sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
-
-  const out: MaterialEvent[] = [];
-  const seen = new Set<string>();
-  for (const a of merged) {
-    const cls = classifyChange(a.text);
-    if (!cls) continue;
-    if (seen.has(cls.changeType)) continue;
-    seen.add(cls.changeType);
-    out.push({ cls, text: a.text ?? '', date: a.date, chamber: a.chamber ?? null });
-  }
-  return out;
+  return selectTrackerMaterialEvents(actions, latest);
 }
 
 /** Placeholder materiality until the Phase 4 AlertScorer computes it. */

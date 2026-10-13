@@ -5762,3 +5762,11 @@ export * from './workspace-saved-revision.js';
 export * from './client-objective-destination.js';
 
 export * from './time.js';
+
+export {
+  classifyTrackerActionText,
+  selectTrackerMaterialEvents,
+  type TrackerActionChange,
+  type TrackerMaterialAction,
+  type TrackerMaterialEvent,
+} from './tracker-action-change.js';
