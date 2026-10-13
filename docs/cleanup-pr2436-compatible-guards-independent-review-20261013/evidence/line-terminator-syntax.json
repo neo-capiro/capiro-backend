@@ -1,0 +1,14 @@
+{
+  "tool": "TypeScript 5.9.3",
+  "scope": "parser-only line-terminator syntax check; no module resolution or code execution",
+  "cases": [
+    {
+      "name": "LS line comment",
+      "diagnostics": []
+    },
+    {
+      "name": "PS line comment",
+      "diagnostics": []
+    }
+  ]
+}

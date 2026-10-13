@@ -1,0 +1,21 @@
+{
+  "source": "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+  "sourceTree": "0c96047a606ec28209f29ef3f09579241c2451f7",
+  "reviewGitHead": "b53f2661d3fc8b2d83c22c1fe906e1699fef44b7",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-probe.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 0.11389374732971191,
+  "stdoutSha256": "29dbcfc752be471878593bc9fef536ac9e7bfdd321cca1d8bea4f9456d59b790",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "note": "Immutable probes retain historical subject labels; exact command and Git source bindings identify actualeaf subject. No probe/input/expected-result changes."
+}
