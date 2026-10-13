@@ -238,3 +238,8 @@ Reviewed PR2460 contributes24 exact donor paths to PR2459, giving whole Advocacy
 ## Inactive Files source candidate
 
 Published frontend90 qualification is now recorded as one inactive tuple in the existing bounded source policy. Active83, its artifact eligibility, old tuples, runtime pins and validator/builder remain exact;26 affected controls pass and independent review accepts the candidate scope. The [minimal handoff](../files-qualified-source-policy-20261013/HANDOFF.md) binds the exact root/app/receipt hashes and the cross-version dependency: future activation of90 would refuse83 under the single-active policy. No worker/artifact pin changes, new policy framework, full build or AWSd4be admission occurs. Files remains disabled by default; inherited console observations and live/native gates remain open.
+
+
+## Run, worker and refresh ownership composition
+
+PR2463 contributes 17 exact reviewed paths to PR2462, closing run projection/transitions, task worker/ledger and refresh/module-timer ownership. The facade drops 2,372→1,725 lines while 43 unrelated members, 18 public signatures, seven constructor dependency texts, 34 export names and 47 raw SQL calls/bindings remain preserved. The [current handoff and dependency matrix](../fill-runtime-integration-20261013/HANDOFF.md) binds exact source/donor/review heads, 462 passing affected cases/five retained skips and sequential compiler/build receipts. Active 83/inactive 90, all 33 authority inputs and prior evidence remain exact; completed native acceptance is not repeated. The remaining five groups stay with their owner. Artifact/Files/AWS and protected unpublished reporting remain separate; no main merge or deployment.

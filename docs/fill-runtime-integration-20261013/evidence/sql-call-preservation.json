@@ -1,0 +1,273 @@
+{
+  "sourceHead": "f3a6bf7210650755bb19413782738b926c5b9fd2",
+  "donorParent": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382",
+  "oldRawCalls": 47,
+  "retainedRawCalls": 18,
+  "movedRawCalls": 29,
+  "methodAndSqlBytesMultiplicityExact": true,
+  "movedStatements": [
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "539074de6c648e42b15545e21c094828783ba22e64c4b7dad4a127c3f4b59097",
+      "bindings": [
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "0a4964587cb292bb5ab12d36bcf464f46b951dd33542603a8a970482bf63875e",
+      "bindings": [
+        "ctx.tenantId",
+        "clientId",
+        "input.enabled",
+        "cadenceHours",
+        "JSON.stringify(sources)",
+        "ctx.userId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "1388f376be71839183e047401d3f8a5ac525adc2ea16c3f3186af81c9fdd635e",
+      "bindings": []
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "20a71cc221b2620fdf31862b4201e9a1a7db2f7e4ded0cc9cdccf6d9bcebe542",
+      "bindings": [
+        "tenantId",
+        "clientId",
+        "cadenceHours",
+        "enqueued"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "1b528df4ea72463b2d183d67159fbef16534798684cde4ba4d79921708ac3eb0",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "2ccb5ea2e2d11d9b78f2a536e35f4fb4b67a0b2f8e9e44cfb504cc6fd917b91d",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId",
+        "task.taskType",
+        "task.taskKey",
+        "task.dependsOn"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "ea8971a36d87b9d873ed24fdbc2c1e3365ba9573c4fc9b9b0042e03841186ab6",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "e18400309950c512ba00353b00c1cc3b6046c0b00593f720f0c4958dcccc5ff2",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "071ce021528cfa2c2dccd087a0bc2b22a6ec0a884131e72097996c00a3381b4d",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "c9ba11f2a35e4f90271b5970825ad17796cf59b97f6769e1fa9fa7e13b4ee7d5",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "f6325a527d399592cd9645c29b06d0390edefb4b88522a6d26203ee6b6735b2d",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "23f792ce1be6a0022e016b913acc0fe0296a899a3cd8664c6a7621597e7669fe",
+      "bindings": [
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "398887eb1af4f9e4db5ec0a0aac55c8fd721c99594ddc79ab52574b0efbe7f77",
+      "bindings": [
+        "taskId",
+        "runId",
+        "ctx.tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "8713633cb3c7623df04d1d5f0e27aa0e19ee4e012a4484638da77cbb34ec97d5",
+      "bindings": [
+        "runId",
+        "ctx.tenantId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "76c279d1d18eb037f618cdd7f3a224ab5f32a03ec0e78a93ff2aceb7e265d439",
+      "bindings": []
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "78ad363ab648fbe8f9c36329d18e352498769409647d2f1a5d76739f9afa0d4f",
+      "bindings": [
+        "run.runId",
+        "run.tenantId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "e416bba76d8517b7ed0d6e40e283894c914a2975b20f652e846a562e2a1bfeea",
+      "bindings": [
+        "run.runId",
+        "run.tenantId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "c02e4ab47136ef164548605d66d05037922446ac7a1e92bd4ffb6bce0129491f",
+      "bindings": [
+        "run.runId",
+        "run.tenantId",
+        "status",
+        "JSON.stringify(summary)"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "96e3797590f7ede5f4eb8c41598e699b81cfa789cdc153fba5891d812323960b",
+      "bindings": [
+        "tenantId",
+        "runId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "66b10703003c1bdf1cc3aa4a0fe72d5a358d4e3686a163947a7c802bf11c6bd2",
+      "bindings": [
+        "tenantId",
+        "clientId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "ff52649c4887b815f7a280d69c1e7bffe317f788fc5f2cb75473ad93a44e3c8e",
+      "bindings": [
+        "tenantId",
+        "clientId",
+        "runId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "d44e72f483374dbfe4977d4fce150ee2fdfd76e4deccad37a7e4cca53bcf1bc0",
+      "bindings": [
+        "cutoff"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "a1b1f8d8b3acc90187e38cda2ce65116df925ea3e6c524394dd1eea9cc4b9293",
+      "bindings": [
+        "TASK_CLAIM_BATCH",
+        "`${this.workerId}:${randomUUID()}`"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "3c97ca0ab01186a8513b1bcf927740958cfea146bcf6d3e5618457922d923c2a",
+      "bindings": [
+        "task.runId",
+        "task.tenantId",
+        "required",
+        "waitForAll"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "c32d1dbb6909d1020de8c7d488fd609c164207e2399932f0afa38a5c5136143a",
+      "bindings": [
+        "task.id",
+        "task.runId",
+        "task.tenantId",
+        "status",
+        "JSON.stringify(summary)",
+        "task.workerId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "b2d5df8b12b763bfc49f81bfeae71c3771da81b4b12e57df9afc4cd726cd49d4",
+      "bindings": [
+        "task.id",
+        "task.runId",
+        "task.tenantId",
+        "reason",
+        "task.workerId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "feffc90f5b3699a8f0e31da11c07617bb81e61c700d3da6f5dd1acb9d0c0437a",
+      "bindings": [
+        "task.id",
+        "task.runId",
+        "task.tenantId",
+        "terminal ? 'failed' : 'queued'",
+        "this.ports.safeError(error)",
+        "task.workerId"
+      ]
+    },
+    {
+      "method": "$executeRawUnsafe",
+      "sqlSha256": "aa578f12c4fc57667d6c97ba67d0db122c7a72282d14d7791682836bee9fb256",
+      "bindings": [
+        "task.id",
+        "task.workerId"
+      ]
+    },
+    {
+      "method": "$queryRawUnsafe",
+      "sqlSha256": "6b81aee81d6d318900ae187e7d15d31b578da0c4da61a758532d28327f6cba4b",
+      "bindings": [
+        "task.runId",
+        "task.tenantId",
+        "task.clientId"
+      ]
+    }
+  ],
+  "bindingCompatibility": "independent semantic review, not inferred from SQL literal equality alone",
+  "nativeSqlExecuted": false
+}

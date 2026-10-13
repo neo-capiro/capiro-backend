@@ -1,0 +1,57 @@
+{
+  "sourceHead": "f3a6bf7210650755bb19413782738b926c5b9fd2",
+  "sourceTree": "cd0659253a1ad77257451e6f28b04076b8fcd746",
+  "check": "actual receiving Nest build",
+  "outputRoot": "/tmp/fill-runtime-api-build-20261013",
+  "emittedFiles": 3828,
+  "emittedBytes": 36417465,
+  "namesAndSizesInventory": "evidence/build-output-names-sizes.tsv.gz",
+  "uncompressedInventoryBytes": 211543,
+  "uncompressedInventorySha256": "6789afd45459e36f2a89edea9bd84ad24635e08ab6987f5c079fd1ad9e3d7eb7",
+  "reviewedProductionDeltaJs": [
+    {
+      "path": "clients/client-profile-fill-completion-runtime.js",
+      "bytes": 2908,
+      "sha256": "3c77f7dd144dba6609c1a95a33629b8009baed9f0fafa70ee729f407a03e7f64"
+    },
+    {
+      "path": "clients/client-profile-fill-completion-runtime.shared.js",
+      "bytes": 418,
+      "sha256": "7acad6c8c9b4a8e405cdf1716a2caecef0b2656dcf7174ade68d117daae3a077"
+    },
+    {
+      "path": "clients/client-profile-fill-completion.service.js",
+      "bytes": 70783,
+      "sha256": "b4f633af61e012e38680eec47ac3c621db7ea6f645861f7232457ed8cbbeae3c"
+    },
+    {
+      "path": "clients/client-profile-fill-refresh-schedule.js",
+      "bytes": 6343,
+      "sha256": "8a09e2476392947068ad57e5aef53c86c13607fa0505cc6991eff063904cea35"
+    },
+    {
+      "path": "clients/client-profile-fill-run-lifecycle.js",
+      "bytes": 9168,
+      "sha256": "166f04f13119578a17f555a9459af4e77e3c652ecd47d16c81a0522330666358"
+    },
+    {
+      "path": "clients/client-profile-fill-run-read-model.js",
+      "bytes": 5386,
+      "sha256": "2ee4bdfee5368b46f7bec3712f12fbd30bd677df8eef79c227d0fff20d171549"
+    },
+    {
+      "path": "clients/client-profile-fill-task-ledger.js",
+      "bytes": 7953,
+      "sha256": "55ad866386667f905b62f00eed49c89b078ea4c2537ffbb9c408240dcebae898"
+    },
+    {
+      "path": "clients/client-profile-fill-task-runtime.js",
+      "bytes": 3034,
+      "sha256": "1bb0fe0136972e82960bf47c0fe63d88ff6071a2514e4e1b61ec087eb7734020"
+    }
+  ],
+  "protectedReportingBodiesInspectedForThisInventory": false,
+  "frontendArtifactOrNativeABIClaim": false,
+  "ownGeneratedOutputRetiredAfterReceiptAndInventory": true,
+  "sourceSharedCachesAndOtherOwnerArtifactsRetained": true
+}

@@ -1,0 +1,8 @@
+{
+  "initialObservation": "post-build inventory assertion failed expecting all 17 changed TypeScript paths to emit JavaScript",
+  "correction": "canonical production build excludes specs and test fixtures; expected production emission is the facade plus seven owners",
+  "buildExitCode": 0,
+  "sourceAndProductionConfigChanged": false,
+  "nativeOrAcceptanceRetestPerformed": false,
+  "failedObservation": "evidence/build-inventory-initial-assertion.txt"
+}

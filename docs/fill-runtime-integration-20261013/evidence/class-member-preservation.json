@@ -1,0 +1,327 @@
+{
+  "sourceHead": "f3a6bf7210650755bb19413782738b926c5b9fd2",
+  "donorParent": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382",
+  "serviceBeforeLines": 2372,
+  "serviceAfterLines": 1725,
+  "byteExactMembers": 43,
+  "byteExactMemberNames": [
+    "logger",
+    "workerId",
+    "advocacyHistory",
+    "findingReview",
+    "regulatoryCommentSource",
+    "regulatoryCommentDiscovery",
+    "getSetup",
+    "startRun",
+    "getAdvocacyHistoryHealth",
+    "getLatest",
+    "getRun",
+    "applyFindings",
+    "rejectFinding",
+    "restoreFinding",
+    "executeTask",
+    "gatherFederalMarket",
+    "gatherFacilityResolution",
+    "gatherDistrictNexus",
+    "gatherAdvocacyHistory",
+    "resolveClientNameForDiscovery",
+    "getConfirmedIntelMappingKeys",
+    "emitDiscoveryFinding",
+    "gatherFaraAdvocacyCandidates",
+    "gatherTestimonyAdvocacyCandidates",
+    "gatherRegulatoryCommentAdvocacyCandidates",
+    "fetchOrCacheRegulatoryCommentDetail",
+    "gatherCommunityFundingAdvocacyCandidates",
+    "gatherClientSubmissionAdvocacy",
+    "gatherPrivateAdvocacyCandidates",
+    "gatherFederalRegisterBackfill",
+    "emitRegulatoryOutcomeFindings",
+    "gatherLifecycleOutcomes",
+    "reconcileFindings",
+    "flagPossibleAdvocacyDuplicates",
+    "linkReconciledFindingsToMatters",
+    "runCompletionAudit",
+    "addFinding",
+    "applyAdvocacyRecord",
+    "applyAdvocacyFindingToMatter",
+    "getCursor",
+    "recordCursor",
+    "assertClient",
+    "safeError"
+  ],
+  "changedMemberNames": [
+    "constructor",
+    "onModuleInit",
+    "onModuleDestroy",
+    "refreshNow",
+    "cancelRun",
+    "retryTask",
+    "getSchedule",
+    "updateSchedule",
+    "sweepOnce",
+    "sweepSchedulesOnce",
+    "ensureCompletionTasks",
+    "hasCompletionTasks",
+    "latestActiveCompletionRun",
+    "mergeRun",
+    "loadCompletionTasks",
+    "requestTaskSweep",
+    "requestScheduleSweep",
+    "recoverStaleTasks",
+    "claimTasks",
+    "executeClaimedTask",
+    "assertCoreDependencies",
+    "finishTask",
+    "deferTask",
+    "failTask",
+    "heartbeat",
+    "finalizeRuns",
+    "runScheduledRefresh",
+    "bumpSchedule",
+    "withTaskTimeout"
+  ],
+  "removedMemberNames": [
+    "taskTimer",
+    "scheduleTimer",
+    "taskSweepRunning",
+    "scheduleSweepRunning"
+  ],
+  "addedMemberNames": [
+    "completionRuntime",
+    "refreshSchedule",
+    "runReadModel",
+    "runLifecycle",
+    "taskRuntime",
+    "taskLedger",
+    "createRuntimeOwners"
+  ],
+  "constructorParameters": [
+    "private readonly prisma: PrismaService",
+    "private readonly workflow: ClientProfileFillWorkflowService",
+    "private readonly fill: ClientProfileFillService",
+    "private readonly intelligence: IntelligenceService",
+    "private readonly facilities: ClientFacilitiesService",
+    "private readonly httpAdapterHost: HttpAdapterHost",
+    "private readonly advocacyMatters: ClientAdvocacyMatterService"
+  ],
+  "constructorPublicSignatureExact": true,
+  "publicMethods": [
+    {
+      "name": "onModuleInit",
+      "parameters": [],
+      "type": "void"
+    },
+    {
+      "name": "onModuleDestroy",
+      "parameters": [],
+      "type": "void"
+    },
+    {
+      "name": "getSetup",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "startRun",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "input: StartClientProfileFillWorkflowInput"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "refreshNow",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "getAdvocacyHistoryHealth",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "type": "Promise<AdvocacyHistoryHealth>",
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "getLatest",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "getRun",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "cancelRun",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "retryTask",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string",
+        "taskId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "applyFindings",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string",
+        "findingIds: string[]"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "rejectFinding",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "findingId: string",
+        "reason?: string"
+      ]
+    },
+    {
+      "name": "restoreFinding",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "findingId: string"
+      ]
+    },
+    {
+      "name": "getSchedule",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "updateSchedule",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "input: UpdateClientProfileFillScheduleInput"
+      ],
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "sweepOnce",
+      "parameters": [],
+      "type": "Promise<void>",
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "sweepSchedulesOnce",
+      "parameters": [],
+      "type": "Promise<void>",
+      "modifiers": [
+        "async"
+      ]
+    },
+    {
+      "name": "applyAdvocacyFindingToMatter",
+      "parameters": [
+        "ctx: TenantContext",
+        "clientId: string",
+        "runId: string",
+        "findingId: string",
+        "target:\n      | { matterId: string }\n      | { newMatter: { title: string; matterType?: string; summary?: string | null } }"
+      ],
+      "type": "Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }>",
+      "modifiers": [
+        "async"
+      ]
+    }
+  ],
+  "publicMethodCount": 18,
+  "publicMethodSignaturesExact": true,
+  "publicExportNames": [
+    "ADVOCACY_SOURCE_NAMES",
+    "AdvocacyBackfillOverallStatus",
+    "AdvocacyBackfillStatus",
+    "AdvocacyHistoryHealth",
+    "AdvocacyOverallHealth",
+    "AdvocacySourceAvailability",
+    "AdvocacySourceBackfillState",
+    "AdvocacySourceFreshness",
+    "AdvocacySourceHealth",
+    "CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES",
+    "ClientProfileFillCompletionService",
+    "ClientProfileFillCompletionTaskType",
+    "ProfileCompletionInput",
+    "ProfileCompletionResult",
+    "RefreshScheduleRow",
+    "UpdateClientProfileFillScheduleInput",
+    "buildAdvocacyHistoryHealth",
+    "buildClientProfileFillCompletionPlan",
+    "buildRegulatoryOutcomeFinding",
+    "calculateProfileCompletion",
+    "deriveAdvocacyBackfillOverallStatus",
+    "deriveAdvocacyFreshness",
+    "deriveAdvocacyOverallHealth",
+    "deriveRegulatoryCommentSubmitterLabel",
+    "faraMatchConfidence",
+    "matchAdvocacyOutcomeDeterministically",
+    "mergeFillProgress",
+    "planTestimonyScanBatch",
+    "resolveFaraMatchedRole",
+    "sameActivityDay",
+    "scoreAdvocacyOutcome",
+    "testimonyMatchConfidence",
+    "titleOverlapRatio",
+    "updateAdvocacySourceHealth"
+  ],
+  "publicExportCount": 34,
+  "publicExportNamesExact": true,
+  "exportTypeCompatibility": "independent review and strict compiler; declaration syntax may reexport moved types"
+}

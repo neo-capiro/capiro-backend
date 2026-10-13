@@ -1,0 +1,159 @@
+{
+  "receivingSourceHead": "f3a6bf7210650755bb19413782738b926c5b9fd2",
+  "sourceTree": "cd0659253a1ad77257451e6f28b04076b8fcd746",
+  "baseHead": "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+  "donorHead": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66",
+  "donorTree": "e952b0161ba829fcef8bc03a2241f59f0207a0ea",
+  "donorParent": "6ef98ffdcddeb02dd701e7ed312fbc33b4aae382",
+  "codePaths": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion-runtime.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "3c4621b12dff92aee5ac43f1a5cf5a7351ce49ca",
+      "bytes": 13467,
+      "sha256": "5066758cdcce84c63620911ff3ae07d19ba95354d07690cd7f0d64a698a1ecb6",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion-runtime.shared.ts",
+      "mode": "100644",
+      "blob": "d836e552abf7fae1aa7ff144c3baf193e788a14a",
+      "bytes": 999,
+      "sha256": "399904460d1fb078e0c504e71203bd989589aeccd984e303883d50c82c4dbe85",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion-runtime.ts",
+      "mode": "100644",
+      "blob": "c022da86d020a07316c36182a3f82bd5b1c687a7",
+      "bytes": 2933,
+      "sha256": "4019dc991858d7a2fe4a323737d223696078b3d7ce12fe07a81da2a2f20ab95c",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "mode": "100644",
+      "blob": "d6255fa7a0f96ea51bb11833936c99f5897adbac",
+      "bytes": 65476,
+      "sha256": "4056c48173c95328505d2e7364fdb0b822794164baf9a1b47c9191fa2a376854",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-refresh-schedule.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "05ad32ed438a4382d4a6b9595e438c075b3ed0ac",
+      "bytes": 16380,
+      "sha256": "c1b3b28baea8a703d407dc067c01857cb7fd37ef68ff68f513f3965ca50fe5c3",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-refresh-schedule.ts",
+      "mode": "100644",
+      "blob": "3e6d50e7df4d28743687ea14644fb5cb415f0120",
+      "bytes": 7327,
+      "sha256": "b1f82426a0acddf75421d57870d60863b2396faff70a6c8c0e0f5fc115fe6366",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-finalization.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "2dc46c5002e20a2a5a7be01feba0969aff66b7c8",
+      "bytes": 7106,
+      "sha256": "1603c0e96c8869a67aaa035aae383491aa73972d0a374e3c067354952e2b6a52",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-lifecycle.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "9887816a1a9ae783a0c2e863654846e31bef570e",
+      "bytes": 13789,
+      "sha256": "ee9b6319f054b3affb5369b51e915057b0218d91db9d0c40a9b3abba08105059",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-lifecycle.ts",
+      "mode": "100644",
+      "blob": "9939994fcea0e65db97c23fed80fdd3271b5636a",
+      "bytes": 9934,
+      "sha256": "7da8541a0dd860b21f1e3a646f0d63d296137963b9366cc44c5cd6aeec27a245",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-read-model.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "90b43e1f83d03ccb77f19f11475d4439d5bc325d",
+      "bytes": 6314,
+      "sha256": "436f80636cf45cbfe5ccba75e393b6129c1ac80a9e9b8d65e40821ff12291244",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-read-model.ts",
+      "mode": "100644",
+      "blob": "0b86168476984ed15d8309c05f976e98bbb5d33a",
+      "bytes": 5239,
+      "sha256": "dae2bfa23927ce3ca73221098ac5f21f1e99f6023f6bb79e7a68237488a18223",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-task-ledger.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "048e9c16ffca7a0280da1d61daf4e6a0017a345f",
+      "bytes": 10445,
+      "sha256": "047e60dbb9d4ca3c7386e0af850ca7ff71f483bc357bf814f650b5a8ee3de2c8",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-task-ledger.ts",
+      "mode": "100644",
+      "blob": "db8a2a11528ab77b1e2b9a501892c0806e8043f6",
+      "bytes": 8822,
+      "sha256": "b6ddb4f82756f914133d58e15466659434e91697cf1fb773b484169347ff468d",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-task-runtime.ts",
+      "mode": "100644",
+      "blob": "4694593e773f857544c1f3ddcf4112296a1da3ea",
+      "bytes": 3588,
+      "sha256": "a8acd4611f9943be4a9eb568adb7dfcea5cbb8330380c7f6e42c90dedf21294d",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-task-worker.characterization.spec.ts",
+      "mode": "100644",
+      "blob": "02b8f266f6c066f67a6646850488b06572059a93",
+      "bytes": 10491,
+      "sha256": "1bde85ad5e3eb39e742e07cbfa962b7c7384ffe573594a846cebd53c1241c7b7",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-refresh-schedule.ts",
+      "mode": "100644",
+      "blob": "fffc96e8cdac43502696c02c68f8f838d29a41e7",
+      "bytes": 5663,
+      "sha256": "ad831bfc7d39b427686af9b59157851cdecd0892d5ede911166a5111d972d45f",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-task-worker.ts",
+      "mode": "100644",
+      "blob": "ca35a34ab7ac3481c53c7786b4339d10521bb8a6",
+      "bytes": 6017,
+      "sha256": "c8d6c94985723e4f80501c2dca2fd7e82e75c20390a4933d39d09a8a89bf06db",
+      "exactDonor": "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+    }
+  ],
+  "exactDonorPaths": 17,
+  "authorityInputsUnchanged": 33,
+  "policyPackageAndLockPathsUnchanged": [
+    "scripts/lib/newsletter-accepted-source-profile.json",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "package.json",
+    "apps/api/package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "active83Inactive90Preserved": true,
+  "protectedUnpublishedReportingTouched": false,
+  "nativeProviderOrArtifactAcceptanceClaimed": false
+}

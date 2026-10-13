@@ -1,0 +1,33 @@
+{
+  "baseHead": "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+  "baseTree": "8ff5c05d13300e8bf6e0f5c6c887767995b27966",
+  "receivingSourceHead": "f3a6bf7210650755bb19413782738b926c5b9fd2",
+  "receivingSourceTree": "cd0659253a1ad77257451e6f28b04076b8fcd746",
+  "ordinaryMergeParents": [
+    "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+    "0ed8a7e8d4bac3422d42b7bfe04603d10bee8c66"
+  ],
+  "exactDonorPaths": 17,
+  "baseTrackedPaths": 26252,
+  "unchangedBaseModeBlobPaths": 26251,
+  "removedBasePaths": [],
+  "priorMaster": {
+    "head": "5c9eec18045f75704f99593855537d422b8f9bd1",
+    "path": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+    "sha256": "0bcd1c70cdada68f20e2f17b3e4545c4b434aae48887366f862e911dfbff41c7",
+    "rows": 4426,
+    "priorCandidateLayerPath": "docs/files-qualified-source-policy-20261013/PRESERVATION.json",
+    "candidateLayerHead": "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+    "candidateLayerSha256": "2bd3bc89a9ea49051e4c60a4081d122e853d48437e0156949e791f2efd0ef3d8",
+    "all4426EffectiveBaseModesAndBlobsVerified": true,
+    "sourceUnchangedRows": 4425,
+    "sourceSupersededPaths": [
+      "apps/api/src/clients/client-profile-fill-completion.service.ts"
+    ],
+    "priorIndexAndCandidateLayerUnchanged": true
+  },
+  "sourcePolicyActive83Inactive90Exact": true,
+  "documentationOnlyAfterSourceFreeze": true,
+  "allOriginalSourceAndFailedPassingEvidenceObjectsPreserved": true,
+  "noProtectedReportingBodyReadByThisAudit": true
+}
