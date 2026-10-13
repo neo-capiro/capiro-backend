@@ -1,11 +1,11 @@
 {
-  "atUTC": "2026-10-13T22:15:02.697185+00:00",
+  "atUTC": "2026-10-13T22:16:41.658174+00:00",
   "repository": "neo-capiro/capirov2",
   "repositoryID": 1226930564,
   "ownerID": 276034435,
   "private": true,
   "explicitNonSecretPublicationAuthorized": true,
-  "finiteFilesInspected": 72,
+  "finiteFilesInspected": 75,
   "patterns": [
     "private-key",
     "AWS-access-key",
@@ -15,7 +15,8 @@
     "database-credential-URL"
   ],
   "findings": [],
-  "manualContentReview": "Source/test-only donor files, type/build/test command receipts, finite names/sizes/hashes, owned paths/shim targets, GitHub repository/ref/tree/quarantine metadata and public infrastructure settings only; no customer content, keys, token/secret values or generated client/runtime bodies published. Existing protected reporting implementation not inspected.",
+  "initialPassingRawPacketReviewPreservedAt": "2a452c68a984adb5b682abba3eded8a36d371388",
+  "manualContentReview": "Finite donor source/test docs and receiving metadata/command/log receipts, exact lossless warning-log envelope, names/sizes/hashes of owned emissions/type/runtime/shims, GitHub refs/repo/quarantine/public settings only. No customer content, credential/key/token/secret values or generated client/runtime bodies copied. Protected reporting implementation not inspected.",
   "checkedFileInventory": [
     {
       "path": "apps/intel-api/src/tracker/tracker-board-commands.ts",
@@ -211,8 +212,8 @@
     },
     {
       "path": "docs/tracker-board-integration-20261013/HANDOFF.md",
-      "bytes": 10029,
-      "sha256": "7b78ffe6a9da14a5224bdfbdc8edc3869b91a6af668a3d86077a3d043b5b865c",
+      "bytes": 10321,
+      "sha256": "c1f7f683d32624f2a0b08a8441821ec9994fb20edc19cd71640f5443bb82a2d2",
       "gzipExpandedForInspection": false
     },
     {
@@ -255,6 +256,12 @@
       "path": "docs/tracker-board-integration-20261013/evidence/attempt0-overlay-retirement-expectation.json",
       "bytes": 580,
       "sha256": "fb25ad5804c186c36e2b5727da061f625afa337fc510b5e45213f4159c3977cc",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/attempt0-raw-hygiene.json",
+      "bytes": 639,
+      "sha256": "62e3f0195980ec742c23c13c7f9d4ea442795132ac7a840aa35e1aae6b86ed0b",
       "gzipExpandedForInspection": false
     },
     {
@@ -354,9 +361,9 @@
       "gzipExpandedForInspection": false
     },
     {
-      "path": "docs/tracker-board-integration-20261013/evidence/jest.log",
-      "bytes": 2253,
-      "sha256": "9283414876abecc8bbf15cd0adf5b246baead5772c26096cc40daba9ef75a5d6",
+      "path": "docs/tracker-board-integration-20261013/evidence/jest.log.json",
+      "bytes": 2673,
+      "sha256": "54056437433eeec5a1511e5b1a088a6bfc5ae216c11eddb483cb68ce4e1693ef",
       "gzipExpandedForInspection": false
     },
     {
@@ -384,9 +391,21 @@
       "gzipExpandedForInspection": false
     },
     {
+      "path": "docs/tracker-board-integration-20261013/evidence/raw-log-custody.json",
+      "bytes": 623,
+      "sha256": "bf6e43f69f38488958ef77116eacb0a3b592c4c3bfd9566500a70eac3ca19776",
+      "gzipExpandedForInspection": false
+    },
+    {
       "path": "docs/tracker-board-integration-20261013/evidence/reused-type-runtime-binding.json",
       "bytes": 3956,
       "sha256": "80a99e62074050ff3f1f52889d6fd3e6bf417bae0a7d080bee6ff2fcb7848a87",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/source-hygiene.json",
+      "bytes": 1386,
+      "sha256": "63f3561fe874e608414dc957a2c5256a5bc97505c588e5c5d50b94d6c7e17185",
       "gzipExpandedForInspection": false
     },
     {
