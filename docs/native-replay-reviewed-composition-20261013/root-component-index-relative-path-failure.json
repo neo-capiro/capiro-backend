@@ -1,0 +1,7 @@
+{
+  "exit": 128,
+  "error": "fatal: path 'ACCEPTANCE.json' does not exist in '239ee7a400dc0b6fdb9632bed2ae01f2356e92f2'",
+  "cause": "review index files are relative to their packet directory; initial new-index validator used repository root",
+  "correction": "explicitly resolve that pinned index against its packet directory, then verify exact original SHA and bytes",
+  "sourceOrIndexChanges": false
+}

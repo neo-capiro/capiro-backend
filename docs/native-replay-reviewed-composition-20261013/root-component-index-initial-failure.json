@@ -1,0 +1,7 @@
+{
+  "exit": 1,
+  "error": "AssertionError: docs/runbooks/program-elements-trust-gates.md",
+  "cause": "initial validator treated every docs/ path as review evidence; this runbook is explicitly bound to reviewedSource e25 by gitBlob",
+  "correction": "resolve source binding rows by declared reviewedSource and evidence rows by publication head; verify both hash and source blob",
+  "sourceOrIndexChanges": false
+}

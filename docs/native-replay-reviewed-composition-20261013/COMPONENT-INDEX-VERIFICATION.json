@@ -1,0 +1,23 @@
+[
+  {
+    "head": "962d30b692502d6ea56b064b35352665a6204732",
+    "index": "docs/pe2446-composition-independent-review-20261013/SHA256-INDEX.json",
+    "sha256": "10ac3021ce90954264078409521f1ab1b649ad186fbbeef159fba3bc0e5ba65b",
+    "historicalRowsVerified": 31,
+    "mismatch": 0
+  },
+  {
+    "head": "5e185c352acca9ab8589d76920003107bb083ffc",
+    "index": "docs/cleanup-native-operand-composition-audit-20261013/SHA256-INDEX.json",
+    "sha256": "3bf68bd393a7a2a243ec9857f446dcf918b0e423ca4e6723cbdc134297aa3d2d",
+    "historicalRowsVerified": 4,
+    "mismatch": 0
+  },
+  {
+    "head": "239ee7a400dc0b6fdb9632bed2ae01f2356e92f2",
+    "index": "docs/cleanup-native-replay-composition-independent-review-20261013/SHA256-INDEX.json",
+    "sha256": "78e4c0d8448f164a30030b9d0a33189f38b99a4155b3c10479862ce569b86816",
+    "historicalRowsVerified": 25,
+    "mismatch": 0
+  }
+]

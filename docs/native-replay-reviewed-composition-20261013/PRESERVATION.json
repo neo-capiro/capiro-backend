@@ -1,0 +1,117 @@
+{
+  "allPriorHeadsAndIndicesPreserved": true,
+  "codePathsExactReviewedCompositionSource": 11,
+  "explicitSupersessions": [
+    {
+      "currentModeBlob": [
+        "100644",
+        "876aca8e0b3ecbc36fd8893093c45ff261eb0f7c"
+      ],
+      "currentSha256": "a3194b99a38db8e3c5df6263f383d1f08710986055ffa948427fa1ae28054176",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "5025128bb1c20019e458dbfd35501aadc03d7217"
+      ],
+      "oldSha256": "d70428e4827306a8da584f3d58925b62f7749fca62529d3e2474490ac3b7bee2",
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a"
+      ],
+      "currentSha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      ],
+      "oldSha256": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa",
+      "path": "apps/api/package.json",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "632e4bcb1b0bec7b78a283bc28250c80965daa35"
+      ],
+      "currentSha256": "d16f6c6a69b0bb3d4b2cd9ed358fadd418f735971031f06195db76c1c39726c6",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "b26b8688edca0fd2153f0327307e32dd6a5f5be3"
+      ],
+      "oldSha256": "99b5dc45c401b230e9f8a40dc71783939d89d0e3b41e75c1dafc4ed1fb8a7d82",
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "2acef93d9242b750724699d083bf11a1445185a5"
+      ],
+      "currentSha256": "29a98eccc25dcc230b446467dc110302f1a498430eb0e37451d3c7da6a660d80",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "ddaf1daf81677f466384231291c7827a27cae3cd"
+      ],
+      "oldSha256": "a6ba84d193d40b26826e3c381bd98cdebe1c1a14bd07a8e1fffa7aa510873ffb",
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "7383938e5ebee31831067175ec1b37bf9132aa28"
+      ],
+      "currentSha256": "36d6d10c5fdffa4b15e8ee2d190bc79fb9c30e2ece6bf03f5443a041fbb81c30",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "52eb7fb74834a8649fc1814430c10ec32d3de26f"
+      ],
+      "oldSha256": "c471c5f1c86d79c3bd0916fcb65e5a2f6aaa0f64673707cde4db351c6bf4b557",
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "700081e28c36e870f8d9cb47fdf4ecf9a4c471e3"
+      ],
+      "currentSha256": "be5a5e4e24bde1a19b21fb2c8aab1cf132ffdefa0e9ba1f2885efea0062e73c9",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "f0e6b059937eef3dce84e3238c5a3b01c4dcb0bb"
+      ],
+      "oldSha256": "5da62266e0afb5d61eb0e9da9170a56ad0ef66919efbc748dc38c3d226df3f84",
+      "path": "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "1c498cce2cb50b1d348ff3d4b8a31b424a341e49"
+      ],
+      "currentSha256": "bbd9669768f0c4975b7b0afbb5007594a45df62e7515479fd88019ca05de0c18",
+      "oldHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "oldModeBlob": [
+        "100644",
+        "be6d87620ebc28b31c0f9e6c07139681b09cf725"
+      ],
+      "oldSha256": "ad99088a82dcac64257cf5882933601055211a0c9fbaaf64a626858383c0b876",
+      "path": "scripts/lib/reviewed-pe-manifest-contract.mjs",
+      "reason": "reviewed native source/strict guards or current canonical handoff successor"
+    }
+  ],
+  "inheritedMeriRawCustodyUnchanged": true,
+  "newHygieneExceptions": 0,
+  "oldRows": 3716,
+  "outsideElevenCodePathsByteExact": true,
+  "previousMasterHead": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+  "unchangedBlobMode": 3709
+}
