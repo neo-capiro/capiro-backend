@@ -1,0 +1,32 @@
+▶ Historical pending-policy fixture controls (original nineteen control IDs)
+  ✔ current checked-in policy remains pending and immutable with the exact pinned runtime (4.144073ms)
+  ✔ production admission refuses 7c87678730538958ace9762f824dc3e588bf445b before artifact callbacks (2.494642ms)
+  ✔ production admission refuses c8aa693e884de86001d2fc04fbb60d48db09341c before artifact callbacks (0.55172ms)
+  ✔ production admission refuses cccccccccccccccccccccccccccccccccccccccc before artifact callbacks (0.765894ms)
+  ✔ plan validates syntax and describes pending approval without promoting a declared source (2.14661ms)
+  ✔ only an explicit labelled test profile models the active entry and cannot attest source approval (0.957931ms)
+  ✔ invalid fixture policy refuses missing accepted entry before filesystem (0.72671ms)
+  ✔ invalid fixture policy refuses duplicate accepted entry before filesystem (1.612208ms)
+  ✔ invalid fixture policy refuses missing receipt pin before filesystem (0.587915ms)
+  ✔ invalid fixture policy refuses invalid source tree before filesystem (0.579845ms)
+  ✔ invalid fixture policy refuses invalid receipt identity before filesystem (0.536205ms)
+  ✔ invalid fixture policy refuses foreign receipt owner before filesystem (0.473023ms)
+  ✔ invalid fixture policy refuses credential receipt path before filesystem (0.450662ms)
+  ✔ invalid fixture policy refuses unreviewed runtime before filesystem (0.321967ms)
+  ✔ invalid fixture policy refuses relabelled Node image before filesystem (0.24329ms)
+  ✔ unlabelled, accessor and proxy fixture policy inputs refuse without invoking callbacks (0.419655ms)
+  ✔ runtime mismatch cannot be rewritten by accepted model source equality (0.302872ms)
+  ✔ architecture elements are exact primitive strings and refuse objects, proxies, symbols and numbers without coercion (0.676673ms)
+  ✔ shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection (1.046911ms)
+✔ Historical pending-policy fixture controls (original nineteen control IDs) (21.813866ms)
+✔ current production policy admits only the qualified runtime with its exact published receipt pin (0.524438ms)
+✔ current production policy refuses stale, arbitrary and wrong runtime declarations before artifact callbacks (0.481781ms)
+✔ actual current CLI reaches only labelled inert artifact ports for qualified c8 and cannot override approval through flags or environment (1046.921899ms)
+ℹ tests 22
+ℹ suites 1
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1117.582946

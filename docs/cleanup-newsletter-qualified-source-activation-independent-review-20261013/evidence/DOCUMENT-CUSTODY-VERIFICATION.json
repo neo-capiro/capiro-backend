@@ -1,0 +1,25 @@
+{
+  "authorCorrection": "e66704ee8e7a34864d70b6c3b0af8f26ef80236a",
+  "authorCorrectionTree": "5af32ded6e30d15df54ee0e24eb37ea91aa669da",
+  "source": "0132a1c8ffd0c04d0052c992bd361add4eefc020",
+  "original26MasterByteExactPreserved": true,
+  "current29BindingsVerified": 29,
+  "documents": [
+    {
+      "filename": "review.md",
+      "bytes": 4487,
+      "sha256": "ab34e0a3a3e6fcbf60f07660738523b60fd8db0ffaa24c840680d7709657d8dc",
+      "originalBlob": "e60f27873ed21c6701915cc3cdd92cfd6a7a785d",
+      "decodeByteExactPrimaryAndOriginalGit": true
+    },
+    {
+      "filename": "visual-addendum.md",
+      "bytes": 2669,
+      "sha256": "339138059a3e594d0fd9f53ca45c2e48988046c87390342113a34f454ce875c0",
+      "originalBlob": "ca069eb25f2147a80493aab4021b9d489348c421",
+      "decodeByteExactPrimaryAndOriginalGit": true
+    }
+  ],
+  "sourceOrTestDelta": false,
+  "noAdditionalArchiveExceptions": true
+}

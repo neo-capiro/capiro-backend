@@ -1,0 +1,14 @@
+{
+  "sourceHead": "0132a1c8ffd0c04d0052c992bd361add4eefc020",
+  "sourceTree": "88f5de19e22b64e5441ea0c06dd15aa908efaf14",
+  "base": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "paths": [
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "scripts/lib/newsletter-accepted-source-profile.json"
+  ],
+  "passingCases": 22,
+  "historicalCases": 19,
+  "newProductionCases": 3,
+  "qualifiedFrontend": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "artifactAdmissionClaim": "Source policy only; real target artifact/provenance/native/image/shipping unaccepted"
+}
