@@ -11,6 +11,14 @@ describe('Advocacy Matter architecture contract', () => {
     resolve(process.cwd(), 'src/clients/client-profile-fill-completion.service.ts'),
     'utf8',
   );
+  const tenantHistory = readFileSync(
+    resolve(process.cwd(), 'src/clients/client-profile-fill-tenant-history-discovery.ts'),
+    'utf8',
+  );
+  const history = readFileSync(
+    resolve(process.cwd(), 'src/clients/client-profile-fill-advocacy-history.ts'),
+    'utf8',
+  );
   const recordApplication = readFileSync(
     resolve(process.cwd(), 'src/clients/client-profile-fill-advocacy-record-application.ts'),
     'utf8',
@@ -89,15 +97,15 @@ describe('Advocacy Matter architecture contract', () => {
     // candidates did not, re-scanning the same LIMIT-capped window every
     // single run with no watermark at all — a real bug for any client with
     // more history than the cap, not just wasted work.
-    expect(completion).toMatch(/s\.created_at\s*>\s*\$3::timestamptz/);
-    expect(completion).toMatch(/applied_at\s*>\s*\$3::timestamptz/);
+    expect(tenantHistory).toMatch(/s\.created_at\s*>\s*\$3::timestamptz/);
+    expect(tenantHistory).toMatch(/applied_at\s*>\s*\$3::timestamptz/);
     // Both new watermark fields merge into the SAME 'advocacy_history'
     // cursor the LDA watermark already uses (JSONB `||` merge in
     // recordCursor — see below), rather than each source inventing its own
     // separate cursor row.
-    expect(completion).toContain('lastClientSubmissionAt');
-    expect(completion).toContain('lastRelationshipLinkAppliedAt');
-    expect(completion).toMatch(/recordCursor\(ctx\.tenantId, clientId, 'advocacy_history'/);
+    expect(history).toContain('lastClientSubmissionAt');
+    expect(history).toContain('lastRelationshipLinkAppliedAt');
+    expect(history).toMatch(/recordCursor\(ctx\.tenantId, clientId, 'advocacy_history'/);
     expect(completion).toContain(
       'watermark_jsonb = client_profile_fill_source_cursor.watermark_jsonb || EXCLUDED.watermark_jsonb',
     );
