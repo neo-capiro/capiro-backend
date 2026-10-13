@@ -1,0 +1,50 @@
+▶ Historical pending-policy fixture controls (original nineteen control IDs)
+  ✔ current checked-in policy remains pending and immutable with the exact pinned runtime (3.086539ms)
+  ✔ production admission refuses 7c87678730538958ace9762f824dc3e588bf445b before artifact callbacks (3.247605ms)
+  ✔ production admission refuses c8aa693e884de86001d2fc04fbb60d48db09341c before artifact callbacks (0.548782ms)
+  ✔ production admission refuses cccccccccccccccccccccccccccccccccccccccc before artifact callbacks (0.701078ms)
+  ✔ plan validates syntax and describes pending approval without promoting a declared source (1.305815ms)
+  ✔ only an explicit labelled test profile models the active entry and cannot attest source approval (3.499822ms)
+  ✔ invalid fixture policy refuses missing accepted entry before filesystem (1.003547ms)
+  ✔ invalid fixture policy refuses duplicate accepted entry before filesystem (1.175462ms)
+  ✔ invalid fixture policy refuses missing receipt pin before filesystem (0.995144ms)
+  ✔ invalid fixture policy refuses invalid source tree before filesystem (0.638203ms)
+  ✔ invalid fixture policy refuses invalid receipt identity before filesystem (0.488337ms)
+  ✔ invalid fixture policy refuses foreign receipt owner before filesystem (1.518624ms)
+  ✔ invalid fixture policy refuses credential receipt path before filesystem (0.374339ms)
+  ✔ invalid fixture policy refuses unreviewed runtime before filesystem (0.468586ms)
+  ✔ invalid fixture policy refuses relabelled Node image before filesystem (0.398554ms)
+  ✔ unlabelled, accessor and proxy fixture policy inputs refuse without invoking callbacks (0.910313ms)
+  ✔ runtime mismatch cannot be rewritten by accepted model source equality (0.280049ms)
+  ✔ architecture elements are exact primitive strings and refuse objects, proxies, symbols and numbers without coercion (1.130742ms)
+  ✖ shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection (0.660034ms)
+✖ Historical pending-policy fixture controls (original nineteen control IDs) (24.692824ms)
+✔ current production policy admits only the qualified runtime with its exact published receipt pin (0.415894ms)
+✔ current production policy refuses stale, arbitrary and wrong runtime declarations before artifact callbacks (0.788242ms)
+✔ actual current CLI reaches only labelled inert artifact ports for qualified 83 and cannot override approval through flags or environment (2041.79822ms)
+✔ retained c8 receipt is historical and cannot admit an artifact or become active through environment (132.894043ms)
+✔ qualified source permits arm64 declarations while retaining every native and receipt-byte proof gate (0.430347ms)
+ℹ tests 24
+ℹ suites 1
+ℹ pass 23
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2330.02207
+
+✖ failing tests:
+
+test at scripts/ci/newsletter-accepted-source-profile.spec.mjs:137:1
+✖ shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection (0.660034ms)
+  Error: Frontend standalone artifact refused: active accepted frontend source/runtime mismatch
+      at fail (file:///workspace/capirov2-regulatory-source-frontend-admission-20261013/scripts/lib/frontend-standalone-artifact-contract.mjs:12:35)
+      at assertAcceptedNewsletterArtifactSource (file:///workspace/capirov2-regulatory-source-frontend-admission-20261013/scripts/lib/frontend-standalone-artifact-contract.mjs:224:44)
+      at parseNewsletterBuildInvocation (file:///workspace/capirov2-regulatory-source-frontend-admission-20261013/scripts/lib/newsletter-artifact-packaging-plan.mjs:68:28)
+      at TestContext.<anonymous> (file:///workspace/capirov2-regulatory-source-frontend-admission-20261013/scripts/ci/newsletter-accepted-source-profile.spec.mjs:141:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7)
