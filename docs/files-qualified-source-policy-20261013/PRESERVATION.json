@@ -1,0 +1,52 @@
+{
+  "priorMasterHead": "5c9eec18045f75704f99593855537d422b8f9bd1",
+  "priorMasterPath": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+  "priorRows": 4426,
+  "unchangedBlobModeRows": 4423,
+  "explicitCandidateOrHandoffSupersessions": [
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldModeBlob": [
+        "100644",
+        "79491e314da4caa82be207f4ca0b001a17615ad5"
+      ],
+      "oldSha256": "b1e92065ddbc79727ec436c8137768617f0ecc27793b1ac42f1c3ca4d446ae2d",
+      "newModeBlob": [
+        "100644",
+        "8ca9f6212e11ae19cbcb886fbe6fee457b0b590c"
+      ],
+      "newSha256": "655d51bcc554ddada852ed53cc6a3c0e7a27314b1b0e5564d3baadde9b2f5db8"
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "oldModeBlob": [
+        "100644",
+        "d926a6e23bc4aa4c3c3dc711970f5f831b43033a"
+      ],
+      "oldSha256": "33b92061e6de6048fc3c24a909e33aa78573aa9acdcbd32a24a05cc7331b0199",
+      "newModeBlob": [
+        "100644",
+        "ce0a0271f13be8c941f32ee040d44bd8733e2d56"
+      ],
+      "newSha256": "94886d4730c502f7c655b2432689972eac244143b05326dc505808592d7b2209"
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "oldModeBlob": [
+        "100644",
+        "43c4903e05cc370c5a4a0f0fd0e1c8b7fb4a7950"
+      ],
+      "oldSha256": "287f59908afabd8ab811a602436af5fad930f6eb1c2111ad8129dbd7cc0a380c",
+      "newModeBlob": [
+        "100644",
+        "c5b45b74dfdd258d708157752a97659ea38f67c1"
+      ],
+      "newSha256": "5179a9f8105ebd247ee066cd1dac8ba033856510238b5adc20e6be26118193d5"
+    }
+  ],
+  "priorIndexItselfUnchanged": true,
+  "allOriginalHeadsRetained": true,
+  "active83AndRuntimeProfileUnchanged": true,
+  "helperBuilderAndBackendSourceUnchanged": true,
+  "nativeOrFullBuildRepeated": false
+}

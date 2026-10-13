@@ -1,0 +1,15 @@
+{
+  "sourceHead": "537562137a6effce761a501ffd6042c48b262eee",
+  "sourceTree": "d783d30dfa0058d3f12cb407cc71c9635a220374",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs"
+  ],
+  "cwd": "/workspace/capirov2-files-qualified-source-policy-20261013",
+  "exitCode": 0,
+  "elapsedSeconds": 2.737,
+  "rawBytes": 3073,
+  "rawSha256": "822e8ce1a8f589cbe5c20c3d5dc3f779db068058c2b4183059813ea5d8d44548",
+  "scope": "source policy and labelled inert artifact CLI ports; no artifact/runtime/API build, native, provider or AWS work"
+}
