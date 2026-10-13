@@ -1,4 +1,14 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { ClientProfileFillCompletionRuntime } from './client-profile-fill-completion-runtime.js';
+import { ClientProfileFillRefreshSchedule } from './client-profile-fill-refresh-schedule.js';
+import { ClientProfileFillRunReadModel } from './client-profile-fill-run-read-model.js';
+import { ClientProfileFillRunLifecycle } from './client-profile-fill-run-lifecycle.js';
+import { ClientProfileFillTaskRuntime } from './client-profile-fill-task-runtime.js';
+import { ClientProfileFillTaskLedger } from './client-profile-fill-task-ledger.js';
+import type {
+  CompletionTaskRow,
+  CompletionTaskStatus,
+} from './client-profile-fill-completion-runtime.shared.js';
+import { createHash } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
@@ -12,7 +22,6 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
-  CLIENT_PROFILE_FILL_SOURCES,
   asRecord,
   asString,
   stableJson,
@@ -20,7 +29,6 @@ import {
 } from './client-profile-fill.helpers.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 import {
   ClientAdvocacyMatterService,
   type FederalRegisterCorrelationSuggestion,
@@ -43,7 +51,6 @@ import { ClientProfileFillRegulatoryCommentSource } from './client-profile-fill-
 import {
   buildClientProfileFillCompletionPlan,
   calculateProfileCompletion,
-  mergeFillProgress,
   type ClientProfileFillCompletionTaskType,
 } from './client-profile-fill-completion-projection.js';
 import {
@@ -98,33 +105,6 @@ export {
   titleOverlapRatio,
 } from './client-profile-fill-advocacy-mapping.js';
 
-type CompletionTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled';
-
-interface CompletionTaskRow {
-  id: string;
-  runId: string;
-  tenantId: string;
-  clientId: string;
-  taskType: ClientProfileFillCompletionTaskType;
-  taskKey: string;
-  status: CompletionTaskStatus;
-  dependsOn: string[];
-  attempt: number;
-  maxAttempts: number;
-  input: Record<string, unknown>;
-  outputSummary: Record<string, unknown>;
-  errorCode: string | null;
-  errorMessage: string | null;
-  workerId: string | null;
-  claimedAt: Date | null;
-  heartbeatAt: Date | null;
-  nextAttemptAt: Date;
-  completedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  createdByUserId?: string | null;
-}
-
 export interface RefreshScheduleRow {
   enabled: boolean;
   cadenceHours: number;
@@ -141,14 +121,6 @@ export interface UpdateClientProfileFillScheduleInput {
   cadenceHours?: number;
   sources?: ClientProfileFillSource[];
 }
-const TERMINAL_TASK_STATUSES = new Set<string>(['completed', 'failed', 'skipped', 'cancelled']);
-const TASK_SWEEP_MS = 1_500;
-const TASK_STALE_MS = 5 * 60_000;
-const TASK_TIMEOUT_MS = 5 * 60_000;
-const SCHEDULE_SWEEP_MS = 60_000;
-const TASK_CLAIM_BATCH = 4;
-
-class TaskDeferredError extends Error {}
 
 /**
  * Remaining Fill with Meri workflow after the durable Phase 1-3 specialists.
@@ -161,14 +133,17 @@ class TaskDeferredError extends Error {}
 export class ClientProfileFillCompletionService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ClientProfileFillCompletionService.name);
   private readonly workerId = process.env.HOSTNAME ?? `api-${process.pid}`;
-  private taskTimer?: ReturnType<typeof setInterval>;
-  private scheduleTimer?: ReturnType<typeof setInterval>;
-  private taskSweepRunning = false;
-  private scheduleSweepRunning = false;
   private readonly advocacyHistory: ClientProfileFillAdvocacyHistory;
   private readonly findingReview: ClientProfileFillFindingReview;
   private readonly regulatoryCommentSource: ClientProfileFillRegulatoryCommentSource;
   private readonly regulatoryCommentDiscovery: ClientProfileFillRegulatoryCommentDiscovery;
+  private readonly completionRuntime: ClientProfileFillCompletionRuntime;
+  private readonly refreshSchedule: ClientProfileFillRefreshSchedule;
+  private readonly runReadModel: ClientProfileFillRunReadModel;
+  private readonly runLifecycle: ClientProfileFillRunLifecycle;
+  private readonly taskRuntime: ClientProfileFillTaskRuntime;
+  private readonly taskLedger: ClientProfileFillTaskLedger;
+
 
   constructor(
     private readonly prisma: PrismaService,
@@ -226,42 +201,75 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           this.getConfirmedIntelMappingKeys(ctx, clientId, source),
       },
     );
+    const runtimeOwners = this.createRuntimeOwners();
+    this.completionRuntime = runtimeOwners.completionRuntime;
+    this.refreshSchedule = runtimeOwners.refreshSchedule;
+    this.runReadModel = runtimeOwners.runReadModel;
+    this.runLifecycle = runtimeOwners.runLifecycle;
+    this.taskRuntime = runtimeOwners.taskRuntime;
+    this.taskLedger = runtimeOwners.taskLedger;
+  }
+  private createRuntimeOwners() {
+    const safeError = (error: unknown) => this.safeError(error);
+    const taskLedger = new ClientProfileFillTaskLedger(this.prisma, this.workerId, { safeError });
+    const runReadModel = new ClientProfileFillRunReadModel(this.prisma, {
+      loadCompletionTasks: (tenantId, clientId, runId) =>
+        this.loadCompletionTasks(tenantId, clientId, runId),
+    });
+    const runLifecycle = new ClientProfileFillRunLifecycle(this.prisma, this.workflow, {
+      assertClient: (ctx, clientId) => this.assertClient(ctx, clientId),
+      hasCompletionTasks: (tenantId, runId) => this.hasCompletionTasks(tenantId, runId),
+      getRun: (ctx, clientId, runId) => this.getRun(ctx, clientId, runId),
+      requestTaskSweep: () => this.requestTaskSweep(),
+    });
+    const taskRuntime = new ClientProfileFillTaskRuntime({
+      recoverStaleTasks: () => this.recoverStaleTasks(),
+      claimTasks: () => this.claimTasks(),
+      executeClaimedTask: (task) => this.executeClaimedTask(task),
+      finalizeRuns: () => this.finalizeRuns(),
+      loadRunActor: (task) => taskLedger.loadRunActor(task),
+      executeTask: (ctx, task) => this.executeTask(ctx, task),
+      finishTask: (task, status, summary) => this.finishTask(task, status, summary),
+      deferTask: (task, reason) => this.deferTask(task, reason),
+      failTask: (task, error) => this.failTask(task, error),
+      heartbeat: (task) => this.heartbeat(task),
+    });
+    const refreshSchedule = new ClientProfileFillRefreshSchedule(this.prisma, {
+      assertClient: (ctx, clientId) => this.assertClient(ctx, clientId),
+      startRun: (ctx, clientId, input) => this.startRun(ctx, clientId, input),
+      warn: (message) => this.logger.warn(message),
+      safeError,
+    });
+    const completionRuntime = new ClientProfileFillCompletionRuntime(
+      this.httpAdapterHost,
+      this.workerId,
+      {
+        requestTaskSweep: () => this.requestTaskSweep(),
+        requestScheduleSweep: () => this.requestScheduleSweep(),
+        sweepOnce: () => this.sweepOnce(),
+        sweepSchedulesOnce: () => this.sweepSchedulesOnce(),
+        log: (message) => this.logger.log(message),
+        error: (message) => this.logger.error(message),
+        safeError,
+      },
+    );
+    return {
+      completionRuntime,
+      refreshSchedule,
+      runReadModel,
+      runLifecycle,
+      taskRuntime,
+      taskLedger,
+    };
   }
 
+
   onModuleInit(): void {
-    if (
-      process.env.NODE_ENV === 'test' ||
-      process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED === 'false' ||
-      // `NestFactory.createApplicationContext(AppModule, ...)` (e.g. the
-      // LegiWatch Phase 9 one-shot CLI bootstraps, and any future one-off
-      // script that reuses the full AppModule) never registers an HTTP
-      // adapter, so `httpAdapterHost.httpAdapter` stays unset there. Those
-      // processes run their one job in ~1s and call `app.close()`, which
-      // disconnects PrismaService — starting this sweep loop in that context
-      // means its interval-scheduled `withSystem`/`withTenant` call races the
-      // disconnect and throws "Transaction API error: Transaction not found
-      // ... obtained before disconnecting" on every invocation. Only the real
-      // long-running server (`apps/api/src/main.ts`, `NestFactory.create`)
-      // has a populated httpAdapter. See ClientProfileFillWorkflowService's
-      // identical guard for the same class of bug.
-      !this.httpAdapterHost?.httpAdapter
-    ) {
-      return;
-    }
-    this.taskTimer = setInterval(() => this.requestTaskSweep(), TASK_SWEEP_MS);
-    this.taskTimer.unref?.();
-    this.scheduleTimer = setInterval(() => this.requestScheduleSweep(), SCHEDULE_SWEEP_MS);
-    this.scheduleTimer.unref?.();
-    queueMicrotask(() => {
-      this.requestTaskSweep();
-      this.requestScheduleSweep();
-    });
-    this.logger.log(`Fill with Meri completion worker started (${this.workerId})`);
+    this.completionRuntime.onModuleInit();
   }
 
   onModuleDestroy(): void {
-    if (this.taskTimer) clearInterval(this.taskTimer);
-    if (this.scheduleTimer) clearInterval(this.scheduleTimer);
+    this.completionRuntime.onModuleDestroy();
   }
 
   async getSetup(ctx: TenantContext, clientId: string) {
@@ -301,8 +309,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async refreshNow(ctx: TenantContext, clientId: string) {
-    const schedule = await this.getSchedule(ctx, clientId);
-    return this.startRun(ctx, clientId, { sources: schedule.sources });
+    return this.refreshSchedule.refreshNow(ctx, clientId);
   }
 
   async getAdvocacyHistoryHealth(
@@ -355,95 +362,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async cancelRun(ctx: TenantContext, clientId: string, runId: string) {
-    await this.assertClient(ctx, clientId);
-    const hasAdvanced = await this.hasCompletionTasks(ctx.tenantId, runId);
-    if (!hasAdvanced) return this.workflow.cancelRun(ctx, clientId, runId);
-
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      // Use the same run-before-task lock order as retry and finalization.
-      await tx.$queryRawUnsafe(
-        `SELECT id FROM client_profile_fill_run
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid FOR UPDATE`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = 'cancelled', completed_at = now(), worker_id = NULL,
-                heartbeat_at = NULL, updated_at = now()
-          WHERE run_id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status IN ('queued', 'running')`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_task
-            SET status = 'cancelled', completed_at = now(), worker_id = NULL,
-                heartbeat_at = NULL, updated_at = now()
-          WHERE run_id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status IN ('queued', 'running')`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      const changed = await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_run
-            SET status = 'cancelled', stage = 'cancelled', cancelled_at = now(),
-                completed_at = now(), error = NULL, last_progress_at = now(), updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status <> 'cancelled'`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      if (Number(changed) !== 1) throw new BadRequestException('This run cannot be cancelled');
-    });
-    return this.getRun(ctx, clientId, runId);
+    return this.runLifecycle.cancelRun(ctx, clientId, runId);
   }
 
   async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
-    await this.assertClient(ctx, clientId);
-    const changed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id FROM client_profile_fill_run
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status <> 'cancelled' FOR UPDATE`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      if (!runs.length) throw new BadRequestException('This run cannot be retried');
-      const count = await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
-                error_code = NULL, error_message = NULL, claimed_at = NULL,
-                heartbeat_at = NULL, worker_id = NULL,
-                max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND client_id = $4::uuid AND status = 'failed'`,
-        taskId,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      if (Number(count) === 1) {
-        await requeueFillReviewChecks(tx, runId, ctx.tenantId);
-        await tx.$executeRawUnsafe(
-          `UPDATE client_profile_fill_run
-              SET status = 'running', stage = 'research', completed_at = NULL,
-                  error = NULL, last_progress_at = now(), updated_at = now()
-            WHERE id = $1::uuid AND tenant_id = $2::uuid`,
-          runId,
-          ctx.tenantId,
-        );
-      }
-      return Number(count);
-    });
-    if (changed !== 1) await this.workflow.retryTask(ctx, clientId, runId, taskId);
-    this.requestTaskSweep();
-    return this.getRun(ctx, clientId, runId);
+    return this.runLifecycle.retryTask(ctx, clientId, runId, taskId);
   }
 
   async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[]) {
@@ -459,35 +382,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async getSchedule(ctx: TenantContext, clientId: string) {
-    await this.assertClient(ctx, clientId);
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<RefreshScheduleRow[]>(
-        `SELECT enabled,
-                cadence_hours AS "cadenceHours",
-                sources,
-                next_run_at AS "nextRunAt",
-                last_enqueued_at AS "lastEnqueuedAt",
-                updated_by_user_id AS "updatedByUserId",
-                created_at AS "createdAt",
-                updated_at AS "updatedAt"
-           FROM client_profile_fill_schedule
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid`,
-        ctx.tenantId,
-        clientId,
-      ),
-    );
-    return (
-      rows[0] ?? {
-        enabled: false,
-        cadenceHours: 168,
-        sources: [...CLIENT_PROFILE_FILL_SOURCES],
-        nextRunAt: null,
-        lastEnqueuedAt: null,
-        updatedByUserId: null,
-        createdAt: new Date(0),
-        updatedAt: new Date(0),
-      }
-    );
+    return this.refreshSchedule.getSchedule(ctx, clientId);
   }
 
   async updateSchedule(
@@ -495,102 +390,17 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     input: UpdateClientProfileFillScheduleInput,
   ) {
-    await this.assertClient(ctx, clientId);
-    const cadenceHours = input.cadenceHours ?? 168;
-    if (!Number.isInteger(cadenceHours) || cadenceHours < 6 || cadenceHours > 720) {
-      throw new BadRequestException('Refresh cadence must be between 6 and 720 hours');
-    }
-    const allowed = new Set<ClientProfileFillSource>(CLIENT_PROFILE_FILL_SOURCES);
-    const sources = [
-      ...new Set(input.sources?.length ? input.sources : CLIENT_PROFILE_FILL_SOURCES),
-    ].filter((source): source is ClientProfileFillSource => allowed.has(source));
-    if (!sources.length) throw new BadRequestException('Choose at least one refresh source');
-
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
-        `INSERT INTO client_profile_fill_schedule
-           (tenant_id, client_id, enabled, cadence_hours, sources, next_run_at,
-            updated_by_user_id, updated_at)
-         VALUES (
-           $1::uuid, $2::uuid, $3, $4,
-           ARRAY(SELECT jsonb_array_elements_text($5::jsonb)),
-           CASE WHEN $3 THEN now() + make_interval(hours => $4) ELSE NULL END,
-           $6::uuid, now()
-         )
-         ON CONFLICT (tenant_id, client_id) DO UPDATE
-           SET enabled = EXCLUDED.enabled,
-               cadence_hours = EXCLUDED.cadence_hours,
-               sources = EXCLUDED.sources,
-               next_run_at = CASE
-                 WHEN EXCLUDED.enabled THEN now() + make_interval(hours => EXCLUDED.cadence_hours)
-                 ELSE NULL
-               END,
-               updated_by_user_id = EXCLUDED.updated_by_user_id,
-               updated_at = now()`,
-        ctx.tenantId,
-        clientId,
-        input.enabled,
-        cadenceHours,
-        JSON.stringify(sources),
-        ctx.userId,
-      ),
-    );
-    return this.getSchedule(ctx, clientId);
+    return this.refreshSchedule.updateSchedule(ctx, clientId, input);
   }
 
   /** Public for focused tests and operational recovery. */
   async sweepOnce(): Promise<void> {
-    if (this.taskSweepRunning) return;
-    this.taskSweepRunning = true;
-    try {
-      await this.recoverStaleTasks();
-      const tasks = await this.claimTasks();
-      await Promise.all(tasks.map((task) => this.executeClaimedTask(task)));
-      await this.finalizeRuns();
-    } finally {
-      this.taskSweepRunning = false;
-    }
+    return this.taskRuntime.sweepOnce();
   }
 
   /** Public for focused tests and operational recovery. */
   async sweepSchedulesOnce(): Promise<void> {
-    if (this.scheduleSweepRunning) return;
-    this.scheduleSweepRunning = true;
-    try {
-      const due = await this.prisma.withSystem((tx) =>
-        tx.$queryRawUnsafe<
-          Array<{
-            tenantId: string;
-            clientId: string;
-            userId: string | null;
-            sources: ClientProfileFillSource[];
-            cadenceHours: number;
-          }>
-        >(
-          `WITH due AS (
-             SELECT tenant_id, client_id
-               FROM client_profile_fill_schedule
-              WHERE enabled = true AND next_run_at <= now()
-              ORDER BY next_run_at ASC
-              LIMIT 5
-              FOR UPDATE SKIP LOCKED
-           )
-           UPDATE client_profile_fill_schedule schedule
-              SET next_run_at = now() + make_interval(hours => schedule.cadence_hours),
-                  updated_at = now()
-             FROM due
-            WHERE schedule.tenant_id = due.tenant_id AND schedule.client_id = due.client_id
-           RETURNING schedule.tenant_id AS "tenantId",
-                     schedule.client_id AS "clientId",
-                     schedule.updated_by_user_id AS "userId",
-                     schedule.sources,
-                     schedule.cadence_hours AS "cadenceHours"`,
-        ),
-      );
-      for (const row of due) await this.runScheduledRefresh(row);
-    } finally {
-      this.scheduleSweepRunning = false;
-    }
+    return this.refreshSchedule.sweepSchedulesOnce();
   }
 
   private async ensureCompletionTasks(
@@ -598,307 +408,43 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
   ): Promise<void> {
-    const plan = buildClientProfileFillCompletionPlan();
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const run = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id FROM client_profile_fill_run
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND workflow_version >= 2`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-      if (!run.length) throw new NotFoundException('Agentic Fill with Meri run not found');
-      for (const task of plan) {
-        await tx.$executeRawUnsafe(
-          `INSERT INTO client_profile_fill_extension_task
-             (run_id, tenant_id, client_id, task_type, task_key, depends_on)
-           VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::text[])
-           ON CONFLICT (run_id, task_key) DO NOTHING`,
-          runId,
-          ctx.tenantId,
-          clientId,
-          task.taskType,
-          task.taskKey,
-          task.dependsOn,
-        );
-      }
-      await tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_run
-            SET setup_jsonb = setup_jsonb || '{"completionWorkflowVersion":1}'::jsonb,
-                updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
-        runId,
-        ctx.tenantId,
-        clientId,
-      );
-    });
+    return this.runLifecycle.ensureCompletionTasks(ctx, clientId, runId);
   }
 
   private async hasCompletionTasks(tenantId: string, runId: string): Promise<boolean> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ present: boolean }>>(
-        `SELECT EXISTS(
-           SELECT 1 FROM client_profile_fill_extension_task
-            WHERE tenant_id = $1::uuid AND run_id = $2::uuid
-         ) AS present`,
-        tenantId,
-        runId,
-      ),
-    );
-    return rows[0]?.present === true;
+    return this.runReadModel.hasCompletionTasks(tenantId, runId);
   }
 
   private async latestActiveCompletionRun(tenantId: string, clientId: string) {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT DISTINCT t.run_id AS id
-           FROM client_profile_fill_extension_task t
-           JOIN client_profile_fill_run r ON r.id = t.run_id
-          WHERE t.tenant_id = $1::uuid AND t.client_id = $2::uuid
-            AND t.status IN ('queued', 'running')
-            AND r.status <> 'cancelled'
-          ORDER BY id DESC
-          LIMIT 1`,
-        tenantId,
-        clientId,
-      ),
-    );
-    return rows[0] ?? null;
+    return this.runReadModel.latestActiveCompletionRun(tenantId, clientId);
   }
 
   private async mergeRun(ctx: TenantContext, clientId: string, core: Record<string, unknown>) {
-    const runId = asString(core.id);
-    if (!runId) return core;
-    const tasks = await this.loadCompletionTasks(ctx.tenantId, clientId, runId);
-    const coreTasks = Array.isArray(core.tasks)
-      ? (core.tasks as Array<Record<string, unknown>>)
-      : [];
-    const allTasks = [...coreTasks, ...tasks];
-    const progress = mergeFillProgress(allTasks);
-    const pending =
-      core.status !== 'cancelled' &&
-      allTasks.some((task) => task.status === 'queued' || task.status === 'running');
-    const allTerminal =
-      allTasks.length > 0 &&
-      allTasks.every((task) => TERMINAL_TASK_STATUSES.has(String(task.status)));
-    const anyFailed = allTasks.some((task) => task.status === 'failed');
-    const anyCompleted = allTasks.some(
-      (task) => task.status === 'completed' || task.status === 'skipped',
-    );
-    const status =
-      core.status === 'cancelled'
-        ? 'cancelled'
-        : pending
-          ? 'running'
-          : allTerminal
-            ? anyFailed
-              ? anyCompleted
-                ? 'partial'
-                : 'failed'
-              : 'completed'
-            : core.status;
-    const stage = pending
-      ? tasks.some(
-          (task) =>
-            task.status === 'running' &&
-            (task.taskType === 'reconciliation' || task.taskType === 'completion_audit'),
-        )
-        ? 'reconciliation'
-        : 'research'
-      : status === 'failed'
-        ? 'failed'
-        : status === 'cancelled'
-          ? 'cancelled'
-          : 'review_ready';
-    const sourceStates = { ...asRecord(core.sourceStates) };
-    for (const task of tasks) {
-      sourceStates[task.taskType] = {
-        status: task.status,
-        count: Number(asRecord(task.outputSummary).count ?? 0),
-        error: task.errorMessage,
-      };
-    }
-    return {
-      ...core,
-      status,
-      stage,
-      completedAt: pending ? null : core.completedAt,
-      sourceStates,
-      progress,
-      tasks: allTasks,
-    };
+    return this.runReadModel.mergeRun(ctx, clientId, core);
   }
 
   private async loadCompletionTasks(tenantId: string, clientId: string, runId: string) {
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRawUnsafe<CompletionTaskRow[]>(
-        `SELECT id,
-                run_id AS "runId",
-                tenant_id AS "tenantId",
-                client_id AS "clientId",
-                task_type AS "taskType",
-                task_key AS "taskKey",
-                status,
-                depends_on AS "dependsOn",
-                attempt,
-                max_attempts AS "maxAttempts",
-                input_jsonb AS input,
-                output_summary_jsonb AS "outputSummary",
-                error_code AS "errorCode",
-                error_message AS "errorMessage",
-                worker_id AS "workerId",
-                claimed_at AS "claimedAt",
-                heartbeat_at AS "heartbeatAt",
-                next_attempt_at AS "nextAttemptAt",
-                completed_at AS "completedAt",
-                created_at AS "createdAt",
-                updated_at AS "updatedAt"
-           FROM client_profile_fill_extension_task
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND run_id = $3::uuid
-          ORDER BY created_at ASC, task_key ASC`,
-        tenantId,
-        clientId,
-        runId,
-      ),
-    );
+    return this.runReadModel.loadCompletionTasks(tenantId, clientId, runId);
   }
 
   private requestTaskSweep(): void {
-    void this.sweepOnce().catch((error) =>
-      this.logger.error(`Fill completion sweep failed: ${this.safeError(error)}`),
-    );
+    this.completionRuntime.requestTaskSweep();
   }
 
   private requestScheduleSweep(): void {
-    void this.sweepSchedulesOnce().catch((error) =>
-      this.logger.error(`Fill refresh schedule sweep failed: ${this.safeError(error)}`),
-    );
+    this.completionRuntime.requestScheduleSweep();
   }
 
   private async recoverStaleTasks(): Promise<void> {
-    const cutoff = new Date(Date.now() - TASK_STALE_MS);
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = CASE WHEN attempt + 1 >= max_attempts THEN 'failed' ELSE 'queued' END,
-                attempt = attempt + 1,
-                completed_at = CASE WHEN attempt + 1 >= max_attempts THEN now() ELSE NULL END,
-                next_attempt_at = CASE
-                  WHEN attempt + 1 >= max_attempts THEN next_attempt_at
-                  ELSE now() + make_interval(secs => LEAST(120, 5 * (attempt + 1)))
-                END,
-                error_code = 'stale_worker',
-                error_message = 'Worker heartbeat expired; task recovered from durable state',
-                worker_id = NULL, claimed_at = NULL, heartbeat_at = NULL, updated_at = now()
-          WHERE status = 'running'
-            AND COALESCE(heartbeat_at, claimed_at, updated_at) < $1`,
-        cutoff,
-      ),
-    );
+    return this.taskLedger.recoverStaleTasks();
   }
 
   private async claimTasks(): Promise<CompletionTaskRow[]> {
-    return this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<CompletionTaskRow[]>(
-        `WITH candidates AS (
-           SELECT t.id
-             FROM client_profile_fill_extension_task t
-             JOIN client_profile_fill_run r ON r.id = t.run_id
-            WHERE t.status = 'queued'
-              AND t.next_attempt_at <= now()
-              AND r.status <> 'cancelled'
-              AND NOT EXISTS (
-                SELECT 1
-                  FROM client_profile_fill_extension_task dependency
-                 WHERE dependency.run_id = t.run_id
-                   AND dependency.task_key = ANY(t.depends_on)
-                   AND dependency.status IN ('queued', 'running')
-              )
-            ORDER BY t.created_at ASC, t.task_key ASC
-            FOR UPDATE OF t SKIP LOCKED
-            LIMIT $1
-         )
-         UPDATE client_profile_fill_extension_task t
-            SET status = 'running', worker_id = $2, claimed_at = now(),
-                heartbeat_at = now(), updated_at = now()
-           FROM candidates c
-          WHERE t.id = c.id
-         RETURNING t.id,
-                   t.run_id AS "runId",
-                   t.tenant_id AS "tenantId",
-                   t.client_id AS "clientId",
-                   t.task_type AS "taskType",
-                   t.task_key AS "taskKey",
-                   t.status,
-                   t.depends_on AS "dependsOn",
-                   t.attempt,
-                   t.max_attempts AS "maxAttempts",
-                   t.input_jsonb AS input,
-                   t.output_summary_jsonb AS "outputSummary",
-                   t.error_code AS "errorCode",
-                   t.error_message AS "errorMessage",
-                   t.worker_id AS "workerId",
-                   t.claimed_at AS "claimedAt",
-                   t.heartbeat_at AS "heartbeatAt",
-                   t.next_attempt_at AS "nextAttemptAt",
-                   t.completed_at AS "completedAt",
-                   t.created_at AS "createdAt",
-                   t.updated_at AS "updatedAt"`,
-        TASK_CLAIM_BATCH,
-        // A fresh lease also fences callbacks after a deferred task is reclaimed.
-        `${this.workerId}:${randomUUID()}`,
-      ),
-    );
+    return this.taskLedger.claimTasks();
   }
 
   private async executeClaimedTask(task: CompletionTaskRow): Promise<void> {
-    const runRows = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ createdByUserId: string | null; status: string }>>(
-        `SELECT created_by_user_id AS "createdByUserId", status
-           FROM client_profile_fill_run
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid`,
-        task.runId,
-        task.tenantId,
-        task.clientId,
-      ),
-    );
-    const run = runRows[0];
-    if (!run || run.status === 'cancelled') {
-      await this.finishTask(task, 'cancelled', { count: 0 });
-      return;
-    }
-    if (!run.createdByUserId) {
-      await this.failTask(task, new Error('Fill run has no actor for governed execution'));
-      return;
-    }
-    const ctx: TenantContext = {
-      tenantId: task.tenantId,
-      tenantSlug: '',
-      userId: run.createdByUserId,
-      clerkUserId: '',
-      role: 'standard_user',
-    };
-    const heartbeat = setInterval(() => {
-      void this.heartbeat(task).catch(() => undefined);
-    }, 15_000);
-    heartbeat.unref?.();
-    try {
-      const result = await this.withTaskTimeout(this.executeTask(ctx, task));
-      await this.finishTask(
-        task,
-        'completed',
-        typeof result === 'number' ? { count: result } : result,
-      );
-    } catch (error) {
-      if (error instanceof TaskDeferredError) {
-        await this.deferTask(task, error.message);
-      } else {
-        await this.failTask(task, error);
-      }
-    } finally {
-      clearInterval(heartbeat);
-    }
+    return this.taskRuntime.executeClaimedTask(task);
   }
 
   private async executeTask(
@@ -927,31 +473,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   private async assertCoreDependencies(task: CompletionTaskRow): Promise<void> {
-    const requirements: Partial<Record<ClientProfileFillCompletionTaskType, string[]>> = {
-      federal_market: ['sam_gov'],
-      facility_resolution: ['public_web', 'sam_gov', 'client_document'],
-      advocacy_history: ['synced_email', 'lda', 'program_elements', 'bill_tracker'],
-      lifecycle_outcomes: ['program_elements', 'bill_tracker'],
-    };
-    const required = requirements[task.taskType] ?? [];
-    const waitForAll = task.taskType === 'reconciliation' || task.taskType === 'completion_audit';
-    if (!required.length && !waitForAll) return;
-    const rows = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ pending: number }>>(
-        `SELECT COUNT(*)::int AS pending
-           FROM client_profile_fill_task
-          WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-            AND ($4::boolean OR task_type = ANY($3::text[]))
-            AND status IN ('queued', 'running')`,
-        task.runId,
-        task.tenantId,
-        required,
-        waitForAll,
-      ),
-    );
-    if (Number(rows[0]?.pending ?? 0) > 0) {
-      throw new TaskDeferredError('Waiting for prerequisite Fill specialists');
-    }
+    return this.taskLedger.assertCoreDependencies(task);
   }
 
   private async gatherFederalMarket(
@@ -2116,147 +1638,23 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     status: Extract<CompletionTaskStatus, 'completed' | 'skipped' | 'cancelled'>,
     summary: Record<string, unknown>,
   ) {
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = $4, output_summary_jsonb = $5::jsonb,
-                completed_at = now(), heartbeat_at = NULL, worker_id = NULL,
-                error_code = NULL, error_message = NULL, updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND status = 'running' AND worker_id = $6`,
-        task.id,
-        task.runId,
-        task.tenantId,
-        status,
-        JSON.stringify(summary),
-        task.workerId,
-      ),
-    );
+    return this.taskLedger.finishTask(task, status, summary);
   }
 
   private async deferTask(task: CompletionTaskRow, reason: string) {
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = 'queued', next_attempt_at = now() + interval '2 seconds',
-                claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
-                error_code = 'waiting_for_dependency', error_message = $4, updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND status = 'running' AND worker_id = $5`,
-        task.id,
-        task.runId,
-        task.tenantId,
-        reason,
-        task.workerId,
-      ),
-    );
+    return this.taskLedger.deferTask(task, reason);
   }
 
   private async failTask(task: CompletionTaskRow, error: unknown) {
-    const nextAttempt = task.attempt + 1;
-    const terminal = nextAttempt >= task.maxAttempts;
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET status = $4,
-                attempt = attempt + 1,
-                completed_at = CASE WHEN $4 = 'failed' THEN now() ELSE NULL END,
-                next_attempt_at = CASE
-                  WHEN $4 = 'failed' THEN next_attempt_at
-                  ELSE now() + make_interval(secs => LEAST(120, 5 * (attempt + 1)))
-                END,
-                error_code = 'task_error', error_message = $5,
-                claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
-                updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
-            AND status = 'running' AND worker_id = $6`,
-        task.id,
-        task.runId,
-        task.tenantId,
-        terminal ? 'failed' : 'queued',
-        this.safeError(error),
-        task.workerId,
-      ),
-    );
+    return this.taskLedger.failTask(task, error);
   }
 
   private async heartbeat(task: CompletionTaskRow) {
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_extension_task
-            SET heartbeat_at = now(), updated_at = now()
-          WHERE id = $1::uuid AND status = 'running' AND worker_id = $2`,
-        task.id,
-        task.workerId,
-      ),
-    );
+    return this.taskLedger.heartbeat(task);
   }
 
   private async finalizeRuns(): Promise<void> {
-    const runs = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ runId: string; tenantId: string }>>(
-        `SELECT r.id AS "runId", r.tenant_id AS "tenantId"
-           FROM client_profile_fill_run r
-          WHERE r.status <> 'cancelled'
-            AND EXISTS (SELECT 1 FROM client_profile_fill_extension_task extension
-                         WHERE extension.run_id = r.id AND extension.tenant_id = r.tenant_id
-                           AND (r.completed_at IS NULL OR extension.updated_at > r.completed_at))
-            AND NOT EXISTS (
-              SELECT 1 FROM client_profile_fill_extension_task pending
-               WHERE pending.run_id = r.id AND pending.tenant_id = r.tenant_id
-                 AND pending.status IN ('queued', 'running')
-            )
-            AND NOT EXISTS (
-              SELECT 1 FROM client_profile_fill_task pending
-               WHERE pending.run_id = r.id AND pending.tenant_id = r.tenant_id
-                 AND pending.status IN ('queued', 'running')
-            )
-          ORDER BY r.updated_at ASC
-          LIMIT 20`,
-      ),
-    );
-    for (const run of runs) {
-      await this.prisma.withSystem(async (tx) => {
-        // Serialize with retry, then re-read BOTH task groups under the lock.
-        const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-          `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
-            AND tenant_id = $2::uuid AND status <> 'cancelled' FOR UPDATE`,
-          run.runId,
-          run.tenantId,
-        );
-        if (!locked.length) return;
-        const statuses = await tx.$queryRawUnsafe<Array<{ status: string }>>(
-          `SELECT status FROM client_profile_fill_task
-            WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-           UNION ALL
-           SELECT status FROM client_profile_fill_extension_task
-            WHERE run_id = $1::uuid AND tenant_id = $2::uuid`,
-          run.runId,
-          run.tenantId,
-        );
-        if (statuses.some((row) => !TERMINAL_TASK_STATUSES.has(row.status))) return;
-        const failed = statuses.filter((row) => row.status === 'failed').length;
-        const completed = statuses.filter(
-          (row) => row.status === 'completed' || row.status === 'skipped',
-        ).length;
-        const status = failed > 0 ? (completed > 0 ? 'partial' : 'failed') : 'completed';
-        const summary = await buildFillRunSummary(tx, run.runId, run.tenantId);
-        await tx.$executeRawUnsafe(
-          `UPDATE client_profile_fill_run
-              SET status = $3,
-                  stage = CASE WHEN $3 = 'failed' THEN 'failed' ELSE 'review_ready' END,
-                  summary_jsonb = $4::jsonb,
-                  completed_at = now(),
-                  last_progress_at = now(), updated_at = now(),
-                  error = CASE WHEN $3 = 'failed' THEN 'All Fill with Meri tasks failed' ELSE NULL END
-            WHERE id = $1::uuid AND tenant_id = $2::uuid AND status <> 'cancelled'`,
-          run.runId,
-          run.tenantId,
-          status,
-          JSON.stringify(summary),
-        );
-      });
-    }
+    return this.runLifecycle.finalizeRuns();
   }
 
   private async runScheduledRefresh(row: {
@@ -2266,26 +1664,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     sources: ClientProfileFillSource[];
     cadenceHours: number;
   }) {
-    if (!row.userId) {
-      await this.bumpSchedule(row.tenantId, row.clientId, row.cadenceHours, false);
-      return;
-    }
-    const ctx: TenantContext = {
-      tenantId: row.tenantId,
-      tenantSlug: '',
-      userId: row.userId,
-      clerkUserId: '',
-      role: 'standard_user',
-    };
-    try {
-      await this.startRun(ctx, row.clientId, { sources: row.sources });
-      await this.bumpSchedule(row.tenantId, row.clientId, row.cadenceHours, true);
-    } catch (error) {
-      this.logger.warn(
-        `Scheduled Fill with Meri refresh failed for ${row.clientId}: ${this.safeError(error)}`,
-      );
-      await this.bumpSchedule(row.tenantId, row.clientId, Math.min(24, row.cadenceHours), false);
-    }
+    return this.refreshSchedule.runScheduledRefresh(row);
   }
 
   private async bumpSchedule(
@@ -2294,19 +1673,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     cadenceHours: number,
     enqueued: boolean,
   ) {
-    await this.prisma.withSystem((tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_schedule
-            SET next_run_at = now() + make_interval(hours => $3),
-                last_enqueued_at = CASE WHEN $4 THEN now() ELSE last_enqueued_at END,
-                updated_at = now()
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND enabled = true`,
-        tenantId,
-        clientId,
-        cadenceHours,
-        enqueued,
-      ),
-    );
+    return this.refreshSchedule.bumpSchedule(tenantId, clientId, cadenceHours, enqueued);
   }
 
   private async assertClient(ctx: TenantContext, clientId: string): Promise<void> {
@@ -2325,21 +1692,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   private async withTaskTimeout<T>(promise: Promise<T>): Promise<T> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        promise,
-        new Promise<T>((_resolve, reject) => {
-          timer = setTimeout(
-            () => reject(new Error('Fill completion specialist exceeded its task budget')),
-            TASK_TIMEOUT_MS,
-          );
-          timer.unref?.();
-        }),
-      ]);
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
+    return this.taskRuntime.withTaskTimeout(promise);
   }
 
   private safeError(error: unknown): string {
