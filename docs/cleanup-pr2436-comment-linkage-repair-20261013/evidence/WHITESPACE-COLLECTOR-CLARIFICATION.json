@@ -1,0 +1,12 @@
+{
+  "originalCollector": "raw-packet-whitespace.command.json",
+  "rawResultsPreserved": true,
+  "interpretation": "git diff --no-index --check returns1 for file differences; listed nonzero statuses alone are not whitespace warnings",
+  "originalStdoutBytes": 0,
+  "originalStderrBytes": 0,
+  "definitiveSealedPacketCheck": "sealed-packet-whitespace.command.json",
+  "definitiveExit": 0,
+  "sourceCheckExit": 0,
+  "fullFloorAccepted": false,
+  "earlierBundleWhitespaceWarnings": "retained in unchanged2f391 packet; not globally cleared"
+}

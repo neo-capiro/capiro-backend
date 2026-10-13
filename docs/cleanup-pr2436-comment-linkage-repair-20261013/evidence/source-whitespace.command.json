@@ -1,0 +1,16 @@
+{
+  "source": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+    "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+    "--",
+    "scripts/lib/onboard-spa-artifact-contract.mjs",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "exit": 0,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

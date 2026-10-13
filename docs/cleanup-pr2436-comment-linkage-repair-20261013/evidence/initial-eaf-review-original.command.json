@@ -1,0 +1,21 @@
+{
+  "source": "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+  "tree": "0c96047a606ec28209f29ef3f09579241c2451f7",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013/docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/safe-source-test-preload.cjs",
+    "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013/docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original-probe.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "GIT_DIR": "/workspace/capirov2/.git",
+    "GIT_WORK_TREE": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013"
+  },
+  "cwd": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013",
+  "exit": 0,
+  "seconds": 0.10265541076660156,
+  "stdoutSha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "actual pure guard; inert strings/fake ports only; no payload evaluation/native/default"
+}

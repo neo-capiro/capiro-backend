@@ -1,0 +1,16 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013/docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/safe-source-test-preload.cjs",
+    "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013/docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment-probe.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "GIT_DIR": "/workspace/capirov2/.git",
+    "GIT_WORK_TREE": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013"
+  },
+  "exit": 0,
+  "scope": "derived comments contain quote/semicolon/parenthesis punctuation; same inert actualguard only, no payload execution"
+}
