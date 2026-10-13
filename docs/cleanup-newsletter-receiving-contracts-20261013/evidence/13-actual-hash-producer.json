@@ -1,0 +1,7 @@
+{
+  "method": "contentHashOf",
+  "subject": "Subject",
+  "body": "<p>Body</p>",
+  "hash": "sha256:3ee115206fa8b6523e5fd464a180dd692d49324fceb078c2e4b795e1ab137208",
+  "producer": "export function contentHashOf(subject: string, body: string): string {\n  return `sha256:${createHash('sha256').update(`${subject}\\n${body}`, 'utf8').digest('hex')}`;\n}"
+}

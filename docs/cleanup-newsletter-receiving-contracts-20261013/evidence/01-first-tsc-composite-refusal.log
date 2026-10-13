@@ -1,0 +1,1 @@
+packages/shared/tsconfig.json(3,3): error TS6379: Composite projects may not disable incremental compilation.

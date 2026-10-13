@@ -1,0 +1,380 @@
+FAIL apps/api/src/engagement/newsletter-outreach-admission.spec.ts
+  canonical rich newsletter admission
+    ✓ rechecks canonical record stage and client authority before draft reads (4 ms)
+    ✓ valid mutation keeps authority before existing advisory lock and operation (1 ms)
+    ✕ wrong persisted type refuses before even loading a stage (2 ms)
+    ✕ missing persisted type refuses
+    ✓ missing reserved stage hint refuses (2 ms)
+    ✓ malformed reserved stage hint refuses (2 ms)
+    ✕ a foreign current stage client refuses before drafting or locking (1 ms)
+    ✓ case-insensitive client identity preserves uppercase stage JSON (1 ms)
+    ✓ both null primary client bindings retain the existing legacy profile (1 ms)
+    ✕ one-null row binding refuses (1 ms)
+    ✕ one-null stage binding refuses (1 ms)
+    ✕ missing row client binding refuses (1 ms)
+    ✕ missing stage client binding refuses (1 ms)
+    ✕ invalid row UUID binding refuses
+    ✕ invalid stage UUID binding refuses
+    ✓ absent reserved revision remains legacy-compatible (1 ms)
+    ✕ stale positive reserved revision refuses before all draft/effectful calls
+    ✕ malformed present reserved revision null refuses
+    ✕ malformed present reserved revision undefined refuses (1 ms)
+    ✕ malformed present reserved revision 4 refuses
+    ✕ malformed present reserved revision 0 refuses
+    ✕ malformed present reserved revision -1 refuses (1 ms)
+    ✕ malformed present reserved revision 4.5 refuses (1 ms)
+    ✕ malformed present reserved revision 9007199254740992 refuses
+    ✕ malformed present reserved revision false refuses
+    ✓ owner record denial propagates without stage or effectful calls (1 ms)
+    ✓ stage authority denial propagates without draft reads or effects
+    ✓ current client wall revocation propagates before draft data (1 ms)
+    ✓ invalid requested record UUID refuses before canonical lookup
+
+  ● canonical rich newsletter admission › wrong persisted type refuses before even loading a stage
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at Object.<anonymous> (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:183:11)
+
+  ● canonical rich newsletter admission › missing persisted type refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at Object.<anonymous> (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:189:11)
+
+  ● canonical rich newsletter admission › a foreign current stage client refuses before drafting or locking
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "d4444444-4444-4444-8444-444444444444", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at Object.<anonymous> (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:204:11)
+
+  ● canonical rich newsletter admission › one-null row binding refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:224:11
+
+  ● canonical rich newsletter admission › one-null stage binding refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": null, "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:224:11
+
+  ● canonical rich newsletter admission › missing row client binding refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:230:11
+
+  ● canonical rich newsletter admission › missing stage client binding refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:230:11
+
+  ● canonical rich newsletter admission › invalid row UUID binding refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:236:11
+
+  ● canonical rich newsletter admission › invalid stage UUID binding refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "n_node", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:236:11
+
+  ● canonical rich newsletter admission › stale positive reserved revision refuses before all draft/effectful calls
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at Object.<anonymous> (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:247:11)
+
+  ● canonical rich newsletter admission › malformed present reserved revision null refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision undefined refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision 4 refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision 0 refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision -1 refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision 4.5 refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision 9007199254740992 refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+  ● canonical rich newsletter admission › malformed present reserved revision false refuses
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"excluded": [], "id": "a1111111-1111-4111-8111-111111111111", "intentId": null, "name": "Immutable stage", "senderConnectionId": null, "stage": {"config": {"clientId": "c3333333-3333-4333-8333-333333333333", "subject": "Subject"}, "design": {}, "id": "b2222222-2222-4222-8222-222222222222", "name": "Immutable stage", "revision": 4}, "status": "draft", "subject": "Subject", "targets": [], "tests": [], "versions": []}
+
+      140 | }
+      141 | async function refuses(h: ReturnType<typeof harness>) {
+    > 142 |   await expect(h.service.get(ctx, recordId)).rejects.toBeInstanceOf(NotFoundException);
+          |         ^
+      143 |   await expect(h.service.mutation(ctx, recordId, h.operation)).rejects.toBeInstanceOf(
+      144 |     NotFoundException,
+      145 |   );
+
+      at expect (../../workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at refuses (apps/api/src/engagement/newsletter-outreach-admission.spec.ts:142:9)
+      at apps/api/src/engagement/newsletter-outreach-admission.spec.ts:254:13
+
+Test Suites: 1 failed, 1 total
+Tests:       18 failed, 11 passed, 29 total
+Snapshots:   0 total
+Time:        1.152 s
+Ran all test suites.
+Test results written to: docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.json
