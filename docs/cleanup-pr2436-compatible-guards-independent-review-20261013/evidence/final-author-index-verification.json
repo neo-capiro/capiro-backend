@@ -1,0 +1,632 @@
+{
+  "author": "a6a600c4da23447c856d20d6df344d9e71301fbe",
+  "authorTree": "ecedbbbaad015aa30dcdfe0b2cab3616f4b817a3",
+  "source": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "entriesVerified": 88,
+  "sourceUnchanged": true,
+  "actualAuthorAncestor": true,
+  "rows": [
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/COMMANDS.md",
+      "sha256": "fd41fc1bd14c432d07d01d590ff8cc2601735b66a402ee63c7dfd7ba036f7ccb",
+      "bytes": 1092,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/HANDOFF.md",
+      "sha256": "3da29ead0ae392b9029549f7ae18d07d9cd8bf57707b5c9fd0846b1ececabb9a",
+      "bytes": 3294,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-3769-HANDOFF.md",
+      "sha256": "fcfec3070f13ef89802cc1ed3281211ed40af5cc8e57e819919dd6d28320018f",
+      "bytes": 3235,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-3769-QUALIFICATION.json",
+      "sha256": "cb8310ca1b8120b92ae7eec532d01ada11339a33cac6cbafdfb8f699eb63dc9a",
+      "bytes": 1481,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-981-SHA256-INDEX.json",
+      "sha256": "f82e0dd1484062bf7a0f92a0da9dd2ec78b193ac8006c9e4483bc8180d47f60d",
+      "bytes": 19539,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-EAF-HANDOFF.md",
+      "sha256": "c589da6d9a68cab4cbf84c4c8e971a2574f70b9f93f0636a5739c356ae315929",
+      "bytes": 3301,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-EAF-QUALIFICATION.json",
+      "sha256": "fe9732c42b40bdbddbe3cf5ec38580f5fe97e73872ae764d8380de363c4a2de5",
+      "bytes": 1137,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/QUALIFICATION.json",
+      "sha256": "39348c1749b61b2debdbbb322d9785efaf665032295f87e8758611d0b14e98b0",
+      "bytes": 1470,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/EXACT-REPAIR-BLOCKS-EAF.json",
+      "sha256": "b0bb42bb3001f43f640fc6de3bdf961b8c1d2dc0b6a9425784db5e21ff3dbd29",
+      "bytes": 3603,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/EXACT-REPAIR-BLOCKS-INITIAL.json",
+      "sha256": "75ecbec7c7ee7c883768943539d195a8a1c11b5e018ae25686afaa0da915afc6",
+      "bytes": 3459,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/EXACT-REPAIR-BLOCKS.json",
+      "sha256": "33770b37508d1ae120a5779cf9341280b724689e508c1d6c00b83e146bfcdb3c",
+      "bytes": 3675,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-3769-SOURCE-AND-CASE-PRESERVATION.json",
+      "sha256": "391c05d5bc02b9354f7d319ed6d4a5154941bb8939bd526bdd7eeca0d87ce219",
+      "bytes": 7031,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-3769-source-whitespace.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-3769-source-whitespace.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-SOURCE-AND-CASE-PRESERVATION.json",
+      "sha256": "12487da905a8e875bae8d9221b14b171c395df28ac51d1499881344af7cb557d",
+      "bytes": 7611,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-source-whitespace.command.json",
+      "sha256": "5fa4073ce28e217adab41a529d5d7256bc27674a32587561f199ae575c53bdef",
+      "bytes": 213,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-source-whitespace.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-source-whitespace.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/RECONCILIATION.json",
+      "sha256": "00107da0e23b3215250cc81e7ba664e377709bc8e675578c0f8522503703d3f0",
+      "bytes": 564,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-AND-CASE-PRESERVATION.json",
+      "sha256": "b9f63aceaaaa58afb0ce17e4d1c179816126abf47b81312c18852d9ef1aecc93",
+      "bytes": 8248,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE-EAF.json",
+      "sha256": "86590c0de9a2c0a40c46f0ab0f9fa483a06add1c4be312a30fdb20953814c8b5",
+      "bytes": 571,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE-INITIAL.json",
+      "sha256": "296d6ac29b261bae95993efa1f6c08cfedb18438bca9cb102f027e18dced5f04",
+      "bytes": 419,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE.json",
+      "sha256": "61191c94f0eecdbd6b7f00beed04f8298d00b3847f8c465d367d51ffafb863fd",
+      "bytes": 551,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/WHITESPACE-COLLECTOR-CLARIFICATION.json",
+      "sha256": "6775da7f25dd6605c0fd1066e7582d4c8a6c3ffe3b6245f213d5f6c41beaa03a",
+      "bytes": 538,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.command.json",
+      "sha256": "08a442e48010207235f848fc99ef648e91d635094a75e64cf7b0e6d0d3f47e82",
+      "bytes": 1116,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.stdout",
+      "sha256": "b85296992ae7716f9a716789fbad0d7354f6a7a85149d77fad1531e909505a52",
+      "bytes": 3513,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-onboard.command.json",
+      "sha256": "d1bf449ad3ab8f1ab68c74db1720ed8bce73efd6a29f13a66f27d9eb2afa3b46",
+      "bytes": 1110,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-onboard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-onboard.stdout",
+      "sha256": "9d4033073d445cab11457541c8b8dd9e00a980187026621e5fab2bc7c16e86c8",
+      "bytes": 3097,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-review-original.command.json",
+      "sha256": "73fc18c613f036b41771dced8bc42aff21e881d48cb887f805c3bd9a66e33002",
+      "bytes": 1167,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-review-original.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-review-original.stdout",
+      "sha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c",
+      "bytes": 2857,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-newsletter.command.json",
+      "sha256": "05c9e8a7c74e1f9375a3d1a1551ac107673011b01fa85181eaeef9be05b8d0b5",
+      "bytes": 1117,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-newsletter.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-newsletter.stdout",
+      "sha256": "8415becc0ed060331c8f76baf087f326abdb9e780e329d0bddcc1b92dab645a2",
+      "bytes": 3503,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-onboard.command.json",
+      "sha256": "598d7636c7b144dc43904854099bad9e780b9a9ec35c4cc2321a160aa2326d69",
+      "bytes": 1112,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-onboard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-onboard.stdout",
+      "sha256": "d59c70586feb79407a5670d4e15481c87db30483eca5b69f8e3148206b33ed68",
+      "bytes": 3725,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-review-original.command.json",
+      "sha256": "8624e9cbe1f947e270238d61f03703c8e8637a1ff2010d75372209bb4b0b19eb",
+      "bytes": 1168,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-review-original.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-review-original.stdout",
+      "sha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c",
+      "bytes": 2857,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-root-clause-final.command.json",
+      "sha256": "53e96406a9411198cd83541ab30253a6dfdbeab567d623f33a84ab4da4dd5908",
+      "bytes": 1172,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-root-clause-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-root-clause-final.stdout",
+      "sha256": "4248d4e0e80509cdf2f5bf95cd19b6013d787b308c839718edaaa5587c369abd",
+      "bytes": 1344,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-final.command.json",
+      "sha256": "c14c52347f0c3e04fd9dac5f72370551b8e2b2c69a1b9148132367cce07d5fbb",
+      "bytes": 1168,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-final.stdout",
+      "sha256": "f605683452bc4219ae32e7134f7d3a8ec9a63278d51411ce505acb9dacd5896b",
+      "bytes": 1178,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-probe.RED.stdout",
+      "sha256": "f17b8f297fa2b2eb30bc0562124222cc5b22d92875d9b757c7e6be3b6a94a80c",
+      "bytes": 1020,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-probe.mjs",
+      "sha256": "668feab13037aa3a378c15910c93a47742110f48acc736c214b8d083584a7b1f",
+      "bytes": 2018,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/newsletter.command.json",
+      "sha256": "05c9e8a7c74e1f9375a3d1a1551ac107673011b01fa85181eaeef9be05b8d0b5",
+      "bytes": 1117,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/newsletter.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/newsletter.stdout",
+      "sha256": "8415becc0ed060331c8f76baf087f326abdb9e780e329d0bddcc1b92dab645a2",
+      "bytes": 3503,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/old-6503-helper.mjs.txt",
+      "sha256": "47a5ba0c0164cebd9ed1721a14cf9ca907a024a4cd12044dcc297b8c562c0eb6",
+      "bytes": 12915,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/old-6503-spec.mjs.txt",
+      "sha256": "e8f1252a87e5d2afd782348878f6010dbb9c55cbfdcfbd5f4aeeee082721964b",
+      "bytes": 27655,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/onboard.command.json",
+      "sha256": "46224ba5ff0958002d9cb4e5c03000293b1e5c093df53162dbfa52ee5c66d904",
+      "bytes": 1112,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/onboard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/onboard.stdout",
+      "sha256": "ebb5e92b91bfc8832df8dcc1bee067649316e96056796e92b60738c571165007",
+      "bytes": 4116,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment-probe.mjs",
+      "sha256": "d666987d15479c211d73312df134e8a6fd049c940402f3d3ecac187199066bcd",
+      "bytes": 2578,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment.RED.command.json",
+      "sha256": "49731016c77fda108f7406bd09d811d77a3a25a9e90f9f66fd42a443a6571fcf",
+      "bytes": 866,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment.RED.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment.RED.stdout",
+      "sha256": "adf3862e35253fbc89d77c290d1ada96f56c7102637a9b3c0937201e48fb3efb",
+      "bytes": 2869,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/qualify-final-terminators.py.txt",
+      "sha256": "989a28c3e7c1583939289bf32f75dc4676f72ed21d5d3c488b2f5b0c5598ed6c",
+      "bytes": 3097,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/raw-packet-whitespace.command.json",
+      "sha256": "c382015eb4894a9e1e6a5cef517430eaf71e4078072410088a859ff61c3434e4",
+      "bytes": 10845,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/raw-packet-whitespace.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/raw-packet-whitespace.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/repair-clause-comments.py.txt",
+      "sha256": "6fa4145599e09b5c06efa2333fa03884751b4b713ae89b4ac06cedb1c84179b7",
+      "bytes": 3482,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/repair-comment-linkage.py.txt",
+      "sha256": "8cb26ce97af4ca300afb25c2fecbc8c74bba0e7b97d6a2fb9e87d05f40f188d5",
+      "bytes": 6892,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/repair-line-terminators.py.txt",
+      "sha256": "00eeb7cdc8034846997bc11337acbf4fd064fabec391c100b878972a81b1dbff",
+      "bytes": 2823,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original-probe.RED.stdout",
+      "sha256": "fe98faa34bd1213dfa6b1d91e90e8267b167eafc3a1471ac60c29c53b4c0d028",
+      "bytes": 2465,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original-probe.mjs",
+      "sha256": "011edca74b049d9aaa6a25ff18f79dd1499c20b49c2897f6cd8b38c8e3a2852f",
+      "bytes": 2572,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original.command.json",
+      "sha256": "0e63225b9e27226a94b9c14a8be2f8473b35b1a88ffa23a77cbebbc5bf491da6",
+      "bytes": 1168,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original.stdout",
+      "sha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c",
+      "bytes": 2857,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-comment-probe.RED.stdout",
+      "sha256": "ac9fa5a00386b6e7fd5064073af84c35c05916ec4e5daefb33410f9ea88ff396",
+      "bytes": 1107,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-comment-probe.mjs",
+      "sha256": "78d67aadcf5b528e77d80cb551f2e72bbd5baf72d34e5758c1ead595c895d862",
+      "bytes": 2160,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-final.command.json",
+      "sha256": "6a5f5d9b727bf70127fe0df8e2e597d84e2d1327791eb7498b60947afae59346",
+      "bytes": 1172,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-final.stdout",
+      "sha256": "4248d4e0e80509cdf2f5bf95cd19b6013d787b308c839718edaaa5587c369abd",
+      "bytes": 1344,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/safe-source-test-preload.cjs",
+      "sha256": "7ff0afb7c32ce107f2e0ea2aea6df2d62496dcdb26f88a2d065d7fb38cac0bef",
+      "bytes": 1893,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/sealed-packet-whitespace.command.json",
+      "sha256": "8426079e76aa692bb5a394a432699b806d85e04f44630a9870551f0c33ace77f",
+      "bytes": 420,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/sealed-packet-whitespace.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/sealed-packet-whitespace.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.command.json",
+      "sha256": "9d7b379cb6bb7ed55239143b243d23c845901840dd82b1e65487b3e7a12edfa8",
+      "bytes": 514,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "packet",
+      "path": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "verified": true
+    },
+    {
+      "group": "sourceBindings",
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "sha256": "d92b6a95a1a011bea8d7437308af0a034d97bfba46f894bb8330f00ae287ad16",
+      "gitBlob": "3afe06de20d333b9a5a9afac3f67f823bce4672d",
+      "mode": "100644",
+      "bytes": 14156,
+      "beforeSha256": "47a5ba0c0164cebd9ed1721a14cf9ca907a024a4cd12044dcc297b8c562c0eb6",
+      "verified": true
+    },
+    {
+      "group": "sourceBindings",
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "sha256": "80e582ceb3a9065c4fd5832bcfe9e3ec41f3ff0b9c3e7fd17ed71ae213c4a40b",
+      "gitBlob": "d95696fec8a48fe53286e119ac6d1604d96f4fb2",
+      "mode": "100644",
+      "bytes": 34751,
+      "beforeSha256": "e8f1252a87e5d2afd782348878f6010dbb9c55cbfdcfbd5f4aeeee082721964b",
+      "verified": true
+    }
+  ]
+}

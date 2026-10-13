@@ -1,0 +1,465 @@
+{
+  "acceptedSource": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "acceptedSourceTree": "f856da3e3f0df6941fbb3837a41c19615ed78cd9",
+  "packet": [
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/ACCEPTANCE.json",
+      "bytes": 1993,
+      "sha256": "8b0fa84f8ca3789800c31ae25db0c6b90eba7aaaf7a1aacadee94b88a158b5d2"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/INITIAL-RECEIPT.json",
+      "bytes": 1403,
+      "sha256": "0ae9a74125acd10e95588cafb74f4771d90f83fc25e8e19f3ebc300f2b1de17d"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/INITIAL-REVIEW.md",
+      "bytes": 2666,
+      "sha256": "35ff97f93c9a0255528025e948b585c2991e6bedb5fac2a86d9da7378387bf16"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/INTERMEDIATE-HOLD.md",
+      "bytes": 1468,
+      "sha256": "131a99dc661e59cd47ebcccf859e11d9172de0acaae686c21daad8cc1c92c3ec"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/LINE-TERMINATOR-HOLD.json",
+      "bytes": 1103,
+      "sha256": "5f9f1cd7abb4208ae20196555a68a1757408bf9c594bb678e9ee84da045bb6dc"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/REVIEW.md",
+      "bytes": 4869,
+      "sha256": "723eaa79bf7e198d72bc5ba41412e454536e590878dded8a2dc5fee9f18a5ed9"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/SHA256-INITIAL-INDEX.json",
+      "bytes": 4792,
+      "sha256": "2edc7c2b0ff0cc4189a0c5d8ec35ede9283eaa0a4f7347a0405dc87a194aeae9"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/accepted-source-preservation.json",
+      "bytes": 2679,
+      "sha256": "dedadc36012bd985c97afff8f959707c7e2e301a705ec67d929342c6aa240613"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/author-index-verification.json",
+      "bytes": 11032,
+      "sha256": "dcdfa8141d0c72057f54f2b4c74bb191bb2e6e276c88843db8d3e26814905231"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/case-name-preservation.json",
+      "bytes": 10599,
+      "sha256": "7690931d5a4f9706382ef0e16425bfd78d2344415f18ead60c197b6b01c9050d"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/correction-source-preservation.json",
+      "bytes": 2031,
+      "sha256": "430818a149a8113aad48d778b144bbd27204c6e71f7fe63d4afc5bc7c55a87e5"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/final-author-index-verification.json",
+      "bytes": 24520,
+      "sha256": "0d37de6c5bb33e393e4645b25a54d42c079a26ef21c5c03aee7568eab412eedd"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/helper-spec-inverse.json",
+      "bytes": 638,
+      "sha256": "f8361b483d811821255b1f45463c122bef1c5687a8c476cc2fc2e13871bbd866"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/inverse-attempt-0.executor.txt",
+      "bytes": 88,
+      "sha256": "d40eaa31165dbb7eeba618fb0a102cff3a7c4b124b652031073c94c4e79176cf"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/inverse-attempt-0.json",
+      "bytes": 639,
+      "sha256": "c1856a93ad1047d51b7b8f8ddd07aef8c11fb7350ef44371b3f08b6595c8811b"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-accepted.command.json",
+      "bytes": 1182,
+      "sha256": "d5b8a7cfd36e731a80d3ca0156b102f20bc013db03d217faa47044be3ac846fc"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-accepted.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-accepted.stdout",
+      "bytes": 1178,
+      "sha256": "f605683452bc4219ae32e7134f7d3a8ec9a63278d51411ce505acb9dacd5896b"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-probe.command.json",
+      "bytes": 752,
+      "sha256": "ad586525cb8c41648d9299a08e57a39dbe25768c4bc2bcba28862f0ce6694ee7"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-probe.mjs",
+      "bytes": 2018,
+      "sha256": "668feab13037aa3a378c15910c93a47742110f48acc736c214b8d083584a7b1f"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-probe.stdout",
+      "bytes": 1020,
+      "sha256": "f17b8f297fa2b2eb30bc0562124222cc5b22d92875d9b757c7e6be3b6a94a80c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/line-terminator-syntax.json",
+      "bytes": 285,
+      "sha256": "da8efb9bc2f71fb01d675c7bae010487c9758e3f2dfcb6f1ccba85d1a18a6f9c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/linkage-syntax.json",
+      "bytes": 502,
+      "sha256": "0d336f0654b5f2fb7a39b4d1ea8482843e582188c2f22d1a0c6aa98a66e12153"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-green.command.json",
+      "bytes": 1203,
+      "sha256": "3fe42a6d45e5ab7da338eae618c4bec48efb5ccc38131cd03e1e2f762da3f4e1"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-green.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-green.stdout",
+      "bytes": 1331,
+      "sha256": "82621dd8aabfde9d88dcdc893faedd04b307f1c1bbab48cd9ac5933d90b2ca2c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-probe.command.json",
+      "bytes": 696,
+      "sha256": "3628ace9e3fbe0a434ee76a0ba0715e7bf52b27d8c872182c0dba1bd2fc2480f"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-probe.mjs",
+      "bytes": 4668,
+      "sha256": "64107735a1c3bef81a1aa3423e4c49b50705c4167924ea2a8d40a975241ba9a1"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-probe.stdout",
+      "bytes": 1331,
+      "sha256": "82621dd8aabfde9d88dcdc893faedd04b307f1c1bbab48cd9ac5933d90b2ca2c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-green.command.json",
+      "bytes": 1152,
+      "sha256": "6ecba09da3c7c3cce64cc36a944d27014b65bced1320df722e6ab9cfa17f883d"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-green.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-green.stdout",
+      "bytes": 3511,
+      "sha256": "0272347ef302dca6e1faded5f1e534ef2065ef1898630ec904755ee3eb67da67"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter.command.json",
+      "bytes": 890,
+      "sha256": "4186941e8fb1e973b2eab5b7d7e8a2b997eeb6db8c3b382450251bfb2fca8988"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter.stdout",
+      "bytes": 3508,
+      "sha256": "336b2be10b8d7a8db93ff70f737a5b262cc1c4a6d26af976791297d532a6e67d"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-accepted.command.json",
+      "bytes": 1131,
+      "sha256": "8f478455305d308be7e5dc3361715d1abb897cf1d713935d1e73d10e37ce73de"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-accepted.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-accepted.stdout",
+      "bytes": 4115,
+      "sha256": "b6105625d2e9a0c724668fce039080f51748a38e53a57db90c7bc61ea02db944"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-final.command.json",
+      "bytes": 1123,
+      "sha256": "59371ff2778213b62852ff32f8c1e7e7a7d2897ec0757c147014620df1644f28"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-final.stdout",
+      "bytes": 3725,
+      "sha256": "77432434e7e0d4aceef4eb8e231d3c3613c33484181f982d976cb9fb167ec5b4"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-green.command.json",
+      "bytes": 1148,
+      "sha256": "603124eeca84ad473d572eb6cbf5155c908ceaf532974d1c8bd55b7916778337"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-green.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard-green.stdout",
+      "bytes": 3097,
+      "sha256": "28949f1b6f787c1d3f956fa57cc1adc53ae07ed2710d410aec53900399a5508f"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard.command.json",
+      "bytes": 884,
+      "sha256": "eca4032fba574b1574033e011e9f942eeb5dba8bc0c49eba5cb7a266ca1b22a1"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/onboard.stdout",
+      "bytes": 2346,
+      "sha256": "2f7a92804f62e8a3788b7fe2d1f6150920458ea702529a5a9b388048f4ffbfc6"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/read-lookup-error.txt",
+      "bytes": 151,
+      "sha256": "696c81f66ed3b0619820922487f8005df2299a9d94df783d0bcfb9a169a5e442"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-accepted.command.json",
+      "bytes": 1186,
+      "sha256": "09ddd8f1a361d1e750ec25b3d6e216bbc04677c31466a4d5d956844c8945da8f"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-accepted.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-accepted.stdout",
+      "bytes": 1344,
+      "sha256": "4248d4e0e80509cdf2f5bf95cd19b6013d787b308c839718edaaa5587c369abd"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-comment-probe.command.json",
+      "bytes": 464,
+      "sha256": "c4f794c950eeabf0d14ba976c429a410c12b7d89af7c67258decc2d130651274"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-comment-probe.mjs",
+      "bytes": 2160,
+      "sha256": "78d67aadcf5b528e77d80cb551f2e72bbd5baf72d34e5758c1ead595c895d862"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-comment-probe.stdout",
+      "bytes": 1107,
+      "sha256": "ac9fa5a00386b6e7fd5064073af84c35c05916ec4e5daefb33410f9ea88ff396"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-final.command.json",
+      "bytes": 1179,
+      "sha256": "48e7e74434c0f993e44332f645e82e783688f31bc54a526ab86a4090b64a4cc1"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/root-clause-final.stdout",
+      "bytes": 1344,
+      "sha256": "4248d4e0e80509cdf2f5bf95cd19b6013d787b308c839718edaaa5587c369abd"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+      "bytes": 2464,
+      "sha256": "0b70411bb991bac603869ab8ff20b64a6487a6c451ccad380c8a091a6edd0c29"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/source-author-preservation.json",
+      "bytes": 1873,
+      "sha256": "b78e170d64e246e47891eba29b29d76fbc2b4f9e2dd804a173a92768e5e1b137"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-accepted.command.json",
+      "bytes": 1181,
+      "sha256": "9ac5bdd84fdb38e3bdb134b05ad8c75f7decde17496aebbc51b97c5eea7a8afd"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-accepted.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-accepted.stdout",
+      "bytes": 2857,
+      "sha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-final.command.json",
+      "bytes": 1173,
+      "sha256": "66b6563f787df028ea3d938c99b62c40f9147742aa203fc5bb4137d7d85a77f6"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-final.stdout",
+      "bytes": 2857,
+      "sha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-green.command.json",
+      "bytes": 1198,
+      "sha256": "0960d718396bbe705ff2b13f5d6cbd7a6a65331a93957f1b140336839579e595"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-green.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-green.stdout",
+      "bytes": 2857,
+      "sha256": "7a35daab64a5ee881e6a7d24de361d7af795e086de65b6a28ba936768cb24d0c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.command.json",
+      "bytes": 691,
+      "sha256": "c2fd26ccb03426fa92384a0e601b39a64e3ff4ad3bb3d04cdd691f910257e0de"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.mjs",
+      "bytes": 2572,
+      "sha256": "011edca74b049d9aaa6a25ff18f79dd1499c20b49c2897f6cd8b38c8e3a2852f"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.stdout",
+      "bytes": 2465,
+      "sha256": "fe98faa34bd1213dfa6b1d91e90e8267b167eafc3a1471ac60c29c53b4c0d028"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-accepted.command.json",
+      "bytes": 1180,
+      "sha256": "3b7dec52c9229d39faa50bc8458efa10ceae85ff50fab3be3a0dc16357a772a0"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-accepted.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-accepted.stdout",
+      "bytes": 5768,
+      "sha256": "29dbcfc752be471878593bc9fef536ac9e7bfdd321cca1d8bea4f9456d59b790"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-final.command.json",
+      "bytes": 1174,
+      "sha256": "65a3d5877d537227bf37f51a04d64f23fc65b92e23701263ed2e36765e1d23e0"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-final.stdout",
+      "bytes": 5768,
+      "sha256": "29dbcfc752be471878593bc9fef536ac9e7bfdd321cca1d8bea4f9456d59b790"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-probe.command.json",
+      "bytes": 751,
+      "sha256": "114be710dd8da7f23c2eb66fb8bd9dba22ea40bfe817594c362002be9cc7055c"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-probe.mjs",
+      "bytes": 3916,
+      "sha256": "8675b83e2ae6847fffca9347e3331ac01542bb1c3a052e3a6568da3a288c5b64"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/token-boundary-probe.stdout",
+      "bytes": 5768,
+      "sha256": "29dbcfc752be471878593bc9fef536ac9e7bfdd321cca1d8bea4f9456d59b790"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/onboard-api/Dockerfile.spa-artifact",
+      "mode": "100644",
+      "blob": "274557224d218a3c5545022d5273fe2c13562b8d",
+      "bytes": 6362,
+      "sha256": "5f365d2dfb7d47f44d697e680a69bbd4ad82db72493cc3294393177d93be90a9"
+    },
+    {
+      "path": "scripts/ci/newsletter-static-release.contract.spec.mjs",
+      "mode": "100644",
+      "blob": "debf432a07381ba49bffbc4200570b75fda77c00",
+      "bytes": 19019,
+      "sha256": "baa564d67a76b2b3c8c902dc23514b7bb4c62ec329e218574f2551448edf5f56"
+    },
+    {
+      "path": "scripts/ci/onboard-spa-artifact.contract.spec.mjs",
+      "mode": "100644",
+      "blob": "d95696fec8a48fe53286e119ac6d1604d96f4fb2",
+      "bytes": 34751,
+      "sha256": "80e582ceb3a9065c4fd5832bcfe9e3ec41f3ff0b9c3e7fd17ed71ae213c4a40b"
+    },
+    {
+      "path": "scripts/lib/newsletter-static-release-contract.mjs",
+      "mode": "100644",
+      "blob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+      "bytes": 36528,
+      "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d"
+    },
+    {
+      "path": "scripts/lib/onboard-spa-artifact-contract.mjs",
+      "mode": "100644",
+      "blob": "3afe06de20d333b9a5a9afac3f67f823bce4672d",
+      "bytes": 14156,
+      "sha256": "d92b6a95a1a011bea8d7437308af0a034d97bfba46f894bb8330f00ae287ad16"
+    }
+  ],
+  "initialIndexPreserved": "SHA256-INITIAL-INDEX.json",
+  "notes": "Every original and successive failure/pass file is retained. Packet index excludes only itself; source bindings are exact accepted5 modes/blobs/bytes/hashes."
+}
