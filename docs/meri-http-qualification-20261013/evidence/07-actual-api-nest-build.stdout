@@ -1,3 +1,9 @@
-
- Error  Could not find TypeScript configuration file "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/api-build-owned.tsconfig.json". Please, ensure that you are running this command in the appropriate directory (inside Nest workspace).
-
+{
+  "schema": "capiro.lossless-evidence-bytes.v1",
+  "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+  "originalPath": "docs/meri-http-qualification-20261013/evidence/07-actual-api-nest-build.stdout",
+  "bytes": 284,
+  "sha256": "6960a73aecbd978c04f456b349371b0866904a91ad6c420e2c517e176a4a8352",
+  "encoding": "base64",
+  "data": "CiBFcnJvciAgQ291bGQgbm90IGZpbmQgVHlwZVNjcmlwdCBjb25maWd1cmF0aW9uIGZpbGUgIi93b3Jrc3BhY2UvY2FwaXJvdjItbWVyaS1odHRwLXF1YWxpZmllZC0yMDI2MTAxMy9kb2NzL3ByMjQ1MC1kZXBlbmRlbmN5LXJldXNlLWxvY2FsLTIwMjYxMDEzL2FwaS1idWlsZC1vd25lZC50c2NvbmZpZy5qc29uIi4gUGxlYXNlLCBlbnN1cmUgdGhhdCB5b3UgYXJlIHJ1bm5pbmcgdGhpcyBjb21tYW5kIGluIHRoZSBhcHByb3ByaWF0ZSBkaXJlY3RvcnkgKGluc2lkZSBOZXN0IHdvcmtzcGFjZSkuCgo="
+}

@@ -1,33 +1,9 @@
-[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m39[0m:[93m18[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
-
-[7m39[0m       findFirst: jest.fn(async ({ where }: any) =>
-[7m  [0m [91m                 ~~~~[0m
-[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m48[0m:[93m22[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
-
-[7m48[0m     $queryRawUnsafe: jest.fn(async () => [{ allowed: state.wall }]),
-[7m  [0m [91m                     ~~~~[0m
-[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m49[0m:[93m16[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
-
-[7m49[0m     $queryRaw: jest.fn(async (q: any, ...args: any[]) => {
-[7m  [0m [91m               ~~~~[0m
-[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m82[0m:[93m18[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
-
-[7m82[0m     $executeRaw: jest.fn(async (q: any, ...values: any[]) => {
-[7m  [0m [91m                 ~~~~[0m
-[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m94[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
-
-[7m94[0m       create: jest.fn(async (data) => {
-[7m  [0m [91m              ~~~~[0m
-[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m94[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'data' implicitly has an 'any' type.
-
-[7m94[0m       create: jest.fn(async (data) => {
-[7m  [0m [91m                             ~~~~[0m
-[96msrc/clients/client-profile-fill.service.ts[0m:[93m1898[0m:[93m13[0m - [91merror[0m[90m TS7022: [0m'response' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
-
-[7m1898[0m       const response = await fetch(current, {
-[7m    [0m [91m            ~~~~~~~~[0m
-[96msrc/clients/client-profile-fill.service.ts[0m:[93m1904[0m:[93m15[0m - [91merror[0m[90m TS7022: [0m'location' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
-
-[7m1904[0m         const location = response.headers.get('location');
-[7m    [0m [91m              ~~~~~~~~[0m
-
+{
+  "schema": "capiro.lossless-evidence-bytes.v1",
+  "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+  "originalPath": "docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stderr",
+  "bytes": 2261,
+  "sha256": "227da68aca0bf92432b5637b9970625422716a5da82d5cf80a9db3d00102fe66",
+  "encoding": "base64",
+  "data": "G1s5Nm1zcmMvY2xpZW50cy9jbGllbnQtb3JkZXJlZC1vd25lci50ZXN0LXN1cHBvcnQudHMbWzBtOhtbOTNtMzkbWzBtOhtbOTNtMTgbWzBtIC0gG1s5MW1lcnJvchtbMG0bWzkwbSBUUzIzMDQ6IBtbMG1DYW5ub3QgZmluZCBuYW1lICdqZXN0Jy4KChtbN20zORtbMG0gICAgICAgZmluZEZpcnN0OiBqZXN0LmZuKGFzeW5jICh7IHdoZXJlIH06IGFueSkgPT4KG1s3bSAgG1swbSAbWzkxbSAgICAgICAgICAgICAgICAgfn5+fhtbMG0KG1s5Nm1zcmMvY2xpZW50cy9jbGllbnQtb3JkZXJlZC1vd25lci50ZXN0LXN1cHBvcnQudHMbWzBtOhtbOTNtNDgbWzBtOhtbOTNtMjIbWzBtIC0gG1s5MW1lcnJvchtbMG0bWzkwbSBUUzIzMDQ6IBtbMG1DYW5ub3QgZmluZCBuYW1lICdqZXN0Jy4KChtbN200OBtbMG0gICAgICRxdWVyeVJhd1Vuc2FmZTogamVzdC5mbihhc3luYyAoKSA9PiBbeyBhbGxvd2VkOiBzdGF0ZS53YWxsIH1dKSwKG1s3bSAgG1swbSAbWzkxbSAgICAgICAgICAgICAgICAgICAgIH5+fn4bWzBtChtbOTZtc3JjL2NsaWVudHMvY2xpZW50LW9yZGVyZWQtb3duZXIudGVzdC1zdXBwb3J0LnRzG1swbTobWzkzbTQ5G1swbTobWzkzbTE2G1swbSAtIBtbOTFtZXJyb3IbWzBtG1s5MG0gVFMyMzA0OiAbWzBtQ2Fubm90IGZpbmQgbmFtZSAnamVzdCcuCgobWzdtNDkbWzBtICAgICAkcXVlcnlSYXc6IGplc3QuZm4oYXN5bmMgKHE6IGFueSwgLi4uYXJnczogYW55W10pID0+IHsKG1s3bSAgG1swbSAbWzkxbSAgICAgICAgICAgICAgIH5+fn4bWzBtChtbOTZtc3JjL2NsaWVudHMvY2xpZW50LW9yZGVyZWQtb3duZXIudGVzdC1zdXBwb3J0LnRzG1swbTobWzkzbTgyG1swbTobWzkzbTE4G1swbSAtIBtbOTFtZXJyb3IbWzBtG1s5MG0gVFMyMzA0OiAbWzBtQ2Fubm90IGZpbmQgbmFtZSAnamVzdCcuCgobWzdtODIbWzBtICAgICAkZXhlY3V0ZVJhdzogamVzdC5mbihhc3luYyAocTogYW55LCAuLi52YWx1ZXM6IGFueVtdKSA9PiB7ChtbN20gIBtbMG0gG1s5MW0gICAgICAgICAgICAgICAgIH5+fn4bWzBtChtbOTZtc3JjL2NsaWVudHMvY2xpZW50LW9yZGVyZWQtb3duZXIudGVzdC1zdXBwb3J0LnRzG1swbTobWzkzbTk0G1swbTobWzkzbTE1G1swbSAtIBtbOTFtZXJyb3IbWzBtG1s5MG0gVFMyMzA0OiAbWzBtQ2Fubm90IGZpbmQgbmFtZSAnamVzdCcuCgobWzdtOTQbWzBtICAgICAgIGNyZWF0ZTogamVzdC5mbihhc3luYyAoZGF0YSkgPT4gewobWzdtICAbWzBtIBtbOTFtICAgICAgICAgICAgICB+fn5+G1swbQobWzk2bXNyYy9jbGllbnRzL2NsaWVudC1vcmRlcmVkLW93bmVyLnRlc3Qtc3VwcG9ydC50cxtbMG06G1s5M205NBtbMG06G1s5M20zMBtbMG0gLSAbWzkxbWVycm9yG1swbRtbOTBtIFRTNzAwNjogG1swbVBhcmFtZXRlciAnZGF0YScgaW1wbGljaXRseSBoYXMgYW4gJ2FueScgdHlwZS4KChtbN205NBtbMG0gICAgICAgY3JlYXRlOiBqZXN0LmZuKGFzeW5jIChkYXRhKSA9PiB7ChtbN20gIBtbMG0gG1s5MW0gICAgICAgICAgICAgICAgICAgICAgICAgICAgIH5+fn4bWzBtChtbOTZtc3JjL2NsaWVudHMvY2xpZW50LXByb2ZpbGUtZmlsbC5zZXJ2aWNlLnRzG1swbTobWzkzbTE4OTgbWzBtOhtbOTNtMTMbWzBtIC0gG1s5MW1lcnJvchtbMG0bWzkwbSBUUzcwMjI6IBtbMG0ncmVzcG9uc2UnIGltcGxpY2l0bHkgaGFzIHR5cGUgJ2FueScgYmVjYXVzZSBpdCBkb2VzIG5vdCBoYXZlIGEgdHlwZSBhbm5vdGF0aW9uIGFuZCBpcyByZWZlcmVuY2VkIGRpcmVjdGx5IG9yIGluZGlyZWN0bHkgaW4gaXRzIG93biBpbml0aWFsaXplci4KChtbN20xODk4G1swbSAgICAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKGN1cnJlbnQsIHsKG1s3bSAgICAbWzBtIBtbOTFtICAgICAgICAgICAgfn5+fn5+fn4bWzBtChtbOTZtc3JjL2NsaWVudHMvY2xpZW50LXByb2ZpbGUtZmlsbC5zZXJ2aWNlLnRzG1swbTobWzkzbTE5MDQbWzBtOhtbOTNtMTUbWzBtIC0gG1s5MW1lcnJvchtbMG0bWzkwbSBUUzcwMjI6IBtbMG0nbG9jYXRpb24nIGltcGxpY2l0bHkgaGFzIHR5cGUgJ2FueScgYmVjYXVzZSBpdCBkb2VzIG5vdCBoYXZlIGEgdHlwZSBhbm5vdGF0aW9uIGFuZCBpcyByZWZlcmVuY2VkIGRpcmVjdGx5IG9yIGluZGlyZWN0bHkgaW4gaXRzIG93biBpbml0aWFsaXplci4KChtbN20xOTA0G1swbSAgICAgICAgIGNvbnN0IGxvY2F0aW9uID0gcmVzcG9uc2UuaGVhZGVycy5nZXQoJ2xvY2F0aW9uJyk7ChtbN20gICAgG1swbSAbWzkxbSAgICAgICAgICAgICAgfn5+fn5+fn4bWzBtCgo="
+}

@@ -1,0 +1,63 @@
+{
+  "schema": "capiro.qualification-lossless-custody.v1",
+  "noWhitespaceTrim": true,
+  "noNewHygieneException": true,
+  "fileNamesHistoricalArchiveNames": true,
+  "rows": [
+    {
+      "path": "docs/meri-http-qualification-20261013/evidence/01-current-schema-native-diff.sql",
+      "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+      "originalBytes": 623001,
+      "originalSha256": "a5c1d59d93f18d5f3ca6272ab142ba1b0bc408057d62a4888325805163f99793",
+      "envelopeSha256": "964ddaf9702a1a2a2415425d942430edd1ff5d78ad465ab8f8003f6b20353613",
+      "originalGitBlob": "5450b0cfd49760f40dd4634639f65a5d13d0cb6c",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/meri-http-qualification-20261013/evidence/07-actual-api-nest-build.stdout",
+      "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+      "originalBytes": 284,
+      "originalSha256": "6960a73aecbd978c04f456b349371b0866904a91ad6c420e2c517e176a4a8352",
+      "envelopeSha256": "fea22c2f6e89bd38d35fd5d2e4b3ce032fb28edaa047b1a811630138e5bbbf00",
+      "originalGitBlob": "d31debc7b5b1591d66149f833f0a926f846d7984",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stderr",
+      "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+      "originalBytes": 2261,
+      "originalSha256": "227da68aca0bf92432b5637b9970625422716a5da82d5cf80a9db3d00102fe66",
+      "envelopeSha256": "6b271803e94de3430d871177716325842f0820932e324bc292b7cc19deb6fe30",
+      "originalGitBlob": "7959f57e66c6d58d2989c6065b8cac9d51d14539",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stdout",
+      "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+      "originalBytes": 19,
+      "originalSha256": "57329af01d200803aec98ea264bd4dcc2899b2d76ca4d7509efd7431a1a5952c",
+      "envelopeSha256": "d73a3d98c33427bcdef5ee31dbfc4a69225080f5e3d77b88e53e5cd50b9db623",
+      "originalGitBlob": "8d27af5c37810938d8a6e8f28bbfc615cf8158db",
+      "decodedByteEqual": true
+    },
+    {
+      "path": "docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/newsletter-receiving.js",
+      "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+      "originalBytes": 26364,
+      "originalSha256": "0c0c26c9999d271cd2256dfd69a716b96d7c1aa0dd9eed1c6cb581f28803023d",
+      "envelopeSha256": "f97f9ff211ff37b8c24635f06c3b9d38ccf336c3abc896e4f03565d768e22746",
+      "originalGitBlob": "f0dc284a22c09a30b72bbac1bd8559c8ebb58d75",
+      "decodedByteEqual": true
+    }
+  ],
+  "byteExactLocalRuntime": {
+    "path": "/tmp/pr2450-shared-runtime-byte-exact-20261013",
+    "files": 149,
+    "sharedAliasBefore": "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime",
+    "sharedAliasAfter": "/tmp/pr2450-shared-runtime-byte-exact-20261013",
+    "originalPublicationHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+    "sourceArtifactBytesUnchanged": true,
+    "encodedRuntimeMemberNotExecutableInPublication": true,
+    "scope": "only owned fixture emission; not an application package or shipping artifact"
+  }
+}

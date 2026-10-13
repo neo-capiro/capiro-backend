@@ -1,0 +1,6 @@
+docs/meri-http-qualification-20261013/evidence/01-current-schema-native-diff.sql:15339: new blank line at EOF.
+docs/meri-http-qualification-20261013/evidence/07-actual-api-nest-build.stdout:3: new blank line at EOF.
+docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stderr:33: new blank line at EOF.
+docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stdout:2: new blank line at EOF.
+docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/newsletter-receiving.js:393: trailing whitespace.
++    }, 

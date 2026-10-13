@@ -1,2 +1,9 @@
-Found 8 error(s).
-
+{
+  "schema": "capiro.lossless-evidence-bytes.v1",
+  "originalHead": "e0673c2a3959544e4db1dcf96a917db2dbb6afc1",
+  "originalPath": "docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stdout",
+  "bytes": 19,
+  "sha256": "57329af01d200803aec98ea264bd4dcc2899b2d76ca4d7509efd7431a1a5952c",
+  "encoding": "base64",
+  "data": "Rm91bmQgOCBlcnJvcihzKS4KCg=="
+}

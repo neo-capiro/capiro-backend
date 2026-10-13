@@ -1,0 +1,12 @@
+{
+  "sourceHygiene": "FAIL",
+  "base": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "checkedPaths": 329,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "rawArchivesClassified": [],
+  "checkedDiagnostics": "docs/meri-http-qualification-20261013/evidence/01-current-schema-native-diff.sql:15339: new blank line at EOF.\n",
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+}
