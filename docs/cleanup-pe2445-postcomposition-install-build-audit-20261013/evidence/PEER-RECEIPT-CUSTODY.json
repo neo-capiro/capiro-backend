@@ -1,0 +1,55 @@
+{
+  "declaredPeerHead": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "reportedScope": "Parent reports actual frozen install plus eleven builds on unchanged peer source",
+  "status": "transfer pending; declared results not independently verified",
+  "receivedArtifacts": 0,
+  "totalExpected": 5,
+  "files": [
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/INSTALL-BUILD-ONLY-RECEIPT.json",
+      "expectedSHA256": "e998efc8e4778532a13a323ef765ec73289ec999add6020c569d3347a779074b",
+      "exists": false,
+      "error": "ENOENT",
+      "bytesRead": false,
+      "actualSHA256": null,
+      "hashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/selected-source.tar",
+      "expectedSHA256": "1ecc2cb85f9b53bcc3b95fdd8fd3065241ee399162ae069ee6ecf63923217774",
+      "exists": false,
+      "error": "ENOENT",
+      "bytesRead": false,
+      "actualSHA256": null,
+      "hashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/PROJECTION-BEFORE.json",
+      "expectedSHA256": "82f93cdb138e957c37861a89654732c31f9a5eaa3dbd209614fc7cef41ae2a15",
+      "exists": false,
+      "error": "ENOENT",
+      "bytesRead": false,
+      "actualSHA256": null,
+      "hashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/INSTALL-RESULT.json",
+      "expectedSHA256": "d5bcb64fbb145609e0c8b734d0a129d8430cde7da7d84c57ef035c8b054c79f2",
+      "exists": false,
+      "error": "ENOENT",
+      "bytesRead": false,
+      "actualSHA256": null,
+      "hashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/FINAL-API-CHECKS.json",
+      "expectedSHA256": "505f066246e69e38ef178695c1a4e841a5aeab6aa55a804525ac80f71bb9d570",
+      "exists": false,
+      "error": "ENOENT",
+      "bytesRead": false,
+      "actualSHA256": null,
+      "hashVerified": false
+    }
+  ],
+  "acceptance": "No install/build/test result, command/tool/environment/projection/generated output/source-tar attribution can be verified without bytes; do not rerun install"
+}
