@@ -1,0 +1,21 @@
+{
+  "head": "c3173dbdbf809e4a867b264cb473d8a4d8a9cf77",
+  "declaredBase": "89107485cd8432d0c7f29544c94c570acc32deda",
+  "retrieval": "exact two published Git blobs; no report/other tree content requested",
+  "files": [
+    {
+      "path": "scripts/lib/newsletter-declared-edge-contract.mjs",
+      "gitBlob": "c0c39f08adc59774bf5f6f05eb582d780c09531d",
+      "sha256": "c149688409df06ccebce6c538d7d86796e7026021a3cc02e0c508d780be6640b",
+      "bytes": 21235,
+      "raw": "donor-model.mjs"
+    },
+    {
+      "path": "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "gitBlob": "d77844ea6709282f7375feadaebaf8ff73c6bc8e",
+      "sha256": "e888886c61f8a79673133805312d7ff6fac0f7a72806f4c4aa9d37d1b3201f6d",
+      "bytes": 23781,
+      "raw": "donor-spec.mjs"
+    }
+  ]
+}

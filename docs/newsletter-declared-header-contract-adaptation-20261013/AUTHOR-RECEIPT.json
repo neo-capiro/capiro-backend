@@ -1,0 +1,36 @@
+{
+  "sourceHead": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "sourceTree": "c26db6c07a817f7bc70870391d58645c8eeb1655",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "donor": "c3173dbdbf809e4a867b264cb473d8a4d8a9cf77",
+  "sourcePaths": [
+    "scripts/lib/newsletter-declared-edge-contract.mjs",
+    "scripts/ci/newsletter-declared-edge.contract.spec.mjs"
+  ],
+  "candidateSpec": {
+    "passed": 30,
+    "failed": 0,
+    "skipped": 0
+  },
+  "unfixedCurrentPins": {
+    "passed": 29,
+    "failed": 1,
+    "skipped": 0
+  },
+  "immutableCorpus": {
+    "total": 82,
+    "beforePassed": 78,
+    "beforeEscapes": 4,
+    "afterPassed": 82,
+    "afterFailed": 0,
+    "positiveCases": 60
+  },
+  "currentInputs": 9,
+  "changedDonorPins": 1,
+  "candidateVsDonorOnlyPinRecordsAndExpectedHead": true,
+  "otherCodeChanges": 0,
+  "donorCurrentPinRefusalPreserved": true,
+  "deniedReportRead": false,
+  "liveOrNativeOrProviderOperations": false,
+  "independentReview": "pending exact frozen source"
+}
