@@ -1,0 +1,30 @@
+{
+  "decodedRawLogs": [
+    {
+      "path": "docs/backend-reviewed-receiving-20261013/evidence/api-action-jest.log",
+      "sha256": "1b750b4ef22f076bd521835ade608f30fcb765b8dbbb84265867a44562c8bf3b"
+    },
+    {
+      "path": "docs/backend-reviewed-receiving-20261013/evidence/attempt0-api-action-jest.log",
+      "sha256": "fc859503b59263982aa6e5fe90de9396f4460291a6581eb186438847fa112c67"
+    }
+  ],
+  "findings": [],
+  "format": "finite-packet-privacy-review/v1",
+  "indexPath": "evidence/final-sha256-index.json",
+  "indexSHA256": "4fb8bb8ea59aa62262e7e2d2299997488173ae3662fc30f32fff6b47c4ff24ae",
+  "nonSecretReferenceQualification": "Current production Clerk parameter paths and KMS identifier are references only; path names do not prove a staging environment, and no secret values or issuer pairing were read. CURRENT-OWNER-DECISION.md is authoritative.",
+  "packetRoot": "docs/backend-reviewed-receiving-20261013",
+  "patternFamilies": [
+    "private_key_block",
+    "aws_access_key_id",
+    "github_token",
+    "clerk_secret_or_publishable_key_value",
+    "jwt_value",
+    "credentialed_database_url"
+  ],
+  "result": "PASS",
+  "scannedPacketFiles": 52,
+  "sourceCheckpoint": "8dfb8d62fe98843979979596da43b2c551ce3952",
+  "supersedes": "evidence/privacy-publication-review.json"
+}
