@@ -83,7 +83,6 @@ export interface NewsletterOutreachStage {
 export interface NewsletterOutreachVersion extends OutreachDraftVersionDto {
   recipientEmail: string;
 }
-/** Historical test intent identity, not approval evidence for the currently returned versions. */
 export interface NewsletterOutreachTest {
   id: string;
   requestKey: string;
@@ -888,6 +887,8 @@ export function parseNewsletterOutreachRecord(
         versionIds.add(id);
       }
       for (const [index, test] of (record.tests as NewsletterJsonObject[]).entries()) {
+        // Historical intents can reference a prepared version omitted by current-version filtering.
+        // Their presence never supplies approval for a currently returned version.
         if (
           record.senderConnectionId === null ||
           (test.senderConnectionId as string).toLowerCase() !==
