@@ -361,7 +361,7 @@ describe('pinned Core brief Workspace copy and atomic history', () => {
     expect(replay.replayed).toBe(true);
     expect(replay.receipt).toEqual(result.receipt);
     expect(f.versions()).toHaveLength(2);
-    expect(f.sections.companyAndFirmImplication.text).toContain('<script>');
+    expect(f.sections.companyAndFirmImplication?.text).toContain('<script>');
   });
   it('permits only one of two competing edits against the same baseline', async () => {
     const f = fixture();
