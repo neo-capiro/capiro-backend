@@ -1,0 +1,18 @@
+{
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "base": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+  "paths": 2,
+  "helperChangedInitializers": 2,
+  "addedPermanentCases": 3,
+  "freshLoopback": 53,
+  "immutableReviewerCorpus": 4,
+  "carriedUnchangedDocker": 3,
+  "carriedUnchangedStandalone": 50,
+  "priorTotal103Preserved": true,
+  "sourceWhitespaceExit": 0,
+  "redAndFixtureCorrectionPreserved": true,
+  "noHeaderPolicyDefaultsChanged": true,
+  "actualArtifactLiveServingNativeFullFloorQualified": false,
+  "independentReview": "O exact correction replay pending"
+}

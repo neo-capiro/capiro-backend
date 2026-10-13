@@ -1,0 +1,25 @@
+{
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "base": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+  "previousSource": "3e8aa44b8793827e74364442d098237f6274d045",
+  "branch": "refs/heads/codex/cleanup-pr2438-compatible-artifact-guards-20261013",
+  "onlyPaths": [
+    {
+      "path": "scripts/lib/newsletter-loopback-serving.mjs",
+      "gitBlob": "aa6d231f7c30550d914ee1fd04d66c0506ce1002",
+      "mode": "100644",
+      "sha256": "701af5b5c0fba43bea6c11db9fe4931012a460d5392c7b6dcef2f69b53ac9459",
+      "bytes": 22538
+    },
+    {
+      "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "gitBlob": "3b7e295f120e730b76444d243e1c8a7f5e0c1ffd",
+      "mode": "100644",
+      "sha256": "c6087c88f71ea0bd86b221bd1624b9befabac2038c48dce2de33d1a4ba552dd9",
+      "bytes": 26274
+    }
+  ],
+  "helperChange": "two plain header dictionaries become null-prototype, existing HEAD unchanged",
+  "permanentAddedCases": 3
+}

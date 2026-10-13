@@ -1,0 +1,172 @@
+{
+  "source": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "tree": "56901a67cb899769bde4a07abf08a0bd35407ea0",
+  "base": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+  "packet": [
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/HANDOFF.md",
+      "bytes": 2229,
+      "sha256": "4c5d464ac39729ca16ac620fb1c7b4d177b24da450ce839491a5f231f5b0f1e9"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/QUALIFICATION.json",
+      "bytes": 635,
+      "sha256": "f9daade20d60bbb46d1b3c35cdd7e44a442a1fddfc0994d939567b795f88030f"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/SOURCE-CASE-PRESERVATION.json",
+      "bytes": 7003,
+      "sha256": "c0cd5edb918254431f57f9f7e34ffec45ff5691211a31697beacd24195a521e3"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/SOURCE-FREEZE.json",
+      "bytes": 993,
+      "sha256": "8dd9bbe7eb76bcca9343d90d905535f3cfca64c8bf434efd48f93a46b7af84bc"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/loopback.command.json",
+      "bytes": 1194,
+      "sha256": "370557b64ea4979e2f8298bb524d43cee430f297ea24e0b47c337e75da055e46"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/loopback.host-journal.json",
+      "bytes": 776,
+      "sha256": "e11ac68b8bfba2d6932ad53d50232f8e7fb71a092c2a4fdfbf8659d0feb19a09"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/loopback.stderr",
+      "bytes": 480,
+      "sha256": "2753936ec1e32bea6096b03193dd698a3fea6fe6b19770dabffe67421fda7533"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/loopback.stdout",
+      "bytes": 4995,
+      "sha256": "032b9ac74de28f088c7690ce0d8e2fa6af6865322d7aa6f006c06b313b3753af"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/mock-loopback-source-host.cjs",
+      "bytes": 4129,
+      "sha256": "81013fc15bca01f25e830c1ec4dd828ad9c5759d5d71c23409bfe9448a9a7b96"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-fixture-correction.json",
+      "bytes": 503,
+      "sha256": "8baab7bf7bae497ce87e0e4b23b0acd600dcddecfd258204fce10ba36a1296cc"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe-corrected.command.json",
+      "bytes": 929,
+      "sha256": "3bdae0cad2d2751e6c9ed333d2f4c7a0391d97f3362654bccb650d56e559c274"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe-corrected.mjs",
+      "bytes": 3085,
+      "sha256": "cf6f65d4ce3a2a5f1d31ede13ea9efb9f761e5068c769660127a5dc95e6cb4f1"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe-corrected.stderr",
+      "bytes": 170,
+      "sha256": "b9a0783f22e5c15dcc22a87335f97d6dea0332b727e0bf494ff2bde77e969671"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe-corrected.stdout",
+      "bytes": 875,
+      "sha256": "b55431217f03683b705da769d0a942b3b2d9339ab867334f1834c4ed6863bc6f"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe.mjs",
+      "bytes": 2984,
+      "sha256": "b2c4b163cca0fb212bcd6b247223c4bbb6cfc1cbe8229d24e9c7aa050f9db556"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe.stderr",
+      "bytes": 170,
+      "sha256": "2a9007e4baf09abb963da6ff164ae3201e4e5a9da28ba1ab05e017906ad8d5d8"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/original-review-prototype-header-probe.stdout",
+      "bytes": 875,
+      "sha256": "b55431217f03683b705da769d0a942b3b2d9339ab867334f1834c4ed6863bc6f"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/qualify-header-repair.py.txt",
+      "bytes": 2582,
+      "sha256": "47afe54fef1c551e59721364a2fc0b356cf429e270ea7a217b60b0cec6f1ef4b"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/repair-header-dictionaries.py.txt",
+      "bytes": 3595,
+      "sha256": "e40454e72719212c06f00e9ccae5e5c31a454d61f52420edcc522c9c71879921"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/review-prototype-final.command.json",
+      "bytes": 1262,
+      "sha256": "87e54ac26da7f0fb52569953940b5866571b567974f08216d8fd26e9a068742c"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/review-prototype-final.host-journal.json",
+      "bytes": 201,
+      "sha256": "43a2425bb374a4127d27122c0c10d745029306f1ec626fa6de0730574ebb2cff"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/review-prototype-final.stderr",
+      "bytes": 165,
+      "sha256": "f9090aab96a9c3cc182207f6595b6d369f64e7d546167a453b8c98f775f57c57"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/review-prototype-final.stdout",
+      "bytes": 897,
+      "sha256": "274e93b767150ba1fdd7cbd462bdebcf9ee66cd21a84d843641b548bac5c40a9"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/review-prototype-header-probe.mjs",
+      "bytes": 3085,
+      "sha256": "cf6f65d4ce3a2a5f1d31ede13ea9efb9f761e5068c769660127a5dc95e6cb4f1"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/source-whitespace.command.json",
+      "bytes": 338,
+      "sha256": "7279b283c5ecb4a850783c0d1dc1e15b2d61427e5d6dd5dbbc565f78a6755711"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/source-whitespace.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/source-whitespace.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2438-header-dictionary-repair-20261013/evidence/two-path-source-diff.patch",
+      "bytes": 3721,
+      "sha256": "1b03fe9beab4c0220b85bb1fb7bcf14a56aedb4f48c30ec7dd50a0d1dd4324f0"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "scripts/lib/newsletter-loopback-serving.mjs",
+      "gitBlob": "aa6d231f7c30550d914ee1fd04d66c0506ce1002",
+      "mode": "100644",
+      "sha256": "701af5b5c0fba43bea6c11db9fe4931012a460d5392c7b6dcef2f69b53ac9459",
+      "bytes": 22538
+    },
+    {
+      "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "gitBlob": "3b7e295f120e730b76444d243e1c8a7f5e0c1ffd",
+      "mode": "100644",
+      "sha256": "c6087c88f71ea0bd86b221bd1624b9befabac2038c48dce2de33d1a4ba552dd9",
+      "bytes": 26274
+    }
+  ],
+  "prior45Index": {
+    "at": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+    "path": "docs/cleanup-pr2438-compatible-artifact-guards-20261013/SHA256-INDEX.json",
+    "sha256": "0d8c98776b7d4f2ce7b644fa671fd1554b9b86a30aa98a097432ced81ad32eaf"
+  },
+  "explicitOnlySourceSupersessions": [
+    "scripts/lib/newsletter-loopback-serving.mjs",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs"
+  ]
+}
