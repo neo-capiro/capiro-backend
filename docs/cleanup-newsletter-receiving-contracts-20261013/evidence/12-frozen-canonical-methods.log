@@ -1,0 +1,38 @@
+PASS apps/api/src/engagement/newsletter-outreach-admission.spec.ts
+  canonical rich newsletter admission
+    ✓ rechecks canonical record stage and client authority before draft reads (5 ms)
+    ✓ valid mutation keeps authority before existing advisory lock and operation (2 ms)
+    ✓ wrong persisted type refuses before even loading a stage (2 ms)
+    ✓ missing persisted type refuses (1 ms)
+    ✓ missing reserved stage hint refuses
+    ✓ malformed reserved stage hint refuses (1 ms)
+    ✓ a foreign current stage client refuses before drafting or locking
+    ✓ case-insensitive client identity preserves uppercase stage JSON
+    ✓ both null primary client bindings retain the existing legacy profile (1 ms)
+    ✓ one-null row binding refuses (1 ms)
+    ✓ one-null stage binding refuses
+    ✓ missing row client binding refuses
+    ✓ missing stage client binding refuses (1 ms)
+    ✓ invalid row UUID binding refuses
+    ✓ invalid stage UUID binding refuses
+    ✓ absent reserved revision remains legacy-compatible (1 ms)
+    ✓ stale positive reserved revision refuses before all draft/effectful calls
+    ✓ malformed present reserved revision null refuses (2 ms)
+    ✓ malformed present reserved revision undefined refuses
+    ✓ malformed present reserved revision 4 refuses (1 ms)
+    ✓ malformed present reserved revision 0 refuses
+    ✓ malformed present reserved revision -1 refuses (1 ms)
+    ✓ malformed present reserved revision 4.5 refuses (1 ms)
+    ✓ malformed present reserved revision 9007199254740992 refuses
+    ✓ malformed present reserved revision false refuses
+    ✓ owner record denial propagates without stage or effectful calls (1 ms)
+    ✓ stage authority denial propagates without draft reads or effects
+    ✓ current client wall revocation propagates before draft data (1 ms)
+    ✓ invalid requested record UUID refuses before canonical lookup
+
+Test Suites: 1 passed, 1 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        1.322 s
+Ran all test suites.
+Test results written to: docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.json

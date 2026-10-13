@@ -1,0 +1,9 @@
+packages/shared/src/newsletter-receiving.ts 307ms
+packages/shared/src/newsletter.ts 119ms (unchanged)
+apps/api/src/engagement/outreach-draft.types.ts 15ms
+apps/api/src/engagement/outreach-draft.service.ts 124ms
+apps/api/src/engagement/newsletter-outreach.service.ts 93ms
+apps/api/src/engagement/newsletter-outreach.service.spec.ts 51ms (unchanged)
+apps/api/src/engagement/newsletter-outreach-admission.spec.ts 37ms
+scripts/ci/fixtures/newsletter-receiving-corpus.cjs 102ms
+scripts/ci/newsletter-receiving.test.cjs 4ms

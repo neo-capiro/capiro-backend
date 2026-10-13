@@ -1,0 +1,115 @@
+{
+  "base": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "source": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "tree": "ea8adba9e132a9c0d498ff7a49e0249d14b1682c",
+  "paths": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+      "blob": "a7ea0896ca17de7f1d9d0550c554244e5df87add",
+      "sha256": "ca5f18050e1dccd393e829c562d94fded2e0d9bb830eff98004a01a7d19663b6",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "blob": "f68c95ddc384854e40ac5595e014b7ce1cf0bf40",
+      "sha256": "1d91b1794aa00143bb114e36dc6f7313ccb4446fc2eae066595444ca1078280c",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "blob": "15b6d76e025165264115c6081616311f7be639aa",
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "blob": "1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.types.ts",
+      "blob": "aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "sha256": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf",
+      "mode": "100644"
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "blob": "3ba588d79fb3ecc1c5cc161271ec74a909d67528",
+      "sha256": "34e8fc4e08ca38e73f42c93fb4d75b59d304e26ff67fe7b0d0f60c1653ede694",
+      "mode": "100644"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "blob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "blob": "b3071ca29d5d53bb80df51ce6669e13700540e0c",
+      "sha256": "90b96f2a7906dd0e0fedf11a61ce9566236ae28fb715634bd2fc6abcfb41ed67",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ci/newsletter-receiving.test.cjs",
+      "blob": "08dc197885812fb5c59aa48f074730da6c185790",
+      "sha256": "6b12a222bc446bcd26aef1409306eb892851aaa17d3b6006dd1ec2f8f658b317",
+      "mode": "100644"
+    }
+  ],
+  "qualification": {
+    "reusablePublicSourceCases": 129,
+    "canonicalMethodCases": 29,
+    "canonicalSharedBuild": true,
+    "focusedStrictNoUncheckedTypeScript": true,
+    "baselineSame29Cases": {
+      "pass": 11,
+      "fail": 18
+    },
+    "guardRemovedMutants": {
+      "type": {
+        "pass": 27,
+        "fail": 2
+      },
+      "client": {
+        "pass": 22,
+        "fail": 7
+      },
+      "revision": {
+        "pass": 20,
+        "fail": 9
+      }
+    }
+  },
+  "retainedCandidates": [
+    "8f19f4d7c77c621f8ea3a2d1c3d9b551e0d60414",
+    "492be41d182464071acb2f156f8de52037b46092",
+    "370e576cf5406065b4802ae031ba818e3f3d65d8",
+    "7949d079b1b46acf9c18c86898d6eedf9290428a",
+    "37d574a35cd6d9aef79239a830b588fe1bd9769f"
+  ],
+  "independentRedCheckpoint": "5b68186146ac4ce351ac6429103d85bf8c865e12",
+  "preservationReceipt": "evidence/36-final-source-preservation.json",
+  "protectedReportingBodyReadOrExecution": false,
+  "nativeSqlOrProviderExecuted": false,
+  "wholeCoreTypecheckClaimed": false,
+  "packedBrowserQualificationOwner": "newsletter_staging",
+  "independentSourceReviewOwner": "effective_date_review",
+  "publicationOwner": "root",
+  "finalAcceptancePendingSeparateReceipts": true,
+  "limitations": [
+    "Pure structural and optional expected-ID binding, not current authorization or UUID-table provenance.",
+    "No browser HTML sanitation, sendability recomputation or hash-content verification.",
+    "Existing root provenance request/save asymmetry not changed.",
+    "Ordinary wire-JSON/reflection controls do not contain arbitrary JavaScript Proxy effects.",
+    "No native RLS/CAS/provider/full-service constructor acceptance."
+  ],
+  "attemptsPreserved": {
+    "firstTscCompositeIncrementalFlagRefused": true,
+    "firstCorpusConstructionErrors": 8,
+    "unionTextHarnessFailureCorrected": true,
+    "twoOptionalTypeNarrowingErrorsCorrected": true,
+    "initialHashAndLegacyFieldProfilesSourceDefects": true
+  }
+}

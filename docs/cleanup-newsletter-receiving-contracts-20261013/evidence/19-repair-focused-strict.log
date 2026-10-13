@@ -1,0 +1,7 @@
+packages/shared/src/newsletter-receiving.ts(909,5): error TS2322: Type '{ kind: "rich"; metadata: { newsletterStageId: string | undefined; newsletterRevision?: number; }; }' is not assignable to type 'NewsletterRecordDiscriminator'.
+  Types of property 'metadata' are incompatible.
+    Type '{ newsletterStageId: string | undefined; newsletterRevision?: number; }' is not assignable to type 'NewsletterReservedMetadata & { newsletterStageId: string; }'.
+      Type '{ newsletterStageId: string | undefined; newsletterRevision?: number; }' is not assignable to type '{ newsletterStageId: string; }'.
+        Types of property 'newsletterStageId' are incompatible.
+          Type 'string | undefined' is not assignable to type 'string'.
+            Type 'undefined' is not assignable to type 'string'.
