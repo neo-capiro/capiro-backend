@@ -1,0 +1,49 @@
+{
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "source": "ce14fb20b60426fe465ae8ad3eb33f2d23cd7bbc",
+  "commands": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "./docs/cleanup-native-replay-composition-independent-review-20261013/evidence/manifest-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/reviewed-pe-manifest-contract.spec.mjs"
+      ],
+      "exit": 0,
+      "cases": 5
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "./docs/cleanup-native-replay-composition-independent-review-20261013/evidence/manifest-host.cjs",
+        "./docs/cleanup-native-replay-composition-independent-review-20261013/evidence/manifest-controls.mjs"
+      ],
+      "exit": 0,
+      "cases": 52
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+      ],
+      "exit": 0,
+      "cases": 5
+    },
+    {
+      "argv": [
+        "python3",
+        "docs/cleanup-native-replay-composition-independent-review-20261013/evidence/composition-proof.py"
+      ],
+      "initialAttempts": [
+        1,
+        1
+      ],
+      "finalExit": 0
+    }
+  ],
+  "sourceMockBodiesReused": "E962 checksum-bound49+10 actual fake-port controls, no semantic rerun",
+  "operatorDockerNativeInstallSQLOrProvider": "not executed"
+}

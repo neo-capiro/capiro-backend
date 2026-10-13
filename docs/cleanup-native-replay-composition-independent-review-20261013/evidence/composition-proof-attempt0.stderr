@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-native-replay-composition-independent-review-20261013/evidence/composition-proof.py", line 66, in <module>
+    assert len(old_names)==5 and new_names==old_names
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

@@ -1,0 +1,131 @@
+{
+  "source": "ce14fb20b60426fe465ae8ad3eb33f2d23cd7bbc",
+  "sourceTree": "e216f3c2f1c588d8f8360216454d3f5b56b0f875",
+  "files": [
+    {
+      "path": "ACCEPTANCE.json",
+      "bytes": 4596,
+      "sha256": "887d358ffdd7af76d019b264350fabdbce71d1d55a32cc42c468869175eed3b2"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 2691,
+      "sha256": "fcf55fa17c26bac79ff1c8e83bf83a6f500bdc905412f50006d8c372c07d85b9"
+    },
+    {
+      "path": "evidence/COMMANDS.json",
+      "bytes": 1481,
+      "sha256": "890128a4fa9566924e8f5561c8e89a21e02a354cc7408340475e839e113faf32"
+    },
+    {
+      "path": "evidence/COMPOSITION-PROOF.json",
+      "bytes": 2722,
+      "sha256": "db3f49fa300f0f0ba328a1024a0130bc0c46d1ca72e4c467235c265893d7bb73"
+    },
+    {
+      "path": "evidence/READ-ATTEMPTS.json",
+      "bytes": 542,
+      "sha256": "1368ee1715eabbc9ee153b3c34b0a112315f89343ca78085c9c535be19140bdc"
+    },
+    {
+      "path": "evidence/composition-proof-attempt0.py",
+      "bytes": 7680,
+      "sha256": "cfc141dd2a19182b5f74f5c6bc2f74a27a6b89f795ed4bd58f707854068ca8cb"
+    },
+    {
+      "path": "evidence/composition-proof-attempt0.stderr",
+      "bytes": 329,
+      "sha256": "57a2c5e86f2b901a566b2a7e71dd8f48030863a3ecc4d9aa217ac33da03b175f"
+    },
+    {
+      "path": "evidence/composition-proof-attempt0.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/composition-proof-attempt1.py",
+      "bytes": 7808,
+      "sha256": "2bd9be6eaec3b7f739d694b6f46dcada401055a06aa2ce5f9a97a9bafa4dad38"
+    },
+    {
+      "path": "evidence/composition-proof-attempt1.stderr",
+      "bytes": 286,
+      "sha256": "ac7f6fc97ea23c80d20cecb814f93d3e7859077baf95e852ad6a95f79a187906"
+    },
+    {
+      "path": "evidence/composition-proof-attempt1.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/composition-proof.py",
+      "bytes": 8170,
+      "sha256": "2dd269ea39dd878dd86d4ca543937ddfbbc6190559c21f42bed9f19d921873ef"
+    },
+    {
+      "path": "evidence/composition-proof.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/composition-proof.stdout",
+      "bytes": 1234,
+      "sha256": "e306500f932439802e0e157dd4f220c7ed217214b1b6639e8c79e8f0a4f84df1"
+    },
+    {
+      "path": "evidence/manifest-controls.json",
+      "bytes": 4586,
+      "sha256": "bf5c3c1bbcc739f16db704f146c3f2b4414b2ebf9adf6b525cff83de41a3a9de"
+    },
+    {
+      "path": "evidence/manifest-controls.mjs",
+      "bytes": 5641,
+      "sha256": "8972a176f2aec0a3b4f116977d114fed3daf70f41af3fa0948260e25af8565fc"
+    },
+    {
+      "path": "evidence/manifest-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/manifest-controls.stdout",
+      "bytes": 39,
+      "sha256": "d78103c6ba7ffc4dd7a699816656538f24fa4540c0a9596e0dabd195cbf042c7"
+    },
+    {
+      "path": "evidence/manifest-host.cjs",
+      "bytes": 2377,
+      "sha256": "de2ffa2350e2c57c1a470ee0601ba009c7a0c03fced029f9a61f28686be226c2"
+    },
+    {
+      "path": "evidence/manifest-permanent.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/manifest-permanent.stdout",
+      "bytes": 624,
+      "sha256": "b62f3135cda041ece3b8c8f39b05f2782b0df94442c52a9cdf864e664b568f32"
+    },
+    {
+      "path": "evidence/source-hygiene.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/source-hygiene.stdout",
+      "bytes": 3233,
+      "sha256": "54b51c54b88e5f65e4cfb286425705b0c4525a1879d9a0c4f6dc74faaf562fe1"
+    },
+    {
+      "path": "evidence/workflow-permanent.stderr",
+      "bytes": 103,
+      "sha256": "53dbc18afe6728c7b184434024a095e6c001493cd80c716f4e56cccc3eae8d59"
+    },
+    {
+      "path": "evidence/workflow-permanent.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

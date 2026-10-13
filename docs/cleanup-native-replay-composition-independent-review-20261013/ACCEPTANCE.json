@@ -1,0 +1,95 @@
+{
+  "decision": "ACCEPT bounded source composition and exact manifest/CI reconciliation",
+  "source": "ce14fb20b60426fe465ae8ad3eb33f2d23cd7bbc",
+  "sourceTree": "e216f3c2f1c588d8f8360216454d3f5b56b0f875",
+  "base": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+  "donor": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "donorTree": "5cc7473db36e1b23a6fc0982f1652a9b20565a95",
+  "nativeSourceReview": "962d30b692502d6ea56b064b35352665a6204732",
+  "scopedOperandReview": "5e185c352acca9ab8589d76920003107bb083ffc",
+  "authorReceipt": "815fe7851257c6d546038a13da89104a164620f7",
+  "reviewerValidation": {
+    "fiveOriginalManifestCases": 5,
+    "independentByteRefusalControls": 52,
+    "currentPythonWorkflowCases": 5,
+    "coercions": 0,
+    "nativeHelper49And10MocksReusedByExactDonorBindings": true,
+    "sqlAndNativeExecutionRepeated": false
+  },
+  "compositionProof": {
+    "source": "ce14fb20b60426fe465ae8ad3eb33f2d23cd7bbc",
+    "tree": "e216f3c2f1c588d8f8360216454d3f5b56b0f875",
+    "base": "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+    "nativeDonor": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+    "actualAncestors": [
+      "60cf2e51129f8358e6afe5fc600ffcdb6de01759",
+      "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+      "962d30b692502d6ea56b064b35352665a6204732"
+    ],
+    "nativeEightPathsIncludingRunbookExactPublishedDonor": true,
+    "receivingFourPaths": [
+      ".github/workflows/backend-cleanup-preservation.yml",
+      "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+      "scripts/lib/reviewed-pe-manifest-contract.mjs"
+    ],
+    "nonDocDelta11": [
+      ".github/workflows/backend-cleanup-preservation.yml",
+      "apps/api/package.json",
+      "apps/api/scripts/lib/pe-phase-9-migration-discovery.mjs",
+      "apps/api/scripts/lib/pe-phase-9-migration-discovery.spec.mjs",
+      "apps/api/scripts/lib/pe-phase-9-owned-postgres.sh",
+      "apps/api/scripts/lib/pe-phase-9-owned-postgres.spec.mjs",
+      "apps/api/scripts/lib/pe-production-scripts.ts",
+      "apps/api/scripts/pe-phase-9-migration-replay.sh",
+      "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+      "scripts/lib/reviewed-pe-manifest-contract.mjs"
+    ],
+    "outsideNonDocExact": 11943,
+    "apiFullPriorByteInverseWithOnlyNativeDeclarationAndPrefix": true,
+    "helperWholePriorBodyInverseExact": true,
+    "rootManifestAndAllOtherMetadataDependenciesDefaultFullCommandsUnchanged": true,
+    "workflowEntirePriorDocumentInverseExactOneStepOnly": true,
+    "pythonEntirePriorDocumentInverseExactOneTupleOnly": true,
+    "fiveOriginalManifestCaseIdentities": [
+      "exact reviewed root manifest reconstructs every prior byte and retains its real entry points",
+      "root manifest mutations cannot turn this exact review into a general exemption",
+      "exact reviewed api manifest reconstructs every prior byte and retains its real entry points",
+      "api manifest mutations cannot turn this exact review into a general exemption",
+      "unknown/coercible inputs refuse without executing application or coercion ports"
+    ],
+    "nativeSourceReviewHashBindingsVerified": {
+      "sourceBindings": 8,
+      "packetFiles": 23,
+      "scopedNativeOperandPacketFiles": 4
+    },
+    "schemaAndSqlMetadataEntriesUnchanged": 626,
+    "c8PolicyAndMeriAuthoritySourceUnchangedFromBase": true,
+    "ownerReportedQualificationScopedToE25Only": true,
+    "rawNativeReceiptVerified": false,
+    "currentHeadNativeOrWholeOperatorAccepted": false,
+    "protectedReportingBodyRead": false,
+    "actualNativeOrDockerOrOperatorInstallExecutionByReviewer": false
+  },
+  "nativeResults": {
+    "ownerReportedSource": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+    "reportedSteps": 31,
+    "reportedRequiredZeroOutcomes": 29,
+    "rawReceivingReceiptBytesVerified": false,
+    "wholeReceivingHeadNativeQualified": false
+  },
+  "remainingLimits": [
+    "actual immutable native receipt transfer/receiving-byte verification",
+    "current auth/Meri live and native qualification",
+    "target-musl producer provenance image/ABI/shipping",
+    "full/current-head acceptance"
+  ],
+  "preservedHarnessFailures": [
+    "initial case-name log selection pointed at independent corpus instead of old five-case output",
+    "E checksum collection field is packetFiles, not files",
+    "root author packet uses single canonical handoff and has no final publication master yet"
+  ],
+  "protectedReportingBodyOrDeniedReportRead": false,
+  "reviewerProductionChanges": false
+}

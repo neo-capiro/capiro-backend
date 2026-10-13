@@ -1,0 +1,16 @@
+{
+  "failedAuthorPacketReads": [
+    {
+      "path": "docs/native-replay-reviewed-composition-20261013/HANDOFF.md",
+      "exit": 1,
+      "stderr": "No such file or directory"
+    },
+    {
+      "path": "docs/native-replay-reviewed-composition-20261013/SHA256SUMS.json",
+      "exit": 1,
+      "stderr": "No such file or directory"
+    }
+  ],
+  "correctCurrentHandoff": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+  "classification": "reviewer filename assumption; immutable source and root packet unchanged"
+}
