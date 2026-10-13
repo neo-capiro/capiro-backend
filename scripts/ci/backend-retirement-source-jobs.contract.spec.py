@@ -26,6 +26,8 @@ COMMANDS = [
      "node --test scripts/ci/reviewed-pe-manifest-contract.spec.mjs scripts/ci/reviewed-source-hygiene.spec.mjs"),
     ("Check source and normal documentation whitespace with immutable raw observations classified",
      "node scripts/lib/reviewed-source-hygiene.mjs --run --base b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"),
+    ("Exercise owned migration discovery and inert Docker fixture controls",
+     "node --test apps/api/scripts/lib/pe-phase-9-migration-discovery.spec.mjs apps/api/scripts/lib/pe-phase-9-owned-postgres.spec.mjs"),
     ("Exercise standalone assembly and Docker consumer refusals",
      "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs scripts/ci/newsletter-accepted-source-profile.spec.mjs"),
     ("Preserve static artifact owner contracts",

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import test from 'node:test';
-import { restoreReviewedPeManifest, REVIEWED_PE_MANIFEST_SOURCE } from '../lib/reviewed-pe-manifest-contract.mjs';
+import { restoreReviewedPeManifest, REVIEWED_PE_MANIFEST_SOURCE, REVIEWED_PE_API_MANIFEST_SOURCE } from '../lib/reviewed-pe-manifest-contract.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = 'b7aa1d6e6b341f833fa08b2add8f40d5fbee8480';
@@ -15,7 +15,7 @@ for (const [kind, file] of [['root', 'package.json'], ['api', 'apps/api/package.
   test(`exact reviewed ${kind} manifest reconstructs every prior byte and retains its real entry points`, () => {
     const raw = source(file);
     assert.deepEqual(Buffer.from(restoreReviewedPeManifest(raw, kind)), before(file));
-    assert.deepEqual(raw, execFileSync('git', ['show', `${REVIEWED_PE_MANIFEST_SOURCE}:${file}`], {cwd: ROOT}));
+    assert.deepEqual(raw, execFileSync('git', ['show', `${kind === 'api' ? REVIEWED_PE_API_MANIFEST_SOURCE : REVIEWED_PE_MANIFEST_SOURCE}:${file}`], {cwd: ROOT}));
     const current = JSON.parse(raw), old = JSON.parse(before(file));
     assert.equal(current.scripts['verify:pe-phase-9'], old.scripts['verify:pe-phase-9']);
     assert.equal(current.scripts['verify:pe-phase-9:full'], old.scripts['verify:pe-phase-9:full']);
@@ -24,7 +24,8 @@ for (const [kind, file] of [['root', 'package.json'], ['api', 'apps/api/package.
       assert.equal(typeof current.scripts[name], 'string');
     }
     if (kind === 'api') {
-      assert.equal(current.scripts['test:pe-trust'].replace(' scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts', ''), old.scripts['test:pe-trust']);
+      assert.equal(current.scripts['test:pe-phase-9-migration-discovery'], 'node --test scripts/lib/pe-phase-9-migration-discovery.spec.mjs scripts/lib/pe-phase-9-owned-postgres.spec.mjs');
+      assert.equal(current.scripts['test:pe-trust'].replace('pnpm run test:pe-phase-9-migration-discovery && ', '').replace(' scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts', ''), old.scripts['test:pe-trust']);
       for (const file of ['pe-phase-9-backend-scope.spec.ts', 'pe-phase-9-runner.spec.ts'])
         assert.ok(readFileSync(path.join(ROOT, 'apps/api/scripts/lib', file)).length > 0);
     }
@@ -42,9 +43,13 @@ for (const [kind, file] of [['root', 'package.json'], ['api', 'apps/api/package.
       value => { value.engines = {node: '>=1'}; },
       value => { value.dependencies = {...value.dependencies, unreviewed: '1.0.0'}; },
     ];
-    if (kind === 'api') changes.push(value => {
-      value.scripts['test:pe-trust'] = value.scripts['test:pe-trust'].replace(' scripts/lib/pe-phase-9-runner.spec.ts', '');
-    });
+    if (kind === 'api') changes.push(
+      value => { value.scripts['test:pe-trust'] = value.scripts['test:pe-trust'].replace(' scripts/lib/pe-phase-9-runner.spec.ts', ''); },
+      value => { delete value.scripts['test:pe-phase-9-migration-discovery']; },
+      value => { value.scripts['test:pe-phase-9-migration-discovery'] += ' || true'; },
+      value => { value.scripts['test:pe-trust'] = value.scripts['test:pe-trust'].replace('pnpm run test:pe-phase-9-migration-discovery && ', ''); },
+      value => { value.scripts['test:pe-trust'] = value.scripts['test:pe-trust'].replace('&& jest', '; jest'); },
+    );
     for (const change of changes) {
       const value = structuredClone(original); change(value);
       assert.throws(() => restoreReviewedPeManifest(JSON.stringify(value, null, 2) + '\n', kind), /Unreviewed/);

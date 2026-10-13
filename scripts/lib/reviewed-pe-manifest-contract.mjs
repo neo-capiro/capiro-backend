@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 
-// Exact PR2444 declaration inverse for preservation guards, never a general
+// Exact PR2444/PR2446 declaration inverse for preservation guards, never a general
 // manifest exception. No I/O, process, environment or application imports.
 export const REVIEWED_PE_MANIFEST_SOURCE = '457e84e7d50f401985355cf22eedc480fd72ad8b';
+export const REVIEWED_PE_API_MANIFEST_SOURCE = 'e25b2c9ad93ae8d63ffb5332c41d7af1623d4400';
 const profiles = Object.freeze({
   root: Object.freeze({
     after: 'ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824',
@@ -13,12 +14,14 @@ const profiles = Object.freeze({
     ],
   }),
   api: Object.freeze({
-    after: '58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa',
+    after: 'cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a',
     before: 'cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff',
     additions: [
       '    "verify:pe-phase-9:backend": "tsx scripts/verify-pe-phase-9.ts --backend-only --run",\n',
       '    "verify:pe-phase-9:backend:dry-run": "tsx scripts/verify-pe-phase-9.ts --backend-only --dry-run",\n',
       ' scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts',
+      '    "test:pe-phase-9-migration-discovery": "node --test scripts/lib/pe-phase-9-migration-discovery.spec.mjs scripts/lib/pe-phase-9-owned-postgres.spec.mjs",\n',
+      'pnpm run test:pe-phase-9-migration-discovery && ',
     ],
   }),
 });
