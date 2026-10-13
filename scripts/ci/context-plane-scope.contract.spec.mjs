@@ -125,10 +125,17 @@ test('complete original guard/predicates/regex/allowlist/census/operations/catch
   }
 });
 
-test('published helper custody has only unused Phase27 walker removal and strict ref addition', () => {
+test('published helper custody has only unused walker removal, strict ref and count grammar fixes', () => {
   const published = execFileSync('git', ['show', 'ed1bb4b539b297086413e7060979ea02226dc485:scripts/lib/knowledge-census-scope.mjs'], { cwd: root, encoding: 'utf8' });
   const omitted = published.slice(published.indexOf('function canTraverse('), published.indexOf('function headerPath('));
-  const expected = published.replace(omitted, '').replace('      base = arg;', "      if (!/^[A-Za-z0-9._/@^~-]+$/.test(arg)) throw new Error('invalid scoped Git ref');\n      base = arg;");
+  const expected = published.replace(omitted, '').replace('      base = arg;', "      if (!/^[A-Za-z0-9._/@^~-]+$/.test(arg)) throw new Error('invalid scoped Git ref');\n      base = arg;")
+    .replace(`        if (line.startsWith('--- ') || line.startsWith('+++ ')) {
+          throw new Error('ambiguous file header inside a hunk');
+        }`, `        // A leading +/- belongs to content until both declared counts finish.
+        // For example, added \`++ count;\` is encoded as \`+++ count;\`.
+        if (hunk.old === hunk.wantOld && hunk.next === hunk.wantNext) {
+          throw new Error('extra content after complete diff hunk');
+        }`);
   assert.equal(readFileSync(join(root, 'scripts/lib/knowledge-census-scope.mjs'), 'utf8'), expected);
   for (const file of ['context-plane-scope.mjs', 'knowledge-census-scope.mjs']) {
     assert.doesNotMatch(readFileSync(join(root, 'scripts/lib/' + file), 'utf8'), /from ['"]node:|\b(?:require|process|globalThis|execFileSync|readFileSync|fetch)\b/);
@@ -266,4 +273,46 @@ test('unavailable Git and malformed/truncated/quoted/binary sections fail before
     assert.equal(result.exit, 1); assert.equal(result.calls.length, 0);
     assert.ok(result.messages.error.includes(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`));
   }
+});
+
+
+test('valid ++/-- hunk content preserves target identity while count/header faults refuse', () => {
+  for (const file of ['apps/api/src/example.ts', 'apps/web/src/example.ts']) {
+    const header = `diff --git a/${file} b/${file}\nindex 1111111..2222222 100644\n--- a/${file}\n+++ b/${file}\n`;
+    for (const body of ['@@ -0,0 +1 @@\n+++ count;\n', '@@ -1 +0,0 @@\n--- count;\n',
+      '@@ -1 +1 @@\n--- count;\n+++ count;\n',
+      '@@ -0,0 +1 @@\n+++ count;\n\\ No newline at end of file\n',
+      '@@ -0,0 +1 @@\n+++ count;\n@@ -2 +3 @@\n--- count;\n+++ count;\n']) {
+      const diff = header + body;
+      for (const scope of ['backend', 'frontend']) {
+        assert.equal(projectContextPlaneDiff(diff, scope),
+          file.startsWith('apps/web/') === (scope === 'frontend') ? diff : '');
+      }
+    }
+    for (const body of ['@@ -0,0 +1 @@\n+++ count;\n+++ b/other.ts\n',
+      '@@ -1 +0,0 @@\n--- count;\n--- a/other.ts\n',
+      '@@ -0,0 +1,2 @@\n+++ count;\n',
+      '@@ -1 +1 @@\n+++ count;\n',
+      '@@ -0,0 +1 @@\n+++ count;\n+extra\n']) {
+      for (const scope of ['backend', 'frontend']) assert.throws(() => projectContextPlaneDiff(header + body, scope));
+    }
+    for (const scope of ['backend', 'frontend']) {
+      assert.throws(() => projectContextPlaneDiff(header.replace('+++ b/' + file, '+++ b/other.ts') + '@@ -0,0 +1 @@\n+safe\n', scope));
+    }
+  }
+});
+
+
+test('scoped hunk additions stay bound to actual product path despite +++ content', () => {
+  const outcomes = [];
+  for (const [scope, file] of [['backend', 'apps/api/src/future/a.ts'], ['frontend', 'apps/web/src/future/a.ts']]) {
+    const diff = `diff --git a/${file} b/${file}\nindex 1111111..2222222 100644\n--- a/${file}\n+++ b/${file}\n@@ -0,0 +1,2 @@\n+++ b/apps/api/src/context/decoy.ts\n+resolveContextPacketMode();\n`;
+    const selected = run(current, [baseline, '--' + scope + '-only'], seed, {diff});
+    outcomes.push({scope, exit:selected.exit,
+      originalPathRefusal:selected.messages.error.some((line) => line.includes(file) && line.includes('resolveContextPacketMode')),
+      completion:selected.messages.log.some((line)=>line.endsWith('_COMPLETE'))});
+    // Current full scanner's header-looking-content weakness is inherited.
+    assert.deepEqual(run(current, [baseline], seed, {diff}), run(original, [baseline], seed, {diff}));
+  }
+  assert.deepEqual(outcomes, ['backend', 'frontend'].map((scope)=>({scope,exit:1,originalPathRefusal:true,completion:false})));
 });

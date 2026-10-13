@@ -105,8 +105,10 @@ export function partitionKnowledgeCensusDiff(diff) {
         hunk = { old: 0, next: 0, wantOld: Number(match[2] ?? 1), wantNext: Number(match[4] ?? 1) };
       } else if (hunk) {
         if (line === '\\ No newline at end of file') continue;
-        if (line.startsWith('--- ') || line.startsWith('+++ ')) {
-          throw new Error('ambiguous file header inside a hunk');
+        // A leading +/- belongs to content until both declared counts finish.
+        // For example, added `++ count;` is encoded as `+++ count;`.
+        if (hunk.old === hunk.wantOld && hunk.next === hunk.wantNext) {
+          throw new Error('extra content after complete diff hunk');
         }
         if (line.startsWith('+')) hunk.next += 1;
         else if (line.startsWith('-')) hunk.old += 1;
