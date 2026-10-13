@@ -376,7 +376,8 @@ fi
 
 # Require known PE migrations only when HEAD introduces them after main.
 if [ "${PE_PHASE_9_STRICT_PE_MIG_NAMES:-1}" = "1" ]; then
-  REQUIRED_PE="$("$NODE_BIN" "$DISCOVERY_JS" required-pe "$HEAD_LIST" "$MAIN_LIST")"
+  REQUIRED_PE="$("$NODE_BIN" "$DISCOVERY_JS" required-pe \
+    "$(to_win_path "$HEAD_LIST")" "$(to_win_path "$MAIN_LIST")")"
   while IFS= read -r need; do
     [ -n "$need" ] || continue
     if ! grep -qxF "$need" "$BRANCH_ONLY_FILE"; then
