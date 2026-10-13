@@ -1,0 +1,114 @@
+Merge made by the 'ort' strategy.
+ .../ADOPTION-MATRIX.json                           |  793 ++++++++++
+ .../COMMANDS.md                                    |   13 +
+ .../HANDOFF.md                                     |   17 +
+ .../QUALIFICATION.json                             |   77 +
+ .../ROUTE-CASE-PRESERVATION.json                   |   29 +
+ .../SHA256-INDEX.json                              | 1590 ++++++++++++++++++++
+ .../evidence/SOURCE-PROOF.json                     | 1510 +++++++++++++++++++
+ .../evidence/TOOLS.json                            |   33 +
+ .../evidence/before-VNextClientPicker.tsx.txt      |  133 ++
+ .../evidence/before-client-crm-entry.test.tsx.txt  |   71 +
+ .../evidence/hermetic-attempt-0.command.json       |   19 +
+ .../evidence/hermetic-attempt-0.stderr             |    0
+ .../evidence/hermetic-attempt-0.stdout             |   75 +
+ .../evidence/hermetic-attempt-1.command.json       |   19 +
+ .../evidence/hermetic-attempt-1.stderr             |    0
+ .../evidence/hermetic-attempt-1.stdout             |  237 +++
+ .../evidence/hermetic-final.command.json           |   19 +
+ .../evidence/hermetic-final.stderr                 |    0
+ .../evidence/hermetic-final.stdout                 |   62 +
+ .../evidence/intercepted-route-preload.cjs         |   23 +
+ .../evidence/inventory/CODE-BLOB-BINDINGS.json     |  189 +++
+ .../evidence/inventory/changed-path-metadata.json  |  364 +++++
+ .../inventory/exact-head-commit-metadata.json      |    1 +
+ .../evidence/inventory/six-commit-metadata.json    |   54 +
+ .../evidence/portrait-copy-bindings.json           |  951 ++++++++++++
+ .../evidence/preflight-probes.command.json         |   12 +
+ .../evidence/preflight-probes.json                 |  369 +++++
+ .../evidence/preflight-probes.mjs                  |   26 +
+ .../evidence/preflight-probes.stderr               |    0
+ .../published-object-inspection.command.json       |    9 +
+ .../evidence/published-object-inspection.stderr    |    3 +
+ .../evidence/published-object-inspection.stdout    |    1 +
+ .../evidence/raw-evidence-whitespace.command.json  |   10 +
+ .../evidence/raw-evidence-whitespace.stderr        |    0
+ .../evidence/raw-evidence-whitespace.stdout        |    5 +
+ .../evidence/route-attempt-0.command.json          |   32 +
+ .../evidence/route-attempt-0.host-events.json      |   18 +
+ .../evidence/route-attempt-0.stderr                |   16 +
+ .../evidence/route-attempt-0.stdout                |    0
+ .../evidence/route-attempt-1.command.json          |   35 +
+ .../evidence/route-attempt-1.host-events.json      |   15 +
+ .../evidence/route-attempt-1.stderr                |    0
+ .../evidence/route-attempt-1.stdout                |    1 +
+ .../evidence/route-before.command.json             |   37 +
+ .../evidence/route-before.host-events.json         |   15 +
+ .../evidence/route-before.json                     |    1 +
+ .../evidence/route-before.stderr                   |    0
+ .../evidence/route-before.stdout                   |    1 +
+ .../evidence/route-final.json                      |    1 +
+ .../evidence/route.safe.config.mjs                 |    2 +
+ .../evidence/safe-source-test-preload.cjs          |   17 +
+ .../evidence/source-proof.py                       |   65 +
+ .../evidence/source-whitespace.command.json        |   11 +
+ .../evidence/source-whitespace.stderr              |    0
+ .../evidence/source-whitespace.stdout              |    0
+ ...ngagement-resilience-recovery.contract.spec.mjs |   23 +
+ scripts/engagement-phase3-resilience-contract.mjs  |    4 +-
+ 57 files changed, 7007 insertions(+), 1 deletion(-)
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/ADOPTION-MATRIX.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/COMMANDS.md
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/HANDOFF.md
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/QUALIFICATION.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/ROUTE-CASE-PRESERVATION.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/SHA256-INDEX.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/SOURCE-PROOF.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/TOOLS.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/before-VNextClientPicker.tsx.txt
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/before-client-crm-entry.test.tsx.txt
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-0.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-0.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-0.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-final.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-final.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-final.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/intercepted-route-preload.cjs
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/inventory/CODE-BLOB-BINDINGS.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/inventory/changed-path-metadata.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/inventory/exact-head-commit-metadata.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/inventory/six-commit-metadata.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/portrait-copy-bindings.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/preflight-probes.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/preflight-probes.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/preflight-probes.mjs
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/preflight-probes.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/published-object-inspection.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/published-object-inspection.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/published-object-inspection.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/raw-evidence-whitespace.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/raw-evidence-whitespace.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/raw-evidence-whitespace.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-0.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-0.host-events.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-0.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-0.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-1.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-1.host-events.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-1.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-1.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.host-events.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.stdout
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-final.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route.safe.config.mjs
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/safe-source-test-preload.cjs
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/source-proof.py
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/source-whitespace.command.json
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/source-whitespace.stderr
+ create mode 100644 docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/source-whitespace.stdout
