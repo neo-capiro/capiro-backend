@@ -17,8 +17,8 @@ export function main(args: string[]): number {
     return 2;
   }
   try {
-    const input = path.resolve(args[1]),
-      output = path.resolve(args[2]);
+    const input = path.resolve(args[1]!),
+      output = path.resolve(args[2]!);
     const stat = fs.lstatSync(input);
     if (
       path.extname(input) !== '.json' ||
