@@ -1,0 +1,105 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "actualModules": [
+    {
+      "source": "apps/api/src/intelligence/client-alerts-v1-awards.ts",
+      "emittedPath": "intelligence/client-alerts-v1-awards.js",
+      "bytes": 4279,
+      "sha256": "d4349001cf2afea43f85a4c898adcb46fa68ff8ba98a44c0a8701cb0312c0f84",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts",
+      "emittedPath": "intelligence/client-alerts-v1-comment-deadlines.js",
+      "bytes": 9396,
+      "sha256": "cfd457b8f99e028ca6027499e6b29924f44eda068a466b982df4ddbb986befae",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/client-alerts-v1.shared.ts",
+      "emittedPath": "intelligence/client-alerts-v1.shared.js",
+      "bytes": 809,
+      "sha256": "4eec1e9975a750b0e4e9095fced27cb3e0295eba28235d841dd3b8db0ee51119",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/client-alerts-v1.ts",
+      "emittedPath": "intelligence/client-alerts-v1.js",
+      "bytes": 11920,
+      "sha256": "1162fb4b49b3f8e653d9c48f7b9ff5ed6e4976884da4db5eb979eb19ee9d9fcb",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/client-regulatory-v1.ts",
+      "emittedPath": "intelligence/client-regulatory-v1.js",
+      "bytes": 8014,
+      "sha256": "d310384a41f0345a0a548731c445fc4deeb07f151434b3f104ea3fbe217ff3c8",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-alerts.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-alerts.js",
+      "bytes": 7823,
+      "sha256": "c6bf9d275cd86431ba3f61a9a81690dd2b558053fe658a5d3244a41e38de84e9",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-coming-up.js",
+      "bytes": 6801,
+      "sha256": "298dbbd05592870c2b07aa0bb43f41c9e5d55606fad088e772c0e952d07815d8",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-quarters.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-quarters.js",
+      "bytes": 2467,
+      "sha256": "ba3641fd8c520ef01f7cdff326b6ca6f73dd8ca61210a31b1bf97343b45f1c7c",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-rollup.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-rollup.js",
+      "bytes": 7760,
+      "sha256": "11f76daa286e2ad53bcec2f784173bf0870bf76281060ecedcedc493b94f85e1",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-summary.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-summary.js",
+      "bytes": 5747,
+      "sha256": "2e739776bc0093dafc81682eb97882f755d1f7ccfe19349b41ba88085b40be49",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-timeline.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-timeline.js",
+      "bytes": 6157,
+      "sha256": "7331504170996614e1c1301dd1b346d80bb982e95b3f87f69f565ccc44d04020",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence-portfolio-trend.ts",
+      "emittedPath": "intelligence/intelligence-portfolio-trend.js",
+      "bytes": 1505,
+      "sha256": "266fb25de78410635d8809701c15d5bf16eb3fdbecd20018f22cfa165014112e",
+      "syntaxExitCode": 0
+    },
+    {
+      "source": "apps/api/src/intelligence/intelligence.service.ts",
+      "emittedPath": "intelligence/intelligence.service.js",
+      "bytes": 67479,
+      "sha256": "26d450dfa9a1be642d773717d7a35cc03ff92731ab29412f48bdb42052669285",
+      "syntaxExitCode": 0
+    }
+  ],
+  "constructorMetadata": "prisma_service_js_1.PrismaService,\n        client_prepopulation_service_js_1.ClientPrepopulationService,\n        office_recommender_service_js_1.OfficeRecommenderService",
+  "originalDependencyCount": 3,
+  "emittedFiles": 1973,
+  "emittedBytes": 22198665,
+  "sourceMapsQualified": false,
+  "inventorySha256": "43fa15f301f474cdf762aae1edc5b4cddd7069e514d8ffb3c8092e21b5e7968c",
+  "testAssetsEmitted": false,
+  "allOwnedOutputsRemovedAfterVerification": true
+}

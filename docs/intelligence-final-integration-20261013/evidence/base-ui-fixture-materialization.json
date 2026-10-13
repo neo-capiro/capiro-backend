@@ -1,0 +1,95 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "files": [
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "bytes": 6526,
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+      "gitBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "bytes": 1769,
+      "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb",
+      "gitBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "bytes": 28524,
+      "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85",
+      "gitBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "bytes": 6279,
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+      "gitBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/memory-file-editor-shared.ts.txt",
+      "bytes": 2037,
+      "sha256": "72905cd3aa59a1a9bf415926f99111ec7f9d8b94fc78da6263ebe83812de0c4f",
+      "gitBlob": "eb107ed89c130d6e082c238a81c4a81d0eeae52c"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/pending-memory-review-shared.ts.txt",
+      "bytes": 2440,
+      "sha256": "c6b715f984064ba51ecbe969b3948ffe4bd3535de443ea360994268c14d7de31",
+      "gitBlob": "511662be59ae9ba498209a5e8f396a4978237566"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "bytes": 2412,
+      "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3",
+      "gitBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "bytes": 25244,
+      "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101",
+      "gitBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "bytes": 6387,
+      "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c",
+      "gitBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b"
+    },
+    {
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+      "bytes": 53171,
+      "sha256": "514378d04f5b8a8c8046cd17a9c446de3eb94d7e9148981b5ba0924c6efffc3b",
+      "gitBlob": "3b633a2c7115f824b31d26fd6a822fabf342da84"
+    },
+    {
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt",
+      "bytes": 7013,
+      "sha256": "1344af785ccc5ce86aa6ccbd85ec41e6f6d7fa8004eeba587b0f290f25e86594",
+      "gitBlob": "2956b7e17ca874f1cd4b5afc19724e9deeafe4ec"
+    },
+    {
+      "path": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt",
+      "bytes": 165027,
+      "sha256": "db455369723bf5040235e54daac271854051d3cdce9d76cb9c9778f003b26f9c",
+      "gitBlob": "da1a889742a20f16d040474428f0f7eb5990938c"
+    },
+    {
+      "path": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt",
+      "bytes": 25996,
+      "sha256": "25d795dd4af7e4f5428ca76fa76f7abf8e27f67a6c5819ba423256b97afd2582",
+      "gitBlob": "4e529de1fc3fe5be4e40b202ab447e512189ea5c"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt",
+      "bytes": 7644,
+      "sha256": "44df643386b3ddc4e88a039b32b0a54ea91b43323eab8b952f576c2974798e0b",
+      "gitBlob": "07a82c29a30090a6521bf9528c838e4145b288bd"
+    }
+  ],
+  "passingPriorSuites": 93,
+  "passingPriorCases": 1233,
+  "businessAssertionsFailed": 0,
+  "initialFolderGuessIncorrect": "apps/api/test/fixtures/legacy-ui-contracts",
+  "extraFailedFixtureAttemptRetained": true,
+  "correctedOnlyFixtureMaterialization": true
+}

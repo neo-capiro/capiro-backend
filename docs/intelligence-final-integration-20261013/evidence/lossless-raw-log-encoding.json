@@ -1,0 +1,31 @@
+{
+  "rawCheckpoint": "5a05eecbfb8d4d141db5c3aaba3929df82799baf",
+  "converted": [
+    {
+      "rawPath": "docs/intelligence-final-integration-20261013/evidence/attempt0-build.log",
+      "envelope": "docs/intelligence-final-integration-20261013/evidence/attempt0-build.log.json",
+      "rawBlob": "ba85d823ed2c8ee96d2faef765b4e157299c25eb"
+    },
+    {
+      "rawPath": "docs/intelligence-final-integration-20261013/evidence/attempt0-jest.log",
+      "envelope": "docs/intelligence-final-integration-20261013/evidence/attempt0-jest.log.json",
+      "rawBlob": "618c22163ac4828443cc9929cf0605ec0c5f912a"
+    },
+    {
+      "rawPath": "docs/intelligence-final-integration-20261013/evidence/attempt2-jest.log",
+      "envelope": "docs/intelligence-final-integration-20261013/evidence/attempt2-jest.log.json",
+      "rawBlob": "794332ade52463164568af4f1c6f714ee203a197"
+    },
+    {
+      "rawPath": "docs/intelligence-final-integration-20261013/evidence/attempt3-fixture-jest.log",
+      "envelope": "docs/intelligence-final-integration-20261013/evidence/attempt3-fixture-jest.log.json",
+      "rawBlob": "daa7796d981707a7e21b826f8b1231b3b6c58306"
+    },
+    {
+      "rawPath": "docs/intelligence-final-integration-20261013/evidence/fixture-jest.log",
+      "envelope": "docs/intelligence-final-integration-20261013/evidence/fixture-jest.log.json",
+      "rawBlob": "3b81338949c91538dd61796414987793f0336c73"
+    }
+  ],
+  "reason": "Preserve exact raw observations while satisfying normal source whitespace checks; no trimming or exemption."
+}

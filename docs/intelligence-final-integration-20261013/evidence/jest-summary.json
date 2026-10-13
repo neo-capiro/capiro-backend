@@ -1,0 +1,14 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "passingSuites": 94,
+  "passingTests": 1265,
+  "failedBusinessAssertions": 0,
+  "skippedTests": 0,
+  "qualificationMode": "93 suites/1233 passing cases in retained initial selection plus corrected missing-fixture suite32 passing cases; not one uninterrupted green run",
+  "receipts": [
+    "attempt2-jest-receipt.json",
+    "fixture-jest-receipt.json"
+  ],
+  "originalFailuresRetained": true
+}

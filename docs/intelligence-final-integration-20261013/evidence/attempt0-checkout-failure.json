@@ -1,0 +1,16 @@
+{
+  "attempt": "initial broad materialization",
+  "baseHead": "f61c401803f039dac92866400edd04e74ba8ea5d",
+  "exitCode": 128,
+  "mergeBegan": false,
+  "observedFailure": "unable to write tracked files; checkout requested more than available owned temporary filesystem space",
+  "rawToolOutputPersisted": false,
+  "rawOutputLimit": "tool output was truncated; full original stderr is not recoverable in this packet",
+  "removedPaths": [
+    "apps",
+    "packages",
+    "docs"
+  ],
+  "removalScope": "only incomplete materialization in newly created owned worktree; branch/common Git objects retained; all other worktrees untouched",
+  "recovery": "literal TS/config selection; read-tree --reset -u succeeded"
+}

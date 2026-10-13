@@ -1,0 +1,47 @@
+{
+  "priorReadTreeWarnings": true,
+  "staleOwnedEntries": [
+    {
+      "path": "capiro-auth.cer",
+      "bytes": 0,
+      "indexFlag": "H"
+    },
+    {
+      "path": "ci-uuid-replay-report.md",
+      "bytes": 0,
+      "indexFlag": "H"
+    },
+    {
+      "path": "docker-compose.yml",
+      "bytes": 0,
+      "indexFlag": "H"
+    },
+    {
+      "path": "durable-ui-backend-integration-report.md",
+      "bytes": 0,
+      "indexFlag": "H"
+    },
+    {
+      "path": "memory-postgres-report.md",
+      "bytes": 0,
+      "indexFlag": "H"
+    },
+    {
+      "path": "provider-finalization-report.md",
+      "bytes": 0,
+      "indexFlag": "H"
+    },
+    {
+      "path": "scheduler-boundaries-report.md",
+      "bytes": 0,
+      "indexFlag": "H"
+    }
+  ],
+  "earlierGuardExpectedSparseFlagButObservedTrackedFlag": true,
+  "guardStoppedBeforeTypeExecution": true,
+  "recovery": "read-tree --reset -u at unchanged frozen head; only owned incomplete checkout reconciled; untracked evidence retained",
+  "stdout": "",
+  "stderr": "",
+  "otherWorktreesTouched": false,
+  "protectedBodiesManuallyRead": false
+}

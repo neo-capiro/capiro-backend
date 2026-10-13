@@ -1,0 +1,93 @@
+Merge made by the 'ort' strategy.
+ .../src/intelligence/client-alerts-v1-awards.ts    |  113 ++
+ .../client-alerts-v1-comment-deadlines.ts          |  226 +++
+ .../src/intelligence/client-alerts-v1.shared.ts    |  104 ++
+ apps/api/src/intelligence/client-alerts-v1.ts      |  286 +++
+ apps/api/src/intelligence/client-regulatory-v1.ts  |  220 +++
+ ...gence-alerts-v1-awards.characterization.spec.ts |  246 +++
+ ...nce-alerts-v1-comments.characterization.spec.ts |  283 +++
+ ...-alerts-v1-competitors.characterization.spec.ts |  159 ++
+ ...nce-alerts-v1-hearings.characterization.spec.ts |  159 ++
+ ...ence-alerts-v1-logging.characterization.spec.ts |   96 +
+ ...ence-alerts-v1-overdue.characterization.spec.ts |  120 ++
+ ...igence-alerts-v1-state.characterization.spec.ts |  142 ++
+ .../intelligence-client-ownership.contract.spec.ts |   73 +-
+ .../intelligence-final-ownership.contract.spec.ts  |  164 ++
+ .../intelligence/intelligence-portfolio-alerts.ts  |  251 +++
+ .../intelligence-portfolio-coming-up.ts            |  211 +++
+ .../intelligence-portfolio-quarters.ts             |   86 +
+ .../intelligence/intelligence-portfolio-rollup.ts  |  245 +++
+ .../intelligence/intelligence-portfolio-summary.ts |  140 ++
+ .../intelligence-portfolio-timeline.ts             |  183 ++
+ .../intelligence/intelligence-portfolio-trend.ts   |   38 +
+ ...ce-portfolio-v1.alerts.characterization.spec.ts |  159 ++
+ ...ce-portfolio-v1.budget.characterization.spec.ts |  155 ++
+ ...nce-portfolio-v1.cache.characterization.spec.ts |  160 ++
+ ...portfolio-v1.coming-up.characterization.spec.ts |  211 +++
+ ...nce-portfolio-v1.feeds.characterization.spec.ts |  226 +++
+ ...ence-portfolio-v1.gate.characterization.spec.ts |   96 +
+ ...portfolio-v1.rollup-pe.characterization.spec.ts |  200 ++
+ ...e-portfolio-v1.summary.characterization.spec.ts |  213 +++
+ ...nce-portfolio-v1.trend.characterization.spec.ts |  136 ++
+ ...e-regulatory-v1-active.characterization.spec.ts |  116 ++
+ ...-regulatory-v1-profile.characterization.spec.ts |  155 ++
+ ...egulatory-v1-relevance.characterization.spec.ts |  157 ++
+ apps/api/src/intelligence/intelligence.service.ts  | 1777 ++----------------
+ apps/api/test/fixtures/intelligence-alerts.ts      |  304 +++
+ .../test/fixtures/intelligence-portfolio.rows.ts   |   84 +
+ apps/api/test/fixtures/intelligence-portfolio.ts   |  268 +++
+ .../20261013/BILL-DOSSIER-NEXT-INVENTORY.json      | 1961 ++++++++++++++++++++
+ docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT.md |   35 +
+ .../20261013/INTELLIGENCE-COMPONENT-STATUS.json    |  361 ++++
+ .../20261013/INTELLIGENCE-FINAL-QUALIFICATION.json | 1206 ++++++++++++
+ .../20261013/INTELLIGENCE-HANDOVER.md              |   27 +-
+ 42 files changed, 9885 insertions(+), 1667 deletions(-)
+ create mode 100644 apps/api/src/intelligence/client-alerts-v1-awards.ts
+ create mode 100644 apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts
+ create mode 100644 apps/api/src/intelligence/client-alerts-v1.shared.ts
+ create mode 100644 apps/api/src/intelligence/client-alerts-v1.ts
+ create mode 100644 apps/api/src/intelligence/client-regulatory-v1.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-final-ownership.contract.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-alerts.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-coming-up.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-quarters.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-rollup.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-summary.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-timeline.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-trend.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts
+ create mode 100644 apps/api/src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts
+ create mode 100644 apps/api/test/fixtures/intelligence-alerts.ts
+ create mode 100644 apps/api/test/fixtures/intelligence-portfolio.rows.ts
+ create mode 100644 apps/api/test/fixtures/intelligence-portfolio.ts
+ create mode 100644 docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json
+ create mode 100644 docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT.md
+ create mode 100644 docs/backend-cleanup/20261013/INTELLIGENCE-COMPONENT-STATUS.json
+ create mode 100644 docs/backend-cleanup/20261013/INTELLIGENCE-FINAL-QUALIFICATION.json
+warning: The following paths are not up to date and were left despite sparse patterns:
+	capiro-auth.cer
+	ci-uuid-replay-report.md
+	docker-compose.yml
+	durable-ui-backend-integration-report.md
+	memory-postgres-report.md
+	provider-finalization-report.md
+	scheduler-boundaries-report.md
+
+After fixing the above paths, you may want to run `git sparse-checkout reapply`.

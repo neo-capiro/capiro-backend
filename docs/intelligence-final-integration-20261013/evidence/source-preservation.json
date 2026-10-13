@@ -1,0 +1,223 @@
+{
+  "baseHead": "f61c401803f039dac92866400edd04e74ba8ea5d",
+  "donorHead": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "donorChangedPaths": 42,
+  "allDonorPathsExact": true,
+  "unrelatedBaseEntriesExact": 26801,
+  "previewSourceAndPacketExact": true,
+  "comparison": "mode/type/blob metadata only; no protected source-body reads",
+  "changedEntries": {
+    "apps/api/src/intelligence/client-alerts-v1-awards.ts": {
+      "base": null,
+      "donor": "100644 blob f1a516e750452e7da896e6dbd198ffdd242f37d9",
+      "receiving": "100644 blob f1a516e750452e7da896e6dbd198ffdd242f37d9"
+    },
+    "apps/api/src/intelligence/client-alerts-v1-comment-deadlines.ts": {
+      "base": null,
+      "donor": "100644 blob ddd4285dbd9034af8f9b67d696df16d7ee83ea0b",
+      "receiving": "100644 blob ddd4285dbd9034af8f9b67d696df16d7ee83ea0b"
+    },
+    "apps/api/src/intelligence/client-alerts-v1.shared.ts": {
+      "base": null,
+      "donor": "100644 blob d5c3f7fd616b42be66420100e90ff40ce4277608",
+      "receiving": "100644 blob d5c3f7fd616b42be66420100e90ff40ce4277608"
+    },
+    "apps/api/src/intelligence/client-alerts-v1.ts": {
+      "base": null,
+      "donor": "100644 blob 6991dec903bb7d42ef304e1cc1ba4dcf6eed2c2a",
+      "receiving": "100644 blob 6991dec903bb7d42ef304e1cc1ba4dcf6eed2c2a"
+    },
+    "apps/api/src/intelligence/client-regulatory-v1.ts": {
+      "base": null,
+      "donor": "100644 blob c715c29a7591504b39f899825c8609ebab9feb8a",
+      "receiving": "100644 blob c715c29a7591504b39f899825c8609ebab9feb8a"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-awards.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 22a6a44b510625b61b0a49551b0759116fe9cdce",
+      "receiving": "100644 blob 22a6a44b510625b61b0a49551b0759116fe9cdce"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-comments.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob ac5cdff1209f0a98ab0b270fd9f3d6bfcc714775",
+      "receiving": "100644 blob ac5cdff1209f0a98ab0b270fd9f3d6bfcc714775"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-competitors.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 36280c3ec7b3e0612c14c9174b369fcaf1e48b44",
+      "receiving": "100644 blob 36280c3ec7b3e0612c14c9174b369fcaf1e48b44"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-hearings.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob dddc1678da7f73a8edd6d308d692e327d8ffa529",
+      "receiving": "100644 blob dddc1678da7f73a8edd6d308d692e327d8ffa529"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-logging.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 88cb1785b4af5dce9772e3e5f67593d21c980e5e",
+      "receiving": "100644 blob 88cb1785b4af5dce9772e3e5f67593d21c980e5e"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-overdue.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob cecb8538defa0c553f151539fdf9b1c5c9bef0c0",
+      "receiving": "100644 blob cecb8538defa0c553f151539fdf9b1c5c9bef0c0"
+    },
+    "apps/api/src/intelligence/intelligence-alerts-v1-state.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 3360598108c58fbf3122c127dc730a64f2c41fef",
+      "receiving": "100644 blob 3360598108c58fbf3122c127dc730a64f2c41fef"
+    },
+    "apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts": {
+      "base": "100644 blob 95e5580d8914e7eb76213a4c37cf748e9b98565b",
+      "donor": "100644 blob e7ef92bfc9ebe72f56184a0104168d125717be86",
+      "receiving": "100644 blob e7ef92bfc9ebe72f56184a0104168d125717be86"
+    },
+    "apps/api/src/intelligence/intelligence-final-ownership.contract.spec.ts": {
+      "base": null,
+      "donor": "100644 blob ceb8d70d1b425e176a62acedf670d0483d829010",
+      "receiving": "100644 blob ceb8d70d1b425e176a62acedf670d0483d829010"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-alerts.ts": {
+      "base": null,
+      "donor": "100644 blob 6486873f2359fa12bc00f6b4ba12ea12daf7feaa",
+      "receiving": "100644 blob 6486873f2359fa12bc00f6b4ba12ea12daf7feaa"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-coming-up.ts": {
+      "base": null,
+      "donor": "100644 blob 6163db7ac8a213df8cbff4d099876c3d49fd2209",
+      "receiving": "100644 blob 6163db7ac8a213df8cbff4d099876c3d49fd2209"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-quarters.ts": {
+      "base": null,
+      "donor": "100644 blob 573f737127d6b9d64a6aa5b6b65bfb81685edfcb",
+      "receiving": "100644 blob 573f737127d6b9d64a6aa5b6b65bfb81685edfcb"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-rollup.ts": {
+      "base": null,
+      "donor": "100644 blob 4ee97a9ed13853c0a92b6034ab44253f966efb85",
+      "receiving": "100644 blob 4ee97a9ed13853c0a92b6034ab44253f966efb85"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-summary.ts": {
+      "base": null,
+      "donor": "100644 blob 4153f072caf2a40dfabd4dca97e6060483eeea3e",
+      "receiving": "100644 blob 4153f072caf2a40dfabd4dca97e6060483eeea3e"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-timeline.ts": {
+      "base": null,
+      "donor": "100644 blob 5c959826143fb8b05fdf67d7b3e917e9284aedfb",
+      "receiving": "100644 blob 5c959826143fb8b05fdf67d7b3e917e9284aedfb"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-trend.ts": {
+      "base": null,
+      "donor": "100644 blob 924bf619fb49c485c77cc7745a1fbab32dde5f98",
+      "receiving": "100644 blob 924bf619fb49c485c77cc7745a1fbab32dde5f98"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.alerts.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 4e641960b90a636b33c0decec9dc7347011b555e",
+      "receiving": "100644 blob 4e641960b90a636b33c0decec9dc7347011b555e"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.budget.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob da62a5169f04f6bad4db710089cc7b079493d03c",
+      "receiving": "100644 blob da62a5169f04f6bad4db710089cc7b079493d03c"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.cache.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 074d40fafcc9ea0de2bfbfdabcf88e8319dcced4",
+      "receiving": "100644 blob 074d40fafcc9ea0de2bfbfdabcf88e8319dcced4"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.coming-up.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob f7d87be86addb03b7768ce87a4d7a4456378b776",
+      "receiving": "100644 blob f7d87be86addb03b7768ce87a4d7a4456378b776"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.feeds.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 2f78a0c7b42a8a8eeb101d467638fb63a79d2eac",
+      "receiving": "100644 blob 2f78a0c7b42a8a8eeb101d467638fb63a79d2eac"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.gate.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 4285dd03db733ecf1a90942d8c6c79090c276a6d",
+      "receiving": "100644 blob 4285dd03db733ecf1a90942d8c6c79090c276a6d"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.rollup-pe.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 6d9ee98d342d178b70a95e9cf2559722fded23d8",
+      "receiving": "100644 blob 6d9ee98d342d178b70a95e9cf2559722fded23d8"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.summary.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob c18125babca4a84bf5a361e2fbd6398383c67eea",
+      "receiving": "100644 blob c18125babca4a84bf5a361e2fbd6398383c67eea"
+    },
+    "apps/api/src/intelligence/intelligence-portfolio-v1.trend.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob b5c2a05c988a813d0e1b6d5186e79fbd5193589c",
+      "receiving": "100644 blob b5c2a05c988a813d0e1b6d5186e79fbd5193589c"
+    },
+    "apps/api/src/intelligence/intelligence-regulatory-v1-active.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob ccc996c69cb6b1c3e17543f2c4be8225d4d48b46",
+      "receiving": "100644 blob ccc996c69cb6b1c3e17543f2c4be8225d4d48b46"
+    },
+    "apps/api/src/intelligence/intelligence-regulatory-v1-profile.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 62d14fd070dc0a226260365e66344c5ef5115f92",
+      "receiving": "100644 blob 62d14fd070dc0a226260365e66344c5ef5115f92"
+    },
+    "apps/api/src/intelligence/intelligence-regulatory-v1-relevance.characterization.spec.ts": {
+      "base": null,
+      "donor": "100644 blob 4e684e19cfb749bb10d50358bfe1df6cffe4825a",
+      "receiving": "100644 blob 4e684e19cfb749bb10d50358bfe1df6cffe4825a"
+    },
+    "apps/api/src/intelligence/intelligence.service.ts": {
+      "base": "100644 blob 1f5d6755ba421d5796567b7fa4993a213c4097e1",
+      "donor": "100644 blob 1a9a1eafd50b9ba1f3a8f7318a06376200e8a5e3",
+      "receiving": "100644 blob 1a9a1eafd50b9ba1f3a8f7318a06376200e8a5e3"
+    },
+    "apps/api/test/fixtures/intelligence-alerts.ts": {
+      "base": null,
+      "donor": "100644 blob 9e997015dd69ecafe78267acf50ce1682a51d4d7",
+      "receiving": "100644 blob 9e997015dd69ecafe78267acf50ce1682a51d4d7"
+    },
+    "apps/api/test/fixtures/intelligence-portfolio.rows.ts": {
+      "base": null,
+      "donor": "100644 blob 4e0cdbe2a4b882d23c22d3ce2d76dffa4811726a",
+      "receiving": "100644 blob 4e0cdbe2a4b882d23c22d3ce2d76dffa4811726a"
+    },
+    "apps/api/test/fixtures/intelligence-portfolio.ts": {
+      "base": null,
+      "donor": "100644 blob 017746ea2a4a8902bd52a3f06aae030ed932b67f",
+      "receiving": "100644 blob 017746ea2a4a8902bd52a3f06aae030ed932b67f"
+    },
+    "docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT-INVENTORY.json": {
+      "base": null,
+      "donor": "100644 blob 28671318a64c34de9b75d6eb692ba6e3144f169f",
+      "receiving": "100644 blob 28671318a64c34de9b75d6eb692ba6e3144f169f"
+    },
+    "docs/backend-cleanup/20261013/BILL-DOSSIER-NEXT.md": {
+      "base": null,
+      "donor": "100644 blob b53e1c49156783df75fc02cad39d7b96f9c34b20",
+      "receiving": "100644 blob b53e1c49156783df75fc02cad39d7b96f9c34b20"
+    },
+    "docs/backend-cleanup/20261013/INTELLIGENCE-COMPONENT-STATUS.json": {
+      "base": null,
+      "donor": "100644 blob 9dbd393bf6a7fcdfd2698c729ae1568e9528f310",
+      "receiving": "100644 blob 9dbd393bf6a7fcdfd2698c729ae1568e9528f310"
+    },
+    "docs/backend-cleanup/20261013/INTELLIGENCE-FINAL-QUALIFICATION.json": {
+      "base": null,
+      "donor": "100644 blob adbeacfaa150dcf968a4c846edf98b877ea32524",
+      "receiving": "100644 blob adbeacfaa150dcf968a4c846edf98b877ea32524"
+    },
+    "docs/backend-cleanup/20261013/INTELLIGENCE-HANDOVER.md": {
+      "base": "100644 blob 118229a502491e95e1469b938719ff2b5250bfb9",
+      "donor": "100644 blob 37ad1bd93eb983c0478f694f892133175a30850a",
+      "receiving": "100644 blob 37ad1bd93eb983c0478f694f892133175a30850a"
+    }
+  }
+}

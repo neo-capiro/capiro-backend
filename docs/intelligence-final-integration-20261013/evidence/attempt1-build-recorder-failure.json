@@ -1,0 +1,10 @@
+{
+  "runnerExitCode": 1,
+  "error": "ENOSPC writing build receipt after subprocess returned",
+  "subprocessExitAndElapsedRecoverable": false,
+  "noPassingBuildClaimed": true,
+  "ownedOutputInventory": "attempt1-build-partial-inventory.json.gz",
+  "onlyDerivedSourceMapsRemovedForSpace": 1973,
+  "borrowedOutputsTouched": false,
+  "correction": "fresh Nest build with derived sourceMap=false; runtime source/target/module/decorators unchanged; limited acceptance disclosed"
+}

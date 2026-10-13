@@ -1,0 +1,7 @@
+{
+  "extends": "/tmp/capirov2-intelligence-final-integration-20261013/apps/api/tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false,
+    "inlineSourceMap": false
+  }
+}

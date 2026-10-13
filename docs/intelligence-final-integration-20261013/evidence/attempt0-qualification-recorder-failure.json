@@ -1,0 +1,14 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceTree": "711da5c3871ffdc52e4e3ea002531eed909b3c7f",
+  "runnerExitCode": 1,
+  "recorderError": "OSError errno28 while writing receipts",
+  "checkExitCodesAndElapsedTimesRecoverable": false,
+  "JestTransformCacheStillWrittenWithNoCache": true,
+  "cause": "Jest --no-cache prevents cache reuse but still writes transformation artifacts; owned /tmp cache exhausted available space",
+  "cacheInventory": "attempt0-jest-cache-inventory.json.gz",
+  "generatedOwnedCacheRetired": true,
+  "borrowedCachesModified": false,
+  "receiptsInitiallyZeroLength": true,
+  "noPassingQualificationClaimed": true
+}

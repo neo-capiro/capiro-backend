@@ -1,0 +1,22 @@
+{
+  "ownedInfoRemoved": [
+    {
+      "path": "/tmp/intelligence-final-api-build-20261013.tsbuildinfo",
+      "bytes": 1315283,
+      "sha256": "65e4d23aff0601b0a091092881bfbb8ba7d0eacbb02985752e6cca2110081a7d"
+    },
+    {
+      "path": "/workspace/intelligence-final-api-type-20261013.tsbuildinfo",
+      "bytes": 1802319,
+      "sha256": "316c859e532cc91ea5c89c4ee41e8b6bb65ebacab789ef1f7dbed508d2a1073e"
+    },
+    {
+      "path": "/workspace/intelligence-final-shared-20261013.tsbuildinfo",
+      "bytes": 24460,
+      "sha256": "a63b11806acf8ad03aca31b2216bfb61cf889259a1197604d9155f5cb0718cba"
+    }
+  ],
+  "buildRootRemoved": "/tmp/intelligence-final-api-build-20261013",
+  "buildSpillRemoved": "/workspace/intelligence-final-api-build-spill-20261013",
+  "borrowedCachesModified": false
+}

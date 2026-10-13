@@ -1,0 +1,30 @@
+# PR2476 receiving composition
+
+Frozen product source `e50aed3c5b5cce58317b37de442482fa970842cb`, tree `711da5c3871ffdc52e4e3ea002531eed909b3c7f`, is an ordinary clean no-ff merge of [PR2476](https://github.com/neo-capiro/capirov2/pull/2476) `3d76ab21c1dcf9020b050988b315d11ab986a5d9`/tree `f7e48ceed36871f7b32d41835c6fd5d70f6091d2` onto [PR2478](https://github.com/neo-capiro/capirov2/pull/2478) `f61c401803f039dac92866400edd04e74ba8ea5d`/tree `e3f067b7224cf404edd7089a800d8f1883d2dde5`. The exact donor and all parents remain preserved; no rebase, replacement or source repair occurred in this composition. All42 donor paths are mode/blob exact, and all26,801 unrelated base entries are exact, including preview/native/Calendar/Workspace/shared/authority/reporting source and evidence. Protected reporting comparison is metadata only; no unpublished branch or implementation body was inspected.
+
+I4 regulatory, I8 alerts/worklist and I12 portfolio owners preserve24 methods/three quarter helpers, tenant/current-client authorization, global catalog/comment dedupe ownership, ordered writes, budget/error behavior and live facade cache/inflight/gate/static callbacks. [Independent review](INDEPENDENT-REVIEW.md), commit `8bb70adc7e563cb8d251592e0eac55733769d454`, records six SQL binding vectors and unchanged three-dependency Nest construction. The facade remains1499 nonblank lines at this source; whole-facade/broader Cleanup acceptance stays open.
+
+## Receiving verification and limits
+
+Fresh strict actual API tsconfig passed114.392s using the accepted Core client whose schema is byte-exact to this source, a freshly emitted shared package and six exact missing base JSON fixtures. The original mismatched-client/shared/materialization type failure is retained; no generation/download/database execution occurred. [Toolchain binding](evidence/toolchain-binding-recovery.json) identifies reused immutable cache paths and owned fresh outputs.
+
+All selected94 suites/1265 cases passed across bounded runs:93 suites/1233 cases passed in the whole selection, which failed only on an absent legacy UI fixture; the corrected mapping-governance suite passed32/32 in6.712s. No business assertion failed and no cases skipped. This is **not one uninterrupted green whole run**. The first cache exhaustion, helper resolution failure, missing-fixture whole run and extra incorrect-fixture-path attempt remain preserved. [Summary](evidence/jest-summary.json) names the exact receipts. Test process denies TCP/DNS/HTTP/HTTPS and inherits no credentials; database/provider/AppModule startup is excluded.
+
+Actual fresh Nest build passed94.895s under that fence. Due filesystem capacity, derived source maps were disabled and owned output placement changed; production configs remain unchanged and **production source maps are not qualified**. All13 actual changed production emissions pass syntax and retain the exact three DI dependencies;1973 emitted files/22,198,665 bytes, no test emissions, are inventoried. Failed CLI-path and source-map-output/recorder attempts remain explicit, with no recovered exit/elapsed claim where the receipt write failed. Owned outputs/cache/build-info/links were retired; borrowed targets are untouched.
+
+No native Postgres/RLS, live Clerk, provider, actual image ABI, main-only CI or deployment acceptance is claimed. Earlier Workspace native qualification remains19/19 selected groups with its unresolved initial post-drop preservation comparison; this slice neither reruns nor strengthens it. PR2478's ALB condition quota defect is known: this product merge leaves its infra unchanged. A separately reviewed minimal-preview successor corrects it and narrows resource/permission scope; no PR2478 apply is admitted.
+
+## Single dependency/overlap matrix
+
+| Owner/slice | Exact pin | Disposition |
+| --- | --- | --- |
+| PR2476 | `3d76ab21c1dcf9020b050988b315d11ab986a5d9`, tree `f7e48ceed36871f7b32d41835c6fd5d70f6091d2` | Original donor preserved;42-path exact ordinary receiving composition |
+| PR2478 | `f61c401803f039dac92866400edd04e74ba8ea5d`, tree `e3f067b7224cf404edd7089a800d8f1883d2dde5` | Base/unchanged preview; all services0; known ALB quota defect held for successor |
+| Minimal preview successor | `27b3f8525a134e7f348dda6ff19834ee1397ba55`, tree `b33ea0e7b49f65ba40a4c66d5b69118bb254c300` | Separate infra-only source on same producte50; one writer/two secrets/native logs/Core-only scoped asset capability/seven corrected rules. Final publication/review follows; budget approved, security/apply held |
+| PR2479 repository preparation | `d8ae27e913f32dc6292dc11565b2b85722977a37`, tree `be08ac3ba84a929ed747bbd10496d5b48a2db768` | Separate documentation-only proposal. No repository/remotes/settings/import; reviewed quarantine child pin still required |
+| PR2480 facade | `64a79469e5864b5e1b069a6ea7050cf7efb849bd`, tree `e69cd621afb05835efe7644159165431c92c30be` | Queued published sibling on PR2476;365-line facade owner evidence. Not yet composed; preserved in import manifest |
+| PR2481 dossier | `b17fb898f667a6fb17e2e565a2e77f4a903e96cc`, tree `19a32179300851342902cab3afdaf3f50992975f` | Queued published sibling on PR2476;317-line Bill360 owner evidence. Not sequential with2480, not yet composed |
+| Meri PR65 | `efacbfd9b599e458250f9bb624a72626f4e769d2`, tree `f73a270b9f526c8ff41d67199548a1b919ec7f17` | Published assembled isolated-preview runtime; native broker/session/skill/artifact/provider and public0.1.4 gates remain; separate infrastructure/model costs |
+| Existing Objective/newsletter/effective-date/shared/task/Workspace/reporting owners | Receiving ancestors and original/new candidate heads retained | No paths changed by this donor outside42; no excluded Commitment/We owe/They owe UI or new store |
+
+Main remains unmerged at the last verified `4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace`. No infrastructure, database/migration, provider, credential/permission or deployment action was executed. The future backend import must preserve original history and these pending sibling donors without claiming their adoption or loss.

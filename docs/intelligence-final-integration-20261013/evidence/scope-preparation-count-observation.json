@@ -1,0 +1,8 @@
+{
+  "initialPathFilter": "endswith .spec.ts",
+  "observedCount": 94,
+  "expectedSuites": 93,
+  "cause": "one --collectCoverageFrom exclusion also ends in .spec.ts",
+  "correction": "explicit src/ paths only; supplemental final ownership added afterward",
+  "JestExecutedOnFailedPreparation": false
+}

@@ -1,0 +1,30 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "borrowedCoreClient": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+  "coreSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "coreSchemaExact": true,
+  "coreRegenerated": false,
+  "borrowedPreviousShared": "/tmp/prospect-brief-copy-shared-runtime-20261013",
+  "freshOwnedShared": "/workspace/intelligence-final-shared-runtime-20261013",
+  "sharedCompilerCommand": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-intelligence-final-integration-20261013/packages/shared/tsconfig.json",
+    "--outDir",
+    "/workspace/intelligence-final-shared-runtime-20261013/dist",
+    "--tsBuildInfoFile",
+    "/workspace/intelligence-final-shared-20261013.tsbuildinfo"
+  ],
+  "sharedCompilerExitCode": 0,
+  "literalFixtureMaterialization": [
+    "apps/api/src/california-grants/california-public-sample.fixture.json",
+    "apps/api/src/directory/legistorm/__fixtures__/member-page.json",
+    "apps/api/src/directory/legistorm/__fixtures__/office-page.json",
+    "apps/api/src/directory/legistorm/__fixtures__/retired-ids.json",
+    "apps/api/src/directory/legistorm/__fixtures__/staff-page.json",
+    "apps/api/src/funding-opportunities/__fixtures__/baseline-contract-v1.json"
+  ],
+  "borrowedOverlayTargetsModified": false,
+  "newAPIOverlayClonedFromAcceptedPR2477": true
+}

@@ -1,0 +1,18 @@
+{
+  "strictTypePassedBeforeSpecRetirement": true,
+  "scopeSuitesRetained": 94,
+  "importedTypeScriptScriptsRetained": [
+    "apps/api/scripts/validate-defense-budget-cycle-manifest.ts",
+    "apps/api/scripts/validate-defense-budget-extraction-artifact.ts",
+    "apps/api/scripts/replace-defense-budget-candidate-approvals-v1.ts",
+    "apps/api/scripts/lib/non-rdte-phase5-operator-lib.ts",
+    "apps/api/scripts/report-defense-budget-verification-cycle-v1.ts",
+    "apps/api/scripts/repair-official-hearing-observations.ts",
+    "apps/api/scripts/derive-state-bill-status.ts",
+    "apps/api/scripts/sync-legal-research.ts",
+    "apps/api/scripts/fec-api.ts",
+    "apps/api/scripts/fec-pac-sync.ts"
+  ],
+  "laterJestTransform": "same ts-jest transpilation with source-map metadata only omitted from returned transform; no runtime code edited",
+  "networkFence": "TCP/DNS/HTTP/HTTPS denied in owned test process; no test provider/DB app startup"
+}
