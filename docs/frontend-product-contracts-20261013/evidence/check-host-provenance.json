@@ -1,0 +1,11 @@
+{
+  "node": "v24.19.0",
+  "typescript": "Version 5.9.3",
+  "hostQualification": "source-only host glibc; no Alpine artifact ABI/native publisher or PostgreSQL/RLS acceptance",
+  "dependencies": "53 resolved existing installed API package symlinks; root existing cache; no installation/download/client generation",
+  "coreSchemaChanged": false,
+  "schemaMigrationExecuted": false,
+  "nativeDatabaseProviderAwsDeployment": false,
+  "effectDeny": "Jest preload refuses network/listen/DNS/http/fetch/child execution, .env and protected reporting body reads; AppModule not selected",
+  "initialSetupFailure": "Scoped dependency directory was initially treated as a symlink; corrected by preserving scope directories. No test ran in failed setup."
+}

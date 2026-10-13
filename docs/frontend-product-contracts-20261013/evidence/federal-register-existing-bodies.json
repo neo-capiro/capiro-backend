@@ -1,0 +1,17 @@
+{
+  "base": "35374ac826edf10c84061b255380d1165538b6b9",
+  "source": "2e18581dbb096dae36505f5a787c018c1e4259fa",
+  "owner": "apps/api/src/federal-register/federal-register.service.ts",
+  "existingMembers": [
+    "constructor",
+    "getEffectiveDateCalendar",
+    "listDocuments",
+    "getDocument",
+    "getUpcomingDeadlines",
+    "getByAgency"
+  ],
+  "existingMemberBodiesByteIdentical": true,
+  "added": [
+    "getCommentDeadlineCalendar"
+  ]
+}

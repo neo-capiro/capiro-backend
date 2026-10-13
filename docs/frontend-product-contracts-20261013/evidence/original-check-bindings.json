@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "historicalResults": [
+    {
+      "receipt": "evidence/initial-type-receipt.json",
+      "actualPreservedLog": "evidence/initial-type.log",
+      "originalLogPath": "docs/frontend-product-contracts-20261013/evidence/type.log",
+      "outcome": "TS2532 in spec tuple assertion; runtime source unchanged; corrected assertion in source2e18581"
+    },
+    {
+      "receipt": "evidence/initial-jest-receipt.json",
+      "actualPreservedLog": "evidence/initial-jest.log",
+      "actualPreservedResults": "evidence/initial-jest-results.json",
+      "outcome": "29 passed before type-only spec correction"
+    }
+  ],
+  "pathsInOriginalReceipts": "Historical invocation paths retained verbatim; bindings above identify renamed preserved observations."
+}

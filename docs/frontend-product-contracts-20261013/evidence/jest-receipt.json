@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "check": "jest",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-frontend-product-contracts-20261013/docs/frontend-product-contracts-20261013/deny-source-effects.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-frontend-product-contracts-20261013/docs/frontend-product-contracts-20261013/inert-jest.config.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--runTestsByPath",
+    "/tmp/capirov2-frontend-product-contracts-20261013/apps/api/src/federal-register/federal-register-comment-calendar.spec.ts",
+    "/tmp/capirov2-frontend-product-contracts-20261013/apps/api/src/federal-register/federal-register-calendar.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-frontend-product-contracts-20261013/docs/frontend-product-contracts-20261013/evidence/jest-results.json"
+  ],
+  "cwd": "/tmp/capirov2-frontend-product-contracts-20261013/apps/api",
+  "sourceHead": "2e18581dbb096dae36505f5a787c018c1e4259fa",
+  "sourceTree": "951fdf6eed7cfd81de03ba22434451f0f6fa6315",
+  "elapsedSeconds": 7.708,
+  "exitCode": 0,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/frontend-product-contracts-20261013/evidence/jest.log",
+  "logBytes": 913,
+  "logSha256": "01829b60e62b96962e566a7857f4ee9400bc4d80ede8f6f68f8a3e96081aeb42"
+}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "sourceHead": "2e18581dbb096dae36505f5a787c018c1e4259fa",
+  "sourceTree": "951fdf6eed7cfd81de03ba22434451f0f6fa6315",
+  "testPaths": [
+    "/tmp/capirov2-frontend-product-contracts-20261013/apps/api/src/federal-register/federal-register-comment-calendar.spec.ts",
+    "/tmp/capirov2-frontend-product-contracts-20261013/apps/api/src/federal-register/federal-register-calendar.spec.ts"
+  ],
+  "scope": "new bounded cached comment range and existing authoritative effective calendar; unchanged carried owners are not requalified"
+}

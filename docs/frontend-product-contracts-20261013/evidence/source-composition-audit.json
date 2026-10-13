@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "sourceHead": "2e18581dbb096dae36505f5a787c018c1e4259fa",
+  "sourceTree": "951fdf6eed7cfd81de03ba22434451f0f6fa6315",
+  "baseHead": "35374ac826edf10c84061b255380d1165538b6b9",
+  "changedSourcePaths": [
+    {
+      "path": "apps/api/src/federal-register/federal-register-comment-calendar.spec.ts",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "46a0761ee9ce1d3fdc7c66c797b050f178074fd7"
+      }
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.controller.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "0eeaaa8a3fcd5521ff64bcba7f74c953db55cdf7"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "1948fefc6a9ad1d1a3f8f17516859846987387f9"
+      }
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.service.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "c8e0e71655b1069b06fd3dda52c417c4fc06f566"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "fe250e0b5bd7d5a4d797afbc9bc238bdc7462fe7"
+      }
+    }
+  ],
+  "unchangedBaseEntries": 26401,
+  "baseEntryCount": 26403,
+  "qualifiedAuthorityInputsUnchanged": 33,
+  "policyArtifactPackageAndLockPathsUnchanged": [
+    "scripts/lib/newsletter-accepted-source-profile.json",
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "scripts/build-newsletter-release.sh",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "apps/web/Dockerfile",
+    "apps/web/Dockerfile.frontend-artifact",
+    "package.json",
+    "apps/api/package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "protectedReporting": {
+    "treeIdentityUnchanged": true,
+    "bodyInspected": false
+  },
+  "effectiveCalendarSourceUnchanged": "method-body byte audit separately; existing 13 effective-calendar test cases pass",
+  "schemaOrMigrationOrProviderChanges": false,
+  "mainLastVerified": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "pr2469Consumed": false,
+  "workspaceBridgeImplemented": false,
+  "nativeDatabaseOrProviderQualification": false
+}

@@ -1,0 +1,6 @@
+{
+  "phase": "dependency-link setup before tests",
+  "error": "Scoped @capiro directory is not a symlink",
+  "exitCode": 2,
+  "correction": "Recreate scope directories and link each installed package to its resolved existing cache target; no install/download."
+}

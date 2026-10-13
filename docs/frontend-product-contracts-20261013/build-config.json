@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/tmp/frontend-product-api-build-20261013",
+    "tsBuildInfoFile": "/tmp/frontend-product-api-build-20261013.tsbuildinfo"
+  }
+}

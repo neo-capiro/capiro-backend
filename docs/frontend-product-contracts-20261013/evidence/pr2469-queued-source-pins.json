@@ -1,0 +1,25 @@
+{
+  "head": "b78f9d4ce28089139d60b2c7a601750c99f67e69",
+  "tree": "264d044daa4c1e8c606f49793ffa612d7957e535",
+  "base": "348e542a44a6b842a5f0531280105f8e73dd3188",
+  "remoteDraft": true,
+  "sourceConsumed": false,
+  "paths": [
+    "apps/api/src/intelligence/intelligence-bill-discovery.shared.ts",
+    "apps/api/src/intelligence/intelligence-bill-enrichment.ts",
+    "apps/api/src/intelligence/intelligence-bill-relevance-inputs.ts",
+    "apps/api/src/intelligence/intelligence-bills-embedding.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-enrichment.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-keyword.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-manual-lifecycle.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-matching.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-ownership.contract.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-terms.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-bills-tracking.characterization.spec.ts",
+    "apps/api/src/intelligence/intelligence-manual-bill-tracking.ts",
+    "apps/api/src/intelligence/intelligence-relevant-bill-discovery.ts",
+    "apps/api/src/intelligence/intelligence-tracked-bill-discovery.ts",
+    "apps/api/src/intelligence/intelligence.service.ts",
+    "apps/api/test/fixtures/intelligence-bills.ts"
+  ]
+}

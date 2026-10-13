@@ -1,0 +1,27 @@
+{
+  "sourceHead": "2e18581dbb096dae36505f5a787c018c1e4259fa",
+  "sourceTree": "951fdf6eed7cfd81de03ba22434451f0f6fa6315",
+  "outputFiles": 3860,
+  "outputBytes": 36458599,
+  "inventoryGzipBytes": 35318,
+  "inventoryGzipSha256": "739aeb806905845fba40a3c6b5d7d9b9597e32375f90f842a1e272c15832747e",
+  "inventoryDecodedBytes": 286625,
+  "inventoryDecodedSha256": "da60cf3062af713724bc65c26b8ae52a2691ed6dcefdd8dacc1ec58be1df97da",
+  "changedProductionEmittedFiles": [
+    {
+      "path": "federal-register/federal-register.controller.js",
+      "bytes": 8219,
+      "sha256": "0768a0a6b1aa933e9fff0ddeb730055818329156be1e7050e6e3e79a308fed84",
+      "nodeCheckExit": 0
+    },
+    {
+      "path": "federal-register/federal-register.service.js",
+      "bytes": 13222,
+      "sha256": "22975ec4497f2935033907474cb202d34e479c4441707d8d6423814f73b02b46",
+      "nodeCheckExit": 0
+    }
+  ],
+  "bodyReadScope": "only2changedFederalRegisterJavaScript modules; other files enumerated by path and size only",
+  "artifactOrNativeAcceptance": false,
+  "retired": "Only owned /tmp/frontend-product-api-build-20261013 and associated owned build/type info after capturing inventory/hash/syntax evidence"
+}

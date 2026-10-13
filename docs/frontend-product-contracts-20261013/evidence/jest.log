@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-frontend-product-contracts-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/federal-register/federal-register-comment-calendar.spec.ts
+PASS src/federal-register/federal-register-calendar.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       29 passed, 29 total
+Snapshots:   0 total
+Time:        5.664 s
+Ran all test suites within paths "/tmp/capirov2-frontend-product-contracts-20261013/apps/api/src/federal-register/federal-register-comment-calendar.spec.ts", "/tmp/capirov2-frontend-product-contracts-20261013/apps/api/src/federal-register/federal-register-calendar.spec.ts".
+Test results written to: ../../docs/frontend-product-contracts-20261013/evidence/jest-results.json
