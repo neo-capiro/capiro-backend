@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
+import {lstatSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -63,6 +64,25 @@ function literalNames(bytes) {
     throw new Error('Literal UTF-8 repository path list required');
   return text.length ? text.slice(0, -1).split('\0') : [];
 }
+function checkIndexVisibility() {
+  const entries = literalNames(successful(['ls-files', '-v', '-z']));
+  if (entries.length > 100000) throw new Error('Bounded tracked index required');
+  for (const entry of entries) {
+    const tag = entry.slice(0, 1), file = entry.slice(2);
+    if (entry[1] !== ' ' || !canonical(file) || !['H', 'S'].includes(tag))
+      throw new Error('Assume-unchanged or unreviewed index visibility flags refused');
+    if (tag === 'S') {
+      // Sparse omissions are legitimate. A materialized flagged path can hide
+      // changed bytes from Git diff, so refuse it without reading its contents.
+      try {
+        lstatSync(path.join(ROOT, file));
+        throw new Error(`Materialized skip-worktree path refused: ${file}`);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
+  }
+}
 function checkAttributes(paths) {
   // Per-path attributes outrank core.whitespace. Inspect both states; local
   // info/attributes also appears here and cannot silently suppress this gate.
@@ -86,6 +106,7 @@ export function runReviewedSourceHygiene(base) {
     throw new Error('Exact lowercase base commit required');
   const commit = successful(['rev-parse', '--verify', `${base}^{commit}`]).toString().trim();
   if (commit !== base) throw new Error('Exact base commit identity mismatch');
+  checkIndexVisibility();
   const archiveBytes = new Map();
   for (const [file] of RAW_ARCHIVES) {
     const headMode = successful(['ls-tree', '-z', 'HEAD', '--', file]).toString();

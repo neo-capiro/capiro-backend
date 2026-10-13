@@ -91,6 +91,16 @@ test('actual local CLI refuses staged cancellation, attribute/config suppression
     git(['config', 'core.whitespace', '-blank-at-eol,-blank-at-eof,-space-before-tab']); write(source, bad); refused(); reset();
     write(source, 'const current = 1;\n\n'); refused(); reset();
     write(source, ' \tconst current = 1;\n'); refused(); reset();
+    for (const file of [source, archive]) {
+      const original = readFileSync(path.join(fixture, file));
+      git(['update-index', '--assume-unchanged', file]);
+      write(file, Buffer.concat([original, Buffer.from('hidden \n')])); refused();
+      git(['update-index', '--no-assume-unchanged', file]); reset();
+      git(['update-index', '--skip-worktree', file]);
+      write(file, Buffer.concat([original, Buffer.from('hidden \n')])); refused();
+      rmSync(path.join(fixture, file)); assert.equal(run().status, 0, 'genuinely absent sparse path remains allowed');
+      git(['update-index', '--no-skip-worktree', file]); reset();
+    }
     git(['update-index', '--chmod=+x', archive]); git(['commit', '-qm', 'synthetic raw mode drift']); refused();
   } finally {rmSync(fixture, {recursive: true, force: true});}
 });
