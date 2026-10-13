@@ -1,0 +1,408 @@
+{
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "tree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "original60BindingsPreserved": true,
+  "files": [
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/AUTHOR-SOURCE-RECEIPT.json",
+      "sha256": "d5ca99e0096e36bc2c902da26298de9eba4e82f5e5a8d7ed69d75bbf6f2e0fe1",
+      "bytes": 4344
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/HANDOFF.md",
+      "sha256": "8f68dde24a7d987f68d04eb99f20c9cb4529776f59efe1c2da72f41701225316",
+      "bytes": 8762
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/HISTORICAL-TEST-CORRECTION.json",
+      "sha256": "06392fc6fe79e5f0aa4aaeff7e816ca0af9bfead6db4dac13b6a740427d9145d",
+      "bytes": 3194
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/HISTORICAL-TEST-CORRECTION.md",
+      "sha256": "4937cef4583de09d7c45933d6f54ea019c5424068e613873d33b80b17cc72d6a",
+      "bytes": 2235
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/SHA256-INDEX.json",
+      "sha256": "44f1be1217fd8b22ccf369ec651b3519117e73f9c8ec3fa60635620e02b0e901",
+      "bytes": 15763
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/01-first-tsc-composite-refusal.log",
+      "sha256": "495f1351092892a58af74c9266583af52c2b72bd8a15658d4dec79f2cdbf3281",
+      "bytes": 110
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/02-shared-noemit-pass.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/03-shared-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/04-original-corpus-with-fixture-errors.cjs",
+      "sha256": "b76e75a5c20875d1af24b1d8af0e06d8274a1d9e0df6c7f850bf0c657fe255b1",
+      "bytes": 23602
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/04-public-source-corpus.log",
+      "sha256": "e7a404fe394697a7b0a0e595e25e855628507b682f516e3f8ba28cc3f51a6144",
+      "bytes": 14823
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/05-public-source-corpus-corrected.log",
+      "sha256": "b7544e1bf1d59db7f3095fe872f0dd2729a47ee9506c0b4908694a918e2e2869",
+      "bytes": 7614
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/06-canonical-methods.json",
+      "sha256": "12a1b044c06e96537206d45c49ff050a145313db60facabe23f39f7a20747e77",
+      "bytes": 11353
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/06-canonical-methods.log",
+      "sha256": "7f8d3a220a108ab645753add76427c35eb44b84d7e4af4461203a53e9270083b",
+      "bytes": 2189
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/07-source-format.log",
+      "sha256": "314fc083702ce636ddea28fcd746fb4392839a39c17aee39bdbb788dc0822721",
+      "bytes": 518
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.json",
+      "sha256": "2f8b55a844651ec2b60929b9e60c80977b75115576b72ede8d7b4751137924e5",
+      "bytes": 92850
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.log",
+      "sha256": "efb4b8ff4bf1c2889c86549f56682a55bde884bfcf55098575c4674c137ad622",
+      "bytes": 25106
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/09-focused-strict-tsc.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-client-red.json",
+      "sha256": "8fc23c7b68de127b44e99dfc6778a4c49ae76c60a796bd72d46e2df01f4d48ec",
+      "bytes": 42813
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-client-red.log",
+      "sha256": "00f13497a7c3975cf4a8dc2e0da588fe4b33bb1b9f27036d68cb3bf299c578c9",
+      "bytes": 10987
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-revision-red.json",
+      "sha256": "4772b808046a0d2c6c0cf2cebe331a8bb33df89f14d13aecf5f7da0d25aa4021",
+      "bytes": 52430
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-revision-red.log",
+      "sha256": "dc02a1c8232c0e26bf40ec95b7e1cf53511cbca6a45435eee14bdc1bc306f814",
+      "bytes": 13728
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-type-red.json",
+      "sha256": "db279a5ddbfd63118ca84f559a3f019dff427cc79b33162433e867733d740ec9",
+      "bytes": 20310
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-type-red.log",
+      "sha256": "53f54bb5435bd75b09f8d2f5ef128185a02a03d4789b14e11874f1db1bbe3a8c",
+      "bytes": 4825
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/11-frozen-shared-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.json",
+      "sha256": "8390568927066b8296345f9cede42defb4e271f01c651d696d24093eeb5b792b",
+      "bytes": 11353
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.log",
+      "sha256": "ab046aa2c9640d46fe0aaa8c045597c4d800d181a5ba9c000315abde2dbdc3f9",
+      "bytes": 2175
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/13-actual-hash-producer.json",
+      "sha256": "e926ab1ae310bc048d1832b6187ab5327a6d9b10504f40cbfef32a95306ec52e",
+      "bytes": 354
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/14-repair-format.log",
+      "sha256": "252dc4ea7306c0ad9c3075c6fc1bf981a217022613fb32c3333299225783f071",
+      "bytes": 120
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/15-repair-shared-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/16-canonical-hash-corpus.log",
+      "sha256": "710d25f8b7e21a8547d3dd4deaac62e515653f82af40603086ddac8d8bff656f",
+      "bytes": 7712
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/17-original-union-text-harness.cjs",
+      "sha256": "0357f5feffa73ab998429e717c51fd22fcd2c1ca3b2e1913dd052140f98d195f",
+      "bytes": 4680
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/17-source-preservation.log",
+      "sha256": "63383fe2adf54e33f2bfe2a2a9a8f310e343ce185f147e3a39d0e70a981d89a9",
+      "bytes": 1027
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/18-source-preservation-corrected.json",
+      "sha256": "62fcb393ee3271cd93cf8890966d337081e0b752d2ac68fe1075a9ff41c6e69e",
+      "bytes": 2613
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/18-source-preservation-corrected.log",
+      "sha256": "62fcb393ee3271cd93cf8890966d337081e0b752d2ac68fe1075a9ff41c6e69e",
+      "bytes": 2613
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/19-repair-focused-strict.log",
+      "sha256": "abdc1658ff164a570f42f3600702d6bf67b25006b05d8ae49962266225180e30",
+      "bytes": 800
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/20-repair-format.log",
+      "sha256": "3f52a0052beccf734348ff134d5c24b66f050fa65a0c525952d775f336c5b5a0",
+      "bytes": 108
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/21-repair-focused-strict.log",
+      "sha256": "4db8b48d74020ed19dc80ef1f6ef9b7d6e80eeafc6e0cc43400cc2593ce79c60",
+      "bytes": 800
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/22-repair-focused-strict.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/23-repair-shared-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/24-repaired-public-corpus.log",
+      "sha256": "8a53e716db36b1dd7b5304c52b0df6a3de40ae47ea8c6ae74f5357ab10345615",
+      "bytes": 7798
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/25-owner-profile-format.log",
+      "sha256": "6287ebec22506560bc1c35490c626f72224279dbf46104809cb845dbf06ba2b3",
+      "bytes": 108
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/26-owner-profile-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/27-owner-profile-corpus.log",
+      "sha256": "0adb155fa840bc6143b1be146ac149d65edf6fb1a7ee62962ff023175fbc4f10",
+      "bytes": 8179
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/28-post-save-format.log",
+      "sha256": "4eff1bf0ee8c13d92313d566bc5bb43f666dd7d02cd904622efc6579a2708827",
+      "bytes": 120
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/29-post-save-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/30-post-save-corpus.log",
+      "sha256": "7f44b7f940e1297652bb100d09d54b3262988f67169f83498a99e16a810a54c6",
+      "bytes": 8350
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/31-final-focused-strict.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/33-timestamp-format.log",
+      "sha256": "cbbed94cd5fb96c8fab959c18ed2cf123b98ec5314360f65488d5a71cdb3caa1",
+      "bytes": 108
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/34-timestamp-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/35-final-timestamp-corpus.log",
+      "sha256": "e7c0384c988b00a2193f9ae1388ca6b6864d8665b391ce4047aabf08a798f2fc",
+      "bytes": 8540
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.cjs",
+      "sha256": "2fe1de00f1d86ce78d7d96e623b96c0790f95b575087e48211cdabd2d98c724a",
+      "bytes": 4758
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.json",
+      "sha256": "baf68e03cdcbda467b933a6da4765012bb7cdf612203b1965e27ff5d31d176c7",
+      "bytes": 2613
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.log",
+      "sha256": "baf68e03cdcbda467b933a6da4765012bb7cdf612203b1965e27ff5d31d176c7",
+      "bytes": 2613
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/37-final-focused-strict.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/38-historical-test-format.log",
+      "sha256": "9853fb98ca75f6c663988dacb1b957a7d24a0a9345a1e98db630584a0e29ce13",
+      "bytes": 120
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/39-historical-test-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/40-historical-test-corpus.log",
+      "sha256": "7d734862348efe3a0e5e8a58cdc2a4601fc8c71ed1fd196b3c6b08889b114211",
+      "bytes": 8650
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/41-historical-comment-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/42-final-historical-corpus.log",
+      "sha256": "6f8305c82b36168195cab127489e645a5455cef1a8e7b3c2130ce046c339d938",
+      "bytes": 8655
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/43-final-historical-focused-tsc.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/bounded.jest.cjs",
+      "sha256": "145e91aabd28a9ecbcd25114bf91941293c1c14728d4b0764cfd7d0a90c0748c",
+      "bytes": 686
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/focused.tsconfig.json",
+      "sha256": "717a8c1db528ece98b03ebb1b6a88c91dc5e8bb19c209e48edffc411fb5a2d9c",
+      "bytes": 1019
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/inject-source-overlay.cjs",
+      "sha256": "3279b1bf9220c878e61541a5f5490013784c44794cee4255fe9c910490b5f8ca",
+      "bytes": 433
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/original-newsletter-outreach.service.ts",
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7",
+      "bytes": 24560
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/refuse-unrelated-runtime.cjs",
+      "sha256": "a68d604b7f0475c2187576b91c402d6cbc2e57d4f5df7a9c017b7a47856cf1c2",
+      "bytes": 1097
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-client.ts",
+      "sha256": "c2199306c4f21d78b856ae5ac0122a8be2ef0e08b852cf68ee979382647bcb14",
+      "bytes": 25388
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-revision.ts",
+      "sha256": "02f1f8aa6de9146ebea07fc0af23a76fd3365dfbafade20a815d00edfdcf3880",
+      "bytes": 25227
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-type.ts",
+      "sha256": "ebcd35ef8d3e0ed6e92aa833dc30dbf4d80ba082dd057b9189d7a4a5af4912a1",
+      "bytes": 25373
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/source-preservation.cjs",
+      "sha256": "ad2a22953917d40d66ab89842e98bfe14d0318586aeacc4dac6e3676d251d64a",
+      "bytes": 4762
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+      "blob": "a7ea0896ca17de7f1d9d0550c554244e5df87add",
+      "sha256": "ca5f18050e1dccd393e829c562d94fded2e0d9bb830eff98004a01a7d19663b6",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "blob": "f68c95ddc384854e40ac5595e014b7ce1cf0bf40",
+      "sha256": "1d91b1794aa00143bb114e36dc6f7313ccb4446fc2eae066595444ca1078280c",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "blob": "15b6d76e025165264115c6081616311f7be639aa",
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "blob": "1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701",
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.types.ts",
+      "blob": "aa022f7a172e50f8852a9f2f4e3ce708af5e480a",
+      "sha256": "7baadf16dfd380ff621604e31d361645dd5e7b43d5c0667990ebde77de1fafdf",
+      "mode": "100644"
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "blob": "1a8a2228b4c79c7ec24af77289e308748c18baef",
+      "sha256": "816bf07aa7baa26d97581ee4dede9c792dbd60803011cb1db3ae82f523aa63d6",
+      "mode": "100644"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "blob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "blob": "6caecdb1007f8802acebf7959b355b28c23d73df",
+      "sha256": "73b3795a9422076f9ad86a1646db86333fe6e5b2e97391b79ea11aca8e9a4268",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ci/newsletter-receiving.test.cjs",
+      "blob": "08dc197885812fb5c59aa48f074730da6c185790",
+      "sha256": "6b12a222bc446bcd26aef1409306eb892851aaa17d3b6006dd1ec2f8f658b317",
+      "mode": "100644"
+    }
+  ]
+}
