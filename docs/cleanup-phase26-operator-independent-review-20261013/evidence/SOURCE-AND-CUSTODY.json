@@ -1,0 +1,56 @@
+{
+  "acceptedSource": "31cc12a6626be8586666dfa9ccf53b68fff10311",
+  "sourceTree": "025aaef8f30fc4a9d3db39320f900325c40efe52",
+  "authorEvidence": "8d08e2c8b17abfa2649bad073c0aeccf168ce0b4",
+  "authorTree": "503d2c25338c703e51cf166dc45da68ab9173b50",
+  "publishedBase": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "authorBase": "c8c109f7d796d5a50ae57ff6cb214d576c757847",
+  "authorBaseAncestorOfPublished": true,
+  "authorBaseAndPublishedNonDocExact": true,
+  "sourcePaths": [
+    "scripts/check-context-plane-new-bypasses.mjs",
+    "scripts/ci/context-plane-scope.contract.spec.mjs",
+    "scripts/ci/context-plane-validation-scope.spec.mjs",
+    "scripts/lib/context-plane-scope.mjs",
+    "scripts/lib/context-plane-validation-scope.mjs",
+    "scripts/lib/knowledge-census-scope.mjs",
+    "scripts/lib/knowledge-validation-scope.mjs",
+    "scripts/validate-knowledge-plane-phase26.mjs"
+  ],
+  "outsideEightNonDocExact": true,
+  "protectedExistingPathsExact": [
+    "package.json",
+    ".github/workflows/ci-pr.yml",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "scripts/knowledge-plane-phase26-typecheck-baseline.json",
+    "scripts/check-registry-ownership.mjs",
+    "scripts/check-strategy-time-bypasses.mjs"
+  ],
+  "authorIndicesVerified": [
+    {
+      "path": "SHA256SUMS.json",
+      "bindings": 12
+    },
+    {
+      "path": "ALIAS-CORRECTION-SHA256SUMS.json",
+      "bindings": 6
+    },
+    {
+      "path": "HUNK-CORRECTION-SHA256SUMS.json",
+      "bindings": 16
+    }
+  ],
+  "rootUnion": "d69d26c210ea9307c9b8843e3a0930738c79abdb",
+  "rootUnionTree": "967653ee07d8c550b0884e64433319721233edff",
+  "rootUnionNinePaths": true,
+  "rootFourAliasesExact": {
+    "validate:knowledge-plane:phase26:backend": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only",
+    "validate:knowledge-plane:phase26:backend:typing": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --skip-tests",
+    "validate:knowledge-plane:phase26:backend:source": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --source-only",
+    "validate:knowledge-plane:phase26:frontend": "node scripts/validate-knowledge-plane-phase26.mjs --run --frontend-only"
+  },
+  "nativeExecuted": false,
+  "fourHelpersUsed": true,
+  "noDeadPhase27WalkerOrMarkerAdopted": true
+}

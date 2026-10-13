@@ -1,0 +1,1 @@
+{"source":"b46dad56b0025d3f1043809d3322fe936f5d501f","helperSourceIdenticalTo":"61453eca11f5aa93d67285c2016db34f66eaf6b6","addedSource":"++ count;","cases":[{"scope":"backend","accepted":false,"error":"ambiguous file header inside a hunk"},{"scope":"frontend","accepted":false,"error":"ambiguous file header inside a hunk"}],"sqlExecuted":false}

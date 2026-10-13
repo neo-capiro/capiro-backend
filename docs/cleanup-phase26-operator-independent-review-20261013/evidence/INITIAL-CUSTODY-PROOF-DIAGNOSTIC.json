@@ -1,0 +1,8 @@
+{
+  "exitCode": 1,
+  "error": "AssertionError: protected object entry must exist",
+  "guessedMissingPath": "scripts/check-strategy-time-ownership.mjs",
+  "correctExistingPath": "scripts/check-strategy-time-bypasses.mjs",
+  "sourceDriftFound": false,
+  "qualification": "Original executor transcript retains the failed inline proof; corrected saved verifier requires actual existing objects"
+}

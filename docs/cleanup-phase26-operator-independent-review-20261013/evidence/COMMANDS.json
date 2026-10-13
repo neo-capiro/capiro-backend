@@ -1,0 +1,87 @@
+{
+  "source": "31cc12a6626be8586666dfa9ccf53b68fff10311",
+  "commands": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "docs/cleanup-phase26-operator-independent-review-20261013/evidence/original-valid-hunk-refusal.mjs"
+      ],
+      "exitCode": 0,
+      "scope": "original frozen b46 source regression, pure helper only",
+      "stdout": "original-valid-hunk-refusal.stdout.log",
+      "stderr": "original-valid-hunk-refusal.stderr.log",
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "stdoutSha256": "3204cf9d0563d99bf6aab58a50830dcf1c94d781caeeb9670f7612f721e05b3e",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nativeDefaultCliOrSqlExecuted": false
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-phase26-operator-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/context-plane-scope.contract.spec.mjs",
+        "scripts/ci/context-plane-validation-scope.spec.mjs"
+      ],
+      "completedToolSession": 99552,
+      "exitCode": 0,
+      "testsPassed": 28,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "stdout": "final-two-suites.stdout.log",
+      "stderr": "final-two-suites.stderr.log",
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "stdoutSha256": "f44aa554b5215475b67270c8255220aa687bc002b5f4191c859d52e64175efb9",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nativeDefaultCliOrSqlExecuted": false
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-phase26-operator-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+        "docs/cleanup-phase26-operator-independent-review-20261013/evidence/independent-count-and-path-probes.mjs"
+      ],
+      "exitCode": 0,
+      "probesPassed": 20,
+      "stdout": "independent-count-and-path-probes.stdout.log",
+      "stderr": "independent-count-and-path-probes.stderr.log",
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "stdoutSha256": "346a793e0f3f3371ce657cc258fd2b4baf38503c891d5228efefd3f35660ad89",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nativeDefaultCliOrSqlExecuted": false
+    },
+    {
+      "argv": [
+        "python",
+        "docs/cleanup-phase26-operator-independent-review-20261013/evidence/verify-source-custody.py"
+      ],
+      "exitCode": 0,
+      "stdout": "verify-source-custody.stdout.log",
+      "stderr": "verify-source-custody.stderr.log",
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": "standard tool environment, Git-only source reads",
+      "stdoutSha256": "9ab843eb3b607cdae6d0a9294578ab14f167d58e6aa6bee2a2ab7d79a65de71c",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nativeDefaultCliOrSqlExecuted": false
+    }
+  ]
+}
