@@ -1,3 +1,12 @@
+import { ClientFinancialV1Lobbying } from './client-financial-v1.js';
+import { ClientFinancialV1Pac } from './client-financial-v1-pac.js';
+import { ClientFinancialV1MoneyFlow } from './client-financial-v1-flow.js';
+import { ClientFinancialV1Quarters } from './client-financial-v1-quarters.js';
+import { ClientRelationshipsV1 } from './client-relationships-v1.js';
+import { ClientChangesV1 } from './client-changes-v1.js';
+import { ClientBriefsV1 } from './client-briefs-v1.js';
+import { ClientDistrictV1 } from './client-district-v1.js';
+import { ClientDistrictV1Spend } from './client-district-v1-spend.js';
 import { IntelligenceBillRelevanceInputs } from './intelligence-bill-relevance-inputs.js';
 import { IntelligenceRelevantBillDiscovery } from './intelligence-relevant-bill-discovery.js';
 import { IntelligenceTrackedBillDiscovery } from './intelligence-tracked-bill-discovery.js';
@@ -36,40 +45,37 @@ import {
 } from '../engagement/engagement-access.helpers.js';
 import { toCanonicalAlert } from './canonical-alert.adapter.js';
 import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
-import { FEC_DISCLAIMER } from './fec-disclaimer.js';
-import { fecCycles } from './fec-cycles.js';
-import { pacCoverage, type PacCoverage } from './fec-pac-coverage.js';
-import {
-  buildClientAwardScope,
-  clientAwardScopeSql,
-} from '../funding-opportunities/client-award-scope.js';
+
+
+import type { PacCoverage } from './fec-pac-coverage.js';
+
 import { columnKeywordMatchSql } from './bill-keyword-match.helpers.js';
 import { withBillKeywordProfileDeadline } from './bill-keyword-deadline.js';
 import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
-import { resolveStateName, abbrForStateName } from '../common/us-states.js';
+
 import {
   buildDistrictNexusIdentity,
   districtNexusContractorIdsToResolve,
   type DistrictNexusIdentitySeed,
 } from '../district-nexus/district-nexus.identity.js';
-import {
-  districtCodeForHouseMatch,
-  normalizeDistrictForCensus,
-} from '../common/district-code.util.js';
-// Pure, DI-free helper + type reused from the District Impact Engine (WS-A,
-// LegiStorm gaps/enrichment plan). Deliberately NOT injecting
-// RepresentationResolverService here: its resolveHouse/resolveSenate are
-// private (facility-shaped input only), and RepresentationModule isn't
-// imported by IntelligenceModule. districtMatchesHouse is a plain exported
-// function, so this import adds no constructor/module dependency and can't
-// break the many hand-built `new IntelligenceService(prisma)` unit tests.
-import {
-  districtMatchesHouse,
-  type FederalMemberSummary,
-} from '../clients/representation-resolver.service.js';
+
+
+
+type SupportingIntelligenceSources = {
+  financial: ClientFinancialV1Lobbying;
+  pac: ClientFinancialV1Pac;
+  flow: ClientFinancialV1MoneyFlow;
+  quarters: ClientFinancialV1Quarters;
+  relationships: ClientRelationshipsV1;
+  changes: ClientChangesV1;
+  briefs: ClientBriefsV1;
+  district: ClientDistrictV1;
+  districtSpend: ClientDistrictV1Spend;
+};
+
 
 /**
  * Normalized internal shape every "Top alerts" source emits. `_urgencyScore` and
@@ -140,6 +146,7 @@ const decToNumber = (v: unknown): number | null => {
 @Injectable()
 export class IntelligenceService {
   private readonly logger = new Logger(IntelligenceService.name);
+  private readonly supportingSources: SupportingIntelligenceSources;
   private readonly profileV1: IntelligenceClientProfileV1;
   private readonly billRelevanceInputs: IntelligenceBillRelevanceInputs;
   private readonly relevantBillDiscovery: IntelligenceRelevantBillDiscovery;
@@ -245,6 +252,32 @@ export class IntelligenceService {
     this.billEnrichment = new IntelligenceBillEnrichment(this.prisma, {
       getTrackedBills: (...args) => this.getTrackedBills(...args),
     });
+    this.supportingSources = this.createSupportingSources();
+  }
+
+  private createSupportingSources(): SupportingIntelligenceSources {
+    return {
+      financial: new ClientFinancialV1Lobbying(this.prisma, {
+        pickLdaClientIds: (...args) => this.pickLdaClientIds(...args),
+      }),
+      pac: new ClientFinancialV1Pac(this.prisma),
+      flow: new ClientFinancialV1MoneyFlow(this.prisma, {
+        getPacGiving: (...args) => this.getPacGiving(...args),
+      }),
+      quarters: new ClientFinancialV1Quarters(this.prisma),
+      relationships: new ClientRelationshipsV1(this.prisma, {
+        confirmedLdaIds: (...args) => this.confirmedLdaIds(...args),
+        getTrackedBills: (...args) => this.getTrackedBills(...args),
+        getIssueLeaderboard: (...args) => this.getIssueLeaderboard(...args),
+        officeRecommender: () => this.officeRecommender,
+      }),
+      changes: new ClientChangesV1(this.prisma),
+      briefs: new ClientBriefsV1(this.prisma),
+      district: new ClientDistrictV1(this.prisma),
+      districtSpend: new ClientDistrictV1Spend(this.prisma, {
+        resolveContractorUeisForAlerts: (...args) => this.resolveContractorUeisForAlerts(...args),
+      }),
+    };
   }
 
   private asFinite(value: unknown, fallback = 0): number {
@@ -1238,42 +1271,14 @@ export class IntelligenceService {
     consumed?: boolean,
     peCodes?: string[],
   ) {
-    const tenantClientIds = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findMany({ where: { status: { not: 'archived' } }, select: { id: true } }),
+    return this.supportingSources.changes.getChanges(
+      tenantId,
+      since,
+      clientId,
+      source,
+      consumed,
+      peCodes,
     );
-    const ids = tenantClientIds.map((c) => c.id);
-
-    // Validate the optional clientId query param is one of this tenant's clients.
-    if (clientId && !ids.includes(clientId)) {
-      return [];
-    }
-
-    const where: Record<string, unknown> = {};
-    if (since) where.detectedAt = { gte: new Date(since) };
-    if (source) where.source = source;
-    // Optional read/unread filter. The Changes Inbox passes consumed=false so a
-    // change a user has cleared stays cleared across reloads (true inbox
-    // semantics). Dashboard surfaces (Needs Attention, greeting count) omit the
-    // param and still receive every change.
-    if (typeof consumed === 'boolean') where.consumed = consumed;
-    // PE Watchlist signal feed: scope to changes touching a set of Program
-    // Element codes. related_pe_codes is populated by the PE delta/writer emitters
-    // and the bill↔PE extractor, and is GIN-indexed, so hasSome is index-supported.
-    if (peCodes && peCodes.length > 0) where.relatedPeCodes = { hasSome: peCodes };
-
-    if (clientId) {
-      where.relatedClientIds = { has: clientId };
-    } else {
-      // Either touches one of this tenant's clients, or is tenant-neutral
-      // (no related clients at all = general market signal).
-      where.OR = [{ relatedClientIds: { hasSome: ids } }, { relatedClientIds: { isEmpty: true } }];
-    }
-
-    return this.prisma.intelligenceChange.findMany({
-      where,
-      orderBy: { detectedAt: 'desc' },
-      take: 50,
-    });
   }
 
   /**
@@ -1994,102 +1999,17 @@ export class IntelligenceService {
 
   /** Mark an intelligence change as consumed/unconsumed */
   async markChangeConsumed(id: string, consumed: boolean) {
-    return this.prisma.intelligenceChange.update({
-      where: { id },
-      data: { consumed },
-    });
+    return this.supportingSources.changes.markChangeConsumed(id, consumed);
   }
 
   /** Count non-consumed changes detected in the last 7 days */
   async getUnreadChangesCount() {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const count = await this.prisma.intelligenceChange.count({
-      where: { consumed: false, detectedAt: { gte: sevenDaysAgo } },
-    });
-    return { count };
+    return this.supportingSources.changes.getUnreadChangesCount();
   }
 
   /** Lobbying $ vs Contract $ ROI for a client via confirmed mappings */
   async getLobbyingRoi(clientId: string, tenantId: string) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id: clientId },
-        select: { id: true, name: true, ldaClientIds: true },
-      }),
-    );
-    if (!client) {
-      return {
-        clientId,
-        clientName: null,
-        mappedLdaClientId: null,
-        mappedLdaClientIds: [] as number[],
-        mappedContractorId: null,
-        lobbySpend: 0,
-        contractWins: 0,
-        roi: null,
-        gap: 0,
-      };
-    }
-
-    const [ldaMappings, contractingMapping] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findMany({
-          where: { clientId, source: 'lda', confirmed: true },
-          select: { externalId: true },
-        }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findFirst({
-          where: {
-            clientId,
-            source: 'contracting',
-            confirmed: true,
-            reviewStatus: 'confirmed',
-            rollUpAwards: true,
-          },
-        }),
-      ),
-    ]);
-    // Lobbying spend across the client's FULL LDA id set (all firm relationships),
-    // not a single confirmed mapping.
-    const ldaClientIds = this.pickLdaClientIds(
-      client.ldaClientIds,
-      ldaMappings.map((m) => m.externalId),
-    );
-
-    let lobbySpend = 0;
-    let contractWins = 0;
-
-    if (ldaClientIds.length) {
-      const rows = await this.prisma.$queryRaw<Array<{ total: number }>>`
-        SELECT COALESCE(SUM(income), 0)::float AS total
-        FROM lda_filing
-        WHERE client_id = ANY(${ldaClientIds}::int[])
-      `;
-      lobbySpend = rows[0]?.total ?? 0;
-    }
-
-    if (contractingMapping) {
-      const rows = await this.prisma.$queryRaw<Array<{ total: number }>>`
-        SELECT COALESCE(total_contracts, 0)::float AS total
-        FROM federal_contractor
-        WHERE id = ${contractingMapping.externalId}::uuid
-      `;
-      contractWins = rows[0]?.total ?? 0;
-    }
-
-    const roi = lobbySpend > 0 ? contractWins / lobbySpend : null;
-    return {
-      clientId,
-      clientName: client.name,
-      mappedLdaClientId: ldaClientIds[0] ?? null, // representative scalar (back-compat)
-      mappedLdaClientIds: ldaClientIds,
-      mappedContractorId: contractingMapping?.externalId ?? null,
-      lobbySpend,
-      contractWins,
-      roi,
-      gap: contractWins - lobbySpend,
-    };
+    return this.supportingSources.financial.getLobbyingRoi(clientId, tenantId);
   }
 
   /**
@@ -2117,115 +2037,7 @@ export class IntelligenceService {
     }>;
     summary: { totalAmount: number; disbursementCount: number; recipientCount: number };
   }> {
-    const cycles = fecCycles();
-    const committeeMappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'fec_committee', confirmed: true },
-        select: { externalId: true },
-      }),
-    );
-    const committeeIds = Array.from(
-      new Set(committeeMappings.map((m) => m.externalId.trim()).filter(Boolean)),
-    );
-    if (committeeIds.length === 0) {
-      return {
-        tracked: false,
-        coverage: pacCoverage([], cycles, [], false),
-        committees: [],
-        summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
-      };
-    }
-
-    const [catalog, syncStates] = await Promise.all([
-      this.prisma.fecCommittee.findMany({
-        where: { id: { in: committeeIds } },
-        select: { id: true, name: true },
-      }),
-      this.prisma.fecPacSyncState.findMany({
-        where: { committeeId: { in: committeeIds }, cycle: { in: cycles } },
-        select: { committeeId: true, cycle: true, status: true, completedAt: true },
-      }),
-    ]);
-    const names = new Map(catalog.map((committee) => [committee.id, committee.name]));
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        committee_id: string;
-        committee_name: string | null;
-        recipient_name: string | null;
-        candidate_name: string | null;
-        total_amount: number;
-        disbursement_count: number;
-      }>
-    >`
-      SELECT
-        committee_id,
-        MAX(committee_name) AS committee_name,
-        recipient_name,
-        MAX(candidate_name) AS candidate_name,
-        COALESCE(SUM(amount), 0)::float AS total_amount,
-        COUNT(*)::int AS disbursement_count
-      FROM fec_pac_contribution
-      WHERE committee_id = ANY(${committeeIds}::text[])
-        AND cycle = ANY(${cycles}::int[])
-      GROUP BY committee_id, recipient_name
-      ORDER BY total_amount DESC
-    `;
-
-    const grouped = new Map<
-      string,
-      {
-        committeeId: string;
-        committeeName: string | null;
-        totalAmount: number;
-        disbursementCount: number;
-        recipients: Array<{
-          recipientName: string;
-          candidateName: string | null;
-          totalAmount: number;
-        }>;
-      }
-    >();
-    // Keep every mapped committee visible, even before its first transaction.
-    for (const committeeId of committeeIds) {
-      grouped.set(committeeId, {
-        committeeId,
-        committeeName: names.get(committeeId) ?? null,
-        totalAmount: 0,
-        disbursementCount: 0,
-        recipients: [],
-      });
-    }
-    for (const r of rows) {
-      const g = grouped.get(r.committee_id) ?? {
-        committeeId: r.committee_id,
-        committeeName: r.committee_name,
-        totalAmount: 0,
-        disbursementCount: 0,
-        recipients: [],
-      };
-      g.committeeName ??= r.committee_name;
-      g.totalAmount += Number(r.total_amount);
-      g.disbursementCount += Number(r.disbursement_count);
-      if (r.recipient_name) {
-        g.recipients.push({
-          recipientName: r.recipient_name,
-          candidateName: r.candidate_name,
-          totalAmount: r.total_amount,
-        });
-      }
-      grouped.set(r.committee_id, g);
-    }
-    const committees = Array.from(grouped.values()).sort((a, b) => b.totalAmount - a.totalAmount);
-    return {
-      tracked: true,
-      coverage: pacCoverage(committeeIds, cycles, syncStates, rows.length > 0),
-      committees,
-      summary: {
-        totalAmount: committees.reduce((s, c) => s + c.totalAmount, 0),
-        disbursementCount: committees.reduce((s, c) => s + c.disbursementCount, 0),
-        recipientCount: committees.reduce((s, c) => s + c.recipients.length, 0),
-      },
-    };
+    return this.supportingSources.pac.getPacGiving(clientId, tenantId);
   }
 
   /**
@@ -2233,368 +2045,17 @@ export class IntelligenceService {
    * contributor_employer (mapped client) → committee → candidate → sponsoring member → committee → bill
    */
   async getFecMoneyFlow(clientId: string, tenantId: string) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
-    );
-    if (!client) {
-      return {
-        clientId,
-        clientName: null,
-        mappedEmployer: null,
-        summary: {
-          totalContributions: 0,
-          totalAmount: 0,
-          committeeCount: 0,
-          candidateCount: 0,
-          memberCount: 0,
-          billCount: 0,
-        },
-        contributionType: 'individual_employer_linked' as const,
-        committees: [],
-        pacGiving: {
-          tracked: false as const,
-          committees: [] as never[],
-          summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
-          coverage: pacCoverage([], fecCycles(), [], false),
-        },
-        disclaimer: FEC_DISCLAIMER,
-      };
-    }
-
-    // Client's own PAC giving (Schedule B) — computed once, used in all paths below.
-    const pacGiving = await this.getPacGiving(clientId, tenantId);
-
-    // Union ALL confirmed FEC-employer strings, not just one. A renamed/large org
-    // files individual contributions under several employer spellings ("RAYTHEON",
-    // "RTX", "RAYTHEON TECHNOLOGIES CORPORATION"); reading only the single top
-    // mapping undercounted the footprint. Mirrors the LDA-registrant union.
-    const fecMappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'fec_employer', confirmed: true },
-        orderBy: { confidence: 'desc' },
-      }),
-    );
-    const employers = Array.from(
-      new Set(
-        fecMappings
-          .map((m) => m.externalName?.trim())
-          .filter((e): e is string => Boolean(e && e.length > 0)),
-      ),
-    );
-    const employersLower = employers.map((e) => e.toLowerCase());
-    if (!employers.length) {
-      return {
-        clientId,
-        clientName: client.name,
-        mappedEmployer: null,
-        summary: {
-          totalContributions: 0,
-          totalAmount: 0,
-          committeeCount: 0,
-          candidateCount: 0,
-          memberCount: 0,
-          billCount: 0,
-        },
-        contributionType: 'individual_employer_linked' as const,
-        committees: [],
-        pacGiving,
-        disclaimer: FEC_DISCLAIMER,
-      };
-    }
-
-    // Rolling window: count recent giving only, so the headline figure is
-    // well-defined and current. The panel labels this "last 24 months" (the
-    // previous "TTM" label was inaccurate — the query had no date bound at all).
-    // Undated rows fall outside the window and are excluded.
-    const windowStart = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000);
-
-    const flowRows = await this.prisma.$queryRaw<
-      Array<{
-        committee_id: string;
-        committee_name: string | null;
-        candidate_id: string | null;
-        candidate_name: string | null;
-        contribution_count: number;
-        total_amount: number;
-        latest_contribution_date: Date | null;
-      }>
-    >`
-      SELECT
-        fc.committee_id,
-        MAX(fc.committee_name) AS committee_name,
-        fc.candidate_id,
-        fc.candidate_name,
-        COUNT(*)::int AS contribution_count,
-        COALESCE(SUM(fc.amount), 0)::float AS total_amount,
-        MAX(fc.contribution_date) AS latest_contribution_date
-      FROM fec_contribution fc
-      WHERE LOWER(fc.contributor_employer) = ANY(${employersLower}::text[])
-        AND fc.contribution_date >= ${windowStart}
-      GROUP BY fc.committee_id, fc.candidate_id, fc.candidate_name
-      ORDER BY total_amount DESC
-      LIMIT 250
-    `;
-
-    const candidateNames = Array.from(
-      new Set(flowRows.map((r) => r.candidate_name).filter((v): v is string => Boolean(v))),
-    );
-    const candidateNamesLower = candidateNames.map((n) => n.toLowerCase());
-
-    const memberRows = candidateNames.length
-      ? await this.prisma.$queryRaw<
-          Array<{ candidate_name: string; member_name: string; bill_count: number }>
-        >`
-          SELECT
-            x.candidate_name,
-            cb.sponsor_name AS member_name,
-            COUNT(DISTINCT cb.id)::int AS bill_count
-          FROM (
-            SELECT UNNEST(${candidateNames}::text[]) AS candidate_name
-          ) x
-          JOIN congress_bill cb
-            ON LOWER(cb.sponsor_name) = LOWER(x.candidate_name)
-          GROUP BY x.candidate_name, cb.sponsor_name
-        `
-      : [];
-
-    // Bills associated with the money flow, linked the ONLY way that is sound: a
-    // recipient candidate who is themselves a bill sponsor. (The previous join
-    // matched FEC committee IDs like "C00…" against congressional committee codes
-    // like "hsas00" — disjoint ID spaces that never matched, so billCount was
-    // always 0.) Keyed by sponsor name so bills attach to the committees that
-    // funded that member.
-    const sponsoredBillRows = candidateNamesLower.length
-      ? await this.prisma.$queryRaw<
-          Array<{ sponsor_name: string; bill_id: string; bill_title: string }>
-        >`
-          SELECT cb.sponsor_name, cb.id AS bill_id, cb.title AS bill_title
-          FROM congress_bill cb
-          WHERE LOWER(cb.sponsor_name) = ANY(${candidateNamesLower}::text[])
-          ORDER BY cb.latest_action_date DESC NULLS LAST
-          LIMIT 500
-        `
-      : [];
-
-    const memberByCandidate = new Map<string, Array<{ memberName: string; billCount: number }>>();
-    for (const r of memberRows) {
-      const key = r.candidate_name.toLowerCase();
-      const arr = memberByCandidate.get(key) ?? [];
-      arr.push({ memberName: r.member_name, billCount: r.bill_count });
-      memberByCandidate.set(key, arr);
-    }
-
-    const billsBySponsor = new Map<
-      string,
-      Array<{ billId: string; billTitle: string; sponsorName: string | null }>
-    >();
-    for (const r of sponsoredBillRows) {
-      const key = (r.sponsor_name ?? '').toLowerCase();
-      if (!key) continue;
-      const arr = billsBySponsor.get(key) ?? [];
-      arr.push({ billId: r.bill_id, billTitle: r.bill_title, sponsorName: r.sponsor_name });
-      billsBySponsor.set(key, arr);
-    }
-
-    const grouped = new Map<
-      string,
-      {
-        committeeId: string;
-        committeeName: string;
-        totalAmount: number;
-        contributionCount: number;
-        latestContributionDate: Date | null;
-        candidates: Array<{
-          candidateId: string | null;
-          candidateName: string;
-          totalAmount: number;
-          contributionCount: number;
-          linkedMembers: Array<{ memberName: string; billCount: number }>;
-        }>;
-      }
-    >();
-
-    for (const row of flowRows) {
-      const committeeName = row.committee_name ?? row.committee_id;
-      const candidateName = row.candidate_name ?? 'Unknown candidate';
-      if (!grouped.has(row.committee_id)) {
-        grouped.set(row.committee_id, {
-          committeeId: row.committee_id,
-          committeeName,
-          totalAmount: 0,
-          contributionCount: 0,
-          latestContributionDate: row.latest_contribution_date,
-          candidates: [],
-        });
-      }
-
-      const g = grouped.get(row.committee_id)!;
-      g.totalAmount += row.total_amount;
-      g.contributionCount += row.contribution_count;
-      if (
-        row.latest_contribution_date &&
-        (!g.latestContributionDate || row.latest_contribution_date > g.latestContributionDate)
-      ) {
-        g.latestContributionDate = row.latest_contribution_date;
-      }
-
-      g.candidates.push({
-        candidateId: row.candidate_id,
-        candidateName,
-        totalAmount: row.total_amount,
-        contributionCount: row.contribution_count,
-        linkedMembers: memberByCandidate.get(candidateName.toLowerCase()) ?? [],
-      });
-    }
-
-    const committees = Array.from(grouped.values())
-      .sort((a, b) => b.totalAmount - a.totalAmount)
-      .map((g) => {
-        // A committee's associated bills = the bills sponsored by the candidates
-        // it funded (deduped across this committee's candidates).
-        const billsForCommittee = new Map<
-          string,
-          { billId: string; billTitle: string; sponsorName: string | null }
-        >();
-        for (const cand of g.candidates) {
-          for (const b of billsBySponsor.get(cand.candidateName.toLowerCase()) ?? []) {
-            billsForCommittee.set(b.billId, b);
-          }
-        }
-        return {
-          ...g,
-          candidates: g.candidates.sort((a, b) => b.totalAmount - a.totalAmount),
-          bills: Array.from(billsForCommittee.values()).slice(0, 15),
-        };
-      });
-
-    const uniqueCandidates = new Set<string>();
-    const uniqueMembers = new Set<string>();
-    const uniqueBills = new Set<string>();
-    for (const c of committees) {
-      for (const cand of c.candidates) {
-        uniqueCandidates.add(cand.candidateName.toLowerCase());
-        for (const m of cand.linkedMembers) uniqueMembers.add(m.memberName.toLowerCase());
-      }
-      for (const b of c.bills) uniqueBills.add(b.billId);
-    }
-
-    const totalAmount = committees.reduce((sum, c) => sum + c.totalAmount, 0);
-    const totalContributions = committees.reduce((sum, c) => sum + c.contributionCount, 0);
-
-    return {
-      clientId,
-      clientName: client.name,
-      mappedEmployer: employers.join(', '),
-      // Everything in `committees` is Schedule A (received-by-committee) data keyed by
-      // contributor EMPLOYER — i.e. individual filers who list this employer. It is
-      // legally distinct from the organization's / its PAC's own giving.
-      contributionType: 'individual_employer_linked' as const,
-      summary: {
-        totalContributions,
-        totalAmount,
-        committeeCount: committees.length,
-        candidateCount: uniqueCandidates.size,
-        memberCount: uniqueMembers.size,
-        billCount: uniqueBills.size,
-      },
-      committees,
-      // The client's OWN PAC giving (Schedule B committee → candidate disbursements),
-      // ingested for committees mapped via confirmed ClientIntelMapping(fec_committee).
-      // Kept strictly separate from the individual employer-linked data above.
-      pacGiving,
-      disclaimer: FEC_DISCLAIMER,
-    };
+    return this.supportingSources.flow.getFecMoneyFlow(clientId, tenantId);
   }
 
   /** Competitor surge detector: other registrants lobbying on same issue codes in last 90 days */
   async getCompetitorBoard(clientId: string, tenantId: string) {
-    // Resolve the client's FULL LDA id set (all firm relationships), tenant-scoped.
-    const ldaClientIds = await this.confirmedLdaIds(clientId, tenantId);
-    if (!ldaClientIds.length) return { competitors: [], leaderboards: [] };
-
-    const codeRows = await this.prisma.$queryRaw<Array<{ code: string }>>`
-      SELECT DISTINCT unnest(issue_codes) AS code
-      FROM lda_client WHERE id = ANY(${ldaClientIds}::int[]) AND issue_codes IS NOT NULL
-    `;
-    const issueCodes = codeRows.map((r) => r.code).filter(Boolean);
-    if (!issueCodes.length) return { competitors: [], leaderboards: [] };
-
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-
-    const [rows, leaderboards] = await Promise.all([
-      this.prisma.$queryRaw<
-        Array<{
-          registrant_name: string;
-          filing_count: number;
-          all_time_first: Date | null;
-          shared_issues: string[];
-        }>
-      >`
-        SELECT
-          f.registrant_name,
-          COUNT(*)::int AS filing_count,
-          (SELECT MIN(f2.dt_posted) FROM lda_filing f2 WHERE f2.registrant_name = f.registrant_name) AS all_time_first,
-          array_agg(DISTINCT ic) FILTER (WHERE ic IS NOT NULL) AS shared_issues
-        FROM lda_filing f,
-             LATERAL unnest(f.issue_codes) ic
-        WHERE f.dt_posted >= ${ninetyDaysAgo}
-          AND f.client_id != ALL(${ldaClientIds}::int[])
-          AND f.issue_codes && ${issueCodes}::text[]
-          AND ic = ANY(${issueCodes}::text[])
-        GROUP BY f.registrant_name
-        ORDER BY filing_count DESC
-        LIMIT 20
-      `,
-      Promise.all(issueCodes.slice(0, 5).map((code) => this.getIssueLeaderboard(code))),
-    ]);
-
-    return {
-      competitors: rows.map((r) => ({
-        registrantName: r.registrant_name,
-        filingCount: r.filing_count,
-        isNewEntrant: r.all_time_first !== null && r.all_time_first >= ninetyDaysAgo,
-        issueOverlap: r.shared_issues ?? [],
-      })),
-      leaderboards,
-    };
+    return this.supportingSources.relationships.getCompetitorBoard(clientId, tenantId);
   }
 
   /** Ex-staffers: lobbyists on this client's filings who have covered government positions */
   async getExStaffers(clientId: string, tenantId: string) {
-    // confirmedLdaIds is tenant-scoped (client_intel_mapping now has tenant_id + RLS),
-    // so a foreign clientId yields an empty set — no separate belongs-check needed.
-    const ldaClientIds = await this.confirmedLdaIds(clientId, tenantId);
-    if (!ldaClientIds.length) return { lobbyists: [] };
-
-    const regRows = await this.prisma.$queryRaw<Array<{ registrant_id: number }>>`
-      SELECT DISTINCT registrant_id FROM lda_filing
-      WHERE client_id = ANY(${ldaClientIds}::int[]) AND registrant_id IS NOT NULL
-    `;
-    const registrantIds = regRows.map((r) => r.registrant_id);
-    if (!registrantIds.length) return { lobbyists: [] };
-
-    const lobbyists = await this.prisma.$queryRaw<
-      Array<{
-        id: number;
-        first_name: string;
-        last_name: string;
-        covered_positions: unknown;
-      }>
-    >`
-      SELECT id, first_name, last_name, covered_positions
-      FROM lda_lobbyist
-      WHERE registrant_ids && ${registrantIds}::int[]
-        AND covered_positions::text != '[]'
-      ORDER BY last_name, first_name
-      LIMIT 50
-    `;
-
-    return {
-      lobbyists: lobbyists.map((l) => ({
-        name: `${l.first_name} ${l.last_name}`.trim(),
-        coveredPositions: Array.isArray(l.covered_positions) ? l.covered_positions : [],
-      })),
-    };
+    return this.supportingSources.relationships.getExStaffers(clientId, tenantId);
   }
 
   /** Relevant bills for a client, derived from their confirmed LDA issue codes */
@@ -2754,21 +2215,7 @@ export class IntelligenceService {
     clientId: string,
     tenantId: string,
   ): Promise<OfficeRecommendation[]> {
-    if (!this.officeRecommender) return [];
-    const tracked = await this.getTrackedBills(clientId, tenantId);
-    const trackedBillIds = tracked.bills
-      .map((b) => b.identifier)
-      .filter((v): v is string => typeof v === 'string' && v.length > 0);
-    return this.officeRecommender.recommend({
-      clientId,
-      tenantId,
-      trackedBillIds,
-      trackedBills: tracked.bills.map((b) => ({
-        identifier: b.identifier,
-        subjectNames: b.subjectNames ?? [],
-      })),
-      issueCodes: tracked.issueCodes ?? [],
-    });
+    return this.supportingSources.relationships.computeOfficeRecommendations(clientId, tenantId);
   }
 
   /**
@@ -2879,95 +2326,7 @@ export class IntelligenceService {
 
   /** Live competitor leaderboard per LDA issue code with new-entrant and shared-lobbyist signals */
   async getIssueLeaderboard(issueCode: string) {
-    const issueRows = await this.prisma.$queryRaw<Array<{ name: string }>>`
-      SELECT name FROM lda_issue_code WHERE code = ${issueCode}
-    `;
-    const issueName = issueRows[0]?.name ?? issueCode;
-
-    const twoYearsAgo = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000);
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-
-    const [totalRows, registrantRows] = await Promise.all([
-      this.prisma.$queryRaw<Array<{ total: string }>>`
-        SELECT COUNT(*)::text AS total FROM lda_filing
-        WHERE dt_posted >= ${twoYearsAgo} AND ${issueCode} = ANY(issue_codes)
-      `,
-      this.prisma.$queryRaw<
-        Array<{
-          registrant_id: number | null;
-          registrant_name: string;
-          filing_count: number;
-          total_income: number | null;
-          first_filing_date: Date | null;
-        }>
-      >`
-        SELECT
-          registrant_id,
-          registrant_name,
-          COUNT(*)::int AS filing_count,
-          COALESCE(SUM(income), 0)::float AS total_income,
-          MIN(dt_posted) AS first_filing_date
-        FROM lda_filing
-        WHERE dt_posted >= ${twoYearsAgo}
-          AND ${issueCode} = ANY(issue_codes)
-          AND registrant_name != ''
-        GROUP BY registrant_id, registrant_name
-        ORDER BY filing_count DESC, total_income DESC
-        LIMIT 20
-      `,
-    ]);
-
-    const totalFilings = parseInt(totalRows[0]?.total ?? '0', 10);
-
-    // Find lobbyists who work for multiple registrants on this issue (potential conflicts)
-    const registrantIds = registrantRows
-      .map((r) => r.registrant_id)
-      .filter((id): id is number => id !== null);
-
-    const sharedByRegistrantId = new Map<number, string[]>();
-
-    if (registrantIds.length > 1) {
-      const sharedRows = await this.prisma.$queryRaw<
-        Array<{ lobbyist_name: string; shared_registrant_ids: number[] }>
-      >`
-        SELECT
-          TRIM(CONCAT(first_name, ' ', last_name)) AS lobbyist_name,
-          ARRAY(
-            SELECT r FROM unnest(registrant_ids) r WHERE r = ANY(${registrantIds}::int[])
-          ) AS shared_registrant_ids
-        FROM lda_lobbyist
-        WHERE registrant_ids && ${registrantIds}::int[]
-          AND (
-            SELECT COUNT(*) FROM unnest(registrant_ids) r WHERE r = ANY(${registrantIds}::int[])
-          ) > 1
-        ORDER BY (
-          SELECT COUNT(*) FROM unnest(registrant_ids) r WHERE r = ANY(${registrantIds}::int[])
-        ) DESC
-        LIMIT 30
-      `;
-
-      for (const row of sharedRows) {
-        for (const regId of row.shared_registrant_ids ?? []) {
-          if (!sharedByRegistrantId.has(regId)) sharedByRegistrantId.set(regId, []);
-          sharedByRegistrantId.get(regId)!.push(row.lobbyist_name);
-        }
-      }
-    }
-
-    return {
-      issueCode,
-      issueName,
-      totalFilings,
-      registrants: registrantRows.map((r) => ({
-        name: r.registrant_name,
-        filingCount: r.filing_count,
-        totalIncome: r.total_income ?? 0,
-        isNewEntrant: r.first_filing_date !== null && r.first_filing_date >= ninetyDaysAgo,
-        firstFilingDate: r.first_filing_date?.toISOString() ?? null,
-        sharedLobbyists:
-          r.registrant_id != null ? (sharedByRegistrantId.get(r.registrant_id) ?? []) : [],
-      })),
-    };
+    return this.supportingSources.relationships.getIssueLeaderboard(issueCode);
   }
 
   /** Engagement health score (0-100) per client, per 7-day window */
@@ -3733,22 +3092,7 @@ export class IntelligenceService {
   // ──────────────────────────────────────────────────────────────────────────
 
   async listClientBriefs(tenantId: string, clientId: string) {
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientBrief.findMany({
-        where: { clientId },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          body: true,
-          sourceAlertId: true,
-          sourceType: true,
-          createdBy: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      }),
-    );
+    return this.supportingSources.briefs.listClientBriefs(tenantId, clientId);
   }
 
   async addClientBrief(
@@ -3762,40 +3106,11 @@ export class IntelligenceService {
       sourceType?: string | null;
     },
   ) {
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
-    if (!client) throw new NotFoundException('Client not found');
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientBrief.create({
-        data: {
-          tenantId,
-          clientId,
-          createdBy: userId,
-          title: input.title.trim().slice(0, 300),
-          body: input.body.trim(),
-          sourceAlertId: input.sourceAlertId ?? null,
-          sourceType: input.sourceType ?? 'manual',
-        },
-        select: {
-          id: true,
-          title: true,
-          body: true,
-          sourceAlertId: true,
-          sourceType: true,
-          createdBy: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      }),
-    );
+    return this.supportingSources.briefs.addClientBrief(tenantId, clientId, userId, input);
   }
 
   async deleteClientBrief(tenantId: string, clientId: string, briefId: string) {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientBrief.deleteMany({ where: { id: briefId, clientId } }),
-    );
-    return { ok: true };
+    return this.supportingSources.briefs.deleteClientBrief(tenantId, clientId, briefId);
   }
 
   /**
@@ -4347,141 +3662,7 @@ export class IntelligenceService {
    * for each. Produces "jobs in your district" talking-point data.
    */
   async getDistrictNexus(clientId: string, tenantId: string) {
-    const caps = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientCapability.findMany({
-        where: { clientId },
-        select: {
-          id: true,
-          name: true,
-          sector: true,
-          districtNexus: true,
-          existingContracts: true,
-        },
-      }),
-    );
-
-    const pattern = /\b([A-Z]{2})[\s\-\/]+(?:CD[\s\-]?)?(\d{1,3}|AL)\b/g;
-    const allKeys: string[] = [];
-    const capDistricts = caps.map((cap) => {
-      const text = cap.districtNexus ?? '';
-      const seen = new Set<string>();
-      const districtKeys: string[] = [];
-      let m: RegExpExecArray | null;
-      while ((m = pattern.exec(text.toUpperCase())) !== null) {
-        const state = m[1];
-        const raw = m[2];
-        if (!state || !raw) continue;
-        const district = raw === 'AL' ? 'AL' : String(parseInt(raw, 10));
-        const key = `${state}-${district}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          districtKeys.push(key);
-          allKeys.push(key);
-        }
-      }
-      return { cap, districtKeys };
-    });
-
-    if (!allKeys.length) {
-      return {
-        capabilities: caps.map((c) => ({
-          capabilityId: c.id,
-          capabilityName: c.name,
-          capabilitySector: c.sector,
-          districtNexus: c.districtNexus,
-          districts: [],
-          talkingPoints: [],
-          totalSupportedJobs: null,
-        })),
-      };
-    }
-
-    const districtRows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        congress: number;
-        state: string;
-        district: string;
-        total_population: number | null;
-        median_household_income: number | null;
-        labor_force_size: number | null;
-        unemployment_rate: number | null;
-        percent_veteran: number | null;
-        top_industries: unknown;
-        data_year: number;
-      }>
-    >`
-      SELECT DISTINCT ON (state, district)
-        id, congress, state, district, total_population, median_household_income,
-        labor_force_size, unemployment_rate, percent_veteran, top_industries, data_year
-      FROM census_district
-      WHERE state || '-' || district = ANY(${allKeys}::text[])
-      ORDER BY state, district, congress DESC
-    `;
-
-    const districtMap = new Map(districtRows.map((r) => [`${r.state}-${r.district}`, r]));
-
-    const extractJobs = (value: string | null): number | null => {
-      if (!value) return null;
-      const m = value.match(/(\d[\d,]*)\s*(jobs?|employees?|workers?)/i);
-      if (!m?.[1]) return null;
-      const n = Number(m[1].replace(/,/g, ''));
-      return Number.isFinite(n) ? n : null;
-    };
-
-    return {
-      capabilities: capDistricts.map(({ cap, districtKeys }) => {
-        const districts = districtKeys
-          .map((key) => districtMap.get(key))
-          .filter((d): d is NonNullable<typeof d> => Boolean(d))
-          .map((d) => ({
-            id: d.id,
-            congress: d.congress,
-            state: d.state,
-            district: d.district,
-            totalPopulation: d.total_population,
-            medianHouseholdIncome: d.median_household_income,
-            laborForceSize: d.labor_force_size,
-            unemploymentRate: d.unemployment_rate,
-            percentVeteran: d.percent_veteran,
-            topIndustries: Array.isArray(d.top_industries) ? d.top_industries : [],
-            dataYear: d.data_year,
-          }));
-
-        const explicitJobs =
-          extractJobs(cap.existingContracts ?? null) ?? extractJobs(cap.districtNexus ?? null);
-        const jobsPerDistrict =
-          explicitJobs != null
-            ? Math.max(1, Math.round(explicitJobs / Math.max(districts.length, 1)))
-            : null;
-        const talkingPoints = districts.map((d) => {
-          const headline =
-            jobsPerDistrict != null
-              ? `${cap.name} supports ~${jobsPerDistrict.toLocaleString()} jobs in ${d.state}-${d.district}.`
-              : `${cap.name} has district nexus in ${d.state}-${d.district} with labor force ${d.laborForceSize ? d.laborForceSize.toLocaleString() : 'N/A'}.`;
-          return {
-            district: `${d.state}-${d.district}`,
-            headline,
-            evidence: {
-              laborForceSize: d.laborForceSize,
-              unemploymentRate: d.unemploymentRate,
-              topIndustries: d.topIndustries,
-              dataYear: d.dataYear,
-            },
-          };
-        });
-
-        return {
-          capabilityId: cap.id,
-          capabilityName: cap.name,
-          capabilitySector: cap.sector,
-          districtNexus: cap.districtNexus,
-          districts,
-          talkingPoints,
-          totalSupportedJobs: jobsPerDistrict != null ? jobsPerDistrict * districts.length : null,
-        };
-      }),
-    };
+    return this.supportingSources.district.getDistrictNexus(clientId, tenantId);
   }
 
   /**
@@ -4506,226 +3687,7 @@ export class IntelligenceService {
    * a populated, conflicting award UEI never falls through to a name match.
    */
   async getDistrictNexusSpend(clientId: string, tenantId: string) {
-    // 1. Resolve the client's confirmed contracting mappings + own UEI.
-    const [mappings, client] = await this.prisma.withTenant(tenantId, (tx) =>
-      Promise.all([
-        tx.clientIntelMapping.findMany({
-          where: {
-            clientId,
-            source: 'contracting',
-            confirmed: true,
-            reviewStatus: 'confirmed',
-            rollUpAwards: true,
-          },
-          select: { externalId: true, externalName: true, matchBasis: true, matchTier: true },
-        }),
-        tx.client.findFirst({ where: { id: clientId }, select: { uei: true } }),
-      ]),
-    );
-    // Unchanged public shape (§10): every confirmed mapping's externalName,
-    // independent of which basis the canonical identity below settles on.
-    const contractorNames = Array.from(
-      new Set(mappings.map((m) => m.externalName.trim()).filter((n) => n.length > 0)),
-    );
-
-    // Contractor UUID -> UEI resolution happens OUTSIDE the tenant
-    // transaction (§4) — a global `federal_contractor` reference-table read.
-    const seed: DistrictNexusIdentitySeed = {
-      clientId,
-      clientName: '',
-      uei: client?.uei ?? null,
-      mappings: mappings.map((m) => ({
-        source: 'contracting',
-        externalId: m.externalId,
-        externalName: m.externalName,
-        matchBasis: m.matchBasis,
-        matchTier: m.matchTier,
-      })),
-    };
-    const contractorUeis = await this.resolveContractorUeisForAlerts(
-      districtNexusContractorIdsToResolve([seed]),
-    );
-    const scope = buildClientAwardScope(
-      {
-        uei: client?.uei ?? null,
-        contractingMappings: mappings,
-        assistanceMappings: [],
-      },
-      contractorUeis,
-    );
-    const predicate = clientAwardScopeSql(scope.contract);
-
-    if (!predicate) {
-      return {
-        linked: false as const,
-        reason: 'no_confirmed_contracting_mapping',
-        contractorNames: [],
-        totalAwards: 0,
-        totalAmount: 0,
-        districts: [],
-        unmappedAmount: 0,
-        disclaimer:
-          'Spend is matched to this client via confirmed USAspending contractor mappings. Confirm a contracting source mapping in Manage Sources to populate district spend.',
-      };
-    }
-
-    // 2. Use the same reviewed contract predicate as the award drilldown.
-    const spendRows = await this.prisma.$queryRaw<
-      Array<{
-        pop_state: string | null;
-        pop_district: string | null;
-        award_count: bigint;
-        total_amount: number | null;
-      }>
-    >(Prisma.sql`
-      SELECT pop_state, pop_congressional_district AS pop_district,
-             COUNT(*)::bigint AS award_count,
-             COALESCE(SUM(amount), 0)::float8 AS total_amount
-      FROM federal_award
-      WHERE ${predicate}
-      GROUP BY pop_state, pop_congressional_district
-    `);
-
-    // 3. Join CensusDistrict demographics for the districts we resolved.
-    const districtKeys = spendRows
-      .filter((r) => r.pop_state && r.pop_district)
-      .map((r) => `${r.pop_state}-${normalizeDistrict(r.pop_district)}`);
-
-    const censusRows = districtKeys.length
-      ? await this.prisma.$queryRaw<
-          Array<{
-            state: string;
-            district: string;
-            total_population: number | null;
-            median_household_income: number | null;
-            labor_force_size: number | null;
-            unemployment_rate: number | null;
-            percent_veteran: number | null;
-            data_year: number;
-          }>
-        >`
-          SELECT DISTINCT ON (state, district)
-            state, district, total_population, median_household_income,
-            labor_force_size, unemployment_rate, percent_veteran, data_year
-          FROM census_district
-          WHERE state || '-' || district = ANY(${districtKeys}::text[])
-          ORDER BY state, district, congress DESC
-        `
-      : [];
-    const censusMap = new Map(censusRows.map((c) => [`${c.state}-${c.district}`, c]));
-
-    // 4. Batch-resolve CURRENT federal representatives (House + both
-    //    Senators) for every state that has a resolved district — ONE query
-    //    regardless of row count, matched in-memory per row below (never a
-    //    per-row query). Deliberately INDEPENDENT of the facility-based
-    //    "Your representatives" block (RepresentationResolverService /
-    //    getClientRepresentation): a client can have spend in a district
-    //    with no facility there, which the facility-based resolver never sees.
-    const spendStates = Array.from(
-      new Set(
-        spendRows.filter((r) => r.pop_state && r.pop_district).map((r) => r.pop_state as string),
-      ),
-    );
-    // CongressMember.state stores the FULL state name ("Connecticut"), but
-    // USAspending's pop_state is a 2-letter code — translate before querying
-    // or this silently matches zero rows for every state.
-    const spendStateNames = spendStates
-      .map((code) => resolveStateName(code))
-      .filter((name): name is string => name !== undefined);
-    const repMembers = spendStateNames.length
-      ? await this.prisma.congressMember.findMany({
-          where: {
-            isCurrent: true,
-            chamber: { in: ['house', 'senate'] },
-            state: { in: spendStateNames },
-          },
-          select: {
-            bioguideId: true,
-            fullName: true,
-            party: true,
-            state: true,
-            district: true,
-            chamber: true,
-          },
-        })
-      : [];
-    // Keyed by the SAME 2-letter code as `r.pop_state` below (not the DB's
-    // full-name state) so the per-row lookup needs no further translation.
-    const membersByState = new Map<
-      string,
-      { house: FederalMemberSummary[]; senate: FederalMemberSummary[] }
-    >();
-    for (const m of repMembers) {
-      const abbr = m.state ? abbrForStateName(m.state) : undefined;
-      if (!abbr) continue;
-      const bucket = membersByState.get(abbr) ?? { house: [], senate: [] };
-      if (m.chamber === 'house') bucket.house.push(m);
-      else if (m.chamber === 'senate') bucket.senate.push(m);
-      membersByState.set(abbr, bucket);
-    }
-
-    let totalAwards = 0;
-    let totalAmount = 0;
-    let unmappedAmount = 0;
-    const districts = spendRows
-      .map((r) => {
-        const count = Number(r.award_count);
-        const amount = Number(r.total_amount ?? 0);
-        totalAwards += count;
-        totalAmount += amount;
-        // Rows without a resolved district roll into the "unmapped" bucket.
-        if (!r.pop_state || !r.pop_district) {
-          unmappedAmount += amount;
-          return null;
-        }
-        const dnum = normalizeDistrict(r.pop_district);
-        const key = `${r.pop_state}-${dnum}`;
-        const c = censusMap.get(key);
-        const stateMembers = membersByState.get(r.pop_state);
-        const houseCode = districtCodeForHouseMatch(r.pop_district);
-        const house = houseCode
-          ? (stateMembers?.house.find((m) => districtMatchesHouse(houseCode, m.district)) ?? null)
-          : null;
-        return {
-          district: key,
-          state: r.pop_state,
-          districtNumber: dnum,
-          awardCount: count,
-          totalAmount: amount,
-          demographics: c
-            ? {
-                totalPopulation: c.total_population,
-                medianHouseholdIncome: c.median_household_income,
-                laborForceSize: c.labor_force_size,
-                unemploymentRate: c.unemployment_rate,
-                percentVeteran: c.percent_veteran,
-                dataYear: c.data_year,
-              }
-            : null,
-          // Current representative(s). "Current" — the district may reflect
-          // the map in effect when the award was recorded (redistricting
-          // vintage skew), so this is NOT a claim the shown member held the
-          // seat at award time. house is null when the seat can't be
-          // determined (non-voting delegate / multiple-or-undefined district
-          // sentinel), never a guess; senate resolves independently of the
-          // House seat since it only needs the state.
-          representatives: { house, senate: stateMembers?.senate ?? [] },
-        };
-      })
-      .filter((d): d is NonNullable<typeof d> => d !== null)
-      .sort((a, b) => b.totalAmount - a.totalAmount);
-
-    return {
-      linked: true as const,
-      contractorNames,
-      totalAwards,
-      totalAmount,
-      districtCount: districts.length,
-      unmappedAmount,
-      districts,
-      disclaimer:
-        'Imported federal contract spend (USAspending; current ingestion covers Department of Defense contracts) matched by UEI or reviewed exact names on awards missing UEIs, grouped by place-of-performance congressional district. Awards without a resolved district are shown as unmapped. Public data; for intelligence, not legal or compliance advice.',
-    };
+    return this.supportingSources.districtSpend.getDistrictNexusSpend(clientId, tenantId);
   }
 
   /**
@@ -5844,76 +4806,12 @@ export class IntelligenceService {
     obligationsYearly: Array<{ year: number; amount: number }>;
     now: Date;
   }): Promise<Array<{ label: string; lobbying: number; obligations: number }>> {
-    // ── Build list of 8 quarters ending at current quarter ──────────
-    const quarters: Array<{ year: number; q: number; label: string }> = [];
-    let y = now.getFullYear();
-    let q = Math.floor(now.getMonth() / 3) + 1; // 1-4
-    for (let i = 7; i >= 0; i--) {
-      let qy = y;
-      let qq = q - i;
-      while (qq < 1) {
-        qq += 4;
-        qy -= 1;
-      }
-      quarters.push({ year: qy, q: qq, label: `Q${qq}'${String(qy).slice(2)}` });
-    }
-
-    // ── Fetch quarterly LDA lobbying spend if we have a confirmed mapping ──
-    const PERIOD_MAP: Record<string, number> = {
-      first_quarter: 1,
-      second_quarter: 2,
-      third_quarter: 3,
-      fourth_quarter: 4,
-      mid_year: 2,
-      year_end: 4,
-    };
-
-    const lobbyByQuarter = new Map<string, number>(); // key = "YYYY-Q#"
-    if (mappedLdaClientIds.length) {
-      const rows = await this.prisma.$queryRaw<
-        Array<{ filing_year: number; filing_period: string | null; amount: number }>
-      >`
-          SELECT filing_year,
-                 filing_period,
-                 COALESCE(SUM(income), 0)::float AS amount
-          FROM lda_filing
-          WHERE client_id = ANY(${mappedLdaClientIds}::int[])
-            AND filing_period IS NOT NULL
-          GROUP BY filing_year, filing_period
-        `;
-      for (const row of rows) {
-        const qNum = PERIOD_MAP[row.filing_period ?? ''];
-        if (!qNum) continue;
-        // Same quarter across multiple registrants sums (rows are disjoint per client_id).
-        lobbyByQuarter.set(
-          `${row.filing_year}-Q${qNum}`,
-          (lobbyByQuarter.get(`${row.filing_year}-Q${qNum}`) ?? 0) + row.amount,
-        );
-      }
-    } else {
-      // Fall back to distributing annual lobbying data evenly across quarters
-      for (const { year, amount } of lobbyingYearly) {
-        const qAmt = amount / 4;
-        for (let q2 = 1; q2 <= 4; q2++) {
-          lobbyByQuarter.set(`${year}-Q${q2}`, qAmt);
-        }
-      }
-    }
-
-    // ── Distribute annual obligations evenly across quarters ─────────
-    const obligByQuarter = new Map<string, number>();
-    for (const { year, amount } of obligationsYearly) {
-      const qAmt = amount / 4;
-      for (let q2 = 1; q2 <= 4; q2++) {
-        obligByQuarter.set(`${year}-Q${q2}`, qAmt);
-      }
-    }
-
-    return quarters.map(({ year, q: qn, label }) => ({
-      label,
-      lobbying: lobbyByQuarter.get(`${year}-Q${qn}`) ?? 0,
-      obligations: obligByQuarter.get(`${year}-Q${qn}`) ?? 0,
-    }));
+    return this.supportingSources.quarters.buildRoiQuarterSeries({
+      mappedLdaClientIds,
+      lobbyingYearly,
+      obligationsYearly,
+      now,
+    });
   }
 }
 
@@ -6033,12 +4931,3 @@ export function foldEngagementTrend(
 
   return { quarters: quartersOut, currentQuarterTotal, qoqDeltaPct };
 }
-
-/**
- * Both district-code normalizers moved to `common/district-code.util.ts`
- * (§7-A1). `normalizeDistrict` keeps its local name here — the census-join
- * meaning — while the shared module spells it `normalizeDistrictForCensus` to
- * distinguish it from the unrelated people-matching normalizer that also used
- * to be called `normalizeDistrict`.
- */
-const normalizeDistrict = normalizeDistrictForCensus;
