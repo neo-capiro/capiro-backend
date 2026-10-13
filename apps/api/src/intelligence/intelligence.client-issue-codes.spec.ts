@@ -36,6 +36,12 @@ describe('IntelligenceService.getTrackedBills — client-level issue-code overri
         return [];
       }),
       $queryRawUnsafe: jest.fn(async () => []),
+      $transaction: jest.fn(async (run: (tx: any) => Promise<any>) =>
+        run({
+          $queryRaw: prisma.$queryRaw,
+          $executeRaw: jest.fn(async () => 0),
+        }),
+      ),
     };
     const service = new IntelligenceService(prisma);
     // Force the keyword fallback so no real Bedrock embed call is made.
