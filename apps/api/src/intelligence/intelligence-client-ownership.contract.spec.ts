@@ -120,7 +120,7 @@ it('routes all thirty client facade methods through concrete owners and bounds a
   }
   expect(delegates).toBe(30);
 });
-it('publishes the exact six-family source handover and retains all three outside families unchanged', () => {
+it('publishes the exact six-family source handover and records all final family owner dispositions', () => {
   const inventoryText = readFileSync(
     join(
       __dirname,
@@ -138,22 +138,65 @@ it('publishes the exact six-family source handover and retains all three outside
     }>;
   };
   expect(inventory.remainingCompleteFamilies).toHaveLength(6);
-  expect(inventory.remainingCompleteFamilies.flatMap((family) => family.methods)).toHaveLength(57);
-  const { ast } = source('intelligence.service.ts');
-  const names = new Map<string, ts.MethodDeclaration | ts.FunctionDeclaration>();
-  const visit = (node: ts.Node) => {
-    if ((ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name)
-      names.set(node.name.getText(ast), node);
-    ts.forEachChild(node, visit);
+  expect(inventory.remainingCompleteFamilies.flatMap((f) => f.methods)).toHaveLength(57);
+  const status = JSON.parse(
+    readFileSync(
+      join(
+        __dirname,
+        '../../../../docs/backend-cleanup/20261013/INTELLIGENCE-COMPONENT-STATUS.json',
+      ),
+      'utf8',
+    ),
+  ) as {
+    familyOwnership: Array<{
+      family: string;
+      methods: Array<{
+        name: string;
+        originalSHA256: string;
+        ownerFile: string;
+        ownerClass: string | null;
+        ownerMemberSHA256: string;
+      }>;
+    }>;
+    remainingNamedMethodFamilies: string[];
+    fullIntelligenceCleanupAcceptanceComplete: boolean;
   };
-  visit(ast);
-  for (const family of inventory.remainingCompleteFamilies.filter((row) =>
-    /^(I4|I8|I12) /.test(row.family),
+  expect(status.remainingNamedMethodFamilies).toEqual([]);
+  expect(status.fullIntelligenceCleanupAcceptanceComplete).toBe(false);
+  expect(status.familyOwnership).toHaveLength(3);
+  let members = 0;
+  for (const family of inventory.remainingCompleteFamilies.filter((f) =>
+    /^(I4|I8|I12) /.test(f.family),
   )) {
-    for (const method of family.methods) {
-      const current = names.get(method.name);
-      if (!current) throw new Error(`Missing retained source ${method.name}`);
-      expect(createHash('sha256').update(current.getText(ast)).digest('hex')).toBe(method.sha256);
+    const owned = status.familyOwnership.find((f) => f.family === family.family);
+    if (!owned) throw new Error('Missing final family ownership');
+    expect(owned.methods.map((m) => m.name)).toEqual(family.methods.map((m) => m.name));
+    for (const original of family.methods) {
+      const current = owned.methods.find((m) => m.name === original.name);
+      if (!current) throw new Error('Missing original member disposition');
+      expect(current.originalSHA256).toBe(original.sha256);
+      const owner = source(current.ownerFile.replace('apps/api/src/intelligence/', ''));
+      const declaration = current.ownerClass
+        ? owner.ast.statements
+            .find(
+              (n): n is ts.ClassDeclaration =>
+                ts.isClassDeclaration(n) && n.name?.text === current.ownerClass,
+            )
+            ?.members.find(
+              (n): n is ts.MethodDeclaration =>
+                ts.isMethodDeclaration(n) && n.name.getText(owner.ast) === original.name,
+            )
+        : owner.ast.statements.find(
+            (n): n is ts.FunctionDeclaration =>
+              ts.isFunctionDeclaration(n) && n.name?.text === original.name,
+          );
+      expect(declaration?.body?.statements.length).toBeGreaterThan(0);
+      if (!declaration) throw new Error('Missing actual owner member');
+      expect(createHash('sha256').update(declaration.getText(owner.ast)).digest('hex')).toBe(
+        current.ownerMemberSHA256,
+      );
+      members++;
     }
   }
+  expect(members).toBe(27);
 });
