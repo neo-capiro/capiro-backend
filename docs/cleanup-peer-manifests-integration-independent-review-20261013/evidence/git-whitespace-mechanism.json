@@ -1,0 +1,28 @@
+{
+  "gitVersion": "git version 2.47.3",
+  "fixtureBase": "039814a3e7932ab942ee611431f90d11ee298ec0",
+  "sourceFixtureOnly": true,
+  "rows": [
+    {
+      "name": "core pin alone, worktree attrs",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "core pin plus attr-source baseline",
+      "exit": 2,
+      "stdout": "source.mjs:1: trailing whitespace.\n+export const value = 1;  \n",
+      "stderr": ""
+    },
+    {
+      "name": "info attributes override core and attr-source pins",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "conclusion": "Core whitespace and attr-source pins cannot alone guarantee errors when repository info/attributes overrides them; deterministic literal added-line audit recommended with retained Git observations.",
+  "productionConfigChanged": false,
+  "networkAppNativePerformed": false
+}

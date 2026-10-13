@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-peer-manifests-integration-independent-review-20261013/evidence/final-preservation.py", line 57, in <module>
+    assert len(names(read(SOURCE,'scripts/ci/newsletter-accepted-source-profile.spec.mjs')))==19
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

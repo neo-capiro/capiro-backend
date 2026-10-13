@@ -1,0 +1,30 @@
+{
+  "passed": 15,
+  "rows": [
+    "retained full []",
+    "retained full [\"--run\"]",
+    "retained full [\"--full\"]",
+    "backend run fake journal distinct scope",
+    "readonly fake --dry-run",
+    "readonly fake --catalog-only",
+    "readonly fake --integrity-only",
+    "readonly fake --extended-proofs-only",
+    "malformed before fake ports [\"--backend-only\",\"--full\"]",
+    "malformed before fake ports [\"--backend-only=true\"]",
+    "malformed before fake ports [\"--unknown\"]",
+    "malformed before fake ports [\"--base-sha\"]",
+    "malformed before fake ports [\"--evidence-dir=\"]",
+    "required environment-skip blocks backend",
+    "exact public aliases"
+  ],
+  "actualCLIReadWithFakePorts": true,
+  "loadedPureOwners": [
+    "apps/api/scripts/lib/pe-phase-9-runner.test-support.ts",
+    "apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+    "apps/api/scripts/lib/pe-phase-9-backend-scope.ts",
+    "apps/api/scripts/lib/pe-phase-9-rehearsal.ts",
+    "apps/api/scripts/lib/pe-phase-9-runner.ts",
+    "apps/api/scripts/lib/pe-phase-9-evidence.ts"
+  ],
+  "actualInstallDatabaseShellDockerOrAppPerformed": false
+}

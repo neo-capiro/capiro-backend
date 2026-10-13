@@ -1,0 +1,181 @@
+{
+  "source": "43c14e3b5bde8eb76371394a50abbd718556382e",
+  "sourceSha256": "744d8226125189760568a9a989d802c5332a2d2c7699fc0199e9f03c7f732bbf",
+  "fixtureOnly": true,
+  "syntheticBase": "98afdfa4d3cb7d17da5b9a307347a1b5e608eef4",
+  "rows": [
+    {
+      "name": "unchanged positive",
+      "expectedRefusal": false,
+      "observedRefusal": false,
+      "pass": true,
+      "exit": 0,
+      "stdout": "{\n  \"sourceHygiene\": \"PASS\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 0,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"whitespaceRules\": [\n    \"blank-at-eol\",\n    \"blank-at-eof\",\n    \"space-before-tab\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\",\n  \"rawArchiveHashes\": [\n    {\n      \"file\": \"docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\",\n      \"sha256\": \"04c1a6da2d286c29e01d072b20c292341df784a365eb55f66bfc5a5063413931\",\n      \"bytes\": 42780\n    },\n    {\n      \"file\": \"docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout\",\n      \"sha256\": \"99be960ecfc6232814832661cb9bd074fba90130322519369035bed44b6ab3e2\",\n      \"bytes\": 3338\n    },\n    {\n      \"file\": \"docs/newsletter-builder-reviewed-publication-20261013/physical-evidence-whitespace.txt\",\n      \"sha256\": \"5b6296b3ffce8f2da9ef49bc12af2dc1781d9da4d592eb2e5b3a0de7f5a2bf91\",\n      \"bytes\": 605\n    },\n    {\n      \"file\": \"docs/newsletter-builder-reviewed-publication-20261013/root-wired-backend-source-guards.tap\",\n      \"sha256\": \"0372d5dc0d64e3b09d6be464ebc9836612b1c7c85e98977ffab6003bb45e6423\",\n      \"bytes\": 33487\n    }\n  ],\n  \"checkedDiagnostics\": \"\",\n  \"rawArchiveDiagnostics\": \"\",\n  \"wholePhysicalPatchWhitespacePass\": true\n}\n",
+      "stderr": "",
+      "detail": {}
+    },
+    {
+      "name": "ordinary worktree source whitespace",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 1,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"source.mjs:1: trailing whitespace.\\n+export const safe = 1;  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+      "stderr": "",
+      "detail": {}
+    },
+    {
+      "name": "ordinary documentation whitespace",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 1,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"docs/ordinary.md:1: trailing whitespace.\\n+Ordinary source documentation.  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+      "stderr": "",
+      "detail": {}
+    },
+    {
+      "name": "staged source bad whitespace cancelled in worktree",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 1,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"source.mjs:1: trailing whitespace.\\n+export const safe = 1;  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+      "stderr": "",
+      "detail": {
+        "cachedDiff": "source.mjs:1: trailing whitespace.\n+export const safe = 1;  \n",
+        "aggregateDiff": ""
+      }
+    },
+    {
+      "name": "staged raw bytes changed but cancelled in worktree",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Immutable raw archive worktree/index edits refused: docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\n",
+      "detail": {
+        "cachedDiffBytes": 824,
+        "aggregateArchiveDiffBytes": 0
+      }
+    },
+    {
+      "name": "attribute disables source whitespace",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Unreviewed source whitespace/diff attribute override refused: source.mjs\n",
+      "detail": {
+        "gitCheckStdout": ""
+      }
+    },
+    {
+      "name": "fixture-local configuration disables whitespace",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 1,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"source.mjs:1: trailing whitespace.\\n+export const safe = 1;  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+      "stderr": "",
+      "detail": {}
+    },
+    {
+      "name": "committed archive mode changed with exact bytes",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Immutable raw archive HEAD/index mode mismatch: docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\n",
+      "detail": {
+        "currentMode": "100755 blob bf30d9d3bf5fd680c150d47eb3380cd3fca91dcd\tdocs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\n"
+      }
+    },
+    {
+      "name": "literal pathspec-looking tracked source still checked",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 1,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \":(exclude)source.mjs:1: trailing whitespace.\\n+bad literal path whitespace  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+      "stderr": "",
+      "detail": {}
+    },
+    {
+      "name": "assume-unchanged masks tracked source edits",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Assume-unchanged or unreviewed index visibility flags refused\n",
+      "detail": {
+        "flag": "h source.mjs\n"
+      }
+    },
+    {
+      "name": "skip-worktree masks materialized source edits",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Materialized skip-worktree path refused: source.mjs\n",
+      "detail": {
+        "flag": "S source.mjs\n"
+      }
+    },
+    {
+      "name": "assume-unchanged masks raw archive edits",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Assume-unchanged or unreviewed index visibility flags refused\n",
+      "detail": {
+        "flag": "h docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\n"
+      }
+    },
+    {
+      "name": "skip-worktree masks materialized archive edits",
+      "expectedRefusal": true,
+      "observedRefusal": true,
+      "pass": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Materialized skip-worktree path refused: docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\n",
+      "detail": {
+        "flag": "S docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\n"
+      }
+    },
+    {
+      "name": "legitimate sparse absent raw archive",
+      "expectedRefusal": false,
+      "observedRefusal": false,
+      "pass": true,
+      "exit": 0,
+      "stdout": "{\n  \"sourceHygiene\": \"PASS\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 0,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"whitespaceRules\": [\n    \"blank-at-eol\",\n    \"blank-at-eof\",\n    \"space-before-tab\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\",\n  \"rawArchiveHashes\": [\n    {\n      \"file\": \"docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\",\n      \"sha256\": \"04c1a6da2d286c29e01d072b20c292341df784a365eb55f66bfc5a5063413931\",\n      \"bytes\": 42780\n    },\n    {\n      \"file\": \"docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout\",\n      \"sha256\": \"99be960ecfc6232814832661cb9bd074fba90130322519369035bed44b6ab3e2\",\n      \"bytes\": 3338\n    },\n    {\n      \"file\": \"docs/newsletter-builder-reviewed-publication-20261013/physical-evidence-whitespace.txt\",\n      \"sha256\": \"5b6296b3ffce8f2da9ef49bc12af2dc1781d9da4d592eb2e5b3a0de7f5a2bf91\",\n      \"bytes\": 605\n    },\n    {\n      \"file\": \"docs/newsletter-builder-reviewed-publication-20261013/root-wired-backend-source-guards.tap\",\n      \"sha256\": \"0372d5dc0d64e3b09d6be464ebc9836612b1c7c85e98977ffab6003bb45e6423\",\n      \"bytes\": 33487\n    }\n  ],\n  \"checkedDiagnostics\": \"\",\n  \"rawArchiveDiagnostics\": \"\",\n  \"wholePhysicalPatchWhitespacePass\": true\n}\n",
+      "stderr": "",
+      "detail": {}
+    },
+    {
+      "name": "legitimate sparse absent unchanged source",
+      "expectedRefusal": false,
+      "observedRefusal": false,
+      "pass": true,
+      "exit": 0,
+      "stdout": "{\n  \"sourceHygiene\": \"PASS\",\n  \"base\": \"98afdfa4d3cb7d17da5b9a307347a1b5e608eef4\",\n  \"checkedPaths\": 0,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"whitespaceRules\": [\n    \"blank-at-eol\",\n    \"blank-at-eof\",\n    \"space-before-tab\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\",\n  \"rawArchiveHashes\": [\n    {\n      \"file\": \"docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch\",\n      \"sha256\": \"04c1a6da2d286c29e01d072b20c292341df784a365eb55f66bfc5a5063413931\",\n      \"bytes\": 42780\n    },\n    {\n      \"file\": \"docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout\",\n      \"sha256\": \"99be960ecfc6232814832661cb9bd074fba90130322519369035bed44b6ab3e2\",\n      \"bytes\": 3338\n    },\n    {\n      \"file\": \"docs/newsletter-builder-reviewed-publication-20261013/physical-evidence-whitespace.txt\",\n      \"sha256\": \"5b6296b3ffce8f2da9ef49bc12af2dc1781d9da4d592eb2e5b3a0de7f5a2bf91\",\n      \"bytes\": 605\n    },\n    {\n      \"file\": \"docs/newsletter-builder-reviewed-publication-20261013/root-wired-backend-source-guards.tap\",\n      \"sha256\": \"0372d5dc0d64e3b09d6be464ebc9836612b1c7c85e98977ffab6003bb45e6423\",\n      \"bytes\": 33487\n    }\n  ],\n  \"checkedDiagnostics\": \"\",\n  \"rawArchiveDiagnostics\": \"\",\n  \"wholePhysicalPatchWhitespacePass\": true\n}\n",
+      "stderr": "",
+      "detail": {}
+    }
+  ],
+  "passed": 15,
+  "failed": 0,
+  "actualAppProviderNetworkNativePerformed": false,
+  "productionSourceEdited": false,
+  "fixtureDestroyed": true
+}

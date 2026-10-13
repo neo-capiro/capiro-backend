@@ -1,0 +1,315 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+
+'{\n' +
+  '  "name": "@capiro/api",\n' +
+  '  "version": "0.0.0",\n' +
+  '  "private": true,\n' +
+  '  "scripts": {\n' +
+  '    "build": "nest build",\n' +
+  '    "dev": "nest start --watch",\n' +
+  '    "start": "node dist/main.js",\n' +
+  '    "lint": "eslint src --ext .ts",\n' +
+  '    "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",\n' +
+  '    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",\n' +
+  '    "test:e2e": "jest --config jest.e2e.config.cjs --runInBand --detectOpenHandles --forceExit",\n' +
+  '    "verify:engagement-phase-0": "tsx scripts/engagement-phase0-route-manifest.ts && tsx scripts/engagement-phase0-dependency-manifest.ts && tsx scripts/engagement-phase0-side-effect-verify.ts",\n' +
+  '    "verify:engagement-phase-0:update-fixtures": "tsx scripts/engagement-phase0-route-manifest.ts --write && tsx scripts/engagement-phase0-dependency-manifest.ts --write",\n' +
+  '    "dev:engagement-api": "tsx watch src/engagement-main.ts",\n' +
+  '    "start:engagement-api": "node dist/engagement-main.js",\n' +
+  '    "verify:engagement-phase-1": "jest --runInBand --forceExit src/bootstrap/configure-api-http-app.spec.ts src/engagement-api.app.module.spec.ts src/engagement-api/engagement-api-health.controller.spec.ts src/engagement/runtime src/engagement/engagement-sync-scheduler.service.spec.ts src/engagement/outreach-job.spec.ts src/engagement/outreach-send-intent.service.spec.ts src/engagement/notetaker/notetaker.service.spec.ts src/engagement/mail-sender.service.spec.ts src/engagement/llm-completion.service.spec.ts",\n' +
+  '    "eval:clio": "tsx scripts/eval-clio.ts",\n' +
+  '    "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",\n' +
+  '    "eval:clio:compaction": "tsx scripts/eval-clio-compaction.ts",\n' +
+  '    "eval:clio:thinking": "tsx scripts/eval-clio-thinking.ts",\n' +
+  '    "eval:clio:kb": "tsx scripts/eval-clio-kb.ts",\n' +
+  '    "eval:clio:mcp-injection": "tsx scripts/eval-clio-mcp-injection.ts",\n' +
+  '    "eval:clio:tool-selection": "tsx scripts/eval-clio-tool-selection.ts",\n' +
+  '    "eval:clio:analysis": "tsx scripts/eval-clio-analysis.ts",\n' +
+  '    "eval:meri:government-affairs": "tsx scripts/eval-meri-government-affairs.ts --offline",\n' +
+  '    "eval:outreach": "tsx scripts/eval-outreach.ts",\n' +
+  '    "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",\n' +
+  '    "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",\n' +
+  '    "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",\n' +
+  '    "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",\n' +
+  '    "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",\n' +
+  '    "diag:tango-health": "tsx scripts/diag-tango-health.ts",\n' +
+  '    "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",\n' +
+  '    "audit:pe-zero-request": "tsx scripts/audit-pe-zero-request.ts",\n' +
+  '    "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",\n' +
+  '    "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",\n' +
+  '    "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",\n' +
+  '    "reclaim:google-mail": "tsx scripts/reclaim-google-mail.ts",\n' +
+  '    "backfill:mail-removal-state": "tsx scripts/backfill-mail-removal-state.ts",\n' +
+  '    "smoke:integrations": "tsx scripts/smoke-integrations.ts",\n' +
+  '    "refresh:memory-graph": "tsx scripts/refresh-memory-graph.ts",\n' +
+  '    "prisma:generate": "prisma generate",\n' +
+  '    "prisma:migrate:dev": "prisma migrate dev",\n' +
+  '    "prisma:migrate:deploy": "prisma migrate deploy",\n' +
+  '    "prisma:studio": "prisma studio",\n' +
+...
+
+    at file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-peer-manifests-integration-independent-review-20261013/evidence/manifest-controls.mjs:18:62
+    at pass (file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-peer-manifests-integration-independent-review-20261013/evidence/manifest-controls.mjs:4:24)
+    at file:///tmp/capirov2-four-runtime-controls-review/docs/cleanup-peer-manifests-integration-independent-review-20261013/evidence/manifest-controls.mjs:18:4
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '{\n' +
+    '  "name": "@capiro/api",\n' +
+    '  "version": "0.0.0",\n' +
+    '  "private": true,\n' +
+    '  "scripts": {\n' +
+    '    "build": "nest build",\n' +
+    '    "dev": "nest start --watch",\n' +
+    '    "start": "node dist/main.js",\n' +
+    '    "lint": "eslint src --ext .ts",\n' +
+    '    "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",\n' +
+    '    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",\n' +
+    '    "test:e2e": "jest --config jest.e2e.config.cjs --runInBand --detectOpenHandles --forceExit",\n' +
+    '    "verify:engagement-phase-0": "tsx scripts/engagement-phase0-route-manifest.ts && tsx scripts/engagement-phase0-dependency-manifest.ts && tsx scripts/engagement-phase0-side-effect-verify.ts",\n' +
+    '    "verify:engagement-phase-0:update-fixtures": "tsx scripts/engagement-phase0-route-manifest.ts --write && tsx scripts/engagement-phase0-dependency-manifest.ts --write",\n' +
+    '    "dev:engagement-api": "tsx watch src/engagement-main.ts",\n' +
+    '    "start:engagement-api": "node dist/engagement-main.js",\n' +
+    '    "verify:engagement-phase-1": "jest --runInBand --forceExit src/bootstrap/configure-api-http-app.spec.ts src/engagement-api.app.module.spec.ts src/engagement-api/engagement-api-health.controller.spec.ts src/engagement/runtime src/engagement/engagement-sync-scheduler.service.spec.ts src/engagement/outreach-job.spec.ts src/engagement/outreach-send-intent.service.spec.ts src/engagement/notetaker/notetaker.service.spec.ts src/engagement/mail-sender.service.spec.ts src/engagement/llm-completion.service.spec.ts",\n' +
+    '    "eval:clio": "tsx scripts/eval-clio.ts",\n' +
+    '    "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",\n' +
+    '    "eval:clio:compaction": "tsx scripts/eval-clio-compaction.ts",\n' +
+    '    "eval:clio:thinking": "tsx scripts/eval-clio-thinking.ts",\n' +
+    '    "eval:clio:kb": "tsx scripts/eval-clio-kb.ts",\n' +
+    '    "eval:clio:mcp-injection": "tsx scripts/eval-clio-mcp-injection.ts",\n' +
+    '    "eval:clio:tool-selection": "tsx scripts/eval-clio-tool-selection.ts",\n' +
+    '    "eval:clio:analysis": "tsx scripts/eval-clio-analysis.ts",\n' +
+    '    "eval:meri:government-affairs": "tsx scripts/eval-meri-government-affairs.ts --offline",\n' +
+    '    "eval:outreach": "tsx scripts/eval-outreach.ts",\n' +
+    '    "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",\n' +
+    '    "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",\n' +
+    '    "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",\n' +
+    '    "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",\n' +
+    '    "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",\n' +
+    '    "diag:tango-health": "tsx scripts/diag-tango-health.ts",\n' +
+    '    "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",\n' +
+    '    "audit:pe-zero-request": "tsx scripts/audit-pe-zero-request.ts",\n' +
+    '    "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",\n' +
+    '    "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",\n' +
+    '    "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",\n' +
+    '    "reclaim:google-mail": "tsx scripts/reclaim-google-mail.ts",\n' +
+    '    "backfill:mail-removal-state": "tsx scripts/backfill-mail-removal-state.ts",\n' +
+    '    "smoke:integrations": "tsx scripts/smoke-integrations.ts",\n' +
+    '    "refresh:memory-graph": "tsx scripts/refresh-memory-graph.ts",\n' +
+    '    "prisma:generate": "prisma generate",\n' +
+    '    "prisma:migrate:dev": "prisma migrate dev",\n' +
+    '    "prisma:migrate:deploy": "prisma migrate deploy",\n' +
+    '    "prisma:studio": "prisma studio",\n' +
+    '    "prisma:reset": "prisma migrate reset --force",\n' +
+    '    "bootstrap:tenant": "tsx scripts/bootstrap-tenant.ts",\n' +
+    '    "bootstrap:capiro-admin": "tsx scripts/bootstrap-capiro-admin.ts",\n' +
+    '    "sync:openlobby": "tsx scripts/sync-openlobby.ts",\n' +
+    '    "sync:lobby-trending": "tsx scripts/sync-lobby-trending.ts",\n' +
+    '    "refresh:lobby-intel": "tsx scripts/refresh-lobby-intel-mv.ts",\n' +
+    '    "refresh:kg-edge-cache": "tsx scripts/refresh-kg-edge-cache.ts",\n' +
+    '    "sync:openspending": "tsx scripts/sync-openspending.ts",\n' +
+    '    "sync:lda": "tsx scripts/sync-lda.ts",\n' +
+    '    "sync:lda:incremental": "tsx scripts/sync-lda.ts --incremental",\n' +
+    '    "sync:fec": "tsx scripts/sync-fec.ts",\n' +
+    '    "sync:federal-award": "tsx scripts/sync-federal-award.ts",\n' +
+    '    "seed:federal-contractors-from-awards": "tsx scripts/seed-federal-contractors-from-awards.ts",\n' +
+    '    "sync:federal-assistance-awards": "tsx scripts/sync-federal-assistance-awards.ts",\n' +
+    '    "enrich:assistance-awards": "tsx scripts/enrich-assistance-award-details.ts",\n' +
+    '    "backfill:assistance-awards-bulk": "tsx scripts/backfill-assistance-awards-bulk.ts",\n' +
+    '    "prune:assistance-recipient-candidates": "tsx scripts/prune-stale-assistance-recipient-candidates.ts",\n' +
+    '    "extract:press-personnel": "tsx scripts/extract-personnel-from-press-releases.ts",\n' +
+    '    "sync:sam-personnel": "tsx scripts/sync-sam-personnel.ts",\n' +
+    '    "sync:sam-opportunities": "tsx scripts/sync-sam-opportunities.ts",\n' +
+    '    "sync:tango-entities": "tsx scripts/sync-tango-entities.ts",\n' +
+    '    "generate:tango-enrichment-candidates": "tsx scripts/generate-tango-enrichment-candidates.ts",\n' +
+    '    "review:tango-enrichment-candidate": "tsx scripts/review-tango-enrichment-candidate.ts",\n' +
+    '    "diag:federal-business-profile": "tsx scripts/diag-federal-business-profile.ts",\n' +
+    '    "sync:tango-vehicles": "tsx scripts/sync-tango-vehicles.ts",\n' +
+    '    "sync:tango-forecasts": "tsx scripts/sync-tango-forecasts.ts",\n' +
+    '    "sync:tango-subawards": "tsx scripts/sync-tango-subawards.ts",\n' +
+    '    "reconcile:tango-webhook-alerts": "tsx scripts/reconcile-tango-webhook-alerts.ts",\n' +
+    '    "process:tango-events": "tsx scripts/process-tango-events.ts",\n' +
+    '    "diag:funding-opportunities-makegov": "tsx scripts/diag-funding-opportunities-makegov.ts",\n' +
+    '    "diag:tango-webhook-contract": "tsx scripts/diag-tango-webhook-contract.ts",\n' +
+    '    "sync:sam-opportunities-all-federal": "tsx scripts/sync-sam-opportunities.ts --all-federal",\n' +
+    '    "match:pe-person": "tsx scripts/match-pe-person.ts",\n' +
+    '    "extract:hearing-witnesses": "tsx scripts/extract-hearing-witnesses.ts",\n' +
+    '    "sync:hearing-transcripts": "tsx scripts/sync-hearing-transcripts.ts",\n' +
+    '    "extract:gao-interviewees": "tsx scripts/extract-gao-interviewees.ts",\n' +
+    '    "sync:fec-pac": "tsx scripts/sync-fec-pac.ts",\n' +
+    '    "sync:entity-resolution": "tsx scripts/sync-entity-resolution.ts",\n' +
+    '    "enrich:award-districts": "tsx scripts/enrich-award-districts.ts",\n' +
+    '    "enrich:award-pe": "tsx scripts/enrich-award-pe.ts",\n' +
+    '    "seed:acq-program-map": "tsx scripts/seed-acq-program-map.ts",\n' +
+    '    "seed:programs": "tsx scripts/seed-programs.ts",\n' +
+    '    "match:pe-program": "tsx scripts/match-pe-program.ts",\n' +
+    '    "report:award-pe-coverage": "tsx scripts/report-award-pe-coverage.ts",\n' +
+    '    "report:pe-coverage": "tsx scripts/report-pe-coverage.ts",\n' +
+    '    "rebuild:pe-years": "tsx scripts/rebuild-program-element-years.ts",\n' +
+    '    "normalize:pe-units": "tsx scripts/normalize-pe-units.ts",\n' +
+    '    "diag:stale-directory": "tsx scripts/diag-stale-directory.ts",\n' +
+    '    "diag:reconciliation-units": "tsx scripts/diag-reconciliation-units.ts",\n' +
+    '    "reconcile:personnel-supersede": "tsx scripts/reconcile-personnel-supersede.ts",\n' +
+    '    "reconcile:stale-pes": "tsx scripts/reconcile-stale-pes.ts",\n' +
+    '    "repair:person-pe-links": "tsx scripts/repair-person-pe-links.ts",\n' +
+    '    "sync:congress": "tsx scripts/sync-congress.ts",\n' +
+    '    "sync:federal-legislative-evidence": "tsx scripts/sync-federal-legislative-evidence.ts",\n' +
+    '    "drain:federal-evidence-outbox": "tsx scripts/drain-federal-evidence-outbox.ts",\n' +
+    '    "qualify:package3-congressional": "tsx scripts/qualify-package3-congressional-artifact.ts --run",\n' +
+    '    "qualify:package4-legislative-updates": "tsx scripts/qualify-package4-legislative-updates.ts",\n' +
+    '    "sync:program-acquisition-continuity": "tsx scripts/sync-program-acquisition-continuity.ts",\n' +
+    '    "qualify:package5-program-acquisition": "tsx scripts/qualify-package5-program-acquisition.ts",\n' +
+    '    "typecheck:package5": "tsc -p tsconfig.package5.json --noEmit",\n' +
+    '    "sync:florida-official-committees": "tsx scripts/sync-florida-official-committees.ts",\n' +
+    '    "ingest:florida-legislative-directories": "tsx scripts/ingest-florida-legislative-directories.ts",\n' +
+    '    "extract:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py",\n' +
+    '    "verify:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py --check",\n' +
+    '    "extract:bill-pe-codes": "tsx scripts/extract-bill-pe-codes.ts",\n' +
+    '    "ingest:defense-budget": "tsx scripts/ingest-defense-budget-pdf.ts",\n' +
+    '    "ingest:cpf-cds": "tsx scripts/ingest-cpf-cds.ts",\n' +
+    '    "sync:gsa-frpp": "tsx scripts/sync-gsa-frpp.ts",\n' +
+    '    "parse:hasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber HASC",\n' +
+    '    "parse:sasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber SASC",\n' +
+    '    "parse:hac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber HAC-D",\n' +
+    '    "parse:sac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber SAC-D",\n' +
+    '    "parse:ndaa-conference": "tsx scripts/parse-ndaa-conference.ts",\n' +
+    '    "parse:defense-approps-public-law": "tsx scripts/parse-defense-approps-public-law.ts",\n' +
+    '    "parse:pdoc": "tsx scripts/parse-pdoc-army.ts",\n' +
+    '    "convert:defense-budget-artifact": "tsx scripts/convert-defense-budget-artifact.ts",\n' +
+    '    "validate:defense-budget-artifact": "tsx scripts/validate-defense-budget-extraction-artifact.ts",\n' +
+    '    "validate:defens'... 18856 more characters,
+  expected: '{\n' +
+    '  "name": "@capiro/api",\n' +
+    '  "version": "0.0.0",\n' +
+    '  "private": true,\n' +
+    '  "scripts": {\n' +
+    '    "build": "nest build",\n' +
+    '    "dev": "nest start --watch",\n' +
+    '    "start": "node dist/main.js",\n' +
+    '    "lint": "eslint src --ext .ts",\n' +
+    '    "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",\n' +
+    '    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",\n' +
+    '    "test:e2e": "jest --config jest.e2e.config.cjs --runInBand --detectOpenHandles --forceExit",\n' +
+    '    "verify:engagement-phase-0": "tsx scripts/engagement-phase0-route-manifest.ts && tsx scripts/engagement-phase0-dependency-manifest.ts && tsx scripts/engagement-phase0-side-effect-verify.ts",\n' +
+    '    "verify:engagement-phase-0:update-fixtures": "tsx scripts/engagement-phase0-route-manifest.ts --write && tsx scripts/engagement-phase0-dependency-manifest.ts --write",\n' +
+    '    "dev:engagement-api": "tsx watch src/engagement-main.ts",\n' +
+    '    "start:engagement-api": "node dist/engagement-main.js",\n' +
+    '    "verify:engagement-phase-1": "jest --runInBand --forceExit src/bootstrap/configure-api-http-app.spec.ts src/engagement-api.app.module.spec.ts src/engagement-api/engagement-api-health.controller.spec.ts src/engagement/runtime src/engagement/engagement-sync-scheduler.service.spec.ts src/engagement/outreach-job.spec.ts src/engagement/outreach-send-intent.service.spec.ts src/engagement/notetaker/notetaker.service.spec.ts src/engagement/mail-sender.service.spec.ts src/engagement/llm-completion.service.spec.ts",\n' +
+    '    "eval:clio": "tsx scripts/eval-clio.ts",\n' +
+    '    "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",\n' +
+    '    "eval:clio:compaction": "tsx scripts/eval-clio-compaction.ts",\n' +
+    '    "eval:clio:thinking": "tsx scripts/eval-clio-thinking.ts",\n' +
+    '    "eval:clio:kb": "tsx scripts/eval-clio-kb.ts",\n' +
+    '    "eval:clio:mcp-injection": "tsx scripts/eval-clio-mcp-injection.ts",\n' +
+    '    "eval:clio:tool-selection": "tsx scripts/eval-clio-tool-selection.ts",\n' +
+    '    "eval:clio:analysis": "tsx scripts/eval-clio-analysis.ts",\n' +
+    '    "eval:meri:government-affairs": "tsx scripts/eval-meri-government-affairs.ts --offline",\n' +
+    '    "eval:outreach": "tsx scripts/eval-outreach.ts",\n' +
+    '    "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",\n' +
+    '    "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",\n' +
+    '    "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",\n' +
+    '    "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",\n' +
+    '    "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",\n' +
+    '    "diag:tango-health": "tsx scripts/diag-tango-health.ts",\n' +
+    '    "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",\n' +
+    '    "audit:pe-zero-request": "tsx scripts/audit-pe-zero-request.ts",\n' +
+    '    "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",\n' +
+    '    "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",\n' +
+    '    "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",\n' +
+    '    "reclaim:google-mail": "tsx scripts/reclaim-google-mail.ts",\n' +
+    '    "backfill:mail-removal-state": "tsx scripts/backfill-mail-removal-state.ts",\n' +
+    '    "smoke:integrations": "tsx scripts/smoke-integrations.ts",\n' +
+    '    "refresh:memory-graph": "tsx scripts/refresh-memory-graph.ts",\n' +
+    '    "prisma:generate": "prisma generate",\n' +
+    '    "prisma:migrate:dev": "prisma migrate dev",\n' +
+    '    "prisma:migrate:deploy": "prisma migrate deploy",\n' +
+    '    "prisma:studio": "prisma studio",\n' +
+    '    "prisma:reset": "prisma migrate reset --force",\n' +
+    '    "bootstrap:tenant": "tsx scripts/bootstrap-tenant.ts",\n' +
+    '    "bootstrap:capiro-admin": "tsx scripts/bootstrap-capiro-admin.ts",\n' +
+    '    "sync:openlobby": "tsx scripts/sync-openlobby.ts",\n' +
+    '    "sync:lobby-trending": "tsx scripts/sync-lobby-trending.ts",\n' +
+    '    "refresh:lobby-intel": "tsx scripts/refresh-lobby-intel-mv.ts",\n' +
+    '    "refresh:kg-edge-cache": "tsx scripts/refresh-kg-edge-cache.ts",\n' +
+    '    "sync:openspending": "tsx scripts/sync-openspending.ts",\n' +
+    '    "sync:lda": "tsx scripts/sync-lda.ts",\n' +
+    '    "sync:lda:incremental": "tsx scripts/sync-lda.ts --incremental",\n' +
+    '    "sync:fec": "tsx scripts/sync-fec.ts",\n' +
+    '    "sync:federal-award": "tsx scripts/sync-federal-award.ts",\n' +
+    '    "seed:federal-contractors-from-awards": "tsx scripts/seed-federal-contractors-from-awards.ts",\n' +
+    '    "sync:federal-assistance-awards": "tsx scripts/sync-federal-assistance-awards.ts",\n' +
+    '    "enrich:assistance-awards": "tsx scripts/enrich-assistance-award-details.ts",\n' +
+    '    "backfill:assistance-awards-bulk": "tsx scripts/backfill-assistance-awards-bulk.ts",\n' +
+    '    "prune:assistance-recipient-candidates": "tsx scripts/prune-stale-assistance-recipient-candidates.ts",\n' +
+    '    "extract:press-personnel": "tsx scripts/extract-personnel-from-press-releases.ts",\n' +
+    '    "sync:sam-personnel": "tsx scripts/sync-sam-personnel.ts",\n' +
+    '    "sync:sam-opportunities": "tsx scripts/sync-sam-opportunities.ts",\n' +
+    '    "sync:tango-entities": "tsx scripts/sync-tango-entities.ts",\n' +
+    '    "generate:tango-enrichment-candidates": "tsx scripts/generate-tango-enrichment-candidates.ts",\n' +
+    '    "review:tango-enrichment-candidate": "tsx scripts/review-tango-enrichment-candidate.ts",\n' +
+    '    "diag:federal-business-profile": "tsx scripts/diag-federal-business-profile.ts",\n' +
+    '    "sync:tango-vehicles": "tsx scripts/sync-tango-vehicles.ts",\n' +
+    '    "sync:tango-forecasts": "tsx scripts/sync-tango-forecasts.ts",\n' +
+    '    "sync:tango-subawards": "tsx scripts/sync-tango-subawards.ts",\n' +
+    '    "reconcile:tango-webhook-alerts": "tsx scripts/reconcile-tango-webhook-alerts.ts",\n' +
+    '    "process:tango-events": "tsx scripts/process-tango-events.ts",\n' +
+    '    "diag:funding-opportunities-makegov": "tsx scripts/diag-funding-opportunities-makegov.ts",\n' +
+    '    "diag:tango-webhook-contract": "tsx scripts/diag-tango-webhook-contract.ts",\n' +
+    '    "sync:sam-opportunities-all-federal": "tsx scripts/sync-sam-opportunities.ts --all-federal",\n' +
+    '    "match:pe-person": "tsx scripts/match-pe-person.ts",\n' +
+    '    "extract:hearing-witnesses": "tsx scripts/extract-hearing-witnesses.ts",\n' +
+    '    "sync:hearing-transcripts": "tsx scripts/sync-hearing-transcripts.ts",\n' +
+    '    "extract:gao-interviewees": "tsx scripts/extract-gao-interviewees.ts",\n' +
+    '    "sync:fec-pac": "tsx scripts/sync-fec-pac.ts",\n' +
+    '    "sync:entity-resolution": "tsx scripts/sync-entity-resolution.ts",\n' +
+    '    "enrich:award-districts": "tsx scripts/enrich-award-districts.ts",\n' +
+    '    "enrich:award-pe": "tsx scripts/enrich-award-pe.ts",\n' +
+    '    "seed:acq-program-map": "tsx scripts/seed-acq-program-map.ts",\n' +
+    '    "seed:programs": "tsx scripts/seed-programs.ts",\n' +
+    '    "match:pe-program": "tsx scripts/match-pe-program.ts",\n' +
+    '    "report:award-pe-coverage": "tsx scripts/report-award-pe-coverage.ts",\n' +
+    '    "report:pe-coverage": "tsx scripts/report-pe-coverage.ts",\n' +
+    '    "rebuild:pe-years": "tsx scripts/rebuild-program-element-years.ts",\n' +
+    '    "normalize:pe-units": "tsx scripts/normalize-pe-units.ts",\n' +
+    '    "diag:stale-directory": "tsx scripts/diag-stale-directory.ts",\n' +
+    '    "diag:reconciliation-units": "tsx scripts/diag-reconciliation-units.ts",\n' +
+    '    "reconcile:personnel-supersede": "tsx scripts/reconcile-personnel-supersede.ts",\n' +
+    '    "reconcile:stale-pes": "tsx scripts/reconcile-stale-pes.ts",\n' +
+    '    "repair:person-pe-links": "tsx scripts/repair-person-pe-links.ts",\n' +
+    '    "sync:congress": "tsx scripts/sync-congress.ts",\n' +
+    '    "sync:federal-legislative-evidence": "tsx scripts/sync-federal-legislative-evidence.ts",\n' +
+    '    "drain:federal-evidence-outbox": "tsx scripts/drain-federal-evidence-outbox.ts",\n' +
+    '    "qualify:package3-congressional": "tsx scripts/qualify-package3-congressional-artifact.ts --run",\n' +
+    '    "qualify:package4-legislative-updates": "tsx scripts/qualify-package4-legislative-updates.ts",\n' +
+    '    "sync:program-acquisition-continuity": "tsx scripts/sync-program-acquisition-continuity.ts",\n' +
+    '    "qualify:package5-program-acquisition": "tsx scripts/qualify-package5-program-acquisition.ts",\n' +
+    '    "typecheck:package5": "tsc -p tsconfig.package5.json --noEmit",\n' +
+    '    "sync:florida-official-committees": "tsx scripts/sync-florida-official-committees.ts",\n' +
+    '    "ingest:florida-legislative-directories": "tsx scripts/ingest-florida-legislative-directories.ts",\n' +
+    '    "extract:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py",\n' +
+    '    "verify:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py --check",\n' +
+    '    "extract:bill-pe-codes": "tsx scripts/extract-bill-pe-codes.ts",\n' +
+    '    "ingest:defense-budget": "tsx scripts/ingest-defense-budget-pdf.ts",\n' +
+    '    "ingest:cpf-cds": "tsx scripts/ingest-cpf-cds.ts",\n' +
+    '    "sync:gsa-frpp": "tsx scripts/sync-gsa-frpp.ts",\n' +
+    '    "parse:hasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber HASC",\n' +
+    '    "parse:sasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber SASC",\n' +
+    '    "parse:hac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber HAC-D",\n' +
+    '    "parse:sac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber SAC-D",\n' +
+    '    "parse:ndaa-conference": "tsx scripts/parse-ndaa-conference.ts",\n' +
+    '    "parse:defense-approps-public-law": "tsx scripts/parse-defense-approps-public-law.ts",\n' +
+    '    "parse:pdoc": "tsx scripts/parse-pdoc-army.ts",\n' +
+    '    "convert:defense-budget-artifact": "tsx scripts/convert-defense-budget-artifact.ts",\n' +
+    '    "validate:defense-budget-artifact": "tsx scripts/validate-defense-budget-extraction-artifact.ts",\n' +
+    '    "validate:defens'... 18856 more characters,
+  operator: 'notStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

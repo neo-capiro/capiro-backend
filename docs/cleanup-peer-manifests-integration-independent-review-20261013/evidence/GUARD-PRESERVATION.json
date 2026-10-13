@@ -1,0 +1,90 @@
+{
+  "source": "07e92408d9c396de2003259d125f828cc99c7e2c",
+  "sourceTree": "272095401f57eb7dccb88bafbbe332fc31f93f2d",
+  "exactPeerAncestors": [
+    "457e84e7d50f401985355cf22eedc480fd72ad8b",
+    "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+  ],
+  "merge": "4864eb57ca4a7ef519c43ef47b270cad310ed737",
+  "mergeSourceUnionExact": true,
+  "guardSixPaths": [
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/ci/context-plane-validation-scope.spec.mjs",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs",
+    "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+    "scripts/lib/reviewed-pe-manifest-contract.mjs"
+  ],
+  "fourWholeFileInverses": [
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "wholePriorFileInverseExact": true,
+      "priorSha256": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "wholePriorFileInverseExact": true,
+      "priorSha256": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553"
+    },
+    {
+      "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "wholePriorFileInverseExact": true,
+      "priorSha256": "d00f1618841f8315afe4403f7bdd29d2a50b32c0f7d4c0b2691dd3478da6b66d"
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "wholePriorFileInverseExact": true,
+      "priorSha256": "219e0b5ffd63e7ec6201380b388b43d21ce9a77790a2bb7aa8932ead4f633acd",
+      "APIManifestAddedToExistingDefaultsProof": true
+    }
+  ],
+  "rootAndAPIManifestBindings": [
+    {
+      "path": "package.json",
+      "peerSource": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+      "currentSha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824",
+      "beforeSource": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+      "beforeSha256": "709c2b40e3e54112784fd2670faa999ce701edca1f879bafb26a131c3820f728",
+      "metadataEntry": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+    },
+    {
+      "path": "apps/api/package.json",
+      "peerSource": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+      "currentSha256": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa",
+      "beforeSource": "b7aa1d6e6b341f833fa08b2add8f40d5fbee8480",
+      "beforeSha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff",
+      "metadataEntry": "100644 blob f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+    }
+  ],
+  "allCurrentEntrypointAndSixPureOwnersExactPR2444": true,
+  "nonDoc24PathsBeyondCommonB7": [
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "apps/api/package.json",
+    "apps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts",
+    "apps/api/scripts/lib/pe-phase-9-backend-scope.ts",
+    "apps/api/scripts/lib/pe-phase-9-evidence.ts",
+    "apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+    "apps/api/scripts/lib/pe-phase-9-rehearsal.ts",
+    "apps/api/scripts/lib/pe-phase-9-runner.spec.ts",
+    "apps/api/scripts/lib/pe-phase-9-runner.test-support.ts",
+    "apps/api/scripts/lib/pe-phase-9-runner.ts",
+    "apps/api/scripts/lib/pe-production-scripts.ts",
+    "apps/api/scripts/verify-pe-phase-9.ts",
+    "apps/api/tsconfig.pe-scripts.json",
+    "package.json",
+    "scripts/build-newsletter-release.sh",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/ci/context-plane-validation-scope.spec.mjs",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs",
+    "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/lib/reviewed-pe-manifest-contract.mjs"
+  ],
+  "outsideSixIntegratedGuardPathsExact": 25068,
+  "protectedReportingBodyRead": false,
+  "deniedReportRead": false,
+  "realEntrypointOrProviderOrNativeExecution": false
+}

@@ -1,0 +1,245 @@
+{
+  "decision": "ACCEPT bounded combined source and source-policy gates",
+  "source": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "sourceTree": "8cd2dc87a0ea2348ce172bb483f4494a6b3e0cdb",
+  "peerHeads": [
+    "457e84e7d50f401985355cf22eedc480fd72ad8b",
+    "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+  ],
+  "manifestGuardSource": "07e92408d9c396de2003259d125f828cc99c7e2c",
+  "hygieneSource": "43c14e3b5bde8eb76371394a50abbd718556382e",
+  "profileSource": "358d953a42129a19ba82fdd8373c86c9a455f49a",
+  "initialReview": "789ce53161bf00fa17949168e1197675a6c20546",
+  "continuedHoldsReview": "767662fe3dd554c812a66c0c09d6a588feafdf19",
+  "authorRepairEvidence": "3e0775382f01b46e5a52f1a16ef8a9031facdd27",
+  "reviewProductionEdits": false,
+  "tests": {
+    "manifestAndExistingGuards": 27,
+    "manifestIndependentControls": 32,
+    "actualPEOperatorFakeHostControls": 15,
+    "hygieneOriginalReplay": 9,
+    "hygieneIndexFlagReplay": 15,
+    "profileImmutableReplay": 22,
+    "profilePermanentFinal": 19,
+    "hygienePermanentFinal": 5,
+    "workflowFinalFakeToolFailureAndDefaultsCases": 5,
+    "priorProfileCombinedClosure": 103
+  },
+  "preservedFailures": {
+    "initialHygieneNine": {
+      "passed": 4,
+      "failed": 5
+    },
+    "intermediateIndexFifteen": {
+      "passed": 11,
+      "failed": 4
+    },
+    "profileTwentyTwo": {
+      "passed": 20,
+      "failed": 2,
+      "coercions": 2
+    },
+    "originalManifestMutationHarnessFailure": true,
+    "finalPreservationHarnessMiscountFailure": true
+  },
+  "finalCoercionsAndGetterAndProxyCallbacks": 0,
+  "productionProfile": {
+    "activeCommit": null,
+    "acceptedSources": [],
+    "shippingAndRunAdmission": "pending/refused before artifact callbacks"
+  },
+  "preservation": {
+    "source": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+    "sourceTree": "8cd2dc87a0ea2348ce172bb483f4494a6b3e0cdb",
+    "peerAncestors": [
+      "457e84e7d50f401985355cf22eedc480fd72ad8b",
+      "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+    ],
+    "nonDocDelta29": [
+      {
+        "path": ".github/workflows/backend-cleanup-preservation.yml",
+        "entry": "100644 blob 5025128bb1c20019e458dbfd35501aadc03d7217",
+        "sha256": "d70428e4827306a8da584f3d58925b62f7749fca62529d3e2474490ac3b7bee2"
+      },
+      {
+        "path": "apps/api/package.json",
+        "entry": "100644 blob f8ab6fbcdcc14da45045ca163aa2a3e843f3412e",
+        "sha256": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts",
+        "entry": "100644 blob c7085d212574e1f157fc542d6641cec2b1db2135",
+        "sha256": "351ea56d81fd723b752b2ea8c477c6bcf9006a6a7e9b905163480877f20d2869"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-backend-scope.ts",
+        "entry": "100644 blob 584c3443ae7efd4ed6a1596e516f508cee81e649",
+        "sha256": "345875bb661ce19a4c6c6ff56c8291dfce7c2cd3cc8d8c66e111159e7676f24a"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-evidence.ts",
+        "entry": "100644 blob 2bc2065ba86e0d33948a410864174f88aa930fa2",
+        "sha256": "03c5d23e79c890b2ac2b77f3f946526596cabf95dc3fb4691b0383804cdc7694"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+        "entry": "100644 blob f51953f885d5a499867d3f3cef6d6d941c45d6fd",
+        "sha256": "e8806b0248634488dd6e6f01658a7c9ad9cf18cb3ed52a2430b3d35b05237637"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-rehearsal.ts",
+        "entry": "100644 blob 51a399f5d1c11089a5324214aa09ace154d0c338",
+        "sha256": "aaaba4aaeeae53e836d2510235e2f97603d9e7951a215900d5743499b9c7cf59"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-runner.spec.ts",
+        "entry": "100644 blob ff76f888e151428d2e38921920ed7a17ef052f26",
+        "sha256": "be1e5faecfa454210f07319c150cb9a48b494c4a22993a35306dd68fbb2cd81b"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-runner.test-support.ts",
+        "entry": "100644 blob f830b2f681428f0e837ca67ce6310380576fae1c",
+        "sha256": "630448b4cf4f83edafb0b4028904a2b94d991f98347c2703810f2213ecdc4f4a"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-phase-9-runner.ts",
+        "entry": "100644 blob 46183c7a4fab5360ee2dd219529635038cb87efe",
+        "sha256": "17cebcec40833f1e4cd783cb6dc74eb42a1122dc49baff6760db0456abd9a130"
+      },
+      {
+        "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+        "entry": "100644 blob b26b8688edca0fd2153f0327307e32dd6a5f5be3",
+        "sha256": "99b5dc45c401b230e9f8a40dc71783939d89d0e3b41e75c1dafc4ed1fb8a7d82"
+      },
+      {
+        "path": "apps/api/scripts/verify-pe-phase-9.ts",
+        "entry": "100644 blob 5c662ca843f4fcf909f090a0835937d2da452317",
+        "sha256": "22ee3487c5ac8fad1eed0e71acdfe5a30188c65720af9ec79512d5e5337301a1"
+      },
+      {
+        "path": "apps/api/tsconfig.pe-scripts.json",
+        "entry": "100644 blob 61458916512b629a4399cb7cb466b4a5801e1d85",
+        "sha256": "aa4d594a108d969114d93cca72d42324cf102dd95dee341e910d5bd4c714960b"
+      },
+      {
+        "path": "apps/web/Dockerfile.frontend-artifact",
+        "entry": "100644 blob 9e64bd16f929bace9961d10ad8576ecc5d4156ce",
+        "sha256": "b271760dd15ea336f0ca439845d3bb0bb3f80e1cffdc92ae26a4cb225cdf5fa9"
+      },
+      {
+        "path": "package.json",
+        "entry": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102",
+        "sha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824"
+      },
+      {
+        "path": "scripts/build-newsletter-release.sh",
+        "entry": "100755 blob db7fea14bf7feff409d63a53c3373b3f82a6e97b",
+        "sha256": "7e770ccf72b164b90594dc490fed9fca1db0e3d8fd7cb310aa02d6307c93259e"
+      },
+      {
+        "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+        "entry": "100644 blob 52eb7fb74834a8649fc1814430c10ec32d3de26f",
+        "sha256": "c471c5f1c86d79c3bd0916fcb65e5a2f6aaa0f64673707cde4db351c6bf4b557"
+      },
+      {
+        "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+        "entry": "100644 blob 4e4ed24d8c79012ecbbfea8949da32317ba94cf6",
+        "sha256": "33ee1d7e26d1bbf6c0e976a88cf0521d5b05a6661cd02ca51bb04f57fa2b8d57"
+      },
+      {
+        "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+        "entry": "100644 blob 65fe60604e650d431c39070aee9f79f45c6f3e10",
+        "sha256": "89dc0ff0bff8af01e747bdde435ed9156674d140eebfffce104e2c918133a08b"
+      },
+      {
+        "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+        "entry": "100644 blob 29936c684c107b04405c2a48a3c03c23ff555391",
+        "sha256": "5e1a7acd3cf45f67774baba004b85cf3b60e22e3f5270893017ec630382c3893"
+      },
+      {
+        "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+        "entry": "100644 blob 261bf0aa740250d53805da45005c721b3bf5109e",
+        "sha256": "c0fd40743506ef18fbdbddad6c579f96598617da66d4e74676a9725ac116fb37"
+      },
+      {
+        "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+        "entry": "100644 blob 8b329c3300accd3bf7878a27f8eac36c26948fd3",
+        "sha256": "23fad21bf4525a08f85e32bae02b9720d0be6dce104c9c1ba94c33ed59649d3e"
+      },
+      {
+        "path": "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+        "entry": "100644 blob f0e6b059937eef3dce84e3238c5a3b01c4dcb0bb",
+        "sha256": "5da62266e0afb5d61eb0e9da9170a56ad0ef66919efbc748dc38c3d226df3f84"
+      },
+      {
+        "path": "scripts/ci/reviewed-source-hygiene.spec.mjs",
+        "entry": "100644 blob 00861d9f49abcd05a5878dac8df908f6b545dd11",
+        "sha256": "5ce3496c1352ec2b2c29ade04c8099d43a01e9b4d6d3c0b16df4f2b73bf7cdfa"
+      },
+      {
+        "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+        "entry": "100644 blob edaf8856d525880ba36f535694186fb40d4c6a42",
+        "sha256": "5afdc4aaaee02f14477edeebf92fb124fba5d114344057d1838a53e3d383e380"
+      },
+      {
+        "path": "scripts/lib/newsletter-accepted-source-profile.json",
+        "entry": "100644 blob b84b4efba2701a377092e73fbf0b8ab06e203437",
+        "sha256": "cbb5b500b909b55c71b18f71364165e8f90f06e19310ee2ab18fbe1feb1ff8bc"
+      },
+      {
+        "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "entry": "100644 blob ea181f0b3ff34af950594b75591cf7442818be93",
+        "sha256": "f4028cd46e71a99d0fb8b8f26b171108871b8cd5abe4cd640a29b31ee1b5245e"
+      },
+      {
+        "path": "scripts/lib/reviewed-pe-manifest-contract.mjs",
+        "entry": "100644 blob be6d87620ebc28b31c0f9e6c07139681b09cf725",
+        "sha256": "ad99088a82dcac64257cf5882933601055211a0c9fbaaf64a626858383c0b876"
+      },
+      {
+        "path": "scripts/lib/reviewed-source-hygiene.mjs",
+        "entry": "100644 blob 637e18952cd86013951c6928de70870f38054672",
+        "sha256": "744d8226125189760568a9a989d802c5332a2d2c7699fc0199e9f03c7f732bbf"
+      }
+    ],
+    "outsideNonDocEntriesExact": 11919,
+    "allReviewNonDocEntriesExactSource": true,
+    "peManifestsEntrypointsAndSixPureOwnersExactPeer": true,
+    "generalArtifactVerifierWholeFileInverseExact": true,
+    "dockerWholePriorFileInverseExact": true,
+    "allPriorWorkflowStepObjectsExactAfterTwoAddedStepsAndProfileOperandInverse": true,
+    "all18ProfileCaseIdentitiesRetained": true,
+    "profile19OnlyOneNewCase": true,
+    "profilePendingNoAcceptedSources": true,
+    "packaging32AndGeneral50SourceExactPreviouslyQualified": true,
+    "authorRepairHashesVerified": 56,
+    "initial32AndHold58HashesVerified": true,
+    "protectedBodyOrDeniedReportRead": false,
+    "actualInstallReceiptBytesExamined": false,
+    "nativeOrActualFrontendArtifactAdmission": false
+  },
+  "limits": {
+    "actualInstallReceiptBytesVerified": false,
+    "actualFrontendArtifactAndServingAdmission": false,
+    "shippingNodeABIOrLibcQualification": false,
+    "nativeDatabaseOrMigrations": false,
+    "actualApplicationOrProviders": false,
+    "hostedCIExecution": false,
+    "protectedReportingBodyRead": false,
+    "deniedRetirementReportRead": false,
+    "arbitraryFilesystemOrOperatingSystemContainmentClaim": false
+  },
+  "actualLocalSourceHygiene": {
+    "sourceHygiene": "PASS",
+    "checkedPaths": 394,
+    "checkedStates": [
+      "index",
+      "working-tree"
+    ],
+    "fourRawArchivesClassified": true,
+    "wholePhysicalPatchWhitespacePass": false,
+    "normalDiagnosticsEmpty": true,
+    "rawObservationsPreserved": true
+  },
+  "fixedPolicyModuleLoadsReviewedJSON": true
+}

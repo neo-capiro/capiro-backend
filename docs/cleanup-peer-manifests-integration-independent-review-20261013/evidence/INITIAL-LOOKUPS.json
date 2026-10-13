@@ -1,0 +1,18 @@
+{
+  "scope": "Captured error excerpts from tool output; no later rerun claimed to reproduce the earlier absent-object state.",
+  "attempts": [
+    {
+      "action": "Initial exact PR2444 tree lookup in common Git before root fetched it",
+      "exitCode": 128,
+      "errorExcerpt": "fatal: ambiguous argument '457e84e7d50f401985355cf22eedc480fd72ad8b^{tree}': unknown revision or path not in the working tree.",
+      "resolution": "Root fetched exact457 into a new preserved ref; later tree19ee verified. No candidate was lost or rewritten."
+    },
+    {
+      "action": "First guard-freeze diff lookup using abbreviated parent4864 after successful fast-forward",
+      "exitCode": 128,
+      "errorExcerpt": "error: short object ID 4864 is ambiguous",
+      "knownCandidates": ["4864eb57c commit", "4864da597 tree", "4864e6c89 blob"],
+      "resolution": "Read exact first parent4864eb57ca4a7ef519c43ef47b270cad310ed737; no ambiguous ref reused."
+    }
+  ]
+}
