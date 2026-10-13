@@ -10,6 +10,7 @@
  */
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { assertResilienceReceipt } from './engagement-phase3-resilience-contract.mjs';
 
 const USAGE = 'Usage: node scripts/verify-engagement-phase3-local-evidence.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, RELEASE_SHA)';
 const cliArgs = process.argv.slice(2);
@@ -216,6 +217,7 @@ async function main() {
   requireTrue(routing.mainDecisionCount > 0, 'proxy evidence has no main decisions');
 
   await assertNoRetainedSecrets();
+  assertResilienceReceipt(resilience);
 
   const summary = {
     marker: 'ENGAGEMENT_PHASE3_LOCAL_EVIDENCE_COMPLETE',

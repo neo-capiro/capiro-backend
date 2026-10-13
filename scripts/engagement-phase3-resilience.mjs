@@ -14,6 +14,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createPhase3FaultController } from './engagement-phase3-faults.mjs';
 import { createPhase3Proxy } from './engagement-phase3-local-proxy.mjs';
+import { probeAuthRejectionRecovery } from './engagement-phase3-resilience-contract.mjs';
 
 const USAGE = 'Usage: node scripts/engagement-phase3-resilience.mjs (requires ENGAGEMENT_PHASE3_EVIDENCE_DIR, ENGAGEMENT_PHASE3_FIXTURE_FILE, ENGAGEMENT_PHASE3_ADMIN_TOKEN_FILE, ENGAGEMENT_PHASE3_DB_CONTAINER)';
 const cliArgs = process.argv.slice(2);
@@ -402,6 +403,11 @@ async function main() {
       throw new Error('Task retry did not resolve to exactly one shared row');
     }
     results.push({ id: 'safe-write-retry-no-duplicate', failedTask, retriedTask });
+
+    results.push(await probeAuthRejectionRecovery({
+      fetchResult, url: `${FAULT_URL}/api/engagement/tasks?clientId=${encodeURIComponent(clientId)}`,
+      taskId: retryTaskId, authenticatedHeaders: (preview) => headers(token, preview),
+    }));
 
     // DB unavailable after boot, then recovered.
     docker('pause', DB_CONTAINER);

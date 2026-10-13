@@ -352,21 +352,12 @@ export function validateManifest(manifest: FloridaDirectoryManifest, inventory: 
 }
 
 async function validatePortraitAssets(manifest: FloridaDirectoryManifest): Promise<string> {
-  const candidates = [
-    join(__dirname, '../../web/public/florida-directory/portraits'),
-    join(__dirname, '../data/florida-legislative-directory/portraits'),
-  ];
-  let directory: string | null = null;
-  for (const candidate of candidates) {
-    try {
-      await access(candidate);
-      directory = candidate;
-      break;
-    } catch {
-      // Try the next release-layout candidate.
-    }
+  const directory = join(__dirname, '../data/florida-legislative-directory/portraits');
+  try {
+    await access(directory);
+  } catch {
+    throw new Error('Florida portrait assets are absent from this release image');
   }
-  if (!directory) throw new Error('Florida portrait assets are absent from this release image');
   const assetProof: Array<{ filename: string; sha256: string; width: number; height: number }> = [];
   for (const member of manifest.house.members.filter((entry) => !entry.vacant)) {
     const portrait = member.portrait!;

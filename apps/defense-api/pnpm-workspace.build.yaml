@@ -1,0 +1,8 @@
+# Defense image dependency closure; repository workspace and lockfile stay intact.
+packages:
+  - "apps/defense-api"
+  - "packages/auth"
+  - "packages/defense-client"
+  - "packages/defense-contracts"
+  - "packages/defense-domain"
+  - "packages/shared"

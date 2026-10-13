@@ -8,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertResilienceReceipt } from './engagement-phase3-resilience-contract.mjs';
 
 const USAGE = 'Usage: node scripts/run-engagement-phase3-resilience.mjs (requires DATABASE_URL, ENGAGEMENT_PHASE3_EVIDENCE_DIR)';
 const cliArgs = process.argv.slice(2);
@@ -103,6 +104,8 @@ async function main() {
   if (typeof taskId !== 'string' || !/^[0-9a-f-]{36}$/i.test(taskId)) {
     throw new Error('Resilience evidence did not expose a valid retry task id for cleanup');
   }
+
+  assertResilienceReceipt(evidence);
 
   const sql = [
     `DELETE FROM engagement_tasks WHERE id = '${taskId}'::uuid;`,
