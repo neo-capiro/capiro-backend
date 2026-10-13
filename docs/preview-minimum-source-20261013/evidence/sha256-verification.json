@@ -1,6 +1,7 @@
 {
   "result": "PASS",
-  "files": 39,
-  "sha256IndexSha256": "f3434366ec23a604518f795fafbad7ec2d64368eca322b18677b9dae14cc5d23",
-  "source": "27b3f8525a134e7f348dda6ff19834ee1397ba55"
+  "files": 40,
+  "sha256IndexSha256": "212b73d1be19e3440a0178f7cf49fafa11e1c81795481494188eb04bf46ab111",
+  "source": "27b3f8525a134e7f348dda6ff19834ee1397ba55",
+  "update": "Meri corrected diagnosis; mode/blob verification only, no native rerun"
 }
