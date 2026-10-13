@@ -1,0 +1,74 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/auth/application-authority.spec.ts
+  application-authority closed wire and minimal receipts
+    ✓ accepts exact empty identity and lowercase nil/v7/v8 context syntax (3 ms)
+    ✓ refuses identity absent (16 ms)
+    ✓ refuses identity null (2 ms)
+    ✓ refuses identity array
+    ✓ refuses identity extra capability
+    ✓ refuses identity symbol (1 ms)
+    ✓ refuses identity inherited (1 ms)
+    ✓ refuses context missing run field
+    ✓ refuses context extra authority
+    ✓ refuses context uppercase hash
+    ✓ refuses context uppercase UUID (1 ms)
+    ✓ refuses context non-string UUID
+    ✓ refuses context accessor (1 ms)
+    ✓ projects closed identity output and refuses original expired bounds
+    ✓ makes revisions deterministic and rejects accessor or unsupported facts (1 ms)
+  actual Clerk owner bounded read-only session assertion
+    ✓ uses exact verified sid and clips JWT/session/abandon bounds (33 ms)
+    ✓ refuses missing sid before SDK work (17 ms)
+    ✓ refuses missing exp before SDK work (14 ms)
+    ✓ refuses expired JWT before SDK work (17 ms)
+    ✓ refuses path-shaped sid before SDK work (15 ms)
+    ✓ refuses current session id=other (13 ms)
+    ✓ refuses current session userId=other (16 ms)
+    ✓ refuses current session status=revoked (19 ms)
+    ✓ refuses current session status=ended (21 ms)
+    ✓ refuses current session expireAt=1 (14 ms)
+    ✓ refuses current session abandonAt=1 (12 ms)
+    ✓ refuses current session expireAt=NaN (16 ms)
+    ✓ refuses current session createdAt=1791867927237 (11 ms)
+    ✓ fails closed on provider failure and consumes timeout late rejection (24 ms)
+  actual middleware selected-provenance current authority
+    ✓ keeps normal pipeline effects but dedicated current checks are read-only and session first (53 ms)
+    ✓ refuses user mapping changing during session await (46 ms)
+    ✓ refuses member removed changing during session await (54 ms)
+    ✓ refuses member role changing during session await (26 ms)
+    ✓ refuses tenant suspended changing during session await (29 ms)
+    ✓ refuses org remapped changing during session await (31 ms)
+    ✓ refuses tenant slug changing during session await (32 ms)
+    ✓ excludes activity but includes exact membership version (45 ms)
+    ✓ rechecks exact selected impersonation and clips original operator expiry (30 ms)
+    ✓ stamps no-store even on missing bearer denial (25 ms)
+  context receipt existing-owner ordering and correlation boundary
+    ✓ has closed minimal output, rechecks identity last and echoes unrelated valid hash without granting anything (2 ms)
+    ✓ refuses conversation id mismatch before client owners
+    ✓ refuses conversation tenantId mismatch before client owners (1 ms)
+    ✓ refuses conversation userId mismatch before client owners
+    ✓ refuses conversation clientId mismatch before client owners (1 ms)
+    ✓ refuses conversation clientId mismatch before client owners
+    ✓ refuses conversation archivedAt mismatch before client owners
+    ✓ refuses conversation status mismatch before client owners (1 ms)
+    ✓ preserves conversationScope refusal
+    ✓ preserves clientVisible refusal (1 ms)
+    ✓ preserves clientAuthority refusal
+    ✓ refuses identity mutation after asynchronous wall lookup
+    ✓ refuses a conversation retarget during the final online identity read
+    ✓ refuses wall revocation during the final online identity read
+    ✓ refuses local membership drift during final context reads (1 ms)
+    ✓ ignores activity/title, but changes revision for wall/security facts (1 ms)
+  actual Meri and scope-owner source integration
+    ✓ uses original active conversation and client lookup plus current prospect owner without constructing service (95 ms)
+    ✓ uses canonical wall predicate before/after tenant/client-bounded fact read (16 ms)
+    ✓ pins both POST200 no-store routes under existing role guard and provider wiring (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       58 passed, 58 total
+Snapshots:   0 total
+Time:        1.719 s
+Ran all test suites.
+Test results written to: docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.json

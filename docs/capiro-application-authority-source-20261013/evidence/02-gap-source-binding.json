@@ -1,0 +1,8 @@
+{
+  "contractSHA256": "a7dee1ca0f450469cf059871e38502822a811cf28a69256720c9143150aa2d49",
+  "testsSHA256": "24fa53f958732959aacf9e8e9d98e15750575bfda847b3912254d508da015b03",
+  "exitCode": 1,
+  "passed": 55,
+  "failed": 2,
+  "qualification": "actual pure owner with fake ports; no SDK or DB execution"
+}

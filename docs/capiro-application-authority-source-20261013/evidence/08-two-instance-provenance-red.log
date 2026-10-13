@@ -1,0 +1,83 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL apps/api/src/auth/application-authority.spec.ts
+  application-authority closed wire and minimal receipts
+    ✓ accepts exact empty identity and lowercase nil/v7/v8 context syntax (15 ms)
+    ✓ refuses identity absent (57 ms)
+    ✓ refuses identity null (6 ms)
+    ✓ refuses identity array (2 ms)
+    ✓ refuses identity extra capability (1 ms)
+    ✓ refuses identity symbol
+    ✓ refuses identity inherited (1 ms)
+    ✓ refuses context missing run field (1 ms)
+    ✓ refuses context extra authority (2 ms)
+    ✓ refuses context uppercase hash (1 ms)
+    ✓ refuses context uppercase UUID (1 ms)
+    ✓ refuses context non-string UUID (1 ms)
+    ✓ refuses context accessor
+    ✓ projects closed identity output and refuses original expired bounds (1 ms)
+    ✓ makes revisions deterministic and rejects accessor or unsupported facts (2 ms)
+  actual Clerk owner bounded read-only session assertion
+    ✓ uses exact verified sid and clips JWT/session/abandon bounds (55 ms)
+    ✓ refuses missing sid before SDK work (25 ms)
+    ✓ refuses missing exp before SDK work (20 ms)
+    ✓ refuses expired JWT before SDK work (18 ms)
+    ✓ refuses path-shaped sid before SDK work (15 ms)
+    ✓ refuses current session id=other (15 ms)
+    ✓ refuses current session userId=other (15 ms)
+    ✓ refuses current session status=revoked (14 ms)
+    ✓ refuses current session status=ended (13 ms)
+    ✓ refuses current session expireAt=1 (14 ms)
+    ✓ refuses current session abandonAt=1 (17 ms)
+    ✓ refuses current session expireAt=NaN (12 ms)
+    ✓ refuses current session createdAt=1791868277258 (12 ms)
+    ✓ fails closed on provider failure and consumes timeout late rejection (24 ms)
+  actual middleware selected-provenance current authority
+    ✕ shares authentic request provenance across the actual separate middleware/provider instances (48 ms)
+    ✓ keeps normal pipeline effects but dedicated current checks are read-only and session first (34 ms)
+    ✓ refuses user mapping changing during session await (39 ms)
+    ✓ refuses member removed changing during session await (25 ms)
+    ✓ refuses member role changing during session await (25 ms)
+    ✓ refuses tenant suspended changing during session await (25 ms)
+    ✓ refuses org remapped changing during session await (23 ms)
+    ✓ refuses tenant slug changing during session await (36 ms)
+    ✓ excludes activity but includes exact membership version (25 ms)
+    ✓ rechecks exact selected impersonation and clips original operator expiry (28 ms)
+    ✓ stamps no-store even on missing bearer denial (24 ms)
+  context receipt existing-owner ordering and correlation boundary
+    ✓ has closed minimal output, rechecks identity last and echoes unrelated valid hash without granting anything (1 ms)
+    ✓ refuses conversation id mismatch before client owners
+    ✓ refuses conversation tenantId mismatch before client owners
+    ✓ refuses conversation userId mismatch before client owners
+    ✓ refuses conversation clientId mismatch before client owners (1 ms)
+    ✓ refuses conversation clientId mismatch before client owners
+    ✓ refuses conversation archivedAt mismatch before client owners
+    ✓ refuses conversation status mismatch before client owners (1 ms)
+    ✓ preserves conversationScope refusal
+    ✓ preserves clientVisible refusal (1 ms)
+    ✓ preserves clientAuthority refusal
+    ✓ refuses identity mutation after asynchronous wall lookup
+    ✓ refuses a conversation retarget during the final online identity read
+    ✓ refuses wall revocation during the final online identity read (1 ms)
+    ✓ refuses local membership drift during final context reads
+    ✓ ignores activity/title, but changes revision for wall/security facts (1 ms)
+  actual Meri and scope-owner source integration
+    ✓ uses original active conversation and client lookup plus current prospect owner without constructing service (80 ms)
+    ✓ uses canonical wall predicate before/after tenant/client-bounded fact read (16 ms)
+    ✓ pins both POST200 no-store routes under existing role guard and provider wiring (1 ms)
+
+  ● actual middleware selected-provenance current authority › shares authentic request provenance across the actual separate middleware/provider instances
+
+    Application authority unavailable
+
+      at denied (evalmachine.<anonymous>:356:30)
+      at TenantContextMiddleware.readApplicationAuthority (evalmachine.<anonymous>:359:19)
+      at Object.<anonymous> (apps/api/src/auth/application-authority.spec.ts:182:28)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 58 passed, 59 total
+Snapshots:   0 total
+Time:        2.14 s
+Ran all test suites.
+Test results written to: docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.json

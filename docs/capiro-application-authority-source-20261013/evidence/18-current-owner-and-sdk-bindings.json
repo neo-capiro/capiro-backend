@@ -1,0 +1,139 @@
+{
+  "base": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "sourceRows": [
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "ce5c4d9bf49e6df098e796b366c3a9f3f59e8d96",
+      "sha256": "89b76502f62155fcf05544a78e19f554a1c89635b62c2b8757ce862ab9ed0daf"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "10e2eee46c016062eebe60f00eb0041c49ac7b0d",
+      "sha256": "25f51b1d894370b6d735822001e06345360f213475eaece21d1c1fd403d61b1f"
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "48a86578828d8e991e057ce364b1924e261e0cef",
+      "sha256": "7b49f49c10fe05c781c096d2202c6be3b6a08a10f9027d9ad5ba6bf301109904"
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "517d5edc2d6861ff390b3681aa557830fb92bd85",
+      "sha256": "12786b23a4899b30c709fa652aa5d017c695074018acd4070047aaffc2bfbe98"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "397c46f49a540a32d231a114945119d51be04c4a",
+      "sha256": "0def3e294659424a8a831c0c2fa652b5fa594b22ea0836d9cf209958d53e60f5"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+      "sha256": "c9562a30e6a67ed75eaf74850d1e4d67c133f040035fb4df8ac80605a3123586"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-runtime.proxy.ts",
+      "gitBlob": "28f02937c824fdbf1f6655f87bd94a52969aa360",
+      "sha256": "34abf99eb804afba2b598d430d4ed4d9806f4bb35b0254b9ccda1b1ef5f956e5"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "gitBlob": "8e4ec3ea811f7b2e8895760269e3b297099abea4",
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67"
+    },
+    {
+      "path": "apps/api/src/auth/auth.module.ts",
+      "gitBlob": "38f8dd8b9df5d8f8e7e3025d7f1541d084b44391",
+      "sha256": "678d559f329735b77ebacbdea6cf9e3466e19ffe8ab0ddc5640f52b17f5f384d"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant.module.ts",
+      "gitBlob": "d617507143fbbf802fd70fcaebcf5455a6d77bf8",
+      "sha256": "6858db17104b4f12a91c69a766bb6c93fc0d0d5cad8ebaf2f04503c9f4131616"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "gitBlob": "b7cf770413db5e5fab3c74ce07f7ed8ff873a993",
+      "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc"
+    },
+    {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "gitBlob": "42065a1749144afec30b1aa56ea5d865dac847bf",
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/api/package.json",
+      "gitBlob": "982391287e8ff83cef048a7d2e98ae169bdbb133",
+      "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitBlob": "08d78e3dbca937f82ada2eb344b961477e9dfc58",
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba"
+    },
+    {
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "gitBlob": "b09e0ed7d15c3d6c3834f4c878ee409bcff86460",
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "gitBlob": "89d87e7f83760ef04db46dd31a69796674f5dacf",
+      "sha256": "3a3089721a795836a4d4714e7f3fdc33869c0c1a26b1fa9a3726881170aee0ea"
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "gitBlob": "2cb7e71ff5929a6a78a97d60d27668409633572d",
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525"
+    }
+  ],
+  "clerk": {
+    "version": "1.34.0",
+    "sourceRows": [
+      {
+        "path": "package.json",
+        "sha256": "a043d3bfd76cdad72fc5dfacb0f2f9332f114159c7fc5d33298cb1ad06388bdf",
+        "bytes": 3817
+      },
+      {
+        "path": "dist/api/endpoints/SessionApi.d.ts",
+        "sha256": "f4e3068303e0447fbf6158a5513eece77eb85756aa4f061b8d46c67c744c8882",
+        "bytes": 1629
+      },
+      {
+        "path": "dist/api/resources/Session.d.ts",
+        "sha256": "0cd1dccc2e87a38fe663ebc35556784090d9b1dc3bcf9bdbec0ea6d9e9408687",
+        "bytes": 1614
+      },
+      {
+        "path": "dist/index.js",
+        "sha256": "a1501ae0a900a7e8cf657037270031b3f80e5c25c98302c9c6b0ea862335e949",
+        "bytes": 143137
+      }
+    ],
+    "readOperation": "existing sessions.getSession(sessionId) GET; no per-call AbortSignal",
+    "runtimeSDKLoaded": false
+  },
+  "prismaCachedDeclarations": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/index.d.ts",
+    "sha256": "5c748fc166a288102f1da6976e9a9d886e0ad7084aa35e4cae3751a8ede53389",
+    "bytes": 53431134,
+    "sourceCompileOnly": true,
+    "currentSchemaGeneration": false,
+    "clientInstantiated": false
+  },
+  "privateContractLocators": {
+    "repo": "neo-capiro/meri-greenfield",
+    "requestCommit": "7ad86d7acc1234e446cacb61c8e7f00b4bf989ab",
+    "requestBlob": "0762bc4877875f6e5d5adeabbb71cdd984d35c06",
+    "validatorBlob": "391e047b61fac0fab12ae061768e50dbcfc61e6a",
+    "comment": 6138126976,
+    "final": "84c2ca01d0bce025a0003b6e724d675a05f2975a",
+    "privateBodiesCopiedToGit": false
+  }
+}

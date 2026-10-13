@@ -1,0 +1,156 @@
+[91merror[0m[90m TS2688: [0mCannot find type definition file for 'node'.
+  The file is in the program because:
+    Entry point of type library 'node' specified in compilerOptions
+[96mapps/api/src/__controller-selected.ts[0m:[93m1[0m:[93m47[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/common' or its corresponding type declarations.
+
+[7m1[0m import { Body,Post,HttpCode,Header,Req } from '@nestjs/common'; import type { Request } from 'express'; import type { TenantContext } from '@capiro/shared'; import {SelectedMeriOwner} from './__meri-selected'; declare function CurrentTenant():ParameterDecorator; export class SelectedController { declare service: SelectedMeriOwner; @Post('application-authority/identity')
+[7m [0m [91m                                              ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/__controller-selected.ts[0m:[93m1[0m:[93m94[0m - [91merror[0m[90m TS2307: [0mCannot find module 'express' or its corresponding type declarations.
+
+[7m1[0m import { Body,Post,HttpCode,Header,Req } from '@nestjs/common'; import type { Request } from 'express'; import type { TenantContext } from '@capiro/shared'; import {SelectedMeriOwner} from './__meri-selected'; declare function CurrentTenant():ParameterDecorator; export class SelectedController { declare service: SelectedMeriOwner; @Post('application-authority/identity')
+[7m [0m [91m                                                                                             ~~~~~~~~~[0m
+[96mapps/api/src/__meri-selected.ts[0m:[93m1[0m:[93m54[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/common' or its corresponding type declarations.
+
+[7m1[0m import { ForbiddenException,NotFoundException } from '@nestjs/common';
+[7m [0m [91m                                                     ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/__meri-selected.ts[0m:[93m2[0m:[93m30[0m - [91merror[0m[90m TS2307: [0mCannot find module 'express' or its corresponding type declarations.
+
+[7m2[0m import type { Request } from 'express'; import type { TenantContext } from '@capiro/shared';
+[7m [0m [91m                             ~~~~~~~~~[0m
+[96mapps/api/src/__meri-selected.ts[0m:[93m3[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module './prisma/prisma.service.js' or its corresponding type declarations.
+
+[7m3[0m import { PrismaService } from './prisma/prisma.service.js';
+[7m [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/__meri-selected.ts[0m:[93m39[0m:[93m76[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m39[0m     const conversation = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+[7m  [0m [91m                                                                           ~~[0m
+[96mapps/api/src/__meri-selected.ts[0m:[93m56[0m:[93m64[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m56[0m     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+[7m  [0m [91m                                                               ~~[0m
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m1[0m:[93m38[0m - [91merror[0m[90m TS2307: [0mCannot find module '@jest/globals' or its corresponding type declarations.
+
+[7m1[0m import { describe, it, expect } from '@jest/globals';
+[7m [0m [91m                                     ~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m2[0m:[93m30[0m - [91merror[0m[90m TS2307: [0mCannot find module 'node:fs' or its corresponding type declarations.
+
+[7m2[0m import { readFileSync } from 'node:fs';
+[7m [0m [91m                             ~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m3[0m:[93m25[0m - [91merror[0m[90m TS2307: [0mCannot find module 'node:path' or its corresponding type declarations.
+
+[7m3[0m import { resolve } from 'node:path';
+[7m [0m [91m                        ~~~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m4[0m:[93m39[0m - [91merror[0m[90m TS2307: [0mCannot find module 'node:vm' or its corresponding type declarations.
+
+[7m4[0m import { createContext, Script } from 'node:vm';
+[7m [0m [91m                                      ~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m5[0m:[93m28[0m - [91merror[0m[90m TS2307: [0mCannot find module 'node:crypto' or its corresponding type declarations.
+
+[7m5[0m import { createHash } from 'node:crypto';
+[7m [0m [91m                           ~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.spec.ts[0m:[93m10[0m:[93m22[0m - [91merror[0m[90m TS2304: [0mCannot find name '__dirname'.
+
+[7m10[0m const root = resolve(__dirname, '../../../..');
+[7m  [0m [91m                     ~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.ts[0m:[93m1[0m:[93m28[0m - [91merror[0m[90m TS2307: [0mCannot find module 'node:crypto' or its corresponding type declarations.
+
+[7m1[0m import { createHash } from 'node:crypto';
+[7m [0m [91m                           ~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/application-authority.ts[0m:[93m2[0m:[93m57[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/common' or its corresponding type declarations.
+
+[7m2[0m import { BadRequestException, ForbiddenException } from '@nestjs/common';
+[7m [0m [91m                                                        ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/clerk.service.ts[0m:[93m13[0m:[93m59[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/common' or its corresponding type declarations.
+
+[7m13[0m import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+[7m  [0m [91m                                                          ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/clerk.service.ts[0m:[93m14[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/config' or its corresponding type declarations.
+
+[7m14[0m import { ConfigService } from '@nestjs/config';
+[7m  [0m [91m                              ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/clerk.service.ts[0m:[93m15[0m:[93m66[0m - [91merror[0m[90m TS2307: [0mCannot find module '@clerk/backend' or its corresponding type declarations.
+
+[7m15[0m import { createClerkClient, type ClerkClient, verifyToken } from '@clerk/backend';
+[7m  [0m [91m                                                                 ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/auth/clerk.service.ts[0m:[93m16[0m:[93m32[0m - [91merror[0m[90m TS2307: [0mCannot find module '../config/config.schema.js' or its corresponding type declarations.
+
+[7m16[0m import type { AppConfig } from '../config/config.schema.js';
+[7m  [0m [91m                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m1[0m:[93m48[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/common' or its corresponding type declarations.
+
+[7m1[0m import { ForbiddenException, Injectable } from '@nestjs/common';
+[7m [0m [91m                                               ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m2[0m:[93m29[0m - [91merror[0m[90m TS2307: [0mCannot find module '@prisma/client' or its corresponding type declarations.
+
+[7m2[0m import type { Prisma } from '@prisma/client';
+[7m [0m [91m                            ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m3[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module '../prisma/prisma.service.js' or its corresponding type declarations.
+
+[7m3[0m import { PrismaService } from '../prisma/prisma.service.js';
+[7m [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m31[0m:[93m52[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m31[0m     return this.prisma.withTenant(tenantId, async (tx) => {
+[7m  [0m [91m                                                   ~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m50[0m:[93m40[0m - [91merror[0m[90m TS7006: [0mParameter 'grant' implicitly has an 'any' type.
+
+[7m50[0m         client.memoryAccessGrants.map((grant) => [grant.id, grant.tenantId, grant.clientId, grant.userId, grant.createdAt.getTime()])];
+[7m  [0m [91m                                       ~~~~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m63[0m:[93m52[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m63[0m     return this.prisma.withTenant(tenantId, async (tx) => {
+[7m  [0m [91m                                                   ~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m107[0m:[93m32[0m - [91merror[0m[90m TS7006: [0mParameter 'row' implicitly has an 'any' type.
+
+[7m107[0m     const resolved = rows.map((row) => row.id);
+[7m   [0m [91m                               ~~~[0m
+[96mapps/api/src/context/context-security-scope.service.ts[0m:[93m136[0m:[93m32[0m - [91merror[0m[90m TS7006: [0mParameter 'row' implicitly has an 'any' type.
+
+[7m136[0m     const resolved = rows.map((row) => row.id);
+[7m   [0m [91m                               ~~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m19[0m:[93m8[0m - [91merror[0m[90m TS2307: [0mCannot find module '@nestjs/common' or its corresponding type declarations.
+
+[7m19[0m } from '@nestjs/common';
+[7m  [0m [91m       ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m20[0m:[93m54[0m - [91merror[0m[90m TS2307: [0mCannot find module 'express' or its corresponding type declarations.
+
+[7m20[0m import type { NextFunction, Request, Response } from 'express';
+[7m  [0m [91m                                                     ~~~~~~~~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m21[0m:[93m29[0m - [91merror[0m[90m TS2307: [0mCannot find module '@prisma/client' or its corresponding type declarations.
+
+[7m21[0m import type { Prisma } from '@prisma/client';
+[7m  [0m [91m                            ~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m30[0m:[93m31[0m - [91merror[0m[90m TS2307: [0mCannot find module '../prisma/prisma.service.js' or its corresponding type declarations.
+
+[7m30[0m import { PrismaService } from '../prisma/prisma.service.js';
+[7m  [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m175[0m:[93m64[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m175[0m     const resolveContext = () => this.prisma.withSystem(async (tx) => {
+[7m   [0m [91m                                                               ~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m249[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'm' implicitly has an 'any' type.
+
+[7m249[0m         memberships.find((m) => claimedTenantId && m.tenantId === claimedTenantId) ??
+[7m   [0m [91m                          ~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m250[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'm' implicitly has an 'any' type.
+
+[7m250[0m         memberships.find((m) => claimedOrgId && m.tenant.clerkOrgId === claimedOrgId) ??
+[7m   [0m [91m                          ~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m252[0m:[93m12[0m - [91merror[0m[90m TS7006: [0mParameter 'm' implicitly has an 'any' type.
+
+[7m252[0m           (m) => claimedTenantSlug && m.tenant.slug === claimedTenantSlug.toLowerCase(),
+[7m   [0m [91m           ~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m254[0m:[93m27[0m - [91merror[0m[90m TS7006: [0mParameter 'm' implicitly has an 'any' type.
+
+[7m254[0m         memberships.find((m) => requestedSlug && m.tenant.slug === requestedSlug) ??
+[7m   [0m [91m                          ~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m430[0m:[93m50[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m430[0m       return await this.prisma.withSystem(async (tx) => {
+[7m   [0m [91m                                                 ~~[0m
+[96mapps/api/src/tenant/tenant-context.middleware.ts[0m:[93m515[0m:[93m37[0m - [91merror[0m[90m TS7006: [0mParameter 'tx' implicitly has an 'any' type.
+
+[7m515[0m       await this.prisma.withSystem((tx) =>
+[7m   [0m [91m                                    ~~[0m
+{"diagnostics":39,"roots":7,"actualOwners":5,"selectedMeriMethods":4,"selectedControllerMethods":2,"fullCore":false,"protectedImplementationRead":false,"prismaRuntime":false}

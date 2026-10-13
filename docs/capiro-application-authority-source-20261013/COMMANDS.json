@@ -1,0 +1,157 @@
+{
+  "cwd": "/tmp/capiro-application-authority-source-20261013",
+  "processReceipts": [
+    {
+      "name": "01-owner-tests",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/01-owner-tests.json",
+      "executorExitCode": 0,
+      "total": 55,
+      "failed": 0,
+      "rawLog": "evidence/01-owner-tests.log",
+      "rawJSON": "evidence/01-owner-tests.json"
+    },
+    {
+      "name": "02-async-context-gap-red",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/02-async-context-gap-red.json",
+      "executorExitCode": 1,
+      "total": 57,
+      "failed": 2,
+      "rawLog": "evidence/02-async-context-gap-red.log",
+      "rawJSON": "evidence/02-async-context-gap-red.json"
+    },
+    {
+      "name": "03-owner-tests-gap-green",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/03-owner-tests-gap-green.json",
+      "executorExitCode": 0,
+      "total": 57,
+      "failed": 0,
+      "rawLog": "evidence/03-owner-tests-gap-green.log",
+      "rawJSON": "evidence/03-owner-tests-gap-green.json"
+    },
+    {
+      "name": "04-owner-tests-current-local-green",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/04-owner-tests-current-local-green.json",
+      "executorExitCode": 0,
+      "total": 58,
+      "failed": 0,
+      "rawLog": "evidence/04-owner-tests-current-local-green.log",
+      "rawJSON": "evidence/04-owner-tests-current-local-green.json"
+    },
+    {
+      "name": "08-two-instance-provenance-red",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/08-two-instance-provenance-red.json",
+      "executorExitCode": 1,
+      "total": 59,
+      "failed": 1,
+      "rawLog": "evidence/08-two-instance-provenance-red.log",
+      "rawJSON": "evidence/08-two-instance-provenance-red.json"
+    },
+    {
+      "name": "09-two-instance-provenance-green",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/09-two-instance-provenance-green.json",
+      "executorExitCode": 0,
+      "total": 59,
+      "failed": 0,
+      "rawLog": "evidence/09-two-instance-provenance-green.log",
+      "rawJSON": "evidence/09-two-instance-provenance-green.json"
+    },
+    {
+      "name": "11-final-owner-tests",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/11-final-owner-tests.json",
+      "executorExitCode": 0,
+      "total": 60,
+      "failed": 0,
+      "rawLog": "evidence/11-final-owner-tests.log",
+      "rawJSON": "evidence/11-final-owner-tests.json"
+    },
+    {
+      "name": "14-proxy-final-owner-tests",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/capiro-application-authority-source-20261013/jest.safe.cjs --runInBand --json --outputFile docs/capiro-application-authority-source-20261013/evidence/14-proxy-final-owner-tests.json",
+      "executorExitCode": 0,
+      "total": 63,
+      "failed": 0,
+      "rawLog": "evidence/14-proxy-final-owner-tests.log",
+      "rawJSON": "evidence/14-proxy-final-owner-tests.json"
+    },
+    {
+      "name": "05-focused-strict-typecheck",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 1,
+      "diagnostics": 39,
+      "rawLog": "evidence/05-focused-strict-typecheck.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "06-focused-strict-typecheck",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 1,
+      "diagnostics": 1,
+      "rawLog": "evidence/06-focused-strict-typecheck.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "07-focused-strict-typecheck",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 0,
+      "diagnostics": 0,
+      "rawLog": "evidence/07-focused-strict-typecheck.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "10-focused-strict-two-instance",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 0,
+      "diagnostics": 0,
+      "rawLog": "evidence/10-focused-strict-two-instance.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "12-final-focused-strict",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 1,
+      "diagnostics": 1,
+      "rawLog": "evidence/12-final-focused-strict.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "13-final-focused-strict",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 0,
+      "diagnostics": 0,
+      "rawLog": "evidence/13-final-focused-strict.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "15-proxy-final-focused-strict",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/focused-typecheck.cjs",
+      "executorExitCode": 0,
+      "diagnostics": 0,
+      "rawLog": "evidence/15-proxy-final-focused-strict.log",
+      "qualification": "focused semantic compile, virtual unrelated-port type boundaries; fullCore=false"
+    },
+    {
+      "name": "16-source-preservation",
+      "executorExitCode": 1,
+      "rawLog": "evidence/16-source-preservation.log",
+      "originalProgram": "evidence/16-source-preservation-program-red.cjs.txt",
+      "failure": "CJS reserved module binding; no source failure"
+    },
+    {
+      "name": "17-source-preservation",
+      "command": "env -i PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=2048 TMPDIR=/tmp /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node docs/capiro-application-authority-source-20261013/source-preservation.cjs",
+      "executorExitCode": 0,
+      "total": 190,
+      "failed": 0,
+      "rawLog": "evidence/17-source-preservation.log",
+      "rawJSON": "evidence/17-source-preservation.json"
+    },
+    {
+      "name": "19-source-whitespace",
+      "command": "git diff --check9db d5 -- apps/api/src (full IDs in source receipt)",
+      "executorExitCode": 0,
+      "rawLog": "evidence/19-source-whitespace.log"
+    }
+  ],
+  "noProviderOrDBOperations": true,
+  "privateBodiesCopied": false
+}
