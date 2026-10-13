@@ -1,0 +1,183 @@
+{
+  "sourceHead": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "selectedMethods": [
+    "assertClient",
+    "stage",
+    "record",
+    "get",
+    "mutation"
+  ],
+  "passed": 41,
+  "failed": 0,
+  "rows": [
+    {
+      "name": "actual GET rechecks owner, stage, current source wall, primary wall before draft/recipient reads",
+      "passed": true
+    },
+    {
+      "name": "actual mutation retains authority then advisory lock then operation",
+      "passed": true
+    },
+    {
+      "name": "persisted type outreach_email refuses before stage",
+      "passed": true
+    },
+    {
+      "name": "persisted type inbound_campaign refuses before stage",
+      "passed": true
+    },
+    {
+      "name": "persisted type  refuses before stage",
+      "passed": true
+    },
+    {
+      "name": "persisted type null refuses before stage",
+      "passed": true
+    },
+    {
+      "name": "persisted type undefined refuses before stage",
+      "passed": true
+    },
+    {
+      "name": "absent/malformed/foreign stage n_missing cannot advance",
+      "passed": true
+    },
+    {
+      "name": "absent/malformed/foreign stage f6666666-6666-4666-8666-666666666666 cannot advance",
+      "passed": true
+    },
+    {
+      "name": "absent/malformed/foreign stage null cannot advance",
+      "passed": true
+    },
+    {
+      "name": "absent/malformed/foreign stage 7 cannot advance",
+      "passed": true
+    },
+    {
+      "name": "absent/malformed/foreign stage undefined cannot advance",
+      "passed": true
+    },
+    {
+      "name": "client row null refuses",
+      "passed": true
+    },
+    {
+      "name": "client row undefined refuses",
+      "passed": true
+    },
+    {
+      "name": "client row n_node refuses",
+      "passed": true
+    },
+    {
+      "name": "client row e5555555-5555-7555-8555-555555555555 refuses",
+      "passed": true
+    },
+    {
+      "name": "client row f6666666-6666-4666-8666-666666666666 refuses",
+      "passed": true
+    },
+    {
+      "name": "client stage null refuses",
+      "passed": true
+    },
+    {
+      "name": "client stage undefined refuses",
+      "passed": true
+    },
+    {
+      "name": "client stage n_node refuses",
+      "passed": true
+    },
+    {
+      "name": "client stage e5555555-5555-7555-8555-555555555555 refuses",
+      "passed": true
+    },
+    {
+      "name": "client stage f6666666-6666-4666-8666-666666666666 refuses",
+      "passed": true
+    },
+    {
+      "name": "both null clients retain legacy profile",
+      "passed": true
+    },
+    {
+      "name": "same UUID spelling comparison preserves stage uppercase",
+      "passed": true
+    },
+    {
+      "name": "absent revision preserves legacy record",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision 0 refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision -1 refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision 3 refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision 4.1 refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision null refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision undefined refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision 4 refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision false refuses",
+      "passed": true
+    },
+    {
+      "name": "present malformed/stale revision 9007199254740992 refuses",
+      "passed": true
+    },
+    {
+      "name": "fresh ownerAllowed revocation cannot reach read/effect ports",
+      "passed": true
+    },
+    {
+      "name": "fresh stageAllowed revocation cannot reach read/effect ports",
+      "passed": true
+    },
+    {
+      "name": "fresh clientAllowed revocation cannot reach read/effect ports",
+      "passed": true
+    },
+    {
+      "name": "source provenance current wall denial applies even null primary",
+      "passed": true
+    },
+    {
+      "name": "advisory conflict preserves existing policy without operation",
+      "passed": true
+    },
+    {
+      "name": "fresh lookup revocation is rechecked on second call, no decoder cache",
+      "passed": true
+    },
+    {
+      "name": "same-shape foreign stage ID passes decoder shape but not current stage owner port",
+      "passed": true
+    }
+  ],
+  "protectedServiceStubOnly": true,
+  "sqlAdapterIsFake": true,
+  "sqlExecuted": false,
+  "realCurrentAuthority": false,
+  "providerEffects": 0
+}

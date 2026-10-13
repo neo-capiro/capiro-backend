@@ -1,0 +1,818 @@
+{
+  "sourceHead": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "authorCorpus": {
+    "total": 129,
+    "passed": 129,
+    "failed": [],
+    "cases": [
+      {
+        "name": "campaign exact deep preservation and detached snapshot",
+        "passed": true
+      },
+      {
+        "name": "list direct envelope preserves complete documents",
+        "passed": true
+      },
+      {
+        "name": "list accepts empty result",
+        "passed": true
+      },
+      {
+        "name": "campaign create get save share one parser without defaults",
+        "passed": true
+      },
+      {
+        "name": "preview keeps hostile HTML as untrusted wire text",
+        "passed": true
+      },
+      {
+        "name": "checks preserve arbitrary check ids and optional node ids",
+        "passed": true
+      },
+      {
+        "name": "html check preserves opaque bounded provider report",
+        "passed": true
+      },
+      {
+        "name": "stage receipt exact canonical route and case-bound identities",
+        "passed": true
+      },
+      {
+        "name": "stage read exact rich snapshot preserves spelling",
+        "passed": true
+      },
+      {
+        "name": "rich record preserves server fact lifecycle fields targets and optional source note",
+        "passed": true
+      },
+      {
+        "name": "rich record refuses a bare digest instead of canonical sha256-prefixed hash",
+        "passed": true
+      },
+      {
+        "name": "sendable is a supplied server boolean never recomputed",
+        "passed": true
+      },
+      {
+        "name": "record permits nullable sender and no tests",
+        "passed": true
+      },
+      {
+        "name": "all current block kinds structurally supported",
+        "passed": true
+      },
+      {
+        "name": "Workspace document and primary client UUID versions6 through8 preserve current owner syntax",
+        "passed": true
+      },
+      {
+        "name": "Core stage and record UUID syntax remains versions1 through5",
+        "passed": true
+      },
+      {
+        "name": "persisted root provenance preserves post-save client union beyond request100",
+        "passed": true
+      },
+      {
+        "name": "persisted root provenance has an explicit receiving array budget",
+        "passed": true
+      },
+      {
+        "name": "embedded saved survey preserves legacy formatted nil ID and date-only timestamp",
+        "passed": true
+      },
+      {
+        "name": "embedded saved survey refuses malformed ID and invalid saved time",
+        "passed": true
+      },
+      {
+        "name": "old video and social optional fields remain absent",
+        "passed": true
+      },
+      {
+        "name": "old optional design and section provenance remain absent",
+        "passed": true
+      },
+      {
+        "name": "nullable primary client remains valid without invented association",
+        "passed": true
+      },
+      {
+        "name": "document node ids are plain strings distinct from resource UUIDs",
+        "passed": true
+      },
+      {
+        "name": "valid JSON extra fields including inert prototype-looking keys survive",
+        "passed": true
+      },
+      {
+        "name": "wire output above request-body cap is not silently truncated",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses missing design",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses missing nested config field",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses nonboolean tracking",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses nonfinite style",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong design version",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses unknown block kind",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional font shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses font resource is a node id",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong provenance type",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong nested saved survey shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong legacy introduction type",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional link preview shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional social settings",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong optional video settings",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses fractional document revision",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses unsafe document revision",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses invalid Workspace document UUID version",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses invalid nullable primary client",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses non-ISO owner timestamp",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses campaign status is closed persisted vocabulary",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses string required body",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong column child shape",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses a guessed data wrapper",
+        "passed": true
+      },
+      {
+        "name": "document binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "stage read binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "stage receipt binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "record binding refuses a valid foreign resource",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong client binding",
+        "passed": true
+      },
+      {
+        "name": "campaign refuses wrong revision binding",
+        "passed": true
+      },
+      {
+        "name": "binding refuses malformed UUID and unsupported key",
+        "passed": true
+      },
+      {
+        "name": "binding refuses own getter without invocation",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong version parent",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong version hash",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong server sendable type",
+        "passed": true
+      },
+      {
+        "name": "record refuses unknown audit state",
+        "passed": true
+      },
+      {
+        "name": "record refuses unknown approval state",
+        "passed": true
+      },
+      {
+        "name": "record refuses unknown generation state",
+        "passed": true
+      },
+      {
+        "name": "record refuses missing version audit checks",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong context note type",
+        "passed": true
+      },
+      {
+        "name": "record refuses malformed recipient email field type",
+        "passed": true
+      },
+      {
+        "name": "record refuses duplicate case-folded version id",
+        "passed": true
+      },
+      {
+        "name": "record refuses nonobject target",
+        "passed": true
+      },
+      {
+        "name": "record refuses wrong excluded field",
+        "passed": true
+      },
+      {
+        "name": "record refuses test foreign version",
+        "passed": true
+      },
+      {
+        "name": "record refuses test foreign sender",
+        "passed": true
+      },
+      {
+        "name": "record refuses test nullable sender conflict",
+        "passed": true
+      },
+      {
+        "name": "record refuses missing record status",
+        "passed": true
+      },
+      {
+        "name": "receipt and stage-read shapes cannot substitute for each other",
+        "passed": true
+      },
+      {
+        "name": "mixed receipt and stage-read shape refuses both",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route https://example.test/?newsletterStage=a1111111-1111-4111-8111-111111111111",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route /engagement/outreach?newsletterStage=b2222222-2222-4222-8222-222222222222",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route /engagement/outreach?newsletterStage=a1111111-1111-4111-8111-111111111111&extra=1",
+        "passed": true
+      },
+      {
+        "name": "receipt refuses noncanonical route /engagement/outreach?newsletterStage=bad",
+        "passed": true
+      },
+      {
+        "name": "preview refuses malformed check severity and HTML field",
+        "passed": true
+      },
+      {
+        "name": "html check refuses guessed report array and foreign revision",
+        "passed": true
+      },
+      {
+        "name": "canonical timestamps refuse calendar rollover instead of normalizing wire data",
+        "passed": true
+      },
+      {
+        "name": "canonical timestamps refuse 24-hour rollover instead of normalizing wire data",
+        "passed": true
+      },
+      {
+        "name": "metadata absent null ordinary and unrelated values projected away",
+        "passed": true
+      },
+      {
+        "name": "metadata preserves UUID case and positive safe integer",
+        "passed": true
+      },
+      {
+        "name": "ordinary and valid rich metadata discriminator",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses \"\"",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses null",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses false",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses 7",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses []",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses {}",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses \"n_node\"",
+        "passed": true
+      },
+      {
+        "name": "reserved stage hint refuses \"a1111111-1111-7111-8111-111111111111\"",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 0",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses -1",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 1.1",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 1",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses null",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses 9007199254740992",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses Infinity",
+        "passed": true
+      },
+      {
+        "name": "reserved revision refuses false",
+        "passed": true
+      },
+      {
+        "name": "wrong-type rich hint refuses before generic selection",
+        "passed": true
+      },
+      {
+        "name": "inherited reserved hints and absent metadata cannot discriminate a wire record",
+        "passed": true
+      },
+      {
+        "name": "nonobject metadata refuses",
+        "passed": true
+      },
+      {
+        "name": "own accessor is refused without getter call",
+        "passed": true
+      },
+      {
+        "name": "array accessor is refused without getter call",
+        "passed": true
+      },
+      {
+        "name": "toJSON function is refused without invoking it",
+        "passed": true
+      },
+      {
+        "name": "custom prototype is refused without inherited getter reads",
+        "passed": true
+      },
+      {
+        "name": "null-prototype JSON is accepted with full shape validation",
+        "passed": true
+      },
+      {
+        "name": "cyclic nested target is refused",
+        "passed": true
+      },
+      {
+        "name": "shared acyclic JSON data is detached in both positions",
+        "passed": true
+      },
+      {
+        "name": "deep generic JSON budget is refused",
+        "passed": true
+      },
+      {
+        "name": "sparse array is refused",
+        "passed": true
+      },
+      {
+        "name": "array extra property is refused",
+        "passed": true
+      },
+      {
+        "name": "symbol key is refused",
+        "passed": true
+      },
+      {
+        "name": "nonenumerable wire field is refused",
+        "passed": true
+      },
+      {
+        "name": "primitive non-JSON values are refused",
+        "passed": true
+      },
+      {
+        "name": "throwing reflection trap returns refusal instead of escaping",
+        "passed": true
+      },
+      {
+        "name": "list count bound uses current owner max100",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound section count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound section block count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound total block count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound column count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound column child count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound source client count",
+        "passed": true
+      },
+      {
+        "name": "owner collection bound font count",
+        "passed": true
+      },
+      {
+        "name": "owner depth0 through6 remains accepted",
+        "passed": true
+      },
+      {
+        "name": "owner depth7 is refused",
+        "passed": true
+      }
+    ]
+  },
+  "independent": {
+    "total": 70,
+    "passed": 70,
+    "failed": 0,
+    "cases": [
+      {
+        "name": "factory block image remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block heading remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block paragraph remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block button remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block divider remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block spacer remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block video remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block social remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block logo remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block survey remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block code remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block apps remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block product remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block product-rec remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block footer remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "factory block columns remains deep exact",
+        "passed": true
+      },
+      {
+        "name": "canonical governmentAffairsNewsletter design preserved",
+        "passed": true
+      },
+      {
+        "name": "canonical createNewsletterLayout design preserved",
+        "passed": true
+      },
+      {
+        "name": "shared refs detached without input coercion or mutation",
+        "passed": true
+      },
+      {
+        "name": "no parser acceptance cache after changing same input",
+        "passed": true
+      },
+      {
+        "name": "null prototype JSON object remains accepted and exact",
+        "passed": true
+      },
+      {
+        "name": "cross realm ordinary JSON accepted without prototype normalization of contents",
+        "passed": true
+      },
+      {
+        "name": "own __proto__ remains inert own data",
+        "passed": true
+      },
+      {
+        "name": "wire accessor rejected without invocation",
+        "passed": true
+      },
+      {
+        "name": "expected binding accessor rejected without invocation",
+        "passed": true
+      },
+      {
+        "name": "non JSON function rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON symbol rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON bigint rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON NaN rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON infinite rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON date rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON map rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON set rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "non JSON custom-class rejected at extra field",
+        "passed": true
+      },
+      {
+        "name": "cycle refused without leaking exception",
+        "passed": true
+      },
+      {
+        "name": "sparse array refused",
+        "passed": true
+      },
+      {
+        "name": "array custom property refused",
+        "passed": true
+      },
+      {
+        "name": "non enumerable extra refused",
+        "passed": true
+      },
+      {
+        "name": "symbol own property refused",
+        "passed": true
+      },
+      {
+        "name": "depth budget fails without stack exception",
+        "passed": true
+      },
+      {
+        "name": "campaign mismatched expected documentId refused",
+        "passed": true
+      },
+      {
+        "name": "campaign mismatched expected revision refused",
+        "passed": true
+      },
+      {
+        "name": "campaign mismatched expected clientId refused",
+        "passed": true
+      },
+      {
+        "name": "case matching UUID does not rewrite wire identity",
+        "passed": true
+      },
+      {
+        "name": "unexpected expected binding key rejected",
+        "passed": true
+      },
+      {
+        "name": "invalid expected revision rejected",
+        "passed": true
+      },
+      {
+        "name": "record mismatched expected recordId refused",
+        "passed": true
+      },
+      {
+        "name": "record mismatched expected stageId refused",
+        "passed": true
+      },
+      {
+        "name": "record mismatched expected documentId refused",
+        "passed": true
+      },
+      {
+        "name": "record mismatched expected clientId refused",
+        "passed": true
+      },
+      {
+        "name": "record mismatched expected revision refused",
+        "passed": true
+      },
+      {
+        "name": "creation receipt accepted only by receipt decoder",
+        "passed": true
+      },
+      {
+        "name": "dedicated immutable read accepted only by stage read decoder",
+        "passed": true
+      },
+      {
+        "name": "receipt route wrong stage rejects",
+        "passed": true
+      },
+      {
+        "name": "receipt route extra query rejects",
+        "passed": true
+      },
+      {
+        "name": "foreign same-shape stage parses but proves no actor authority",
+        "passed": true
+      },
+      {
+        "name": "reserved revision null rejected",
+        "passed": true
+      },
+      {
+        "name": "reserved revision 0 rejected",
+        "passed": true
+      },
+      {
+        "name": "reserved revision 3 rejected",
+        "passed": true
+      },
+      {
+        "name": "reserved revision -1 rejected",
+        "passed": true
+      },
+      {
+        "name": "reserved revision 3.5 rejected",
+        "passed": true
+      },
+      {
+        "name": "reserved revision 9007199254740992 rejected",
+        "passed": true
+      },
+      {
+        "name": "malformed rich hint refuses rather than ordinary fallback",
+        "passed": true
+      },
+      {
+        "name": "wrong record type with rich hint refuses",
+        "passed": true
+      },
+      {
+        "name": "ordinary absent metadata never inherits reserved hint",
+        "passed": true
+      },
+      {
+        "name": "reserved projection retains only bounded canonical hints",
+        "passed": true
+      },
+      {
+        "name": "unknown additive deep JSON retained, never promoted to permission",
+        "passed": true
+      },
+      {
+        "name": "canonical row timestamp 2026-02-30T12:00:00.000Z refused",
+        "passed": true
+      },
+      {
+        "name": "canonical row timestamp 2026-10-13T24:00:00.000Z refused",
+        "passed": true
+      },
+      {
+        "name": "canonical row timestamp 2026-10-13 refused",
+        "passed": true
+      }
+    ]
+  },
+  "getterCalls": 0,
+  "protectedBodyRead": false,
+  "sqlExecuted": false,
+  "providerOrIOParsers": false,
+  "scope": "Finite JSON/field/binding grammar only; no authorization, browser rendering, arbitrary JS sandbox or deployed route claim."
+}
