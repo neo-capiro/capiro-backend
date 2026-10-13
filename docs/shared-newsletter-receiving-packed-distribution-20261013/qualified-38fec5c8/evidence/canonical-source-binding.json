@@ -1,0 +1,292 @@
+{
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "tree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "stage": "/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013",
+  "canonicalFiles": [
+    {
+      "path": "packages/shared/package.json",
+      "mode": "100644",
+      "gitBlob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6",
+      "bytes": 3761,
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf"
+    },
+    {
+      "path": "packages/shared/src/ai-model-policy.ts",
+      "mode": "100644",
+      "gitBlob": "cec5c7487c87c67b5c330ae867587ccabc146680",
+      "bytes": 5033,
+      "sha256": "d2470de73f4b049329e9aaf59e75f0280f998766b6b769dacbbcb2fbdb9e66b5"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "mode": "100644",
+      "gitBlob": "42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "bytes": 1137,
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "mode": "100644",
+      "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "bytes": 4318,
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/client-registration-integrity.ts",
+      "mode": "100644",
+      "gitBlob": "5b82c59fd6e43ec22c067d376137ac6c69f73d4e",
+      "bytes": 7777,
+      "sha256": "1472cf3683ee70e6a7e4ae992b36b03b2c324a565cd68bc459f387a931bccefe"
+    },
+    {
+      "path": "packages/shared/src/defense-budget-line.ts",
+      "mode": "100644",
+      "gitBlob": "a88968b2f2891af495b2248a074990cb64d4728b",
+      "bytes": 5738,
+      "sha256": "8e31070879a32f1b46792630c6f5689483109c98f93521fbb531a32ea0bd51e9"
+    },
+    {
+      "path": "packages/shared/src/defense-research.ts",
+      "mode": "100644",
+      "gitBlob": "5e87e803d3231d0fb93b507439b1bc95cff94873",
+      "bytes": 20679,
+      "sha256": "27f03c3a19f5d3426e85d374143b8c89ca10937419126ffd868e61b7130e724d"
+    },
+    {
+      "path": "packages/shared/src/funding-claim.ts",
+      "mode": "100644",
+      "gitBlob": "834cfdc097ac170d4f96b79edc88fa669bb56039",
+      "bytes": 25949,
+      "sha256": "2f820f5891ff140038224b4a8114c4ec83f3353c4083ec362e0730f2a14a77ab"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2-detail.ts",
+      "mode": "100644",
+      "gitBlob": "0d2d19bf9696eddb7f9cf612d9c08e20ae51d43c",
+      "bytes": 6645,
+      "sha256": "dd7783ced2d5ca22c98db2c35b456b686516edb75245d1daaf906ff55497114b"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2-workflow.ts",
+      "mode": "100644",
+      "gitBlob": "afe21a295344cc4859fc7a790752eec3e746c2c7",
+      "bytes": 1582,
+      "sha256": "34bb6c27b11dfb483f7894b4286fec6de46ac91df0b50bc6e69bef070340e823"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2.ts",
+      "mode": "100644",
+      "gitBlob": "5bb5d2a100fe0e312092e0b69c65314abfe8ffa4",
+      "bytes": 14664,
+      "sha256": "37fe8499b219d9eb29e288744ca840149fe35f5f7ac5e328a58a03add2257893"
+    },
+    {
+      "path": "packages/shared/src/funding-priorities.ts",
+      "mode": "100644",
+      "gitBlob": "6882fc4897fe805c2040a245c1022e3a78de9866",
+      "bytes": 1265,
+      "sha256": "82e59918864b70f8ad2dfc0f9d341c651a952e6a24a3b811c5b82a6ffbe041f3"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "mode": "100644",
+      "gitBlob": "39ed5db53cf9599b72f9ddf1885568441b873217",
+      "bytes": 273692,
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a"
+    },
+    {
+      "path": "packages/shared/src/legislative-research.ts",
+      "mode": "100644",
+      "gitBlob": "ce3c93ae310885884a20f0a169062a9378dcdfb0",
+      "bytes": 13892,
+      "sha256": "1ca1772ecb3ac924660f41eb181bf252c4d7989747287af7e238402491295826"
+    },
+    {
+      "path": "packages/shared/src/legiwatch-phase8.ts",
+      "mode": "100644",
+      "gitBlob": "fac862c0a96fdc47d92800629b566c0caef78981",
+      "bytes": 8328,
+      "sha256": "11ea686e845a02f022f2bd2fc0687b08a2a0be464ada912e0ae40e94f616f6f0"
+    },
+    {
+      "path": "packages/shared/src/legiwatch-query.ts",
+      "mode": "100644",
+      "gitBlob": "9eb7ee5feefa95c514d46c87f291c9b2c36190ba",
+      "bytes": 10141,
+      "sha256": "94a5cfcdbbff33132a9a8b0766e6a1f2856e2d395bdba180af5da20fe41a045c"
+    },
+    {
+      "path": "packages/shared/src/market-title.ts",
+      "mode": "100644",
+      "gitBlob": "ca940f9016e050f01bc8ede89f2a8b356d456e02",
+      "bytes": 2561,
+      "sha256": "3bd334381746f0e66cf53db2ffdbb9ce4fdb1cd060b4411dc264d5375c1607c0"
+    },
+    {
+      "path": "packages/shared/src/meri-document-request.ts",
+      "mode": "100644",
+      "gitBlob": "c3dc6871832ddf2c06dffe14fdb0eff4be034a82",
+      "bytes": 3733,
+      "sha256": "809add572f5162bfab985b5e6ed5dd24aa58f2b291cab69c64fbed383d06d1d1"
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "mode": "100644",
+      "gitBlob": "e676a6389711555100e9a458bf0c95a61113f257",
+      "bytes": 35738,
+      "sha256": "66f1cc4fb2bd6226ea56774e70dd981e3f80e12f61ab915d63d10c3646c4731f"
+    },
+    {
+      "path": "packages/shared/src/meri-skills.ts",
+      "mode": "100644",
+      "gitBlob": "b1b1496177e7210214d14ce571036707e1305e63",
+      "bytes": 15699,
+      "sha256": "8c23514721ad84242de330fa90a1f2d5d2ed4b48ca609e3222f6e57414e020b0"
+    },
+    {
+      "path": "packages/shared/src/money.ts",
+      "mode": "100644",
+      "gitBlob": "3c8546da8378c1ab9e12f2c44dfe7906b335507a",
+      "bytes": 2461,
+      "sha256": "716e981669967e81cd785880aa42576d044e034709b8c7f9623b280f3f48df67"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "mode": "100644",
+      "gitBlob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "bytes": 94631,
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "mode": "100644",
+      "gitBlob": "98286f542da05527fb124a16dd1e831ae40cf558",
+      "bytes": 5766,
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "mode": "100644",
+      "gitBlob": "1a8a2228b4c79c7ec24af77289e308748c18baef",
+      "bytes": 30638,
+      "sha256": "816bf07aa7baa26d97581ee4dede9c792dbd60803011cb1db3ae82f523aa63d6"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "mode": "100644",
+      "gitBlob": "75b44244e401b767a5a646d81da486279a2af9e0",
+      "bytes": 30096,
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "mode": "100644",
+      "gitBlob": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8",
+      "bytes": 2068,
+      "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "mode": "100644",
+      "gitBlob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "bytes": 36609,
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7"
+    },
+    {
+      "path": "packages/shared/src/pe-source-coverage.ts",
+      "mode": "100644",
+      "gitBlob": "53dfa8b790afbeef53a6b40f833d373cd50c8133",
+      "bytes": 7723,
+      "sha256": "c4d60bc72ab8ae42e6f69998651eb997cbb38b16039d1799b647cde605e2c42d"
+    },
+    {
+      "path": "packages/shared/src/prospect-resource-scope.ts",
+      "mode": "100644",
+      "gitBlob": "08a2f40ccb97780dac520d0789b113bc316f8886",
+      "bytes": 3684,
+      "sha256": "0982e0a984cfded64c05cf726eb3d95a67d8700d4671ee651378646cb9d5d2f7"
+    },
+    {
+      "path": "packages/shared/src/research-portfolios.ts",
+      "mode": "100644",
+      "gitBlob": "ed70483bea476eaced8b1ae4e45ccc1f373a1341",
+      "bytes": 31751,
+      "sha256": "8cd82fdc0ac7d6fcb3d61be1b84f6537c50e1bf0d0872043c9e62b46fbb23c90"
+    },
+    {
+      "path": "packages/shared/src/schedule/deadline.ts",
+      "mode": "100644",
+      "gitBlob": "f16e2aee4f71a5b0bd2b57b881a189e6e64a496f",
+      "bytes": 2333,
+      "sha256": "69aab17c2a329fcfded00e7f3e8ebf3ebffebb1800b37e555efacb6901f08c9e"
+    },
+    {
+      "path": "packages/shared/src/schedule/synthesis.ts",
+      "mode": "100644",
+      "gitBlob": "a84ae175d3b4ce5cceca8608a89de3a14b299f4f",
+      "bytes": 7016,
+      "sha256": "515f2d07b367a4fe9190d6468a1c2a6d23ca093a608bbf48656958ab7f1ec9f0"
+    },
+    {
+      "path": "packages/shared/src/schedule/time-zone.ts",
+      "mode": "100644",
+      "gitBlob": "eba9e249d3c92d897c062f725f1c137fcc0fe132",
+      "bytes": 3231,
+      "sha256": "4f76a48e72d911780ec149223d49ee3ab1126238132a4dd53d400935e947a378"
+    },
+    {
+      "path": "packages/shared/src/schedule/validate.ts",
+      "mode": "100644",
+      "gitBlob": "b7e7cdacfb7f3063871a13e7a517f4d5dddfbc94",
+      "bytes": 4554,
+      "sha256": "ff321d0b38f9034ac1c1b30c3511742be75024d6eb6a750926c0da50efa3bae7"
+    },
+    {
+      "path": "packages/shared/src/tenant-feature.ts",
+      "mode": "100644",
+      "gitBlob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "bytes": 550,
+      "sha256": "0256d761d048fc28ad6f0c0753e99ed4a6559b4a001a0688f24e21f1d350fbb6"
+    },
+    {
+      "path": "packages/shared/src/time.ts",
+      "mode": "100644",
+      "gitBlob": "9224a10408f143c5192b34332f5de70b492af9c8",
+      "bytes": 653,
+      "sha256": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854"
+    },
+    {
+      "path": "packages/shared/src/us-states.ts",
+      "mode": "100644",
+      "gitBlob": "26911d2f758f7ea56347b12efcf596b7119ac574",
+      "bytes": 1573,
+      "sha256": "ad65aa6cd523c745c5fa835abe30b0d4e6bb060bc5c1765af4c707ad1f8e0e8b"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "mode": "100644",
+      "gitBlob": "cd780f1d3505ce402004befd4266b0608f95a33a",
+      "bytes": 9740,
+      "sha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9"
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "mode": "100644",
+      "gitBlob": "cff5b3a8506d1a290987883f0ed773b2118da169",
+      "bytes": 686,
+      "sha256": "89278950647f196ac9ae3c088f96a35f83e2fa45a7c28c563af3b2e2c059dab5"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "mode": "100644",
+      "gitBlob": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "bytes": 471,
+      "sha256": "8ee4b594732f7ae6ffba44e3d591be59060a818720d2627fb14cfd3deec63aa7"
+    }
+  ],
+  "packageMetadataUnchanged": true,
+  "publicSubpathsUnchanged": true,
+  "newsletterAdditiveExportInverseSha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+  "oldTarballSha256": "697d826647e88e7f8559da386be7de1ae6408dc61c73877b86c2e17275fd63ab",
+  "compilerOutputInitiallyAbsent": true
+}

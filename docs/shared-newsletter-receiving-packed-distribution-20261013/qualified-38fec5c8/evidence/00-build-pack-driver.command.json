@@ -1,0 +1,24 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-38fec5c8/evidence/prepare-and-pack.py",
+    "--source",
+    "38fec5c83585850ed75a7d3693b3b90d517e70af",
+    "--tree",
+    "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+    "--repository",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+    "--packet",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-38fec5c8",
+    "--stage",
+    "/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 0,
+  "utc": "2026-10-13T01:31:30.613086+00:00"
+}

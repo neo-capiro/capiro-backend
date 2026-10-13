@@ -1,0 +1,10 @@
+{
+  "command": [
+    "python3",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-38fec5c8/evidence/verify-final-artifact-continuity.py",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "exitCode": 0,
+  "execution": "Actual source-owned read-only tar/Git/file verification; no parser or compiler repeat."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "filename": "capiro-shared-0.0.0.tgz",
+  "bytes": 532178,
+  "sha256": "3e435f280fac8fd301eb753e9fc7ead93691cf979fc1641792fedd88e1bfd6d5",
+  "integrity": "sha512-qYNGTMe2gP6BHxDw+daj1SHkNbAFenVY/PnScny1IkHl/PL3cspHSFYa9KAyCeWesjXUOSRTWOKxX07oH6OvQw==",
+  "entries": 187,
+  "deterministicPacks": 2,
+  "cachedSharedBuildExit": 0
+}

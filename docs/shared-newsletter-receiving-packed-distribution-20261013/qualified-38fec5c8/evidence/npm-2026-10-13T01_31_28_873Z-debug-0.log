@@ -1,0 +1,18 @@
+0 verbose cli /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.19.0
+3 silly config load:file:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/npmrc
+4 silly config load:file:/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/packages/shared/.npmrc
+5 silly config load:file:/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/empty-pack-configuration/user.npmrc
+6 silly config load:file:/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/empty-pack-configuration/global.npmrc
+7 verbose title npm config get offline ignore-scripts update-notifier
+8 verbose argv "config" "get" "offline" "ignore-scripts" "update-notifier" "--ignore-scripts" "--offline" "--no-update-notifier" "--userconfig" "/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/empty-pack-configuration/user.npmrc" "--globalconfig" "/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/empty-pack-configuration/global.npmrc" "--cache" "/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/npm-cache"
+9 verbose logfile logs-max:10 dir:/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/npm-cache/_logs/2026-10-13T01_31_28_873Z-
+10 verbose logfile /workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/npm-cache/_logs/2026-10-13T01_31_28_873Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose cwd /workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/packages/shared
+13 verbose os Linux 6.18.44
+14 verbose node v24.19.0
+15 verbose npm  v11.9.0
+16 verbose exit 0
+17 info ok

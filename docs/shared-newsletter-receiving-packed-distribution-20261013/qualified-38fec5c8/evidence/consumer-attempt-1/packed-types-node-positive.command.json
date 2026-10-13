@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig-node.json"
+  ],
+  "cwd": "/workspace/capiro-shared-newsletter-receiving-dist-38fec5c8-20261013/consumer",
+  "exitCode": 0,
+  "signal": null,
+  "spawnError": null
+}

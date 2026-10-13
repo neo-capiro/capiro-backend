@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-38fec5c8/evidence/qualify-packed-consumer.mjs",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/shared-newsletter-receiving-packed-distribution-20261013/qualified-38fec5c8",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "startedAt": "2026-10-13T01:34:58.066565+00:00",
+  "finishedAt": "2026-10-13T01:35:08.388149+00:00",
+  "exitCode": 0,
+  "elapsedSeconds": 10.32162267100648
+}

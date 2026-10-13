@@ -1,0 +1,6 @@
+consumer-negative.ts(3,23): error TS2345: Argument of type '"invented-kind"' is not assignable to parameter of type '"code" | "button" | "product" | "columns" | "footer" | "video" | "spacer" | "image" | "heading" | "paragraph" | "divider" | "social" | "logo" | "survey" | "apps" | "product-rec"'.
+consumer-negative.ts(4,34): error TS2322: Type 'number' is not assignable to type 'string'.
+consumer-negative.ts(5,26): error TS2345: Argument of type '"invented-platform"' is not assignable to parameter of type '"forward" | "facebook" | "twitter" | "pinterest" | "linkedin" | "instapaper"'.
+consumer-negative.ts(9,50): error TS2322: Type 'string' is not assignable to type 'number'.
+consumer-negative.ts(10,41): error TS2322: Type 'number' is not assignable to type 'string'.
+consumer-negative.ts(11,35): error TS2353: Object literal may only specify known properties, and 'recordId' does not exist in type 'Pick<NewsletterReceiveIdentity, "documentId" | "revision" | "clientId" | "stageId">'.
