@@ -1,0 +1,9 @@
+{
+  "encoding": "utf-8 JSON string; decode text to recover exact raw bytes",
+  "rawCommit": "5a05eecbfb8d4d141db5c3aaba3929df82799baf",
+  "rawPath": "docs/intelligence-final-integration-20261013/evidence/attempt3-fixture-jest.log",
+  "rawBlob": "daa7796d981707a7e21b826f8b1231b3b6c58306",
+  "bytes": 1471,
+  "sha256": "87c75394ae17ac701b010b5a9c1b1f7c577f23febf249ed1141db2ad01ade78e",
+  "text": "ts-jest[config] (WARN) \n    The \"ts-jest\" config option \"isolatedModules\" is deprecated and will be removed in v30.0.0. Please use \"isolatedModules: true\" in /tmp/capirov2-intelligence-final-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules\n  \nFAIL src/intelligence/intelligence.mapping-governance.spec.ts\n  \u25cf Test suite failed to run\n\n    ENOENT: no such file or directory, open '/tmp/capirov2-intelligence-final-integration-20261013/apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'\n\n      282 |   test('bulk confirm still excludes them too', () => {\n      283 |     const src = readFileSync(\n    > 284 |       join(__dirname, '__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt'),\n          |                                            ^\n      285 |       'utf8',\n      286 |     );\n      287 |     const confirmAll = src.slice(src.indexOf('async function handleConfirmAll'));\n\n      at src/intelligence/intelligence.mapping-governance.spec.ts:284:44\n      at Object.<anonymous> (src/intelligence/intelligence.mapping-governance.spec.ts:283:24)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        5.484 s\nRan all test suites within paths \"src/intelligence/intelligence.mapping-governance.spec.ts\".\nTest results written to: ../../docs/intelligence-final-integration-20261013/evidence/fixture-jest-results.json\n"
+}
