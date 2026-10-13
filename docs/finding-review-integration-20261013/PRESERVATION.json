@@ -1,0 +1,43 @@
+{
+  "previousMasterHead": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e",
+  "previousMasterPath": "docs/regulatory-source-frontend-admission-20261013/SHA256SUMS.json",
+  "oldRows": 4335,
+  "unchangedBlobMode": 4333,
+  "explicitSupersessions": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "oldHead": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e",
+      "oldModeBlob": [
+        "100644",
+        "6037c120f35510275a88eadeebf39011ad8cb862"
+      ],
+      "oldSha256": "1787ce77f93d6f05478230a87da847c494bd48dddfdb0c7f8fcf0c6f45782af2",
+      "currentModeBlob": [
+        "100644",
+        "0169e392db147412fa6fd762bc4c598db391350d"
+      ],
+      "currentSha256": "07765bcf201166fe56c4c2d2d39f1f85ab87e43ebbdb6666c722207f7060c540",
+      "reason": "exact reviewed donor source or current canonical handoff supersession"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldHead": "30cfdb9bfc030934cc68e39bcc79b21c88d3993e",
+      "oldModeBlob": [
+        "100644",
+        "408186d5fefdcbd95164e275739fd8f57b51247b"
+      ],
+      "oldSha256": "bc4937f5aee25b91cc8432be9f1ab021f5ea62ff55414056cfaface50dd54906",
+      "currentModeBlob": [
+        "100644",
+        "dff0d92a3c34b497dbeab2c35d650a3e6d5a2c78"
+      ],
+      "currentSha256": "74185711c8cfa40a87076f9e62f619e2e943b9e35ef92fd2d74ab47a67694a42",
+      "reason": "exact reviewed donor source or current canonical handoff supersession"
+    }
+  ],
+  "recoverableIndexedRetirements": [],
+  "allOriginalHeadsRetained": true,
+  "allCodeDeltaExplicitlyReviewed": 11,
+  "newHygieneExceptions": 0,
+  "unchangedPriorHashesCarriedByExactGitBlobMode": true
+}

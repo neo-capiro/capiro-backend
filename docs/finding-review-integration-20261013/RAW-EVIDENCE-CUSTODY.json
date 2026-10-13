@@ -1,0 +1,15 @@
+{
+  "originalRawHead": "1f2c2a1254acca00d35d3b985acecf36d57fa603",
+  "rawEnvelopes": [
+    {
+      "path": "docs/finding-review-integration-20261013/evidence/jest.log",
+      "originalBytes": 4004,
+      "originalSha256": "fd441d3d8cc99c0c67def1901f991a802e5f68be9a12a4d65a6a82177026bccf",
+      "reason": "canonical ts-jest warning whitespace retained losslessly in JSON/base64 and original ancestor",
+      "schema": "capiro.lossless-evidence-bytes.v1"
+    }
+  ],
+  "otherRawObservationsUnchanged": true,
+  "initialClassAuditFailurePreserved": true,
+  "newHygieneExceptions": 0
+}
