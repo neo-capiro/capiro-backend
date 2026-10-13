@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const BASE = '0a76666dc57aa852586c35167426a540939c9918';
+const BASE = '523ef9167f05a33efdbdfbbfc08d5fc2e2679012';
 const read = file => readFileSync(path.join(ROOT, file), 'utf8');
 const DOCKER = read('apps/web/Dockerfile.frontend-artifact');
 const RUNTIME = `FROM base AS runtime
@@ -53,8 +53,12 @@ test('default Web Docker, release operator, workspace, lock and Onboard default 
     const before = execFileSync('git', ['show', `${BASE}:${file}`], { cwd: ROOT, encoding: 'utf8' });
     assert.equal(read(file), before, file);
   }
-  // The receiving branch has no active legacy release operator. Do not restore it as a dependency.
-  assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), false);
+  // The current canonical builder only assembles explicit already-built inputs; deployment defaults stay untouched.
+  assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), true);
+  const builder = read('scripts/build-newsletter-release.sh');
+  assert.match(builder, /newsletter-artifact-packaging-plan\.mjs/);
+  assert.match(builder, /exec \/usr\/bin\/env -i PATH=\/usr\/bin:\/bin/);
+  assert.doesNotMatch(builder, /aws |ecr|docker (?:build|run|push)|npm (?:ci|install)|pnpm/);
   assert.match(read('apps/web/Dockerfile'), /^EXPOSE 8080$/m);
 });
 
