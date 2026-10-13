@@ -1,0 +1,58 @@
+{
+  "previousMasterHead": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1",
+  "previousMasterPath": "docs/finding-review-integration-20261013/SHA256SUMS.json",
+  "oldRows": 4375,
+  "unchangedBlobMode": 4372,
+  "explicitSupersessions": [
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter.contract.spec.ts",
+      "oldHead": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1",
+      "oldModeBlob": [
+        "100644",
+        "f42ab8c6f21da67d834d443b5c428ff370b3b454"
+      ],
+      "oldSha256": "22858594eafb314f01578f63a494ec79a4de7c6d65361b5499c7ab9d4970c714",
+      "currentModeBlob": [
+        "100644",
+        "fd67336d0436e2f4c76a4768314052c3da361213"
+      ],
+      "currentSha256": "0542b096b002a417acd1abdf8a800ffcf8a998bb7680d2372a21d60b0b98f2f3",
+      "reason": "exact reviewed donor source or current canonical handoff supersession"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "oldHead": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1",
+      "oldModeBlob": [
+        "100644",
+        "0169e392db147412fa6fd762bc4c598db391350d"
+      ],
+      "oldSha256": "07765bcf201166fe56c4c2d2d39f1f85ab87e43ebbdb6666c722207f7060c540",
+      "currentModeBlob": [
+        "100644",
+        "8f40f6f4caeabca6ba402359f67f0fd2af59117c"
+      ],
+      "currentSha256": "8533a0a1816f42aaf9c37353d6f58261f86cde839c548534185fa6b0afe81297",
+      "reason": "exact reviewed donor source or current canonical handoff supersession"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldHead": "5c66c53ce65f6a7f3f0acae729171ce6bad3e6b1",
+      "oldModeBlob": [
+        "100644",
+        "dff0d92a3c34b497dbeab2c35d650a3e6d5a2c78"
+      ],
+      "oldSha256": "74185711c8cfa40a87076f9e62f619e2e943b9e35ef92fd2d74ab47a67694a42",
+      "currentModeBlob": [
+        "100644",
+        "79491e314da4caa82be207f4ca0b001a17615ad5"
+      ],
+      "currentSha256": "b1e92065ddbc79727ec436c8137768617f0ecc27793b1ac42f1c3ca4d446ae2d",
+      "reason": "exact reviewed donor source or current canonical handoff supersession"
+    }
+  ],
+  "recoverableIndexedRetirements": [],
+  "allOriginalHeadsRetained": true,
+  "allCodeDeltaExplicitlyReviewed": 24,
+  "newHygieneExceptions": 0,
+  "unchangedPriorHashesCarriedByExactGitBlobMode": true
+}

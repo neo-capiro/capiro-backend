@@ -1,0 +1,15 @@
+{
+  "originalRawHead": "56a2c1edb5ecf18063a150b71cd438bbfd66f790",
+  "rawEnvelopes": [
+    {
+      "path": "docs/advocacy-history-integration-20261013/evidence/jest.log",
+      "originalBytes": 5754,
+      "originalSha256": "d842def01655d4e48252e370fe0455f44f8ca8f68f55a18fc6955bbe9d19cbc2",
+      "reason": "canonical ts-jest warning whitespace retained losslessly in JSON/base64 and original ancestor",
+      "schema": "capiro.lossless-evidence-bytes.v1"
+    }
+  ],
+  "otherRawObservationsUnchanged": true,
+  "allPriorFailedEvidencePreserved": true,
+  "newHygieneExceptions": 0
+}
