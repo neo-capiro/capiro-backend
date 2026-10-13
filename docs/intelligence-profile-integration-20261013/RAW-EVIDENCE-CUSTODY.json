@@ -1,0 +1,18 @@
+{
+  "originalRawHead": "92727cb33b490e0996c4f0620081086301b1a280",
+  "originalRawTree": "279e12b44cbe68297533bbcbdc7e0141f9a4f074",
+  "rawEnvelopes": [
+    {
+      "path": "docs/intelligence-profile-integration-20261013/evidence/jest.log",
+      "originalBytes": 19318,
+      "originalSha256": "3f48cf826ef7503c8ce16b406262825cee005b2e51d877d7c7d8b86871f3ee82",
+      "reason": "canonical ts-jest warning whitespace retained losslessly in JSON/base64 and original ancestor",
+      "schema": "capiro.lossless-evidence-bytes.v1"
+    }
+  ],
+  "receiptLogBytesAndSha256BindDecodedOriginal": true,
+  "emptyTypeAndBuildLogsUnchanged": true,
+  "initialCacheMissAndOwnedInitializerLockObservationRetained": true,
+  "allPriorFailedPassingEvidenceAndSourceObjectsPreserved": true,
+  "newHygieneExceptions": 0
+}

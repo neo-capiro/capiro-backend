@@ -1,0 +1,62 @@
+{
+  "qualifiedBaseHead": "f075a3a9b903b3234c64b1770ef76b1bd8bebae1",
+  "qualifiedBaseTree": "821f55af90dcbffca22d8141d5101f06072de7c2",
+  "baseTrackedModeBlobRows": 26355,
+  "unchangedBaseModeBlobRows": 26352,
+  "explicitReviewedSourceOrHandoffSupersessions": [
+    {
+      "path": "apps/api/src/intelligence/intelligence.client-issue-codes.spec.ts",
+      "oldModeBlob": [
+        "100644",
+        "5729d005c0f11e89c7a73069318ce367f100353c"
+      ],
+      "oldSha256": "7fb74e658ad5a322ff300341811ee7342276e176dbd97c5e94c9e832ff9eba4b",
+      "newModeBlob": [
+        "100644",
+        "f06e91f1704da77ca4ff2a12f85b2e64198bdcc8"
+      ],
+      "newSha256": "7fc3cc4717004dc155cd236b11c2a9e29f354e10ebbb76f6ae4ea800ebacbacc",
+      "reason": "exact reviewed PR2467 donor"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "oldModeBlob": [
+        "100644",
+        "0456ddefc3f041e42b841147c399b0c156a3f6bf"
+      ],
+      "oldSha256": "f7cfe0f3257e2a75c43c7a70ce66de3939d79f0e0fbc336028970b68146b7096",
+      "newModeBlob": [
+        "100644",
+        "facc61cc422695730f16e8dbcfc75dfc339424ec"
+      ],
+      "newSha256": "86919349d88d5a0f41f84a7ef55a72e07ee37ee950a69fc0816f311f5151ecc6",
+      "reason": "exact reviewed PR2467 donor"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldModeBlob": [
+        "100644",
+        "2c838af24c5892c0953cf51f4716b8972f05a3b6"
+      ],
+      "oldSha256": "edf7b80ba6877a30cbdf33eabcec51f4eedcdd2700c900458f80d62340fce198",
+      "newModeBlob": [
+        "100644",
+        "6764e0dd92f49890c7dd64d37d439da80473a749"
+      ],
+      "newSha256": "ec19a7a0f28758a1302ffc3c645730a16a4eda1f18ebb618b84c1c1dd31b49e0",
+      "reason": "append current profile handoff and overlap matrix"
+    }
+  ],
+  "deletedBasePaths": [],
+  "priorIndexAndLayerBindings": "evidence/prior-index-bindings.json",
+  "allSixPriorIndicesAndLayersRemainExact": true,
+  "canonicalHandoffOriginalBytesRetainedAsPrefix": true,
+  "noPriorEvidenceDeletedCopiedOrNormalized": true,
+  "independentReviewHead": "caeddf8079e6325903b7ebb8eae8b0cfc311bd90",
+  "rawEvidenceCheckpointHead": "92727cb33b490e0996c4f0620081086301b1a280",
+  "sourceHead": "a54b47282c73dad51bf2d58cff00c7e58a055182",
+  "codeChangesAfterSourceFreeze": 0,
+  "allOriginalHeadsRetained": true,
+  "allCompletionAuthoritySourcePolicyAndArtifactInputsUnchanged": true,
+  "nativeArtifactDeploymentClaimed": false
+}
