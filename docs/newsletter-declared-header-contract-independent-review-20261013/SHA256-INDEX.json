@@ -1,0 +1,245 @@
+{
+  "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "entries": [
+    {
+      "path": "ACCEPTANCE.json",
+      "bytes": 4091,
+      "sha256": "9766387a7029e3b3e111fa847a216976213e79828fecdb7657f201b0fa7f2ab4"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 3182,
+      "sha256": "c433fc6ef1457ff9221e1bf175ee25b5ebfcc87067eae7f40fc496d20ba4a7d3"
+    },
+    {
+      "path": "evidence/COMMANDS.json",
+      "bytes": 3938,
+      "sha256": "372930c1005385980f32036315f14576825b1ad95a97f728a86211661f618a41"
+    },
+    {
+      "path": "evidence/after/apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "bytes": 5292,
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+    },
+    {
+      "path": "evidence/after/apps/api/src/engagement/newsletter-outreach.service.ts",
+      "bytes": 25409,
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522"
+    },
+    {
+      "path": "evidence/after/apps/web/nginx/nginx.conf",
+      "bytes": 3259,
+      "sha256": "57b7f4ac6b072c481bcc3695117f3917f50217447752949d07a8a3c4c9f43828"
+    },
+    {
+      "path": "evidence/after/apps/workspace/src/newsletters/newsletter.controller.ts",
+      "bytes": 16288,
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+    },
+    {
+      "path": "evidence/after/apps/workspace/src/newsletters/newsletter.service.ts",
+      "bytes": 86320,
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+    },
+    {
+      "path": "evidence/after/infra/cdk/lib/compute-stack.ts",
+      "bytes": 116860,
+      "sha256": "9297f3a0c7642433dba9f5ffa5a376490d427806e93c3c8790ef68bd1770debe"
+    },
+    {
+      "path": "evidence/after/infra/cdk/lib/web-vnext-stack.ts",
+      "bytes": 9731,
+      "sha256": "07d385945b6a72ab8c71d26337922024106ea0dcd444144c474941527e40ea83"
+    },
+    {
+      "path": "evidence/after/packages/shared/src/newsletter-render.ts",
+      "bytes": 30096,
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+    },
+    {
+      "path": "evidence/after/scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "bytes": 23781,
+      "sha256": "e0294f1e1407a23fc296fb08c8a3ea5d1adfc7884443a4e0c927515b19f1ef36"
+    },
+    {
+      "path": "evidence/after/scripts/engagement-api-alb-rules.sh",
+      "bytes": 19102,
+      "sha256": "133d9067b5de66bb260f96c8a7af41d03c487210679ab71cedc4c30e3bc2e338"
+    },
+    {
+      "path": "evidence/after/scripts/lib/newsletter-declared-edge-contract.mjs",
+      "bytes": 21235,
+      "sha256": "0c61e5902882fdc51e56559b3bb862c53be0aa03e8d08a0d024ebd3ee90c7bd6"
+    },
+    {
+      "path": "evidence/before/apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "bytes": 5292,
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+    },
+    {
+      "path": "evidence/before/apps/api/src/engagement/newsletter-outreach.service.ts",
+      "bytes": 25409,
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522"
+    },
+    {
+      "path": "evidence/before/apps/web/nginx/nginx.conf",
+      "bytes": 3259,
+      "sha256": "57b7f4ac6b072c481bcc3695117f3917f50217447752949d07a8a3c4c9f43828"
+    },
+    {
+      "path": "evidence/before/apps/workspace/src/newsletters/newsletter.controller.ts",
+      "bytes": 16288,
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+    },
+    {
+      "path": "evidence/before/apps/workspace/src/newsletters/newsletter.service.ts",
+      "bytes": 86320,
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+    },
+    {
+      "path": "evidence/before/infra/cdk/lib/compute-stack.ts",
+      "bytes": 116860,
+      "sha256": "9297f3a0c7642433dba9f5ffa5a376490d427806e93c3c8790ef68bd1770debe"
+    },
+    {
+      "path": "evidence/before/infra/cdk/lib/web-vnext-stack.ts",
+      "bytes": 9731,
+      "sha256": "07d385945b6a72ab8c71d26337922024106ea0dcd444144c474941527e40ea83"
+    },
+    {
+      "path": "evidence/before/packages/shared/src/newsletter-render.ts",
+      "bytes": 30096,
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+    },
+    {
+      "path": "evidence/before/scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "bytes": 23781,
+      "sha256": "e0294f1e1407a23fc296fb08c8a3ea5d1adfc7884443a4e0c927515b19f1ef36"
+    },
+    {
+      "path": "evidence/before/scripts/engagement-api-alb-rules.sh",
+      "bytes": 19102,
+      "sha256": "133d9067b5de66bb260f96c8a7af41d03c487210679ab71cedc4c30e3bc2e338"
+    },
+    {
+      "path": "evidence/before/scripts/lib/newsletter-declared-edge-contract.mjs",
+      "bytes": 21218,
+      "sha256": "d10cfc186c85cc7483f526df2a243665af6baa2856a2eb14a5e12b342e94f893"
+    },
+    {
+      "path": "evidence/before-attempt0.stderr",
+      "bytes": 749,
+      "sha256": "0cbec10b7a114d54be2e9245b4b2944c7e67c7f71015a1733faceece3a8ece7f"
+    },
+    {
+      "path": "evidence/before-attempt0.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/before.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/before.stdout",
+      "bytes": 4242,
+      "sha256": "75cc96e57e0ac0fc515e4d5e38b3fa406377ab751259810217c174f18dc57034"
+    },
+    {
+      "path": "evidence/candidate-attempt0.stderr",
+      "bytes": 749,
+      "sha256": "0cbec10b7a114d54be2e9245b4b2944c7e67c7f71015a1733faceece3a8ece7f"
+    },
+    {
+      "path": "evidence/candidate-attempt0.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/candidate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/candidate.stdout",
+      "bytes": 3092,
+      "sha256": "b21538f3646534fbea0ad450d552a7ecea7c60e73da58f0cdb7195be7e2bd695"
+    },
+    {
+      "path": "evidence/header-controls-attempt0.stderr",
+      "bytes": 772,
+      "sha256": "fa5f173daeff93fa476ad9e4bf77c4749ac5ef4fef692c65cca3610d02bb0fb6"
+    },
+    {
+      "path": "evidence/header-controls-attempt0.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/header-controls.json",
+      "bytes": 32020,
+      "sha256": "52261a6696b5514e51cce4efbfa8ac4dc361806cb338a66c4ef78a744bdbb17a"
+    },
+    {
+      "path": "evidence/header-controls.mjs",
+      "bytes": 6174,
+      "sha256": "be0b9903d2f1c1b98ea94205e9410ad07e65b6134dc2007fd0b6e37e1e04dbb4"
+    },
+    {
+      "path": "evidence/header-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/header-controls.stdout",
+      "bytes": 134,
+      "sha256": "5e1883f44ef867352374bc2fb5161535fa99b5d23d62fcc08ae35be243fdb366"
+    },
+    {
+      "path": "evidence/host-controls.cjs",
+      "bytes": 857,
+      "sha256": "d82ebd4310269454b10178b833248251efb87098ee6c51b2c74daaacb3e7a7a0"
+    },
+    {
+      "path": "evidence/host-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/host-controls.stdout",
+      "bytes": 123,
+      "sha256": "d9e3c2b02da80fa9be82223b647790163e043c25f096639efd11b74ad32a92a2"
+    },
+    {
+      "path": "evidence/prepare.py",
+      "bytes": 4747,
+      "sha256": "1377fe7aabd8b899885458d0d75ecec7aae8e4b8e77b5c605aeee4225704a4f2"
+    },
+    {
+      "path": "evidence/prepare.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/prepare.stdout",
+      "bytes": 231,
+      "sha256": "43392a42f3ef3d55442d87d713a30ba0129f073ae23ea5d4811e757b819bb431"
+    },
+    {
+      "path": "evidence/preservation.json",
+      "bytes": 5008,
+      "sha256": "e902401e0971d8dbc46aaf7ece3089ca3784a22d3e828f392233dd98c01db128"
+    },
+    {
+      "path": "evidence/refusing-host-attempt0.cjs",
+      "bytes": 1244,
+      "sha256": "63d00a4b70618a607ae3ddaa274b787618f745fd496803d40186bae423bf125e"
+    },
+    {
+      "path": "evidence/refusing-host.cjs",
+      "bytes": 2005,
+      "sha256": "b0b97f65bb73c43c2d5caa9d8be1a070fdb8726540adcce30111e2094320bfb4"
+    }
+  ]
+}

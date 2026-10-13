@@ -1,0 +1,126 @@
+{
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "sourceTree": "c26db6c07a817f7bc70870391d58645c8eeb1655",
+  "author": "fd93f18f1f609e989706b8d19e0064ee63c84fa9",
+  "authorHashesVerified": 31,
+  "sourcePaths": [
+    "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+    "scripts/lib/newsletter-declared-edge-contract.mjs"
+  ],
+  "outsideTwoPathsExact": 24776,
+  "sourceModes": [
+    {
+      "path": "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "entry": "100644 blob 6cc8ea27e1b7753e9da45cf88b83cf2af88fc78d"
+    },
+    {
+      "path": "scripts/lib/newsletter-declared-edge-contract.mjs",
+      "entry": "100644 blob 9a669e4092c8a420df2508a801c2332084e1351a"
+    }
+  ],
+  "current9OpaqueInputs": [
+    {
+      "path": "infra/cdk/lib/compute-stack.ts",
+      "donorBytes": 116860,
+      "donorSha256": "9297f3a0c7642433dba9f5ffa5a376490d427806e93c3c8790ef68bd1770debe",
+      "bytes": 116860,
+      "sha256": "9297f3a0c7642433dba9f5ffa5a376490d427806e93c3c8790ef68bd1770debe",
+      "blob": "53342a3c988be078f1b081501da939366e332652",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "infra/cdk/lib/web-vnext-stack.ts",
+      "donorBytes": 9731,
+      "donorSha256": "07d385945b6a72ab8c71d26337922024106ea0dcd444144c474941527e40ea83",
+      "bytes": 9731,
+      "sha256": "07d385945b6a72ab8c71d26337922024106ea0dcd444144c474941527e40ea83",
+      "blob": "bfc74d4a5f22479295fd77f2c1ebe7105169f1cc",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "apps/web/nginx/nginx.conf",
+      "donorBytes": 3259,
+      "donorSha256": "57b7f4ac6b072c481bcc3695117f3917f50217447752949d07a8a3c4c9f43828",
+      "bytes": 3259,
+      "sha256": "57b7f4ac6b072c481bcc3695117f3917f50217447752949d07a8a3c4c9f43828",
+      "blob": "982811cbdce9fbf403fd3c1f778509cce0dfc713",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/engagement-api-alb-rules.sh",
+      "donorBytes": 19102,
+      "donorSha256": "133d9067b5de66bb260f96c8a7af41d03c487210679ab71cedc4c30e3bc2e338",
+      "bytes": 19102,
+      "sha256": "133d9067b5de66bb260f96c8a7af41d03c487210679ab71cedc4c30e3bc2e338",
+      "blob": "4bfa20c72c89274d3a995940bc82b595ffdad873",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "donorBytes": 5292,
+      "donorSha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "bytes": 5292,
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "blob": "038cbd5db39bb9ce6235ec85c586542310b1f506",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "donorBytes": 24560,
+      "donorSha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7",
+      "bytes": 25409,
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+      "blob": "15b6d76e025165264115c6081616311f7be639aa",
+      "byteChangedFromDonorPin": true,
+      "mode": "100644"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "donorBytes": 16288,
+      "donorSha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "bytes": 16288,
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "blob": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "donorBytes": 86320,
+      "donorSha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583",
+      "bytes": 86320,
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583",
+      "blob": "95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "donorBytes": 30096,
+      "donorSha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "bytes": 30096,
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "blob": "75b44244e401b767a5a646d81da486279a2af9e0",
+      "byteChangedFromDonorPin": false,
+      "mode": "100644"
+    }
+  ],
+  "changedDonorPins": [
+    "apps/api/src/engagement/newsletter-outreach.service.ts"
+  ],
+  "modelInverseDonorExact": true,
+  "modelDonorInverseSingleNullPrototypeLineExact": true,
+  "specInverseDonorExact": true,
+  "removeTwoAddedCasesRestoresEntirePublishedBeforeSpec": true,
+  "donorAndBeforeFourGitBlobHashesVerified": true,
+  "authorSourceIsActualAncestor": true,
+  "protectedReportingBodyRead": false,
+  "deniedReportRead": false,
+  "sourceInputBodiesExecuted": false
+}

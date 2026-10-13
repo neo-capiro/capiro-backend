@@ -1,0 +1,1134 @@
+{
+  "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "projectionBeforeAfterExact": true,
+  "rows": 90,
+  "positiveRows": 60,
+  "before": {
+    "passed": 86,
+    "failed": 4,
+    "outcomes": [
+      {
+        "name": "duplicate ordinary __proto__ selectDeclaredNewsletterTarget",
+        "passed": false,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "duplicate ordinary __proto__ matchesDeclaredNewsletterManualPreview",
+        "passed": false,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "duplicate ordinary constructor selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary constructor matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary toString selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary toString matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary hasOwnProperty selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary hasOwnProperty matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary X-Extra selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary X-Extra matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null __proto__ selectDeclaredNewsletterTarget",
+        "passed": false,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "duplicate null __proto__ matchesDeclaredNewsletterManualPreview",
+        "passed": false,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "duplicate null constructor selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null constructor matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null toString selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null toString matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null hasOwnProperty selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null hasOwnProperty matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null X-Extra selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null X-Extra matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "single ordinary __proto__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary __proto__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary __proto__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary __proto__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary __proto__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary __proto__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary __PROTO__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary __PROTO__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary __PROTO__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary __PROTO__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary constructor api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary constructor web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary constructor workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary constructor marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary constructor",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary constructor",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary toString api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary toString web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary toString workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary toString marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary toString",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary toString",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary hasOwnProperty api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary hasOwnProperty web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary hasOwnProperty workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary hasOwnProperty marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null __proto__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null __proto__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null __proto__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null __proto__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null __proto__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null __proto__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null __PROTO__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null __PROTO__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null __PROTO__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null __PROTO__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null constructor api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null constructor web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null constructor workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null constructor marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null constructor",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null constructor",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null toString api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null toString web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null toString workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null toString marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null toString",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null toString",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null hasOwnProperty api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null hasOwnProperty web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null hasOwnProperty workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null hasOwnProperty marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "malformed 80",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 81",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 82",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 83",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 84",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 85",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 86",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal header object required"
+      },
+      {
+        "name": "malformed 87",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal header object required"
+      },
+      {
+        "name": "malformed 88",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 89",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      }
+    ]
+  },
+  "after": {
+    "passed": 90,
+    "failed": 0,
+    "outcomes": [
+      {
+        "name": "duplicate ordinary __proto__ selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary __proto__ matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary constructor selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary constructor matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary toString selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary toString matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary hasOwnProperty selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary hasOwnProperty matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary X-Extra selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate ordinary X-Extra matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null __proto__ selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null __proto__ matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null constructor selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null constructor matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null toString selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null toString matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null hasOwnProperty selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null hasOwnProperty matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null X-Extra selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate null X-Extra matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "single ordinary __proto__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary __proto__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary __proto__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary __proto__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary __proto__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary __proto__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary __PROTO__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary __PROTO__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary __PROTO__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary __PROTO__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary constructor api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary constructor web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary constructor workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary constructor marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary constructor",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary constructor",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary toString api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary toString web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary toString workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary toString marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary toString",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary toString",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single ordinary hasOwnProperty api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single ordinary hasOwnProperty web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single ordinary hasOwnProperty workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single ordinary hasOwnProperty marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview ordinary hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone ordinary hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null __proto__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null __proto__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null __proto__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null __proto__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null __proto__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null __proto__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null __PROTO__ api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null __PROTO__ web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null __PROTO__ workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null __PROTO__ marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null __PROTO__",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null constructor api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null constructor web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null constructor workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null constructor marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null constructor",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null constructor",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null toString api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null toString web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null toString workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null toString marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null toString",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null toString",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single null hasOwnProperty api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single null hasOwnProperty web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single null hasOwnProperty workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single null hasOwnProperty marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single exact preview null hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "single alone null hasOwnProperty",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "malformed 80",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 81",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 82",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 83",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 84",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 85",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 86",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal header object required"
+      },
+      {
+        "name": "malformed 87",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal header object required"
+      },
+      {
+        "name": "malformed 88",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "malformed 89",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      }
+    ]
+  },
+  "supplementary": {
+    "passed": 29,
+    "names": [
+      "false contract realLiveVerified",
+      "false contract fullyQualified",
+      "false contract deployedServingVerified",
+      "false contract nativeServingVerified",
+      "false contract uiVerified",
+      "false requirements realLiveVerified",
+      "false requirements fullyQualified",
+      "false requirements deployedServingVerified",
+      "false requirements nativeServingVerified",
+      "false requirements uiVerified",
+      "preview not authorization",
+      "preview undeployed",
+      "requirements backendHEAD false",
+      "source provenance frozen",
+      "forged contract selectDeclaredNewsletterTarget",
+      "forged contract matchesDeclaredNewsletterManualPreview",
+      "drift infra/cdk/lib/compute-stack.ts",
+      "drift infra/cdk/lib/web-vnext-stack.ts",
+      "drift apps/web/nginx/nginx.conf",
+      "drift scripts/engagement-api-alb-rules.sh",
+      "drift apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "drift apps/api/src/engagement/newsletter-outreach.service.ts",
+      "drift apps/workspace/src/newsletters/newsletter.controller.ts",
+      "drift apps/workspace/src/newsletters/newsletter.service.ts",
+      "drift packages/shared/src/newsletter-render.ts",
+      "map missing",
+      "map extra",
+      "uppercase request host preserved",
+      "origin exact one slash"
+    ]
+  },
+  "allRequestRowsFrozen": true,
+  "liveOrNativeAcceptance": false
+}

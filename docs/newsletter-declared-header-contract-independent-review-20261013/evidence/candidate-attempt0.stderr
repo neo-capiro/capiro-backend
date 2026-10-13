@@ -1,0 +1,17 @@
+node:internal/test_runner/harness:124
+      throw err;
+      ^
+
+TypeError: Object prototype may only be an Object or null: undefined
+    at setPrototypeOf (<anonymous>)
+    at node:_http_server:668:1
+    at BuiltinModule.compileForInternalLoader (node:internal/bootstrap/realm:398:7)
+    at requireBuiltin (node:internal/bootstrap/realm:429:14)
+    at node:http:44:5
+    at BuiltinModule.compileForInternalLoader (node:internal/bootstrap/realm:398:7)
+    at BuiltinModule.compileForPublicLoader (node:internal/bootstrap/realm:337:10)
+    at loadBuiltinModule (node:internal/modules/helpers:126:7)
+    at loadBuiltinWithHooks (node:internal/modules/cjs/loader:1250:15)
+    at Module._load (node:internal/modules/cjs/loader:1306:50)
+
+Node.js v24.19.0
