@@ -1,0 +1,27 @@
+{
+  "allPriorHeadsAndIndicesPreserved": true,
+  "codePathsExactAcceptedSource": 8,
+  "decodedRawBytesPreserved": 57323,
+  "explicitSupersessions": [
+    {
+      "currentModeBlob": [
+        "100644",
+        "ddaf1daf81677f466384231291c7827a27cae3cd"
+      ],
+      "currentSha256": "a6ba84d193d40b26826e3c381bd98cdebe1c1a14bd07a8e1fffa7aa510873ffb",
+      "oldHead": "cac35b007917127b0b78dc38c62b14ff99e90d4e",
+      "oldModeBlob": [
+        "100644",
+        "1daf9e8030bbc3e7d7508447d7ca8267ea3fc294"
+      ],
+      "oldSha256": "7edcb14b02162259800f0f7128b619b2f5e77f94cde691abf5cefda822a0c81d",
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "reason": "reviewed Meri source or current canonical handoff successor"
+    }
+  ],
+  "newHygieneExceptions": 0,
+  "oldRows": 3542,
+  "outsideEightCodePathsByteExact": true,
+  "previousMasterHead": "cac35b007917127b0b78dc38c62b14ff99e90d4e",
+  "unchangedBlobMode": 3541
+}

@@ -1,0 +1,16 @@
+{
+  "checkedHead": "a460e341b58147cc1fa2a6e33e50fdc860364798",
+  "containers": 12,
+  "custodyMapSha256": "e3b276600ce64c27c45bca55e960158f6e9432580793828b5a2bf6ae6fbcd054",
+  "decodedBytes": 57323,
+  "decodedExactOriginal": true,
+  "historicalIndexInventorySha256": "72aab7a788011ae976145dcd9a0123359d283717f4486fd80f9d789ce896cc3c",
+  "historicalIndicesSameGitAndIndex": true,
+  "kind": "coordination receipt; not a new runtime test",
+  "reviewer": "/root/newsletter_staging",
+  "selectedHygiene": "PASS",
+  "selectedHygienePaths": 701,
+  "semanticEditsOrTestReplay": false,
+  "sourcePathsExactAcceptedHeadAndMode": 8,
+  "wholePhysicalWhitespaceFloor": false
+}
