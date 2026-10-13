@@ -1,0 +1,66 @@
+{
+  "reviewedSource": "0b49070d0f18afea933af9312d63921b276ee4e0",
+  "tree": "481dd8066d0375403a452f6e029725cf7c80dc81",
+  "stageSource": "4699fdea910ba25c809725630443198c8ae189e4",
+  "stageTree": "61c076225b4d9a3aba431a83342e028a3f7b60ca",
+  "wrapperSHA256": "8d2abbc1c0d549a5e1bf6df99f3eeb757b9fe8eaf8cfc6471a8655f0b6b77c12",
+  "bindingsSHA256": "9fae1e1a2783cb98d8c013a70174b2d2c493842ebd8642c4c9f2ac03e92e9a04",
+  "modules": [
+    {
+      "path": "packages/contracts/action-authority-0.2/validate.mjs",
+      "bytes": 1880,
+      "sha256": "40fa36caeedb7ec17bef27119c846feb372bf5e1c6678032d5bcd0ab540ebd79",
+      "gitBlob": "391e047b61fac0fab12ae061768e50dbcfc61e6a",
+      "actualGitEquality": true
+    },
+    {
+      "path": "packages/contracts/commands-0.2/execution-boundary.mjs",
+      "bytes": 1562,
+      "sha256": "e1c3cfb9fd75b7e623f1bc9492ab06793b4145277336eac1039ff5eef8e6690c",
+      "gitBlob": "22099d1728b4c62742b55c9bbefa1151f0599788",
+      "actualGitEquality": true
+    },
+    {
+      "path": "packages/contracts/retrieval-0.2/operation-contracts.mjs",
+      "bytes": 5544,
+      "sha256": "f09b6b3a8b0186b3e2f05a17135ce40bac9ed728796493501ce7d8d4d647adfd",
+      "gitBlob": "f5ba11b19952a58023971ca434de2506e96035b8",
+      "actualGitEquality": true
+    },
+    {
+      "path": "packages/contracts/validate.mjs",
+      "bytes": 3311,
+      "sha256": "c2449fd55300b31bdc1e829b5d918a531f1c4b2c675085a5b4707726ddd36d10",
+      "gitBlob": "2effe37084e7d20c20a33dc0104baea237f7d309",
+      "actualGitEquality": true
+    },
+    {
+      "path": "packages/contracts/meri.schema.json",
+      "bytes": 50043,
+      "sha256": "e3de878198bbd557843ac440e48664ad5175eecd99f7ec932021ffc465bf8c5b",
+      "gitBlob": "d7b3c22491ae81c5e875243754413aa7d35097e3",
+      "actualGitEquality": true
+    },
+    {
+      "path": "apps/control/action-host/application-adapters/authority-http.mjs",
+      "bytes": 4664,
+      "sha256": "ba9af89c706dc6bbb27f55e06c9e6331e5c655edabb3a22d2cc13269750ef993",
+      "gitBlob": "7c4a83004884bd32834496ede86af907e18d21d1",
+      "actualGitEquality": true
+    },
+    {
+      "path": "packages/runtime/operation-lifetime.mjs",
+      "bytes": 2595,
+      "sha256": "10730af13c7cf29623fc7e8c836262b02f01e3436ac6e1488d263ec6ed19b52f",
+      "gitBlob": "a90524cdfe899260310d87bafed5a7a31a664317",
+      "actualGitEquality": true
+    }
+  ],
+  "sixDirectDependencyHashes": true,
+  "nodeExecutableHash": true,
+  "cacheLink": true,
+  "privateModulesExecuted": false,
+  "HTTPExecuted": false,
+  "rawPrivateBodiesCommitted": false,
+  "finding": "bounded raw HTTP capture missing in initial wrapper; parsed DTO cannot be called raw-response byte proof"
+}
