@@ -109,9 +109,9 @@ async function syncDirectory(io, value) {
   const handle = await io.open(value, constants.O_RDONLY);
   try { await handle.sync(); } finally { await handle.close(); }
 }
-async function writeBuffer(io, value, bytes) {
-  const handle = await io.open(value, 'wx', 0o644);
-  try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+async function writeBuffer(io, value, bytes, mode = 0o644) {
+  const handle = await io.open(value, 'wx', mode);
+  try { await handle.writeFile(bytes); await handle.chmod(mode); await handle.sync(); } finally { await handle.close(); }
 }
 function receiptFor(options, artifact, counts, fixtureLabel) {
   return { schemaVersion: 1, kind: 'newsletter-release-assembly', status: 'PASS',
@@ -120,6 +120,8 @@ function receiptFor(options, artifact, counts, fixtureLabel) {
     declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
     backendSourceIndependentlyVerified: false, manifestSha256: options.manifestSha256,
     runtimeTarget: pinsFor(options).runtimeTarget, artifact, counts,
+    permissionHandling: { regularFileMode: '0644 | observed source execute bits (0111)',
+      privilegedBitsPreserved: false, manifestAuthenticatesPermissions: false, runtimePermissionsCompatibilityVerified: false },
     assemblyHost: { node: process.version, platform: process.platform, architecture: process.arch },
     outputDir: options.outputDir, receiptPath: options.outputDir + '/build-receipt.json',
     atomicDirectoryPublishPerformed: true, durableFilesAndDirectorySyncPerformed: true,
@@ -148,7 +150,7 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
       || totalBytes > NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxTotalBytes
       || manifest.entries.some(entry => entry.type === 'file' && entry.bytes > NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes))
     refuse('artifact resource budget');
-  const files = new Map(), symlinks = new Map();
+  const files = new Map(), symlinks = new Map(), fileModes = new Map();
   async function walk(root, prefix) {
     await directory(io, root);
     const names = await io.readdir(root);
@@ -172,7 +174,9 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
           const bytes = await regularBuffer(io, local, Math.min(entry.bytes, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes));
           if (bytes.length !== entry.bytes || sha(bytes) !== entry.sha256 || (files.has(target) && !files.get(target).equals(bytes)))
             refuse('input byte identity/conflicting overlay');
-          files.set(target, bytes);
+          const mode = 0o644 | (stat.mode & 0o111);
+          if (fileModes.has(target) && fileModes.get(target) !== mode) refuse('conflicting input executable modes');
+          fileModes.set(target, mode); files.set(target, bytes);
         }
       }
     }
@@ -181,7 +185,8 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
   await walk(options.publicDir, 'apps/web/public/');
   await walk(options.staticDir, 'apps/web/.next/static/');
   const artifact = await validateFrontendStandaloneArtifact({ manifestBytes, files, symlinks, pins, newsletterIdentity });
-  const counts = { regularFiles: files.size, symlinks: symlinks.size, bytes: totalBytes };
+  const counts = { regularFiles: files.size, symlinks: symlinks.size, bytes: totalBytes,
+    fileModes: [...fileModes].sort(([a], [b]) => a.localeCompare(b)).map(([name, mode]) => ({ path: name, mode: mode.toString(8) })) };
   const parent = path.dirname(options.outputDir), lockPath = options.outputDir + '.newsletter-assembly.lock';
   await directory(io, parent); await absent(io, options.outputDir);
   let lock, temporary, published = false;
@@ -196,7 +201,7 @@ export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsle
       for (let folder = path.posix.dirname(entry.path); folder !== '.'; folder = path.posix.dirname(folder)) dirs.add(rootfs + '/' + folder);
     }
     for (const folder of [...dirs].sort((a, b) => a.length - b.length)) if (folder !== rootfs) await io.mkdir(folder);
-    for (const [name, bytes] of files) await writeBuffer(io, rootfs + '/' + name, bytes);
+    for (const [name, bytes] of files) await writeBuffer(io, rootfs + '/' + name, bytes, fileModes.get(name));
     for (const [name, target] of symlinks) await io.symlink(target, rootfs + '/' + name);
     await writeBuffer(io, temporary + '/manifest.json', manifestBytes);
     const revalidated = await readFrontendStandaloneArtifact({ artifactDir: temporary, pins, newsletterIdentity,
@@ -227,5 +232,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (invocation.mode === 'help') console.log(NEWSLETTER_BUILD_USAGE);
     else if (invocation.mode === 'plan') console.log(JSON.stringify(createNewsletterArtifactPackagingPlan(invocation.options), null, 2));
     else console.log(JSON.stringify(await assembleNewsletterReleaseArtifact(invocation.options), null, 2));
-  } catch (error) { console.error(JSON.stringify({ status: 'FAIL', assemblyPerformed: false, shippingAuthorized: false, error: String(error.message).slice(0, 300) })); process.exitCode = 2; }
+  } catch (error) { console.error(JSON.stringify({ status: 'FAIL', assemblyCompleted: false, shippingAuthorized: false, error: String(error.message).slice(0, 300) })); process.exitCode = 2; }
 }
