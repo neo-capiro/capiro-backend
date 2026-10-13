@@ -247,17 +247,24 @@ test('PARITY: the provision merge keeps the strongest link and orders identicall
 
 test('PARITY: the program-level attribution caveat is byte-identical to apps/api', () => {
   // The prior defense-api implementation shipped a REWORDED caveat. This is
-  // user-visible attribution language on a governed claim, so it is pinned against
-  // apps/api's source text, not against a paraphrase in this test.
+  // user-visible attribution language on a governed claim, so it stays pinned
+  // against the unchanged pre-consolidation implementation above. The API now
+  // calls the canonical merge instead of carrying another caveat literal.
   const legacySource = fs.readFileSync(
     path.join(REPO_ROOT, 'apps/api/src/program-element/program-element-read.service.ts'),
     'utf8',
   );
-  const match = /'(Program-level match: [^']*)'/.exec(legacySource);
-  assert.ok(match, 'could not find the attribution caveat in apps/api source');
+  assert.match(legacySource, /return mergeProvisionLinks\(directLinks, programLinks\);/);
+  assert.match(legacySource, /from '@capiro\/defense-domain\/pe-read'/);
+  assert.doesNotMatch(legacySource, /const byProvision = new Map/);
+  const legacyItem = legacyMerge(
+    [],
+    [link('legacy-program', 'program_alias', 'candidate', 0.6)],
+  )[0];
+  assert.ok(legacyItem, 'historical program-path fixture must produce a provision');
   assert.equal(
     PROGRAM_LEVEL_ATTRIBUTION_CAVEAT,
-    match![1],
+    legacyItem.attributionCaveat,
     'the program-level attribution caveat diverged from apps/api',
   );
 });
