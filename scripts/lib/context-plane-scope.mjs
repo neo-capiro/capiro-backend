@@ -5,6 +5,7 @@ import {
 export {
   parseKnowledgeCensusInvocation as parseContextPlaneInvocation,
   projectKnowledgeCensusDiff as projectContextPlaneDiff,
+  partitionKnowledgeCensusDiff as partitionContextPlaneDiff,
   assertKnowledgeCensusReadPath as assertContextPlaneReadPath,
   knowledgeCensusIncludesPath as contextPlaneIncludesPath,
 } from './knowledge-census-scope.mjs';

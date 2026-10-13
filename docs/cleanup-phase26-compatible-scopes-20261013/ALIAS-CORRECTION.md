@@ -1,0 +1,5 @@
+# Final test-only correction
+
+Latest source `b46dad56b0025d3f1043809d3322fe936f5d501f`, tree `e41a42527876b038096ab0f69dbdef324eeab201`. All six production/helper files and guard suite are byte-identical to frozen614. The validator permanent test now permits root's four exact additive Phase26 aliases with mandatory `--run`, retaining every original script/value and package field. Four missing-run variants and removal of an original script refuse. Package/CI itself remains unchanged in this branch.
+
+Affected actual-source/fake-process validator controls12/12 PASS0 on new source. Original26/26 and guard14/14 remain valid for unchanged inputs; no broader repeat was needed. Initial raw logs, source manifest, SHA index, HANDOFF and partial-seal failure are retained physically unchanged, describing the initial pin. Corrected bindings identify the final eight source paths and7 unchanged blobs. Independent review targets the latest pin; root owns final adoption/publication. No real verifier/native/default/app/provider/SQL/install execution. Eight source paths pass whitespace; full physical raw whitespace floor remains OPEN.

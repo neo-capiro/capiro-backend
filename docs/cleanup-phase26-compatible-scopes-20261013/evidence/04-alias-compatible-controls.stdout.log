@@ -1,0 +1,20 @@
+✔ whole original Phase26 caller and exact16-error/two-suite baseline reconstruct (1.675469ms)
+✔ full default/typing-fast/legacy unknown/Windows traces and receipts remain exact (29.884634ms)
+✔ new source-only and malformed named modes require explicit valid scope before any effect (9.915726ms)
+✔ backend source and frontend scope run only exact scoped guard/whitespace with no typing baseline read (4.398448ms)
+✔ backend native and typing retain all original selectors/process options and distinct receipts (9.090387ms)
+✔ all16 attributed diagnostics and exacttwo attributed Jest failures remain allowed (7.680986ms)
+✔ new scoped typing refuses unmatched/increased diagnostics and failed compiler without attributed evidence (7.591764ms)
+✔ inherited full API compiler false-green remains characterized and scoped mode refuses it (3.745768ms)
+✔ new native mode cannot accept missing/unattributed Jest exit evidence or unknownfailed suite (5.69969ms)
+✔ guard and whitespace failures cannot produce any scoped completion (4.120143ms)
+✔ current package metadata/aliases survive the four exact scoped run aliases (10.398104ms)
+✔ strict run/help/noargs/unknown/base grammar fails before any process or baseline read (14.998524ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 252.868279

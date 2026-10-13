@@ -1,0 +1,35 @@
+{
+  "originalIndexEntriesVerifiedUnchanged": 12,
+  "entries": [
+    {
+      "path": "ALIAS-CORRECTION.md",
+      "sha256": "0f0ef9c6b01ed767c27bd4952bd449058ea7dbe31ca9c473a9cd614033748ac9",
+      "bytes": 1134
+    },
+    {
+      "path": "evidence/SOURCE-BINDINGS-CORRECTED.json",
+      "sha256": "aa28aca0a146ea835223a00880796b316399fa64e29bd0a12a4d4061596710ce",
+      "bytes": 2782
+    },
+    {
+      "path": "evidence/alias-test-only.diff",
+      "sha256": "3d2ee2b0020fd330758868357236b8a99b88bab63440c9b0f79c103cf538be3b",
+      "bytes": 2428
+    },
+    {
+      "path": "evidence/04-alias-compatible-controls.json",
+      "sha256": "67b66bedb99b95be85eeccc6130dbcabdd03cd13ab35eb1ce656021d6a2c68ca",
+      "bytes": 598
+    },
+    {
+      "path": "evidence/04-alias-compatible-controls.stdout.log",
+      "sha256": "3c6191a18e099b845b7fe8fe7245e3cab49f19aba2e2f7a825d9b5d75eeb9ca2",
+      "bytes": 1366
+    },
+    {
+      "path": "evidence/04-alias-compatible-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

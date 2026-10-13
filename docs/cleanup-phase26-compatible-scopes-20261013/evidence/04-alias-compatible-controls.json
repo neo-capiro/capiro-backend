@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "scripts/ci/context-plane-validation-scope.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 0,
+  "reason": "new permanent test must permit exact four root-owned scoped --run aliases while preserving all current package fields/scripts",
+  "original26PassUnchanged": true,
+  "nativeDefaultVerifierExecuted": false,
+  "utc": "2026-10-13T00:18:13.201395+00:00"
+}
