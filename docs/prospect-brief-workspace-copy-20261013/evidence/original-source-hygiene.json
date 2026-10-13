@@ -1,0 +1,12 @@
+{
+  "sourceHygiene": "FAIL",
+  "base": "46aa2164c299151225c6cdb9f3cc565fee347657",
+  "checkedPaths": 60,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "rawArchivesClassified": [],
+  "checkedDiagnostics": "docs/prospect-brief-workspace-copy-20261013/evidence/fourth-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/prospect-brief-workspace-copy-20261013/evidence/fourth-jest.log:3: trailing whitespace.\n+  \ndocs/prospect-brief-workspace-copy-20261013/evidence/initial-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/prospect-brief-workspace-copy-20261013/evidence/initial-jest.log:3: trailing whitespace.\n+  \ndocs/prospect-brief-workspace-copy-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/prospect-brief-workspace-copy-20261013/evidence/jest.log:3: trailing whitespace.\n+  \ndocs/prospect-brief-workspace-copy-20261013/evidence/second-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/prospect-brief-workspace-copy-20261013/evidence/second-jest.log:3: trailing whitespace.\n+  \ndocs/prospect-brief-workspace-copy-20261013/evidence/third-jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/prospect-brief-workspace-copy-20261013/evidence/third-jest.log:3: trailing whitespace.\n+  \n",
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+}

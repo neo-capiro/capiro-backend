@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "scope": "finite new product contract/evidence packet; inherited accepted qualification indices remain exact",
+  "files": [
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/INDEPENDENT-BACKEND-REVIEW.md",
+      "bytes": 4202,
+      "sha256": "f6652509560db13703806dfa179ab65d05ff7ccfa43a1e46a964bd53aa2a0347"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/JEST-SELECTION.json",
+      "bytes": 638,
+      "sha256": "4c95457c51564760268475b1a365f7b664edf0e4ef64ace0f5a5d538e653d63f"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/QUALIFICATION.md",
+      "bytes": 5809,
+      "sha256": "7aa1ac0ba07c5f637b2f1c98d9703ffe3b60adb80f8a766c4d1d1efdaf5e1a39"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/RECEIVING-CONTRACT.md",
+      "bytes": 11361,
+      "sha256": "04cf257bab30e368d49761c2ae7ca87a6ccd8f343b999c21abd3820a0e1bd35d"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/STAGING-INTEGRATION-PLAN.md",
+      "bytes": 6239,
+      "sha256": "8b13bf7c2d48d09c5933ed0e270a923f2d697cd3bf7e6fc3555857ae23443685"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/build-config.json",
+      "bytes": 223,
+      "sha256": "b7143f731ba016b76d4eb1cc84bb3dbc5e88d789958547bfbf792d95a6ddabfa"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/deny-source-effects.cjs",
+      "bytes": 1233,
+      "sha256": "64de96b82202a0a6e72067f238bb040830f8f81af1a70be16db5c7154a13dfa5"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/build-output-inventory.json.gz",
+      "bytes": 4775,
+      "sha256": "c688657df075389a4dc6d5adcc01ca1a22e0068e68f99edca1722c1a95b4436e"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/build-receipt.json",
+      "bytes": 868,
+      "sha256": "0ddd3c1be82d86dbe0b2cb0fad80c422a6152622a47b3e6056ab0218c23bd7ec"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/cached-workspace-client-provenance.json",
+      "bytes": 1290,
+      "sha256": "7abada6616671d5f5be2d455bd2cda47bb7670bf9426bf0b3264a704c8f98300"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/cached-workspace-schema-diff.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/check-host-setup-original-failure.json",
+      "bytes": 209,
+      "sha256": "618e323a800a63c6437603abc2325466caedc5542837bbb32e66c9f5fb87b6a4"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/emitted-build-receipt.json",
+      "bytes": 2597,
+      "sha256": "ce39cfaed1018d225f1dfa8d6cc15ac95a0cd32b7fd35552199dfdb13ed26445"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/existing-owner-member-preservation.json",
+      "bytes": 1789,
+      "sha256": "56ef7e999db1f3559a02d46a62ad0689a3d273763625102e5ce5fc4a3246a56e"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/final-jest-runtime-carry.json",
+      "bytes": 586,
+      "sha256": "192bc7e1f3ddcd453d2f908b37ec1679f14c1644ea2390eeea47875b11981681"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/fourth-jest-results.json",
+      "bytes": 28187,
+      "sha256": "c38809223f1a895dfd1fe8e26da8ace6639fa1eb67d792f1ad02be13cafb7bf5"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/fourth-jest.log.lossless.json",
+      "bytes": 1802,
+      "sha256": "adc3825ddeb4c90461c1fedc7d64ce7b42087d15ab58e26f77806a8c7100f520"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/independent-review-pin.json",
+      "bytes": 295,
+      "sha256": "edee7ef6f7019dc260659989be4818fdb837b306f36758a18abd11e9e2ab1ada"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/initial-check-setup-bindings.json",
+      "bytes": 465,
+      "sha256": "df0168323ac550634468b51de74ad5a5501dc53f8faa6d82a562c51558c9ee8f"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/initial-jest-results.json",
+      "bytes": 2305,
+      "sha256": "b45f84a5385a27aff013139e1887cc455c4f5b3d138dec1bd1303bb2d9e566c0"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/initial-jest.log.lossless.json",
+      "bytes": 3175,
+      "sha256": "cc743392c79a4191d63fbcf5ec9b0d2f6e820f804143688d3bb7da6214fafbf6"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/jest-receipt.json",
+      "bytes": 1751,
+      "sha256": "cf62adcc65f9335ee70a5729a8dcc69bb1b3cd553748b7caad1bf7162a72069b"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/jest-results.json",
+      "bytes": 28190,
+      "sha256": "5e0f019a9c059b54930afbfe75afd91476dcfdf0363edd2c35a23bddc21e158c"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/jest.log.lossless.json",
+      "bytes": 1987,
+      "sha256": "a8bed99f34b5f1ca016523dee81c5274f280b6281657244a6c2b3de080dd0d34"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/matched-base-missing-deps-type-receipt.json",
+      "bytes": 1004,
+      "sha256": "3dd1d3d68eb8ba92c71b72a541f512964792b9361a0fa25342b6fc29589e4a08"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/matched-base-missing-deps-type.log",
+      "bytes": 1512,
+      "sha256": "6ae4e3dc8085fba3ec37f9c9ccd59eb18fafa7a17d060c20e42a5be518dcc95e"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/original-check-recovery-incident.json",
+      "bytes": 1838,
+      "sha256": "96df2289295298802a0f3567e3b87207f15bc1cffbfc8109c98c4a237ce80835"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/original-source-hygiene.json",
+      "bytes": 1370,
+      "sha256": "c0d49c3294c639ea74f4b7cdcbbfab972f8220374b5096bb4f83bcbbfdfcabf7"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/queued-cleanup-donor-pins.json",
+      "bytes": 671,
+      "sha256": "6105a3aaae1bf7c70ca4cfc7820fc5a40ebc65feef719eb2e07e4e6b12511b01"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/raw-checkpoint-bindings.json",
+      "bytes": 2045,
+      "sha256": "364bfe6072fef968126ff378f34c917d0a7d2efcb77e1f79bdead324da46fc32"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/recovered-frozen-b4f-type.log",
+      "bytes": 48756,
+      "sha256": "366598488a16b8d73b340df6db97bde4373081db5ff43b931b8adc992d8c5a61"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/retained-1-type-receipt.json",
+      "bytes": 1003,
+      "sha256": "6b11a5fe89fd47a82177fab7646a88396fb4888e314cc4b52cc02c0458916664"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/retained-1-type.log",
+      "bytes": 867,
+      "sha256": "6828efec76b5e8c021ac776b7be6d40bace005dbc39ee650df05cd18bdaf64e8"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/second-jest-results.json",
+      "bytes": 9969,
+      "sha256": "35ddd858a7af0f696975aae26a36469526cb22038e40cd724d4c038c5bb2bf11"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/second-jest.log.lossless.json",
+      "bytes": 4422,
+      "sha256": "2ec95a67484e119e9536ced1fea9ba486b853c2ffbcd3aef7cc2c3eeeb5940b9"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/shared-compile-carry.json",
+      "bytes": 458,
+      "sha256": "db8b7f383c7d1cdb9fc2e0e71a60ba074bee8f320f4e6ceee2977ab061c3a33e"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/shared-receipt.json",
+      "bytes": 984,
+      "sha256": "f96aa85643c8c9663f5d65590596c103382f6f1fa142c7212e1596c5f2b6ca18"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/shared.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/source-composition-audit.json",
+      "bytes": 5541,
+      "sha256": "57bc5f65568ad4b75f0bb01da3af34bcb84b74fdac1af5d04cf1e11805e28f5d"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/source-hygiene.json",
+      "bytes": 1386,
+      "sha256": "7c434dc74e2db34e6ca4cbc2478ec68e3e438f44d20084a4851a48dd56f70b3a"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/staging-frontend-source-bindings.json",
+      "bytes": 1152,
+      "sha256": "c910d69f999aecc870d52a08ed7c62f1fe3740e71d53d4429c629542649a1e7f"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/third-jest-results.json",
+      "bytes": 33967,
+      "sha256": "e97556fffc1303010fcde4404bab3f93d5098a5b98dfd1527a2158d60499384a"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/third-jest.log.lossless.json",
+      "bytes": 6453,
+      "sha256": "0742f35d269731ef5d0ff12beed11e9abe9c0236175c5fae1a96d767b5c1f0f8"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/type-receipt.json",
+      "bytes": 1002,
+      "sha256": "334db20a1745f63c3021683b9a09f4295917fa684152d8a05838a9418ffefa48"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/evidence/type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/inert-jest.config.cjs",
+      "bytes": 828,
+      "sha256": "5d935656492a099fe8c34ab969c2d3fca347290f4e6719ee98d65de03efec36a"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/run-source-check.py",
+      "bytes": 3306,
+      "sha256": "a25612bf697392d0588fd3919b627c939ae8d90fb0ecb0cc9d0d0443d50222a8"
+    }
+  ]
+}

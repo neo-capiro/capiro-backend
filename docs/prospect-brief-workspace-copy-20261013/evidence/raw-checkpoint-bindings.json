@@ -1,0 +1,38 @@
+{
+  "head": "b5ebff98afb3956302e275bf6293ddb21ac21349",
+  "tree": "076764ff27cab8cc7bafd46c2bf8b966d5fb4991",
+  "independentReview": "48de0d6b03d7cb815fc28b40964a1843ec33509b",
+  "finiteEnvelopes": [
+    {
+      "originalPath": "docs/prospect-brief-workspace-copy-20261013/evidence/initial-jest.log",
+      "envelopePath": "docs/prospect-brief-workspace-copy-20261013/evidence/initial-jest.log.lossless.json",
+      "bytes": 2132,
+      "sha256": "a8efd9bcf75078554e61abf050df3e2c80c0976dfead9e8de8c43897d2ec2e5e"
+    },
+    {
+      "originalPath": "docs/prospect-brief-workspace-copy-20261013/evidence/second-jest.log",
+      "envelopePath": "docs/prospect-brief-workspace-copy-20261013/evidence/second-jest.log.lossless.json",
+      "bytes": 3067,
+      "sha256": "f56db00fa7f8e4b53767f7461a356413d82a5a9a9140257228275109b8ae08d2"
+    },
+    {
+      "originalPath": "docs/prospect-brief-workspace-copy-20261013/evidence/third-jest.log",
+      "envelopePath": "docs/prospect-brief-workspace-copy-20261013/evidence/third-jest.log.lossless.json",
+      "bytes": 4593,
+      "sha256": "898a12ea0cfe21e50407ee480c1efa7d7e7521a733d4c2b644def8199dc531fb"
+    },
+    {
+      "originalPath": "docs/prospect-brief-workspace-copy-20261013/evidence/fourth-jest.log",
+      "envelopePath": "docs/prospect-brief-workspace-copy-20261013/evidence/fourth-jest.log.lossless.json",
+      "bytes": 1104,
+      "sha256": "a8862fe8bba0b74dc817d8f23d9c454a71f6688779765b50553a3b09f50b517c"
+    },
+    {
+      "originalPath": "docs/prospect-brief-workspace-copy-20261013/evidence/jest.log",
+      "envelopePath": "docs/prospect-brief-workspace-copy-20261013/evidence/jest.log.lossless.json",
+      "bytes": 1247,
+      "sha256": "24a0fa7acdbee908fe79c805256e8408dcbe36c1efc9904ab044756a834e8a64"
+    }
+  ],
+  "reason": "Exactly5survivingJestlogs emitted trailing spaces. Originals remain in raw ancestor; final envelopes preserve exact bytes without trimming or new hygiene exemption. Overwritten older passing raw observation remains honestly marked unrecovered."
+}
