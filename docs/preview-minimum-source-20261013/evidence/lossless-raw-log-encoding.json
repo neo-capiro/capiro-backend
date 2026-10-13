@@ -1,0 +1,5 @@
+{
+  "rawCheckpoint": "02be2b6104a1993c926e6a91209598a22fddad25",
+  "converted": [],
+  "reason": "Preserve exact raw observations while satisfying normal source whitespace checks; no trimming or exemption."
+}
