@@ -1,0 +1,23 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "reviewGitHead": "c5bac2792db74d85eedafbc6e03318d1ac692401",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/mock-loopback-source-host.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 2.217458724975586,
+  "hostSha256": "061b4e0f683ac7036c57a0744f8cc469f52f19948f3156edf5c1e57856eb4ffb",
+  "stdoutSha256": "fb1253c61366982d8f221d9c28fe1faaf8fade01859054c7c41d7f91907bc348",
+  "stderrSha256": "95c12098fcac9d7cffef71f458689a5ba869c3bf7926ec807bbfec488673be81"
+}

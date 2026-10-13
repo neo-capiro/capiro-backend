@@ -1,0 +1,54 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "sourceDelta": [
+    {
+      "path": "apps/web/Dockerfile.frontend-artifact",
+      "mode": "100644",
+      "blob": "1df389777949a6df4cc5c8f1eb43e2db4beb9265",
+      "sha256": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea"
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "mode": "100644",
+      "blob": "d5394c0af71a63691eb580281b28e3d00bc0f30a",
+      "sha256": "5f83948bcddd8fa77a22c568277c5c7073657d35f3aaca9c19a64f8917f9c72d"
+    },
+    {
+      "path": "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+      "mode": "100644",
+      "blob": "f5b6e4b24c654bcf09a7ae0f4844bb9c6b8dddd3",
+      "sha256": "d7baed581ff402f9a86ff9b192848737e62041e0b31f87d3880c38b7ffe54b3a"
+    },
+    {
+      "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "mode": "100644",
+      "blob": "23d0924dc0162328d9ee0b183ba0663011d4373a",
+      "sha256": "32e500e57cb3daa93df598512b39f7f25df1c8d7111218756f572e17a98157ab"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "mode": "100644",
+      "blob": "ac4d7bbd80307e55a05a5068c4fcaf483ddbcab3",
+      "sha256": "5f7f5d8342184a7118e4ac009afd3732cb63dd20ef8fb78a44ec804ba5949feb"
+    },
+    {
+      "path": "scripts/lib/newsletter-loopback-serving.mjs",
+      "mode": "100644",
+      "blob": "41fde76f39821f0f88856b32b31d96ae6bebdbd3",
+      "sha256": "eab39962b8ec4553279ba04c0463a4fa4852e9cbc0f79da38202f943215f527e"
+    },
+    {
+      "path": "scripts/verify-newsletter-loopback-serving.mjs",
+      "mode": "100644",
+      "blob": "e1650ba562f3562c8d82459263b5195335b74cc5",
+      "sha256": "a583be57df864107cc41e8c887f1579e4bd1ad037cbec735926cb257cd78c13e"
+    }
+  ],
+  "allBaselineEntriesExact": 24640,
+  "authorEvidence": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+  "authorIndexedHashesVerified": 45,
+  "previousOnboardGuardsExact": true,
+  "sourceOutsideScopeProof": "Git mode/blob metadata only; no protected reporting body or denied report reads"
+}

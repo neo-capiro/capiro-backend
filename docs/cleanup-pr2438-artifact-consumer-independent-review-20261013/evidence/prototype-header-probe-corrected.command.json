@@ -1,0 +1,16 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/mock-loopback-source-host.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.mjs"
+  ],
+  "exit": 0,
+  "seconds": 0.12519574165344238,
+  "programSha256": "cf6f65d4ce3a2a5f1d31ede13ea9efb9f761e5068c769660127a5dc95e6cb4f1",
+  "hostSha256": "061b4e0f683ac7036c57a0744f8cc469f52f19948f3156edf5c1e57856eb4ffb",
+  "stdoutSha256": "b55431217f03683b705da769d0a942b3b2d9339ab867334f1834c4ed6863bc6f",
+  "stderrSha256": "b9a0783f22e5c15dcc22a87335f97d6dea0332b727e0bf494ff2bde77e969671"
+}
