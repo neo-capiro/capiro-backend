@@ -1,0 +1,19 @@
+{
+  "repository": "neo-capiro/capiro-frontend",
+  "qualifiedRuntime": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "runtimeTree": "9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4",
+  "applicationTree": "79ae91f7a119e98b7ba612ceed2a4ca661944888",
+  "evidenceCommit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+  "evidenceTree": "9be90a2717e231a2a7df16f2c25b9982dbe9a8dd",
+  "qualificationPath": "docs/newsletter-receiving-final-20261013/QUALIFICATION.md",
+  "qualificationSha256": "cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33",
+  "producerHandoffPath": "docs/newsletter-receiving-final-20261013/PRODUCER-HANDOFF.md",
+  "producerHandoffSha256": "2e59469ee2aed9a9a854b9d7add73760fbf075471231561bd99fdfb9fd124ad0",
+  "evidenceManifestPath": "docs/newsletter-receiving-final-20261013/EVIDENCE-MANIFEST.json",
+  "evidenceManifestSha256": "48ba2001e8b523986b60bbc6eaff3c3cfaf30c6f8304e09325b65c207a1ffb84",
+  "evidenceManifestBytes": 116748,
+  "apiBlobHashesVerified": true,
+  "actualTargetMuslProducerAvailable": false,
+  "sourceAdmissionChange": "pending explicit reviewed policy/spec update",
+  "nativeArtifactAcceptance": false
+}

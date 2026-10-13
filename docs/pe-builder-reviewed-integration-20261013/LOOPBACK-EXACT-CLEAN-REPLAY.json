@@ -1,0 +1,16 @@
+{
+  "head": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "sourceUnchangedFrom": "2c95bd65c0d281d47c79a337d642feb7ef6d8103",
+  "environmentKeys": [
+    "PATH"
+  ],
+  "argv": [
+    "node",
+    "--test",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs"
+  ],
+  "exitCode": 0,
+  "atUtc": "2026-10-13T04:58:06.156226+00:00",
+  "log": "loopback-exact-clean-environment-replay.stdout",
+  "earlierFailureRetained": "final-source-job-09.stdout"
+}

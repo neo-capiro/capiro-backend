@@ -1,0 +1,6 @@
+{
+  "initialOwnRawTransfer": "Path.rename from /tmp worktree to /workspace custody",
+  "initialFailure": "EXDEV cross-device link, original intact and lossless JSON already verified",
+  "correction": "copy exact bytes, verify equality, then remove only own untracked duplicate",
+  "externalOrOtherOwnerDataTouched": false
+}

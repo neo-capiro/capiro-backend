@@ -1,0 +1,30 @@
+[
+  {
+    "index": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/SHA256-INDEX.json",
+    "head": "c8693e28abd65d91ba6f38183d4d3e2a0ad89226",
+    "indexedFiles": 24,
+    "mismatches": [],
+    "verificationScope": "historical exact source/packet head, not automatic current source approval"
+  },
+  {
+    "index": "docs/cleanup-newsletter-accepted-source-admission-20261013/SHA256-INDEX.json",
+    "head": "0ac13d445a90032272aa2397e25e7a12a93192a9",
+    "indexedFiles": 38,
+    "mismatches": [],
+    "verificationScope": "historical exact source/packet head, not automatic current source approval"
+  },
+  {
+    "index": "docs/cleanup-newsletter-accepted-source-admission-20261013/ARCHITECTURE-REPAIR-INDEX.json",
+    "head": "3e0775382f01b46e5a52f1a16ef8a9031facdd27",
+    "indexedFiles": 56,
+    "mismatches": [],
+    "verificationScope": "historical exact source/packet head, not automatic current source approval"
+  },
+  {
+    "index": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/SHA256-INDEX.json",
+    "head": "dac6e7a6a8d44c15199c9055a3ab67aa2cbf5877",
+    "indexedFiles": 7,
+    "mismatches": [],
+    "verificationScope": "historical exact source/packet head, not automatic current source approval"
+  }
+]
