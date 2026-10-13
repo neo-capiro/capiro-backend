@@ -28,6 +28,8 @@ COMMANDS = [
      "node --test scripts/ci/onboard-spa-artifact.contract.spec.mjs scripts/ci/newsletter-static-release.contract.spec.mjs"),
     ("Preserve reviewed backend retirement and command scopes",
      "node --test scripts/ci/florida-owned-portrait-release.spec.mjs scripts/ci/defense-backend-workspace.contract.spec.mjs scripts/ci/engagement-resilience-recovery.contract.spec.mjs scripts/ci/context-plane-scope.contract.spec.mjs scripts/ci/context-plane-validation-scope.spec.mjs scripts/ci/rebuild-verification-scopes.spec.mjs"),
+    ("Preserve current-source edge declarations and header refusal",
+     "node --test scripts/ci/newsletter-declared-edge.contract.spec.mjs"),
     ("Exercise isolated loopback fixtures with synthetic asset identities",
      "node --test scripts/ci/newsletter-loopback-serving.spec.mjs"),
 ]
