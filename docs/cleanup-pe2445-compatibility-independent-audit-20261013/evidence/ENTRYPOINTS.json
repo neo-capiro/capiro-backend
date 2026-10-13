@@ -1,0 +1,132 @@
+[
+  {
+    "path": "package.json",
+    "blob": "92e4dde88602fa6cfd3515bf1aed330f7087d12b",
+    "sha256": "709c2b40e3e54112784fd2670faa999ce701edca1f879bafb26a131c3820f728",
+    "name": "capiro",
+    "packageManager": "pnpm@9.12.0",
+    "engines": {
+      "node": ">=20.11.0"
+    },
+    "scripts": {
+      "build": "turbo run build",
+      "typecheck": "turbo run typecheck",
+      "test": "turbo run test"
+    },
+    "workspaceDependencies": {}
+  },
+  {
+    "path": "apps/api/package.json",
+    "blob": "982391287e8ff83cef048a7d2e98ae169bdbb133",
+    "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff",
+    "name": "@capiro/api",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "nest build",
+      "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+      "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+      "test:pe-trust": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts",
+      "verify:pe-phase-k": "pnpm run typecheck:pe-scripts && pnpm run lint:pe-scripts && pnpm run test:pe-trust && tsx scripts/verify-pe-migration-guards.ts",
+      "typecheck:pe-scripts": "tsc -p tsconfig.pe-scripts.json --noEmit",
+      "lint:pe-scripts": "tsx scripts/lint-pe-scripts.ts",
+      "prisma:generate": "prisma generate"
+    },
+    "workspaceDependencies": {
+      "@capiro/defense-contracts": "workspace:*",
+      "@capiro/defense-domain": "workspace:*",
+      "@capiro/meriv2-core": "workspace:*",
+      "@capiro/shared": "workspace:*"
+    }
+  },
+  {
+    "path": "apps/workspace/package.json",
+    "blob": "c4ef8a3c3a39f2877e759141c987929ff785ca51",
+    "sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417",
+    "name": "@capiro/workspace",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "nest build",
+      "typecheck": "tsc --noEmit",
+      "test": "jest --detectOpenHandles --forceExit",
+      "prisma:generate": "prisma generate"
+    },
+    "workspaceDependencies": {
+      "@capiro/auth": "workspace:*",
+      "@capiro/meriv2-core": "workspace:*",
+      "@capiro/shared": "workspace:*"
+    }
+  },
+  {
+    "path": "packages/shared/package.json",
+    "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6",
+    "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+    "name": "@capiro/shared",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "workspaceDependencies": {}
+  },
+  {
+    "path": "packages/auth/package.json",
+    "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08",
+    "sha256": "8b5a075eada39a5ba9ca9388006ee9aeacde910e0fd771c3fa58df5f70b5bb73",
+    "name": "@capiro/auth",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "test": "jest --detectOpenHandles --forceExit"
+    },
+    "workspaceDependencies": {}
+  },
+  {
+    "path": "packages/meriv2-core/package.json",
+    "blob": "b8469e8303f277ccf029180d011174e0a5e63e44",
+    "sha256": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
+    "name": "@capiro/meriv2-core",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "test": "jest --detectOpenHandles --forceExit"
+    },
+    "workspaceDependencies": {
+      "@capiro/shared": "workspace:*"
+    }
+  },
+  {
+    "path": "packages/defense-contracts/package.json",
+    "blob": "02871c2ccf00d583632bbfbe412582404a55e18c",
+    "sha256": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
+    "name": "@capiro/defense-contracts",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "workspaceDependencies": {}
+  },
+  {
+    "path": "packages/defense-domain/package.json",
+    "blob": "f35b337f65180b29a7072a41f2a0cff4d03e5b52",
+    "sha256": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8",
+    "name": "@capiro/defense-domain",
+    "packageManager": null,
+    "engines": null,
+    "scripts": {
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "workspaceDependencies": {
+      "@capiro/shared": "workspace:*"
+    }
+  }
+]

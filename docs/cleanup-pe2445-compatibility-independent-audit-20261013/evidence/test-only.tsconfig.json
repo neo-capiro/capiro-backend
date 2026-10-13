@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "strict": true
+  },
+  "include": [
+    "pe-source/apps/api/scripts/lib/pe-phase-9-*.ts"
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "sourcePins": {
+    "PE": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+    "builder": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+  },
+  "files": [
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/HANDOFF.md",
+      "bytes": 3932,
+      "sha256": "3dda3bb504c2df3b10a023353b5c47cce817acb7375bfb20c0cfb42b879d0b13"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/RECEIPT.json",
+      "bytes": 1883,
+      "sha256": "8c1845e1bb206dc8d93f2720a412614832c6b9a185389c36ac58c05567a214c5"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/2444-commit.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/2444-commit.stdout",
+      "bytes": 1133,
+      "sha256": "4ad493fc9b29c5d83ea195f34f7480ce6a4a355f27e0dac9156fbcfc99652c81"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/2444-tree.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/CACHED-TOOLS.json",
+      "bytes": 2317,
+      "sha256": "fb8e32aa22aa51c693482d9bfcff7cc52bca12ca3d2571a36598b16bad3f4cb7"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/COMPOSITION-INVERSE.json",
+      "bytes": 2578,
+      "sha256": "c0adc69b1b14f03ff56d3972b9f485e208e3dbdd12aa982df86f5e9d9e08c83a"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/DEPENDENCY-PRESERVATION.json",
+      "bytes": 5934,
+      "sha256": "7e72bcbe9c1291cef7c31cf672d1901fa3397ba8c817d22d73e715e28ae86f66"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/ENTRYPOINTS.json",
+      "bytes": 5693,
+      "sha256": "7a11c595e3c31a733a372c0d8861595273dbc4d52b1cef1d81d3db787c6d80d5"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/METADATA-CUSTODY.json",
+      "bytes": 1259,
+      "sha256": "bdba34982262d68b64115b1ee910c3f196783c7b1558d6e9256d2daa5eea9706"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/PE13-SOURCE-BINDINGS.json",
+      "bytes": 5715,
+      "sha256": "a9d870baee0ee771297fc83b3ca09a74960aa4c8eea998841472fb0cc8eb7ef4"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/WORKSPACE-CLOSURE.json",
+      "bytes": 1514,
+      "sha256": "28bf52f4ca8d6b29509b44bdd1a9d98f8e89790a80bc4f20dff344d0a5c61f3d"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/focused.jest.cjs",
+      "bytes": 862,
+      "sha256": "30d6fe05377974ebeecdcfb0550932425d08da2601b20b5a62d34ed34d075143"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/initial-focused.jest.cjs",
+      "bytes": 924,
+      "sha256": "afd76146e50c8273dcc4947849903487cf80ff23802bc941f19aa900a087c369"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/initial-phase9-focused-results.json",
+      "bytes": 39628,
+      "sha256": "c48b6acd760f718fcd61b106df8ecd79203730c95caa693611f04939df8c2fc6"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/initial-phase9-focused.command.json",
+      "bytes": 1487,
+      "sha256": "5e3f6bf0ab59959d8656e099bebcacdf9483d5ea38ae6e01dc88147965cb89e0"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/initial-phase9-focused.stderr",
+      "bytes": 765,
+      "sha256": "41fe83db8861f26e949e35469059006804445ab220bea575a9c08cc6f21d53f5"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/initial-phase9-focused.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/no-external-effects.cjs",
+      "bytes": 502,
+      "sha256": "38fce00e488e2fc3f55c223a3da05575a1ca29e6fd908433826f64a983b69f3a"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/phase9-focused-results.json",
+      "bytes": 39627,
+      "sha256": "a40ce927f4739a53075aac8b63fe1ce603b53be1beb2350e80f13712d7114a1b"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/phase9-focused.command.json",
+      "bytes": 1617,
+      "sha256": "ea23853857eeb2f17ac0384f5124282290e72ab37ee21e431d06f512abb2f6bf"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/phase9-focused.stderr",
+      "bytes": 331,
+      "sha256": "9489c12463c3e3e6f17d5a374a37ea530532322f97e834e52079a23788f302fb"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/phase9-focused.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pe2445-compatibility-independent-audit-20261013/evidence/test-only.tsconfig.json",
+      "bytes": 231,
+      "sha256": "128930a7fc1d540ce55333b2a68ea0e56d042bf0fdbeefe0babf8784f4274d0d"
+    }
+  ]
+}

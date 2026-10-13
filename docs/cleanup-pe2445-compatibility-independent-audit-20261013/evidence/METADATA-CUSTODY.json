@@ -1,0 +1,28 @@
+{
+  "purpose": "Exact recursive tree was used only for names/modes/blob IDs before local2444 commit became available; no denied document or protected source content was fetched.",
+  "rawTree": {
+    "retainedPath": "/workspace/cleanup-pe2445-compatibility-audit-20261013/2444-tree.stdout",
+    "sha256": "59942c8527eeeb6e8142f4269849ed460b64e87c63a0700108866f87f160f623",
+    "bytes": 8127026,
+    "truncated": false
+  },
+  "initialLocalObjectInspection": {
+    "head": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+    "exit": 128,
+    "stderr": "fatal: git cat-file: could not get object info\n",
+    "laterAction": "Root fetched and preserved exact2444 ref; code read with gitshow, no local broadfetch."
+  },
+  "sourceInspectionLimits": [
+    {
+      "operation": "Optional apps/api/jest.config.ts discovery",
+      "exit": 128,
+      "stderr": "fatal: path 'apps/api/jest.config.ts' does not exist in '457e84e7d50f401985355cf22eedc480fd72ad8b'\n",
+      "resolution": "Actual current config is jest.config.cjs; inspected source only."
+    },
+    {
+      "operation": "Cached tool guessed /workspace/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+      "exists": false,
+      "implication": "Not a claim pinned pnpm absent; no package manager executed."
+    }
+  ]
+}

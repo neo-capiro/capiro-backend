@@ -27,7 +27,7 @@ COMMANDS = [
     ("Check source and normal documentation whitespace with immutable raw observations classified",
      "node scripts/lib/reviewed-source-hygiene.mjs --run --base b7aa1d6e6b341f833fa08b2add8f40d5fbee8480"),
     ("Exercise standalone assembly and Docker consumer refusals",
-     "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"),
+     "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs scripts/ci/newsletter-accepted-source-profile.spec.mjs"),
     ("Preserve static artifact owner contracts",
      "node --test scripts/ci/onboard-spa-artifact.contract.spec.mjs scripts/ci/newsletter-static-release.contract.spec.mjs"),
     ("Preserve reviewed backend retirement and command scopes",

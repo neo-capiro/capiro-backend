@@ -31,6 +31,7 @@ function validate(source) {
     assert.match(source, new RegExp(`"\\$FRONTEND_ARTIFACT_${suffix}"`));
   }
   assert.match(source, /^COPY release-artifacts\/capiro-frontend release-artifacts\/capiro-frontend$/m);
+  assert.equal((source.match(/^COPY scripts\/lib\/newsletter-accepted-source-profile\.json scripts\/lib\/newsletter-accepted-source-profile\.json$/gm) ?? []).length, 1, 'reviewed source policy accompanies its canonical shipping owner');
   assert.match(source, /--artifact-dir \/workspace\/release-artifacts\/capiro-frontend/);
   assert.match(source, /--manifest-sha256 /);
   assert.match(source, /--source-repository /);
@@ -66,6 +67,8 @@ test('default Web Docker, release operator, workspace, lock and Onboard default 
 test('missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify', () => {
   for (const changed of [
     DOCKER.replace('ARG FRONTEND_ARTIFACT_SOURCE_COMMIT\n', ''),
+    DOCKER.replace('COPY scripts/lib/newsletter-accepted-source-profile.json scripts/lib/newsletter-accepted-source-profile.json\n', ''),
+    DOCKER.replace('scripts/lib/newsletter-accepted-source-profile.json scripts/lib/newsletter-accepted-source-profile.json', 'release-artifacts/capiro-frontend/profile.json scripts/lib/newsletter-accepted-source-profile.json'),
     DOCKER.replace('ARG FRONTEND_ARTIFACT_SOURCE_COMMIT\n', 'ARG FRONTEND_ARTIFACT_SOURCE_COMMIT=main\n'),
     DOCKER.replace('RUN node scripts/lib/frontend-standalone-artifact-contract.mjs ', 'RUN echo '),
     DOCKER.replace('--from=artifact-check', '--from=frontend_artifact'),

@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { types as utilTypes } from 'node:util';
+import acceptedSourceProfile from './newsletter-accepted-source-profile.json' with { type: 'json' };
 import { canonicalNewsletterManifest, qualifyNewsletterArtifact } from './newsletter-static-release-contract.mjs';
 
 // Supplied runtime bytes only. Import never reads files/env or starts a server.
@@ -145,6 +147,90 @@ export function inspectFrontendStandaloneManifest({ manifestBytes, pins }) {
   return manifestContract(manifestBytes, pins).manifest;
 }
 
+function policyData(value, keys, label) {
+  if (!value || typeof value !== 'object' || utilTypes.isProxy(value) || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value))) fail(`source policy ${label}`);
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (Reflect.ownKeys(descriptors).some(key => typeof key !== 'string') ||
+      Object.keys(descriptors).sort().join(',') !== [...keys].sort().join(',') ||
+      Object.values(descriptors).some(item => !Object.hasOwn(item, 'value'))) fail(`source policy ${label}`);
+  return Object.fromEntries(keys.map(key => [key, descriptors[key].value]));
+}
+function policyArray(value, label, maximum) {
+  if (!value || utilTypes.isProxy(value) || !Array.isArray(value) || value.length > maximum)
+    fail(`source policy ${label}`);
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const expected = ['length', ...Array.from({ length: value.length }, (_, index) => String(index))];
+  if (Reflect.ownKeys(descriptors).some(key => typeof key !== 'string') ||
+      Object.keys(descriptors).sort().join(',') !== expected.sort().join(',') ||
+      Object.values(descriptors).some(item => !Object.hasOwn(item, 'value'))) fail(`source policy ${label}`);
+  return Array.from({ length: value.length }, (_, index) => descriptors[index].value);
+}
+function sourcePolicy(value) {
+  const policy = policyData(value, ['schemaVersion', 'repository', 'activeCommit', 'acceptedSources', 'runtimeProfile'], 'layout');
+  if (policy.schemaVersion !== 1 || policy.repository !== 'neo-capiro/capiro-frontend') fail('source policy owner/version');
+  const runtime = policyData(policy.runtimeProfile, ['os', 'architectures', 'libc', 'nodeMajor', 'nodeVersion', 'nodeImage'], 'runtime');
+  const architectures = policyArray(runtime.architectures, 'architectures', 2);
+  if (runtime.os !== 'linux' || architectures.join(',') !== 'amd64,arm64' || runtime.libc !== 'musl' ||
+      runtime.nodeMajor !== 24 || runtime.nodeVersion !== '24.21.0' ||
+      runtime.nodeImage !== 'node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2')
+    fail('source policy pinned runtime');
+  const sha40 = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+  const commits = new Set();
+  const accepted = policyArray(policy.acceptedSources, 'accepted sources', 16).map(value => {
+    const source = policyData(value, ['commit', 'tree', 'qualificationReceipt'], 'accepted entry');
+    const receipt = policyData(source.qualificationReceipt, ['repository', 'commit', 'path', 'sha256'], 'qualification receipt');
+    if (!sha40(source.commit) || !sha40(source.tree) || commits.has(source.commit) ||
+        receipt.repository !== policy.repository || !sha40(receipt.commit) ||
+        !literal(receipt.sha256) || !/^[a-f0-9]{64}$/.test(receipt.sha256)) fail('source policy acceptance identity');
+    safePath(receipt.path);
+    if (!receipt.path.startsWith('docs/')) fail('source policy qualification receipt path');
+    commits.add(source.commit);
+    return Object.freeze({ ...source, qualificationReceipt: Object.freeze(receipt) });
+  });
+  if (policy.activeCommit !== null && (!sha40(policy.activeCommit) || !commits.has(policy.activeCommit)))
+    fail('source policy active accepted entry');
+  return Object.freeze({ ...policy, acceptedSources: Object.freeze(accepted),
+    runtimeProfile: Object.freeze({ ...runtime, architectures: Object.freeze(architectures) }) });
+}
+
+/** Reviewed repository data, never a caller-selected file, environment or remote branch. */
+export const NEWSLETTER_ACCEPTED_SOURCE_PROFILE = sourcePolicy(acceptedSourceProfile);
+function admissionPolicy(sourceAdmissionFixture) {
+  if (sourceAdmissionFixture === undefined) return { policy: NEWSLETTER_ACCEPTED_SOURCE_PROFILE, synthetic: false };
+  const fixture = policyData(sourceAdmissionFixture, ['kind', 'label', 'profile'], 'fixture port');
+  if (fixture.kind !== 'newsletter-source-admission-fixture' || typeof fixture.label !== 'string' ||
+      !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixture.label)) fail('explicit labelled source-admission fixture');
+  return { policy: sourcePolicy(fixture.profile), synthetic: true };
+}
+/** A matched reviewed policy is separate from source-build, ABI or receipt-byte proof. */
+export function inspectNewsletterSourceAdmission(pins, { sourceAdmissionFixture } = {}) {
+  sourcePins(pins);
+  const { policy, synthetic } = admissionPolicy(sourceAdmissionFixture);
+  const active = policy.acceptedSources.find(entry => entry.commit === policy.activeCommit);
+  const allowed = Boolean(active && pins.sourceRepository === policy.repository && pins.sourceCommit === active.commit &&
+    pins.runtimeTarget.os === policy.runtimeProfile.os && policy.runtimeProfile.architectures.includes(pins.runtimeTarget.arch) &&
+    pins.runtimeTarget.libc === policy.runtimeProfile.libc && pins.runtimeTarget.nodeMajor === policy.runtimeProfile.nodeMajor);
+  return Object.freeze({ status: allowed ? (synthetic ? 'fixture-accepted' : 'accepted') : (active ? 'refused' : 'pending'),
+    assemblyAdmissionAllowed: allowed, syntheticSourceApprovalModel: synthetic,
+    sourceAcceptedByReviewedPolicy: allowed && !synthetic, sourceApprovalProofVerified: false,
+    independentFrontendQualificationVerified: false, buildUsedSourceVerified: false, nativeRuntimeCompatibilityVerified: false,
+    activeSource: active ? Object.freeze({ repository: policy.repository, ...active }) : null,
+    requiredRuntimeProfile: policy.runtimeProfile });
+}
+export function assertAcceptedNewsletterArtifactSource(pins, fixtureOptions) {
+  const admission = inspectNewsletterSourceAdmission(pins, fixtureOptions);
+  if (!admission.assemblyAdmissionAllowed) fail(admission.status === 'pending'
+    ? 'final accepted frontend source and qualified receipt pin required' : 'active accepted frontend source/runtime mismatch');
+  return admission;
+}
+/** Shipping entrypoint: refuse admission before every artifact filesystem port. */
+export async function readAcceptedFrontendStandaloneArtifact({ sourceAdmissionFixture, ...input }) {
+  const sourceAdmission = assertAcceptedNewsletterArtifactSource(input.pins, { sourceAdmissionFixture });
+  const artifact = await readFrontendStandaloneArtifact(input);
+  return Object.freeze({ ...artifact, sourceAdmission });
+}
+
 /** All regular buffers and all symlinks must be exhaustively provided. A custom
  * Newsletter identity port is an inert model and can never produce a byte receipt.
  * Source equality is not proof that this was the tree used by a Next build.
@@ -280,7 +366,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const options = parseFrontendStandaloneInvocation(process.argv.slice(2));
     const fs = await import('node:fs/promises'), { constants } = await import('node:fs');
-    const receipt = await readFrontendStandaloneArtifact({ ...options, ports: {
+    const receipt = await readAcceptedFrontendStandaloneArtifact({ ...options, ports: {
       lstat: fs.lstat, readdir: fs.readdir, realpath: fs.realpath, readlink: fs.readlink,
       readFile: (path) => fs.readFile(path, { flag: constants.O_RDONLY | constants.O_NOFOLLOW }) } });
     console.log(JSON.stringify(receipt));

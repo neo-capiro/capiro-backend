@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) [91merror[0m[90m TS5083: [0mCannot read file '/workspace/cleanup-pe2445-compatibility-audit-20261013/pe-source/tsconfig.base.json'.
+[91merror[0m[90m TS18003: [0mNo inputs were found in config file '/workspace/cleanup-pe2445-compatibility-audit-20261013/pe-source/apps/api/tsconfig.json'. Specified 'include' paths were '["src/**/*"]' and 'exclude' paths were '["node_modules","dist","test","scripts"]'.
+PASS scripts/lib/pe-phase-9-runner.spec.ts
+PASS scripts/lib/pe-phase-9-backend-scope.spec.ts
+PASS scripts/lib/pe-phase-9-rehearsal.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       101 passed, 101 total
+Snapshots:   0 total
+Time:        2.126 s
+Ran all test suites.
+Test results written to: ../../../phase9-focused-results.json
