@@ -887,8 +887,8 @@ export function parseNewsletterOutreachRecord(
         versionIds.add(id);
       }
       for (const [index, test] of (record.tests as NewsletterJsonObject[]).entries()) {
-        if (!versionIds.has((test.versionId as string).toLowerCase()))
-          refuse(`$.tests.${index}.versionId`, 'identity_mismatch');
+        // Historical intents can reference a prepared version omitted by current-version filtering.
+        // Their presence never supplies approval for a currently returned version.
         if (
           record.senderConnectionId === null ||
           (test.senderConnectionId as string).toLowerCase() !==

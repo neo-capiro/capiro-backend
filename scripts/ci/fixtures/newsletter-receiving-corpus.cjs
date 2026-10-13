@@ -265,6 +265,17 @@ function runNewsletterReceivingCorpus(api) {
     value.versions[0].sendable = true;
     assert(accepted(api.parseNewsletterOutreachRecord(value)).versions[0].sendable === true);
   });
+  check(
+    'historical tests survive current-version filtering without becoming current approval',
+    () => {
+      const value = clone(record);
+      value.versions = [];
+      const parsed = accepted(api.parseNewsletterOutreachRecord(value));
+      same(parsed, value);
+      assert(parsed.versions.length === 0 && parsed.tests[0].versionId === versionId);
+      assert(!Object.prototype.hasOwnProperty.call(parsed.tests[0], 'sendable'));
+    },
+  );
   check('record permits nullable sender and no tests', () => {
     const value = clone(record);
     value.senderConnectionId = null;
@@ -660,9 +671,9 @@ function runNewsletterReceivingCorpus(api) {
       },
     ],
     [
-      'test foreign version',
+      'malformed test version UUID',
       (v) => {
-        v.tests[0].versionId = id;
+        v.tests[0].versionId = 'n_not_a_version_uuid';
       },
     ],
     [
