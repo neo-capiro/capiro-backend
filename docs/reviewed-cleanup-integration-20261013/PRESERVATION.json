@@ -1,0 +1,71 @@
+{
+  "allCodeDeltaExplicitlyReviewed": 20,
+  "allPriorIndicesAndHeadsPreserved": true,
+  "explicitSupersessions": [
+    {
+      "currentModeBlob": [
+        "100644",
+        "923e171a34ee488bf0ee977257296985b6518375"
+      ],
+      "currentSha256": "0d00e5971689247f76c2a61326e89a74ee2c97e41eaa6013b15d2ffb28f0ed59",
+      "oldHead": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "oldModeBlob": [
+        "100644",
+        "876aca8e0b3ecbc36fd8893093c45ff261eb0f7c"
+      ],
+      "oldSha256": "a3194b99a38db8e3c5df6263f383d1f08710986055ffa948427fa1ae28054176",
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "reason": "exact independently reviewed donor source, one-byte source-fixture correction or current canonical handoff"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "3b633a2c7115f824b31d26fd6a822fabf342da84"
+      ],
+      "currentSha256": "514378d04f5b8a8c8046cd17a9c446de3eb94d7e9148981b5ba0924c6efffc3b",
+      "oldHead": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "oldModeBlob": [
+        "100644",
+        "138efadf24e54c7f882891222db95895d94e7d7e"
+      ],
+      "oldSha256": "1d6215ccd58961b7465ac72d83fd3c5c27f7a3e6f1dbf47ccc032f7a319aff81",
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+      "reason": "exact independently reviewed donor source, one-byte source-fixture correction or current canonical handoff"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "4536c8ebd8d040763878d589663089913aa87c09"
+      ],
+      "currentSha256": "f167d218a9805ae5b286f78cc8c503f45440d06960cc362b855a02a93f728609",
+      "oldHead": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "oldModeBlob": [
+        "100644",
+        "73c5457fdb6b4a683ac8ad755bdb3799edbec529"
+      ],
+      "oldSha256": "702ecef5566fcc6167c684e6b227080ad6c9dc15607cd3f719213c21af1fd27e",
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "reason": "exact independently reviewed donor source, one-byte source-fixture correction or current canonical handoff"
+    },
+    {
+      "currentModeBlob": [
+        "100644",
+        "aff82f7e78f4014bd08f9f33c39515d27e1854f5"
+      ],
+      "currentSha256": "a7744f52c4e7c452614a8498efd4a17a99b84989b56892b9d8841991d65e3588",
+      "oldHead": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "oldModeBlob": [
+        "100644",
+        "7383938e5ebee31831067175ec1b37bf9132aa28"
+      ],
+      "oldSha256": "36d6d10c5fdffa4b15e8ee2d190bc79fb9c30e2ece6bf03f5443a041fbb81c30",
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "reason": "exact independently reviewed donor source, one-byte source-fixture correction or current canonical handoff"
+    }
+  ],
+  "newHygieneExceptions": 0,
+  "oldRows": 4167,
+  "previousMasterHead": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+  "recoverableIndexedRetirements": [],
+  "unchangedBlobMode": 4163
+}
