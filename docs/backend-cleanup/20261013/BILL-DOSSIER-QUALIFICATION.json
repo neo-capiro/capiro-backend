@@ -1,0 +1,456 @@
+{
+  "baseCommit": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "baseTree": "f7e48ceed36871f7b32d41835c6fd5d70f6091d2",
+  "admittedCore": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "declaredIntelRevision": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+  "recoveryBeforeTag": "backend-cleanup-bill-dossier-before-20261013",
+  "sourceOnly": true,
+  "billDossierOwnershipAcceptanceComplete": true,
+  "fullCleanupAcceptanceComplete": false,
+  "facade": {
+    "nonblankLines": 317,
+    "physicalLines": 349,
+    "originalMethodCount": 16,
+    "methodHeadersDefaultsArityRetained": true,
+    "originalDiParameters": 3,
+    "retainedPublicEntrypoints": 4
+  },
+  "originalHelpers": {
+    "original": 50,
+    "moved": 49,
+    "retired": 1,
+    "retiredName": "prettifyStatus",
+    "originalDeclarationSHA256": "c4c6dac8aec658a1699e4faf0db7d887a76a90db2237cba250e58d499a6b12a4",
+    "retirementReason": "Original unexported module-local declaration had no lexical/selector/dynamic/consumer references; independent review approved recoverable retirement"
+  },
+  "canonicalDefaultOwnership": [
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-federal.ts",
+      "before": "opts: DossierOptions = {}",
+      "after": "opts: DossierOptions",
+      "reason": "Original Root delegate owns this default and passes the resolved argument explicitly; newly introduced child default duplicates that ownership"
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-client-context.ts",
+      "before": "alertRows: ClientAlertRow[] = []",
+      "after": "alertRows: ClientAlertRow[]",
+      "reason": "Original Root delegate owns this default and passes the resolved argument explicitly; newly introduced child default duplicates that ownership"
+    }
+  ],
+  "runtimeComparison": {
+    "beforeCases": 196,
+    "afterCases": 196,
+    "suitesPerPhase": 12,
+    "distinctFileNameKeysPerPhase": 196,
+    "sameMultiset": true,
+    "retainedOriginalCases": 95,
+    "newCharacterizationCases": 101,
+    "skips": 0,
+    "supplementalOwnershipCases": 5,
+    "totalAfterExecutions": 201,
+    "totalAfterSuites": 13,
+    "allSixOriginalSuitesByteExact": true,
+    "runtimeMocks": "Actual service/read-model helpers with explicit fake repository and tenant I/O"
+  },
+  "coverage": {
+    "before": {
+      "lines": {
+        "total": 418,
+        "covered": 398,
+        "skipped": 0,
+        "pct": 95.21
+      },
+      "statements": {
+        "total": 480,
+        "covered": 453,
+        "skipped": 0,
+        "pct": 94.37
+      },
+      "functions": {
+        "total": 112,
+        "covered": 110,
+        "skipped": 0,
+        "pct": 98.21
+      },
+      "branches": {
+        "total": 672,
+        "covered": 554,
+        "skipped": 0,
+        "pct": 82.44
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "after": {
+      "lines": {
+        "total": 560,
+        "covered": 542,
+        "skipped": 0,
+        "pct": 96.78
+      },
+      "statements": {
+        "total": 623,
+        "covered": 598,
+        "skipped": 0,
+        "pct": 95.98
+      },
+      "functions": {
+        "total": 150,
+        "covered": 150,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 672,
+        "covered": 554,
+        "skipped": 0,
+        "pct": 82.44
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "businessBranchCoveredAndTotalUnchanged": true,
+    "uncoveredBeforeStatements": 27,
+    "uncoveredAfterStatements": 25,
+    "uncoveredBeforeFunctions": 2,
+    "uncoveredAfterFunctions": 0,
+    "removedUncoveredDispositions": "Only retired prettifyStatus and its map callback; covered totals change with composition/projection instrumentation",
+    "newInternalDuplicateDefaultsRemovedWithOriginalRootDefaultsUnchanged": 2,
+    "historicalFloorEstablished": false,
+    "completeSourceBranchShapeAndHitMultisetsMatch": true,
+    "all49MovedHelperCallCountsMatch": true
+  },
+  "sourceFiles": [
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier.service.ts",
+      "sha256": "c4b41dc008c930f13ff2140e2e248e02d5ee578b3048a350b55d26c765b3069f",
+      "nonblank": 317,
+      "physical": 349
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-actions.ts",
+      "sha256": "028bc4801596bbde3b60f2d37d7e60f3dafaa02f92ca1a770deb5e46cde2c613",
+      "nonblank": 148,
+      "physical": 160
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-client-context.ts",
+      "sha256": "f2873d4cec37e54ad0b40f4f38f7f42bfb2d503375cf1a843bb520d0a47a44fe",
+      "nonblank": 237,
+      "physical": 246
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-federal.ts",
+      "sha256": "fa0b043d933a3332007b5eace893b898756420d00932e196ea540a1dafb09f34",
+      "nonblank": 347,
+      "physical": 390
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-comparisons.ts",
+      "sha256": "c2a119a810e753d8fd58625c5cdd2afc09073446ec5f2c207f66955b080db05b",
+      "nonblank": 125,
+      "physical": 131
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-empty.ts",
+      "sha256": "0f821adca7f84f6614e7d64476b42f9a556c5eaced52938eeb5c33dd2c578734",
+      "nonblank": 31,
+      "physical": 31
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-format.ts",
+      "sha256": "36c38571a130bfedae18123f1185d3e17ebad239da56356746f5e01dfeedb518",
+      "nonblank": 60,
+      "physical": 64
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding-projections.ts",
+      "sha256": "c1ee2ba029865e661f76bc647a22b80da47c66186f198d9b62da57ac624f20b0",
+      "nonblank": 213,
+      "physical": 216
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding.constants.ts",
+      "sha256": "877c3b218cc042c3fa14beb8baddbd905f5d50c1317ad7013c1e576971de558e",
+      "nonblank": 25,
+      "physical": 37
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-funding.ts",
+      "sha256": "20860eb2b40828c66082bf63b26a53ea544f441eb71950bf9192bf32dabf8fb6",
+      "nonblank": 176,
+      "physical": 176
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-kpis.ts",
+      "sha256": "0a3cb14f5a528ede6d0d705d962c80c14bbe4fd23395cb33a395d10696f8c0ac",
+      "nonblank": 171,
+      "physical": 174
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-presentation.ts",
+      "sha256": "6211e1303098596dae61b6a3b6fb9af6f4f8bdcc31fe339e5e5f37b386d4102f",
+      "nonblank": 21,
+      "physical": 30
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-state.ts",
+      "sha256": "54eab1f79390ee04c696a9e2bb6f5aef808ca5196d9e8ad99dc76e9449ecd084",
+      "nonblank": 185,
+      "physical": 205
+    },
+    {
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier-vote-status.ts",
+      "sha256": "51381837f6e2f4bc9b1db84618c7029035c0c62a1d198897ce80dcd67cad3fd2",
+      "nonblank": 131,
+      "physical": 140
+    }
+  ],
+  "testAssets": [
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership-context.spec.ts",
+      "sha256": "b00166f0eada8c3d5e7e346bca68c048a686cee76e6df87df3ec3615e966f8a1"
+    },
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership-federal.spec.ts",
+      "sha256": "493bba6e788435d7982d68022a67ab98a6c41c4dd0d13bff377024fad75fb4a9"
+    },
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership-funding.spec.ts",
+      "sha256": "d977e42edf1b3c861aa0134ba3f3881e380f6314a97a1f3091836081d86ec46b"
+    },
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership-ordering.spec.ts",
+      "sha256": "634d5d2f8298e51e0857e88140c81d1351a0dbd7fce362964f50e7552762bff6"
+    },
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership-pagination.spec.ts",
+      "sha256": "7a2d6ffa6e09e9bcddefd9fbfe4bad0aaf701d9fd4a0e1e91d618efa05485315"
+    },
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership-state.spec.ts",
+      "sha256": "003b5618591d7f613e0df32e57de9d8c294ae10d454657fbb6a905789a66434c"
+    },
+    {
+      "path": "apps/intel-api/test/bill-dossier-ownership.contract.spec.ts",
+      "sha256": "dcb09caf3950bebb27f1debd3b8856740dc5efd5d1bae81eaf9101fe6cbd5af0"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/bill-dossier-ownership/harness.ts",
+      "sha256": "3d97440cac1fa3176cdb56741af45719333d9fbb9a766c71bd28953932815281"
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/bill-dossier-ownership/rows.ts",
+      "sha256": "4f80a4d82ff61bd7720b00f9d0380a675ea2e593fcd127297e40129f7ed6f205"
+    }
+  ],
+  "gates": [
+    {
+      "gate": "BEFORE-characterization-v2",
+      "exitCode": 0,
+      "durationSeconds": 9.373,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "test/bill-dossier.spec.ts",
+        "same frozen suite paths; full argv preserved in raw receipt"
+      ],
+      "receiptSHA256": "dca51a8e81ba0c1bdf5999b462dfe399fdefddcd1265db040e4cf9ff91226786"
+    },
+    {
+      "gate": "AFTER-characterization-final",
+      "exitCode": 0,
+      "durationSeconds": 9.218,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "test/bill-dossier.spec.ts",
+        "same frozen suite paths; full argv preserved in raw receipt"
+      ],
+      "receiptSHA256": "6bad2aaf1976b61ce5204ebed49e42ebbb3269336150d4c72a094ee7f8bf68cc"
+    },
+    {
+      "gate": "AFTER-ownership-guards-final",
+      "exitCode": 0,
+      "durationSeconds": 3.136,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "test/bill-dossier-ownership.contract.spec.ts",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013/AFTER-guard-results-final.json"
+      ],
+      "receiptSHA256": "05fcbed896d022bbafd9da0dac56136c5058fc2d8655ce7898f45bbb6d77f24f"
+    },
+    {
+      "gate": "intel-typecheck-cold",
+      "exitCode": 0,
+      "durationSeconds": 12.111,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "typecheck"
+      ],
+      "receiptSHA256": "419a1197b725d9255992c2a104ccada61f35a902de77654be76024af6ec477ad"
+    },
+    {
+      "gate": "intel-typecheck-final",
+      "exitCode": 0,
+      "durationSeconds": 10.164,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "typecheck"
+      ],
+      "receiptSHA256": "71f7ec5e1db9b88f14357ce4850d1e2d21ad4586c0c85efd4d46d5b9cb3a1d7b"
+    },
+    {
+      "gate": "intel-build-final",
+      "exitCode": 0,
+      "durationSeconds": 12.106,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "run",
+        "build"
+      ],
+      "receiptSHA256": "c55f4795757c78f1219f9cd5a3194ed6724eefdea75379b9df00227c180e806b"
+    },
+    {
+      "gate": "intel-typecheck-new-tests-guard-final",
+      "exitCode": 0,
+      "durationSeconds": 3.934,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/intel-api",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.bill-dossier-ownership.json",
+        "--noEmit"
+      ],
+      "receiptSHA256": "b3c3dc7568cce6bc0b901ed4b1f2637b67ff6d1593ee14ab89507efa597235d9"
+    }
+  ],
+  "failureDisposition": "Original failed new chamber expectation, two blocked offline Prisma engine download attempts, initial four erased test typing errors, and one new guard whitespace operand failure remain immutable; no skipped/removed cases or historical report rewriting. Final current-source gates pass.",
+  "evidenceDirectory": "/workspace/backend-cleanup-recovery-20261012/bill-dossier-3d76ab21-20261013",
+  "evidence": [
+    {
+      "file": "BEFORE.json",
+      "sha256": "ba75e64757a5453fa4d7fcfeb631c2262162c1e86e56789b5fb71e7ca042bbf3"
+    },
+    {
+      "file": "INTEGRATED-SOURCE-v2.json",
+      "sha256": "0d4d9833c015cba76b7488cc877fca5de2702117ff074e5be09feb30f9a4f043"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-PREINTEGRATION.md",
+      "sha256": "d653ac469a163d112b571781c9fac47d7c00b6984029db37e9cf9d510c45116b"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-BODY-PROOF-v2.json",
+      "sha256": "ba888cd154e92fd4451d97276184f1be1a1107cf60670ef6a1c96eb1077123af"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-PRETTIFY-RETIREMENT.json",
+      "sha256": "1da0f28b718535098980969cfcde93234edd633a9cd92ce908a4b856d094f6a6"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-TEST-COVERAGE.json",
+      "sha256": "cd23f866ee46df37d0e32446d0822f1c294dbd4d710b5bdfab87dfdd46d1b500"
+    },
+    {
+      "file": "BASELINE-EXPECTATION-REPAIR.json",
+      "sha256": "0e87c176c77ef0d1cd5fe2451329c5d9fa228535884c05038d9750f334fb8b9e"
+    },
+    {
+      "file": "STRICT-TEST-TYPE-REPAIR.json",
+      "sha256": "e896b915b40b137e02e6f15617fc8debfb55dafcd1d95ee49688b9d58bc1d1aa"
+    },
+    {
+      "file": "STRICT-TEST-FORMAT-PROOF.json",
+      "sha256": "bb4d3424c901724d501dbd8f3346e49b726c12bd65882b4be97ecdadd7e91ea6"
+    },
+    {
+      "file": "OWNERSHIP-GUARD-WHITESPACE-REPAIR.json",
+      "sha256": "1f35716e281cd927a6bf3ca43ad8df5254deb6f0acbd95f2fcc60f94b8830fdf"
+    },
+    {
+      "file": "STATIC-PRODUCTION-BUDGETS-v2.json",
+      "sha256": "98e346a7f2c1447f54595f266d0f6ab6e974349dab356e9396d84d126f577b2b"
+    },
+    {
+      "file": "FORMAT-RESULT-v4.json",
+      "sha256": "2b3e51e43f0a8c0707de8782e4c6297b27c38d600ebf2eb9c8476201f7f40968"
+    },
+    {
+      "file": "EMITTED-SYNTAX.json",
+      "sha256": "26ca189eca453a8a719b1ed700e1f3672b96255053ebb9c0ca2f0753818ed7e8"
+    },
+    {
+      "file": "DEPENDENCY-PROVENANCE.json",
+      "sha256": "56dac5087b93979a5f9905d001a3912a7d1d3a59949f9c79cf061aa41f9c0a67"
+    },
+    {
+      "file": "PRISMA-CLI-ENGINE-PREPARATION.json",
+      "sha256": "f1f4ee4619dbc5be5944f6a79267d47ecbf63a0a9bcb757adc245e0e9a50fa77"
+    },
+    {
+      "file": "CASE-COVERAGE-RECONCILIATION.json",
+      "sha256": "cdfa065ede42fae983e11bbe5021dbf8d070f5a562c63186b13981afaa1b7908"
+    }
+  ],
+  "externalAcceptance": {
+    "actualLiveImageBuildTreesEstablished": false,
+    "mainOnlyCiExecutionEstablished": false,
+    "databaseExecuted": false,
+    "providersExecuted": false,
+    "deploymentPerformed": false,
+    "frontendRetirementAccepted": false
+  },
+  "rawReports": {
+    "BEFORE-results-v2.json": "c36f244a661c985be301a457b9845fac968f39d7cc076bdccbc4f4501e22c381",
+    "coverage-before-v2/coverage-final.json": "60b910ca0d92c4816d5500d325cbf54c45a6f28e53fefa68d427ec200f78dc9a",
+    "coverage-before-v2/coverage-summary.json": "c413cbe993e1842610347bdc48e55f1ca55f0b0cbfc5001cfeccec1cae278337",
+    "AFTER-results-final.json": "2565d6e1e04b1954a393cff30e9281614a4109754a95fd6b3160810b97138d6b",
+    "coverage-after-final/coverage-final.json": "a15fd1ad96126dbe4aea951b15296a97183f7216a4f03ce48230487d3200ea1f",
+    "coverage-after-final/coverage-summary.json": "98937e059c2aa8abc63660c8943a208ea8bf41eb6d594b1b1c9f5b9984c10fb5",
+    "AFTER-guard-results-final.json": "18ffbe5c8469abb9bf817747d518a926f8d2480409a02ff77e69c6c681219709"
+  }
+}
