@@ -6,6 +6,13 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import LRUCache = require('lru-cache');
+import {
+  buildWhyShown,
+  mergeProvisionLinks,
+  projectPeListRow,
+  type PeListSqlRow,
+  type ProvisionItem,
+} from '@capiro/defense-domain/pe-read';
 import type { TenantContext } from '@capiro/shared';
 import {
   fundingCurrentCoalesceSql,
@@ -18,8 +25,6 @@ import {
   type ModelFundingYear,
 } from '@capiro/shared';
 import {
-  claimFromLadderPick,
-  listEnactedVsRequestDeltaPct,
   markupMonitorTrackDivergence,
   partitionContractorEvidence,
   sqlCurrentCycleFyExpr,
@@ -28,8 +33,6 @@ import {
   claimForYearLadder,
   currentCycleFyPreservingZero,
   missingMarksForYear,
-  requestClaim,
-  enactedClaim,
   type FundingClaimProvenance,
 } from './funding-claim.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -87,35 +90,7 @@ export interface ProgramElementListQuery {
  * (committee/fy/heading/text/pages/actionType) and the provision's SourceDocument
  * (sourceUrl). The shape the web "Report language" panel renders.
  */
-export interface ProvisionItem {
-  id: string;
-  committee: string;
-  fy: number;
-  heading: string;
-  text: string;
-  pageStart: number | null;
-  pageEnd: number | null;
-  actionType: string | null;
-  /** From the provision's SourceDocument when present (deep-link to the report); else null. */
-  sourceUrl: string | null;
-  matchBasis: string;
-  reviewStatus: string;
-  confidence: number;
-  /**
-   * RC7: match scope, derived from matchBasis. `pe_specific` when the link cites
-   * this PE's own code or a project of it; `program_level` when matched via a
-   * program alias (FY committee reports name PROGRAMS, not PE codes), so the same
-   * provision may legitimately apply to SIBLING PEs in the program. Lets a caller
-   * avoid attributing a program-wide provision solely to this PE.
-   */
-  matchScope: 'pe_specific' | 'program_level';
-  /**
-   * RC7: human-facing attribution caveat, non-null ONLY for `program_level`
-   * links, so a memo never states a program-wide provision as exclusive to this
-   * PE. Null for `pe_specific`.
-   */
-  attributionCaveat: string | null;
-}
+export type { ProvisionItem } from '@capiro/defense-domain/pe-read';
 
 /**
  * Step 3.1 — one SAM.gov procurement notice surfaced on a PE profile. Joins a
@@ -282,42 +257,7 @@ export class ProgramElementReadService {
     const capability = query.capability?.trim();
     const fy = query.fy;
 
-    type ListRow = {
-      peCode: string;
-      title: string;
-      service: string | null;
-      budgetActivity: string | null;
-      appropriationType: string | null;
-      status: string | null;
-      lastSyncedAt: Date;
-      hasData: boolean;
-      watched: boolean;
-      billCount: number | null;
-      latestRequest: number | null;
-      latestRequestFy: number | null;
-      latestEnacted: number | null;
-      latestEnactedFy: number | null;
-      /** Request at the enacted FY (matched pair base). Never the inspector for cross-FY %. */
-      requestAtEnactedFy: number | null;
-      latestCurrent: number | null;
-      latestCurrentFy: number | null;
-      latestCurrentStage: string | null;
-      /** PE mark-bearing cycle FY (sqlCurrentCycleFyExpr) — never bare latest request FY. */
-      peCurrentCycleFy: number | null;
-      deltaPct: number | null;
-      spark: number[] | null;
-      signalType: string | null;
-      signalScore: number | null;
-      signalDeltaPct: number | null;
-      lineType: string | null;
-      maturity: number | null;
-      appropTier: string | null;
-      appropScore: number | null;
-      actionSignalType: string | null;
-      actionSignalTone: string | null;
-      valleyOfDeath: boolean | null;
-      totalCount: number;
-    };
+    type ListRow = PeListSqlRow & { totalCount: number };
 
     // A PE "has data" if it has at least one FY history row, a PE-linked federal
     // award, or a bill that references it. Computed once per row via EXISTS so the
@@ -482,65 +422,7 @@ export class ProgramElementReadService {
 
     const total = rows[0]?.totalCount ?? 0;
     return {
-      data: rows.map(({ totalCount: _ignored, ...rest }) => {
-        // Phase G: every dollar headline is a FundingClaim so consumers cannot
-        // invent a cross-FY / cross-track percent from bare numbers.
-        // Cycle anchor is PE mark-bearing FY (SQL sqlCurrentCycleFyExpr), not
-        // catalog-latest request/current stage FY — a pure FYDP outyear must
-        // tag isProjection/outyear (Phase 4 B5).
-        const currentCycleFy = rest.peCurrentCycleFy ?? null;
-        const currentClaim =
-          rest.latestCurrent != null || rest.latestCurrentStage
-            ? claimFromLadderPick({
-                value: rest.latestCurrent,
-                stage: rest.latestCurrentStage ?? 'none',
-                fiscalYear: rest.latestCurrentFy,
-                currentCycleFy,
-              })
-            : null;
-        // Catalog-latest request/enacted stay as display claims; they may be
-        // different FYs and MUST NOT form a comparable %. Matched-pair delta
-        // uses requestAtEnactedFy only (join on le.fy).
-        const requestClaimRow =
-          rest.latestRequest != null || rest.latestRequestFy != null
-            ? requestClaim(rest.latestRequest, rest.latestRequestFy, currentCycleFy)
-            : null;
-        const enactedClaimRow =
-          rest.latestEnacted != null || rest.latestEnactedFy != null
-            ? enactedClaim(rest.latestEnacted, rest.latestEnactedFy, currentCycleFy)
-            : null;
-        const requestAtEnactedClaimRow =
-          rest.requestAtEnactedFy != null && rest.latestEnactedFy != null
-            ? requestClaim(rest.requestAtEnactedFy, rest.latestEnactedFy, currentCycleFy)
-            : null;
-        const deltaPctClaimSafe = listEnactedVsRequestDeltaPct({
-          latestEnacted: rest.latestEnacted,
-          latestEnactedFy: rest.latestEnactedFy,
-          requestAtEnactedFy: rest.requestAtEnactedFy,
-        });
-        return {
-          ...rest,
-          // Matched-pair only. Do not reintroduce bare latestRequest as %.
-          // Do not null a correct ler-based % merely because latestRequestFy differs.
-          deltaPct: deltaPctClaimSafe,
-          currentClaim,
-          requestClaim: requestClaimRow,
-          enactedClaim: enactedClaimRow,
-          requestAtEnactedClaim: requestAtEnactedClaimRow,
-          // Explicit comparable pair for consumers (same FY). Null base → no %.
-          comparableEnactedVsRequest:
-            rest.latestEnactedFy != null &&
-            rest.latestEnacted != null &&
-            rest.requestAtEnactedFy != null
-              ? {
-                  fiscalYear: rest.latestEnactedFy,
-                  enacted: rest.latestEnacted,
-                  request: rest.requestAtEnactedFy,
-                  deltaPct: deltaPctClaimSafe,
-                }
-              : null,
-        };
-      }),
+      data: rows.map(({ totalCount: _ignored, ...rest }) => ({ ...projectPeListRow(rest) })),
       total,
       page,
       limit,
@@ -2700,7 +2582,7 @@ export class ProgramElementReadService {
       confidenceBand: confidenceBand(m.score),
       evidenceTier: m.evidenceTier,
       status: m.status,
-      whyShown: buildProgramWhyShown(m.evidence),
+      whyShown: buildWhyShown(m.evidence),
       evidence: m.evidence,
       resolvedAt: m.resolvedAt,
     });
@@ -2780,53 +2662,7 @@ export class ProgramElementReadService {
         : Promise.resolve([]),
     ]);
 
-    // Merge, keeping the STRONGEST link per provision (a provision reachable both
-    // directly and via program keeps its direct, higher-status row).
-    const byProvision = new Map<string, ProvisionItem>();
-    const rank = (m: string) => (m === 'pe_code' ? 0 : m === 'project_title' ? 1 : 2);
-    // RC7: pe_code / project_title cite THIS PE (or a project of it); anything
-    // else (program_alias) is a program-level candidate that may apply to sibling
-    // PEs — carry that distinction to the model so a program-wide provision is
-    // never attributed as exclusive to this PE.
-    const scopeOf = (m: string): 'pe_specific' | 'program_level' =>
-      m === 'pe_code' || m === 'project_title' ? 'pe_specific' : 'program_level';
-    for (const l of [...directLinks, ...programLinks]) {
-      const existing = byProvision.get(l.provision.id);
-      if (existing && rank(existing.matchBasis) <= rank(l.matchBasis)) continue;
-      const matchScope = scopeOf(l.matchBasis);
-      byProvision.set(l.provision.id, {
-        id: l.provision.id,
-        committee: l.provision.committee,
-        fy: l.provision.fy,
-        heading: l.provision.heading,
-        text: l.provision.text,
-        pageStart: l.provision.pageStart,
-        pageEnd: l.provision.pageEnd,
-        actionType: l.provision.actionType,
-        sourceUrl: l.provision.sourceDocument?.sourceUrl ?? null,
-        matchBasis: l.matchBasis,
-        reviewStatus: l.reviewStatus,
-        confidence: l.confidence,
-        matchScope,
-        attributionCaveat:
-          matchScope === 'program_level'
-            ? 'Program-level match: this provision names a program that maps to this PE, not this PE code directly. It may apply to sibling PEs in the same program — attribute it at the program level, not exclusively to this PE.'
-            : null,
-      });
-    }
-
-    const items = [...byProvision.values()];
-    // accepted → pe-direct candidate → program-level candidate; newest FY first;
-    // capped so a heavily-referenced program can't flood a single PE profile.
-    const statusRank = (s: string) => (s === 'accepted' ? 0 : 1);
-    items.sort(
-      (a, b) =>
-        statusRank(a.reviewStatus) - statusRank(b.reviewStatus) ||
-        rank(a.matchBasis) - rank(b.matchBasis) ||
-        b.fy - a.fy ||
-        b.confidence - a.confidence,
-    );
-    return items.slice(0, 50);
+    return mergeProvisionLinks(directLinks, programLinks);
   }
 
   /**
@@ -2961,28 +2797,6 @@ export class ProgramElementReadService {
     });
     return items;
   }
-}
-
-/**
- * Build the "Why-shown" evidence summary line from a PeProgramMatch's evidence jsonb
- * (e.g. "project title exact match + R-2A p.144 + P-1 line 027"). Replicated minimally
- * from programs.service (which does not export its helper) so the PE panel renders the
- * same line. Guards against non-array / malformed evidence.
- */
-function buildProgramWhyShown(evidence: unknown): string {
-  if (!Array.isArray(evidence)) return '';
-  const parts: string[] = [];
-  for (const item of evidence as Array<Record<string, unknown>>) {
-    const kind = typeof item?.kind === 'string' ? item.kind : '';
-    const page = typeof item?.pageNumber === 'number' ? ` p.${item.pageNumber}` : '';
-    const quote = typeof item?.quote === 'string' ? item.quote : '';
-    if (kind === 'mdap_curated') parts.push('curated MDAP map');
-    else if (kind === 'other_funding_link') parts.push(`shared P-1 line${page}`);
-    else if (kind.startsWith('alias_trigram')) parts.push(quote || 'alias match');
-    else if (quote) parts.push(`${quote}${page}`);
-    else if (kind) parts.push(`${kind}${page}`);
-  }
-  return parts.join(' + ');
 }
 
 export type ReconciliationDecision = 'keep_current' | 'accept_conflicting' | 'manual_value';

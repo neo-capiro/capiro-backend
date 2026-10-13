@@ -156,4 +156,61 @@ describe('ProgramElementReadService.getProvisionsForPe (Step 2.4)', () => {
     expect(await service.getProvisionsForPe('   ')).toEqual([]);
     expect(findMany).not.toHaveBeenCalled();
   });
+
+  test('merges program links without replacing a stronger or equal-basis direct link', async () => {
+    const link = (id: string, matchBasis: string, reviewStatus: string): FakeLinkRow => ({
+      ...rows[0]!,
+      matchBasis,
+      reviewStatus,
+      provision: { ...rows[0]!.provision, id },
+    });
+    const direct = [
+      link('stronger', 'project_title', 'candidate'),
+      link('tie', 'program_alias', 'candidate'),
+    ];
+    const program = [
+      link('stronger', 'program_alias', 'accepted'),
+      link('tie', 'program_alias', 'accepted'),
+      link('program-only', 'program_alias', 'accepted'),
+    ];
+    const { prisma, findMany } = makePrisma([]);
+    prisma.peProgramMatch.findMany.mockResolvedValue([
+      { programId: 'p1' },
+      { programId: 'p1' },
+    ] as never);
+    findMany.mockResolvedValueOnce(direct).mockResolvedValueOnce(program);
+
+    const result = await makeService(prisma).getProvisionsForPe(' 0604801F ');
+
+    expect(result.map(({ id, reviewStatus }) => [id, reviewStatus])).toEqual([
+      ['program-only', 'accepted'],
+      ['stronger', 'candidate'],
+      ['tie', 'candidate'],
+    ]);
+    expect(result[1]?.attributionCaveat).toBeNull();
+    expect(result[0]?.attributionCaveat).toBe(
+      'Program-level match: this provision names a program that maps to this PE, not this PE code directly. It may apply to sibling PEs in the same program — attribute it at the program level, not exclusively to this PE.',
+    );
+    expect(findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { programId: { in: ['p1'] }, reviewStatus: { in: ['accepted', 'candidate'] } },
+      }),
+    );
+  });
+
+  test('caps provisions at fifty while keeping input order for equal-rank ties', async () => {
+    const links = Array.from({ length: 55 }, (_, index) => ({
+      ...rows[0]!,
+      provision: { ...rows[0]!.provision, id: `p${index}` },
+    }));
+    const { prisma } = makePrisma(links);
+
+    const result = await makeService(prisma).getProvisionsForPe('0604801F');
+
+    expect(result.map(({ id }) => id)).toEqual(
+      links.slice(0, 50).map(({ provision }) => provision.id),
+    );
+    expect(links).toHaveLength(55);
+  });
 });
