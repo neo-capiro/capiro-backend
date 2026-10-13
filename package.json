@@ -29,6 +29,8 @@
     "db:reset": "pnpm --filter @capiro/api prisma:reset",
     "verify:pe-phase-9": "pnpm -C apps/api run verify:pe-phase-9",
     "verify:pe-phase-9:full": "pnpm -C apps/api run verify:pe-phase-9:full",
+    "verify:pe-phase-9:backend": "pnpm -C apps/api run verify:pe-phase-9:backend",
+    "verify:pe-phase-9:backend:dry-run": "pnpm -C apps/api run verify:pe-phase-9:backend:dry-run",
     "verify:pe-phase-10": "pnpm -C apps/api run verify:pe-phase-10",
     "verify:engagement-phase-0": "pnpm --filter @capiro/api verify:engagement-phase-0",
     "verify:engagement-phase-0:browser": "node scripts/run-engagement-phase0-local.mjs --run",
