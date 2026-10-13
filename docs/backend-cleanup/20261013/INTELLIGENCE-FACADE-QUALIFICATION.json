@@ -1,0 +1,258 @@
+{
+  "baseCommit": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+  "baseTree": "f7e48ceed36871f7b32d41835c6fd5d70f6091d2",
+  "recoveryBeforeTag": "backend-cleanup-intelligence-facade-before-20261013",
+  "sourceOnly": true,
+  "facadeAcceptanceComplete": true,
+  "fullIntelligenceCleanupAcceptanceComplete": false,
+  "runtimeComparison": {
+    "beforeCases": 1283,
+    "afterCases": 1283,
+    "suitesPerPhase": 98,
+    "distinctFileNameKeysPerPhase": 1281,
+    "sameMultiset": true,
+    "newCompatibilityCases": 18,
+    "retainedCases": 1265,
+    "skips": 0,
+    "supplementalOwnershipCases": 7,
+    "totalAfterExecutions": 1290,
+    "totalAfterSuites": 99,
+    "retainedArchitectureIdentities": 12,
+    "changedObsoleteArchitectureBodies": 4,
+    "businessAssetsUnchanged": true
+  },
+  "coverage": {
+    "beforeBranches": {
+      "covered": 1142,
+      "total": 1352
+    },
+    "afterBranches": {
+      "covered": 1142,
+      "total": 1352
+    },
+    "branchSiteShapesAndHitsEqual": 806,
+    "uncoveredStatements": 315,
+    "uncoveredFunctions": 75,
+    "uncoveredBranches": 210,
+    "statementDenominatorAddition": 33,
+    "functionDenominatorAddition": 14,
+    "additionExplanation": "Covered composition structure; moved source-budget included explicitly; no business coverage gain",
+    "originalUncoveredDistrictSpendCallbackRemainsUncovered": true,
+    "historicalFloorEstablished": false
+  },
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "sha256": "c2ef4949243c3a500d43c3203dbf29b8cfb04d34e1942172d02b38432eb0f79d",
+      "nonblank": 365,
+      "physical": 469
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-client-composition.ts",
+      "sha256": "e11376de4c0cbd506205d9c6c8f2fba3d38fbefb7e38d3ab640960dc14a4f65c",
+      "nonblank": 60,
+      "physical": 61
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-contracts.ts",
+      "sha256": "ec136f18ebe9268016b50910a6d8cf8996063d6230491208611cbf9a79de40d3",
+      "nonblank": 152,
+      "physical": 171
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-final-composition.ts",
+      "sha256": "4ab0b89c16f24103700ca46b8cfbf01d3faac4ea92383136287744f34cd2bd83",
+      "nonblank": 63,
+      "physical": 64
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-owners.ts",
+      "sha256": "026422844730cc9b30c7857ab5ce205313ce31b64d46588b5a97177ba668dd57",
+      "nonblank": 108,
+      "physical": 112
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-policy-values.ts",
+      "sha256": "bf26efed881215ba82277734bef215d3dbc6d2158c5fa9ce51585f925fd6a318",
+      "nonblank": 6,
+      "physical": 8
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-profile-composition.ts",
+      "sha256": "8ea477d7febbdcf49b2d6171a5a567ab7ad08e947982e3f7af638f9c1a0665af",
+      "nonblank": 78,
+      "physical": 84
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-facade-supporting-composition.ts",
+      "sha256": "d0aee501fd724184525c9a90feb4c9b68d37eb2513c7b4b59ae9cec2c23cf511",
+      "nonblank": 35,
+      "physical": 36
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence-profile-source-budget.ts",
+      "sha256": "8095b71b8f6fc6a73231ee92d2dbeef5f8bb7615447dacd9080e72c357076285",
+      "nonblank": 34,
+      "physical": 38
+    }
+  ],
+  "gates": [
+    {
+      "gate": "BEFORE-characterization",
+      "exitCode": 0,
+      "durationSeconds": 94.697,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/district-nexus/priority-intelligence/priority-intelligence.service.spec.ts",
+        "same frozen suite paths; full exact argv preserved in raw receipt"
+      ],
+      "receiptSHA256": "21a734e9605ec4074c3679a3906f8a9367f24e069af68707803a61c2e4ab6e0f"
+    },
+    {
+      "gate": "AFTER-characterization",
+      "exitCode": 0,
+      "durationSeconds": 92.237,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/district-nexus/priority-intelligence/priority-intelligence.service.spec.ts",
+        "same frozen suite paths; full exact argv preserved in raw receipt"
+      ],
+      "receiptSHA256": "7958aee86cfada5cf1f8d07848f9bd942cf664b8eb4270161ddd61840dd34c21"
+    },
+    {
+      "gate": "AFTER-ownership-guards",
+      "exitCode": 0,
+      "durationSeconds": 5.144,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/intelligence/intelligence-facade-ownership.contract.spec.ts",
+        "--json"
+      ],
+      "receiptSHA256": "570179cfc21b6b815f6eb55e5a68443b3b0795dc896243c1e577f455771805aa"
+    },
+    {
+      "gate": "api-typecheck-cold",
+      "exitCode": 0,
+      "durationSeconds": 227.167,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "typecheck"
+      ],
+      "receiptSHA256": "6837b2de0afd1136b3ff804f8a7d39fec195bc925dd143eee7a861d53d646e81"
+    },
+    {
+      "gate": "api-build",
+      "exitCode": 0,
+      "durationSeconds": 58.63,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "build"
+      ],
+      "receiptSHA256": "bc0e130dce78688717d0e86e8b7910a6c6e1c8d7d115479c50cd0231cfcdbbfd"
+    },
+    {
+      "gate": "AFTER-ownership-guards-final",
+      "exitCode": 0,
+      "durationSeconds": 4.072,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.tools/pnpm9/node_modules/pnpm/bin/pnpm.cjs",
+        "-C",
+        "apps/api",
+        "run",
+        "test",
+        "--runInBand",
+        "--runTestsByPath",
+        "src/intelligence/intelligence-facade-ownership.contract.spec.ts",
+        "--json",
+        "--outputFile=/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013/AFTER-guard-results-final.json"
+      ],
+      "receiptSHA256": "707128486bcfd78e88289cd305254c770ce856b37d832798ef5e7dbfdbc2ec6f"
+    }
+  ],
+  "finalErasedFormattingDisposition": "Cold full typechain ran before two erased generic trailing-comma removals. CommonJS/ESNext output is byte-identical; final Nest build uses current source. The sole unused Root type import was removed before all after native runs.",
+  "evidenceDirectory": "/workspace/backend-cleanup-recovery-20261012/intelligence-facade-3d76ab21-20261013",
+  "evidence": [
+    {
+      "file": "BEFORE.json",
+      "sha256": "b7050279f0e7d3a4fc40fe4f9caff8f57f521bc7826b57049d92b19c3649580d"
+    },
+    {
+      "file": "INTEGRATED-SOURCE-v3.json",
+      "sha256": "8e9e37f2b2619682234e024b579d1941243b5a47721b62fbfec86a5274584762"
+    },
+    {
+      "file": "ARCHITECTURE-TRANSITION.json",
+      "sha256": "3bd7b3c839a24dcc5165306dc575e723516bdaebab17f61726fe2c7409559121"
+    },
+    {
+      "file": "IMPORT-HYGIENE-EMIT-PROOF.json",
+      "sha256": "cb04db9a9eae706ca0e62d7722bf46c903db5851b5172675e5b49ce0d23363ee"
+    },
+    {
+      "file": "ERASED-GENERIC-FORMAT-PROOF.json",
+      "sha256": "08de5248ebf4f9fed9cbc83e8b7e7978d8f450a652d8f239ecd16ffb9c8b438e"
+    },
+    {
+      "file": "STATIC-PRODUCTION-BUDGETS-v2.json",
+      "sha256": "8049f100ed60fd828df6f51c23a026e084d459776c52d8ee220dc09c0b2dc7d0"
+    },
+    {
+      "file": "FORMAT-RESULT-v2.json",
+      "sha256": "276e2a86cd303285c3ef7bce9f9103dd0f2bdb2c5daa6f1c0744a272072be79d"
+    },
+    {
+      "file": "EMITTED-SYNTAX.json",
+      "sha256": "d733f2296c4d5e0892bb2102788d0ea1b48af346e1294ac8d6852a677441d957"
+    },
+    {
+      "file": "CASE-COVERAGE-RECONCILIATION.json",
+      "sha256": "4a2acce5f84a678298005093b34dfd59e1ae94a0a73c917746fbe9cef6a39af7"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-INTEGRATED-v2.json",
+      "sha256": "6c5ac4272d9981a29dc9d70a4df143f5fd1bfe62e95b2dc51523d16123168e17"
+    },
+    {
+      "file": "INDEPENDENT-REVIEW-TEST-COVERAGE.json",
+      "sha256": "52442649ed1d1291af750006e6346f0dc04b959be55d582f2379ddd98713f374"
+    }
+  ],
+  "externalAcceptance": {
+    "actualLiveImageBuildTreesEstablished": false,
+    "mainOnlyCiExecutionEstablished": false,
+    "databaseExecuted": false,
+    "providersExecuted": false,
+    "deploymentPerformed": false,
+    "frontendRetirementAccepted": false
+  }
+}
