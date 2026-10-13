@@ -1,0 +1,9 @@
+{
+  "source": "7c87678730538958ace9762f824dc3e588bf445b",
+  "tree": "7058e9b3435965bb67a905b23134f5a4c7916c3b",
+  "localMetadataFile": "/workspace/cleanup-newsletter-canonical-builder-20261013/metadata/frontend-tree.stdout",
+  "bytes": 6930851,
+  "sha256": "e61c179e2955bb610c2e348a60d130c4180fcb18ab8d5f390dfee4bd5b91e500",
+  "content": "tree names/modes/blobids only; no docs/report bodies retrieved",
+  "initialMetadataFilter": "included historical artifact pathnames only, narrowed before anybodyfetch"
+}

@@ -1,0 +1,11 @@
+✔ opt-in Docker consumes only an explicit validated rootfs using the frontend-owned runtime profile (1.910029ms)
+✔ default Web Docker, release operator, workspace, lock and Onboard default remain unchanged (35.581485ms)
+✔ missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify (3.699083ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.315769

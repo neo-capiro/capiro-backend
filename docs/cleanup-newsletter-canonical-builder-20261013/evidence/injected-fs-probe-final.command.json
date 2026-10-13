@@ -1,0 +1,20 @@
+{
+  "source": "7ee13b8d26888a33377a29cf00637ca64b20bded",
+  "tree": "2232f700af2a46c613690be23ab050de2e734193",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/safe-source-host.cjs",
+    "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/original-review-injected-fs-probe.mjs"
+  ],
+  "cwd": "/workspace/cleanup-newsletter-canonical-builder-20261013",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin"
+  },
+  "exit": 0,
+  "seconds": 0.07024288177490234,
+  "stdoutSha256": "c458c16ef0ab9eb490daac8eddb743b21c08fc2edabc38cb280e734bb79a378e",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sourceFieldInProbe": "unchangeddf86; actualfinalsource boundhere",
+  "effects": "inertsyntheticcallbacks only, no private/asset/native reads"
+}

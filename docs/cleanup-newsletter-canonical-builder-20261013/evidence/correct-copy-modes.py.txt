@@ -1,0 +1,52 @@
+import pathlib,shutil,json,subprocess,os,hashlib
+S=pathlib.Path('/workspace/cleanup-newsletter-canonical-builder-20261013');E=S/'docs/cleanup-newsletter-canonical-builder-20261013/evidence';R=pathlib.Path('/workspace/capirov2');F=json.loads((S/'SOURCE-FREEZE.json').read_text());prior=F['source']
+for lane in ['assembly','docker']:
+ for suffix in ['stdout','stderr','command.json']:shutil.copyfile(E/(lane+'.'+suffix),E/('initial-9647-'+lane+'.'+suffix))
+shutil.copyfile(S/'SOURCE-FREEZE.json',E/'INITIAL-9647-SOURCE-FREEZE.json')
+p=S/'scripts/lib/newsletter-artifact-packaging-plan.mjs';t=p.read_text();t=t.replace('async function writeBuffer(io, value, bytes) {\n  const handle = await io.open(value, \'wx\', 0o644);\n  try { await handle.writeFile(bytes); await handle.sync(); }','async function writeBuffer(io, value, bytes, mode = 0o644) {\n  const handle = await io.open(value, \'wx\', mode);\n  try { await handle.writeFile(bytes); await handle.chmod(mode); await handle.sync(); }')
+t=t.replace('runtimeTarget: pinsFor(options).runtimeTarget, artifact, counts,','runtimeTarget: pinsFor(options).runtimeTarget, artifact, counts,\n    permissionHandling: { regularFileMode: \'0644 | observed source execute bits (0111)\',\n      privilegedBitsPreserved: false, manifestAuthenticatesPermissions: false, runtimePermissionsCompatibilityVerified: false },')
+t=t.replace('const files = new Map(), symlinks = new Map();','const files = new Map(), symlinks = new Map(), fileModes = new Map();')
+t=t.replace('files.set(target, bytes);','const mode = 0o644 | (stat.mode & 0o111);\n          if (fileModes.has(target) && fileModes.get(target) !== mode) refuse(\'conflicting input executable modes\');\n          fileModes.set(target, mode); files.set(target, bytes);')
+t=t.replace('const counts = { regularFiles: files.size, symlinks: symlinks.size, bytes: totalBytes };','const counts = { regularFiles: files.size, symlinks: symlinks.size, bytes: totalBytes,\n    fileModes: [...fileModes].sort(([a], [b]) => a.localeCompare(b)).map(([name, mode]) => ({ path: name, mode: mode.toString(8) })) };')
+t=t.replace('await writeBuffer(io, rootfs + \'/\' + name, bytes);','await writeBuffer(io, rootfs + \'/\' + name, bytes, fileModes.get(name));').replace("status: 'FAIL', assemblyPerformed: false","status: 'FAIL', assemblyCompleted: false")
+p.write_text(t)
+p=S/'scripts/ci/newsletter-artifact-packaging-plan.spec.mjs';t=p.read_text();t+='''
+
+test('physical assembly preserves0755 helper execute bits without authenticating modes or granting runtime admission', async () => {
+  await fixture(async ({ options }) => {
+    const name = 'node_modules/runtime/runtime.js';
+    await fs.chmod(options.standaloneDir + '/' + name, 0o755);
+    const before = await fs.readFile(options.standaloneDir + '/' + name);
+    const receipt = await assembleNewsletterReleaseArtifact(options, model);
+    assert.equal((await fs.stat(options.outputDir + '/rootfs/' + name)).mode & 0o777, 0o755);
+    assert.deepEqual(await fs.readFile(options.outputDir + '/rootfs/' + name), before);
+    assert.equal(receipt.counts.fileModes.find(entry => entry.path === name).mode, '755');
+    assert.equal(receipt.permissionHandling.privilegedBitsPreserved, false);
+    assert.equal(receipt.permissionHandling.manifestAuthenticatesPermissions, false);
+    assert.equal(receipt.permissionHandling.runtimePermissionsCompatibilityVerified, false);
+    assert.equal(receipt.syntheticModel, true); assert.equal(receipt.shippingAuthorized, false);
+  });
+});
+
+for (const phase of ['prepublication', 'postrename']) test(`${phase} directory fsync failure never returns a success receipt and rolls back owned output`, async () => {
+  await fixture(async ({ options, root, manifestBytes }) => {
+    let failed = false;
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ open: async (value, ...args) => {
+      const handle = await fs.open(value, ...args);
+      const selected = phase === 'prepublication' ? value.includes('/.newsletter-assembly-') && value.endsWith('/rootfs')
+        : value === root;
+      if (!selected) return handle;
+      return { sync: async () => { failed = true; throw new Error(`injected ${phase} fsync failure`); }, close: () => handle.close() };
+    } }) }), new RegExp(`injected ${phase} fsync`));
+    assert.equal(failed, true); await absent(options.outputDir); await absent(options.outputDir + '.newsletter-assembly.lock');
+    assert.deepEqual(await fs.readFile(options.manifestPath), manifestBytes);
+    assert.equal((await fs.readdir(root)).some(name => name.startsWith('.newsletter-assembly-')), false);
+  });
+});
+''';p.write_text(t)
+env=os.environ.copy();env['GIT_INDEX_FILE']=str(S/'virtual.index')
+def git(*args,data=None):return subprocess.check_output(['git','-C',str(R),*args],env=env,input=data).decode().strip()
+git('read-tree',prior)
+for row in F['paths']:
+ p=S/row['path'];b=p.read_bytes();oid=git('hash-object','-w','--stdin',data=b);git('update-index','--add','--cacheinfo',row['mode'],oid,row['path']);row.update(gitBlob=oid,sha256=hashlib.sha256(b).hexdigest(),bytes=len(b))
+tree=git('write-tree');head=git('commit-tree',tree,'-p',prior,data=b'Preserve compiled executable bits and qualify owned fsync rollback [skip ci]\n');git('update-ref',F['branch'],head,prior);F.update(source=head,tree=tree,previousSource=prior);(S/'SOURCE-FREEZE.json').write_text(json.dumps(F,indent=2)+'\n');print(head,tree)

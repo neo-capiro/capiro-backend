@@ -1,0 +1,91 @@
+import pathlib,subprocess,os,json,shutil,hashlib
+S=pathlib.Path('/workspace/cleanup-newsletter-canonical-builder-20261013');E=S/'docs/cleanup-newsletter-canonical-builder-20261013/evidence';R=pathlib.Path('/workspace/capirov2');F=json.loads((S/'SOURCE-FREEZE.json').read_text());prior=F['source']
+for lane in ['assembly','docker']:
+ for suffix in ['stdout','stderr','command.json']:shutil.copyfile(E/(lane+'.'+suffix),E/('initial-df86-'+lane+'.'+suffix))
+shutil.copyfile(S/'SOURCE-FREEZE.json',E/'INITIAL-DF86-SOURCE-FREEZE.json')
+p=S/'scripts/lib/frontend-standalone-artifact-contract.mjs';t=p.read_text();needle='/** Canonical declaration grammar only; no I/O or byte/runtime admission. */';assert t.count(needle)==1;t=t.replace(needle,"/** Canonical relative path grammar only; no I/O or normalization. */\nexport function inspectFrontendStandalonePath(value) {\n  return safePath(value);\n}\n\n"+needle);p.write_text(t)
+p=S/'scripts/lib/newsletter-artifact-packaging-plan.mjs';t=p.read_text();t=t.replace('import { inspectFrontendStandaloneManifest, validateFrontendStandaloneArtifact,','import { inspectFrontendStandaloneManifest, inspectFrontendStandalonePath, validateFrontendStandaloneArtifact,');t=t.replace("if (!literal(value) || !value.startsWith('/') || value === '/' || path.posix.normalize(value) !== value\n      || value.split('/').some(part => ['.git', '.aws', '.ssh', '.env', '.gnupg'].includes(part)))", "if (!literal(value) || !value.startsWith('/') || value === '/' || path.posix.normalize(value) !== value)");t=t.replace("refuse('literal canonical absolute input/output path');\n  return value;", "refuse('literal canonical absolute input/output path');\n  inspectFrontendStandalonePath(value.slice(1));\n  return value;",1)
+t=t.replace('''    const bytes = await handle.readFile();
+    if (!Buffer.isBuffer(bytes) || bytes.length !== stat.size || bytes.length > limit) refuse('bounded snapshot read');
+    return Buffer.from(bytes);''','''    const chunks = []; let count = 0;
+    while (count <= limit) {
+      const chunk = Buffer.alloc(Math.min(65536, limit + 1 - count));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+      if (!Number.isInteger(bytesRead) || bytesRead < 0 || bytesRead > chunk.length) refuse('bounded snapshot read');
+      if (bytesRead === 0) break;
+      count += bytesRead;
+      if (count > limit) refuse('bounded snapshot read');
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+    if (count !== stat.size) refuse('bounded snapshot read');
+    return Buffer.concat(chunks, count);''')
+t=t.replace('function receiptFor(options, artifact, counts, fixtureLabel) {','function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem) {').replace('syntheticModel: fixtureLabel !== undefined, fixtureLabel: fixtureLabel ?? null,','syntheticModel: fixtureLabel !== undefined, fixtureLabel: fixtureLabel ?? null,\n    builtinFilesystem, filesystemEffectsIndependentlyAttested: builtinFilesystem,').replace('atomicDirectoryPublishPerformed: true, durableFilesAndDirectorySyncPerformed: true,','atomicDirectoryPublishPerformed: builtinFilesystem, durableFilesAndDirectorySyncPerformed: builtinFilesystem,')
+old="""  if ((newsletterIdentity !== undefined && (typeof newsletterIdentity !== 'function'
+      || typeof fixtureLabel !== 'string' || !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixtureLabel)))
+      || (newsletterIdentity === undefined && fixtureLabel !== undefined)) refuse('explicit labelled synthetic identity port');"""
+new="""  const customPort = newsletterIdentity !== undefined || io !== fs;
+  if ((newsletterIdentity !== undefined && typeof newsletterIdentity !== 'function')
+      || (customPort && (typeof fixtureLabel !== 'string' || !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixtureLabel)))
+      || (!customPort && fixtureLabel !== undefined)) refuse('explicit labelled synthetic identity/filesystem port');"""
+assert t.count(old)==1;t=t.replace(old,new).replace('receiptFor(options, revalidated, counts, fixtureLabel);','receiptFor(options, revalidated, counts, fixtureLabel, io === fs);');p.write_text(t)
+p=S/'scripts/ci/newsletter-artifact-packaging-plan.spec.mjs';t=p.read_text();t+='''
+
+for (const [name, key, value] of [
+  ['credentials.json manifest', 'manifestPath', '/tmp/credentials.json'],
+  ['envrc manifest', 'manifestPath', '/tmp/.envrc'],
+  ['npmrc manifest', 'manifestPath', '/tmp/.npmrc'],
+  ['service account manifest', 'manifestPath', '/tmp/service-account.json'],
+  ['private key manifest', 'manifestPath', '/tmp/private.key'],
+  ['uppercase AWS output', 'outputDir', '/tmp/.AWS/output'],
+  ['env variant output', 'outputDir', '/tmp/.env.local/output'],
+]) test(`canonical path owner refuses ${name} before filesystem callbacks`, async () => {
+  await fixture(async ({ options }) => {
+    let calls = 0;
+    await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, [key]: value }, { ...model,
+      io: ioWith({ lstat: async () => { calls++; throw new Error('private input must not be touched'); } }) }));
+    assert.equal(calls, 0);
+  });
+});
+
+test('unlabelled filesystem injection refuses before callbacks and extra labels cannot alter production mode', async () => {
+  await fixture(async ({ options }) => {
+    let calls = 0; await assert.rejects(assembleNewsletterReleaseArtifact(options,
+      { io: ioWith({ lstat: async () => { calls++; throw new Error('synthetic callback'); } }) }), /labelled synthetic/);
+    assert.equal(calls, 0);
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { fixtureLabel: 'not a port' }), /labelled synthetic/);
+  });
+});
+
+test('explicit filesystem model cannot attest atomic or durable native filesystem effects', async () => {
+  await fixture(async ({ options }) => {
+    const receipt = await assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({}) });
+    assert.equal(receipt.status, 'PASS'); assert.equal(receipt.syntheticModel, true);
+    assert.equal(receipt.builtinFilesystem, false);
+    assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
+    assert.equal(receipt.atomicDirectoryPublishPerformed, false);
+    assert.equal(receipt.durableFilesAndDirectorySyncPerformed, false);
+    assert.equal(receipt.artifact.actualArtifactBytesVerified, false);
+    assert.equal(receipt.shippingAuthorized, false);
+  });
+});
+
+test('stat/read growth consumes at most manifest budget+1 bytes and never calls whole-file readFile', async () => {
+  await fixture(async ({ options }) => {
+    let consumed = 0, wholeReads = 0;
+    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ open: async (value, ...args) => {
+      const handle = await fs.open(value, ...args);
+      if (value !== options.manifestPath) return handle;
+      return { readFile: async () => { wholeReads++; throw new Error('unbounded read'); },
+        read: async (buffer, offset, length) => { consumed += length; buffer.fill(120, offset, offset + length); return { bytesRead: length }; },
+        close: () => handle.close() };
+    } }) }), /bounded snapshot read/);
+    assert.equal(wholeReads, 0); assert.equal(consumed, PROFILE.maxManifestBytes + 1); await absent(options.outputDir);
+  });
+});
+''';p.write_text(t)
+env=os.environ.copy();env['GIT_INDEX_FILE']=str(S/'virtual.index')
+def git(*args,data=None):return subprocess.check_output(['git','-C',str(R),*args],env=env,input=data).decode().strip()
+git('read-tree',prior)
+for row in F['paths']:
+ b=(S/row['path']).read_bytes();oid=git('hash-object','-w','--stdin',data=b);git('update-index','--add','--cacheinfo',row['mode'],oid,row['path']);row.update(gitBlob=oid,sha256=hashlib.sha256(b).hexdigest(),bytes=len(b))
+tree=git('write-tree');head=git('commit-tree',tree,'-p',prior,data=b'Use canonical input path authority and bound filesystem model/read claims [skip ci]\n');git('update-ref',F['branch'],head,prior);F.update(source=head,tree=tree,previousSource=prior);(S/'SOURCE-FREEZE.json').write_text(json.dumps(F,indent=2)+'\n');print(head,tree)
