@@ -1,0 +1,39 @@
+node:internal/modules/cjs/loader:1517
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module 'file:///tmp/pr2450-shared-runtime-byte-exact-20261013/dist/funding-claim.js'
+Require stack:
+- /workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/funding-claim-read.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at defaultResolve (node:internal/modules/cjs/loader:1152:20)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/parity-package-alias.mjs:5:62)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1165:25)
+    at Module._load (node:internal/modules/cjs/loader:1294:5) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/workspace/capirov2-integrated-rc/packages/defense-domain/dist/pe-read/funding-claim-read.js'
+  ]
+}
+
+Node.js v24.19.0
+✖ tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts (316.166501ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 334.925235
+
+✖ failing tests:
+
+test at tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts:1:1
+✖ tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts (316.166501ms)
+  'test failed'

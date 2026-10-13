@@ -1,0 +1,43 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/intelligence/intelligence.mapping-governance.spec.ts
+PASS src/program-element/program-element-read-provisions.spec.ts
+PASS src/clients/client-profile-fill-retry.spec.ts
+PASS ../intel-api/src/tracker/email-cta-routes.spec.ts
+PASS src/program-element/program-element-read.service.spec.ts
+PASS src/program-element/program-element-read-programs.spec.ts
+PASS src/clients/client-profile-fill-finding-source-check.contract.spec.ts
+PASS src/clients/community-funding-appropriations-outcome.spec.ts
+PASS src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts
+PASS src/clients/client-profile-fill.helpers.spec.ts
+PASS src/clients/community-funding-advocacy-match.spec.ts
+FAIL src/clients/client-profile-fill-learning-signal-resilience.spec.ts
+  ● ClientProfileFillService — learning-signal capture is non-blocking › LEARNING_SIGNAL_CAPTURE kill switch, end to end through the real capture service › enabled (default): apply succeeds and a real signal row is created
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 0
+
+      207 |
+      208 |       expect(result.applied).toEqual([FINDING]);
+    > 209 |       expect(tx.learningSignal.create).toHaveBeenCalledTimes(1);
+          |                                        ^
+      210 |     });
+      211 |
+      212 |     it('disabled: apply still succeeds but no signal row is created', async () => {
+
+      at Object.<anonymous> (src/clients/client-profile-fill-learning-signal-resilience.spec.ts:209:40)
+
+PASS src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts
+PASS src/clients/client-profile-fill-completion.characterization.spec.ts
+PASS src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts
+PASS src/clients/client-profile-fill-completion.service.spec.ts
+
+Test Suites: 1 failed, 1 skipped, 15 passed, 16 of 17 total
+Tests:       1 failed, 5 skipped, 223 passed, 229 total
+Snapshots:   0 total
+Time:        20.311 s
+Ran all test suites within paths "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-programs.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-provisions.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/intelligence/intelligence.mapping-governance.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill.helpers.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-advocacy-match.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-appropriations-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-learning-signal-resilience.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/intel-api/src/tracker/email-cta-routes.spec.ts".
+Test results written to: ../../docs/reviewed-cleanup-integration-20261013/evidence/19-affected-jest-results.json

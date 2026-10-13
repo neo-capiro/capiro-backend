@@ -1,0 +1,55 @@
+(node:738353) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:738353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/funding-claim-read-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(node:738353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/funding-claim.helpers.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: claimForYearLadder agrees field-for-field across the ladder matrix (12.005564ms)
+✔ PARITY: requestClaim / enactedClaim agree, including genuine zero and null (0.837982ms)
+✔ PARITY: missingMarksForYear agrees on every stage cell (zeros are present, not missing) (2.721851ms)
+✔ PARITY: currentCycleFyPreservingZero agrees — NDAA-only and $0 marks still anchor the cycle (3.070229ms)
+✔ PARITY: the two buildFundingClaim implementations reachable from defense-domain agree (314.215367ms)
+(node:738359) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:738359) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(node:738359) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/funding-claim.helpers.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: every finder row projects identically to apps/api, field-for-field (7.233207ms)
+✔ PARITY: the finder row carries every enrichment field apps/api serves (0.933255ms)
+✔ PARITY: a cross-FY comparison is never expressed as a percent (0.468992ms)
+(node:738360) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:738360) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(node:738360) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/proof-pack.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: proofPackRank agrees on every exhibit/docType combination (1.14163ms)
+✔ PARITY: the proof-pack comparator induces the identical citation order (7.525423ms)
+✔ PARITY: getSources selects every provenance column apps/api serves (1.189398ms)
+✔ PARITY: provision basis rank + match scope agree with apps/api (0.340571ms)
+✔ PARITY: the provision merge keeps the strongest link and orders identically (2.844746ms)
+✔ PARITY: the program-level attribution caveat is byte-identical to apps/api (7.126714ms)
+✔ PARITY: a program-level provision always carries the caveat; a PE-direct one never does (3.175993ms)
+(node:738381) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:738381) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+✔ PARITY: every representative route contract holds on BOTH implementations (6.071797ms)
+✔ PARITY: no route body is an unconditional empty-result stub (0.846412ms)
+✔ PARITY: peCode normalization is applied consistently on every peCode-taking method (1.061422ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2057.894329

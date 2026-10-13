@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "node",
+    "--experimental-strip-types",
+    "--require",
+    "/workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs",
+    "--import",
+    "/workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/parity-package-alias.mjs",
+    "--test",
+    "/workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts",
+    "/workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/funding-claim-read-parity.spec.ts",
+    "/workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts",
+    "/workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts"
+  ],
+  "exit": 1,
+  "elapsedSeconds": 0.8582340300054057,
+  "sourceHead": "64b08bf3ddf4c232b2b9d4fd8ef2771699160900",
+  "fourOriginalPureParitySpecsUnchanged": true,
+  "noDatabaseOrProvider": true
+}

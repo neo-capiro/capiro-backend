@@ -1,0 +1,132 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/program-element/program-element-read.service.spec.ts (5.347 s)
+FAIL src/clients/client-profile-fill-completion.service.spec.ts
+  ● Test suite failed to run
+
+    jest.native-sanitize-html bridge: the native sanitize-html export was not found on the sandbox global ("__CAPIRO_JEST_NATIVE_SANITIZE_HTML__"). This bridge only works when the suite runs under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html there. Refusing to fall back to a mock, stub, or the ESM-broken specifier.
+
+      25 |
+      26 | if (typeof implementation !== 'function') {
+    > 27 |   throw new Error(
+         |         ^
+      28 |     'jest.native-sanitize-html bridge: the native sanitize-html export was not found on the '
+      29 |       + `sandbox global ("${SANITIZE_GLOBAL_KEY}"). This bridge only works when the suite runs `
+      30 |       + 'under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html '
+
+      at Object.<anonymous> (jest.native-sanitize-html.cjs:27:9)
+      at Object.<anonymous> (src/clients/clients.service.ts:21:1)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:20:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.spec.ts:1:1)
+
+PASS src/intelligence/intelligence.mapping-governance.spec.ts
+FAIL src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts
+  ● Test suite failed to run
+
+    jest.native-sanitize-html bridge: the native sanitize-html export was not found on the sandbox global ("__CAPIRO_JEST_NATIVE_SANITIZE_HTML__"). This bridge only works when the suite runs under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html there. Refusing to fall back to a mock, stub, or the ESM-broken specifier.
+
+      25 |
+      26 | if (typeof implementation !== 'function') {
+    > 27 |   throw new Error(
+         |         ^
+      28 |     'jest.native-sanitize-html bridge: the native sanitize-html export was not found on the '
+      29 |       + `sandbox global ("${SANITIZE_GLOBAL_KEY}"). This bridge only works when the suite runs `
+      30 |       + 'under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html '
+
+      at Object.<anonymous> (jest.native-sanitize-html.cjs:27:9)
+      at Object.<anonymous> (src/clients/clients.service.ts:21:1)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:20:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts:2:1)
+
+FAIL src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts
+  ● Test suite failed to run
+
+    jest.native-sanitize-html bridge: the native sanitize-html export was not found on the sandbox global ("__CAPIRO_JEST_NATIVE_SANITIZE_HTML__"). This bridge only works when the suite runs under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html there. Refusing to fall back to a mock, stub, or the ESM-broken specifier.
+
+      25 |
+      26 | if (typeof implementation !== 'function') {
+    > 27 |   throw new Error(
+         |         ^
+      28 |     'jest.native-sanitize-html bridge: the native sanitize-html export was not found on the '
+      29 |       + `sandbox global ("${SANITIZE_GLOBAL_KEY}"). This bridge only works when the suite runs `
+      30 |       + 'under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html '
+
+      at Object.<anonymous> (jest.native-sanitize-html.cjs:27:9)
+      at Object.<anonymous> (src/clients/clients.service.ts:21:1)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:20:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts:2:1)
+
+PASS ../intel-api/src/tracker/email-cta-routes.spec.ts
+PASS src/clients/client-profile-fill-retry.spec.ts
+FAIL src/clients/client-profile-fill-completion.characterization.spec.ts
+  ● Test suite failed to run
+
+    jest.native-sanitize-html bridge: the native sanitize-html export was not found on the sandbox global ("__CAPIRO_JEST_NATIVE_SANITIZE_HTML__"). This bridge only works when the suite runs under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html there. Refusing to fall back to a mock, stub, or the ESM-broken specifier.
+
+      25 |
+      26 | if (typeof implementation !== 'function') {
+    > 27 |   throw new Error(
+         |         ^
+      28 |     'jest.native-sanitize-html bridge: the native sanitize-html export was not found on the '
+      29 |       + `sandbox global ("${SANITIZE_GLOBAL_KEY}"). This bridge only works when the suite runs `
+      30 |       + 'under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html '
+
+      at Object.<anonymous> (jest.native-sanitize-html.cjs:27:9)
+      at Object.<anonymous> (src/clients/clients.service.ts:21:1)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:20:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.characterization.spec.ts:1:1)
+
+FAIL src/clients/client-profile-fill-learning-signal-resilience.spec.ts
+  ● Test suite failed to run
+
+    jest.native-sanitize-html bridge: the native sanitize-html export was not found on the sandbox global ("__CAPIRO_JEST_NATIVE_SANITIZE_HTML__"). This bridge only works when the suite runs under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html there. Refusing to fall back to a mock, stub, or the ESM-broken specifier.
+
+      25 |
+      26 | if (typeof implementation !== 'function') {
+    > 27 |   throw new Error(
+         |         ^
+      28 |     'jest.native-sanitize-html bridge: the native sanitize-html export was not found on the '
+      29 |       + `sandbox global ("${SANITIZE_GLOBAL_KEY}"). This bridge only works when the suite runs `
+      30 |       + 'under jest.native-runtime-environment.cjs, which publishes the real installed sanitize-html '
+
+      at Object.<anonymous> (jest.native-sanitize-html.cjs:27:9)
+      at Object.<anonymous> (src/clients/clients.service.ts:21:1)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:20:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-learning-signal-resilience.spec.ts:3:1)
+
+PASS src/clients/community-funding-advocacy-match.spec.ts
+PASS src/program-element/program-element-read-provisions.spec.ts
+PASS src/clients/community-funding-appropriations-outcome.spec.ts
+PASS src/clients/client-profile-fill.helpers.spec.ts
+FAIL src/clients/client-profile-fill-finding-source-check.contract.spec.ts
+  ● Test suite failed to run
+
+    ENOENT: no such file or directory, open '/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/prisma/migrations/20261015010000_client_profile_fill_with_meri/migration.sql'
+
+       9 | globalThis.fetch=refuse;
+      10 | function check(file){if(/(?:^|\/)engagement\.service\.(?:ts|js)$/.test(String(file)) || /(?:^|\/)\.env(?:\.[^/]*)?$/.test(String(file)))refuse();}
+    > 11 | for(const name of ['readFileSync','readFile','openSync','open']){const original=fs[name];fs[name]=function(file,...args){check(file);return original.call(this,file,...args);};}
+         |                                                                                                                                                      ^
+      12 | const originalRead=fs.promises.readFile.bind(fs.promises);fs.promises.readFile=async(file,...args)=>{check(file);return originalRead(file,...args);};
+      13 |
+
+      at fs.<computed> (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:150)
+      at src/clients/client-profile-fill-finding-source-check.contract.spec.ts:37:60
+          at Array.map (<anonymous>)
+      at src/clients/client-profile-fill-finding-source-check.contract.spec.ts:37:37
+      at Object.<anonymous> (src/clients/client-profile-fill-finding-source-check.contract.spec.ts:21:1)
+
+PASS src/program-element/program-element-read-programs.spec.ts
+PASS src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts
+
+Test Suites: 6 failed, 1 skipped, 10 passed, 16 of 17 total
+Tests:       5 skipped, 140 passed, 145 total
+Snapshots:   0 total
+Time:        15.811 s
+Ran all test suites within paths "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-programs.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-provisions.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/intelligence/intelligence.mapping-governance.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill.helpers.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-advocacy-match.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-appropriations-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-learning-signal-resilience.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/intel-api/src/tracker/email-cta-routes.spec.ts".
+Test results written to: ../../docs/reviewed-cleanup-integration-20261013/evidence/13-affected-jest-results.json

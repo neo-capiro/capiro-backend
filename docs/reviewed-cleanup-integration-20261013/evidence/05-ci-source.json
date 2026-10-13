@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "python3",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 2.940245876990957,
+  "sourceHead": "64b08bf3ddf4c232b2b9d4fd8ef2771699160900",
+  "sameCommandsAfterExactSparseMaterialization": true,
+  "noSourceOrAssertionChanges": true
+}

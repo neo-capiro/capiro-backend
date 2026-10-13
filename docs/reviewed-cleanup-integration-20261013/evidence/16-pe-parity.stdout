@@ -1,0 +1,73 @@
+(node:737811) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/funding-claim-read-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:737811) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/funding-claim.helpers.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: claimForYearLadder agrees field-for-field across the ladder matrix (3.547722ms)
+✔ PARITY: requestClaim / enactedClaim agree, including genuine zero and null (0.846877ms)
+✔ PARITY: missingMarksForYear agrees on every stage cell (zeros are present, not missing) (4.73667ms)
+✔ PARITY: currentCycleFyPreservingZero agrees — NDAA-only and $0 marks still anchor the cycle (0.589094ms)
+✔ PARITY: the two buildFundingClaim implementations reachable from defense-domain agree (61.20743ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+/workspace/capirov2-reviewed-cleanup-integration-20261013/packages/shared/src/funding-claim.ts:226
+export class MeasureConflationError extends Error {
+  constructor(readonly kinds: readonly MeasureProvenanceKind[]) {
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    super(
+
+SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
+    at parseTypeScript (node:internal/modules/typescript:68:40)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:206:26)
+    at defaultGetFormat (node:internal/modules/esm/get_format:283:36)
+    at defaultLoadSync (node:internal/modules/esm/load:161:16)
+    at #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:802:12)
+    at #loadSync (node:internal/modules/esm/loader:834:53)
+    at ModuleLoader.load (node:internal/modules/esm/loader:783:26)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:494:31) {
+  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.19.0
+✖ /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts (192.023861ms)
+(node:737813) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:737813) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/proof-pack.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: proofPackRank agrees on every exhibit/docType combination (1.957846ms)
+✔ PARITY: the proof-pack comparator induces the identical citation order (2.468606ms)
+✔ PARITY: getSources selects every provenance column apps/api serves (1.078757ms)
+✔ PARITY: provision basis rank + match scope agree with apps/api (0.284064ms)
+✔ PARITY: the provision merge keeps the strongest link and orders identically (2.578757ms)
+✔ PARITY: the program-level attribution caveat is byte-identical to apps/api (1.793998ms)
+✔ PARITY: a program-level provision always carries the caveat; a PE-direct one never does (0.45858ms)
+(node:737835) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ PARITY: every representative route contract holds on BOTH implementations (3.913221ms)
+✔ PARITY: no route body is an unconditional empty-result stub (0.687794ms)
+✔ PARITY: peCode normalization is applied consistently on every peCode-taking method (0.589151ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 15
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 439.084044
+
+✖ failing tests:
+
+test at tests/phase8-session3-parity/pe-list-projection-parity.spec.ts:1:1
+✖ /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts (192.023861ms)
+  'test failed'

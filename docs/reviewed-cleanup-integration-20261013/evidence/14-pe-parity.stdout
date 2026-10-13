@@ -1,0 +1,96 @@
+(node:736617) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/funding-claim-read-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:736617) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/funding-claim.helpers.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: claimForYearLadder agrees field-for-field across the ladder matrix (7.721128ms)
+✔ PARITY: requestClaim / enactedClaim agree, including genuine zero and null (3.425269ms)
+✔ PARITY: missingMarksForYear agrees on every stage cell (zeros are present, not missing) (6.001224ms)
+✔ PARITY: currentCycleFyPreservingZero agrees — NDAA-only and $0 marks still anchor the cycle (0.820774ms)
+✖ PARITY: the two buildFundingClaim implementations reachable from defense-domain agree (1.606234ms)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/workspace/capirov2-reviewed-cleanup-integration-20261013/packages/shared/src/funding-claim.ts' imported from /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/parity-package-alias.mjs:5:62)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:747:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///workspace/capirov2-reviewed-cleanup-integration-20261013/packages/shared/src/funding-claim.ts'
+}
+
+Node.js v24.19.0
+✖ /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts (511.285552ms)
+(node:736619) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/provenance-and-provisions-parity.spec.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:736619) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/proof-pack.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json.
+✔ PARITY: proofPackRank agrees on every exhibit/docType combination (2.389374ms)
+✔ PARITY: the proof-pack comparator induces the identical citation order (2.966254ms)
+✔ PARITY: getSources selects every provenance column apps/api serves (3.637155ms)
+✔ PARITY: provision basis rank + match scope agree with apps/api (0.667422ms)
+✔ PARITY: the provision merge keeps the strongest link and orders identically (20.227161ms)
+✔ PARITY: the program-level attribution caveat is byte-identical to apps/api (2.536417ms)
+✔ PARITY: a program-level provision always carries the caveat; a PE-direct one never does (0.683554ms)
+node:fs:484
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/defense-api/src/program-elements/budget-lines-read.service.ts'
+    at Object.readFileSync (node:fs:484:20)
+    at fs.<computed> [as readFileSync] (/workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:150)
+    at read (file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts:24:34)
+    at file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts:32:17
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/defense-api/src/program-elements/budget-lines-read.service.ts'
+}
+
+Node.js v24.19.0
+✖ /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts (194.472278ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 11
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 728.953986
+
+✖ failing tests:
+
+test at tests/phase8-session3-parity/funding-claim-read-parity.spec.ts:146:1
+✖ PARITY: the two buildFundingClaim implementations reachable from defense-domain agree (1.606234ms)
+  ReferenceError: require is not defined
+      at TestContext.<anonymous> (file:///workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/funding-claim-read-parity.spec.ts:152:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests/phase8-session3-parity/pe-list-projection-parity.spec.ts:1:1
+✖ /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/pe-list-projection-parity.spec.ts (511.285552ms)
+  'test failed'
+
+test at tests/phase8-session3-parity/response-contract-parity.spec.ts:1:1
+✖ /workspace/capirov2-reviewed-cleanup-integration-20261013/tests/phase8-session3-parity/response-contract-parity.spec.ts (194.472278ms)
+  'test failed'

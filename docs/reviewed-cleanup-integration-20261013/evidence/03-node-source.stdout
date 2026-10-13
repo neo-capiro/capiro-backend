@@ -1,0 +1,52 @@
+✔ owned CTA route input retains the declared Core bytes and Git blob (2.329501ms)
+✔ owned CTA route input matches the retained current frontend source (3.368585ms)
+✔ CTA qualification changes only its owned input and retains every case and operand (0.756557ms)
+✔ Intel qualification preserves the retained frontend transport bytes (3.448854ms)
+✔ Intel browser qualification reads and fingerprints its owned transport (1.011105ms)
+✔ owned Intel transport and CTA data retain immutable byte/blob and reader identities (9.699381ms)
+✔ minimal four-file backend tree qualifies with Web absent and zero Web read/stat attempts (2.81271ms)
+✔ missing either owned input is refused (4.663952ms)
+✔ one-byte same-path drift in either owned input is refused (10.36679ms)
+✔ symlink substitution of every input or reader is refused before reading it (6.599902ms)
+✔ directory substitution of every input or reader is refused before reading it (5.084233ms)
+✔ symlink substitution of an ancestor is refused before any data read (1.034385ms)
+✔ transport dynamic source-read operand drift is refused (1.551328ms)
+✔ transport fingerprint operand drift is refused (1.442818ms)
+✔ a restored legacy Web transport source operand is refused (2.119556ms)
+✔ a restored original CTA Web read operand is refused (2.357089ms)
+✔ removing the original CTA both-rails assertion is refused (2.111453ms)
+✔ skipping the original dynamic CTA presence case is refused (2.369759ms)
+✔ changing the original CTA parser operand is refused (1.638638ms)
+✔ exact reviewed root manifest reconstructs every prior byte and retains its real entry points (20.233413ms)
+✔ root manifest mutations cannot turn this exact review into a general exemption (15.568568ms)
+✖ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (20.543438ms)
+✔ api manifest mutations cannot turn this exact review into a general exemption (9.699748ms)
+✔ unknown/coercible inputs refuse without executing application or coercion ports (0.287004ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 23
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 332.354671
+
+✖ failing tests:
+
+test at scripts/ci/reviewed-pe-manifest-contract.spec.mjs:15:3
+✖ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (20.543438ms)
+  Error: ENOENT: no such file or directory, open '/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at TestContext.<anonymous> (file:///workspace/capirov2-reviewed-cleanup-integration-20261013/scripts/ci/reviewed-pe-manifest-contract.spec.mjs:30:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts'
+  }

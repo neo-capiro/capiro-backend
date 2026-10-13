@@ -1,0 +1,28 @@
+.FE..
+======================================================================
+ERROR: test_existing_defaults_and_full_acceptance_gates_stay_byte_exact (__main__.SourceJobsContract.test_existing_defaults_and_full_acceptance_gates_stay_byte_exact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/capirov2-reviewed-cleanup-integration-20261013/scripts/ci/backend-retirement-source-jobs.contract.spec.py", line 170, in test_existing_defaults_and_full_acceptance_gates_stay_byte_exact
+    current = (ROOT / file).read_bytes()
+  File "/usr/lib/python3.13/pathlib/_abc.py", line 625, in read_bytes
+    with self.open(mode='rb') as f:
+         ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/lib/python3.13/pathlib/_local.py", line 539, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/web/Dockerfile'
+
+======================================================================
+FAIL: test_current_receiving_job_and_dependency_closure (__main__.SourceJobsContract.test_current_receiving_job_and_dependency_closure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/capirov2-reviewed-cleanup-integration-20261013/scripts/ci/backend-retirement-source-jobs.contract.spec.py", line 96, in test_current_receiving_job_and_dependency_closure
+    self.assertTrue((ROOT / file).is_file(), file)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : scripts/build-newsletter-release.sh
+
+----------------------------------------------------------------------
+Ran 5 tests in 2.519s
+
+FAILED (failures=1, errors=1)

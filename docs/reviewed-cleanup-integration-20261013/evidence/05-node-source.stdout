@@ -1,0 +1,32 @@
+✔ owned CTA route input retains the declared Core bytes and Git blob (3.169668ms)
+✔ owned CTA route input matches the retained current frontend source (5.585105ms)
+✔ CTA qualification changes only its owned input and retains every case and operand (1.099135ms)
+✔ Intel qualification preserves the retained frontend transport bytes (3.751608ms)
+✔ Intel browser qualification reads and fingerprints its owned transport (0.89767ms)
+✔ owned Intel transport and CTA data retain immutable byte/blob and reader identities (8.344664ms)
+✔ minimal four-file backend tree qualifies with Web absent and zero Web read/stat attempts (3.042941ms)
+✔ missing either owned input is refused (2.733782ms)
+✔ one-byte same-path drift in either owned input is refused (4.562744ms)
+✔ symlink substitution of every input or reader is refused before reading it (5.911623ms)
+✔ directory substitution of every input or reader is refused before reading it (6.032517ms)
+✔ symlink substitution of an ancestor is refused before any data read (1.217243ms)
+✔ transport dynamic source-read operand drift is refused (3.544662ms)
+✔ transport fingerprint operand drift is refused (2.496123ms)
+✔ a restored legacy Web transport source operand is refused (3.08176ms)
+✔ a restored original CTA Web read operand is refused (3.202907ms)
+✔ removing the original CTA both-rails assertion is refused (1.843933ms)
+✔ skipping the original dynamic CTA presence case is refused (1.934848ms)
+✔ changing the original CTA parser operand is refused (1.971017ms)
+✔ exact reviewed root manifest reconstructs every prior byte and retains its real entry points (19.61033ms)
+✔ root manifest mutations cannot turn this exact review into a general exemption (8.473109ms)
+✔ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (17.771208ms)
+✔ api manifest mutations cannot turn this exact review into a general exemption (11.055995ms)
+✔ unknown/coercible inputs refuse without executing application or coercion ports (0.479302ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 343.783569

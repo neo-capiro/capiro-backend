@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "scripts/ci/backend-owned-qualification-inputs.spec.mjs",
+    "apps/intel-api/test/qualification/hearing-recording-transport-parity.spec.mjs",
+    "apps/intel-api/src/tracker/email-cta-route-input-parity.spec.mjs",
+    "scripts/ci/reviewed-pe-manifest-contract.spec.mjs"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 0.41562264700769447,
+  "sourceHead": "64b08bf3ddf4c232b2b9d4fd8ef2771699160900",
+  "sameCommandsAfterExactSparseMaterialization": true,
+  "noSourceOrAssertionChanges": true
+}

@@ -1,0 +1,120 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../intel-api/src/tracker/email-cta-routes.spec.ts
+PASS src/clients/client-profile-fill-finding-source-check.contract.spec.ts
+FAIL src/clients/client-profile-fill-learning-signal-resilience.spec.ts
+  ● Test suite failed to run
+
+    SOURCE_QUALIFICATION_EFFECT_REFUSED
+
+      2 | // Source/mocked qualification only. Installed before Jest or application imports.
+      3 | const fs=require('node:fs'),net=require('node:net'),dns=require('node:dns'),child=require('node:child_process');
+    > 4 | const refuse=()=>{throw new Error('SOURCE_QUALIFICATION_EFFECT_REFUSED');};
+        |                         ^
+      5 | net.Socket.prototype.connect=refuse;net.Server.prototype.listen=refuse;
+      6 | for(const name of ['lookup','resolve','resolve4','resolve6','resolveAny','reverse']){dns[name]=refuse;if(dns.promises[name])dns.promises[name]=refuse;}
+      7 | for(const name of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])child[name]=refuse;
+
+      at refuse (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:4:25)
+      at check (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:10:137)
+      at Object.fs.<computed> [as readFileSync] (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:122)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-learning-signal-resilience.spec.ts:3:1)
+
+PASS src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts
+PASS src/clients/community-funding-appropriations-outcome.spec.ts
+PASS src/clients/community-funding-advocacy-match.spec.ts
+PASS src/clients/client-profile-fill.helpers.spec.ts
+PASS src/clients/client-profile-fill-retry.spec.ts
+FAIL src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts
+  ● Test suite failed to run
+
+    SOURCE_QUALIFICATION_EFFECT_REFUSED
+
+      2 | // Source/mocked qualification only. Installed before Jest or application imports.
+      3 | const fs=require('node:fs'),net=require('node:net'),dns=require('node:dns'),child=require('node:child_process');
+    > 4 | const refuse=()=>{throw new Error('SOURCE_QUALIFICATION_EFFECT_REFUSED');};
+        |                         ^
+      5 | net.Socket.prototype.connect=refuse;net.Server.prototype.listen=refuse;
+      6 | for(const name of ['lookup','resolve','resolve4','resolve6','resolveAny','reverse']){dns[name]=refuse;if(dns.promises[name])dns.promises[name]=refuse;}
+      7 | for(const name of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])child[name]=refuse;
+
+      at refuse (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:4:25)
+      at check (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:10:137)
+      at Object.fs.<computed> [as readFileSync] (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:122)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts:2:1)
+
+FAIL src/clients/client-profile-fill-completion.characterization.spec.ts
+  ● Test suite failed to run
+
+    SOURCE_QUALIFICATION_EFFECT_REFUSED
+
+      2 | // Source/mocked qualification only. Installed before Jest or application imports.
+      3 | const fs=require('node:fs'),net=require('node:net'),dns=require('node:dns'),child=require('node:child_process');
+    > 4 | const refuse=()=>{throw new Error('SOURCE_QUALIFICATION_EFFECT_REFUSED');};
+        |                         ^
+      5 | net.Socket.prototype.connect=refuse;net.Server.prototype.listen=refuse;
+      6 | for(const name of ['lookup','resolve','resolve4','resolve6','resolveAny','reverse']){dns[name]=refuse;if(dns.promises[name])dns.promises[name]=refuse;}
+      7 | for(const name of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])child[name]=refuse;
+
+      at refuse (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:4:25)
+      at check (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:10:137)
+      at Object.fs.<computed> [as readFileSync] (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:122)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.characterization.spec.ts:1:1)
+
+FAIL src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts
+  ● Test suite failed to run
+
+    SOURCE_QUALIFICATION_EFFECT_REFUSED
+
+      2 | // Source/mocked qualification only. Installed before Jest or application imports.
+      3 | const fs=require('node:fs'),net=require('node:net'),dns=require('node:dns'),child=require('node:child_process');
+    > 4 | const refuse=()=>{throw new Error('SOURCE_QUALIFICATION_EFFECT_REFUSED');};
+        |                         ^
+      5 | net.Socket.prototype.connect=refuse;net.Server.prototype.listen=refuse;
+      6 | for(const name of ['lookup','resolve','resolve4','resolve6','resolveAny','reverse']){dns[name]=refuse;if(dns.promises[name])dns.promises[name]=refuse;}
+      7 | for(const name of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])child[name]=refuse;
+
+      at refuse (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:4:25)
+      at check (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:10:137)
+      at Object.fs.<computed> [as readFileSync] (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:122)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts:2:1)
+
+FAIL src/clients/client-profile-fill-completion.service.spec.ts
+  ● Test suite failed to run
+
+    SOURCE_QUALIFICATION_EFFECT_REFUSED
+
+      2 | // Source/mocked qualification only. Installed before Jest or application imports.
+      3 | const fs=require('node:fs'),net=require('node:net'),dns=require('node:dns'),child=require('node:child_process');
+    > 4 | const refuse=()=>{throw new Error('SOURCE_QUALIFICATION_EFFECT_REFUSED');};
+        |                         ^
+      5 | net.Socket.prototype.connect=refuse;net.Server.prototype.listen=refuse;
+      6 | for(const name of ['lookup','resolve','resolve4','resolve6','resolveAny','reverse']){dns[name]=refuse;if(dns.promises[name])dns.promises[name]=refuse;}
+      7 | for(const name of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])child[name]=refuse;
+
+      at refuse (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:4:25)
+      at check (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:10:137)
+      at Object.fs.<computed> [as readFileSync] (../../docs/reviewed-cleanup-integration-20261013/deny-source-effects.cjs:11:122)
+      at Object.<anonymous> (src/clients/client-profile-fill.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.ts:24:1)
+      at Object.<anonymous> (src/clients/client-profile-fill-completion.service.spec.ts:1:1)
+
+PASS src/intelligence/intelligence.mapping-governance.spec.ts
+PASS src/program-element/program-element-read-provisions.spec.ts
+PASS src/program-element/program-element-read-programs.spec.ts
+PASS src/program-element/program-element-read.service.spec.ts
+
+Test Suites: 5 failed, 1 skipped, 11 passed, 16 of 17 total
+Tests:       5 skipped, 144 passed, 149 total
+Snapshots:   0 total
+Time:        14.937 s
+Ran all test suites within paths "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-programs.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-provisions.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/intelligence/intelligence.mapping-governance.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill.helpers.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-advocacy-match.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-appropriations-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-learning-signal-resilience.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/intel-api/src/tracker/email-cta-routes.spec.ts".
+Test results written to: ../../docs/reviewed-cleanup-integration-20261013/evidence/17-affected-jest-results.json

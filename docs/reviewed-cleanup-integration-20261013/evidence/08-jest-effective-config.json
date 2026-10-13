@@ -1,0 +1,211 @@
+{
+  "configs": [
+    {
+      "automock": false,
+      "cache": true,
+      "cacheDirectory": "/tmp/reviewed-cleanup-jest-cache-20261013",
+      "clearMocks": false,
+      "collectCoverageFrom": [],
+      "coverageDirectory": "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/coverage",
+      "coveragePathIgnorePatterns": [
+        "/node_modules/"
+      ],
+      "cwd": "/workspace/capirov2-reviewed-cleanup-integration-20261013",
+      "detectLeaks": false,
+      "detectOpenHandles": false,
+      "errorOnDeprecated": false,
+      "extensionsToTreatAsEsm": [],
+      "fakeTimers": {
+        "enableGlobally": false
+      },
+      "forceCoverageMatch": [],
+      "globals": {},
+      "haste": {
+        "computeSha1": false,
+        "enableSymlinks": false,
+        "forceNodeFilesystemAPI": true,
+        "throwOnModuleCollision": false
+      },
+      "id": "31e23526ed3b92737efa3eea23a01c5d",
+      "injectGlobals": true,
+      "moduleDirectories": [
+        "node_modules"
+      ],
+      "moduleFileExtensions": [
+        "js",
+        "mjs",
+        "cjs",
+        "jsx",
+        "ts",
+        "tsx",
+        "json",
+        "node"
+      ],
+      "moduleNameMapper": [
+        [
+          "^(\\.{1,2}/.*)\\.js$",
+          "$1"
+        ],
+        [
+          "^#crypto$",
+          "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/runtime/node/crypto.js"
+        ],
+        [
+          "^@modelcontextprotocol/sdk/(.*)\\.js$",
+          "/workspace/capirov2/node_modules/.pnpm/@modelcontextprotocol+sdk@1.31.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/cjs/$1.js"
+        ],
+        [
+          "^zod/v3$",
+          "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/index.cjs"
+        ],
+        [
+          "^zod/v4$",
+          "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/index.cjs"
+        ],
+        [
+          "^zod/v4/core$",
+          "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/core/index.cjs"
+        ],
+        [
+          "^zod/v4-mini$",
+          "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4-mini/index.cjs"
+        ],
+        [
+          "^zod/v4/mini$",
+          "/workspace/capirov2/node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/mini/index.cjs"
+        ],
+        [
+          "^pkce-challenge$",
+          "/workspace/capirov2/node_modules/.pnpm/pkce-challenge@5.0.1/node_modules/pkce-challenge/dist/index.node.cjs"
+        ],
+        [
+          "^sanitize-html$",
+          "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/jest.native-sanitize-html.cjs"
+        ],
+        [
+          "^@makegov/tango-node$",
+          "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/jest.native-tango.cjs"
+        ]
+      ],
+      "modulePathIgnorePatterns": [
+        "engagement[.]service[.](?:ts|js)$",
+        "(?:^|/)[.]env(?:[.][^/]*)?$"
+      ],
+      "openHandlesTimeout": 1000,
+      "prettierPath": "prettier",
+      "resetMocks": false,
+      "resetModules": false,
+      "restoreMocks": false,
+      "rootDir": "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api",
+      "roots": [
+        "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api",
+        "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/intel-api"
+      ],
+      "runner": "/workspace/capirov2/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/index.js",
+      "sandboxInjectedGlobals": [],
+      "setupFiles": [],
+      "setupFilesAfterEnv": [],
+      "skipFilter": false,
+      "slowTestThreshold": 5,
+      "snapshotFormat": {
+        "escapeString": false,
+        "printBasicPrototype": false
+      },
+      "snapshotSerializers": [],
+      "testEnvironment": "/workspace/capirov2/node_modules/.pnpm/jest-environment-node@29.7.0/node_modules/jest-environment-node/build/index.js",
+      "testEnvironmentOptions": {},
+      "testLocationInResults": false,
+      "testMatch": [
+        "**/*.spec.ts"
+      ],
+      "testPathIgnorePatterns": [
+        "/node_modules/",
+        "\\.e2e\\.spec\\.ts$"
+      ],
+      "testRegex": [],
+      "testRunner": "/workspace/capirov2/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/runner.js",
+      "transform": [
+        [
+          "^.+\\.ts$",
+          "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest/dist/index.js",
+          {
+            "tsconfig": "<rootDir>/tsconfig.json",
+            "diagnostics": false
+          }
+        ],
+        [
+          "^.+\\.m?js$",
+          "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest/dist/index.js",
+          {
+            "diagnostics": false,
+            "isolatedModules": true,
+            "tsconfig": {
+              "allowJs": true,
+              "module": "commonjs",
+              "target": "ES2022",
+              "esModuleInterop": true
+            }
+          }
+        ]
+      ],
+      "transformIgnorePatterns": [
+        "/node_modules/(?!(?:\\.pnpm/)?(?:@makegov[+/]|sanitize-html(?:@|/)|htmlparser2(?:@|/)|entities(?:@|/)|domhandler(?:@|/)|domelementtype(?:@|/)|domutils(?:@|/)|dom-serializer(?:@|/)))"
+      ],
+      "watchPathIgnorePatterns": []
+    }
+  ],
+  "globalConfig": {
+    "bail": 0,
+    "changedFilesWithAncestor": false,
+    "ci": false,
+    "collectCoverage": false,
+    "collectCoverageFrom": [],
+    "coverageDirectory": "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/coverage",
+    "coverageProvider": "babel",
+    "coverageReporters": [
+      "json",
+      "text",
+      "lcov",
+      "clover"
+    ],
+    "detectLeaks": false,
+    "detectOpenHandles": false,
+    "errorOnDeprecated": false,
+    "expand": false,
+    "findRelatedTests": false,
+    "forceExit": false,
+    "json": false,
+    "lastCommit": false,
+    "listTests": false,
+    "logHeapUsage": false,
+    "maxConcurrency": 5,
+    "maxWorkers": 1,
+    "noStackTrace": false,
+    "nonFlagArgs": [],
+    "notify": false,
+    "notifyMode": "failure-change",
+    "onlyChanged": false,
+    "onlyFailures": false,
+    "openHandlesTimeout": 1000,
+    "passWithNoTests": false,
+    "projects": [],
+    "rootDir": "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api",
+    "runTestsByPath": false,
+    "seed": -2108236235,
+    "skipFilter": false,
+    "snapshotFormat": {
+      "escapeString": false,
+      "printBasicPrototype": false
+    },
+    "testFailureExitCode": 1,
+    "testPathPattern": "",
+    "testSequencer": "/workspace/capirov2/node_modules/.pnpm/@jest+test-sequencer@29.7.0/node_modules/@jest/test-sequencer/build/index.js",
+    "updateSnapshot": "new",
+    "useStderr": false,
+    "watch": false,
+    "watchAll": false,
+    "watchman": true,
+    "workerThreads": false
+  },
+  "version": "29.7.0"
+}

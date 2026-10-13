@@ -1,0 +1,79 @@
+{
+  "deletedPaths": [
+    {
+      "path": "docs/plans/2026-05-26-client-intel-tab-redesign-v1-implementation-plan.md",
+      "mode": "100644",
+      "blob": "4382ce7168c2f5bcdb225fff0ef65032f308639b",
+      "bytes": 15219,
+      "sha256": "413408a0425eb1fb18847258e9de35cb6b8e88cda1dcc8daf4a5be6ed0e40c98",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    },
+    {
+      "path": "docs/plans/2026-05-26-client-intel-tab-redesign-v1-ticket-backlog.md",
+      "mode": "100644",
+      "blob": "de9e352a6c46b91099d735040a505e1aef497219",
+      "bytes": 10348,
+      "sha256": "57103cb33aa264eb04abac126ee5570bfd031d74b48f33d06a3fbfd72d9f8953",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    },
+    {
+      "path": "docs/plans/CleanUp1.md",
+      "mode": "100644",
+      "blob": "88928d6b4d93c48c668be648f0e9b5b79daa50ff",
+      "bytes": 25161,
+      "sha256": "dded1ec8bd8f1727aa229ab4fbf04756c622c44731e8a2fb7b74fef7c31c754f",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    },
+    {
+      "path": "docs/plans/CleanUp2.md",
+      "mode": "100644",
+      "blob": "686ea3240d252dc144523c64604173891ba89015",
+      "bytes": 37818,
+      "sha256": "020c69304d63eefed205487d41bd35e857e401ef591640c7e1a9c55f1818d2f9",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    },
+    {
+      "path": "docs/plans/CleanUp3.md",
+      "mode": "100644",
+      "blob": "92cbcaa2d1ab5bd88d69edc865724447703931ad",
+      "bytes": 18321,
+      "sha256": "99eaf8382a6be3324a75f9bc0b750f140a335a1c6ab446f14a6ec501c26e3b63",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    },
+    {
+      "path": "docs/plans/CleanUp4.md",
+      "mode": "100644",
+      "blob": "5719b93387d7f3c45b58d413c8cd09ed50ff9058",
+      "bytes": 24876,
+      "sha256": "eccda8048174bf51100be10dd6cda0c0ee94062fb47b3890e21915a6d89bf130",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    },
+    {
+      "path": "docs/plans/engagement-program/source/phase-6-remaining-work-plan.md",
+      "mode": "100644",
+      "blob": "375629cff677255177a6e6df94a124e8d855d18b",
+      "bytes": 394,
+      "sha256": "5c83c8b05897da956f212069acca5afa5797d4321d4079763b04c25b19dbd505",
+      "receivingBase": "296d225b1b3d8bbfc45f0231831d2c98af7dcc15",
+      "originalPublishedAncestor": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "byteExactOriginal": true
+    }
+  ],
+  "rootVerifiedSevenPublishedGitOriginals": true,
+  "privateArchivesOrRestore": false,
+  "fourAbsentPrivatePathsRemainOwnerReportedOnly": true,
+  "includesSeventhPhase6PlanExplicitly": true,
+  "actualHistoryPreservedThroughMergeParents": true
+}

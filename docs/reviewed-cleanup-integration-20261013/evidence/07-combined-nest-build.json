@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    ".reviewed-cleanup-owned-build.tsconfig.json"
+  ],
+  "cwd": "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api",
+  "exit": 0,
+  "elapsedSeconds": 107.5295214910002,
+  "sourceHead": "64b08bf3ddf4c232b2b9d4fd8ef2771699160900",
+  "sameDirectoryCanonicalTypeRootsAndStrictFlags": true,
+  "onlyOutputBuildInfoChanged": true,
+  "noInstallGenerationBootstrapOrDatabase": true
+}

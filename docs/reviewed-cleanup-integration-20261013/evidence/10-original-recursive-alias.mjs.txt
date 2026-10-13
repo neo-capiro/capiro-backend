@@ -1,0 +1,4 @@
+import {registerHooks,createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const cachedApi = createRequire("/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/package.json");
+registerHooks({resolve(specifier,context,nextResolve){if(specifier.startsWith('@capiro/'))return nextResolve(pathToFileURL(cachedApi.resolve(specifier)).href,context);return nextResolve(specifier,context);}});

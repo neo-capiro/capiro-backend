@@ -1,0 +1,6 @@
+{
+  "originalAuditFailure": "critical manifest keys are API-relative; HEAD:src/app.module.ts absent",
+  "correctedRead": "apps/api/ prefix with same immutable map and strict hashes",
+  "codeOrNativeExecution": false,
+  "allCriticalHashesVerified": 33
+}

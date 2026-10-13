@@ -1,0 +1,482 @@
+FAIL src/clients/client-profile-fill-retry.integration.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/program-element/program-element-read.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/intelligence/intelligence.mapping-governance.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-retry.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL ../intel-api/src/tracker/email-cta-routes.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/program-element/program-element-read-programs.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/program-element/program-element-read-provisions.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/community-funding-appropriations-outcome.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill.helpers.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/community-funding-advocacy-match.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-finding-source-check.contract.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-learning-signal-resilience.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-completion.characterization.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+FAIL src/clients/client-profile-fill-completion.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module 'jest-environment-node'
+    Require stack:
+    - /workspace/capirov2-reviewed-cleanup-integration-20261013/docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const node = require(require.resolve('jest-environment-node',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+        |                              ^
+      2 | const sanitize = require(require.resolve('sanitize-html',{paths:["/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api"]}));
+      3 | if(typeof sanitize!=='function')throw Error('ACTUAL_SANITIZER_REQUIRED');
+      4 | module.exports=class extends node.TestEnvironment{async setup(){await super.setup();Object.defineProperty(this.global,'__CAPIRO_JEST_NATIVE_SANITIZE_HTML__',{value:sanitize});}};
+
+      at Object.<anonymous> (../../docs/reviewed-cleanup-integration-20261013/inert-native-parser-environment.cjs:1:30)
+      at Module._compile (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:129:24)
+      at Object.newLoader (../../../capirov2/node_modules/.pnpm/pirates@4.0.7/node_modules/pirates/lib/index.js:134:7)
+
+Test Suites: 17 failed, 17 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.471 s, estimated 9 s
+Ran all test suites within paths "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-programs.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/program-element/program-element-read-provisions.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/intelligence/intelligence.mapping-governance.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill.helpers.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-advocacy-match.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/community-funding-appropriations-outcome.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-learning-signal-resilience.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts", "/workspace/capirov2-reviewed-cleanup-integration-20261013/apps/intel-api/src/tracker/email-cta-routes.spec.ts".
+Test results written to: ../../docs/reviewed-cleanup-integration-20261013/evidence/15-affected-jest-results.json
