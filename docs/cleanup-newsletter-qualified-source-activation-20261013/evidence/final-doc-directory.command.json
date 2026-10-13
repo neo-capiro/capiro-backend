@@ -1,0 +1,11 @@
+{
+  "head": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capiro-frontend/contents/docs/newsletter-receiving-final-20261013?ref=46ebdd448ef55e88c7a4083fb4586322757a14f8"
+  ],
+  "exit": 0,
+  "stdoutSha256": "abb1ac513273eb6067d54f08d6f03f9132042346f7a95798defd89ec241e2c96",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
