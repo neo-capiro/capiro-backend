@@ -1,0 +1,22 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "tree": "b50b85e34c5e12e371125f50a479f182c4fdec16",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-bill-dossier-integration-20261013/docs/bill-dossier-integration-20261013/network-fence.cjs",
+    "/workspace/capirov2/apps/intel-api/node_modules/prisma/build/index.js",
+    "generate",
+    "--no-engine",
+    "--no-hints",
+    "--schema",
+    ".bill-dossier-types-only.prisma"
+  ],
+  "cwd": "/tmp/capirov2-bill-dossier-integration-20261013/apps/intel-api/prisma",
+  "exit": 1,
+  "elapsedSeconds": 0.501,
+  "logBytes": 115,
+  "logSHA256": "016503e815d22af958e1b2ea6ee4c59a7c4792e1ad751a723f39df32f66aa555",
+  "mode": "cachedPrisma5.22 supportedno-engine source/typegeneration; no nativeDB/provider/run; networkdenied; noautoinstall/no checksumoverride",
+  "inheritedCredentials": false
+}

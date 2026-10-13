@@ -1,0 +1,23 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-bill-dossier-integration-20261013/docs/bill-dossier-integration-20261013/jest-transform-config.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS test/bill-dossier-funding.spec.ts
+PASS test/bill-dossier.spec.ts
+PASS test/bill-dossier-ownership.contract.spec.ts
+PASS test/bill-dossier-ownership-context.spec.ts
+PASS test/bill-dossier-ownership-funding.spec.ts
+PASS test/bill-dossier-ownership-ordering.spec.ts
+PASS test/bill-dossier.truth.spec.ts
+PASS test/bill-dossier-ownership-federal.spec.ts
+PASS test/bill-dossier-ownership-state.spec.ts
+PASS test/bill-dossier-auth.spec.ts
+PASS test/bill-dossier-ownership-pagination.spec.ts
+PASS test/bill-dossier-state.spec.ts
+PASS test/verify-bill-dossier-sources.spec.ts
+
+Test Suites: 13 passed, 13 total
+Tests:       201 passed, 201 total
+Snapshots:   0 total
+Time:        7.95 s
+Ran all test suites within paths "test/bill-dossier-auth.spec.ts", "test/bill-dossier-funding.spec.ts", "test/bill-dossier-ownership-context.spec.ts", "test/bill-dossier-ownership-federal.spec.ts", "test/bill-dossier-ownership-funding.spec.ts", "test/bill-dossier-ownership-ordering.spec.ts", "test/bill-dossier-ownership-pagination.spec.ts", "test/bill-dossier-ownership-state.spec.ts", "test/bill-dossier-ownership.contract.spec.ts", "test/bill-dossier-state.spec.ts", "test/bill-dossier.spec.ts", "test/bill-dossier.truth.spec.ts", "test/verify-bill-dossier-sources.spec.ts".
+Test results written to: ../../docs/bill-dossier-integration-20261013/evidence/jest-results.json

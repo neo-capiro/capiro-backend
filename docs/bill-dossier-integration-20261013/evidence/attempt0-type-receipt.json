@@ -1,0 +1,21 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "tree": "b50b85e34c5e12e371125f50a479f182c4fdec16",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-bill-dossier-integration-20261013/docs/bill-dossier-integration-20261013/network-fence.cjs",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-bill-dossier-integration-20261013/apps/intel-api/tsconfig.json",
+    "--noEmit",
+    "--tsBuildInfoFile",
+    "/tmp/bill-dossier-intel-type-20261013.tsbuildinfo"
+  ],
+  "exit": 2,
+  "elapsedSeconds": 12.527,
+  "logBytes": 1241,
+  "logSHA256": "ec0e25e50baed662e3e1219281daac75946d733e3165c83cf6a621453705e2d4",
+  "kind": "actualsourceconfig/cache-backedfreshoutputs/engine-freeexactIntelschemadeclarations; no nativeProviderDB or App startup",
+  "inheritedCredentials": false
+}

@@ -1,0 +1,25 @@
+{
+  "approvedInitialImport": {
+    "head": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "tree": "3bae0d1a303662260673ecb0c5ac0a8bfe551829",
+    "unchanged": true,
+    "execution": "Neo manual creation pending; no403retry ornew credentialroute"
+  },
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "acceptedFacadePR2486": {
+    "head": "10ce63e7b3d4350070e311f1304297c46986bd87",
+    "tree": "5c9179b7655b5a18358a0982287159b65b6419cf"
+  },
+  "acceptedDossierDonorPR2481": {
+    "head": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+    "tree": "19a32179300851342902cab3afdaf3f50992975f"
+  },
+  "pendingTrackerPR2485": {
+    "head": "1ecd4b71b3243a38585a11cba6535bd7384d668b",
+    "tree": "0bc843bbf8667fe7a5914c058d1f64daf1eff775",
+    "parent": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+    "preservedRef": "refs/codex-preserved/pr2485-1ecd4b7-20261013 in ownedfacadepublicationclone",
+    "semanticAdoption": false
+  },
+  "protectedReporting": "Unpublished owner and all original/new heads preserved; metadata comparison only"
+}

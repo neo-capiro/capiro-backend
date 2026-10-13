@@ -1,0 +1,22 @@
+{
+  "source": "60efa88913f9a419c909dd17ec8ec87cec5bd4e0",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-bill-dossier-integration-20261013/docs/bill-dossier-integration-20261013/network-fence.cjs",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-bill-dossier-integration-20261013/packages/meriv2-core/tsconfig.json",
+    "--outDir",
+    "/tmp/bill-dossier-meriv2-core-runtime-20261013/dist",
+    "--tsBuildInfoFile",
+    "/tmp/bill-dossier-meriv2-core-20261013.tsbuildinfo"
+  ],
+  "exit": 2,
+  "elapsedSeconds": 5.009,
+  "logBytes": 36183,
+  "logSHA256": "1d260b299eb8b6eaab11b9cd13fe43a40b6de59019c59d789b419c2a092c4c14",
+  "ownedFreshOutput": true,
+  "borrowedModified": false,
+  "nativeProviderNetworkStartup": false
+}
