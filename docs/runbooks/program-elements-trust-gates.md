@@ -50,12 +50,12 @@ Independent adversarial REVIEW is still required; implementer markers are not PA
 
 ## What each permanent command covers
 
-| Script | Coverage |
-|---|---|
-| `typecheck:pe-scripts` | Bounded TypeScript project `tsconfig.pe-scripts.json` (gate modules + metrics + catalog helpers). Catalog file list is exact — no globs. |
-| `lint:pe-scripts` | Every production script path exists; no `_prisma_migrations` hand-edit or automatic `migrate resolve`; only the exact source-attested manual recovery arms below; exact-SHA loaders registered; package scripts name exact tokens. |
-| `test:pe-trust` | Jest: accuracy metrics (incl. grounded field + separated precision/recall/coverage/FP/FN), diagnostics fail-closed sizes, migration guard pure logic, metric/alarm catalog bounds, production script catalog honesty. |
-| `verify:pe-phase-k` | DB-free executable chain: synthetic alarm events, diagnostic fixtures, grounded golden provenance (synthetic-loud). |
+| Script                 | Coverage                                                                                                                                                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `typecheck:pe-scripts` | Bounded TypeScript project `tsconfig.pe-scripts.json` (gate modules + metrics + catalog helpers). Catalog file list is exact — no globs.                                                                                           |
+| `lint:pe-scripts`      | Every production script path exists; no `_prisma_migrations` hand-edit or automatic `migrate resolve`; only the exact source-attested manual recovery arms below; exact-SHA loaders registered; package scripts name exact tokens. |
+| `test:pe-trust`        | Node: migration discovery and owned PostgreSQL control flow. Jest: accuracy metrics, diagnostics, migration guards, metric/alarm bounds and production script catalog honesty.                                                     |
+| `verify:pe-phase-k`    | DB-free executable chain: synthetic alarm events, diagnostic fixtures, grounded golden provenance (synthetic-loud).                                                                                                                |
 
 ## Diagnostic fail-closed conditions
 
@@ -117,10 +117,10 @@ Adding wires is a separate infra deploy outside closeout Phase 8 deploy freeze �
 
 Blocked on human workstream (K6). AI may export candidates only.
 
-| Rule | Enforcement |
-|---|---|
-| Synthetic rows loud warning | `auditGoldenReviewProvenance` + `grounded-field.golden.json` `_note` |
-| Human rows need reviewer + date + SHA | same auditor |
+| Rule                                       | Enforcement                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Synthetic rows loud warning                | `auditGoldenReviewProvenance` + `grounded-field.golden.json` `_note`                        |
+| Human rows need reviewer + date + SHA      | same auditor                                                                                |
 | Never label AI synthetic as human reviewed | permanent gate asserts all committed grounded rows `humanReviewed === false` until replaced |
 
 Domains expected in a real set (human workstream): RDT&E, procurement, O&M, committee marks,
@@ -174,6 +174,20 @@ Disposable clean + upgrade migrate replay only (Docker required):
 bash apps/api/scripts/pe-phase-9-migration-replay.sh
 # never shared Aurora / staging / prod
 ```
+
+The replay creates a fresh container, refuses an existing container name, binds
+PostgreSQL to loopback and cleans up by the created ID. Its dedicated-test
+`capiro_worker` prerequisite reuses `scripts/ci/disposable-capiro-worker-role.sql`:
+no login, elevated role attributes or memberships. This is a test capability;
+production role provisioning is outside this rehearsal. Historical migrations
+supply database-scoped functions and grants without SQL edits.
+
+Discovery counts direct real directories containing regular `migration.sql` files;
+README files are excluded and unsafe names or symlinks fail closed. Strict PE-name
+checks require only PE migrations absent from the explicit `origin/main` comparator.
+Dump restore errors fail the replay. This comparator and `--no-owner --no-acl`
+restore qualify migration history, not production source or privilege equivalence.
+Run `pnpm -C apps/api run test:pe-phase-9-migration-discovery` for regression coverage.
 
 Evidence lands under `docs/verification/program-elements-trust/phase-9/` when the full orchestrator runs.
 `PE_PHASE_9_OK` certifies the harness on the exact HEAD SHA only. Independent adversarial REVIEW must still PASS.
