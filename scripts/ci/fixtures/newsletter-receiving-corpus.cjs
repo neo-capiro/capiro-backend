@@ -722,6 +722,16 @@ function runNewsletterReceivingCorpus(api) {
     denied(api.parseNewsletterHtmlCheck({ ...value, report: [] }));
     denied(api.parseNewsletterHtmlCheck(value, { revision: 5 }), 'identity_mismatch');
   });
+  check('canonical timestamps refuse calendar rollover instead of normalizing wire data', () => {
+    const value = clone(doc);
+    value.updatedAt = '2026-02-30T12:00:00.000Z';
+    denied(api.parseNewsletterCampaign(value));
+  });
+  check('canonical timestamps refuse 24-hour rollover instead of normalizing wire data', () => {
+    const value = clone(record);
+    value.versions[0].createdAt = '2026-10-12T24:00:00.000Z';
+    denied(api.parseNewsletterOutreachRecord(value));
+  });
   check('metadata absent null ordinary and unrelated values projected away', () => {
     same(accepted(api.parseNewsletterReservedMetadata(undefined)), {});
     same(accepted(api.parseNewsletterReservedMetadata(null)), {});
