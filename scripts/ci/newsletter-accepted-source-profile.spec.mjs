@@ -113,6 +113,20 @@ test('runtime mismatch cannot be rewritten by accepted model source equality', (
     assert.equal(supplied.runtimeTarget[name], value);
   }
 });
+test('architecture elements are exact primitive strings and refuse objects, proxies, symbols and numbers without coercion', () => {
+  let coercions = 0;
+  const object = { toString() { coercions++; return 'amd64'; } };
+  const proxy = new Proxy(object, { get() { coercions++; throw new Error('architecture proxy access'); } });
+  for (const value of [object, proxy, Symbol('amd64'), 64]) {
+    const testPort = fixture(profile => { profile.runtimeProfile.architectures = [value, 'arm64']; return profile; });
+    const supplied = pins(current); supplied.runtimeTarget.arch = 'arm64';
+    assert.throws(() => assertAcceptedNewsletterArtifactSource(supplied, testPort), /source policy pinned runtime/);
+    assert.equal(coercions, 0);
+  }
+  const legitimate = assertAcceptedNewsletterArtifactSource(pins(current), fixture());
+  assert.deepEqual(legitimate.requiredRuntimeProfile.architectures, ['amd64', 'arm64']);
+  assert.equal(Object.isFrozen(legitimate.requiredRuntimeProfile.architectures), true);
+});
 test('shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection', () => {
   assert.equal(parseFrontendStandaloneInvocation(shippingArgs()).pins.sourceCommit, current);
   const run = (file, args) => spawnSync(process.execPath, [ROOT + '/scripts/lib/' + file, ...args], {

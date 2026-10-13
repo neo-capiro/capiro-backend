@@ -171,7 +171,8 @@ function sourcePolicy(value) {
   if (policy.schemaVersion !== 1 || policy.repository !== 'neo-capiro/capiro-frontend') fail('source policy owner/version');
   const runtime = policyData(policy.runtimeProfile, ['os', 'architectures', 'libc', 'nodeMajor', 'nodeVersion', 'nodeImage'], 'runtime');
   const architectures = policyArray(runtime.architectures, 'architectures', 2);
-  if (runtime.os !== 'linux' || architectures.join(',') !== 'amd64,arm64' || runtime.libc !== 'musl' ||
+  if (runtime.os !== 'linux' || architectures.length !== 2 || architectures[0] !== 'amd64' ||
+      architectures[1] !== 'arm64' || runtime.libc !== 'musl' ||
       runtime.nodeMajor !== 24 || runtime.nodeVersion !== '24.21.0' ||
       runtime.nodeImage !== 'node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2')
     fail('source policy pinned runtime');
