@@ -1,0 +1,111 @@
+{
+  "source": "31cc12a6626be8586666dfa9ccf53b68fff10311",
+  "sourceTree": "025aaef8f30fc4a9d3db39320f900325c40efe52",
+  "results": [
+    {
+      "name": "backend: increment addition",
+      "status": "PASS",
+      "path": "apps/api/src/future/safe.ts"
+    },
+    {
+      "name": "backend: decrement removal",
+      "status": "PASS",
+      "path": "apps/api/src/future/safe.ts"
+    },
+    {
+      "name": "backend: header-looking addition content",
+      "status": "PASS",
+      "path": "apps/api/src/future/safe.ts"
+    },
+    {
+      "name": "backend: header-looking removal content",
+      "status": "PASS",
+      "path": "apps/api/src/future/safe.ts"
+    },
+    {
+      "name": "backend: refuses truncated hunk",
+      "status": "PASS"
+    },
+    {
+      "name": "backend: refuses overfull hunk",
+      "status": "PASS"
+    },
+    {
+      "name": "backend: refuses extra fake header after satisfied hunk",
+      "status": "PASS"
+    },
+    {
+      "name": "backend: next hunk and canonical no-newline marker",
+      "status": "PASS"
+    },
+    {
+      "name": "backend: real caller binds banned addition to product section",
+      "status": "PASS",
+      "path": "apps/api/src/future/safe.ts",
+      "exitCode": 1
+    },
+    {
+      "name": "backend: unchanged FULL raw-header attribution weakness characterized",
+      "status": "PASS",
+      "legacyExitCode": 0,
+      "legacyLimit": true
+    },
+    {
+      "name": "frontend: increment addition",
+      "status": "PASS",
+      "path": "apps/web/src/future/safe.ts"
+    },
+    {
+      "name": "frontend: decrement removal",
+      "status": "PASS",
+      "path": "apps/web/src/future/safe.ts"
+    },
+    {
+      "name": "frontend: header-looking addition content",
+      "status": "PASS",
+      "path": "apps/web/src/future/safe.ts"
+    },
+    {
+      "name": "frontend: header-looking removal content",
+      "status": "PASS",
+      "path": "apps/web/src/future/safe.ts"
+    },
+    {
+      "name": "frontend: refuses truncated hunk",
+      "status": "PASS"
+    },
+    {
+      "name": "frontend: refuses overfull hunk",
+      "status": "PASS"
+    },
+    {
+      "name": "frontend: refuses extra fake header after satisfied hunk",
+      "status": "PASS"
+    },
+    {
+      "name": "frontend: next hunk and canonical no-newline marker",
+      "status": "PASS"
+    },
+    {
+      "name": "frontend: real caller binds banned addition to product section",
+      "status": "PASS",
+      "path": "apps/web/src/future/safe.ts",
+      "exitCode": 1
+    },
+    {
+      "name": "frontend: unchanged FULL raw-header attribution weakness characterized",
+      "status": "PASS",
+      "legacyExitCode": 0,
+      "legacyLimit": true
+    }
+  ],
+  "passed": 20,
+  "failed": 0,
+  "fakeIoCollaboratorsFromCurrentSpec": true,
+  "actualCallerEvaluatedInVm": true,
+  "applicationOwnersImported": false,
+  "sourceSeedPaths": 20,
+  "protectedReportingSeed": false,
+  "nativeDefaultCliExecuted": false,
+  "sqlExecuted": false
+}
