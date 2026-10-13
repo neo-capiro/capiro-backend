@@ -374,3 +374,38 @@ test('operator accepts only explicit origin/pin JSON and preserves failed receip
     output: text => output.push(JSON.parse(text)) }), 1);
   assert.deepEqual(output, [{ status: 'FAIL', localServingVerified: false }]);
 });
+
+
+test('raw GET refuses duplicate special-name data headers before accepting a response frame', async () => {
+  await rawHeadFixture(socket => socket.end('HTTP/1.1 200 OK\r\n__proto__: one\r\n__Proto__: two\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'),
+    target => assert.rejects(requestNewsletterLoopback({ ...target, path: manifest[0].publicPath,
+      method: 'GET', timeoutMs: 500, maxWireBodyBytes: 1024 }), /ambiguous response header/));
+});
+
+test('raw GET retains a single special-name header as own data', async () => {
+  await rawHeadFixture(socket => socket.end('HTTP/1.1 200 OK\r\n__proto__: one\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'), async target => {
+    const response = await requestNewsletterLoopback({ ...target, path: manifest[0].publicPath,
+      method: 'GET', timeoutMs: 500, maxWireBodyBytes: 1024 });
+    assert.equal(Object.hasOwn(response.headers, '__proto__'), true);
+    assert.equal(response.headers.__proto__, 'one');
+    assert.equal(response.status, 200);
+  });
+});
+
+test('normalized own mixed-case special-name duplicates preserve failed measurement and never grant serving', async () => {
+  const receipt = await verifyNewsletterLoopbackServing(input({ request: spec => {
+    const response = frame(spec);
+    if (spec.path === manifest[0].publicPath && spec.method === 'GET') {
+      response.headers = Object.fromEntries([...Object.entries(response.headers),
+        ['__proto__', 'one'], ['__Proto__', 'two']]);
+      assert.equal(Object.hasOwn(response.headers, '__proto__'), true);
+      assert.equal(Object.hasOwn(response.headers, '__Proto__'), true);
+    }
+    return response;
+  } }));
+  assert.equal(receipt.status, 'FAIL');
+  assert.equal(receipt.failedRequests, 1);
+  assert.equal(receipt.records.length, 358);
+  assert.match(receipt.records.find(record => record.status === 'FAIL').error, /ambiguous response header/);
+  assert.equal(receipt.localServingVerified, false);
+});
