@@ -1,0 +1,208 @@
+{
+  "check": "bounded newly added evidence bytes before lossless archival",
+  "offendingFiles": [
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/HANDOFF.md",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 5474,
+      "sha256": "8523578efeb84f61ed776b7fbbf0d6fe7c9d816c8daf516734feaa6cc90ee71e"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/INDEPENDENT-BACKEND-REVIEW.md",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 2297,
+      "sha256": "591a73a44dfefeb60ae11593c71caa1539f929a7a067c38dc534ef47d14a2560"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/INDEPENDENT-POLICY-REVIEW.md",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 3380,
+      "sha256": "1add6525331d1a5e19f5d1988c4573a671169427fcc0002869265ad1c6ec1e0c"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/JEST-SELECTION.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 2147,
+      "sha256": "e9ce7a50685a6558e601321cf7f223991827b30debafe24d1a3eec3c8942465f"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/build-config.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 207,
+      "sha256": "fb619bac379c17936dd78db24f8f129147b6cffa26003ec7f584cd68b70e3af5"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/deny-source-effects.cjs",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 1233,
+      "sha256": "64de96b82202a0a6e72067f238bb040830f8f81af1a70be16db5c7154a13dfa5"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/build-receipt.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 882,
+      "sha256": "f66575fb52b5e004a8cfac9cabe59e517f195cf16d7811960fb944a33ed81981"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/build.log",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/frontend-published-qualification.md",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 11205,
+      "sha256": "d8f2f93ac3887e760aad27ed9cf18ecf17b0e51575e4c2e0dc8c4f6d5658ea00"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/frontend-source-receipt-binding.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 705,
+      "sha256": "8afc5aac0ef033742ced928fc126d59dfcdcf5e3313a78ffcfabcdfce0c7272e"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/jest-receipt.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 2837,
+      "sha256": "1adcd42d09d6591098c034a363141cf752682f71e6456617b671d3fd7a6fc885"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/jest-results.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 67596,
+      "sha256": "5faa972ea251ab8ef80f1d87f7423010b0c400bd1db1d71c69c5729948f4b062"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/jest-summary.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 212,
+      "sha256": "4145a36fee6188050ddf8e95dfb1481725a09c203975958b268f46ad15fab273"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/jest.log",
+      "diagnostics": "docs/regulatory-source-frontend-admission-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/regulatory-source-frontend-admission-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+      "exitCode": 3,
+      "bytes": 3134,
+      "sha256": "ef664fc7089d607913399cb4774bcf4277cafc7de350a9d360cc2baf1d01abb1"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/main-readonly-refresh.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 234,
+      "sha256": "37003304d2caf5f41488446ed8173d6561b2c7dba382165bdb73bcd761b9e517"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/node-initial-failed-node-receipt.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 825,
+      "sha256": "8299167e11b62224e8a6eed8c3557ecf53617156fc6d0c51a91cbde3a5063d50"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/node-initial-failed-node.log",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 4213,
+      "sha256": "f654708e05d3ef5cf37aff70b4382e58c65a027ba4e408c4e0520a42dfe7dae5"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/node-receipt.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 825,
+      "sha256": "75402ecdaf5511bfc6527790c86cc3de61de966600f156474396023dac42b907"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/node.log",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 2846,
+      "sha256": "d94e8409a902024300194859b1ccd988c05aafbd7b67498940b61557d208d610"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/owned-cache-retirement.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 171,
+      "sha256": "38a80195b47cc5debd0769cb17ec3c07dd9221488c2bbc4eccd586382616d5e7"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/source-composition-audit.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 11139,
+      "sha256": "55715e14ac19598153b866f496c4052f672694667e6c7dfef8f4013e43390885"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/type-initial-killed-type-receipt.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 1016,
+      "sha256": "757bde1fc36fc6b463f52a10174ae0a9a9407fe7bec0ff6f698de4898f9edb2e"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/type-initial-killed-type.log",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/type-receipt.json",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 1016,
+      "sha256": "1b9cd2e733cf95cd9edb28a65369e31ff3290069bd2165ffdca4d102c9039040"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/type.log",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/excluded-reporting-token.cjs",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 223,
+      "sha256": "2288905cc7adf9214ba50e627f2c0b56a3199b2c8b3eae475d061fdb5319b008"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/inert-jest.config.cjs",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 1360,
+      "sha256": "750c9277c01c107e4d47c9c6ff4dafd5a2ec0211633b6d0b4abd921e923c05ca"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/inert-native-parser-environment.cjs",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 543,
+      "sha256": "7e21c93b28b3bd10d14503f50a380e2adafee0fa689d64cf16c2906c10477e95"
+    },
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/run-source-check.py",
+      "diagnostics": "",
+      "exitCode": 1,
+      "bytes": 2712,
+      "sha256": "120641f4b0f22bc1a7b8e31da7c2f17c4a6de95607ead5d0b865fc0b31692f5d"
+    }
+  ]
+}

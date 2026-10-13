@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "check": "type",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/regulatory-source-api-type-20261013.tsbuildinfo"
+  ],
+  "cwd": "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api",
+  "sourceHead": "332db59bbf079226766ea71140df3b77287bccbf",
+  "sourceTree": "c641f1d65856b3c8037ea78b83f09d8219934270",
+  "elapsedSeconds": 62.636,
+  "exitCode": -9,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/regulatory-source-frontend-admission-20261013/evidence/type.log",
+  "logBytes": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

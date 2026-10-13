@@ -1,0 +1,15 @@
+{
+  "repository": "neo-capiro/capiro-frontend",
+  "sourceCommit": "83f54f5ac0107822833adbbfef2b453e0240bc56",
+  "sourceRootTree": "760b05a7a7feacee16815da2767cb83dbb600d95",
+  "qualifiedApplicationTree": "67f821a13c8470ceeb5222eb89d43cea58b1a8c8",
+  "receiptCommit": "3ee5655bf50350e3814b17170ce6f0a93b060dc0",
+  "receiptPath": "docs/unified-20261013/qualification-83f54f5a/README.md",
+  "receiptBlob": "68a82bb1ec1f6129c0c30d465e68195b0e01660c",
+  "receiptBytes": 11205,
+  "receiptSha256": "d8f2f93ac3887e760aad27ed9cf18ecf17b0e51575e4c2e0dc8c4f6d5658ea00",
+  "receivingReadOnlyVerified": true,
+  "sourcePolicyOnly": true,
+  "targetMuslArtifactQualified": false,
+  "FilesImplementationAdmitted": false
+}

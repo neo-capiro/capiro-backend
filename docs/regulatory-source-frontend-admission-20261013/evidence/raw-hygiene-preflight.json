@@ -1,0 +1,13 @@
+{
+  "check": "bounded newly added evidence bytes before lossless archival",
+  "initialClassificationCorrection": "git diff --no-index returns1 for differences without whitespace diagnostics; only nonempty diagnostics identify offending raw observations",
+  "offendingFiles": [
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/jest.log",
+      "diagnostics": "docs/regulatory-source-frontend-admission-20261013/evidence/jest.log:1: trailing whitespace.\n+ts-jest[config] (WARN) \ndocs/regulatory-source-frontend-admission-20261013/evidence/jest.log:3: trailing whitespace.\n+  \n",
+      "exitCode": 3,
+      "bytes": 3134,
+      "sha256": "ef664fc7089d607913399cb4774bcf4277cafc7de350a9d360cc2baf1d01abb1"
+    }
+  ]
+}

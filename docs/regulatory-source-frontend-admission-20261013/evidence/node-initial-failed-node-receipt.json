@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "check": "node",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/scripts/ci/newsletter-accepted-source-profile.spec.mjs"
+  ],
+  "cwd": "/workspace/capirov2-regulatory-source-frontend-admission-20261013",
+  "sourceHead": "332db59bbf079226766ea71140df3b77287bccbf",
+  "sourceTree": "c641f1d65856b3c8037ea78b83f09d8219934270",
+  "elapsedSeconds": 2.409,
+  "exitCode": 1,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/regulatory-source-frontend-admission-20261013/evidence/node.log",
+  "logBytes": 4213,
+  "logSha256": "f654708e05d3ef5cf37aff70b4382e58c65a027ba4e408c4e0520a42dfe7dae5"
+}

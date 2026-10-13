@@ -1,0 +1,20 @@
+{
+  "sourceHead": "1f01d0217a5d6e67172de3249730e859bb5b4beb",
+  "testPaths": [
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-regulatory-comment-source.characterization.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-regulatory-comments.characterization.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-completion.service.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-completion.regulatory-outcome.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-completion.characterization.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-pending-finding-matter-assign.service.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-retry.integration.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-retry.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts",
+    "/workspace/capirov2-regulatory-source-frontend-admission-20261013/apps/api/src/clients/client-profile-fill-advocacy-review-durability.contract.spec.ts"
+  ],
+  "suites": 10,
+  "scope": "source/pure/mocked affected regulatory comment and facade tests; original retry integration skip retained; no providers/native DB/full AppModule",
+  "effectsPreload": "/workspace/capirov2-regulatory-source-frontend-admission-20261013/docs/regulatory-source-frontend-admission-20261013/deny-source-effects.cjs",
+  "inertConfig": "/workspace/capirov2-regulatory-source-frontend-admission-20261013/docs/regulatory-source-frontend-admission-20261013/inert-jest.config.cjs",
+  "sourceTree": "f79f50a128d2895beaf07b082539aad7292f270f"
+}
