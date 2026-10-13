@@ -1,0 +1,82 @@
+{
+  "sourceHead": "31cc12a6626be8586666dfa9ccf53b68fff10311",
+  "sourceTree": "025aaef8f30fc4a9d3db39320f900325c40efe52",
+  "base": "c8c109f7d796d5a50ae57ff6cb214d576c757847",
+  "previousReviewedPendingSource": "b46dad56b0025d3f1043809d3322fe936f5d501f",
+  "countOnlyFailedIntermediate": "1ce10b97ba0aa74b66fecbf20af07417b9d4617f",
+  "paths": [
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "gitBlob": "250ef8943cc241f42909b878293e6f69dff74ddd",
+      "sha256": "aabcd9dde02880b39ddd007a8c27fe44f9514452519a5318b9b6715a24f0b94e",
+      "bytes": 29125
+    },
+    {
+      "path": "scripts/ci/context-plane-scope.contract.spec.mjs",
+      "gitBlob": "5ca13997daf3c81297fd692754344e0a0bcc5885",
+      "sha256": "3a1ebdfe45710ef3dd73f41964d2b6056d1e9f12fffc8cf4fb9f24e5342898b8",
+      "bytes": 22587
+    },
+    {
+      "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "gitBlob": "57d6b4a6307e01b9ee909be8297b88c080294bb6",
+      "sha256": "d00f1618841f8315afe4403f7bdd29d2a50b32c0f7d4c0b2691dd3478da6b66d",
+      "bytes": 14520
+    },
+    {
+      "path": "scripts/lib/context-plane-scope.mjs",
+      "gitBlob": "5b60f9c6315530a4890625db5158631a11887804",
+      "sha256": "583a446bafdf14ac0352f5c329356f08b39d6e6449e5fa4f5b4dd9b677596f4a",
+      "bytes": 1953
+    },
+    {
+      "path": "scripts/lib/context-plane-validation-scope.mjs",
+      "gitBlob": "8a059bd40f1b62ef6c301687ca2d1cc7477f3ce5",
+      "sha256": "6c28ff962723c98e14ff2103ec71d69fb2391a1c405721c6a4d4cfc72d1ae60a",
+      "bytes": 1287
+    },
+    {
+      "path": "scripts/lib/knowledge-census-scope.mjs",
+      "gitBlob": "4d970e7585b11ca0679f27cce255a481111e7b12",
+      "sha256": "c492de86e304c7892daced0384a5e294d9bc7e72004d9467df6730904fdcd3f2",
+      "bytes": 8234
+    },
+    {
+      "path": "scripts/lib/knowledge-validation-scope.mjs",
+      "gitBlob": "34edc2ba766ab48b9e4d7db8b17d333f451bca84",
+      "sha256": "1c22d81de95b01ab3ef8d01c66ee9aeefff92df1896f8faa0d3470f55f3e9375",
+      "bytes": 1421
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase26.mjs",
+      "gitBlob": "eb3b691e20196e62326c026483d95b1a8ec073a2",
+      "sha256": "442590a1b00ce179cbe8489d3161daca4601f7f74f6f0bf7371f9e13a815dc91",
+      "bytes": 11415
+    }
+  ],
+  "original18EvidenceBindingsUnchanged": 18,
+  "sourceWhitespaceExit": 0,
+  "countProbeBefore": {
+    "pass": 0,
+    "total": 8,
+    "exit": 1
+  },
+  "countProbeAfter": {
+    "pass": 8,
+    "total": 8,
+    "exit": 0
+  },
+  "coupledGuardBefore": {
+    "backend": 0,
+    "frontend": 0,
+    "expected": "exit1 but both completed"
+  },
+  "coupledGuardAfter": "both exit1 with original product identity",
+  "finalActualFakeIO": {
+    "pass": 28,
+    "fail": 0,
+    "exit": 0
+  },
+  "fullLegacyScannerByteExact": true,
+  "nativeDefaultUnrun": true
+}

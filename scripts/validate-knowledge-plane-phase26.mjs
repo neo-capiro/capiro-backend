@@ -19,7 +19,7 @@
  *    than a slower run.
  *
  * Usage:
- *   node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests]
+ *   node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests] [--backend-only | --frontend-only] [--source-only]
  *
  * Prerequisites (not run here, because they mutate the workspace):
  *   pnpm install --frozen-lockfile
@@ -28,6 +28,7 @@
  *   pnpm -C apps/<api|api-strategy|workspace|intel-api> prisma:generate
  */
 
+import { contextPlaneValidationScope, contextPlaneValidationMarker } from './lib/context-plane-validation-scope.mjs';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +37,7 @@ import { dirname, join, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
 
-const usage = 'Usage: node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests]';
+const usage = 'Usage: node scripts/validate-knowledge-plane-phase26.mjs --run [--base <ref>] [--skip-tests] [--backend-only | --frontend-only] [--source-only]';
 const cliArgs = process.argv.slice(2);
 if (cliArgs.length === 1 && (cliArgs[0] === '--help' || cliArgs[0] === '-h')) {
   console.log(usage);
@@ -47,11 +48,18 @@ if (cliArgs[0] !== '--run') {
   process.exit(2);
 }
 const argv = cliArgs.slice(1);
-let base = 'origin/main';
-let skipTests = false;
+let selectedScope;
+try {
+  selectedScope = contextPlaneValidationScope(argv);
+} catch (error) {
+  console.error(`${usage}\n${error.message}`);
+  process.exit(2);
+}
+let base = selectedScope?.base ?? 'origin/main';
+let skipTests = selectedScope?.skipTests ?? false;
 let baseSeen = false;
 let invalid = false;
-for (let i = 0; i < argv.length; i += 1) {
+for (let i = 0; !selectedScope && i < argv.length; i += 1) {
   if (argv[i] === '--base' && !baseSeen) {
     const value = argv[++i];
     if (!value || value.startsWith('-') || !/^[A-Za-z0-9._/@^~-]+$/.test(value)) {
@@ -105,13 +113,16 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 // ── 1. Architecture guard ───────────────────────────────────────────────────
 {
-  const out = run('node', ['scripts/check-context-plane-new-bypasses.mjs', base]);
+  const out = run('node', ['scripts/check-context-plane-new-bypasses.mjs', base, ...(selectedScope ? [selectedScope.flag] : [])]);
   const text = `${out.stdout ?? ''}${out.stderr ?? ''}`;
   if (out.status !== 0) console.error(text);
   else process.stdout.write(text);
   record('architecture guard (no-bypass)', out.status === 0);
 }
 
+if (selectedScope?.scope === 'frontend' || selectedScope?.sourceOnly) {
+  console.log('SKIP  backend typing (explicit source policy)');
+} else {
 // ── 2. Zero-error typechecks ────────────────────────────────────────────────
 const ZERO_ERROR_TYPECHECKS = [
   ['meriv2-core typecheck', 'packages/meriv2-core'],
@@ -158,6 +169,11 @@ for (const [name, dir] of ZERO_ERROR_TYPECHECKS) {
   }
 
   const total = Object.values(observed).reduce((a, b) => a + b, 0);
+  const diagnostics = (text.match(/error TS\d+/g) ?? []).length;
+  const compilerEvidence = !out.error && !out.signal && (
+    (out.status === 0 && total === 0 && diagnostics === 0) ||
+    ([1, 2].includes(out.status) && total > 0 && diagnostics === total)
+  );
   if (regressions.length > 0) {
     console.error('\napps/api typecheck REGRESSIONS vs pinned baseline:');
     for (const item of regressions) console.error(`- ${item}`);
@@ -168,13 +184,17 @@ for (const [name, dir] of ZERO_ERROR_TYPECHECKS) {
   }
   record(
     'apps/api typecheck (no new errors vs pinned baseline)',
-    regressions.length === 0,
+    regressions.length === 0 && (!selectedScope || compilerEvidence),
     `${total} error(s), 0 regressions`,
   );
 }
 
+}
+
 // ── 4. Context Plane + adoption test surface ────────────────────────────────
-if (skipTests) {
+if (selectedScope?.scope === 'frontend' || selectedScope?.sourceOnly) {
+  console.log('SKIP  backend test suites (explicit source policy)');
+} else if (skipTests) {
   console.log('SKIP  test suites (--skip-tests)');
 } else {
   const API_SPEC_PATTERN =
@@ -208,7 +228,9 @@ if (skipTests) {
     ];
     const unexpected = failedSuites.filter((suite) => !(suite in knownFailing));
     const ranAtAll = suites !== 'no summary';
-    const ok = ranAtAll && unexpected.length === 0;
+    const processEvidence = !out.error && !out.signal && (out.status === 0 ||
+      (out.status === 1 && failedSuites.length > 0));
+    const ok = ranAtAll && unexpected.length === 0 && (!selectedScope || processEvidence);
 
     if (!ok) {
       console.error(text.split('\n').slice(-80).join('\n'));
@@ -244,6 +266,8 @@ console.log(`\n${results.length - failed.length}/${results.length} checks passed
 if (failed.length > 0) {
   console.error('\nFAILED:');
   for (const item of failed) console.error(`- ${item.name}`);
+  if (selectedScope) console.error(contextPlaneValidationMarker(selectedScope, true));
   process.exit(1);
 }
-console.log('Knowledge Plane Phase 26 validation: all checks passed.');
+if (selectedScope) console.log(contextPlaneValidationMarker(selectedScope));
+else console.log('Knowledge Plane Phase 26 validation: all checks passed.');

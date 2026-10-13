@@ -2,12 +2,36 @@
 /** @cleanup-smoke noArgsExit=0 helpExit=0 */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync as readSourceFileSync, readdirSync, statSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { architectureGuardBase } from './cleanup-gates/lib/cli.mjs';
+import { architectureGuardBase, guardRef } from './cleanup-gates/lib/cli.mjs';
+import {
+  parseContextPlaneInvocation, projectContextPlaneDiff, partitionContextPlaneDiff, assertContextPlaneReadPath,
+  contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
+} from './lib/context-plane-scope.mjs';
 
-const base = architectureGuardBase('check-context-plane-new-bypasses');
+let invocation;
+try {
+  invocation = parseContextPlaneInvocation(process.argv.slice(2));
+  if (invocation.scope !== 'full') guardRef(invocation.base, { name: 'base-ref' });
+} catch (error) {
+  console.error(`Context Plane scoped invocation refused: ${error.message}`);
+  process.exit(2);
+}
+const { scope } = invocation;
+const base = scope === 'full' ? architectureGuardBase('check-context-plane-new-bypasses') : invocation.base;
+
+function readFileSync(path, encoding) {
+  if (scope === 'full') return readSourceFileSync(path, encoding);
+  try {
+    assertContextPlaneReadPath(path, scope, { lstatSync });
+    return readSourceFileSync(path, encoding);
+  } catch (error) {
+    violations.push({ file: path, added: `scoped source read refused: ${error.message}`, pattern: 'scope input refusal' });
+    throw error;
+  }
+}
 
 /**
  * Files that ARE the shared Context Plane (or the shared Retrieval V2 it owns).
@@ -277,7 +301,7 @@ const EXPECTED_OPERATIONS = [
 
 let diff = '';
 try {
-  diff = execFileSync(
+  diff = projectContextPlaneDiff(execFileSync(
     'git',
     [
       'diff',
@@ -289,13 +313,15 @@ try {
       ':(glob)**/*.tsx',
     ],
     { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
-  );
+  ), scope);
 } catch (error) {
   console.error(`Context Plane guard could not diff against ${base}.`);
+  if (scope !== 'full') console.error(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`);
   throw error;
 }
 
 const violations = [];
+if (scope === 'full') {
 let file = null;
 for (const line of diff.split('\n')) {
   if (line.startsWith('+++ b/')) {
@@ -313,7 +339,21 @@ for (const line of diff.split('\n')) {
   const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
   if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
 }
+} else {
+  for (const { path: file, additions } of partitionContextPlaneDiff(diff)) {
+    if (IMPLEMENTATION_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;
+    if (TEST_SUFFIXES.some((suffix) => file.endsWith(suffix))) continue;
+    for (const added of additions) {
+      if (isCommentOnly(added)) continue;
+      if (isApproved(file, added)) continue;
+      const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
+      if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
+    }
+  }
+}
 
+// Product adoption/neutralization invariants remain backend/full obligations.
+if (scope !== 'frontend') {
 /**
  * Phase 26 closes the bounded product migration sequence. These HEAD invariants
  * are intentionally stronger than the added-line guard: once adopted, a product
@@ -507,13 +547,17 @@ const meriModule = stripComments(read(MERI_MODULE));
 requireText(MERI_MODULE, meriModule, 'useFactory: createMeriRuntimeService');
 requireText(MERI_MODULE, meriModule, '{ provide: RAW_MERI_SERVICE, useClass: MeriService }');
 
+}
+
 /**
  * Repo-wide census sweep. Anything naming a shared-plane internal outside the
  * plane itself must be an exact, reviewed census line.
  */
 const censusSeen = new Set();
+let censusSourceCount = 0;
 for (const root of ['apps', 'packages']) {
   for (const censusFile of sourceFilesUnder(root)) {
+    censusSourceCount += 1;
     if (IMPLEMENTATION_PREFIXES.some((prefix) => censusFile.startsWith(prefix))) continue;
     const code = stripComments(readOptional(censusFile));
     if (!SHARED_PLANE_SYMBOL_PATTERNS.some((pattern) => pattern.test(code))) continue;
@@ -536,10 +580,15 @@ for (const root of ['apps', 'packages']) {
   }
 }
 
-const staleCensus = SHARED_PLANE_CONSUMER_CENSUS.filter(
+if (scope !== 'full' && censusSourceCount === 0) {
+  violations.push({ file: scope, added: 'empty scoped TypeScript census', pattern: 'scope input refusal' });
+}
+
+const scopedCensus = SHARED_PLANE_CONSUMER_CENSUS.filter((entry) => contextPlaneIncludesPath(entry.file, scope));
+const staleCensus = scopedCensus.filter(
   (entry) => !censusSeen.has(`${entry.file} ${entry.line}`),
 );
-const unmigrated = SHARED_PLANE_CONSUMER_CENSUS.filter(
+const unmigrated = scopedCensus.filter(
   (entry) => entry.status === 'unmigrated' && censusSeen.has(`${entry.file} ${entry.line}`),
 );
 
@@ -551,6 +600,7 @@ if (violations.length > 0) {
   for (const violation of violations) {
     console.error(`- ${violation.file}: ${violation.added}`);
   }
+  if (scope !== 'full') console.error(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`);
   process.exit(1);
 }
 
@@ -560,9 +610,13 @@ for (const entry of staleCensus) {
   );
 }
 
+if (scope === 'full') {
 console.log(
   `Context Plane architecture guard: no new direct bypass imports; all ${EXPECTED_OPERATIONS.length} adopted-product invariants hold.`,
 );
+} else {
+  console.log(`CONTEXT_PLANE_${scope.toUpperCase()}_COMPLETE`);
+}
 console.log(
   `Repo-wide census: ${censusSeen.size} reviewed shared-plane reference(s) outside the plane, ${unmigrated.length} still unmigrated.`,
 );
@@ -585,6 +639,16 @@ function readOptional(path) {
 
 /** Every non-spec TypeScript file under a directory, relative-pathed. */
 function sourceFilesUnder(root) {
+  if (scope !== 'full') {
+    try {
+      return contextPlaneSourceFilesUnder(root, scope, {
+        skipDirectories: CENSUS_SKIP_DIRECTORIES, testSuffixes: TEST_SUFFIXES,
+      }, { readdirSync, lstatSync });
+    } catch (error) {
+      violations.push({ file: root, added: `scoped source census refused: ${error.message}`, pattern: 'scope input refusal' });
+      return [];
+    }
+  }
   const out = [];
   const walk = (directory) => {
     let entries;

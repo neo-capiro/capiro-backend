@@ -1,0 +1,21 @@
+{
+  "command": [
+    "git",
+    "diff",
+    "--check",
+    "c8c109f7d796d5a50ae57ff6cb214d576c757847",
+    "61453eca11f5aa93d67285c2016db34f66eaf6b6",
+    "--",
+    "scripts/check-context-plane-new-bypasses.mjs",
+    "scripts/ci/context-plane-scope.contract.spec.mjs",
+    "scripts/ci/context-plane-validation-scope.spec.mjs",
+    "scripts/lib/context-plane-scope.mjs",
+    "scripts/lib/context-plane-validation-scope.mjs",
+    "scripts/lib/knowledge-census-scope.mjs",
+    "scripts/lib/knowledge-validation-scope.mjs",
+    "scripts/validate-knowledge-plane-phase26.mjs"
+  ],
+  "exitCode": 0,
+  "scope": "exact eight source paths only",
+  "fullCommittedWhitespaceFloor": "OPEN, physical historical raw bytes retained"
+}

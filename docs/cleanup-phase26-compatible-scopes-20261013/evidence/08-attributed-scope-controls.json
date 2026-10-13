@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "scripts/ci/context-plane-scope.contract.spec.mjs",
+    "scripts/ci/context-plane-validation-scope.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 0,
+  "sourceHead": "31cc12a6626be8586666dfa9ccf53b68fff10311",
+  "pureActualOwnerFakeIO": true,
+  "nativeDefaultVerifierExecuted": false
+}

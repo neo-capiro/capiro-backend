@@ -1,0 +1,72 @@
+{
+  "sourceHead": "b46dad56b0025d3f1043809d3322fe936f5d501f",
+  "sourceTree": "e41a42527876b038096ab0f69dbdef324eeab201",
+  "base": "c8c109f7d796d5a50ae57ff6cb214d576c757847",
+  "originalSourceFreeze": "61453eca11f5aa93d67285c2016db34f66eaf6b6",
+  "testOnlyCorrection": [
+    "scripts/ci/context-plane-validation-scope.spec.mjs"
+  ],
+  "paths": [
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "gitBlob": "ba0c23b04ea27736c7d330ab3140203a0eab49b0",
+      "sha256": "e7f4585a108e9a80f5330d01c79d7967ea26127ad2f92d649ab4a5dd04b4180d",
+      "bytes": 28514,
+      "unchangedFromOriginalFreeze": true
+    },
+    {
+      "path": "scripts/ci/context-plane-scope.contract.spec.mjs",
+      "gitBlob": "898cdb8a30ad629252ac2f7094114ecb802b031f",
+      "sha256": "221d99d23e5ce834d94dff5f87a6e07d056a9c93e34500891aba31d2895b7006",
+      "bytes": 18482,
+      "unchangedFromOriginalFreeze": true
+    },
+    {
+      "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "gitBlob": "57d6b4a6307e01b9ee909be8297b88c080294bb6",
+      "sha256": "d00f1618841f8315afe4403f7bdd29d2a50b32c0f7d4c0b2691dd3478da6b66d",
+      "bytes": 14520,
+      "unchangedFromOriginalFreeze": false
+    },
+    {
+      "path": "scripts/lib/context-plane-scope.mjs",
+      "gitBlob": "943526ce7914a30571530332cca8f3e65f4697fb",
+      "sha256": "ad08839f13952e3a2c581aeef5f01e8b5f5f91f5fec66154d822f35b165ded73",
+      "bytes": 1892,
+      "unchangedFromOriginalFreeze": true
+    },
+    {
+      "path": "scripts/lib/context-plane-validation-scope.mjs",
+      "gitBlob": "8a059bd40f1b62ef6c301687ca2d1cc7477f3ce5",
+      "sha256": "6c28ff962723c98e14ff2103ec71d69fb2391a1c405721c6a4d4cfc72d1ae60a",
+      "bytes": 1287,
+      "unchangedFromOriginalFreeze": true
+    },
+    {
+      "path": "scripts/lib/knowledge-census-scope.mjs",
+      "gitBlob": "0bce92f303e966862365f06eb7324a58cd440862",
+      "sha256": "ca6b54328df2a91d588994ed106b21d75fe0ab1c65b7d04c5484177300b9b32d",
+      "bytes": 8004,
+      "unchangedFromOriginalFreeze": true
+    },
+    {
+      "path": "scripts/lib/knowledge-validation-scope.mjs",
+      "gitBlob": "34edc2ba766ab48b9e4d7db8b17d333f451bca84",
+      "sha256": "1c22d81de95b01ab3ef8d01c66ee9aeefff92df1896f8faa0d3470f55f3e9375",
+      "bytes": 1421,
+      "unchangedFromOriginalFreeze": true
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase26.mjs",
+      "gitBlob": "eb3b691e20196e62326c026483d95b1a8ec073a2",
+      "sha256": "442590a1b00ce179cbe8489d3161daca4601f7f74f6f0bf7371f9e13a815dc91",
+      "bytes": 11415,
+      "unchangedFromOriginalFreeze": true
+    }
+  ],
+  "originalPacketPhysicalUnchanged": true,
+  "correctedValidatorPass": 12,
+  "originalGuardPass": 14,
+  "nativeDefaultUnrun": true,
+  "eightSourceWhitespaceExit": 0
+}

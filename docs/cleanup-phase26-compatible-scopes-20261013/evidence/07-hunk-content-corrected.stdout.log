@@ -1,0 +1,55 @@
+{
+  "results": [
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "increment",
+      "scope": "backend",
+      "accepted": true
+    },
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "increment",
+      "scope": "frontend",
+      "accepted": true
+    },
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "decrement",
+      "scope": "backend",
+      "accepted": true
+    },
+    {
+      "file": "apps/api/src/example.ts",
+      "kind": "decrement",
+      "scope": "frontend",
+      "accepted": true
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "increment",
+      "scope": "backend",
+      "accepted": true
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "increment",
+      "scope": "frontend",
+      "accepted": true
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "decrement",
+      "scope": "backend",
+      "accepted": true
+    },
+    {
+      "file": "apps/web/src/example.ts",
+      "kind": "decrement",
+      "scope": "frontend",
+      "accepted": true
+    }
+  ],
+  "passed": 8,
+  "total": 8,
+  "noIO": true
+}

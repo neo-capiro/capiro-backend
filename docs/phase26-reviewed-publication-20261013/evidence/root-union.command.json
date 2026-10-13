@@ -1,0 +1,1 @@
+{"command":["node","--test","scripts/ci/context-plane-scope.contract.spec.mjs","scripts/ci/context-plane-validation-scope.spec.mjs"],"exitCode":0,"scope":"actual-source fake-I/O and four additive package aliases; no default CLI or native/compiler/Jest operation"}
