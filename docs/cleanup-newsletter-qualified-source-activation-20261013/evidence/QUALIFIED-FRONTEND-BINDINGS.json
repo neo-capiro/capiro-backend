@@ -1,0 +1,42 @@
+[
+  {
+    "repository": "neo-capiro/capiro-frontend",
+    "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+    "path": "docs/newsletter-receiving-final-20261013/EVIDENCE-MANIFEST.json",
+    "blob": "f5b11359472c01ff1771a8b99271ef0fc19f59b5",
+    "bytes": 116748,
+    "sha256": "48ba2001e8b523986b60bbc6eaff3c3cfaf30c6f8304e09325b65c207a1ffb84"
+  },
+  {
+    "repository": "neo-capiro/capiro-frontend",
+    "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+    "path": "docs/newsletter-receiving-final-20261013/PRODUCER-HANDOFF.md",
+    "blob": "9105e33c5d070b3dc5969829e36e0eacf66e1d28",
+    "bytes": 4058,
+    "sha256": "2e59469ee2aed9a9a854b9d7add73760fbf075471231561bd99fdfb9fd124ad0"
+  },
+  {
+    "repository": "neo-capiro/capiro-frontend",
+    "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+    "path": "docs/newsletter-receiving-final-20261013/QUALIFICATION.md",
+    "blob": "3ad137932d3045123ff477f5e32d8199baa94975",
+    "bytes": 8648,
+    "sha256": "cf99a4f3a9799f94f80b73ab283d5538c14fb41d9fa403a6af1bd72295c9cf33"
+  },
+  {
+    "repository": "neo-capiro/capiro-frontend",
+    "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+    "path": "docs/newsletter-receiving-final-20261013/reviews/review.md",
+    "blob": "e60f27873ed21c6701915cc3cdd92cfd6a7a785d",
+    "bytes": 4487,
+    "sha256": "ab34e0a3a3e6fcbf60f07660738523b60fd8db0ffaa24c840680d7709657d8dc"
+  },
+  {
+    "repository": "neo-capiro/capiro-frontend",
+    "commit": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+    "path": "docs/newsletter-receiving-final-20261013/reviews/visual-addendum.md",
+    "blob": "ca069eb25f2147a80493aab4021b9d489348c421",
+    "bytes": 2669,
+    "sha256": "339138059a3e594d0fd9f53ca45c2e48988046c87390342113a34f454ce875c0"
+  }
+]

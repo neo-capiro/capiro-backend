@@ -1,0 +1,21 @@
+{
+  "base": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "profileInverseExact": true,
+  "existingTestDeclarationIDsRetained": 9,
+  "additionalTests": [
+    [
+      "",
+      "current production policy admits only the qualified runtime with its exact published receipt pin"
+    ],
+    [
+      "",
+      "current production policy refuses stale, arbitrary and wrong runtime declarations before artifact callbacks"
+    ],
+    [
+      "",
+      "actual current CLI reaches only labelled inert artifact ports for qualified c8 and cannot override approval through flags or environment"
+    ]
+  ],
+  "helperRuntimeSourceUnchanged": true,
+  "transition": "Original nineteen executed controls remain in explicit labelled historical pending fixture; production activesource is separately tested. Direct CLI positive stops at inert artifact lstat port; no actual artifact read."
+}
