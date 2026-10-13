@@ -116,6 +116,11 @@ export class FederalRegisterController {
     return this.service.getEffectiveDateCalendar(query);
   }
 
+  @Get('comment-deadline-calendar')
+  commentDeadlineCalendar(@Query() query: EffectiveCalendarQueryDto) {
+    return this.service.getCommentDeadlineCalendar(query);
+  }
+
   @Get('by-agency/:agencyName')
   byAgency(@Param('agencyName') agencyName: string, @Query() q: AgencyQueryDto) {
     return this.service.getByAgency(decodeURIComponent(agencyName), q.page, q.limit);

@@ -39,6 +39,68 @@ export interface PagedResult<T> {
 export class FederalRegisterService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Cached public-comment dates only; publication and effective dates are separate. */
+  async getCommentDeadlineCalendar(input: {
+    dateFrom: string;
+    dateTo: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const from = dateOnly(input.dateFrom);
+    const to = dateOnly(input.dateTo);
+    const page = input.page ?? 1;
+    const limit = input.limit ?? 50;
+    if (!from || !to || from > to || Date.parse(to) - Date.parse(from) > 366 * 86400000 ||
+      !Number.isSafeInteger(page) || page < 1 || page > 10000 ||
+      !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new BadRequestException(
+        'Comment-deadline range must be valid YYYY-MM-DD with a span of at most 366 days; page 1–10000, limit 1–100',
+      );
+    }
+    const offset = (page - 1) * limit;
+    const where = { commentEndDate: {
+      gte: new Date(from), lt: new Date(Date.parse(to) + 86400000),
+    } };
+    return this.prisma.$transaction(async (tx) => {
+      const [rows, total, latestIngestion] = await Promise.all([
+        tx.federalRegisterDocument.findMany({
+          where, orderBy: [{ commentEndDate: 'asc' }, { documentNumber: 'asc' }],
+          skip: offset, take: limit,
+          select: { documentNumber: true, title: true, agencyNames: true,
+            htmlUrl: true, commentEndDate: true },
+        }),
+        tx.federalRegisterDocument.count({ where }),
+        tx.syncRun.findFirst({
+          where: { source: 'sync-federal-register' }, orderBy: { startedAt: 'desc' },
+          select: { source: true, startedAt: true, finishedAt: true, status: true,
+            rowsUpdated: true, errorCount: true, stats: true },
+        }),
+      ]);
+      const data = rows.flatMap((row) => {
+        const iso = row.commentEndDate?.toISOString();
+        const date = iso ? dateOnly(iso.slice(0, 10)) : null;
+        // comments_close_on is date-only. Unusable cached timestamps cannot
+        // acquire date authority through a publication/effective-date fallback.
+        if (!date || date < from || date > to || iso !== `${date}T00:00:00.000Z`) return [];
+        return [{ documentNumber: row.documentNumber, title: row.title,
+          agencyNames: row.agencyNames, htmlUrl: row.htmlUrl,
+          date, dateKind: 'comment_deadline' as const, precision: 'date' as const,
+          provenance: { source: 'federal_register' as const,
+            sourceField: 'comments_close_on' as const, cachedField: 'commentEndDate' as const },
+        }];
+      });
+      return { data, range: { dateFrom: from, dateTo: to }, page, limit,
+        pagination: { totalCandidates: total, returned: data.length,
+          excludedOnPage: rows.length - data.length, hasMoreCandidates: offset + rows.length < total },
+        coverage: { scope: 'locally_ingested_comment_deadlines' as const,
+          complete: false as const, allFederalDocuments: false as const,
+          asOf: new Date().toISOString(), latestIngestion,
+          limitation: 'Cached source dates only; ingestion status does not establish complete or current publisher coverage.',
+        },
+      };
+    }, { isolationLevel: 'RepeatableRead' });
+  }
+
   async getEffectiveDateCalendar(input: {
     dateFrom: string;
     dateTo: string;
