@@ -32,7 +32,6 @@
   "sqlExecuted": false,
   "protectedBodyRead": false,
   "frontendMutated": false,
-  "providerModelNetworkCalls": false,
   "claimsNotMade": [
     "real current tenant/actor/grant/RLS authorization",
     "native SQL/client/production acceptance",
@@ -40,5 +39,7 @@
     "whole Core compiler rerun",
     "frontend delivery/consumption",
     "packed artifact/browser/declaration qualification owned separately"
-  ]
+  ],
+  "liveProviderModelOrApplicationNetworkCalls": false,
+  "authorizedReadOnlyGitHubDocs": "Two exact frontend dependency docs at b945b799591c7a0345441a489b27cdadee202235"
 }

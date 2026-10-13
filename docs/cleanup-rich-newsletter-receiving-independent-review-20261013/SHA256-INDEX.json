@@ -19,8 +19,8 @@
     },
     {
       "path": "RECEIPT.json",
-      "bytes": 1690,
-      "sha256": "6d24ff27331bd75bdf9dab8c3f896459acca26a9fdff4c2eadbffe61ab0a16f2"
+      "bytes": 1823,
+      "sha256": "f76862b425b91deb64824c6f3a08571a3b4770737b1559f3348aa8c4227908d9"
     },
     {
       "path": "REVIEW-PLAN.md",
@@ -29,8 +29,8 @@
     },
     {
       "path": "REVIEW.md",
-      "bytes": 7544,
-      "sha256": "4d8395c0ac033d6a8526f4d1ced402f612499ce280de69140aa8d9090d4248a1"
+      "bytes": 7556,
+      "sha256": "0aba1d071a0e56c6c9b1502a16fc6cb580a0970b24d17983fa488c3de1c9a4a1"
     },
     {
       "path": "evidence/01-producer-boundary-probe.cjs",
