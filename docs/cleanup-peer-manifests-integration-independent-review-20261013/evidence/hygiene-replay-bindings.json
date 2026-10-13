@@ -1,0 +1,7 @@
+{
+  "originalProgramSha256": "7f52b6c9b2b17fca903484b63de431039cf3f3187d94f8161dd9552a89470071",
+  "subjectOnlySourceBinding": "fe5918535dfd39d2102d293519eb97b1a9763409",
+  "outputFilenameChangedToPreserveOriginal": true,
+  "entireProgramInverseExact": true,
+  "nineCaseInputsAndExpectationsUnchanged": true
+}
