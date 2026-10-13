@@ -1,0 +1,26 @@
+{
+  "base": "e0446e3f865899b03d654657db903cea54dfaf0a",
+  "donor": "4970927fe1951636ab002522a20a35310d3dc7c4",
+  "frozen": "f7c42c18d1ad0c8cda6e4eaf929bcf2c333b0d05",
+  "exactDonorPathCount": 41,
+  "donorPathCount": 41,
+  "originalMethodCount": 95,
+  "receivingMethodCount": 96,
+  "exactExistingHeaders": 95,
+  "exactExistingWholeBodies": 62,
+  "changedExistingBodies": 33,
+  "newMethodNames": [
+    "createSupportingSources"
+  ],
+  "constructorParametersExact": true,
+  "constructorParameterCount": 3,
+  "exportDeclarationsExact": true,
+  "exportDeclarationCount": 8,
+  "taggedSqlOrTemplateCountBefore": 69,
+  "taggedSqlOrTemplateCountAfter": 69,
+  "taggedTemplateTextAndInterpolationMultisetExact": true,
+  "rawUnsafeCallCountBefore": 2,
+  "rawUnsafeCallCountAfter": 2,
+  "rawUnsafeArgumentVectorMultisetExact": true,
+  "productionPathsCompared": 17
+}

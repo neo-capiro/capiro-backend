@@ -1,0 +1,12 @@
+{
+  "sourceHead": "f7c42c18d1ad0c8cda6e4eaf929bcf2c333b0d05",
+  "sourceTree": "78333f25f1c40271640bb3f221cca001d57671ad",
+  "suites": 33,
+  "passedSuites": 33,
+  "failedSuites": 0,
+  "passed": 488,
+  "failed": 0,
+  "pending": 0,
+  "elapsedSeconds": 15.5,
+  "ownerBeforeAfterMatricesRerun": false
+}

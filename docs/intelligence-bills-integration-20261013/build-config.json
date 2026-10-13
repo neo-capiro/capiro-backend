@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/workspace/intelligence-paired-api-build-20261013",
+    "tsBuildInfoFile": "/tmp/intelligence-paired-api-build-20261013.tsbuildinfo"
+  }
+}

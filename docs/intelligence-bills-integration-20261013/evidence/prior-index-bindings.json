@@ -1,0 +1,36 @@
+{
+  "baseHead": "e0446e3f865899b03d654657db903cea54dfaf0a",
+  "unchangedPriorIndices": [
+    {
+      "path": "docs/intelligence-profile-integration-20261013/SHA256SUMS.json",
+      "sha256": "e45372b5721b815e248c87dd51a6d5612c59eb53416ced1225da2688423638ff",
+      "rows": 50,
+      "unchangedBlob": "8565f7f1f75955757a2c8de5c87e270ee8115c0b"
+    },
+    {
+      "path": "docs/frontend-product-contracts-20261013/SHA256SUMS.json",
+      "sha256": "ead95b6fa5b1846cd534c3cc9e7dd623fadb655cc834529d952cfb1248b3fb77",
+      "rows": 3,
+      "unchangedBlob": "d3b2a7949b2523dfc772d2720eb386e031e59a9c"
+    },
+    {
+      "path": "docs/prospect-brief-workspace-copy-20261013/SHA256SUMS.json",
+      "sha256": "7ac3ccb833f7de045098181e768c749cc4c7614813069f5abe2c1872d2a96f40",
+      "rows": 3,
+      "unchangedBlob": "5ecb56f4a5579b69a0a4ccb807b1960afba5d903"
+    },
+    {
+      "path": "docs/completion-final-integration-20261013/SHA256SUMS.json",
+      "sha256": "1ea203b70f4a6342e50c2f88b53929f7b4b60ce0815ac9ad50494b13c05ad8d0",
+      "rows": 60,
+      "unchangedBlob": "0e4f5b1bce1e4087f5886b3a6c4b5b317cf39cd0"
+    },
+    {
+      "path": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+      "sha256": "0bcd1c70cdada68f20e2f17b3e4545c4b434aae48887366f862e911dfbff41c7",
+      "rows": 4426,
+      "unchangedBlob": "fdcf8c17623d293483b1c7af6ef694fb19c82bd4"
+    }
+  ],
+  "fullMasterIndexCopiedOrRestamped": false
+}

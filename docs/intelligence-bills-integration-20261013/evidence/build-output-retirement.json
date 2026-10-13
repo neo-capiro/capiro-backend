@@ -1,0 +1,124 @@
+{
+  "sourceHead": "f7c42c18d1ad0c8cda6e4eaf929bcf2c333b0d05",
+  "sourceTree": "78333f25f1c40271640bb3f221cca001d57671ad",
+  "check": "actual receiving Nest build",
+  "outputRoot": "/workspace/intelligence-paired-api-build-20261013",
+  "outputPlacementOnlySplit": {
+    "defense-budget": "/tmp/intelligence-paired-api-build-defense-20261013"
+  },
+  "emittedFiles": 3892,
+  "emittedBytes": 36510243,
+  "namesAndSizesInventory": "evidence/build-output-names-sizes.tsv.gz",
+  "uncompressedInventoryBytes": 214886,
+  "uncompressedInventorySha256": "7028b0739adcf7587e4a05002ba35bca480bcfe4a2e3344fc9f625e076357887",
+  "reviewedProductionDeltaJs": [
+    {
+      "path": "intelligence/client-briefs-v1.js",
+      "bytes": 2081,
+      "sha256": "fc58d58c95dd7079f290b92b8c8c69754ad0d999800bf75547dc5a19d76294e6",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-changes-v1.js",
+      "bytes": 2657,
+      "sha256": "909a61652155ae5b5ae771c7511236fbf0f09c610fa12a1d7ed742baf7000e2e",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-district-v1-spend.js",
+      "bytes": 11110,
+      "sha256": "f5d91295f36581d10629ac76c441e4907176056a1d183dacdd0168a4aa0ed03d",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-district-v1.js",
+      "bytes": 5871,
+      "sha256": "d08e6612bbf34044bdc5bf81ac945112fae46465b33ca1966ecfaeb7dd725342",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-financial-v1-flow.js",
+      "bytes": 10558,
+      "sha256": "793aa44c0968e021083251fdc162c7c4e064b686e5d68a872384aab8a4c99daa",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-financial-v1-pac.js",
+      "bytes": 4271,
+      "sha256": "5ce2643a69317047212010064b34f1d5442e0ed289a96626c0cbdfc7f9d52114",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-financial-v1-quarters.js",
+      "bytes": 2841,
+      "sha256": "ebeea60dfb66d6c13c445fe06ffc3710995b88bea179eddff15e5797db16dbf0",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-financial-v1.js",
+      "bytes": 3082,
+      "sha256": "b2544d36c607704b4c9e148b0d054b2e56537ee37eaacf0ad2721ff9f664dd3e",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-financial-v1.types.js",
+      "bytes": 130,
+      "sha256": "b050dd9f22d5d72267b092bdd8c0ab3e1ec2e74bb40bff471d46addefeab0d34",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/client-relationships-v1.js",
+      "bytes": 7595,
+      "sha256": "a5d69ee1663a02081805d71f3587e4dee7af4dba5fe94a7910b0ed693c473ee8",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence-bill-discovery.shared.js",
+      "bytes": 1135,
+      "sha256": "cbc6005d20be718d3273a18994bb888050d38f7c6fda7928cd6f448fb8e50db1",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence-bill-enrichment.js",
+      "bytes": 6695,
+      "sha256": "3f006fc0e1af1c2faf17bdb12fa278bf7e5d8512085711742a972dc8ab46a52b",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence-bill-relevance-inputs.js",
+      "bytes": 9237,
+      "sha256": "38b57d1035fa957da118e31ce8306b3aa9c775ec4b1feb1617ac4240dfc27729",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence-manual-bill-tracking.js",
+      "bytes": 3514,
+      "sha256": "9096c3efd88a4b009dba5c265126749ad0ff72b9670997508f8b3a0df7b8119b",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence-relevant-bill-discovery.js",
+      "bytes": 5948,
+      "sha256": "85f48e3906ac3d9d162f0b858f8ea29cec0d612b4b2cb3f5493fdde608d1ce18",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence-tracked-bill-discovery.js",
+      "bytes": 8142,
+      "sha256": "b03bb799a0c54b507dd1c4365ecb58a05a176135b23e5dc76f0109c6109bacc1",
+      "syntaxExitCode": 0
+    },
+    {
+      "path": "intelligence/intelligence.service.js",
+      "bytes": 197592,
+      "sha256": "e133f1721bc1cc6e897bd1d6fc80dc04074ffa921d75b5bb770164bd7ab81a1c",
+      "syntaxExitCode": 0
+    }
+  ],
+  "actualConstructorMetadata": "__metadata(\"design:paramtypes\", [prisma_service_js_1.PrismaService,\n        client_prepopulation_service_js_1.ClientPrepopulationService,\n        office_recommender_service_js_1.OfficeRecommenderService])",
+  "productionTestOrFixtureOutputs": false,
+  "protectedReportingBodiesInspectedForThisInventory": false,
+  "frontendArtifactOrNativeABIClaim": false,
+  "ownGeneratedOutputRetiredAfterReceiptAndInventory": true,
+  "sourceSharedCachesAndOtherOwnerArtifactsRetained": true
+}

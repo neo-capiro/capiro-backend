@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "check": "build",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    ".intelligence-paired-receiving-build.tsconfig.json",
+    "--config",
+    ".intelligence-paired-receiving-nest-cli.json"
+  ],
+  "cwd": "/tmp/capirov2-intelligence-bills-integration-20261013/apps/api",
+  "sourceHead": "f7c42c18d1ad0c8cda6e4eaf929bcf2c333b0d05",
+  "sourceTree": "78333f25f1c40271640bb3f221cca001d57671ad",
+  "elapsedSeconds": 96.79,
+  "exitCode": 0,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/intelligence-bills-integration-20261013/evidence/build.log",
+  "logBytes": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

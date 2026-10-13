@@ -1,0 +1,17 @@
+{
+  "exitCode": 1,
+  "failure": "AssertionError: inventory DI check expected an unqualified office recommender import name",
+  "actualMetadata": "__metadata(\"design:paramtypes\", [prisma_service_js_1.PrismaService,\n        client_prepopulation_service_js_1.ClientPrepopulationService,\n        office_recommender_service_js_1.OfficeRecommenderService])",
+  "mistakenFirstDiagnosis": {
+    "exitCode": 1,
+    "failure": "AssertionError: excluded every /fixtures/ path instead of only donor test fixtures/specs",
+    "actualMatchedNamesAndSizes": [],
+    "actualNestBuildExitCode": 0,
+    "sourceChangeRequired": false,
+    "buildRerunRequired": false
+  },
+  "actualNestBuildExitCode": 0,
+  "sourceChangeRequired": false,
+  "buildRerunRequired": false,
+  "correctedDiagnosis": "Initial failure was the first expected prisma_service_1 import alias; all actual emitted aliases include _js_1. Inventory and syntax checks had already passed."
+}

@@ -1,0 +1,6 @@
+{
+  "retiredOnlyOwnedRootLink": "node_modules",
+  "borrowedTargetRetained": "/workspace/capirov2/node_modules",
+  "apiOwnedIgnoredLinksRetainedForReproducibility": true,
+  "sharedCachesRetained": true
+}
