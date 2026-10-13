@@ -1,0 +1,40 @@
+{
+  "source": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "cases": [
+    {
+      "field": "sourcePolicyOnly",
+      "value": "true",
+      "accepted": true
+    },
+    {
+      "field": "sourcePolicyOnly",
+      "value": 1,
+      "accepted": true
+    },
+    {
+      "field": "sourcePolicyOnly",
+      "value": {},
+      "accepted": true
+    },
+    {
+      "field": "sourcePolicyOnly",
+      "value": [],
+      "accepted": true
+    },
+    {
+      "field": "nativeProofPerformed",
+      "value": "false",
+      "accepted": true
+    },
+    {
+      "field": "nativeProofPerformed",
+      "value": 0,
+      "accepted": true
+    },
+    {
+      "field": "nativeProofPerformed",
+      "value": null,
+      "accepted": true
+    }
+  ]
+}

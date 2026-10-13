@@ -1,0 +1,56 @@
+{
+  "source": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "sourceTree": "0724ac3f46a9e13d077343ec8049471addaab595",
+  "files": [
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/01-ambiguous-base-read.txt",
+      "sha256": "2360424ffac9847a05453010e170111a2f9ef4bfc407543ec365d5e4380f7496",
+      "bytes": 319
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/02-fresh-hermetic.log",
+      "sha256": "01b82487f73f6549888e37bf89f727a44bdf2a48d4bc14089ab5be828c0ea4f9",
+      "bytes": 4475
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/03-native-marker-types.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/03-native-marker-types.mjs",
+      "sha256": "4b7cb5ba02192dc293ebf4350a97e5b92c8b3c2d57ed1e3921db82b337f04830",
+      "bytes": 1457
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/03-native-marker-types.stderr",
+      "sha256": "2ff16e0e3b308f89e5ae9ac764737dd3a7310c116ef9d014a5232aac06e594e5",
+      "bytes": 1176
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/03-original-relative-path-failure.mjs",
+      "sha256": "1fc432107d1044ee6da19cd785023831da9ed4cbafa2cceb35d75de1e9edab56",
+      "bytes": 1460
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/04-native-marker-types.json",
+      "sha256": "1de019fe02608291c753ba4cee09d38e31b643b3e33cfb986d8d5f0a32531ecb",
+      "bytes": 727
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/04-native-marker-types.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+      "sha256": "7ff0afb7c32ce107f2e0ea2aea6df2d62496dcdb26f88a2d065d7fb38cac0bef",
+      "bytes": 1893
+    },
+    {
+      "path": "docs/cleanup-pr2434-bounded-independent-review-20261013/INITIAL-REVIEW.md",
+      "sha256": "992793707730aa02090ab64642a77263dd54a2a89f4c22e2a365ff4813d55d9c",
+      "bytes": 1252
+    }
+  ]
+}

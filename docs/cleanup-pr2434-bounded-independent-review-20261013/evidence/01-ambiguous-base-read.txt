@@ -1,0 +1,4 @@
+Initial read-only diff used the supplied short ed62 prefix after switching to exact b051.
+Git rejected the read: short object ID ed62 is ambiguous.
+Candidates were ed62dd1e6 commit, ed6291785 tree, ed62b3ebb blob.
+No read or branch mutation was retried; exact base resolved as ed62dd1e67be152b6b760815f79bc475925659e7.
