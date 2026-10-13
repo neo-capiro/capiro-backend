@@ -1,0 +1,7 @@
+{
+  "preservedInitialProgram": "prototype-header-probe.mjs",
+  "preservedInitialRaw": "prototype-header-probe.stdout",
+  "realGETWitnessValidInBoth": "raw bytes have two __proto__ header lines; no ordinary object construction before transport",
+  "pureInitialFixtureCorrection": "Object.assign invokes the legacy __proto__ setter and loses that key before the helper. The corrected fixture defines both own ordinary data properties explicitly; original raw remains intact.",
+  "sourceUnchanged": true
+}

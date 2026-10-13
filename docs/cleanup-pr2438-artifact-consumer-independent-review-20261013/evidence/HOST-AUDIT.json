@@ -1,0 +1,19 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "hostSha256": "061b4e0f683ac7036c57a0744f8cc469f52f19948f3156edf5c1e57856eb4ffb",
+  "auditedRoots": [
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs"
+  ],
+  "closure": "Node builtins plus frozen local helper modules; no app/auth/provider/native/DB bootstrap; trusted physical fixtures use unique temporary child paths",
+  "loopbackScope": "127.0.0.1:0 owned by this process, connections only to registered same-process ports; fixed literal IPv4 lookup callback bypasses resolvers, all other DNS/TLS/fetch/children refused",
+  "gitScope": "Exactly five immutable0a source operands; no arbitrary Git data/report reads",
+  "notRun": [
+    "real artifact/Next runtime or Docker",
+    "default verifier CLI",
+    "real frontend/server/backend API/public-origin/provider/customer targets"
+  ],
+  "limitedClaim": "Controlled tested closures, not arbitrary OS/runtime sandbox"
+}

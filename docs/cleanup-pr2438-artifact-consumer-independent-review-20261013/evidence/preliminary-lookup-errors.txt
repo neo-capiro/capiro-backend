@@ -1,0 +1,2 @@
+fatal: bad object 1090322d9a4067b605e91afef10cef5f86900b61
+cat: docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/safe-source-test-preload.cjs: No such file or directory

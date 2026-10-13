@@ -1,0 +1,31 @@
+{
+  "decision": "HOLD",
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "author": "6bf20b9acf3150cd87fe1ad6e1336d8be0560dbf",
+  "existingCases": {
+    "docker": 3,
+    "standalone": 50,
+    "loopback": 50,
+    "total": 103,
+    "fail": 0,
+    "skip": 0,
+    "TODO": 0
+  },
+  "headerFinding": {
+    "programPath": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.mjs",
+    "programSha256": "cf6f65d4ce3a2a5f1d31ede13ea9efb9f761e5068c769660127a5dc95e6cb4f1",
+    "rawPath": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.stdout",
+    "rawSha256": "b55431217f03683b705da769d0a942b3b2d9339ab867334f1834c4ed6863bc6f",
+    "pass": 2,
+    "red": 2,
+    "finding": "ordinary dictionaries silently drop __proto__ keys in GET capture and normalization, defeating duplicate detection"
+  },
+  "initialFixtureCorrectionPreserved": "original Object.assign model loses the key before the helper; corrected model creates both own data properties, while original raw GET witness is valid in both",
+  "authorHashesVerified": 45,
+  "baselineEntriesExact": 24640,
+  "approvedPaths": 7,
+  "heldDonorPaths": 4,
+  "actualArtifactOrPublicServingAccepted": false,
+  "loopbackScope": "only same-process ephemeral127 mock servers/connections; all owned ports closed, no nonlocal resolver/TLS/fetch/children/provider/native/DB"
+}

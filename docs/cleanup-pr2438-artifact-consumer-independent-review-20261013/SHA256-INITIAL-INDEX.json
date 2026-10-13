@@ -1,0 +1,155 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "packet": [
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/INITIAL-RECEIPT.json",
+      "bytes": 1488,
+      "sha256": "423f08868b02a3e822fa9e089fa349c98d0360f9b5d4079a43c2422f28110296"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/INITIAL-REVIEW.md",
+      "bytes": 1646,
+      "sha256": "6a5a68b199a98cb127ef2d3eb4e1a30468c18fef5c416c932db6db9fe0df3658"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/HOST-AUDIT.json",
+      "bytes": 1117,
+      "sha256": "a74944aef505c30ea3d87daa7d33063adaa64d52e515a54e55d8e3ba1525d772"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/author-index-verification.json",
+      "bytes": 12179,
+      "sha256": "b2fd1ec188ab83bc401d069e8a9d6c49b20093f37d7b403a64db08a96e8c5d5d"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/docker.command.json",
+      "bytes": 1037,
+      "sha256": "0b17c7425bf1631fecb1976909d850c07a8fa71acf341a17c3a46392212ab68f"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/docker.host-journal.json",
+      "bytes": 103,
+      "sha256": "5e943b5a261fe56ef9621eb86d8eae451f233948ad98e3c7ca17f0b9defb305d"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/docker.stderr",
+      "bytes": 112,
+      "sha256": "acefd61b6ee2cf80cdb7d19b63a934704f16748d1f73a7c9881a3571e7cba1d8"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/docker.stdout",
+      "bytes": 441,
+      "sha256": "535f9cb36c14e58558cf3185e08ed851858d89664bb3cbaa3e976135fe9eaf97"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/loopback.command.json",
+      "bytes": 1029,
+      "sha256": "2821963b878a3a21da48a6b617403b5b25ca0315a9ed9c89a6cbe98b756fb25c"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/loopback.host-journal.json",
+      "bytes": 732,
+      "sha256": "1f364986a8969d1eec9130a120124faba9dfa3b4cb8f19ce9c5282609ec8dfbe"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/loopback.stderr",
+      "bytes": 461,
+      "sha256": "95c12098fcac9d7cffef71f458689a5ba869c3bf7926ec807bbfec488673be81"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/loopback.stdout",
+      "bytes": 4697,
+      "sha256": "fb1253c61366982d8f221d9c28fe1faaf8fade01859054c7c41d7f91907bc348"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/mock-loopback-source-host.cjs",
+      "bytes": 4231,
+      "sha256": "061b4e0f683ac7036c57a0744f8cc469f52f19948f3156edf5c1e57856eb4ffb"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/preliminary-lookup-errors.txt",
+      "bytes": 185,
+      "sha256": "4403102e236106bcfb1ec561f9634aceb6cff83a4926274d7ec41efe843427cd"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-fixture-correction.json",
+      "bytes": 503,
+      "sha256": "8baab7bf7bae497ce87e0e4b23b0acd600dcddecfd258204fce10ba36a1296cc"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.command.json",
+      "bytes": 929,
+      "sha256": "3bdae0cad2d2751e6c9ed333d2f4c7a0391d97f3362654bccb650d56e559c274"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.host-journal.json",
+      "bytes": 201,
+      "sha256": "f29fc6d7dc71fbc0aed6e2d8cab0afbf769aa5e81eb5dcfaaf61a33c1c530394"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.mjs",
+      "bytes": 3085,
+      "sha256": "cf6f65d4ce3a2a5f1d31ede13ea9efb9f761e5068c769660127a5dc95e6cb4f1"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.stderr",
+      "bytes": 170,
+      "sha256": "b9a0783f22e5c15dcc22a87335f97d6dea0332b727e0bf494ff2bde77e969671"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe-corrected.stdout",
+      "bytes": 875,
+      "sha256": "b55431217f03683b705da769d0a942b3b2d9339ab867334f1834c4ed6863bc6f"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe.command.json",
+      "bytes": 919,
+      "sha256": "ebc2bc5ee5fb644eeda711e53a209000ee8ea8125c55ab03a461cf3a3f6b4fbc"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe.host-journal.json",
+      "bytes": 201,
+      "sha256": "6410579b27b07cc333fa3a81a18d486f7b0948389227d9a8aa6e7d1c1ea42b67"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe.mjs",
+      "bytes": 2984,
+      "sha256": "b2c4b163cca0fb212bcd6b247223c4bbb6cfc1cbe8229d24e9c7aa050f9db556"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe.stderr",
+      "bytes": 170,
+      "sha256": "2a9007e4baf09abb963da6ff164ae3201e4e5a9da28ba1ab05e017906ad8d5d8"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/prototype-header-probe.stdout",
+      "bytes": 875,
+      "sha256": "b55431217f03683b705da769d0a942b3b2d9339ab867334f1834c4ed6863bc6f"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/source-author-preservation.json",
+      "bytes": 2185,
+      "sha256": "321380788b6412e8d72b515a0c346b55c93fbefba7b2fcf2d4d6ab6831f64197"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/standalone.command.json",
+      "bytes": 1040,
+      "sha256": "a0d78d1fa5f1b6e0c5143a9c73f6feb1367f05b36d05a8a93a433ddd7c7e54bb"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/standalone.host-journal.json",
+      "bytes": 103,
+      "sha256": "5e943b5a261fe56ef9621eb86d8eae451f233948ad98e3c7ca17f0b9defb305d"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/standalone.stderr",
+      "bytes": 112,
+      "sha256": "acefd61b6ee2cf80cdb7d19b63a934704f16748d1f73a7c9881a3571e7cba1d8"
+    },
+    {
+      "path": "docs/cleanup-pr2438-artifact-consumer-independent-review-20261013/evidence/standalone.stdout",
+      "bytes": 4575,
+      "sha256": "b7bfafe488c25a0dab11b5e4c319aab9648ee35d420d37f0d9fcad64cb887207"
+    }
+  ]
+}

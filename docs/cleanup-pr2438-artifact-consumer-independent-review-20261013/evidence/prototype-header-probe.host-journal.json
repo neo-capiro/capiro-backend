@@ -1,0 +1,16 @@
+{
+  "bindings": [
+    32895,
+    39215,
+    43487
+  ],
+  "connections": 3,
+  "refused": [],
+  "closed": [
+    32895,
+    39215,
+    43487
+  ],
+  "literalLocalLookups": 3,
+  "ownedPortsRemaining": []
+}
