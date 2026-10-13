@@ -1,0 +1,37 @@
+{
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "harness": "184da5ef70c0fd79bf7f099a8d98a7d17c679d0f",
+  "executorSession": 53906,
+  "exit": 0,
+  "cases": 45,
+  "passed": 45,
+  "failed": 0,
+  "sourceFiles": 33,
+  "HTTPResponses": 45,
+  "actualLoopbackHttp": true,
+  "nativePrisma": true,
+  "providerSDK": "deterministic fixture",
+  "wholeAppBootstrap": false,
+  "fullMigrationHistory": false,
+  "productionRLS": false,
+  "runtimeRoleSuperBypass": true,
+  "TLS": false,
+  "privateReceiverExecuted": false,
+  "appAndPoolClosed": true,
+  "DBCleanupOwner": "/root",
+  "originalFailures": [
+    {
+      "label": "10",
+      "exit": 1,
+      "beforeSeedOrListener": true
+    },
+    {
+      "label": "14",
+      "exit": 1,
+      "beforeSeedOrListener": true
+    }
+  ],
+  "stdoutSHA256": "0979a4dc3f91787cb7f1944afb2866136c6f41166f785a17ef4d69de2071eb96",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "rawJSONSHA256": "176995fa1dd24d461a405b3786586dbeb963978efdce7fbbf27187b413e2890f"
+}

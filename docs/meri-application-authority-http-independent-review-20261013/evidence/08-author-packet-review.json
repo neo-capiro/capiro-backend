@@ -1,0 +1,403 @@
+{
+  "authorPin": "f59d9ee1cf75670c2d80a5f012fbe42474e0654d",
+  "authorTree": "8a2e8a4af49e1a182063c06c4c1bbb5f0bdead7f",
+  "indexEntries": 52,
+  "rows": [
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/HANDOFF.md",
+      "sha256": "206dbcde664a631794109e207505c6e498f1cca2c5bd46c09fdfba6df619c1c2",
+      "bytes": 6139,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/PREPARATION.md",
+      "sha256": "f9e6cec5bbab90e025700d01bfa6c80b113dd652f64cb1d2a079e5cb6f649cfd",
+      "bytes": 5827,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/SOURCE-RECEIPT.json",
+      "sha256": "03333f4e6a3a626235e3165cf9a443d95673dc029f37a97a1bd8be3d34b3251f",
+      "bytes": 845,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/containment-preload.cjs",
+      "sha256": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a",
+      "bytes": 4398,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/critical-loader.cjs",
+      "sha256": "28495b8661ac8c0d089c49d52dd97b59ddf2c1b9b44359bf8607bd688e1fce10",
+      "bytes": 8599,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/critical-source-sha256.json",
+      "sha256": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
+      "bytes": 3609,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/01-prepare-host.json",
+      "sha256": "a99292037c7c9fdd16a30381fa25d2fc9d3239e017a0d57abb0e6fadb2ee79ec",
+      "bytes": 27017,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/01-prepare-host.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/01-prepare-host.stdout.log",
+      "sha256": "81a622a4d931e0d850d97b083d90c257f19a27552777638d9490e956ecfb309e",
+      "bytes": 80,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/02-prepare-current-shared.json",
+      "sha256": "a99292037c7c9fdd16a30381fa25d2fc9d3239e017a0d57abb0e6fadb2ee79ec",
+      "bytes": 27017,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/02-prepare-current-shared.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/02-prepare-current-shared.stdout.log",
+      "sha256": "81a622a4d931e0d850d97b083d90c257f19a27552777638d9490e956ecfb309e",
+      "bytes": 80,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/03-pure-driver-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/03-pure-driver-controls.stdout.log",
+      "sha256": "0d6aa2ac246291a0abb33c00ed8f1a23c51e2b0058223c837ea45346ae67298b",
+      "bytes": 885,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/04-preparation-source-pin.json",
+      "sha256": "dae669887ce9278943c7e86f50bd12218708b6fd18c39d2ab74db402eeee9783",
+      "bytes": 171,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/05-root-target-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/05-root-target-controls.stdout.log",
+      "sha256": "fb7d03bb2377d8c36558d2e215377c48524e328b631280ba30fc9ffa3e6128e3",
+      "bytes": 885,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/06-preloaded-prepare.json",
+      "sha256": "a99292037c7c9fdd16a30381fa25d2fc9d3239e017a0d57abb0e6fadb2ee79ec",
+      "bytes": 27017,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/06-preloaded-prepare.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/06-preloaded-prepare.stdout.log",
+      "sha256": "81a622a4d931e0d850d97b083d90c257f19a27552777638d9490e956ecfb309e",
+      "bytes": 80,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/07-final-target-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/07-final-target-controls.stdout.log",
+      "sha256": "24bc6a74b2ed19d4174884b2abfc01d10637d892c9d34f607eccefac69044d27",
+      "bytes": 884,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/08-preload-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/08-preload-controls.stdout.log",
+      "sha256": "76771e5fb6e877e389b6763faade80ad117f949d46f73258c5aad153217a328d",
+      "bytes": 385,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/09-frozen-runner-pin.json",
+      "sha256": "c8c058ff5b4925ce0e198f747b3fe57ed3167a982b8e3bf0cde5b56d660abbf1",
+      "bytes": 167,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/10-http-native-attempt.json",
+      "sha256": "ee5a8a02879d275f3f1cfeff87259465b3f90b26ec7acf8e04b803b5c72635a6",
+      "bytes": 395,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/10-http-native-run.stderr.log",
+      "sha256": "c37d3e361fea65641474a48fc55c58a0f973dcce7783f07953226e92f1487d29",
+      "bytes": 319,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/10-http-native-run.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/11-loopback-preload-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/11-loopback-preload-controls.stdout.log",
+      "sha256": "cec4fc1511c801b1c65bb2bb5e82e7458b74373225b7e75566b35092276673b7",
+      "bytes": 534,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/12-final-runner-pin.json",
+      "sha256": "1bf592018aba92c8fde4b5058e3cc1a6993e13325403820ef2d49f97e4d83f93",
+      "bytes": 167,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/13-corrected-runner-pin.json",
+      "sha256": "f6daa8f30b16dbeb52796233adeae56533defff9f0658a1daf868bbba75c4fb7",
+      "bytes": 167,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/14-http-native-attempt.json",
+      "sha256": "73787381ddec628d17cb5ef07f9763b128fa037ea9a73a9824448041a78d397e",
+      "bytes": 419,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/14-http-native-run.stderr.log",
+      "sha256": "d03ebcd6c274fb833f0d9e1e0c0804d353eb0e32d0a4326bef72ec9f3e39ca5c",
+      "bytes": 2101,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/14-http-native-run.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/15-decorated-empty-controller-prepare.json",
+      "sha256": "a99292037c7c9fdd16a30381fa25d2fc9d3239e017a0d57abb0e6fadb2ee79ec",
+      "bytes": 27017,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/15-decorated-empty-controller-prepare.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/15-decorated-empty-controller-prepare.stdout.log",
+      "sha256": "81a622a4d931e0d850d97b083d90c257f19a27552777638d9490e956ecfb309e",
+      "bytes": 80,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/16-final-runner-pin.json",
+      "sha256": "f73a6a9a45c28325ae4398da9cc85e18a854ee7917581d7c0d1144ba580d6ad8",
+      "bytes": 167,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/16-http-native-run.json",
+      "sha256": "176995fa1dd24d461a405b3786586dbeb963978efdce7fbbf27187b413e2890f",
+      "bytes": 1170247,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/16-http-native-run.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/16-http-native-run.stdout.log",
+      "sha256": "0979a4dc3f91787cb7f1944afb2866136c6f41166f785a17ef4d69de2071eb96",
+      "bytes": 1892,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/17-generated-version.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/17-generated-version.stdout.log",
+      "sha256": "1affaa240db3e9900fe8ae68729ed2341960d386bbc2c13aed2d75cdcef476e7",
+      "bytes": 72,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/17-runtime-dependency-bindings.json",
+      "sha256": "b0650212abb37fcdc45ef780cff7262f8682a58ef05fed9210748c43ad3a7803",
+      "bytes": 18866,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/18-actual-http-result-receipt.json",
+      "sha256": "1fdde6486efc69ac037b27ed7079f42868a4196ff3a4f790af55771498d57de1",
+      "bytes": 1034,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/COMMANDS-final.json",
+      "sha256": "b712be53aa012b99b7c71fefd55d1d11e5a3f83b7ec4eb4e7f0832f8c8ed4cf8",
+      "bytes": 3610,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/evidence/COMMANDS-preparation.json",
+      "sha256": "c36d57056338a9534633b31f03f5060771199576ced7f1ecde3aad07879d120c",
+      "bytes": 2293,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/http-driver.cjs",
+      "sha256": "3fdf8bfee898c223fc026bd2673dcd43fe5aefd68195221825c4b573ff8b0f10",
+      "bytes": 25060,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/http-driver.test.cjs",
+      "sha256": "131400c905246fc18322d8e00ff34fa2e53a2ba07214e0253446cc7ad10e9e4b",
+      "bytes": 2160,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/preload-controls.cjs",
+      "sha256": "945ccdc93125068d8ef14919cefef0b0f33b79cff4649a2f73f0c0e8f4f07f8c",
+      "bytes": 2376,
+      "matches": true
+    },
+    {
+      "path": "docs/meri-application-authority-http-qualification-20261013/prepare-host.cjs",
+      "sha256": "84bba0628f846e3e316f2ebdad7d8441483db88eba67d15d1f7cb4863ab39e47",
+      "bytes": 2941,
+      "matches": true
+    }
+  ],
+  "bad": 0,
+  "docsOnlyDelta": true,
+  "changedPaths": [
+    "docs/meri-application-authority-http-qualification-20261013/HANDOFF.md",
+    "docs/meri-application-authority-http-qualification-20261013/PREPARATION.md",
+    "docs/meri-application-authority-http-qualification-20261013/SHA256-INDEX.json",
+    "docs/meri-application-authority-http-qualification-20261013/SOURCE-RECEIPT.json",
+    "docs/meri-application-authority-http-qualification-20261013/containment-preload.cjs",
+    "docs/meri-application-authority-http-qualification-20261013/critical-loader.cjs",
+    "docs/meri-application-authority-http-qualification-20261013/critical-source-sha256.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/01-prepare-host.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/01-prepare-host.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/01-prepare-host.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/02-prepare-current-shared.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/02-prepare-current-shared.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/02-prepare-current-shared.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/03-pure-driver-controls.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/03-pure-driver-controls.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/04-preparation-source-pin.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/05-root-target-controls.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/05-root-target-controls.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/06-preloaded-prepare.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/06-preloaded-prepare.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/06-preloaded-prepare.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/07-final-target-controls.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/07-final-target-controls.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/08-preload-controls.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/08-preload-controls.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/09-frozen-runner-pin.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/10-http-native-attempt.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/10-http-native-run.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/10-http-native-run.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/11-loopback-preload-controls.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/11-loopback-preload-controls.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/12-final-runner-pin.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/13-corrected-runner-pin.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/14-http-native-attempt.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/14-http-native-run.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/14-http-native-run.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/15-decorated-empty-controller-prepare.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/15-decorated-empty-controller-prepare.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/15-decorated-empty-controller-prepare.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/16-final-runner-pin.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/16-http-native-run.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/16-http-native-run.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/16-http-native-run.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/17-generated-version.stderr.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/17-generated-version.stdout.log",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/17-runtime-dependency-bindings.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/18-actual-http-result-receipt.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/COMMANDS-final.json",
+    "docs/meri-application-authority-http-qualification-20261013/evidence/COMMANDS-preparation.json",
+    "docs/meri-application-authority-http-qualification-20261013/http-driver.cjs",
+    "docs/meri-application-authority-http-qualification-20261013/http-driver.test.cjs",
+    "docs/meri-application-authority-http-qualification-20261013/preload-controls.cjs",
+    "docs/meri-application-authority-http-qualification-20261013/prepare-host.cjs"
+  ],
+  "authorNativeHTTP": {
+    "total": 45,
+    "passed": 45,
+    "failed": 0,
+    "actualPostRequests": 45,
+    "nativeQueries": {
+      "count": 1382,
+      "transactions": 108,
+      "parametersSerialized": false
+    },
+    "ownReplay": false
+  },
+  "dependencyReceiptKeys": [
+    "coreNativeClient",
+    "sharedRuntime",
+    "schemaEquality",
+    "nativeEngineActualFile",
+    "generatedVersionMetadata",
+    "metadataInitialAttempt"
+  ],
+  "retainedNativeFailures": [
+    "evidence/10-http-native-attempt.json",
+    "evidence/10-http-native-run.stderr.log",
+    "evidence/14-http-native-attempt.json",
+    "evidence/14-http-native-run.stderr.log"
+  ],
+  "readPathCorrection": "Initial readonly17-dependency-receipt.json path missing; correct17-runtime-dependency-bindings.json found index. No bodies/effects executed."
+}

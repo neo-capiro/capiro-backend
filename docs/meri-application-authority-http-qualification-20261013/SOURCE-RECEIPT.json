@@ -1,0 +1,16 @@
+{
+  "base": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "productionSourceDelta": 0,
+  "harnessOnly": true,
+  "HTTPExecuted": false,
+  "DBConnected": true,
+  "files": {
+    "critical-loader.cjs": "28495b8661ac8c0d089c49d52dd97b59ddf2c1b9b44359bf8607bd688e1fce10",
+    "http-driver.cjs": "3fdf8bfee898c223fc026bd2673dcd43fe5aefd68195221825c4b573ff8b0f10",
+    "http-driver.test.cjs": "131400c905246fc18322d8e00ff34fa2e53a2ba07214e0253446cc7ad10e9e4b",
+    "critical-source-sha256.json": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
+    "PREPARATION.md": "f9e6cec5bbab90e025700d01bfa6c80b113dd652f64cb1d2a079e5cb6f649cfd",
+    "containment-preload.cjs": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a",
+    "preload-controls.cjs": "945ccdc93125068d8ef14919cefef0b0f33b79cff4649a2f73f0c0e8f4f07f8c"
+  }
+}

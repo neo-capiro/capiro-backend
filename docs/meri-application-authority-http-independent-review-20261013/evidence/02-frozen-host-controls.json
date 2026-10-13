@@ -1,0 +1,55 @@
+{
+  "pin": "7160b2c29255d1c91911ba1ad298857aefe28774",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/containment-preload.cjs",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/preload-controls.cjs"
+  ],
+  "cwd": "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013",
+  "environment": {
+    "PATH": "cached Node + system bins",
+    "HOME": "/tmp",
+    "NODE_ENV": "test"
+  },
+  "nativeDB": false,
+  "listener": false,
+  "sourceBindings": [
+    {
+      "path": "containment-preload.cjs",
+      "sha256": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a",
+      "bytes": 4398
+    },
+    {
+      "path": "preload-controls.cjs",
+      "sha256": "945ccdc93125068d8ef14919cefef0b0f33b79cff4649a2f73f0c0e8f4f07f8c",
+      "bytes": 2376
+    },
+    {
+      "path": "critical-loader.cjs",
+      "sha256": "b0a66be8d1b5249511fdece7bc70a94a376907ef62a47e4007471d7e3c5af4d9",
+      "bytes": 8461
+    },
+    {
+      "path": "http-driver.cjs",
+      "sha256": "3d39370833f3f7370be042bb19a3812636da292d40840ec5f919f10fc680e8d7",
+      "bytes": 25058
+    },
+    {
+      "path": "http-driver.test.cjs",
+      "sha256": "131400c905246fc18322d8e00ff34fa2e53a2ba07214e0253446cc7ad10e9e4b",
+      "bytes": 2160
+    }
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "size": 534,
+    "sha256": "cec4fc1511c801b1c65bb2bb5e82e7458b74373225b7e75566b35092276673b7",
+    "base64": "UEFTUyBwcm90ZWN0ZWQgYm9keSByZWFkClBBU1MgZW52aXJvbm1lbnQgYm9keSByZWFkClBBU1MgcHJvdGVjdGVkIGJvZHkgc3RyZWFtClBBU1MgSFRUUFMgcmVxdWVzdApQQVNTIEhUVFAgZm9yZWlnbiByZXF1ZXN0ClBBU1MgRE5TIGxvb2t1cApQQVNTIGZvcmVpZ24gc29ja2V0ClBBU1MgdW5hcHByb3ZlZCBsb29wYmFjayBwb3J0ClBBU1MgZXh0ZXJuYWwgbGlzdGVuZXIKUEFTUyBmaXhlZCBsaXN0ZW5lcgpQQVNTIGNoaWxkIHByb2Nlc3MKUEFTUyBwcm90ZWN0ZWQgYXN5bmMgb3BlbgpQQVNTIGV4YWN0IGxpdGVyYWwgY2FsbGJhY2sgbG9va3VwClBBU1MgZXhhY3QgbGl0ZXJhbCBwcm9taXNlIGxvb2t1cAp7InRvdGFsIjoxNCwicGFzc2VkIjoxNCwiYXVkaXQiOnsiZXh0ZXJuYWxSZWZ1c2FscyI6NywicHJvdGVjdGVkUmVhZFJlZnVzYWxzIjo0LCJjaGlsZFJlZnVzYWxzIjoxLCJhbGxvd2VkTG9vcGJhY2tDb25uZWN0aW9ucyI6MCwiYWxsb3dlZExvb3BiYWNrTGlzdGVuZXJzIjowLCJsaXRlcmFsTG9vcGJhY2tMb29rdXBzIjoyfX0K"
+  },
+  "stderr": {
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "base64": ""
+  }
+}

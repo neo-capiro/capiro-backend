@@ -1,0 +1,34 @@
+{
+  "sourcePath": "/workspace/capirov2-meri-http-qualified-20261013/docs/meri-http-qualification-20261013/cleanup-owned-native-db.py",
+  "sha256": "00de98e18eb41090e447c282ae50c02c4e616433c3fccd7cf508cd312293fb27",
+  "bytes": 6426,
+  "ownedReceiptSha256": "1052a8486f3545f5004acd3aeed342d697cf54005b28ab05e0a9cbdf59d4bd09",
+  "decision": "ACCEPT static source only for Root stated invocation after owned consumers close",
+  "invocationConstraint": "python3 -I, cleared fixed environment preserving PATH, no optimization",
+  "executed": false,
+  "SQLExecuted": false,
+  "privateConfigReadOrPrinted": false,
+  "containerEnvironmentReadOrPrinted": false,
+  "compileOnlyNoBytecodeExecution": {
+    "optimizedUnconditionalRaiseBeforeReceiptRead": true,
+    "firstRaiseInstruction": 34
+  },
+  "closedDeletionOperands": [
+    "pg('DROP DATABASE \"' + DATABASE + '\";')",
+    "pg('DROP ROLE \"' + ROLE + '\";')"
+  ],
+  "fixedPrivateUnlink": "/tmp/capiro-authority-http-runtime.json",
+  "fences": [
+    "explicitoptimizedPythonfailstop",
+    "exactReceiptSourceContainerCreatedOwnerIdentity",
+    "exactDB16917namecommentcluster",
+    "exactNOLOGINnonprivroleandzeromemberships",
+    "zeroactiveownedconnections",
+    "privateconfiglstatregular0600nlink1O_NOFOLLOWfdidentitybeforeDROP",
+    "sameinodeandregular0600beforefixedunlink",
+    "exclusivefinalreceiptmodeX",
+    "healthycontainerfullconfigurationdigestbeforeafter",
+    "otherDBandrolecatalogfingerprintsunchanged"
+  ],
+  "scopeLimit": "Sequential DROP DATABASE then DROP ROLE is not atomic. Root must report any partial failure and stop; no weaker replay/forced termination. Cooperative owner-controlled namespace; no arbitrary external race containment claim."
+}

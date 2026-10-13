@@ -1,0 +1,57 @@
+{
+  "pin": "7160b2c29255d1c91911ba1ad298857aefe28774",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/containment-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/http-driver.test.cjs"
+  ],
+  "cwd": "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013",
+  "environment": {
+    "PATH": "cached Node + system bins",
+    "HOME": "/tmp",
+    "NODE_ENV": "test"
+  },
+  "nativeDB": false,
+  "listener": false,
+  "sourceBindings": [
+    {
+      "path": "containment-preload.cjs",
+      "sha256": "f9595fc59aa2cc1ad28739876757946ab719e93f246966d19fb590c3dea4234a",
+      "bytes": 4398
+    },
+    {
+      "path": "preload-controls.cjs",
+      "sha256": "945ccdc93125068d8ef14919cefef0b0f33b79cff4649a2f73f0c0e8f4f07f8c",
+      "bytes": 2376
+    },
+    {
+      "path": "critical-loader.cjs",
+      "sha256": "b0a66be8d1b5249511fdece7bc70a94a376907ef62a47e4007471d7e3c5af4d9",
+      "bytes": 8461
+    },
+    {
+      "path": "http-driver.cjs",
+      "sha256": "3d39370833f3f7370be042bb19a3812636da292d40840ec5f919f10fc680e8d7",
+      "bytes": 25058
+    },
+    {
+      "path": "http-driver.test.cjs",
+      "sha256": "131400c905246fc18322d8e00ff34fa2e53a2ba07214e0253446cc7ad10e9e4b",
+      "bytes": 2160
+    }
+  ],
+  "exitCode": 0,
+  "stdout": {
+    "size": 884,
+    "sha256": "bbe344cfefec1e72f2edfcf0b07462ba6f80787bde84fd0ac070e42f14267068",
+    "base64": "4pyUIGFwcHJvdmVkIG93bmVkIHRhcmdldCBzeW50YXggYWNjZXB0ZWQgd2l0aG91dCBjb25uZWN0aW9uICgxLjk5MTQ4M21zKQrinJQgdGFyZ2V0IHJlZnVzYWw6IHdyb25nIHNvdXJjZSAoMS4zODYxOTdtcykK4pyUIHRhcmdldCByZWZ1c2FsOiBhcHByb3ZhbCBtaXNzaW5nICgwLjI3NDg0OW1zKQrinJQgdGFyZ2V0IHJlZnVzYWw6IG9yZGluYXJ5IGRhdGFiYXNlICgwLjIwMDc1N21zKQrinJQgdGFyZ2V0IHJlZnVzYWw6IG90aGVyIGNsdXN0ZXIgKDAuMzYxNzE0bXMpCuKclCB0YXJnZXQgcmVmdXNhbDogT0lEIGludmFsaWQgKDQuNjg0MjAybXMpCuKclCB0YXJnZXQgcmVmdXNhbDogb3duZXJzaGlwIGNvbW1lbnQgbWlzc2luZyAoMC4zNjA5MTVtcykK4pyUIHRhcmdldCByZWZ1c2FsOiBmb3JlaWduIG5ldHdvcmsgKDAuNTYyMjYxbXMpCuKclCB0YXJnZXQgcmVmdXNhbDogd3JvbmcgZGF0YWJhc2UgcGF0aCAoMC41MTI1MDltcykK4pyUIHRhcmdldCByZWZ1c2FsOiBmb3JlaWduIHNjaGVtYSAoMy44MjQxNW1zKQrinJQgdGFyZ2V0IHJlZnVzYWw6IHBvb2wgd2lkZW5lZCAoMC4zNzI2NzJtcykK4pyUIHRhcmdldCByZWZ1c2FsOiBub25Qb3N0Z3JlcyBwcm90b2NvbCAoMC4zODg2MTdtcykK4pyUIGZpeGVkIHR3byBhdXRob3JpdHkgcm91dGVzIHVzZSBhY3R1YWwgY2xpbyBwcmVmaXggKDMuMDg4NzA2bXMpCuKclCBhbGwgc3ludGhldGljIGZpeHR1cmUgaWRlbnRpZmllcnMgYXJlIHVuaXF1ZSBsb3dlci1jYXNlIFVVSURzICgyLjQwNzQ1OG1zKQrihLkgdGVzdHMgMTQK4oS5IHN1aXRlcyAwCuKEuSBwYXNzIDE0CuKEuSBmYWlsIDAK4oS5IGNhbmNlbGxlZCAwCuKEuSBza2lwcGVkIDAK4oS5IHRvZG8gMArihLkgZHVyYXRpb25fbXMgNDg3LjUzODI3OAo="
+  },
+  "stderr": {
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "base64": ""
+  }
+}

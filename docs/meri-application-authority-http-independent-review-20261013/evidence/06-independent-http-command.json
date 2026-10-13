@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-meri-http-harness-20261013/docs/meri-application-authority-http-qualification-20261013/containment-preload.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence/run-supplementary-http.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence/06-independent-http.json",
+    "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence/frozen-author-bindings.json"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence",
+  "environment": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/tmp",
+    "NODE_ENV": "test",
+    "OWNED_HTTP_REVIEW_ACK": "bbb38185058fdc64c204da723943aee055b3dad3"
+  },
+  "parentApproval": "/root exact supplementary24 invocation; stable owned16917 slot; no concurrent root seed/RLS",
+  "authorPin": "184da5ef70c0fd79bf7f099a8d98a7d17c679d0f",
+  "ownScripts": {
+    "run-supplementary-http.cjs": "f73fd8bdc59b2ea44383889e9e902245f2a1b511f55107b40958e459fa39a4a2",
+    "supplementary-http.cjs": "1dbd54923597461eca4df6679d442f53a66ebccbea3ceae6a3aed52475b3eb55",
+    "frozen-author-bindings.json": "0b5b5adeb0e102d45df3fef3e82bc5ba59aad78069e0e0fde2ab7dff4e2f7654"
+  },
+  "startedAtUnixMs": 1791876471676,
+  "endedAtUnixMs": 1791876488282,
+  "exitCode": 0,
+  "stdout": {
+    "size": 1616,
+    "sha256": "7a8c024ce39666621538c4f3c67ea6aa7c0e2876ff922a207d5df6de7d6d451d",
+    "base64": "UEFTUyBpbmRlcGVuZGVudCBpZGVudGl0eSBleGFjdCB3aXJlIGFuZCBsYXN0U2VlbiBhY3Rpdml0eSBleGNsdWRlcyByZXZpc2lvbgpQQVNTIGluZGVwZW5kZW50IGNvcnJlbGF0aW9uIGhhc2ggZWNobyBjYW5ub3QgY2hhbmdlIGNvbnRleHQgYXV0aG9yaXR5IGZhY3RzClBBU1MgaW5kZXBlbmRlbnQgY29udGV4dCB3aXJlIHJlZnVzZXMgdXBwZXJjYXNlIGhhc2gKUEFTUyBpbmRlcGVuZGVudCBjb250ZXh0IHdpcmUgcmVmdXNlcyBzaG9ydCBoYXNoClBBU1MgaW5kZXBlbmRlbnQgY29udGV4dCB3aXJlIHJlZnVzZXMgdXBwZXJjYXNlIGNsaWVudApQQVNTIGluZGVwZW5kZW50IGNvbnRleHQgd2lyZSByZWZ1c2VzIG51bGwgY2xpZW50ClBBU1MgaW5kZXBlbmRlbnQgY29udGV4dCB3aXJlIHJlZnVzZXMgbnVtZXJpYyBjb252ZXJzYXRpb24KUEFTUyBpbmRlcGVuZGVudCBjb250ZXh0IHdpcmUgcmVmdXNlcyBvd24gSlNPTiBwcm90b3R5cGUgZXh0cmEKUEFTUyBpbmRlcGVuZGVudCBkdXBsaWNhdGUgbGFzdCBmb3JlaWduIHNlbGVjdG9yIGRvZXMgbm90IGdyYW50ClBBU1MgaW5kZXBlbmRlbnQgcmF3IG93biBwcm90b3R5cGUga2V5IHJlbWFpbnMgYSBkZW5pZWQgSFRUUCBleHRyYQpQQVNTIGluZGVwZW5kZW50IHY3IHdlbGxmb3JtZWQgYWJzZW50IGNvbnZlcnNhdGlvbiBpcyBhdXRob3JpdHkgZGVuaWFsClBBU1MgaW5kZXBlbmRlbnQgY29uZmxpY3RpbmcgdGVuYW50IGhlYWRlcjQwMyBiZWZvcmUgb25saW5lIHNlc3Npb24KUEFTUyBpbmRlcGVuZGVudCBvcmcgY2xhaW0gY2Fubm90IHBpdm90IHRlbmFudDQwMwpQQVNTIGluZGVwZW5kZW50IGV4cGxpY2l0bHkgcmVtb3ZlZCBtZW1iZXJzaGlwIGlzIG5vdCBzZWxmIGhlYWxlZApQQVNTIGluZGVwZW5kZW50IG5hdGl2ZSBzZXNzaW9uIGZ1dHVyZSBjcmVhdGlvbjQwMQpQQVNTIGluZGVwZW5kZW50IG5hdGl2ZSBhYmFuZG9ubWVudCBleHBpcnkgYm91bmRzIGV4YWN0IGlkZW50aXR5IHJlY2VpcHQKUEFTUyBpbmRlcGVuZGVudCBTREsgYXdhaXQgY3Jvc3NlcyBuYXRpdmUgb3JpZ2luYWwgZXhwaXJ5NDAxClBBU1MgaW5kZXBlbmRlbnQgY2hhbmdlZCBuYXRpdmUgc2Vzc2lvbiBhY3RvciBhY3Jvc3Mgb25saW5lIHJlYWRzNDAzClBBU1MgaW5kZXBlbmRlbnQgY29udmVyc2F0aW9uIGRlbGV0ZWQgZHVyaW5nIHNlY29uZCBTREsgYXdhaXQ0MDMKUEFTUyBpbmRlcGVuZGVudCBjbGllbnQgYXJjaGl2ZWQgZHVyaW5nIHNlY29uZCBTREsgYXdhaXQ0MDMKUEFTUyBpbmRlcGVuZGVudCBhY3RpdmUgYWRtaW4gaW1wZXJzb25hdGlvbiBwcmluY2lwYWwgYW5kIG9yaWdpbmFsIGV4cGlyeQpQQVNTIGluZGVwZW5kZW50IGltcGVyc29uYXRpb24gZW5kZWQgZHVyaW5nIG9ubGluZSBhd2FpdDQwMwpQQVNTIGluZGVwZW5kZW50IGltcGVyc29uYXRpb24gdGFyZ2V0IGluYWN0aXZlIGR1cmluZyBvbmxpbmUgYXdhaXQ0MDMKUEFTUyBpbmRlcGVuZGVudCBpbXBlcnNvbmF0aW9uIHNvdXJjZSByb2xlIHJldm9rZWQgZHVyaW5nIG9ubGluZSBhd2FpdDQwMwp7ImluZGVwZW5kZW50SFRUUCI6IlBBU1MiLCJjYXNlcyI6MjQsInNvdXJjZSI6ImJiYjM4MTg1MDU4ZmRjNjRjMjA0ZGE3MjM5NDNhZWUwNTViM2RhZDMifQo="
+  },
+  "stderr": {
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "base64": "",
+    "localRawCustody": "/tmp/meri-owned-supplementary-20261013.stderr"
+  },
+  "receiptExists": true
+}

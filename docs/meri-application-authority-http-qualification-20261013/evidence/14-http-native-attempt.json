@@ -1,0 +1,11 @@
+{
+  "sourceHead": "ae0e314a34473da203021348ebd2725d891659a9",
+  "executorSession": 18113,
+  "exit": 1,
+  "phase": "Nest app.init router metadata",
+  "nativeTargetFencePassed": true,
+  "HTTPListenerStarted": false,
+  "fixtureRowsWritten": false,
+  "reason": "unrelated empty HealthController test token lacked Controller decorator",
+  "stderrSHA256": "d03ebcd6c274fb833f0d9e1e0c0804d353eb0e32d0a4326bef72ec9f3e39ca5c"
+}

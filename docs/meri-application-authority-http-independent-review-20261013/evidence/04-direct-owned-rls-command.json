@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence/direct-owned-rls.cjs",
+    "/tmp/capiro-authority-http-runtime.json",
+    "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence/04-direct-owned-rls.json"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review/docs/meri-application-authority-http-independent-review-20261013/evidence",
+  "environment": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/tmp",
+    "OWNED_RLS_PROBE_ACK": "bbb38185058fdc64c204da723943aee055b3dad3"
+  },
+  "parentApproval": "Exact5c863 program; root stable two-sided six-table seed; readonly ownedDB16917; no concurrent writer/consumer",
+  "programSha256": "5c863229e32b61d85505da790798e50145b85ae7eae9ac09ba8814447547b4a8",
+  "startedAtUnixMs": 1791877294694,
+  "endedAtUnixMs": 1791877294898,
+  "exitCode": 0,
+  "stdout": {
+    "size": 182,
+    "sha256": "f5b7100e8bedef3b32722de673e55f70c42bc25e2c5c8e5fcc326a2a081f6a8a",
+    "base64": "eyJyZXN1bHQiOiJQQVNTIiwidG90YWwiOjMwLCJvdXRwdXQiOiIvdG1wL2NhcGlyb3YyLWZvdXItcnVudGltZS1jb250cm9scy1yZXZpZXcvZG9jcy9tZXJpLWFwcGxpY2F0aW9uLWF1dGhvcml0eS1odHRwLWluZGVwZW5kZW50LXJldmlldy0yMDI2MTAxMy9ldmlkZW5jZS8wNC1kaXJlY3Qtb3duZWQtcmxzLmpzb24ifQo="
+  },
+  "stderr": {
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "base64": ""
+  },
+  "receiptExists": true
+}

@@ -1,0 +1,533 @@
+{
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "target": {
+    "databaseName": "capiro_auth_http_20261013_4966f869fa",
+    "databaseOid": 16917,
+    "systemIdentifier": "7695590366852821031",
+    "databaseComment": "owned /root authority HTTP fixture at bbb38185058fdc64c204da723943aee055b3dad3",
+    "role": "capiro_auth_http_20261013_4966f869fa_rls"
+  },
+  "readOnlyTransaction": true,
+  "nativePostgres": true,
+  "actualHTTP": false,
+  "nativePrisma": false,
+  "productionRoleAcceptance": false,
+  "fullMigrations": false,
+  "DDL": false,
+  "permissionsChanged": false,
+  "rowsMutated": false,
+  "statementScope": "finite owned synthetic SELECTs plus transaction-local role/GUC settings and rollback",
+  "cases": [
+    {
+      "name": "tenants: tenant A positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a1000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "tenant_memberships: tenant A positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a3000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "audit_logs: tenant A positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a8000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "clients: tenant A positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a4000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "client_memory_access: tenant A positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a6000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "clio_conversations: tenant A positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a5000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "tenants: tenant B positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a1000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "tenant_memberships: tenant B positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a3000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "audit_logs: tenant B positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a8000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "clients: tenant B positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a4000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "client_memory_access: tenant B positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a6000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "clio_conversations: tenant B positive and witnessed foreign denial",
+      "passed": true,
+      "visible": [
+        {
+          "id": "a5000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "foreign": []
+    },
+    {
+      "name": "tenants: unset tenant denies",
+      "passed": true
+    },
+    {
+      "name": "tenant_memberships: unset tenant denies",
+      "passed": true
+    },
+    {
+      "name": "audit_logs: unset tenant denies",
+      "passed": true
+    },
+    {
+      "name": "clients: unset tenant denies",
+      "passed": true
+    },
+    {
+      "name": "client_memory_access: unset tenant denies",
+      "passed": true
+    },
+    {
+      "name": "clio_conversations: unset tenant denies",
+      "passed": true
+    },
+    {
+      "name": "tenants: invalid tenant denies",
+      "passed": true
+    },
+    {
+      "name": "tenant_memberships: invalid tenant denies",
+      "passed": true
+    },
+    {
+      "name": "audit_logs: invalid tenant denies",
+      "passed": true
+    },
+    {
+      "name": "clients: invalid tenant denies",
+      "passed": true
+    },
+    {
+      "name": "client_memory_access: invalid tenant denies",
+      "passed": true
+    },
+    {
+      "name": "clio_conversations: invalid tenant denies",
+      "passed": true
+    },
+    {
+      "name": "tenants: explicit SQL system bypass is observable",
+      "passed": true
+    },
+    {
+      "name": "tenant_memberships: explicit SQL system bypass is observable",
+      "passed": true
+    },
+    {
+      "name": "audit_logs: explicit SQL system bypass is observable",
+      "passed": true
+    },
+    {
+      "name": "clients: explicit SQL system bypass is observable",
+      "passed": true
+    },
+    {
+      "name": "client_memory_access: explicit SQL system bypass is observable",
+      "passed": true
+    },
+    {
+      "name": "clio_conversations: explicit SQL system bypass is observable",
+      "passed": true
+    }
+  ],
+  "total": 30,
+  "passed": 30,
+  "failed": 0,
+  "observations": [
+    {
+      "kind": "owned-target",
+      "value": {
+        "databaseName": "capiro_auth_http_20261013_4966f869fa",
+        "databaseOid": 16917,
+        "databaseComment": "owned /root authority HTTP fixture at bbb38185058fdc64c204da723943aee055b3dad3",
+        "systemIdentifier": "7695590366852821031",
+        "currentUser": "capiro",
+        "sessionUser": "capiro",
+        "superuser": true,
+        "bypassRls": true,
+        "version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit"
+      }
+    },
+    {
+      "kind": "tables-before-role",
+      "value": [
+        {
+          "name": "audit_logs",
+          "owner": "capiro",
+          "rowSecurity": true,
+          "forceRowSecurity": true,
+          "ownerMembership": true
+        },
+        {
+          "name": "client_memory_access",
+          "owner": "capiro",
+          "rowSecurity": true,
+          "forceRowSecurity": true,
+          "ownerMembership": true
+        },
+        {
+          "name": "clients",
+          "owner": "capiro",
+          "rowSecurity": true,
+          "forceRowSecurity": true,
+          "ownerMembership": true
+        },
+        {
+          "name": "clio_conversations",
+          "owner": "capiro",
+          "rowSecurity": true,
+          "forceRowSecurity": true,
+          "ownerMembership": true
+        },
+        {
+          "name": "impersonation_sessions",
+          "owner": "capiro",
+          "rowSecurity": false,
+          "forceRowSecurity": false,
+          "ownerMembership": true
+        },
+        {
+          "name": "tenant_memberships",
+          "owner": "capiro",
+          "rowSecurity": true,
+          "forceRowSecurity": true,
+          "ownerMembership": true
+        },
+        {
+          "name": "tenants",
+          "owner": "capiro",
+          "rowSecurity": true,
+          "forceRowSecurity": true,
+          "ownerMembership": true
+        },
+        {
+          "name": "users",
+          "owner": "capiro",
+          "rowSecurity": false,
+          "forceRowSecurity": false,
+          "ownerMembership": true
+        }
+      ]
+    },
+    {
+      "kind": "selected-existing-policies",
+      "value": [
+        {
+          "tablename": "audit_logs",
+          "policyname": "audit_logs_isolation",
+          "roles": "{public}",
+          "cmd": "ALL",
+          "qual": "(rls_bypass() OR (tenant_id = current_tenant_id()))",
+          "with_check": "(rls_bypass() OR (tenant_id = current_tenant_id()))"
+        },
+        {
+          "tablename": "client_memory_access",
+          "policyname": "client_memory_access_isolation",
+          "roles": "{public}",
+          "cmd": "ALL",
+          "qual": "(rls_bypass() OR (tenant_id = current_tenant_id()))",
+          "with_check": "(rls_bypass() OR (tenant_id = current_tenant_id()))"
+        },
+        {
+          "tablename": "clients",
+          "policyname": "clients_isolation",
+          "roles": "{public}",
+          "cmd": "ALL",
+          "qual": "(rls_bypass() OR (tenant_id = current_tenant_id()))",
+          "with_check": "(rls_bypass() OR (tenant_id = current_tenant_id()))"
+        },
+        {
+          "tablename": "clio_conversations",
+          "policyname": "clio_conversations_isolation",
+          "roles": "{public}",
+          "cmd": "ALL",
+          "qual": "(rls_bypass() OR (tenant_id = current_tenant_id()))",
+          "with_check": "(rls_bypass() OR (tenant_id = current_tenant_id()))"
+        },
+        {
+          "tablename": "tenant_memberships",
+          "policyname": "tenant_memberships_isolation",
+          "roles": "{public}",
+          "cmd": "ALL",
+          "qual": "(rls_bypass() OR (tenant_id = current_tenant_id()))",
+          "with_check": "(rls_bypass() OR (tenant_id = current_tenant_id()))"
+        },
+        {
+          "tablename": "tenants",
+          "policyname": "tenants_isolation",
+          "roles": "{public}",
+          "cmd": "ALL",
+          "qual": "(rls_bypass() OR (id = current_tenant_id()))",
+          "with_check": "(rls_bypass() OR (id = current_tenant_id()))"
+        }
+      ]
+    },
+    {
+      "kind": "owner-visible-two-sided-witness",
+      "table": "tenants",
+      "rows": [
+        {
+          "id": "a1000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "a1000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    {
+      "kind": "owner-visible-two-sided-witness",
+      "table": "tenant_memberships",
+      "rows": [
+        {
+          "id": "a3000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "a3000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    {
+      "kind": "owner-visible-two-sided-witness",
+      "table": "audit_logs",
+      "rows": [
+        {
+          "id": "a8000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "a8000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    {
+      "kind": "owner-visible-two-sided-witness",
+      "table": "clients",
+      "rows": [
+        {
+          "id": "a4000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "a4000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    {
+      "kind": "owner-visible-two-sided-witness",
+      "table": "client_memory_access",
+      "rows": [
+        {
+          "id": "a6000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "a6000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    {
+      "kind": "owner-visible-two-sided-witness",
+      "table": "clio_conversations",
+      "rows": [
+        {
+          "id": "a5000000-0000-4000-8000-000000000001",
+          "tenant": "a1000000-0000-4000-8000-000000000001"
+        },
+        {
+          "id": "a5000000-0000-4000-8000-000000000002",
+          "tenant": "a1000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    {
+      "kind": "controlled-nonowner-role",
+      "value": {
+        "currentUser": "capiro_auth_http_20261013_4966f869fa_rls",
+        "sessionUser": "capiro",
+        "superuser": false,
+        "bypassRls": false,
+        "canLogin": false
+      }
+    },
+    {
+      "kind": "nonowner-select-only-table-observations",
+      "value": [
+        {
+          "name": "audit_logs",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "client_memory_access",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "clients",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "clio_conversations",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "impersonation_sessions",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "tenant_memberships",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "tenants",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        },
+        {
+          "name": "users",
+          "ownerMembership": false,
+          "selectPrivilege": true,
+          "insertPrivilege": false,
+          "updatePrivilege": false,
+          "deletePrivilege": false
+        }
+      ]
+    },
+    {
+      "kind": "after-read-only-rollback",
+      "value": {
+        "currentUser": "capiro",
+        "sessionUser": "capiro",
+        "tenant": "",
+        "bypass": ""
+      }
+    }
+  ],
+  "programSha256": "5c863229e32b61d85505da790798e50145b85ae7eae9ac09ba8814447547b4a8",
+  "pgVersion": "8.23.0"
+}

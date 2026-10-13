@@ -1,0 +1,9 @@
+# Owned fixture cleanup source review
+
+Accepted statically for the parent's stated isolated `python3 -I` invocation with a cleared fixed environment, after all owned consumer pools/listeners close. The original source and its requested fail-safe corrections are retained separately. The final source hash and compile-only checks are bound in `evidence/11-final-cleanup-static-review.json`. This reviewer did not execute cleanup, Docker, SQL, or a private configuration/environment read during this task.
+
+The script binds the recorded source/container/resource owner and created-resource flags, database16917/name/comment/cluster, the exact NOLOGIN role with all privilege-creation/bypass/superuser flags false and no memberships, and zero active connections to the owned database. The only destructive SQL operands are the two fixed-name plain DROP statements. There is no FORCE, CASCADE, backend termination, arbitrary name input or unrelated database/role deletion.
+
+An explicit optimized-Python failstop precedes receipt/config/DB access. Private-file preflight now occurs before the drops: lstat regular0600/nlink1, O_NOFOLLOW open, matching device/inode, and exact source/name/OID/comment/cluster/approval fields. The same regular inode/mode is checked before unlinking only the fixed owned private path. The final receipt is written exclusively. Existing container health/configuration and other database/role catalog digests are compared before and after; only digests are persisted, not the container environment.
+
+DROP DATABASE and DROP ROLE are sequential, not atomic. If a step fails, the parent must retain and report actual partial state and stop rather than replay with weaker fences or forced termination. The review assumes the stated cooperative owner-controlled fixture namespace; it does not claim arbitrary external race containment. Actual cleanup success remains the parent's execution/evidence responsibility.
