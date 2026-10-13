@@ -1,0 +1,50 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capiro-backend-reviewed-receiving-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+[31m[Nest] 1002365  - [39m10/13/2026, 10:40:31 PM [31m  ERROR[39m [38;5;3m[TrackerChangeDetectorService] [39m[31mTracker fan-out failed for hr10-119 (tenant tenant-1); leaving snapshot un-advanced to retry next cycle: offline delivery seam failure[39m
+[31m[Nest] 1002365  - [39m10/13/2026, 10:40:32 PM [31m  ERROR[39m [38;5;3m[TrackerChangeDetectorService] [39m[31mTracker fan-out failed for hr10-119 (tenant tenant-1); leaving snapshot un-advanced to retry next cycle: offline summary seam failure[39m
+[31m[Nest] 1002365  - [39m10/13/2026, 10:40:32 PM [31m  ERROR[39m [38;5;3m[TrackerChangeDetectorService] [39m[31mTracker fan-out failed for hr10-119 (tenant tenant-1); leaving snapshot un-advanced to retry next cycle: offline storage seam failure[39m
+PASS src/tracker/tracker-action-worker-ownership.spec.ts
+[32m[Nest] 1002365  - [39m10/13/2026, 10:40:31 PM [32m    LOG[39m [38;5;3m[TrackerChangeDetectorService] [39m[32msingle-sender guard ON: suppressing legacy delivery for 1 intel-owned tenant(s)[39m
+FAIL src/tracker/tracker-action-ownership.contract.spec.ts
+  ● adds one canonical Shared barrel alias while preserving every original barrel statement and comment
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "2e7a7dac5ff77b8e25cf27479a1249fb099b9e0d680bfa5718b66e65ebca11aa"
+    Received: "1276c9abe859c65c0afca391edb730d6879317d24b1331018263031a3df99623"
+
+      129 |   const clause = exports[0]!.exportClause;
+      130 |   if (clause) {
+    > 131 |     if (!ts.isNamedExports(clause))
+          |                                    ^
+      132 |       throw new Error('Canonical barrel must use named or star exports');
+      133 |     expect(
+      134 |       clause.elements.filter((binding) => !binding.isTypeOnly).map((binding) => binding.name.text),
+
+      at Object.<anonymous> (src/tracker/tracker-action-ownership.contract.spec.ts:131:94)
+
+  ● bounds the canonical module, Intel utility, both wrappers and all three concrete guard assets without changing API service scope
+
+    ENOENT: no such file or directory, open '/tmp/capiro-backend-reviewed-receiving-20261013/apps/intel-api/test/tracker-board-ownership.contract.spec.ts'
+
+      128 |   if (!ts.isStringLiteral(node.moduleSpecifier) || node.moduleSpecifier.text !== '@capiro/shared')
+      129 |     return node;
+    > 130 |   const bindings = node.importClause?.namedBindings;
+          |                                             ^
+      131 |   if (!bindings || !ts.isNamedImports(bindings)) return node;
+      132 |   const kept = bindings.elements.filter(
+      133 |     (binding) =>
+
+      at asset (src/tracker/fixtures/tracker-action-guard/semantic.ts:130:45)
+      at Object.<anonymous> (src/tracker/tracker-action-ownership.contract.spec.ts:176:48)
+
+PASS src/tracker/tracker-action-ownership.spec.ts
+PASS src/tracker/tracker-change-detector.spec.ts
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       2 failed, 73 passed, 75 total
+Snapshots:   0 total
+Time:        7.858 s
+Ran all test suites within paths "src/tracker/tracker-change-detector.spec.ts", "src/tracker/tracker-action-ownership.spec.ts", "src/tracker/tracker-action-worker-ownership.spec.ts", "src/tracker/tracker-action-ownership.contract.spec.ts".
+Test results written to: ../../docs/backend-reviewed-receiving-20261013/evidence/api-action-jest-results.json

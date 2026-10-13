@@ -1,0 +1,22 @@
+{
+  "atOwnerUTC": "2026-10-13T23:15:57Z",
+  "sourceMessage": "Sentinel_db7986c3cd588191802765d396dafbf7",
+  "scope": "owner terminal readback; no AWS repeat by this lane",
+  "frontendStack": "Capiro-Portfolio-Preview-Service",
+  "ClerkKmsKeyArn": "arn:aws:kms:us-east-1:967807252336:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e",
+  "ClerkPublishableKeySecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/publishable-key-rAfesC",
+  "ClerkSecretKeySecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM",
+  "stagingFamilyLookup": {
+    "input": "capiro-staging-api",
+    "result": "ClientException: Unable to describe task definition",
+    "provesStagingAbsent": false
+  },
+  "proves": "current frontend parameter references only",
+  "doesNotProve": [
+    "secret contents",
+    "issuer/key pair suitability",
+    "current Core upstream task identity",
+    "permissions for new backend tasks"
+  ],
+  "narrowNextCheck": "Already-known active frontend task-definition ARN: exact non-secret Core/Workspace/Intel upstream URLs and issuer environment fields, then only the actual identified Core task ARN issuer/secret-reference fields. Do not repeat capiro-staging-api family lookup, scan all ECS services, or read secret payloads."
+}

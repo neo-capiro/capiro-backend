@@ -1,0 +1,17 @@
+{
+  "whitelist": "issuerURLs/applicationIDs/referenceARNs only; no token/key/secret/environment contents returned",
+  "matches": [
+    {
+      "source": "HEAD:docs/plans/engagement-api/phase-3-handoff-3.0.md",
+      "line": 91,
+      "issuerURLs": [],
+      "applicationIDs": [],
+      "referenceARNs": [
+        "arn:aws:kms:us-east-1:967807252336:key/efe8a18d-192e-4f30-8eea-b3f65ae7755e",
+        "arn:aws:kms:us-east-1:967807252336:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e"
+      ],
+      "syntheticOrTestContext": false
+    }
+  ],
+  "candidateIsAuthorityProof": false
+}

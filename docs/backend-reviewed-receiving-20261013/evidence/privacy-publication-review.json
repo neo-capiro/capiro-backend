@@ -1,0 +1,303 @@
+{
+  "atUTC": "2026-10-13T23:21:43.100553+00:00",
+  "explicitPrivateBackendSourcePublicationAuthorized": true,
+  "repository": "neo-capiro/capiro-backend",
+  "repositoryID": 1418020840,
+  "ownerID": 276034435,
+  "patterns": [
+    "private-key",
+    "AWS-access-key",
+    "GitHub-token",
+    "Clerk-key-value",
+    "JWT-value",
+    "database-credential-URL"
+  ],
+  "findings": [],
+  "finiteFiles": 47,
+  "inventory": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 6443,
+      "sha256": "89d9bbee238b8b38ca021c2ac285a737a7c7e2ef9362e4ec3856f7b24abdd7ff",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "IMAGE-BOOTSTRAP-PATH.md",
+      "bytes": 2708,
+      "sha256": "24492128d1fd4888fbc8673c7a1abaed676fb3f6168431e53f53e2b15a8bcb8a",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "bytes": 3344,
+      "sha256": "ef5925fc38ae2222b685c2f28c0eb13ca553a2c2a011b3be4774402da3fabf46",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "PREVIEW-INPUTS.json",
+      "bytes": 7562,
+      "sha256": "61e864a3439f6e48ddc290048d1262516e1638028504cc2fff8217787c1d2b1f",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "PREVIEW-INPUTS.md",
+      "bytes": 3163,
+      "sha256": "31e8b1b313c909cbd4674a8069d4f11735fe39e0cb806ea75fdcb5c992f2579a",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "READONLY-ROUTES.md",
+      "bytes": 3006,
+      "sha256": "ddd61c4075c2735b364ff556ee6ba0c1fa40217110485be118ebff7db331a7dc",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "TEARDOWN.md",
+      "bytes": 3385,
+      "sha256": "293ac3968641583b8fce181b8f0e531984cbca560398f139b6cbb0c2c8b39b50",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "api-materialization-scope.json",
+      "bytes": 11730,
+      "sha256": "bb59095a81e361eac9862cf543cd4b00d555b9ea0431d0b6b40c78f9a7b2381e",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/api-action-jest-receipt.json",
+      "bytes": 1363,
+      "sha256": "56bcd5701804da1f220af8c30a3cfb648df9645eb811e05ff83f7b86463a7d97",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/api-action-jest-results.json",
+      "bytes": 27339,
+      "sha256": "ea6a5e1afee0b129b40276bd14e97e340cacfdc7e68afbbdb8d5a2940eef725a",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/api-action-jest.log",
+      "bytes": 1957,
+      "sha256": "1b750b4ef22f076bd521835ade608f30fcb765b8dbbb84265867a44562c8bf3b",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/api-type-receipt.json",
+      "bytes": 1130,
+      "sha256": "1c37b0457041cccff53e94e8c0605c35c8f86092f98bbca73ad44bbfcbdae58f",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/api-type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/attempt0-api-action-jest-receipt.json",
+      "bytes": 1408,
+      "sha256": "793e886659880071733cd18e387765f39b8db47dbe1de210430669a630b6d662",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/attempt0-api-action-jest-results.json",
+      "bytes": 33337,
+      "sha256": "3c8c91e7aa5640674ab33c725e2296c206843f45ff098912008a5fcb91b94ee3",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/attempt0-api-action-jest.log",
+      "bytes": 3683,
+      "sha256": "fc859503b59263982aa6e5fe90de9396f4460291a6581eb186438847fa112c67",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/attempt0-api-root-overlay-preparation.json",
+      "bytes": 420,
+      "sha256": "7c1b6a7d61d64dc2dc383fd5608c1df2f88c5d44c52adfcc65bf790b50ca7f52",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/clerk-handoff-reference-paths.json",
+      "bytes": 3205,
+      "sha256": "c962b3d7fb86a5b4249ea8af56631ec3a91bd7be976595a77b2dc6cc1b1e5776",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/clerk-handoff-whitelisted-metadata.json",
+      "bytes": 575,
+      "sha256": "a1659ebb8b727776e1271754590c19eaf332df6527cc98e194fb28670f16a271",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/frontend-config/preview-config.mjs.source",
+      "bytes": 5563,
+      "sha256": "d48bd3e15e21cab35d0938800104c95ba87404e441087e92f2a0dbe4b334fd26",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/frontend-config/service.yml.source",
+      "bytes": 11697,
+      "sha256": "e24745c7fdbd4ec9daaa8ef6274a78895d06df86706b02e9ca4f65064c5e8b4d",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/local-image-execution-capability.json",
+      "bytes": 1124,
+      "sha256": "a5564ec0fc743f48325807e5e3e93e852ffe6033c23ac8bc8a9cfe4dc4403cde",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/minimum-preview-source-equivalence.json",
+      "bytes": 580,
+      "sha256": "06280e141a437ed5e177f5e46279559bd2fca4d508c5d8bdadeacaf4fd4503d6",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/original-handover-clerk-nonsecret-extract.json",
+      "bytes": 643,
+      "sha256": "78cea3eb900db83adbc598b5cc5fe505622d05a9dce2b8a128d67ed664d199dd",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/owned-prior-checkout-retirement.json",
+      "bytes": 564,
+      "sha256": "25e8cfe9b7d138c1adbb8931571f58f185d6bbb7e230149722a87126d521718a",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/owned-runtime-retirement-inventory.json.gz",
+      "bytes": 8091,
+      "sha256": "a98124e345743b526b4f32b2f10402b0edf51fa7df335c1bde1a9ca9d9e03c0a",
+      "gzipMetadataExpanded": true
+    },
+    {
+      "path": "evidence/owned-toolchain-retirement.json",
+      "bytes": 1110,
+      "sha256": "954db186081e331ce5b8adb100c560b8df54b1625f2e55d2f4a893a772bc93f2",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/owner-fresh-clerk-parameter-readback.json",
+      "bytes": 1304,
+      "sha256": "ce84f4548fc94237e90b3981612212bed86ee55357f2800f5dbca76595140054",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/pr2490-admission.json",
+      "bytes": 1962,
+      "sha256": "880bc47ae8acfcd28ea248f8f8591cf2f29b0cad515431346216e9530bb0d3ed",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/pr2490-fetch.log",
+      "bytes": 158,
+      "sha256": "f6a6e7664e4f19d9fc403dbc4830fe36a7528d3795da10498dad03a4bb9b52cd",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/pr2490-merge-receipt.json",
+      "bytes": 170,
+      "sha256": "c0a327569f3a787559827edcb3795b769cf4f80025af147346a3e8227821fa2f",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/pr2490-merge.log",
+      "bytes": 108,
+      "sha256": "5f04e46112ac4d7b764e053d38a35c3293801c8b9548eb71c87deb057f970e3f",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/pr2490-test-command-extraction.json",
+      "bytes": 8581,
+      "sha256": "2365cf7d67b8f357682b5999b135560b2a506c42e6d492018465d8e6dac88345",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/receiving-barrel-guard-adaptation.json",
+      "bytes": 938,
+      "sha256": "e7d83bf18cae9a5ca7595ac379681870c0ec3db9becb3de3c75477ecabd65c68",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/receiving-merge-preservation.json",
+      "bytes": 433,
+      "sha256": "18819475fcd72e7033c19af2695f428b7718874b17f3c7800e7b39da4ec77ff3",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/receiving-merge-receipt.json",
+      "bytes": 422,
+      "sha256": "fccc5eb6beafb6448b8542eac867e135e76662c5f5e804f792bd9f727a2db310",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/receiving-merge.log",
+      "bytes": 66,
+      "sha256": "96bb6a194a796153cbd0c640642866371219451832063763d544b942a8d97c4e",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/shared-build-receipt.json",
+      "bytes": 998,
+      "sha256": "3b4d85af667eb2d16474b400b73889c476e0a19669a8f1a5859a867d5e69eded",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "evidence/shared-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "excluded-reporting-token.cjs",
+      "bytes": 223,
+      "sha256": "2288905cc7adf9214ba50e627f2c0b56a3199b2c8b3eae475d061fdb5319b008",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "inert-jest.config.cjs",
+      "bytes": 1360,
+      "sha256": "4c9ce037cb8c21ea9c56f1ac1a6777e1566589de3564a5b68588e9c56992244d",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "inert-native-parser-environment.cjs",
+      "bytes": 525,
+      "sha256": "d3df6a88fea75f442a1b54370258be724172374060091ee38059c868ec949df7",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "jest-transform-config.json",
+      "bytes": 171,
+      "sha256": "76e72e3e578410441b36b882a4fe95f84751c5d6d16ab70df7dc432a95f020b2",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "mapless-js-transform.cjs",
+      "bytes": 546,
+      "sha256": "5c0852dab59c30b828d98aabefdad0360ab15bf67bab8840d3ea7d2d5538acd6",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "mapless-transform.cjs",
+      "bytes": 594,
+      "sha256": "895639c588eea899311816447a78943faadbecac74426234d35023a4415e3800",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "network-fence.cjs",
+      "bytes": 489,
+      "sha256": "c0a45bd67d1f5f378fd12a0a9f92802bd57d993f489b1878fe5da8269e328934",
+      "gzipMetadataExpanded": false
+    },
+    {
+      "path": "test-scope.json",
+      "bytes": 8569,
+      "sha256": "c87b43cc0139239815be3064409ccb8bf57c1e78c4f90268f1f750235f94df2d",
+      "gzipMetadataExpanded": false
+    }
+  ],
+  "contentReview": "Non-secret source/AST/type/mock receipts, source/ref/blob/ARN metadata and synthetic fixture logs only. No actual customer content, key/token/secret values, signed transfer URLs or generated client/runtime bodies copied. Library original archive was not downloaded; only existing metadata searches were used. Protected reporting source not inspected.",
+  "result": "PASS"
+}

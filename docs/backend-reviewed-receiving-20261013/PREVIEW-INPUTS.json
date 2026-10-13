@@ -1,0 +1,158 @@
+{
+  "atUTC": "2026-10-13T22:37:38.893208+00:00",
+  "status": "INCOMPLETE PUBLIC METADATA WORKSHEET; original readonly shared-backend scope and isolated-backend scope kept distinct; not render/apply input",
+  "verifiedSource": "2e1b80d25b9d7e6f3c2807fef5c655d90e00e9ff",
+  "verifiedFields": {
+    "vpcId": "vpc-007845c8bf4ec0b30",
+    "vpcCidr": "10.90.0.0/16",
+    "clusterArn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-portfolio-preview",
+    "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/Capiro-Previ-6bbPz0Y2cqPc/03bfa43552ff3293/6e971d0a55ba648a",
+    "albSecurityGroupId": "sg-0e742fb6a11314392",
+    "publicSubnetIds": [
+      "subnet-0cd6eaf9a8dabfdaa",
+      "subnet-0f02b541312e4faa2"
+    ],
+    "availabilityZones": [
+      "us-east-1a",
+      "us-east-1b"
+    ],
+    "frontendTargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/Capiro-Previ-WL9NVROQB7K7/04a70c09a11ec734"
+  },
+  "deterministicClusterArn": "standard ARN from verified account/region/cluster name; no new AWS call",
+  "canonicalFrontendURLs": {
+    "Core": "https://portfolio-preview.app.capiro.ai/api",
+    "Workspace": "https://portfolio-preview.app.capiro.ai/workspace-api",
+    "Intelligence": "https://portfolio-preview.app.capiro.ai/intel-api",
+    "Origin": "https://portfolio-preview.app.capiro.ai"
+  },
+  "frontendSources": [
+    {
+      "path": "evidence/frontend-config/preview-config.mjs.source",
+      "bytes": 5563,
+      "sha256": "d48bd3e15e21cab35d0938800104c95ba87404e441087e92f2a0dbe4b334fd26",
+      "repository": "neo-capiro/capiro-frontend",
+      "immutableHead": "c045668da6fc3b630e6d83432e608c9d20c86afe",
+      "classification": "non-secret source only; no secret or environment read"
+    },
+    {
+      "path": "evidence/frontend-config/service.yml.source",
+      "bytes": 11697,
+      "sha256": "e24745c7fdbd4ec9daaa8ef6274a78895d06df86706b02e9ca4f65064c5e8b4d",
+      "repository": "neo-capiro/capiro-frontend",
+      "immutableHead": "c045668da6fc3b630e6d83432e608c9d20c86afe",
+      "classification": "non-secret source only; no secret or environment read"
+    }
+  ],
+  "fixedApprovedProposals": {
+    "account": "967807252336",
+    "region": "us-east-1",
+    "databaseCIDRs": [
+      "10.90.11.0/24",
+      "10.90.12.0/24"
+    ],
+    "backendPorts": [
+      4000,
+      4200,
+      4300
+    ],
+    "listenerPriorities": [
+      608,
+      609,
+      610,
+      611,
+      612,
+      613,
+      614
+    ],
+    "perTask": {
+      "CPU": 512,
+      "MemoryMiB": 1024,
+      "architecture": "X86_64",
+      "os": "LINUX",
+      "initialDesiredCount": 0
+    },
+    "databaseEngine": "Aurora PostgreSQL16.8",
+    "writerACU": [
+      0.5,
+      1
+    ],
+    "logRetentionDays": 14,
+    "approvedIncrementalBudgetUSD": 150,
+    "windowDays": 14
+  },
+  "missingAuthoritativeBindings": [
+    "clerkApplicationId",
+    "clerkIssuer",
+    "clerkSecretArn",
+    "clerkPublishableKeyArn",
+    "clerkKeyArn",
+    "neoTenantId",
+    "automationTenantId",
+    "neoActorId",
+    "automationActorId",
+    "threeExactImmutableImageURIsAndBuildUsedSourceHeads",
+    "existingExecutionPrincipalAndAuthorizedOperator",
+    "exactRetentionTeardownManifestAndAcknowledgedControls"
+  ],
+  "routineEvidenceNotProductChoices": [
+    "Real image digest/build-source/startup provenance must come from qualified images; a repository tip or synthetic SHA cannot fill it.",
+    "Secret ARN random suffixes and key UUIDs cannot be derived from planned paths/aliases.",
+    "Current actor/tenant ownership needs verified auth/bootstrap receipts, not UUID syntax or names.",
+    "Fixed engine availability and bucket404 ambiguity require exact operator readback; do not invent availability or choose alternate bucket/version.",
+    "Record T0 at first new billable AWS creation; calculate T0+14 then, never from repository creation/import."
+  ],
+  "genuineNeoChoicesOrApprovals": [
+    "Existing exact live-operation/security/bootstrap approvals and an authorized execution/cleanup operator remain required; no new app or retention choice requested."
+  ],
+  "sourceDependency": {
+    "currentPreviewValidatorAcceptedSourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+    "newFrozenReceivingSource": "70f604828cf92b50c065e9b3e9cd1d1c606d18dc",
+    "currentValidatorAdmitsNewReceivingSource": false,
+    "disposition": "Minimume50 remains already admitted and app-equivalent to importedc76; no source rebind needed for minimum preview. Cleanup70 source would require its own later image admission; it is not a preview prerequisite.",
+    "minimumExistingAdmittedSource": "e50aed3c5b5cce58317b37de442482fa970842cb",
+    "minimumRepositoryTip": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "cleanupReceivingNotPreviewPrerequisite": true
+  },
+  "allSecurityApplyDBProviderCredentialAndNetworkActionsHeld": true,
+  "broaderInventoryOrAWSOperationPerformed": false,
+  "ownerCorrections": {
+    "existingClerkEnvironment": "https://stirring-warthog-40.clerk.accounts.dev",
+    "historicalSecretReference": "/capiro/staging/clerk/secret-key-LUztyQ",
+    "provenance": "Coordinator original Oct11 HANDOVER/Single-Environment-Test-Plan; Neo readbacks pending; non-secret reference only",
+    "newAuthAppPrerequisiteForRestrictedReadOnlySharedPreview": false,
+    "retentionDecision": "Remove preview test data atT0+14 days; irreversible deletion needs final action-time confirmation",
+    "provisioningApprovalImplied": false,
+    "exactReadbackStatus": "Frontend current parameters verified; staging family lookup failed; active Core upstream identity/issuer/required references remain unverified."
+  },
+  "readonlyDecision": {
+    "authenticatedProductionBusinessRouteAllowlist": [],
+    "livenessOnlyCandidate": "GET /api/health",
+    "usableDataPreviewViaHealth": false,
+    "preferredUsablePath": "existing staging Clerk plus separately approved isolated backend",
+    "frontendContainmentPR23": "e16695d57b5b53b965e9721f2f8cad46416674c1",
+    "testedFrontendSource": "c84472e523311988a7ab42b42f7ae4053ac9b3cf",
+    "frontendOwnerReported": "actual-server62observations,0upstreamcalls,ordinarymodeunchanged; not usable data preview"
+  },
+  "latestOwnerMetadata": {
+    "atOwnerUTC": "2026-10-13T23:15:57Z",
+    "sourceMessage": "Sentinel_db7986c3cd588191802765d396dafbf7",
+    "scope": "owner terminal readback; no AWS repeat by this lane",
+    "frontendStack": "Capiro-Portfolio-Preview-Service",
+    "ClerkKmsKeyArn": "arn:aws:kms:us-east-1:967807252336:key/f47b4c53-b9c0-4d91-ad57-4d882f87767e",
+    "ClerkPublishableKeySecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/publishable-key-rAfesC",
+    "ClerkSecretKeySecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM",
+    "stagingFamilyLookup": {
+      "input": "capiro-staging-api",
+      "result": "ClientException: Unable to describe task definition",
+      "provesStagingAbsent": false
+    },
+    "proves": "current frontend parameter references only",
+    "doesNotProve": [
+      "secret contents",
+      "issuer/key pair suitability",
+      "current Core upstream task identity",
+      "permissions for new backend tasks"
+    ],
+    "narrowNextCheck": "Already-known active frontend task-definition ARN: exact non-secret Core/Workspace/Intel upstream URLs and issuer environment fields, then only the actual identified Core task ARN issuer/secret-reference fields. Do not repeat capiro-staging-api family lookup, scan all ECS services, or read secret payloads."
+  }
+}

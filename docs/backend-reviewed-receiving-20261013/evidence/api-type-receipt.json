@@ -1,0 +1,25 @@
+{
+  "source": "70f604828cf92b50c065e9b3e9cd1d1c606d18dc",
+  "tree": "004aba1a1e6c78d331d11e29237357ed75b80d5d",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "--require",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/network-fence.cjs",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/apps/api/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/backend-receiving-api-type-20261013.tsbuildinfo"
+  ],
+  "cwd": "/tmp/capiro-backend-reviewed-receiving-20261013/apps/api",
+  "exit": 0,
+  "elapsedSeconds": 76.277,
+  "logBytes": 0,
+  "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "fresh strict actual API config; all production TS roots plus103curated specs/fixtures; omitted global unselectedspec qualification not claimed; exact Core schema cache/fresh merged Shared; no network/native/provider/Appstartup",
+  "inheritedCredentials": false
+}

@@ -1,0 +1,21 @@
+{
+  "source": "70f604828cf92b50c065e9b3e9cd1d1c606d18dc",
+  "tree": "004aba1a1e6c78d331d11e29237357ed75b80d5d",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/network-fence.cjs",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/packages/shared/tsconfig.json",
+    "--outDir",
+    "/tmp/backend-receiving-shared-runtime-20261013/dist",
+    "--tsBuildInfoFile",
+    "/tmp/backend-receiving-shared-20261013.tsbuildinfo"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 3.397,
+  "logBytes": 0,
+  "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "actual complete Shared build using canonical source and owned output; fresh current merged barrel and canonical tracker action owners; network fenced; no credentials/provider/native/Appstartup"
+}

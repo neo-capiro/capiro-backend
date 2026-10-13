@@ -1,0 +1,28 @@
+{
+  "source": "70f604828cf92b50c065e9b3e9cd1d1c606d18dc",
+  "tree": "004aba1a1e6c78d331d11e29237357ed75b80d5d",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/network-fence.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/inert-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/tracker/tracker-change-detector.spec.ts",
+    "src/tracker/tracker-action-ownership.spec.ts",
+    "src/tracker/tracker-action-worker-ownership.spec.ts",
+    "src/tracker/tracker-action-ownership.contract.spec.ts",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/evidence/api-action-jest-results.json"
+  ],
+  "exit": 1,
+  "elapsedSeconds": 9.12,
+  "logBytes": 3683,
+  "logSHA256": "fc859503b59263982aa6e5fe90de9396f4460291a6581eb186438847fa112c67",
+  "scope": "four actual API tracker action suites, fresh canonical merged Shared; I/O inert and startup/native reporting excluded; no network/credentials/provider",
+  "acceleration": "99prior facade suites not rerun; unchanged source evidence carried by mode/blob identity"
+}

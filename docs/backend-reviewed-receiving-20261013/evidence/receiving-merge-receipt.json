@@ -1,0 +1,16 @@
+{
+  "command": [
+    "git",
+    "merge",
+    "--no-ff",
+    "--no-commit",
+    "699ce98faf4411896ab1340fe27a9d125c2f0e0c"
+  ],
+  "exit": 0,
+  "logBytes": 66,
+  "sha256": "96bb6a194a796153cbd0c640642866371219451832063763d544b942a8d97c4e",
+  "importedTip": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "receivingDonor": "699ce98faf4411896ab1340fe27a9d125c2f0e0c",
+  "sourceNewBranchOnly": true,
+  "remoteMutation": false
+}

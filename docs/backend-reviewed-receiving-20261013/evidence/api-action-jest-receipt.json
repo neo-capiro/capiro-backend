@@ -1,0 +1,28 @@
+{
+  "source": "9b1a2b772767d523b672a217c82fde1698c223fd",
+  "tree": "60d707d1e632f49dc7c8bf598df701056847d3c7",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/network-fence.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/inert-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/tracker/tracker-change-detector.spec.ts",
+    "src/tracker/tracker-action-ownership.spec.ts",
+    "src/tracker/tracker-action-worker-ownership.spec.ts",
+    "src/tracker/tracker-action-ownership.contract.spec.ts",
+    "--no-cache",
+    "--json",
+    "--outputFile",
+    "/tmp/capiro-backend-reviewed-receiving-20261013/docs/backend-reviewed-receiving-20261013/evidence/api-action-jest-results.json"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 6.464,
+  "logBytes": 1957,
+  "logSHA256": "1b750b4ef22f076bd521835ade608f30fcb765b8dbbb84265867a44562c8bf3b",
+  "scope": "actual four API action/worker/ownership suites including both API/Intel pure classifier and event-selector entrypoints; fresh Shared; I/O inert; no network/provider/native/startup",
+  "receivingCheckpointOnly": true
+}
