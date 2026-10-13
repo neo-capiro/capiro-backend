@@ -1,0 +1,13 @@
+{
+  "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+  "receivingBaseHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "baseBlob": "138efadf24e54c7f882891222db95895d94e7d7e",
+  "currentBlob": "138efadf24e54c7f882891222db95895d94e7d7e",
+  "unchangedAtQualification": true,
+  "baseAlreadyFailsMainWhitespaceComparison": true,
+  "exit": 2,
+  "diagnostics": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt:1441: new blank line at EOF.\n",
+  "boundedQualificationHygiene": "PASS",
+  "fullStackHygiene": "OPEN_RED",
+  "noTrimWaiverOrNewException": true
+}
