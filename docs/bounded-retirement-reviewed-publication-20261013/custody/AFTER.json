@@ -1,0 +1,16 @@
+{
+  "timeUtc": "2026-10-13T01:10:14.463942+00:00",
+  "checkoutRemoved": true,
+  "ownedAdminMetadataRemoved": true,
+  "branch": "codex/cleanup-pr2434-bounded-code-adoption-20261013",
+  "head": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "tree": "704abca4da106e704ca336b063ba4ebec288529f",
+  "allTenNamedHeadsAndTreesUnchanged": true,
+  "committedIndexedHashesVerified": 184,
+  "badHashes": [],
+  "committedMasterSha256": "6990eea77f367efc3a4fdd5f1ce440e0d0b622ad75efdaaea1862684cdb35c48",
+  "sourceDeletionsExplicitlyRecorded": 1,
+  "tmpAvailableBytes": 558620672,
+  "removedOwnAllocatedBytes": 556113920,
+  "preservation": "all commits/Git objects and raw evidence retained in common /workspace/capirov2/.git; no gc/prune/branch delete/other checkout touched"
+}

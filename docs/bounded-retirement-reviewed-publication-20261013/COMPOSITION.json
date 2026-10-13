@@ -1,0 +1,65 @@
+{
+  "baseDraft": "PR2437",
+  "baseHead": "9ffab390ef444d7ea0bf4eb0d68224f810245e25",
+  "baseTree": "72cf15e81ad0adcd749cdf400be0c0d8d088fc7c",
+  "fourGroupSource": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "fourGroupSourceTree": "24945192668a0df687042e54670f81be301bee20",
+  "fourGroupAuthorCorrection": "8e9df137a750bed3b02f5149e214c3c22697cb93",
+  "fourGroupIndependent": "f6a2f4d31bc347b0e7effae4a370a31e0c93e43d",
+  "fourGroupIndependentTree": "eb70d08e144fb8612ef883bbe63e561cedf5d8bb",
+  "artifactGuardSource": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "artifactGuardSourceTree": "f856da3e3f0df6941fbb3837a41c19615ed78cd9",
+  "artifactGuardAuthor": "a6a600c4da23447c856d20d6df344d9e71301fbe",
+  "artifactGuardAuthorTree": "ecedbbbaad015aa30dcdfe0b2cab3616f4b817a3",
+  "artifactGuardIndependent": "8ba70ba42716a99dd0d5aede941146afad88cddd",
+  "artifactGuardIndependentTree": "29ca178841d67f7756143124e21ab1df370732f1",
+  "qualification": {
+    "fourGroupFreshHermetic": 56,
+    "malformedProofFlagsPreviouslyEscapedNowRefused": 7,
+    "artifactGuardAffectedOnboard": 37,
+    "unchangedNewsletterCasesCarriedByExactSource": 53,
+    "independentAdditionalGuardChecks": 45,
+    "staticLinkageEscapesPreviouslyAcceptedNowRefused": 10,
+    "originalArtifactGuardCaseNamesBodiesPreserved": 72
+  },
+  "sourceScope": {
+    "nonDocumentPaths": 136,
+    "presentPaths": 135,
+    "deletedPath": "apps/web/src/vnext/pages/client-crm/VNextClientPicker.tsx",
+    "sourceBindings": "evidence/final-source-composition.json",
+    "sourceWhitespaceExit": 0,
+    "physicalWhitespaceExit": 2,
+    "physicalWhitespaceDisposition": "OPEN; original and new raw bytes preserved",
+    "allNineRichSourcePathsExact": true,
+    "allOtherNonDocumentEntriesExact": true
+  },
+  "sourcePreservedAncestralHeads": [
+    "9ffab390ef444d7ea0bf4eb0d68224f810245e25",
+    "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+    "8e9df137a750bed3b02f5149e214c3c22697cb93",
+    "f6a2f4d31bc347b0e7effae4a370a31e0c93e43d",
+    "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+    "128f1233b60f418e77fbe5488949ba9d2b4520c6",
+    "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+    "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+    "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+    "a6a600c4da23447c856d20d6df344d9e71301fbe",
+    "8ba70ba42716a99dd0d5aede941146afad88cddd"
+  ],
+  "publishedCodeInputs": {
+    "PR2434": "af5f208961e6c9a01a6e489a7f5b1a6e6edfd736",
+    "PR2436": "7b5a9644d30d22389b23f0e07f923c8925682047"
+  },
+  "heldDependencies": {
+    "ClioWorkflow": "Current main-route accounting/backend-input/source-jobs/broad retirement workflow closure absent; whole old carrier incompatible",
+    "OnboardReplacement": "Opt-in source only; actual artifact/build/browser/auth/default serving unaccepted",
+    "NewsletterAssets": "Backend has0/179 restored frontend assets; optional parity and historical serving unaccepted",
+    "NativeResilience": "Sourcecase15 is implemented; no native15-case execution or separately pending native source publication",
+    "FullRelease": "Full cleanup/coverage, native/runtime-role, clean frozen install, supported hosted Node22/Windows/operator gates remain open"
+  },
+  "deniedDetailedRetirementReportRead": false,
+  "protectedUnpublishedReportingBodyRead": false,
+  "awsPaidProviderDatabaseDeploymentOperations": false,
+  "publicationParentHead": "a36e9d983af0fc31a958411aa924cb9cf22f3112",
+  "publicationParentTree": "34cc23f8d1d6580408f7de97a99f7d45354c7ac4"
+}

@@ -1,6 +1,6 @@
 # Current contract and bounded retirement handoff
 
-This is the current combined handoff. It adds producer-owned rich newsletter receiving contracts and an immutable public package to the independently reviewed PR2435 Phase26 scopes. The client-first grant writer, consolidated native acceptance, Memory source repair and earlier bounded adoptions remain preserved. The only new runtime service change is the existing newsletter record owner's admission guard. Existing default suites, qualified guards/aliases/process policies, original plans, package/CI fields, renderer bodies, schema/migration history and every original/new source head remain preserved. Broader frontend deletion and full release acceptance remain separate.
+This is the current combined handoff. It adds bounded compatible retirement inputs to PR2437's producer-owned rich newsletter contracts and immutable public package. The client-first grant writer, consolidated native acceptance, Memory source repair, PR2435 scopes and earlier bounded adoptions remain preserved. Default suites, qualified guards/aliases/process policies, original plans, package/workflow fields, renderer bodies, schema/migration history and every original/new source head remain preserved. Broader frontend deletion and full release acceptance remain separate.
 
 ## Published stack and contract continuity
 
@@ -14,7 +14,8 @@ This is the current combined handoff. It adds producer-owned rich newsletter rec
 | PR2431 | `2956443fb92efac356506cc06364735cca80fe7c`: reviewed Memory source contract, same 60 cases green, all failure evidence preserved. |
 | PR2433 | `c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4`: canonical client-first grant writer, method-fragment spec and reviewed native/coverage prerequisite evidence. |
 | PR2435 | `ed62dd1e67be152b6b760815f79bc475925659e7`, tree `6ebcb1ecd76662bb6358334f5f70c68b459a7ee2`: eight scoped Phase26 paths and four additive package aliases. |
-| Rich receiving slice | Source `38fec5c83585850ed75a7d3693b3b90d517e70af`, tree `b5aef300e56fae9b523d7525f1abd0f9c6baec75`; exact package and review pins in the [publication receipt](../rich-newsletter-reviewed-publication-20261013/README.md). |
+| PR2437 | `9ffab390ef444d7ea0bf4eb0d68224f810245e25`, tree `72cf15e81ad0adcd749cdf400be0c0d8d088fc7c`; receiving source `38fec5c83585850ed75a7d3693b3b90d517e70af` and exact package/review pins in the [publication receipt](../rich-newsletter-reviewed-publication-20261013/README.md). |
+| Bounded retirement continuation | Four-group source `bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627`; final artifact-guard source and review pins in the [composition receipt](../bounded-retirement-reviewed-publication-20261013/COMPOSITION.json). |
 
 | Canonical source contract | Preserved authority and overlap |
 | --- | --- |
@@ -65,7 +66,7 @@ The final isolated PostgreSQL 16.15 preflight found zero task schemas, roles, ot
 
 The unchanged canonical full Core typecheck passes all 17 segments with `PE_PHASE_A_B_SAFETY_OK` on the current source. Its first attempt hit the supplied 4 GB heap cap; the 8 GB retry revealed a stale local dependency symlink. Both failures remain. Correcting only the owned link to already verified current Prisma/Shared artifacts produced exit0 without source/package/compiler/gate relaxation. Meriv2-core passes its full 117 suites/1,717 cases plus its two original TODOs; Auth passes all 20 with diagnostic coverage. Five official locked V8 prerequisites and the actual small source-map/coverage pipeline are qualified, not a full install/five-target floor. [Install/gate audit and exact actions](../cleanup-current-install-gate-coverage-audit-20261012/AUDIT.md) records missing canonical coverage baseline, supported Node22/hosted CI, fresh frozen installation/lifecycle, full migration/runtime-role, default app/provider closures, pinned visual/route/repetition and contained-runtime requirements. All current aliases, newer parser/Jest/CI defaults and floors remain.
 
-Published operator PR2430 `0e59d26d5d96f805165b370e051d9d9d610342b4` and PR2432 `ed1bb4b539b297086413e7060979ea02226dc485` supply code-only inputs for the bounded Phase26 slice below. Whole adoption remains held: older scoped-Windows policy and omitted smoke/run guards conflict with current code. Resilience 14 versus required 15 and five Clio accounting refusals stay open with that owner. No denied report upload/retrieval is retried.
+Published operator PR2430 `0e59d26d5d96f805165b370e051d9d9d610342b4` and PR2432 `ed1bb4b539b297086413e7060979ea02226dc485` supply code-only inputs for the bounded Phase26 slice below. Whole adoption remains held: older scoped-Windows policy and omitted smoke/run guards conflict with current code. The bounded continuation adds the fifteenth resilience source case; native execution of that floor remains open. Clio activation remains held for absent current accounting/input/workflow dependencies. No denied report upload/retrieval is retried.
 
 
 The compatible Phase26 source is `31cc12a6626be8586666dfa9ccf53b68fff10311`, tree `025aaef8f30fc4a9d3db39320f900325c40efe52`; author seal `8d08e2c8b17abfa2649bad073c0aeccf168ce0b4`, tree `503d2c25338c703e51cf166dc45da68ab9173b50`. Root adds only four explicit `--run` aliases and passes the same28 actual-source fake-I/O cases. Existing full/fast commands, strict help/run/ref grammar, full-mode body/census,16 diagnostic/two-suite attribution, Phase3 Windows, Jest/CI and resilience remain preserved. Frontend/source-only modes run scoped source/whitespace policy; backend typing/native markers describe selected commands, not new compiler/database/application acceptance. No actual default CLI, typing/Jest plan or native graph is executed here.
@@ -79,7 +80,7 @@ Independent acceptance `308443cb148cc5f8dc5d4fd67a838e3fe9724f20`, tree `1fc89b6
 | Scoped census, counted diff projection, matched Phase26 caller | Adopted together; four helpers have active callers. No unused Phase27 exports or new store. |
 | Four explicit package aliases | Additive only: backend, backend typing, backend source and frontend; existing package metadata/scripts remain exact. |
 | Prior Phase3 Windows/process and outreach smoke policy | Kept current; older conflicting operator bodies are omitted. |
-| Phase27/27e/27f, CI/Jest repartition, architecture closeout and resilience | Held for their complete matching current dependencies and unchanged floors. |
+| Phase27/27e/27f, CI/Jest repartition and architecture closeout | Held for complete matching current dependencies and unchanged floors. The bounded resilience source continuation below does not qualify native execution. |
 | Rich-newsletter frontend dependency | Implemented by the rich continuation below for frontend qualification `b945b799591c7a0345441a489b27cdadee202235`; frontend adoption and delivery remain separately owned. |
 
 ## Rich receiving continuation
@@ -91,3 +92,22 @@ The original source37 limited162-control review missed legitimate historical tes
 The canonical29 actual-method cases and their original18-failure/type-client-revision2/7/9 mutants remain preserved. The complete Core17 script passes at cbb composition with the original `PE_PHASE_A_B_SAFETY_OK` marker; final declaration equality to the exact794 surface is recorded in the [publication composition](../rich-newsletter-reviewed-publication-20261013/COMPOSITION.json). No unchanged full suite is rerun solely for packaging. Exact new tarball/consumer audit pins are in that receipt; prior697d/794/37 artifacts remain intact.
 
 The browser receives direct owner envelopes, untrusted HTML and optional identity bindings; parsing creates no authority or action. Saved preview has no document/revision token. Save can commit before response GET fails; retain edits on409 and use explicit readback for uncertain writes. Some document/account GETs can activate invitations, so qualification uses intercepted owners. Stage/open and delivery remain explicit later intents with current authority and immutable versions. The receiving dependency is implemented; frontend adoption, rich runtime/native lifecycle and full delivery remain separately owned.
+
+
+## Bounded retirement continuation
+
+Published PR2434 `af5f208961e6c9a01a6e489a7f5b1a6e6edfd736` contributes four reconciled groups: Defense's six-member build workspace, two original tests through the live CRM/Portfolio route with the unused picker removed,118 byte/mode-exact API portrait copies and matching importer/Docker ownership, and the fifteenth auth denial/recovery source case with existing receipt consumers. Current defaults,14 original resilience identities, floor15, guards and process policy remain. Independent source acceptance `f6a2f4d31bc347b0e7effae4a370a31e0c93e43d` verifies56 controls and the same seven malformed optional proof flags now refused. Source131 paths include one declared unused-picker deletion. Native15-case execution, Docker installation and additional browser/auth behavior remain unaccepted.
+
+Published PR2436 `7b5a9644d30d22389b23f0e07f923c8925682047` contributes five compatible paths: an opt-in Onboard artifact Docker variant with its pure contract/spec, and the pure newsletter manifest/URL/header contract/spec. The older whole carrier and its four Clio/workflow paths remain held. Current default Docker, lock,72 workflows, package fields, Windows rules, schema/migration617 paths, rich nine-path source and application serving remain preserved. No179 frontend asset copy or deletion occurs; this backend contains none of that restored set, so optional asset parity and historical serving remain unaccepted.
+
+Independent static-linkage review preserved the initial72 passes alongside five comment-separated dependency escapes. The first repair's79 passes, original nine-input replay and18 token-boundary controls remain; root then found three clause-comment escapes. The next85 passes and unchanged four-input replay remain alongside the Unicode line-comment terminator failure. Every source and raw receipt is preserved. Final corrected helper/spec and focused independent acceptance are bound by the [current composition](../bounded-retirement-reviewed-publication-20261013/COMPOSITION.json); these are bounded lexical/static byte contracts, not general JavaScript/CSS grammar, real browser flow or deployed serving acceptance.
+
+| Retirement dependency | Current disposition |
+| --- | --- |
+| Defense/Florida/CRM/resilience source controls | Adopted together with real dependency closure and active existing callers; no excluded Quick log commitment UI. |
+| Opt-in Onboard and pure newsletter guards | Final exact source/review in composition; existing default build/serving unchanged. |
+| Clio main-api accounting and broad retirement workflow/source jobs | Held: canonical current backend-input/main-route accounting closure is absent; older whole wiring would be incompatible. |
+| Onboard replacement and historical newsletter serving | Held for actual replacement/artifact/browser/route/operator acceptance. |
+| Native resilience, full cleanup/coverage and physical whitespace | OPEN with original floors and raw evidence; source markers do not authenticate an operator or prove native activity. |
+
+The safely removed completed independent checkout is hash-bound in the [custody packet](../bounded-retirement-reviewed-publication-20261013/custody/); branch, head/tree, original files and all candidate objects remain preserved. The denied report and protected unpublished reporting implementation are neither retrieved nor altered. No provider, database/migration, installer/Docker, AWS/security/network-policy operation, main merge or deployment occurs in this continuation.

@@ -1,0 +1,20 @@
+{
+  "richPublishedHead": "9ffab390ef444d7ea0bf4eb0d68224f810245e25",
+  "index": "docs/rich-newsletter-reviewed-publication-20261013/SHA256SUMS.json",
+  "entries": 2326,
+  "unchangedPhysicalEntries": 2326,
+  "sourceSupersessions": [],
+  "originalCurrentHandoff": {
+    "path": "docs/bounded-retirement-reviewed-publication-20261013/HANDOFF-PR2437.md",
+    "sha256": "ac5581cc96f298956501a6094708f4ba42db19160b67ed1d813005f325505991"
+  },
+  "finalCanonicalHandoffSupersession": [
+    {
+      "source": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldSha256": "ac5581cc96f298956501a6094708f4ba42db19160b67ed1d813005f325505991",
+      "newSha256": "5ea51c322305ca1e19ba627db70653c2dd0fa3fff902972a9c5b83fe69193c3f",
+      "preservedCopy": "docs/bounded-retirement-reviewed-publication-20261013/HANDOFF-PR2437.md"
+    }
+  ],
+  "finalUnchangedPhysicalEntries": 2325
+}

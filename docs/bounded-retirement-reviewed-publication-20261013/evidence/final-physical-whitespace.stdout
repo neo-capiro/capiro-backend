@@ -1,0 +1,17 @@
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.stdout:69: trailing whitespace.
++  
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/hermetic-attempt-1.stdout:223: trailing whitespace.
++  
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/raw-evidence-whitespace.stdout:2: trailing whitespace.
+++  
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/raw-evidence-whitespace.stdout:4: trailing whitespace.
+++  
+docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-attempt-0.stderr:14: new blank line at EOF.
+docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/focused-attempt-0.stdout:48: trailing whitespace.
++  
+docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/focused-attempt-0.stdout:51: trailing whitespace.
++  
+docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.stdout:2: trailing whitespace.
+++  
+docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.stdout:4: trailing whitespace.
+++  

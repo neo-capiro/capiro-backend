@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/capirov2",
+    "worktree",
+    "remove",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review"
+  ],
+  "exit": 0,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authorizedBy": "root exact completed-owned-checkout removal instruction; no force, branch deletion or Git GC"
+}

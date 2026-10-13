@@ -1,0 +1,103 @@
+{
+  "timeUtc": "2026-10-13T01:09:34.834098+00:00",
+  "ownedRoot": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+  "branch": "codex/cleanup-pr2434-bounded-code-adoption-20261013",
+  "head": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "tree": "704abca4da106e704ca336b063ba4ebec288529f",
+  "commonGitDir": "/workspace/capirov2/.git",
+  "adminGitDir": "/workspace/capirov2/.git/worktrees/capirov2-cleanup-meri-local-dispatch-independent-review",
+  "trackedEntries": 23918,
+  "trackedIndexSha256": "34196f2da48113ce573f094c6828806f9b6bfd3999fc5784d7c87a4558c31e72",
+  "status": "clean",
+  "untrackedCount": 0,
+  "ignoredCount": 0,
+  "du": {
+    "argv": [
+      "du",
+      "-s",
+      "--block-size=1",
+      "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review"
+    ],
+    "exit": 0,
+    "stdout": "556113920\t/tmp/capirov2-cleanup-meri-local-dispatch-independent-review\n",
+    "stderr": ""
+  },
+  "processCwdFdUsers": [],
+  "symlinkAudit": [
+    {
+      "root": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion",
+      "symlinksInspected": 67,
+      "matches": []
+    },
+    {
+      "root": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+      "symlinksInspected": 63,
+      "matches": []
+    },
+    {
+      "root": "/tmp/capirov2-cleanup-strategy-template-independent-review",
+      "symlinksInspected": 3,
+      "matches": []
+    },
+    {
+      "root": "/tmp/capirov2-four-runtime-controls-review",
+      "symlinksInspected": 6,
+      "matches": []
+    },
+    {
+      "root": "/workspace/capirov2/node_modules",
+      "symlinksInspected": 6144,
+      "matches": []
+    }
+  ],
+  "ownerConfirmations": {
+    "root": "Core check complete; overlay has zero dependencies into checkout; removal authorized",
+    "N": "no active/planned commands depend on physical checkout",
+    "E": "no active/planned commands depend on physical checkout",
+    "O": "source checked out separately; author packet read via immutable Git blobs"
+  },
+  "preservedHeads": [
+    {
+      "head": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+      "tree": "704abca4da106e704ca336b063ba4ebec288529f"
+    },
+    {
+      "head": "7576db6e37946252e6a0052302e156f0803a6468",
+      "tree": "3fc82b3db115802207d64420ab4a01695b75c8e7"
+    },
+    {
+      "head": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+      "tree": "0724ac3f46a9e13d077343ec8049471addaab595"
+    },
+    {
+      "head": "3e66557ce671b2505595f3fdf4f8d6014b9003f3",
+      "tree": "a6b68cafa9060e8b30e2c77a04adbae06191cf78"
+    },
+    {
+      "head": "9b7d4b3c981f35be730b93d37974693dcc213eaf",
+      "tree": "b56ea1c7d236aab81d194bda57cfe5b82f4efded"
+    },
+    {
+      "head": "308443cb148cc5f8dc5d4fd67a838e3fe9724f20",
+      "tree": "1fc89b6c983b1c368fde9433f57b855190b2bafd"
+    },
+    {
+      "head": "1a171c69bd4951ea6b2ed47e9345e210a4d9a915",
+      "tree": "8becb1bab689af36f059241681f4b6e06bf48059"
+    },
+    {
+      "head": "b316890f617f7f3daf1a9bb86cf55d93ae295e47",
+      "tree": "84fc58d22ebefaffbdd526f3151facee595189e9"
+    },
+    {
+      "head": "f5a05012aadc806b6a91b4a4696a500992a021a4",
+      "tree": "2c4800ce7f4bfe5380bf4f18ca8b6b6fc0cf3491"
+    },
+    {
+      "head": "692b3902ec62c21047fd5f5ab2cacc3bdd5ff7dc",
+      "tree": "8a193f39c412ef0474ddf3502e4cb6f1e29fd6ab"
+    }
+  ],
+  "uniqueUncommittedEvidence": false,
+  "scope": "only own completed clean checkout/admin metadata; no branch deletion, Git GC, other-owner deletion, protected-body/report read"
+}

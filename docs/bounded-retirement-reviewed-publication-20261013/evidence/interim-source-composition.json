@@ -1,0 +1,16 @@
+{
+  "richHead": "9ffab390ef444d7ea0bf4eb0d68224f810245e25",
+  "interimHead": "772165eb6848f652b3d1873ae9f66574992b9af9",
+  "acceptedFourGroupSource": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "heldArtifactGuardSource": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "sourcePaths": 136,
+  "presentPaths": 135,
+  "deletedPaths": [
+    "apps/web/src/vnext/pages/client-crm/VNextClientPicker.tsx"
+  ],
+  "fourGroupAndFiveGuardBlobBindings": "exact",
+  "allNineRichSourcePathsUnchanged": true,
+  "allOutside136NonDocumentEntriesUnchanged": true,
+  "staticClauseReview": "HOLD: three accepted unbundled module clause forms; repair in progress",
+  "protectedReportingBodyRead": false
+}

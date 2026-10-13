@@ -1,0 +1,34 @@
+{
+  "files": [
+    {
+      "file": "AFTER.json",
+      "bytes": 764,
+      "sha256": "90ab15a0da4077c778d182719083db411465530a9c344278bb5d0a6225a0e254"
+    },
+    {
+      "file": "BEFORE.json",
+      "bytes": 3457,
+      "sha256": "3a25ce963108a72b58d56eb258305c57eb166ffbc45f8afcc0450afd0b3ae55b"
+    },
+    {
+      "file": "PRESERVED-SHA256-INDEX.json",
+      "bytes": 58665,
+      "sha256": "6990eea77f367efc3a4fdd5f1ce440e0d0b622ad75efdaaea1862684cdb35c48"
+    },
+    {
+      "file": "REMOVE-COMMAND.json",
+      "bytes": 464,
+      "sha256": "4dd5600a32cf14fd637d336735c2b19195c73ce45290de49dfc8b6554da0c7a4"
+    },
+    {
+      "file": "remove.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "remove.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
