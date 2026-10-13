@@ -9,7 +9,6 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import type { Prisma } from '@prisma/client';
 import { HttpAdapterHost } from '@nestjs/core';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -44,6 +43,8 @@ import {
   isCommunityFundingAdvocacyRecord,
   matchCommunityFundingAppropriationsDeterministically,
 } from './community-funding-appropriations-outcome.js';
+import { ClientProfileFillFindingReview } from './client-profile-fill-finding-review.js';
+import type { AdvancedFindingRow } from './client-profile-fill-finding-review.shared.js';
 import { ClientProfileFillRegulatoryCommentDiscovery } from './client-profile-fill-regulatory-comment-discovery.js';
 import { ClientProfileFillRegulatoryCommentSource } from './client-profile-fill-regulatory-comment-source.js';
 import {
@@ -68,7 +69,6 @@ import {
   containsAdvocacyTerm,
   faraMatchConfidence,
   matchAdvocacyOutcomeDeterministically,
-  normalizeEvidenceClass,
   normalizePersistedAdvocacy,
   parseDate,
   planTestimonyScanBatch,
@@ -146,20 +146,6 @@ interface CompletionTaskRow {
   createdByUserId?: string | null;
 }
 
-interface AdvancedFindingRow {
-  id: string;
-  kind: string;
-  targetKey: string;
-  source: string;
-  factKind: string;
-  currentValue: unknown;
-  proposedValue: unknown;
-  evidence: unknown;
-  confidence: number | string;
-  status: string;
-  contentHash: string;
-}
-
 export interface RefreshScheduleRow {
   enabled: boolean;
   cadenceHours: number;
@@ -202,21 +188,6 @@ export interface UpdateClientProfileFillScheduleInput {
   cadenceHours?: number;
   sources?: ClientProfileFillSource[];
 }
-
-const ADVANCED_FINDING_KINDS = new Set([
-  'federal_footprint',
-  'facility_resolution',
-  'district_nexus',
-  'advocacy_record',
-  'advocacy_outcome',
-  'regulatory_outcome',
-  'profile_completion',
-]);
-const NON_APPLYABLE_ADVANCED_KINDS = new Set([
-  'facility_resolution',
-  'district_nexus',
-  'profile_completion',
-]);
 const TERMINAL_TASK_STATUSES = new Set<string>(['completed', 'failed', 'skipped', 'cancelled']);
 const TASK_SWEEP_MS = 1_500;
 const TASK_STALE_MS = 5 * 60_000;
@@ -280,6 +251,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   private scheduleTimer?: ReturnType<typeof setInterval>;
   private taskSweepRunning = false;
   private scheduleSweepRunning = false;
+  private readonly findingReview: ClientProfileFillFindingReview;
   private readonly regulatoryCommentSource: ClientProfileFillRegulatoryCommentSource;
   private readonly regulatoryCommentDiscovery: ClientProfileFillRegulatoryCommentDiscovery;
 
@@ -308,6 +280,17 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           this.emitDiscoveryFinding(ctx, clientId, runId, input),
       },
       MAX_ADVOCACY_FINDINGS,
+    );
+    this.findingReview = new ClientProfileFillFindingReview(
+      this.prisma,
+      this.fill,
+      this.advocacyMatters,
+      {
+        ...reporter,
+        getRun: (ctx, clientId, runId) => this.getRun(ctx, clientId, runId),
+        confirmedMappingKeys: (ctx, clientId, source) =>
+          this.getConfirmedIntelMappingKeys(ctx, clientId, source),
+      },
     );
   }
 
@@ -530,34 +513,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[]) {
-    const findings = await this.loadFindings(ctx.tenantId, clientId, runId, findingIds);
-    if (findings.length !== new Set(findingIds).size) {
-      throw new BadRequestException('One or more findings are no longer available');
-    }
-    const advanced = findings.filter((finding) => ADVANCED_FINDING_KINDS.has(finding.kind));
-    const coreIds = findings
-      .filter((finding) => !ADVANCED_FINDING_KINDS.has(finding.kind))
-      .map((finding) => finding.id);
-
-    if (coreIds.length) await this.fill.applyFindings(ctx, clientId, runId, coreIds);
-    advanced.sort((a, b) => {
-      if (a.kind === 'advocacy_record' && b.kind === 'advocacy_outcome') return -1;
-      if (a.kind === 'advocacy_outcome' && b.kind === 'advocacy_record') return 1;
-      return 0;
-    });
-    for (const finding of advanced) {
-      if (finding.status !== 'pending') {
-        throw new BadRequestException('Only pending findings can be applied');
-      }
-      if (NON_APPLYABLE_ADVANCED_KINDS.has(finding.kind)) {
-        throw new BadRequestException(
-          'This item is informational and is not applied to the client record',
-        );
-      }
-      await this.applyAdvancedFinding(ctx, clientId, finding);
-      await this.markAccepted(ctx, clientId, finding.id);
-    }
-    return this.getRun(ctx, clientId, runId);
+    return this.findingReview.applyFindings(ctx, clientId, runId, findingIds);
   }
 
   rejectFinding(ctx: TenantContext, clientId: string, findingId: string, reason?: string) {
@@ -3845,89 +3801,6 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     });
   }
 
-  private async applyAdvancedFinding(
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-  ): Promise<void> {
-    switch (finding.kind) {
-      case 'federal_footprint':
-        await this.applyFederalFootprint(ctx, clientId, finding);
-        return;
-      case 'advocacy_record':
-        await this.applyAdvocacyRecord(ctx, clientId, finding);
-        return;
-      case 'advocacy_outcome':
-        await this.applyAdvocacyOutcome(ctx, clientId, finding);
-        return;
-      case 'regulatory_outcome':
-        await this.applyRegulatoryOutcome(ctx, clientId, finding);
-        return;
-      default:
-        throw new BadRequestException(`Unsupported completion finding: ${finding.kind}`);
-    }
-  }
-
-  private async applyFederalFootprint(
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-  ) {
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const before = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId },
-        select: { intakeData: true },
-      });
-      if (!before) throw new NotFoundException('Client not found');
-      await tx.$executeRawUnsafe(
-        `UPDATE clients
-            SET intake_data_jsonb = jsonb_set(
-                  COALESCE(intake_data_jsonb, '{}'::jsonb),
-                  '{federalMarket}',
-                  $4::jsonb,
-                  true
-                ),
-                updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid`,
-        clientId,
-        ctx.tenantId,
-        finding.id,
-        JSON.stringify(finding.proposedValue),
-      );
-      await this.auditAdvanced(
-        tx,
-        ctx,
-        clientId,
-        finding,
-        asRecord(before.intakeData).federalMarket,
-        finding.proposedValue,
-      );
-    });
-  }
-
-  /**
-   * Applies an advocacy_record finding's proposed value as an upsert into
-   * `client_advocacy_record`.
-   *
-   * `matterTarget` distinguishes two callers:
-   *  - Omitted (the generic bulk `applyFindings` path): Matter assignment
-   *    runs via `assignMatterForRecord` in its OWN transaction, AFTER the
-   *    record commit, best-effort — a clustering failure is logged but
-   *    never blocks the accept. This is existing, unchanged behavior.
-   *  - Provided (a human explicitly picked "Attach to Matter X" / "Create
-   *    new Matter" on this pending finding — see
-   *    `applyAdvocacyFindingToMatter`): the record upsert AND the Matter
-   *    assign+lock run inside the SAME transaction. The human's choice is
-   *    the review decision; if the Matter side fails, the whole write
-   *    rolls back rather than silently accepting an unassigned record, and
-   *    the caller never proceeds to `markAccepted` — the finding stays
-   *    pending; the record upsert's own idempotency (ON CONFLICT) plus
-   *    `assignSpecificMatterForRecord`'s already-locked check make a retry
-   *    safe.
-   *
-   * Returns the resolved Matter id when `matterTarget` was provided;
-   * `null` for the untargeted path (nothing new callers need there today).
-   */
   private async applyAdvocacyRecord(
     ctx: TenantContext,
     clientId: string,
@@ -3936,133 +3809,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       | { matterId: string }
       | { newMatter: { title: string; matterType?: string; summary?: string | null } },
   ): Promise<string | null> {
-    const proposed = asRecord(finding.proposedValue);
-    const externalKey = requiredString(proposed.externalKey, 'Advocacy external key');
-    const title = requiredString(proposed.title, 'Advocacy title');
-    const recordType = requiredString(proposed.recordType, 'Advocacy record type');
-    const sourceType = requiredString(proposed.sourceType, 'Advocacy source type');
-    // Revalidate old pending suggestions as well as new ones. Similarity scores
-    // (and a corrected matter assignment) are not proof of client attribution.
-    if (sourceType === 'fara' || sourceType === 'testimony') {
-      const metadata = asRecord(proposed.metadata);
-      const sourceKey =
-        sourceType === 'fara'
-          ? asString(metadata.registrationNumber)
-          : `${asString(metadata.hearingId) ?? ''}::${asString(metadata.witness) ?? ''}`;
-      const confirmed = await this.getConfirmedIntelMappingKeys(ctx, clientId, sourceType);
-      if (!sourceKey || !confirmed.has(sourceKey)) {
-        throw new BadRequestException(
-          'Verify this record’s organization-to-client mapping before accepting it as advocacy. A name match alone is insufficient.',
-        );
-      }
-      proposed.metadata = {
-        ...metadata,
-        clientMatch: {
-          ...asRecord(metadata.clientMatch),
-          method: 'confirmed_client_intel_mapping',
-          verifiedAt: new Date().toISOString(),
-        },
-      };
-    }
-    const evidenceClass = normalizeEvidenceClass(proposed.evidenceClass);
-    const activityDate = asString(proposed.activityDate);
-    let targetedMatterId: string | null = null;
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO client_advocacy_record
-           (tenant_id, client_id, record_type, title, summary, activity_date,
-            status, outcome, source_type, source_id, source_url, evidence_class,
-            confidence, external_key, metadata_jsonb, created_by_user_id)
-         VALUES (
-           $1::uuid, $2::uuid, $3, $4, $5,
-           CASE WHEN $6 = '' THEN NULL ELSE $6::timestamptz::date END,
-           $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::uuid
-         )
-         ON CONFLICT (tenant_id, client_id, external_key) DO UPDATE
-           SET record_type = EXCLUDED.record_type,
-               title = EXCLUDED.title,
-               summary = EXCLUDED.summary,
-               activity_date = EXCLUDED.activity_date,
-               status = EXCLUDED.status,
-               outcome = COALESCE(EXCLUDED.outcome, client_advocacy_record.outcome),
-               source_type = EXCLUDED.source_type,
-               source_id = EXCLUDED.source_id,
-               source_url = EXCLUDED.source_url,
-               evidence_class = EXCLUDED.evidence_class,
-               confidence = EXCLUDED.confidence,
-               metadata_jsonb = client_advocacy_record.metadata_jsonb || EXCLUDED.metadata_jsonb,
-               updated_at = now()`,
-        ctx.tenantId,
-        clientId,
-        recordType,
-        title,
-        asString(proposed.summary),
-        activityDate ?? '',
-        asString(proposed.status),
-        asString(proposed.outcome),
-        sourceType,
-        asString(proposed.sourceId),
-        asString(proposed.sourceUrl),
-        evidenceClass,
-        Math.max(0, Math.min(1, Number(proposed.confidence ?? finding.confidence))),
-        externalKey,
-        JSON.stringify(asRecord(proposed.metadata)),
-        ctx.userId,
-      );
-      await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
-      if (matterTarget) {
-        // Same transaction as the upsert above — a human-directed Matter
-        // choice must commit atomically with the record it applies to.
-        targetedMatterId = await this.advocacyMatters.assignSpecificMatterForRecord(
-          tx,
-          ctx,
-          clientId,
-          externalKey,
-          matterTarget,
-          activityDate,
-        );
-      }
-    });
-    if (matterTarget) return targetedMatterId;
-    // Assigns/creates the Advocacy Matter this record belongs to. Runs as
-    // its own transaction (not nested in the upsert above — Prisma does not
-    // support nesting interactive transactions on one client) immediately
-    // after the record commit, so a failure here never blocks the record
-    // apply itself; it is logged and surfaced on the next reconciliation
-    // pass rather than rolling back a successful accept.
-    try {
-      await this.advocacyMatters.assignMatterForRecord(ctx, clientId, externalKey, {
-        recordType,
-        title,
-        metadata: asRecord(proposed.metadata),
-        activityDate,
-      });
-    } catch (error) {
-      this.logger.warn(
-        `Advocacy matter assignment failed for ${clientId}/${externalKey}: ${this.safeError(error)}`,
-      );
-    }
-    return null;
+    return this.findingReview.applyAdvocacyRecord(ctx, clientId, finding, matterTarget);
   }
 
-  /**
-   * §22/23 follow-up: a reviewer picks "Attach to Matter X" / "Create new
-   * Matter" directly on a still-pending advocacy_record finding. That
-   * choice IS the review/approval decision — there is no separate staging
-   * queue, no "save for later" state, and no second apply workflow. This
-   * commits immediately: record upsert + Matter assign/lock (atomic, see
-   * `applyAdvocacyRecord`) then `markAccepted` through the SAME
-   * accept/audit path every other applied finding uses.
-   *
-   * Idempotent: if the finding is already `accepted` (a duplicate
-   * invocation — e.g. a double-click, or a client retry after a response
-   * was lost in transit), this makes NO writes at all and simply returns
-   * the Matter the record already resolved to, read fresh. It does not
-   * matter whether the retry's `target` matches the original choice —
-   * once a finding is accepted, this method's job is done; further
-   * correction goes through the existing reassign/detach/merge paths, not
-   * a second application of this action.
-   */
   async applyAdvocacyFindingToMatter(
     ctx: TenantContext,
     clientId: string,
@@ -4072,264 +3821,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       | { matterId: string }
       | { newMatter: { title: string; matterType?: string; summary?: string | null } },
   ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }> {
-    if ('matterId' in target === 'newMatter' in target) {
-      throw new BadRequestException('Provide exactly one of matterId or newMatter');
-    }
-    const findings = await this.loadFindings(ctx.tenantId, clientId, runId, [findingId]);
-    const finding = findings[0];
-    if (!finding) throw new BadRequestException('Finding is no longer available');
-    if (finding.kind !== 'advocacy_record') {
-      throw new BadRequestException('Only advocacy findings support direct Matter assignment');
-    }
-
-    if (finding.status === 'accepted') {
-      const currentMatterId = await this.lookupAppliedAdvocacyMatterId(ctx, clientId, finding);
-      return { findingId, matterId: currentMatterId, alreadyApplied: true };
-    }
-    if (finding.status !== 'pending') {
-      throw new BadRequestException('Only pending findings can be applied');
-    }
-
-    const matterId = await this.applyAdvocacyRecord(ctx, clientId, finding, target);
-    await this.markAccepted(ctx, clientId, finding.id);
-    return { findingId, matterId, alreadyApplied: false };
-  }
-
-  /** Read-only lookup used by the idempotent-replay branch of
-   *  `applyAdvocacyFindingToMatter` — never writes anything. */
-  private async lookupAppliedAdvocacyMatterId(
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-  ): Promise<string | null> {
-    const proposed = asRecord(finding.proposedValue);
-    const externalKey = asString(proposed.externalKey);
-    if (!externalKey) return null;
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
-        `SELECT matter_id AS "matterId" FROM client_advocacy_record
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
-        ctx.tenantId,
-        clientId,
-        externalKey,
-      ),
-    );
-    return rows[0]?.matterId ?? null;
-  }
-
-  private async applyAdvocacyOutcome(
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-  ) {
-    const proposed = asRecord(finding.proposedValue);
-    const externalKey = requiredString(proposed.advocacyExternalKey, 'Advocacy record');
-    const outcomeKind = requiredString(proposed.outcomeKind, 'Outcome kind');
-    const outcomeEventId = asString(proposed.outcomeEventId);
-    const matterId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const changed = await tx.$executeRawUnsafe(
-        `UPDATE client_advocacy_record
-            SET outcome = $4,
-                status = 'outcome_observed',
-                metadata_jsonb = metadata_jsonb || jsonb_build_object(
-                  'linkedOutcome', $5::jsonb,
-                  'causationClaimed', false
-                ),
-                updated_at = now()
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
-        ctx.tenantId,
-        clientId,
-        externalKey,
-        outcomeKind,
-        JSON.stringify(proposed),
-      );
-      if (Number(changed) !== 1) {
-        throw new BadRequestException(
-          'Apply the related advocacy record before linking its outcome',
-        );
-      }
-      await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
-      const matterRows = await tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
-        `SELECT matter_id AS "matterId" FROM client_advocacy_record
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
-        ctx.tenantId,
-        clientId,
-        externalKey,
-      );
-      return matterRows[0]?.matterId ?? null;
-    });
-    // Outcome events are institutional-history objects in their own right
-    // (product spec: "Matter groups ... government actions [and] outcomes")
-    // even though they never become their own client_advocacy_record row.
-    // Link the outcome event into the same Matter as the advocacy record it
-    // was matched against, so the Matter's timeline shows what happened
-    // after the ask without claiming causation (causationClaimed stays
-    // false on the record itself, set above).
-    if (matterId && outcomeEventId) {
-      try {
-        await this.advocacyMatters.linkToMatter(ctx, matterId, {
-          linkType: 'outcome_event',
-          linkKey: outcomeEventId,
-          label: `Observed outcome: ${outcomeKind}`,
-          metadata: { causationClaimed: false, outcomeKind },
-        });
-      } catch (error) {
-        this.logger.warn(
-          `Advocacy matter outcome link failed for ${clientId}/${matterId}: ${this.safeError(error)}`,
-        );
-      }
-    }
-  }
-
-  /**
-   * Applies a `regulatory_outcome` finding (built by
-   * `emitRegulatoryOutcomeFindings`/`buildRegulatoryOutcomeFinding`): a
-   * human accepting the finding IS the separately-confirmed step
-   * `suggestFederalRegisterCorrelations` deferred. Creates the OutcomeEvent
-   * directly here (unlike `applyAdvocacyOutcome`, which links a
-   * pre-existing one) since nothing else in the system ever creates an
-   * outcome_event for a Federal Register document — this finding's accept
-   * IS that creation. `evidence` carries the docket/document identifiers
-   * `OutcomeEvent` has no dedicated columns for (§ gap: the smallest
-   * necessary addition is these evidence keys, not new columns, matching
-   * every other outcome kind's snapshot-into-evidence convention).
-   *
-   * `recordedBy` is the accepting user (the record() convention every other
-   * apply* method already uses via `ctx.userId` for its own writes) — the
-   * human review IS the attribution, not a system mirror.
-   */
-  private async applyRegulatoryOutcome(
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-  ): Promise<void> {
-    const proposed = asRecord(finding.proposedValue);
-    const matterId = requiredString(proposed.matterId, 'Advocacy matter');
-    const documentNumber = requiredString(
-      proposed.documentNumber,
-      'Federal Register document number',
-    );
-    const docketId = requiredString(proposed.docketId, 'Docket id');
-    const publicationDate = asString(proposed.publicationDate);
-    const evidence = {
-      docketId,
-      documentNumber,
-      documentType: asString(proposed.documentType),
-      agencyNames: Array.isArray(proposed.agencyNames) ? proposed.agencyNames : [],
-      publicationDate,
-      matchedOn: 'docket_id',
-      causationClaimed: false,
-    };
-    const outcomeEvent = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const created = await tx.outcomeEvent.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          kind: 'regulatory_action_published',
-          sourceType: 'regulatory_document',
-          sourceId: documentNumber,
-          evidence: evidence as Prisma.InputJsonValue,
-          notes: `Government movement observed on docket ${docketId} after the client's attributable Regulations.gov advocacy — causation not claimed.`,
-          recordedBy: ctx.userId,
-          ...(publicationDate ? { observedAt: new Date(publicationDate) } : {}),
-        },
-      });
-      await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
-      return created;
-    });
-    // Same looseness as applyAdvocacyOutcome's own Matter link: the
-    // OutcomeEvent is already durably recorded above; a Matter-link failure
-    // is logged, never rolled back into losing that record.
-    try {
-      await this.advocacyMatters.linkToMatter(ctx, matterId, {
-        linkType: 'outcome_event',
-        linkKey: outcomeEvent.id,
-        label: `Observed government movement: ${evidence.documentType ?? 'Federal Register document'} on docket ${docketId}`,
-        metadata: {
-          causationClaimed: false,
-          matchedOn: 'docket_id',
-          relationship: 'strongly_aligned',
-          documentNumber,
-        },
-      });
-    } catch (error) {
-      this.logger.warn(
-        `Regulatory matter outcome link failed for ${clientId}/${matterId}: ${this.safeError(error)}`,
-      );
-    }
-  }
-
-  private async markAccepted(ctx: TenantContext, clientId: string, findingId: string) {
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE client_profile_fill_finding
-            SET status = 'accepted', reviewed_by = $4::uuid, reviewed_at = now(),
-                applied_at = now(), rejection_reason = NULL, updated_at = now()
-          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-            AND status = 'pending'`,
-        findingId,
-        ctx.tenantId,
-        clientId,
-        ctx.userId,
-      ),
-    );
-  }
-
-  private async auditAdvanced(
-    tx: any,
-    ctx: TenantContext,
-    clientId: string,
-    finding: AdvancedFindingRow,
-    before: unknown,
-    after: unknown,
-  ) {
-    await tx.auditLog.create({
-      data: {
-        tenantId: ctx.tenantId,
-        actorUserId: ctx.userId,
-        actorRole: (ctx as unknown as { role?: string }).role ?? null,
-        action: 'client_profile_fill.apply',
-        entityType: `client_profile_fill:${finding.kind}`,
-        entityId: clientId,
-        before: { findingId: finding.id, value: jsonSafe(before) } as any,
-        after: {
-          findingId: finding.id,
-          targetKey: finding.targetKey,
-          source: finding.source,
-          value: jsonSafe(after),
-        } as any,
-      },
-    });
-  }
-
-  private async loadFindings(
-    tenantId: string,
-    clientId: string,
-    runId: string,
-    findingIds: string[],
-  ) {
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRawUnsafe<AdvancedFindingRow[]>(
-        `SELECT id,
-                kind,
-                target_key AS "targetKey",
-                source,
-                fact_kind AS "factKind",
-                current_value_jsonb AS "currentValue",
-                proposed_value_jsonb AS "proposedValue",
-                evidence_jsonb AS evidence,
-                confidence,
-                status,
-                content_hash AS "contentHash"
-           FROM client_profile_fill_finding
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND run_id = $3::uuid
-            AND id = ANY($4::uuid[])`,
-        tenantId,
-        clientId,
-        runId,
-        [...new Set(findingIds)],
-      ),
-    );
+    return this.findingReview.applyAdvocacyFindingToMatter(ctx, clientId, runId, findingId, target);
   }
 
   private async getCursor(tenantId: string, clientId: string, source: string) {
@@ -4628,19 +4120,4 @@ function missingAddressParts(
   if (!asString(row.city)) missing.push('city');
   if (!asString(row.state)) missing.push('state');
   return missing;
-}
-
-function requiredString(value: unknown, label: string): string {
-  const text = asString(value);
-  if (!text) throw new BadRequestException(`${label} is required`);
-  return text;
-}
-
-function jsonSafe(value: unknown): unknown {
-  if (value === undefined) return null;
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return String(value);
-  }
 }

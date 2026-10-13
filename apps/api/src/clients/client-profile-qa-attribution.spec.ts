@@ -4,11 +4,19 @@ import { ClientProfileFillCompletionService } from './client-profile-fill-comple
 describe('Advocacy discovery and acceptance identity checks', () => {
   const ctx = { tenantId: 'tenant', userId: 'user' } as any;
   const service = () => {
-    const s: any = Object.create(ClientProfileFillCompletionService.prototype);
+    const prisma = { $queryRawUnsafe: jest.fn(), withTenant: jest.fn() };
+    const s: any = new ClientProfileFillCompletionService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     s.resolveClientNameForDiscovery = jest.fn(async () => 'L3 Harris');
     s.getConfirmedIntelMappingKeys = jest.fn(async () => new Set());
     s.emitDiscoveryFinding = jest.fn(async () => true);
-    s.prisma = { $queryRawUnsafe: jest.fn(), withTenant: jest.fn() };
     return s;
   };
   it('does not propose unrelated FARA records even with high trigram similarity', async () => {

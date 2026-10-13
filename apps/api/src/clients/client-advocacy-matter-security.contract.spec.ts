@@ -21,8 +21,8 @@ describe('Advocacy History security & privacy contract', () => {
     'utf8',
   );
   const service = readFileSync(resolve(process.cwd(), 'src/clients/client-advocacy-matter.service.ts'), 'utf8');
-  const completion = readFileSync(
-    resolve(process.cwd(), 'src/clients/client-profile-fill-completion.service.ts'),
+  const outcomeApplication = readFileSync(
+    resolve(process.cwd(), 'src/clients/client-profile-fill-outcome-application.ts'),
     'utf8',
   );
 
@@ -108,8 +108,8 @@ describe('Advocacy History security & privacy contract', () => {
   });
 
   it('outcome links always carry causationClaimed:false — never an unconditional causal claim', () => {
-    expect(completion).toContain("linkType: 'outcome_event'");
-    expect(completion).toContain('causationClaimed: false');
+    expect(outcomeApplication).toContain("linkType: 'outcome_event'");
+    expect(outcomeApplication).toContain('causationClaimed: false');
     expect(service).toMatch(/linkStrategy[\s\S]{0,3000}causationClaimed: false/);
   });
 
