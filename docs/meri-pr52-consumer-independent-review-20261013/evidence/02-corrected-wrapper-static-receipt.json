@@ -1,0 +1,35 @@
+{
+  "disposition": "ACCEPT bounded one-pair source interface for Root-approved actual execution",
+  "source": "df397f60811a4aae6a799dc3534e2c2884d58c9f",
+  "tree": "d7eafcda2fbf0b45e504c3686eda87d9d1eab77f",
+  "wrapperSHA256": "60caff087ae18489e2fb0a1abb90ed4401b3e218c983a61c2d454544ff02f4bf",
+  "bindingsSHA256": "9fae1e1a2783cb98d8c013a70174b2d2c493842ebd8642c4c9f2ac03e92e9a04",
+  "previousSource": "0b49070d0f18afea933af9312d63921b276ee4e0",
+  "previousReceipt": "evidence/01-initial-wrapper-static-receipt.json",
+  "driver": "184da5ef70c0fd79bf7f099a8d98a7d17c679d0f",
+  "initialAuthorHTTPResult": "f59d9ee1cf75670c2d80a5f012fbe42474e0654d",
+  "productionSource": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "privateSource": "4699fdea910ba25c809725630443198c8ae189e4",
+  "privateBodiesCommitted": false,
+  "privateModulesImported": false,
+  "actualHTTPExecuted": false,
+  "claims": [
+    "strict5key synthetic fixture seam",
+    "seven actualGit52 modules equal",
+    "six directdependency and Node/cachelink bindings equal",
+    "actual privatewire/client/canonical owner exports present by declaration",
+    "two fixed trustedHTTPS URL mapper only",
+    "originaloptions and same nativeResponse passed unchanged",
+    "positive200 bounded16KB clone/fatalUTF8 capture",
+    "four safeheaders and rawsyntheticDTO hash/length/timing only",
+    "exactfixtureprincipal/conversation/client postvalidation",
+    "canonical decoded/raw equality plus identityrevision/hash/principal pair",
+    "no TLS/origin/currentRun/approval authority inference"
+  ],
+  "limits": [
+    "source-static acceptance only before actualonepair",
+    "directdep entry/metadata hashes not arbitrarytransitive/package immutability",
+    "bounded testhost no arbitraryJS/production auth containment",
+    "no liveClerk/customer/externaltarget/nativeSQL action byreviewer"
+  ]
+}
