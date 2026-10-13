@@ -1,0 +1,457 @@
+{
+  "peer": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "current": "9d84edb5669e9a07d1632a0dbd0aeb256d5a7454",
+  "selector": "pnpm --filter capiro --filter '@capiro/api...' --filter '@capiro/workspace...' install --frozen-lockfile --fail-if-no-match",
+  "staticWorkspaceClosure": [
+    "@capiro/api",
+    "@capiro/auth",
+    "@capiro/defense-contracts",
+    "@capiro/defense-domain",
+    "@capiro/meriv2-core",
+    "@capiro/shared",
+    "@capiro/workspace",
+    "capiro"
+  ],
+  "missingWorkspaceDependencies": [],
+  "packages": [
+    {
+      "path": "package.json",
+      "name": "capiro",
+      "sha256": "ffbc080178b4e4767abaa05932e7c7b3fc4f80bc33206ebc9c7beb8a9a474824",
+      "workspaceDependencies": {},
+      "declarations": {
+        "type": null,
+        "main": null,
+        "module": null,
+        "types": null,
+        "exports": null,
+        "files": null
+      },
+      "declaredTools": {
+        "prettier": "^3.9.9",
+        "turbo": "^2.11.4",
+        "typescript": "^5.5.4"
+      }
+    },
+    {
+      "path": "apps/api/package.json",
+      "name": "@capiro/api",
+      "sha256": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa",
+      "workspaceDependencies": {
+        "@capiro/defense-contracts": "workspace:*",
+        "@capiro/defense-domain": "workspace:*",
+        "@capiro/meriv2-core": "workspace:*",
+        "@capiro/shared": "workspace:*"
+      },
+      "declarations": {
+        "type": null,
+        "main": null,
+        "module": null,
+        "types": null,
+        "exports": null,
+        "files": null
+      },
+      "declaredTools": {
+        "jest": "^29.7.0",
+        "prisma": "^5.20.0",
+        "ts-jest": "^29.4.14",
+        "typescript": "^5.5.4",
+        "@prisma/client": "^5.20.0",
+        "tsx": "^4.23.15"
+      }
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "name": "@capiro/workspace",
+      "sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417",
+      "workspaceDependencies": {
+        "@capiro/auth": "workspace:*",
+        "@capiro/meriv2-core": "workspace:*",
+        "@capiro/shared": "workspace:*"
+      },
+      "declarations": {
+        "type": null,
+        "main": null,
+        "module": null,
+        "types": null,
+        "exports": null,
+        "files": null
+      },
+      "declaredTools": {
+        "jest": "^29.7.0",
+        "prisma": "^5.20.0",
+        "ts-jest": "^29.4.14",
+        "tsx": "^4.23.15",
+        "typescript": "^5.5.4",
+        "@prisma/client": "^5.20.0"
+      }
+    },
+    {
+      "path": "packages/shared/package.json",
+      "name": "@capiro/shared",
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+      "workspaceDependencies": {},
+      "declarations": {
+        "type": null,
+        "main": "./dist/index.js",
+        "module": null,
+        "types": "./dist/index.d.ts",
+        "exports": {
+          "./ai-model-policy": {
+            "types": "./dist/ai-model-policy.d.ts",
+            "require": "./dist/ai-model-policy.js",
+            "import": "./dist/ai-model-policy.js",
+            "default": "./dist/ai-model-policy.js"
+          },
+          "./client-registration-integrity": {
+            "types": "./dist/client-registration-integrity.d.ts",
+            "require": "./dist/client-registration-integrity.js",
+            "import": "./dist/client-registration-integrity.js",
+            "default": "./dist/client-registration-integrity.js"
+          },
+          ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+          },
+          "./money": {
+            "types": "./dist/money.d.ts",
+            "require": "./dist/money.js",
+            "import": "./dist/money.js",
+            "default": "./dist/money.js"
+          },
+          "./funding-claim": {
+            "types": "./dist/funding-claim.d.ts",
+            "require": "./dist/funding-claim.js",
+            "import": "./dist/funding-claim.js",
+            "default": "./dist/funding-claim.js"
+          },
+          "./defense-budget-line": {
+            "types": "./dist/defense-budget-line.d.ts",
+            "require": "./dist/defense-budget-line.js",
+            "import": "./dist/defense-budget-line.js",
+            "default": "./dist/defense-budget-line.js"
+          },
+          "./pe-source-coverage": {
+            "types": "./dist/pe-source-coverage.d.ts",
+            "require": "./dist/pe-source-coverage.js",
+            "import": "./dist/pe-source-coverage.js",
+            "default": "./dist/pe-source-coverage.js"
+          },
+          "./meri-skills": {
+            "types": "./dist/meri-skills.d.ts",
+            "require": "./dist/meri-skills.js",
+            "import": "./dist/meri-skills.js",
+            "default": "./dist/meri-skills.js"
+          },
+          "./meri-read-outcome": {
+            "types": "./dist/meri-read-outcome.d.ts",
+            "require": "./dist/meri-read-outcome.js",
+            "import": "./dist/meri-read-outcome.js",
+            "default": "./dist/meri-read-outcome.js"
+          },
+          "./market-title": {
+            "types": "./dist/market-title.d.ts",
+            "require": "./dist/market-title.js",
+            "import": "./dist/market-title.js",
+            "default": "./dist/market-title.js"
+          },
+          "./newsletter": {
+            "types": "./dist/newsletter.d.ts",
+            "require": "./dist/newsletter.js",
+            "import": "./dist/newsletter.js",
+            "default": "./dist/newsletter.js"
+          },
+          "./newsletter-render": {
+            "types": "./dist/newsletter-render.d.ts",
+            "require": "./dist/newsletter-render.js",
+            "import": "./dist/newsletter-render.js",
+            "default": "./dist/newsletter-render.js"
+          }
+        },
+        "files": null
+      },
+      "declaredTools": {
+        "typescript": "^5.5.4"
+      }
+    },
+    {
+      "path": "packages/auth/package.json",
+      "name": "@capiro/auth",
+      "sha256": "8b5a075eada39a5ba9ca9388006ee9aeacde910e0fd771c3fa58df5f70b5bb73",
+      "workspaceDependencies": {},
+      "declarations": {
+        "type": null,
+        "main": "./dist/index.js",
+        "module": null,
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+          }
+        },
+        "files": null
+      },
+      "declaredTools": {
+        "jest": "^29.7.0",
+        "ts-jest": "^29.4.14",
+        "typescript": "^5.5.4"
+      }
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "name": "@capiro/meriv2-core",
+      "sha256": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
+      "workspaceDependencies": {
+        "@capiro/shared": "workspace:*"
+      },
+      "declarations": {
+        "type": null,
+        "main": "./dist/index.js",
+        "module": null,
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+          },
+          "./assurance": {
+            "types": "./dist/assurance/index.d.ts",
+            "require": "./dist/assurance/index.js",
+            "import": "./dist/assurance/index.js",
+            "default": "./dist/assurance/index.js"
+          },
+          "./assurance/generation": {
+            "types": "./dist/assurance/generation.d.ts",
+            "require": "./dist/assurance/generation.js",
+            "import": "./dist/assurance/generation.js",
+            "default": "./dist/assurance/generation.js"
+          },
+          "./grounding/auditor": {
+            "types": "./dist/grounding/auditor.d.ts",
+            "require": "./dist/grounding/auditor.js",
+            "import": "./dist/grounding/auditor.js",
+            "default": "./dist/grounding/auditor.js"
+          },
+          "./grounding/evidence": {
+            "types": "./dist/grounding/evidence.d.ts",
+            "require": "./dist/grounding/evidence.js",
+            "import": "./dist/grounding/evidence.js",
+            "default": "./dist/grounding/evidence.js"
+          },
+          "./context/contract": {
+            "types": "./dist/context/contract.d.ts",
+            "require": "./dist/context/contract.js",
+            "import": "./dist/context/contract.js",
+            "default": "./dist/context/contract.js"
+          },
+          "./context/compiler": {
+            "types": "./dist/context/compiler.d.ts",
+            "require": "./dist/context/compiler.js",
+            "import": "./dist/context/compiler.js",
+            "default": "./dist/context/compiler.js"
+          },
+          "./context/truthful-compiler": {
+            "types": "./dist/context/truthful-compiler.d.ts",
+            "require": "./dist/context/truthful-compiler.js",
+            "import": "./dist/context/truthful-compiler.js",
+            "default": "./dist/context/truthful-compiler.js"
+          },
+          "./context/context-rollout": {
+            "types": "./dist/context/context-rollout.d.ts",
+            "require": "./dist/context/context-rollout.js",
+            "import": "./dist/context/context-rollout.js",
+            "default": "./dist/context/context-rollout.js"
+          },
+          "./context/governed-columns": {
+            "types": "./dist/context/governed-columns.d.ts",
+            "require": "./dist/context/governed-columns.js",
+            "import": "./dist/context/governed-columns.js",
+            "default": "./dist/context/governed-columns.js"
+          },
+          "./context/context-release-switch": {
+            "types": "./dist/context/context-release-switch.d.ts",
+            "require": "./dist/context/context-release-switch.js",
+            "import": "./dist/context/context-release-switch.js",
+            "default": "./dist/context/context-release-switch.js"
+          },
+          "./observability/otel": {
+            "types": "./dist/observability/meri-otel.d.ts",
+            "require": "./dist/observability/meri-otel.js",
+            "import": "./dist/observability/meri-otel.js",
+            "default": "./dist/observability/meri-otel.js"
+          }
+        },
+        "files": null
+      },
+      "declaredTools": {
+        "jest": "^29.7.0",
+        "ts-jest": "^29.4.14",
+        "tsx": "^4.23.15",
+        "typescript": "^5.5.4"
+      }
+    },
+    {
+      "path": "packages/defense-contracts/package.json",
+      "name": "@capiro/defense-contracts",
+      "sha256": "5b36d4bf65df01c497cfd6d92c6b62133ad40e2935387c615ae380421edd1b47",
+      "workspaceDependencies": {},
+      "declarations": {
+        "type": null,
+        "main": "./dist/index.js",
+        "module": null,
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+          },
+          "./public": {
+            "types": "./dist/public/index.d.ts",
+            "require": "./dist/public/index.js",
+            "import": "./dist/public/index.js",
+            "default": "./dist/public/index.js"
+          },
+          "./internal": {
+            "types": "./dist/internal/index.d.ts",
+            "require": "./dist/internal/index.js",
+            "import": "./dist/internal/index.js",
+            "default": "./dist/internal/index.js"
+          },
+          "./parser": {
+            "types": "./dist/parser/index.d.ts",
+            "require": "./dist/parser/index.js",
+            "import": "./dist/parser/index.js",
+            "default": "./dist/parser/index.js"
+          },
+          "./events": {
+            "types": "./dist/events/index.d.ts",
+            "require": "./dist/events/index.js",
+            "import": "./dist/events/index.js",
+            "default": "./dist/events/index.js"
+          },
+          "./errors": {
+            "types": "./dist/errors/index.d.ts",
+            "require": "./dist/errors/index.js",
+            "import": "./dist/errors/index.js",
+            "default": "./dist/errors/index.js"
+          }
+        },
+        "files": [
+          "dist"
+        ]
+      },
+      "declaredTools": {}
+    },
+    {
+      "path": "packages/defense-domain/package.json",
+      "name": "@capiro/defense-domain",
+      "sha256": "95281d87b0a4b80979b28c8a2f2199e5f1915c5a825184324e02c4af9be2d1e8",
+      "workspaceDependencies": {
+        "@capiro/shared": "workspace:*"
+      },
+      "declarations": {
+        "type": null,
+        "main": "./dist/index.js",
+        "module": null,
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+          },
+          "./identities": {
+            "types": "./dist/identities/index.d.ts",
+            "require": "./dist/identities/index.js",
+            "import": "./dist/identities/index.js",
+            "default": "./dist/identities/index.js"
+          },
+          "./money": {
+            "types": "./dist/money/index.d.ts",
+            "require": "./dist/money/index.js",
+            "import": "./dist/money/index.js",
+            "default": "./dist/money/index.js"
+          },
+          "./funding": {
+            "types": "./dist/funding/index.d.ts",
+            "require": "./dist/funding/index.js",
+            "import": "./dist/funding/index.js",
+            "default": "./dist/funding/index.js"
+          },
+          "./extraction": {
+            "types": "./dist/extraction/index.d.ts",
+            "require": "./dist/extraction/index.js",
+            "import": "./dist/extraction/index.js",
+            "default": "./dist/extraction/index.js"
+          },
+          "./verification": {
+            "types": "./dist/verification/index.d.ts",
+            "require": "./dist/verification/index.js",
+            "import": "./dist/verification/index.js",
+            "default": "./dist/verification/index.js"
+          },
+          "./projections": {
+            "types": "./dist/projections/index.d.ts",
+            "require": "./dist/projections/index.js",
+            "import": "./dist/projections/index.js",
+            "default": "./dist/projections/index.js"
+          },
+          "./projections/pb-comparison": {
+            "types": "./dist/projections/pb-comparison.d.ts",
+            "require": "./dist/projections/pb-comparison.js",
+            "import": "./dist/projections/pb-comparison.js",
+            "default": "./dist/projections/pb-comparison.js"
+          },
+          "./snapshots": {
+            "types": "./dist/snapshots/index.d.ts",
+            "require": "./dist/snapshots/index.js",
+            "import": "./dist/snapshots/index.js",
+            "default": "./dist/snapshots/index.js"
+          },
+          "./federal-funding": {
+            "types": "./dist/federal-funding/index.d.ts",
+            "require": "./dist/federal-funding/index.js",
+            "import": "./dist/federal-funding/index.js",
+            "default": "./dist/federal-funding/index.js"
+          },
+          "./pe-read": {
+            "types": "./dist/pe-read/index.d.ts",
+            "require": "./dist/pe-read/index.js",
+            "import": "./dist/pe-read/index.js",
+            "default": "./dist/pe-read/index.js"
+          },
+          "./budget-lifecycle": {
+            "types": "./dist/budget-lifecycle/index.d.ts",
+            "require": "./dist/budget-lifecycle/index.js",
+            "import": "./dist/budget-lifecycle/index.js",
+            "default": "./dist/budget-lifecycle/index.js"
+          },
+          "./qualification": {
+            "types": "./dist/qualification/index.d.ts",
+            "require": "./dist/qualification/index.js",
+            "import": "./dist/qualification/index.js",
+            "default": "./dist/qualification/index.js"
+          }
+        },
+        "files": [
+          "dist"
+        ]
+      },
+      "declaredTools": {
+        "typescript": "^5.5.4"
+      }
+    }
+  ],
+  "projectionMethod": "Exact unchanged package data and recursive workspace edges; actual pnpm projection/install/generated artifacts NOT executed or verified",
+  "knownCaveat": "Filtered selection retains root tooling and optional browser-related dependencies; workspace manifest discovery/frozen whole-lock validation remain pnpm behavior"
+}

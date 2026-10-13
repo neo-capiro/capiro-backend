@@ -1,0 +1,127 @@
+{
+  "peer": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "current": "9d84edb5669e9a07d1632a0dbd0aeb256d5a7454",
+  "manifests": [
+    {
+      "path": "apps/api-strategy/package.json",
+      "peer": "100644 blob c337ade2465a1d6a75010077e6fbdb7294e167ce\tapps/api-strategy/package.json",
+      "current": "100644 blob c337ade2465a1d6a75010077e6fbdb7294e167ce\tapps/api-strategy/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/api/package.json",
+      "peer": "100644 blob f8ab6fbcdcc14da45045ca163aa2a3e843f3412e\tapps/api/package.json",
+      "current": "100644 blob f8ab6fbcdcc14da45045ca163aa2a3e843f3412e\tapps/api/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/clio-sandbox/package.json",
+      "peer": "100644 blob 981e98000c94494ce902082305799968c21410d5\tapps/clio-sandbox/package.json",
+      "current": "100644 blob 981e98000c94494ce902082305799968c21410d5\tapps/clio-sandbox/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/defense-api/package.json",
+      "peer": "100644 blob 79c0157b7c5c08e096dff3bfec9c93d8a603bc95\tapps/defense-api/package.json",
+      "current": "100644 blob 79c0157b7c5c08e096dff3bfec9c93d8a603bc95\tapps/defense-api/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/e2e/package.json",
+      "peer": "100644 blob ada02f00848d03f4df7ea4552d42cd438b744e2c\tapps/e2e/package.json",
+      "current": "100644 blob ada02f00848d03f4df7ea4552d42cd438b744e2c\tapps/e2e/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/intel-api/package.json",
+      "peer": "100644 blob f604aad45b909a442827d9ccd3cfa58a48a5eeef\tapps/intel-api/package.json",
+      "current": "100644 blob f604aad45b909a442827d9ccd3cfa58a48a5eeef\tapps/intel-api/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/package.json",
+      "peer": "100644 blob c86afa81acbdb66e01dda6bf059e3eec4a0d9375\tapps/meriv2-orchestrator/package.json",
+      "current": "100644 blob c86afa81acbdb66e01dda6bf059e3eec4a0d9375\tapps/meriv2-orchestrator/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/onboard-api/package.json",
+      "peer": "100644 blob be1945a1c588f7ded952f17cad981834aee3d901\tapps/onboard-api/package.json",
+      "current": "100644 blob be1945a1c588f7ded952f17cad981834aee3d901\tapps/onboard-api/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/onboard-web/package.json",
+      "peer": "100644 blob 6465a55d9d163027811e180ce37c69180b38cf59\tapps/onboard-web/package.json",
+      "current": "100644 blob 6465a55d9d163027811e180ce37c69180b38cf59\tapps/onboard-web/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/web/package.json",
+      "peer": "100644 blob f6ff939f15e33fa1f4a9e2268e701c66b01741c7\tapps/web/package.json",
+      "current": "100644 blob f6ff939f15e33fa1f4a9e2268e701c66b01741c7\tapps/web/package.json",
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "peer": "100644 blob c4ef8a3c3a39f2877e759141c987929ff785ca51\tapps/workspace/package.json",
+      "current": "100644 blob c4ef8a3c3a39f2877e759141c987929ff785ca51\tapps/workspace/package.json",
+      "exact": true
+    },
+    {
+      "path": "infra/cdk/package.json",
+      "peer": "100644 blob 8200761c70f40f4e4a93f055f77fdac1fb79a3ff\tinfra/cdk/package.json",
+      "current": "100644 blob 8200761c70f40f4e4a93f055f77fdac1fb79a3ff\tinfra/cdk/package.json",
+      "exact": true
+    },
+    {
+      "path": "package.json",
+      "peer": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102\tpackage.json",
+      "current": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102\tpackage.json",
+      "exact": true
+    },
+    {
+      "path": "packages/auth/package.json",
+      "peer": "100644 blob 12b92ec6bd14dfa4ba1159a940e8046f7a903c08\tpackages/auth/package.json",
+      "current": "100644 blob 12b92ec6bd14dfa4ba1159a940e8046f7a903c08\tpackages/auth/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-client/package.json",
+      "peer": "100644 blob 57a0ce37e11203f6253cee0874aef519886faa43\tpackages/defense-client/package.json",
+      "current": "100644 blob 57a0ce37e11203f6253cee0874aef519886faa43\tpackages/defense-client/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-contracts/package.json",
+      "peer": "100644 blob 02871c2ccf00d583632bbfbe412582404a55e18c\tpackages/defense-contracts/package.json",
+      "current": "100644 blob 02871c2ccf00d583632bbfbe412582404a55e18c\tpackages/defense-contracts/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/package.json",
+      "peer": "100644 blob f35b337f65180b29a7072a41f2a0cff4d03e5b52\tpackages/defense-domain/package.json",
+      "current": "100644 blob f35b337f65180b29a7072a41f2a0cff4d03e5b52\tpackages/defense-domain/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "peer": "100644 blob b8469e8303f277ccf029180d011174e0a5e63e44\tpackages/meriv2-core/package.json",
+      "current": "100644 blob b8469e8303f277ccf029180d011174e0a5e63e44\tpackages/meriv2-core/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/shared/package.json",
+      "peer": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6\tpackages/shared/package.json",
+      "current": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6\tpackages/shared/package.json",
+      "exact": true
+    },
+    {
+      "path": "packages/strategy-verifier/package.json",
+      "peer": "100644 blob 7c89dceb805b7bc88802a8cd5f71abdf22328eac\tpackages/strategy-verifier/package.json",
+      "current": "100644 blob 7c89dceb805b7bc88802a8cd5f71abdf22328eac\tpackages/strategy-verifier/package.json",
+      "exact": true
+    }
+  ],
+  "proof": "Top-level actual workspace package manifest metadata; individual peer eleven build operands remain unavailable without receipt"
+}

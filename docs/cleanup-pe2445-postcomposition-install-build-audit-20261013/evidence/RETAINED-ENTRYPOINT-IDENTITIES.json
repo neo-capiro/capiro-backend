@@ -1,0 +1,84 @@
+{
+  "peer": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "current": "9d84edb5669e9a07d1632a0dbd0aeb256d5a7454",
+  "identities": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "peer": "100644 blob 2890d40278d4987b8cced7333397d435a3902da4\t.github/workflows/ci-pr.yml",
+      "current": "100644 blob 2890d40278d4987b8cced7333397d435a3902da4\t.github/workflows/ci-pr.yml",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "apps/web/Dockerfile",
+      "peer": "100644 blob f8cffb54f7551053eeec88cf1a3e15a55b70a4f0\tapps/web/Dockerfile",
+      "current": "100644 blob f8cffb54f7551053eeec88cf1a3e15a55b70a4f0\tapps/web/Dockerfile",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "scripts/deploy-api.sh",
+      "peer": "",
+      "current": "",
+      "exact": true,
+      "present": false
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase26.mjs",
+      "peer": "100644 blob eb3b691e20196e62326c026483d95b1a8ec073a2\tscripts/validate-knowledge-plane-phase26.mjs",
+      "current": "100644 blob eb3b691e20196e62326c026483d95b1a8ec073a2\tscripts/validate-knowledge-plane-phase26.mjs",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "peer": "100644 blob 250ef8943cc241f42909b878293e6f69dff74ddd\tscripts/check-context-plane-new-bypasses.mjs",
+      "current": "100644 blob 250ef8943cc241f42909b878293e6f69dff74ddd\tscripts/check-context-plane-new-bypasses.mjs",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "scripts/lib/context-plane-scope.mjs",
+      "peer": "100644 blob 5b60f9c6315530a4890625db5158631a11887804\tscripts/lib/context-plane-scope.mjs",
+      "current": "100644 blob 5b60f9c6315530a4890625db5158631a11887804\tscripts/lib/context-plane-scope.mjs",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "scripts/lib/context-plane-validation-scope.mjs",
+      "peer": "100644 blob 8a059bd40f1b62ef6c301687ca2d1cc7477f3ce5\tscripts/lib/context-plane-validation-scope.mjs",
+      "current": "100644 blob 8a059bd40f1b62ef6c301687ca2d1cc7477f3ce5\tscripts/lib/context-plane-validation-scope.mjs",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "scripts/lib/knowledge-census-scope.mjs",
+      "peer": "100644 blob 4d970e7585b11ca0679f27cce255a481111e7b12\tscripts/lib/knowledge-census-scope.mjs",
+      "current": "100644 blob 4d970e7585b11ca0679f27cce255a481111e7b12\tscripts/lib/knowledge-census-scope.mjs",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "scripts/lib/knowledge-validation-scope.mjs",
+      "peer": "100644 blob 34edc2ba766ab48b9e4d7db8b17d333f451bca84\tscripts/lib/knowledge-validation-scope.mjs",
+      "current": "100644 blob 34edc2ba766ab48b9e4d7db8b17d333f451bca84\tscripts/lib/knowledge-validation-scope.mjs",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "peer": "100644 blob 42065a1749144afec30b1aa56ea5d865dac847bf\tapps/api/prisma/schema.prisma",
+      "current": "100644 blob 42065a1749144afec30b1aa56ea5d865dac847bf\tapps/api/prisma/schema.prisma",
+      "exact": true,
+      "present": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "peer": "100644 blob 7367184b71dda07e33e1577179768840a9a998e1\tapps/workspace/prisma/schema.prisma",
+      "current": "100644 blob 7367184b71dda07e33e1577179768840a9a998e1\tapps/workspace/prisma/schema.prisma",
+      "exact": true,
+      "present": true
+    }
+  ],
+  "absentPathQualifier": "An absent guessed optional script is not a preserved source artifact or acceptance result"
+}
