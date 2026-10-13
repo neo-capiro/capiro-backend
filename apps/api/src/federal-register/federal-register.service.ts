@@ -86,7 +86,8 @@ export class FederalRegisterService {
           agencyNames: row.agencyNames, htmlUrl: row.htmlUrl,
           date, dateKind: 'comment_deadline' as const, precision: 'date' as const,
           provenance: { source: 'federal_register' as const,
-            sourceField: 'comments_close_on' as const, cachedField: 'commentEndDate' as const },
+            sourceField: 'comments_close_on' as const, cachedField: 'commentEndDate' as const,
+            rawPublisherValueVerified: false as const },
         }];
       });
       return { data, range: { dateFrom: from, dateTo: to }, page, limit,

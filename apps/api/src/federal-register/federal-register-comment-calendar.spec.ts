@@ -39,7 +39,8 @@ describe('cached regulatory comment calendar', () => {
     expect(h.tx.federalRegisterDocument.count.mock.calls[0][0].where)
       .toEqual(h.tx.federalRegisterDocument.findMany.mock.calls[0][0].where);
     expect(result.data[0]).toMatchObject({ documentNumber: '2026-12345', date: '2026-12-31',
-      dateKind: 'comment_deadline', precision: 'date', provenance: { sourceField: 'comments_close_on' } });
+      dateKind: 'comment_deadline', precision: 'date', provenance: { sourceField: 'comments_close_on',
+        rawPublisherValueVerified: false } });
     expect(result.pagination).toEqual({ totalCandidates: 3, returned: 1,
       excludedOnPage: 0, hasMoreCandidates: true });
     expect(h.prisma.$transaction.mock.calls[0][1]).toEqual({ isolationLevel: 'RepeatableRead' });
@@ -53,7 +54,7 @@ describe('cached regulatory comment calendar', () => {
     await expect(h.service.getCommentDeadlineCalendar({ ...input, ...change })).rejects.toThrow();
     expect(h.prisma.$transaction).not.toHaveBeenCalled();
   });
-  it('never substitutes publication/effective dates or invents a date from a cached instant', async () => {
+  it('never substitutes publication/effective dates or reinterprets non-midnight cached timestamps', async () => {
     const h = harness([row('missing', null), row('instant', '2026-10-01T18:00:00Z'),
       row('outside', '2027-01-01')], 4);
     const result = await h.service.getCommentDeadlineCalendar({ ...input, limit: 3 });
