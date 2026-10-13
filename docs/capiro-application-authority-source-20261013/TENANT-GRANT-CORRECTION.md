@@ -1,0 +1,13 @@
+# Canonical current-tenant wall correction
+
+Current source `579af9e4b826be308f0db289109c233350bbf34d`, tree `293a98c0aa526d9ab440b4122e6aedcec1ed92af`, direct child of evidence870d. This supersedes the d5 source claims in the original handoff for the current wall predicate. All prior source heads,45 indexed packet files and original index remain byte-exact.
+
+Independent N reproduced2PASS/1RED using the actual current ContextSecurityScopeService and actual Prisma tenant-scope hook with inert relational data. The old nested wall predicate constrained only actor ID. The hook scopes the outer Client, not nested grants; independent foreign keys can represent an inconsistent foreign-tenant grant. No production row or incident is asserted. Original N witness remains in its separate review packet at evidence/09-d5-grant-tenant-red.json.
+
+The authorized correction stays in the existing canonical owner: thread selected tenantId into resolveClients, constrain the outer Client tenant explicitly and require that same tenant on the nested actor grant. The Client relation already binds client ID. Existing public resolve and both new receipt checks use this predicate. Unwalled semantics, other security-scope fields and all mailbox/policy behavior remain. No schema, migration, role, permission, security configuration or new algorithm/store is added.
+
+Only ContextSecurityScopeService and the owned focused spec changed.64 actual fake cases pass; the new case covers the foreign-tenant refusal and same-tenant/unwalled admission in both consumers. Focused strict/noUnchecked compiler exits0.194 source preservation checks pass: original190 are retained historically; current inverse explicitly permits only the selected-tenant argument/signature and outer/nested tenant constraints in the two original Context owner methods. All other original members and middleware instrumentation boundaries remain exact.
+
+The first freeze failed128 while/tmp was full. The concurrent compiler returned1 with an empty raw log; no semantic result is inferred from that attempt. Root removed only its own incomplete checkout and the author removed only its own fingerprinted disposable Git index; no source/head/raw evidence was removed. Exact retry22 passed. Initial correction-inverse192/2 was a harness scope/count error (declared docs in parent plus an existing return tenantId); its raw192/2/program are retained, and corrected context-specific inverse194/0 is additive.
+
+This is source/mock acceptance only; independent review of579 is pending. No live app/Clerk/customer/database/SQL/native operations, atomic Clerk/Postgres snapshot, instant post-response revocation, durable authority lease or full Core compile is claimed. Root owns review integration and publication.

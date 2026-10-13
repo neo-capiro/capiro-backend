@@ -1,0 +1,126 @@
+{
+  "source": "579af9e4b826be308f0db289109c233350bbf34d",
+  "tree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "newPacketFiles": [
+    {
+      "path": "docs/capiro-application-authority-source-20261013/SOURCE-FREEZE-TENANT-GRANT.json",
+      "bytes": 440,
+      "sha256": "bda3f1d2cd7c618271416f686b4d2636228087c70fcf8d36c5c8ad442ecb8357"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/TENANT-GRANT-COMMANDS.json",
+      "bytes": 1662,
+      "sha256": "d4edc4a921c93b1a0d0a9d8c5dab47df914790dae2d72167789efe9afdf0320a"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/TENANT-GRANT-CORRECTION.md",
+      "bytes": 2767,
+      "sha256": "cbf9da359a38fd39391aee8e9f44da1833bf51a1f88c57870acd67c07c47a189"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/20-tenant-grant-owner-tests.json",
+      "bytes": 26903,
+      "sha256": "f7c75bfba19afb776d2511f40695358930fa45213825547559f9583b81a6740d"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/20-tenant-grant-owner-tests.log",
+      "bytes": 5005,
+      "sha256": "eb27bc004f81306e9417cad8bc8ce8fc9d0382f8f9c4b690aab0c7aa5d25d475"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/21-disk-attempt-receipt.json",
+      "bytes": 532,
+      "sha256": "8a19691ef94f214221f848d95d1b808321ba030621536fcab7eb7061e4999d70"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/21-scratch-index-cleanup.json",
+      "bytes": 529,
+      "sha256": "4a0a3da7b5ff13dd5e6c26fc86db9c5e2af4a2b7852df18e16206e5b17221f5e"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/21-tenant-grant-focused-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/22-tenant-grant-focused-strict.log",
+      "bytes": 174,
+      "sha256": "cce2ee8b81055698cad8621d106ace8198875df8afd2fb42ea04b6d6935fefd5"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/23-preservation-program-red.cjs.txt",
+      "bytes": 7781,
+      "sha256": "de9f2263d053fd08c62693b592f6a281176b639305e9abf25ca9e535b851579b"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/23-tenant-grant-preservation.json",
+      "bytes": 25061,
+      "sha256": "d6d2b675f2e7b65201295a42e268d5dd21a496dc2a099474b2680dd061be7200"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/23-tenant-grant-preservation.log",
+      "bytes": 19669,
+      "sha256": "9c8b160569d51e9941482f813a7b8c71402a4496687912e387f192435223857f"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/24-tenant-grant-preservation.json",
+      "bytes": 25059,
+      "sha256": "01c7491e0a376d2044acb42724d0d8ad98106226ecab74e4706d40fcb5b70756"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/evidence/24-tenant-grant-preservation.log",
+      "bytes": 19667,
+      "sha256": "1d957e690870d5a6e59018090f7e7f1d2f7e419ae92a9cd0de2848cc99a0330c"
+    },
+    {
+      "path": "docs/capiro-application-authority-source-20261013/source-preservation-tenant-grant.cjs",
+      "bytes": 7885,
+      "sha256": "78af67643654ea326a1da5e8af296a739f345da5b3ad02e16baf838170f9eba9"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24"
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "gitBlob": "29bf0075a079e5f82c6398c698307fb31f297a81",
+      "sha256": "6c74d843772f14864fc4d563b8fdb625479d84e6b5c553e18e27ef5abc2d66d9"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "43f88a5be1a33102fe49e8bd928a82cf28b28d4b",
+      "sha256": "71c40abfd50a0fa124946ce5fb589aab875af23242a37f4438af78be4a5f6595"
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "a1190e911e4b15bfee4d575ceb1514bec5729b30",
+      "sha256": "5b33f8e8f538731f783bb014d9cfd8c8b10fdca9d45b876157ef2cf03c5b0467"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "gitBlob": "cefec1060990ec56e449d45ec70c438966cd2134",
+      "sha256": "b738b2dbc1917255b062af225b08063f5092551c75fceddfff2542ed5bf9338c"
+    }
+  ],
+  "previousEvidence": "870d69004975c6608c8c874db92e391b33db6fd7",
+  "previous45FilesAndIndexUnchanged": true,
+  "independentReview": "pending"
+}

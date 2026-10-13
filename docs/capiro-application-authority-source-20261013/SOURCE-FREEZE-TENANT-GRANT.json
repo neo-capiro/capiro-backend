@@ -1,0 +1,12 @@
+{
+  "head": "579af9e4b826be308f0db289109c233350bbf34d",
+  "tree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "parent": "870d69004975c6608c8c874db92e391b33db6fd7",
+  "sourcePathsChanged": [
+    "apps/api/src/context/context-security-scope.service.ts",
+    "apps/api/src/auth/application-authority.spec.ts"
+  ],
+  "cases": 64,
+  "strictFocused": "PASS0 at22after disk recovery",
+  "scope": "source/mock only; independent review pending"
+}

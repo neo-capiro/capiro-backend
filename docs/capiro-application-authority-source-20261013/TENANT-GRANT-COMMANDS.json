@@ -1,0 +1,49 @@
+{
+  "source": "579af9e4b826be308f0db289109c233350bbf34d",
+  "tree": "293a98c0aa526d9ab440b4122e6aedcec1ed92af",
+  "commands": [
+    {
+      "name": "20-tenant-grant-owner-tests",
+      "executorExitCode": 0,
+      "total": 64,
+      "failed": 0,
+      "command": "same sanitized actual Jest host/config as COMMANDS.json",
+      "rawLog": "evidence/20-tenant-grant-owner-tests.log",
+      "rawJSON": "evidence/20-tenant-grant-owner-tests.json"
+    },
+    {
+      "name": "21-full-disk-attempt",
+      "executorExitCode": 1,
+      "rawBytes": 0,
+      "sourceFreezeExit": 128,
+      "receipt": "evidence/21-disk-attempt-receipt.json"
+    },
+    {
+      "name": "22-tenant-grant-focused-strict",
+      "executorExitCode": 0,
+      "diagnostics": 0,
+      "command": "same sanitized focused-typecheck.cjs host as COMMANDS.json",
+      "rawLog": "evidence/22-tenant-grant-focused-strict.log"
+    },
+    {
+      "name": "23-inverse-harness-red",
+      "executorExitCode": 1,
+      "total": 194,
+      "passed": 192,
+      "failed": 2,
+      "rawJSON": "evidence/23-tenant-grant-preservation.json",
+      "rawLog": "evidence/23-tenant-grant-preservation.log",
+      "originalProgram": "evidence/23-preservation-program-red.cjs.txt"
+    },
+    {
+      "name": "24-inverse-correction",
+      "executorExitCode": 0,
+      "total": 194,
+      "passed": 194,
+      "failed": 0,
+      "command": "env -i PATH=<sanitized cachedNode:/usr/bin:/bin> node docs/capiro-application-authority-source-20261013/source-preservation-tenant-grant.cjs",
+      "rawLog": "evidence/24-tenant-grant-preservation.log",
+      "rawJSON": "evidence/24-tenant-grant-preservation.json"
+    }
+  ]
+}
