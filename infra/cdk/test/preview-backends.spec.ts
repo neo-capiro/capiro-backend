@@ -204,3 +204,21 @@ test('CLI help/missing/unknown modes never allocate output', () => {
   assert.equal(main(['--deploy']), 2);
   assert.deepEqual(fs.existsSync(output) ? fs.readdirSync(output).sort() : [], before);
 });
+
+test('CLI refuses a dangling output symlink before assembly allocation', () => {
+  const link = `/tmp/capiro-preview-output-link-${process.pid}`;
+  const target = `/tmp/capiro-preview-output-target-${process.pid}`;
+  assert.equal(fs.lstatSync(link, { throwIfNoEntry: false }), undefined);
+  assert.equal(fs.lstatSync(target, { throwIfNoEntry: false }), undefined);
+  fs.symlinkSync(target, link, 'dir');
+  try {
+    assert.equal(
+      main(['--render', path.join(__dirname, '../fixtures/preview-backends.synthetic.json'), link]),
+      2,
+    );
+    assert.equal(fs.lstatSync(target, { throwIfNoEntry: false }), undefined);
+  } finally {
+    assert.equal(fs.readlinkSync(link), target);
+    fs.unlinkSync(link);
+  }
+});

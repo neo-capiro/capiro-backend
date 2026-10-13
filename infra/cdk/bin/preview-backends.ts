@@ -25,7 +25,7 @@ export function main(args: string[]): number {
       !stat.isFile() ||
       stat.isSymbolicLink() ||
       stat.size > 32768 ||
-      fs.existsSync(output)
+      fs.lstatSync(output, { throwIfNoEntry: false }) !== undefined
     )
       throw new Error('Bounded public metadata and fresh output directory required');
     const bindings = previewBindings(JSON.parse(fs.readFileSync(input, 'utf8')));
