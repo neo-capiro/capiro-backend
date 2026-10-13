@@ -74,6 +74,8 @@ test('physical synthetic assembly publishes complete bytes, links and durable re
     assert.deepEqual(receipt.runtimeTarget, { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 });
     assert.equal(receipt.counts.regularFiles, files.size); assert.equal(receipt.counts.symlinks, links.size);
     assert.equal(receipt.backendSourceIndependentlyVerified, false);
+    assert.equal(receipt.builtinFilesystemEffectsPerformed, true);
+    assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
     const saved = JSON.parse(await fs.readFile(options.outputDir + '/build-receipt.json', 'utf8')); assert.deepEqual(saved, receipt);
     assert.deepEqual(await fs.readFile(options.outputDir + '/manifest.json'), manifestBytes);
     for (const [name, bytes] of files) assert.deepEqual(await fs.readFile(options.outputDir + '/rootfs/' + name), bytes);
@@ -273,6 +275,7 @@ test('explicit filesystem model cannot attest atomic or durable native filesyste
     const receipt = await assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({}) });
     assert.equal(receipt.status, 'PASS'); assert.equal(receipt.syntheticModel, true);
     assert.equal(receipt.builtinFilesystem, false);
+    assert.equal(receipt.builtinFilesystemEffectsPerformed, false);
     assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
     assert.equal(receipt.atomicDirectoryPublishPerformed, false);
     assert.equal(receipt.durableFilesAndDirectorySyncPerformed, false);
