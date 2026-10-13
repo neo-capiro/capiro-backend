@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "0a76666dc57aa852586c35167426a540939c9918",
+    "3e8aa44b8793827e74364442d098237f6274d045",
+    "--",
+    "apps/web/Dockerfile.frontend-artifact",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/lib/newsletter-loopback-serving.mjs",
+    "scripts/verify-newsletter-loopback-serving.mjs"
+  ],
+  "exit": 0,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

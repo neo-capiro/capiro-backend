@@ -1,0 +1,43 @@
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:1:import test from 'node:test';
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:2:import assert from 'node:assert/strict';
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:3:import http from 'node:http';
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:4:import net from 'node:net';
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:5:import { gzipSync } from 'node:zlib';
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:6:import {
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:11:import { canonicalNewsletterManifest, newsletterByteIdentity, NEWSLETTER_PINS }
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:13:import { parseNewsletterLoopbackInvocation, runNewsletterLoopbackOperator }
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:44:  const server = net.createServer({ allowHalfOpen: true }, socket => {
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:48:  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:217:  const server = http.createServer((request, response) => {
+code/scripts/ci/newsletter-loopback-serving.spec.mjs:227:  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+code/scripts/lib/newsletter-loopback-serving.mjs:2:import http from 'node:http';
+code/scripts/lib/newsletter-loopback-serving.mjs:3:import net from 'node:net';
+code/scripts/lib/newsletter-loopback-serving.mjs:4:import { createHash } from 'node:crypto';
+code/scripts/lib/newsletter-loopback-serving.mjs:5:import { gunzipSync, inflateSync, brotliDecompressSync } from 'node:zlib';
+code/scripts/lib/newsletter-loopback-serving.mjs:6:import { performance } from 'node:perf_hooks';
+code/scripts/lib/newsletter-loopback-serving.mjs:7:import {
+code/scripts/lib/newsletter-loopback-serving.mjs:15:export const HISTORICAL_NEWSLETTER_STATIC_HEADERS = Object.freeze({
+code/scripts/lib/newsletter-loopback-serving.mjs:44:export function parseNewsletterLoopbackOrigin(value) {
+code/scripts/lib/newsletter-loopback-serving.mjs:193:export function requestNewsletterLoopback(spec) {
+code/scripts/lib/newsletter-loopback-serving.mjs:221:export function newsletterLoopbackReceiptSha256(receipt) {
+code/scripts/lib/newsletter-loopback-serving.mjs:233:export async function verifyNewsletterLoopbackServing(options = {}) {
+code/scripts/lib/newsletter-loopback-serving.mjs:312:export function validateNewsletterLoopbackServingReceipt(receipt, { expectedArtifact, expectedReceiptSha256 } = {}) {
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:1:import { createHash } from 'node:crypto';
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:2:import { canonicalNewsletterManifest, validateNewsletterManifest } from './newsletter-static-release-contract.mjs';
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:3:import { validateFrontendStandaloneArtifact } from './frontend-standalone-artifact-contract.mjs';
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:4:import { validateNewsletterLoopbackServingReceipt } from './newsletter-loopback-serving.mjs';
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:8:export const NEWSLETTER_BACKEND_PACKAGING_SOURCE = Object.freeze({
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:28:export function projectNewsletterBackendPackageChecks({ source, script, service }) {
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:57:export const LEGACY_NEWSLETTER_UI_ASSERTIONS = deepFreeze([
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:62:export function qualifyLegacyNewsletterUiAssertions(results) {
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:77:export const NEWSLETTER_FRONTEND_ARTIFACT_PROFILE = deepFreeze({
+code/scripts/lib/newsletter-artifact-packaging-plan.mjs:132:export async function createNewsletterArtifactPackagingPlan(options, { syntheticModel } = {}) {
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:1:import { createHash } from 'node:crypto';
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:2:import { posix, resolve } from 'node:path';
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:3:import { fileURLToPath } from 'node:url';
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:4:import { canonicalNewsletterManifest, qualifyNewsletterArtifact } from './newsletter-static-release-contract.mjs';
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:7:export const FRONTEND_ARTIFACT_TYPE = 'capiro-frontend-next-standalone';
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:8:export const FRONTEND_SERVER_ENTRYPOINT = 'apps/web/server.js';
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:142:export async function validateFrontendStandaloneArtifact({ manifestBytes, files, symlinks = new Map(), pins, newsletterIdentity }) {
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:199:export async function readFrontendStandaloneArtifact({ artifactDir, pins, ports, newsletterIdentity }) {
+code/scripts/lib/frontend-standalone-artifact-contract.mjs:252:export function parseFrontendStandaloneInvocation(args) {

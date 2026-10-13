@@ -1,0 +1,42 @@
+{
+  "results": [
+    {
+      "name": "nonlocal bind",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "non-ephemeral bind",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "unowned local port",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "external address",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "nonliteral DNS",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "TLS connection",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "child process",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "fetch",
+      "refusedBeforeOriginalPort": true
+    },
+    {
+      "name": "protected source",
+      "refusedBeforeOriginalPort": true
+    }
+  ],
+  "pass": 9,
+  "scope": "own evidence-preload controls, not general syscall containment"
+}

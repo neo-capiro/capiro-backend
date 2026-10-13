@@ -1,0 +1,79 @@
+[
+  {
+    "path": ".github/workflows/backend-cleanup-preservation.yml",
+    "sha": "243ca673dd073c54f02c37496b7b615b9b2f3535",
+    "mode": "100644",
+    "sha256": "26d3be17864fdf41201c53027e2de646319f121716542862ec4d5d9af8e02836",
+    "bytes": 7363
+  },
+  {
+    "path": "apps/web/Dockerfile.frontend-artifact",
+    "sha": "1df389777949a6df4cc5c8f1eb43e2db4beb9265",
+    "mode": "100644",
+    "sha256": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea",
+    "bytes": 1737
+  },
+  {
+    "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "sha": "3f49a5da84b577357a8017a2f9df62bd2f1d5eb9",
+    "mode": "100644",
+    "sha256": "f03dca3503ae41ae666ef523a5b223f4a1497b889f48a5c08c2e5aa0dfefa30e",
+    "bytes": 21722
+  },
+  {
+    "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "sha": "62d72a39df7d8992c2df59c1e5c927d260118eaa",
+    "mode": "100644",
+    "sha256": "8f22ebdfd2065b69562035f4cbe413e49beb75dcebd94e29e3e632cf6c8baa85",
+    "bytes": 4353
+  },
+  {
+    "path": "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+    "sha": "f5b6e4b24c654bcf09a7ae0f4844bb9c6b8dddd3",
+    "mode": "100644",
+    "sha256": "d7baed581ff402f9a86ff9b192848737e62041e0b31f87d3880c38b7ffe54b3a",
+    "bytes": 30348
+  },
+  {
+    "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "sha": "e920a319afd64a480cce1aa8f9b834377002bc97",
+    "mode": "100644",
+    "sha256": "d5d9b8f45e338d236ecfaf6cc75a45f12788ff199a8a439db488356676341883",
+    "bytes": 17614
+  },
+  {
+    "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+    "sha": "23d0924dc0162328d9ee0b183ba0663011d4373a",
+    "mode": "100644",
+    "sha256": "32e500e57cb3daa93df598512b39f7f25df1c8d7111218756f572e17a98157ab",
+    "bytes": 24329
+  },
+  {
+    "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "sha": "ac4d7bbd80307e55a05a5068c4fcaf483ddbcab3",
+    "mode": "100644",
+    "sha256": "5f7f5d8342184a7118e4ac009afd3732cb63dd20ef8fb78a44ec804ba5949feb",
+    "bytes": 17291
+  },
+  {
+    "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "sha": "6231e5020d168833334251367119ec6801c55440",
+    "mode": "100644",
+    "sha256": "86c08659c1128452e3ae3ca7e3b65dbe5dae2c00ed647cdca17fb82ea1788122",
+    "bytes": 15135
+  },
+  {
+    "path": "scripts/lib/newsletter-loopback-serving.mjs",
+    "sha": "41fde76f39821f0f88856b32b31d96ae6bebdbd3",
+    "mode": "100644",
+    "sha256": "eab39962b8ec4553279ba04c0463a4fa4852e9cbc0f79da38202f943215f527e",
+    "bytes": 22504
+  },
+  {
+    "path": "scripts/verify-newsletter-loopback-serving.mjs",
+    "sha": "e1650ba562f3562c8d82459263b5195335b74cc5",
+    "mode": "100644",
+    "sha256": "a583be57df864107cc41e8c887f1579e4bd1ad037cbec735926cb257cd78c13e",
+    "bytes": 1639
+  }
+]
