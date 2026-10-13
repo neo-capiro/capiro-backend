@@ -51,7 +51,7 @@
         },
         {
           "name": "Exercise standalone assembly and Docker consumer refusals",
-          "run": "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+          "run": "node --test scripts/ci/frontend-artifact-docker.contract.spec.mjs scripts/ci/frontend-standalone-artifact.contract.spec.mjs scripts/ci/newsletter-artifact-packaging-plan.spec.mjs scripts/ci/newsletter-accepted-source-profile.spec.mjs"
         },
         {
           "name": "Preserve static artifact owner contracts",
