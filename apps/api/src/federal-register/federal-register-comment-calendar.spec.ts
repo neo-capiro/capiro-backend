@@ -43,7 +43,9 @@ describe('cached regulatory comment calendar', () => {
         rawPublisherValueVerified: false } });
     expect(result.pagination).toEqual({ totalCandidates: 3, returned: 1,
       excludedOnPage: 0, hasMoreCandidates: true });
-    expect(h.prisma.$transaction.mock.calls[0][1]).toEqual({ isolationLevel: 'RepeatableRead' });
+    expect(h.prisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function), { isolationLevel: 'RepeatableRead' },
+    );
   });
   it.each([
     { dateFrom: '2026-02-30' }, { dateFrom: '2027-01-01' }, { dateTo: '2028-01-01' },
