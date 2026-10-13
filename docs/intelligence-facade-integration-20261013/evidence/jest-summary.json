@@ -1,0 +1,17 @@
+{
+  "source": "6ff4ca8ad373c5a7e39b90e7cdef0d0932386f66",
+  "suites": 99,
+  "cases": 1290,
+  "failed": 0,
+  "skipped": 0,
+  "oneUninterruptedGreenFinalRun": true,
+  "receipt": "jest-receipt.json",
+  "originalFailedRunsRetained": [
+    "attempt0-filesystem-recorder-failure.json",
+    "attempt1-jest-receipt.json",
+    "attempt2-jest-receipt.json"
+  ],
+  "ownedPassingCacheRetiredFiles": 493,
+  "ownedPassingCacheRetiredBytes": 9389591,
+  "borrowedModified": false
+}
