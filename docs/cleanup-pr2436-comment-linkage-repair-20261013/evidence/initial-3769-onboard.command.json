@@ -1,0 +1,23 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "tree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013/docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/safe-source-test-preload.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "GIT_DIR": "/workspace/capirov2/.git",
+    "GIT_WORK_TREE": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013"
+  },
+  "cwd": "/workspace/cleanup-pr2436-compatible-artifact-guards-20261013",
+  "exit": 0,
+  "seconds": 0.5374882221221924,
+  "stdoutSha256": "9d4033073d445cab11457541c8b8dd9e00a980187026621e5fab2bc7c16e86c8",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "actual pure guard with inert strings/fake ports; no payload/native/default evaluation"
+}

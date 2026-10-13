@@ -1,0 +1,80 @@
+from pathlib import Path
+import subprocess,json,hashlib,os
+repo=Path('/workspace/capirov2');stage=Path('/workspace/cleanup-pr2436-compatible-artifact-guards-20261013');packet=stage/'docs/cleanup-pr2436-comment-linkage-repair-20261013';e=packet/'evidence';e.mkdir(parents=True,exist_ok=True);base='2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f';hp='scripts/lib/onboard-spa-artifact-contract.mjs';sp='scripts/ci/onboard-spa-artifact.contract.spec.mjs'
+original={p:subprocess.check_output(['git','-C',str(repo),'show',base+':'+p]).decode() for p in [hp,sp]}
+s=original[hp];start=s.index("  if (path.endsWith('.css')) {");end=s.index('    // Covers emitted Vite',start);old=s[start:end]
+new=r'''  // Token separators may contain comments; quoted reference bytes are never stripped.
+  const cssTrivia = String.raw`(?:\s|\/\*[\s\S]*?\*\/)*`;
+  const jsTrivia = String.raw`(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*`;
+  if (path.endsWith('.css')) {
+    for (const match of text.matchAll(new RegExp(String.raw`\burl${cssTrivia}\(${cssTrivia}(?:"([^"]+)"|'([^']+)'|([^\s)]+))${cssTrivia}\)`, 'gi'))) add(match[1] ?? match[2] ?? match[3]);
+    for (const match of text.matchAll(new RegExp(String.raw`@import\b${cssTrivia}["']([^"']+)["']`, 'gi'))) add(match[1]);
+  }
+  if (/\.(?:m?js)$/.test(path)) {
+    for (const match of text.matchAll(new RegExp(String.raw`\b(?:import|export)\b${jsTrivia}(?:[^;'"()]*?\bfrom\b${jsTrivia})?["']([^"']+)["']`, 'g'))) add(match[1], 'module');
+    const literal = new RegExp(String.raw`^${jsTrivia}(["'])([^"']+)\1${jsTrivia}$`);
+    const imports = new Set();
+    for (const match of text.matchAll(new RegExp(String.raw`\bimport\b${jsTrivia}\(([^)]*)\)`, 'g'))) {
+      imports.add(match.index);
+      const value = literal.exec(match[1]);
+      if (!value) fail(`nonstatic module reference in ${path}`);
+      add(value[2], 'module');
+    }
+    for (const match of text.matchAll(new RegExp(String.raw`\bimport\b${jsTrivia}\(`, 'g'))) {
+      if (!imports.has(match.index)) fail(`unsupported module reference in ${path}`);
+    }
+    const urls = new Set();
+    for (const match of text.matchAll(new RegExp(String.raw`\bnew\b${jsTrivia}URL\b${jsTrivia}\(([^)]*),${jsTrivia}import\b${jsTrivia}\.${jsTrivia}meta\b${jsTrivia}\.${jsTrivia}url\b${jsTrivia}\)`, 'g'))) {
+      urls.add(match.index);
+      const value = literal.exec(match[1]);
+      if (!value) fail(`nonstatic asset reference in ${path}`);
+      add(value[2]);
+    }
+    for (const match of text.matchAll(new RegExp(String.raw`\bnew\b${jsTrivia}URL\b${jsTrivia}\(`, 'g'))) {
+      if (!urls.has(match.index)) fail(`unsupported asset reference in ${path}`);
+    }
+'''
+s=s[:start]+new+s[end:];(stage/hp).write_text(s)
+# Exact source inverse keeps the fixed historical module and all72 existing controls.
+t=original[sp];assert t.count("const next = source('scripts/lib/onboard-spa-artifact-contract.mjs');")==2;t=t.replace("const next = source('scripts/lib/onboard-spa-artifact-contract.mjs');","const next = beforeCommentLinkageGuard();")
+control="\nfunction beforeCommentLinkageGuard() {\n  const next = source('scripts/lib/onboard-spa-artifact-contract.mjs');\n  const block = "+json.dumps(new)+";\n  assert.equal(next.split(block).length, 2);\n  const before = next.replace(block, "+json.dumps(old)+");\n  assert.equal(sha(before), '"+hashlib.sha256(original[hp].encode()).hexdigest()+"');\n  return before;\n}\n"
+t+=control
+add=r'''
+for (const [name, js, css] of [
+  ['comment-separated bare static import', 'import/*review*/"react";', undefined],
+  ['comment-separated nonstatic dynamic import', 'import/*review*/(variable);', undefined],
+  ['comment-separated bare dynamic import', 'import/*review*/("react");', undefined],
+  ['comment-separated bare export', 'export/*review*/{x}/*review*/from/*review*/"react";', undefined],
+  ['comment-separated local CSS import', 'export const valid=1;', '@import/**/"./missing.css";'],
+]) test(`actual static guard refuses ${name} without executing payloads`, () => {
+  assert.throws(() => validate(fixture({ 'assets/main.js': js,
+    ...(css === undefined ? {} : { 'assets/main.css': css }) })), /refused:/);
+});
+
+test('comment token gaps retain legitimate closed references and quoted remote URL text', () => {
+  const data = fixture({
+    'assets/main.js': 'import/*gap*/"./chunk.js"; export/*gap*/{x}/*gap*/from/*gap*/"./export.js"; const lazy=import/*gap*/(/*gap*/"./lazy.js"/*gap*/); const font=new/*gap*/URL/*gap*/(/*gap*/"./font.woff2"/*gap*/,/*gap*/import/*gap*/./*gap*/meta/*gap*/./*gap*/url/*gap*/); const text="/*kept in string*/";',
+    'assets/main.css': '@import/**/"./nested.css";body{background:url/**/("https://example.test/x/*literal*/image.png");font-family:demo}@font-face{font-family:demo;src:url/**/("./font.woff2")}',
+  });
+  assert.equal(validate(data).qualification, 'static-byte-contract-only');
+});
+
+test('recognized unsupported or escaped module and URL argument forms refuse before resource lookup', () => {
+  for (const js of [
+    'import/*gap*/("https://example.test/x.js");',
+    'import/*gap*/(".\\/chunk.js");',
+    'import/*gap*/(variable',
+    'const x=new/*gap*/URL/*gap*/(variable,import.meta.url);',
+    'const x=new/*gap*/URL/*gap*/("./font.woff2",otherBase);',
+    'const x=new/*gap*/URL/*gap*/("./missing.png",import.meta.url);',
+  ]) assert.throws(() => validate(fixture({ 'assets/main.js': js })), /refused:/);
+});
+'''
+t+=add;(stage/sp).write_text(t)
+for name,p in [('old-6503-helper.mjs.txt',hp),('old-6503-spec.mjs.txt',sp)]: (e/name).write_text(original[p])
+(e/'EXACT-REPAIR-BLOCKS.json').write_text(json.dumps({'old':old,'new':new,'beforeHelperSha256':hashlib.sha256(original[hp].encode()).hexdigest(),'onlyChangedSourcePaths':[hp,sp],'scope':'comment token separators only; quoted references retained raw; unsupported recognized dynamic/new-URL args refuse; no JS/CSS evaluation or complete-language claims'},indent=2)+'\n')
+env=dict(os.environ,GIT_INDEX_FILE=str(stage/'virtual.index'));subprocess.run(['git','-C',str(repo),'read-tree',base],env=env,check=True)
+for p in [hp,sp]:
+ oid=subprocess.check_output(['git','-C',str(repo),'hash-object','-w',str(stage/p)],text=True).strip();subprocess.run(['git','-C',str(repo),'update-index','--cacheinfo','100644',oid,p],env=env,check=True)
+tree=subprocess.check_output(['git','-C',str(repo),'write-tree'],env=env,text=True).strip();head=subprocess.check_output(['git','-C',str(repo),'commit-tree',tree,'-p',base],input=b'Recognize comment-separated static artifact references [skip ci]\n').decode().strip();branch='refs/heads/codex/cleanup-pr2436-comment-linkage-repair-20261013';subprocess.run(['git','-C',str(repo),'update-ref',branch,head,'0'*40],check=True)
+(e/'SOURCE-FREEZE.json').write_text(json.dumps({'base':base,'source':head,'tree':tree,'branch':branch,'onlyPaths':[hp,sp],'previous6503CandidatePreserved':True},indent=2)+'\n');print('frozen',head,tree)

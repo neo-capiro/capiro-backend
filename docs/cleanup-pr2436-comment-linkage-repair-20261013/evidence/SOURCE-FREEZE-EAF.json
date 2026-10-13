@@ -1,0 +1,13 @@
+{
+  "base": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "source": "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+  "tree": "0c96047a606ec28209f29ef3f09579241c2451f7",
+  "branch": "refs/heads/codex/cleanup-pr2436-comment-linkage-repair-20261013",
+  "onlyPaths": [
+    "scripts/lib/onboard-spa-artifact-contract.mjs",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "previous6503CandidatePreserved": true,
+  "previousSource": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "repair": "clause comments and quoted names, comment terminator cannot swallow code"
+}

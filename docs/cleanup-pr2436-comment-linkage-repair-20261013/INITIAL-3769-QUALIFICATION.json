@@ -1,0 +1,40 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "tree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "base": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "sourcePaths": 2,
+  "controls": {
+    "onboard": 26,
+    "newsletter": 53,
+    "originalImmutableReviewer": 9,
+    "derivedPunctuationReviewer": 9,
+    "original72Retained": true,
+    "newPermanentControls": 7
+  },
+  "rawReceipts": [
+    "evidence/onboard.command.json",
+    "evidence/newsletter.command.json",
+    "evidence/review-original.command.json",
+    "evidence/punctuated-comment.RED.command.json"
+  ],
+  "originalEscapes": {
+    "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+    "reviewerCheckpoint": "128f1233b60f418e77fbe5488949ba9d2b4520c6",
+    "pass": 4,
+    "escape": 5,
+    "receipt": "evidence/review-original-probe.RED.stdout"
+  },
+  "sourceWhitespace": 0,
+  "candidateProbeSourceField": "hardcoded6503 in unchanged probe; command bindsactual3769",
+  "derivedFilename": "preliminaryRED filenames holdGREEN9/9 results; no raw rewrite",
+  "testsRepeatedDuringSeal": false,
+  "sourceGrammar": "bounded static recognizers; no general JS/CSS/runtime or filesystem-race proof",
+  "unaccepted": [
+    "actual SPA artifact/replacement/browser/auth",
+    "backend179assets/frontend-parity",
+    "historical-serving/realGET/HEAD",
+    "Clio/workflow activation",
+    "full-floor/native/database/deploy"
+  ],
+  "independentReview": "O scoped green result reported; final evidence seal separate"
+}

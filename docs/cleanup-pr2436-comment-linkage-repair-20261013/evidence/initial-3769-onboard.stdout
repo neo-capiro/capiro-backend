@@ -1,0 +1,34 @@
+✔ opt-in Docker inverse restores the entire original; default/runtime/API/security/entrypoint bytes remain intact (59.377801ms)
+✔ only the supplied site enters the unchanged runtime path; pins are required before frozen workspace installation (1.323358ms)
+✔ API/auth/shared dependency manifests and frozen lock importers close without legacy frontend packages (34.243427ms)
+✔ original public PDF/favicon bytes and URLs are pinned without reading a frontend source directory (0.584296ms)
+✔ digest/source-bound static fixture succeeds with a distinct byte-only receipt and exact file inventory (31.410979ms)
+✔ empty/malformed/duplicate/conflicting invocation refuses before filesystem operations (2.64834ms)
+✔ missing supplied directory never falls back to existing Web trees (1.207991ms)
+✔ manifest digest/source mismatch, truncation, duplicate keys and malformed file proofs fail closed (4.429899ms)
+✔ escaping, encoded, hidden, absolute and executable file names refuse even with fresh valid digests (9.547685ms)
+✔ missing/unlisted/truncated/changed files and absent or replaced protected public assets refuse (5.764003ms)
+✔ HTML/module/dynamic-import/export/CSS/font/SVG/Vite-table local closure remains mandatory (19.820692ms)
+✔ unsafe/bare/nonstatic module or local resource references refuse; inert data images require no file (17.703055ms)
+✔ empty/incomplete index or metadata-only artifact cannot yield an application-shell receipt (3.193174ms)
+✔ port reader rejects missing/unlisted roots, file/ancestor symlinks and nonregular entries before content reads (6.284864ms)
+✔ physical supplied fixture qualifies with legacy frontend denied, and physical symlink escape refuses (9.229029ms)
+✔ case/control regression preserves all former cases and limits the helper change to canonical paths and pins (2.205686ms)
+✔ uppercase JS/CSS/HTML/MJS/SVG missing-resource counterexamples now refuse, while uppercase basenames remain valid (44.98677ms)
+✔ trailing-LF manifest/file names now refuse before payload reads or stat of unsafe filesystem names (4.024156ms)
+✔ pure pins refuse coerced/non-string/control values before filesystem operations; original LF refusal is preserved (6.127044ms)
+✔ actual static guard refuses comment-separated bare static import without executing payloads (3.871668ms)
+✔ actual static guard refuses comment-separated nonstatic dynamic import without executing payloads (2.154669ms)
+✔ actual static guard refuses comment-separated bare dynamic import without executing payloads (1.212331ms)
+✔ actual static guard refuses comment-separated bare export without executing payloads (3.047292ms)
+✔ actual static guard refuses comment-separated local CSS import without executing payloads (1.101842ms)
+✔ comment token gaps retain legitimate closed references and quoted remote URL text (2.050078ms)
+✔ recognized unsupported or escaped module and URL argument forms refuse before resource lookup (8.957891ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 414.006985

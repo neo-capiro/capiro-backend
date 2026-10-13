@@ -1,0 +1,11 @@
+{
+  "base": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "tree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "branch": "refs/heads/codex/cleanup-pr2436-comment-linkage-repair-20261013",
+  "onlyPaths": [
+    "scripts/lib/onboard-spa-artifact-contract.mjs",
+    "scripts/ci/onboard-spa-artifact.contract.spec.mjs"
+  ],
+  "previous6503CandidatePreserved": true
+}

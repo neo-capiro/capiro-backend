@@ -1,0 +1,317 @@
+{
+  "mode": "each owned packet file git diff --no-index --check /dev/null file, physical bytes untouched",
+  "source": "7a02ef622a77426409d69f9bda7c1e3d8fbe5236",
+  "nonzeroFiles": [
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/COMMANDS.md",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/HANDOFF.md",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-3769-HANDOFF.md",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-3769-QUALIFICATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-EAF-HANDOFF.md",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/INITIAL-EAF-QUALIFICATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/QUALIFICATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/EXACT-REPAIR-BLOCKS-EAF.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/EXACT-REPAIR-BLOCKS-INITIAL.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/EXACT-REPAIR-BLOCKS.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-3769-SOURCE-AND-CASE-PRESERVATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-3769-source-whitespace.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-3769-source-whitespace.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-SOURCE-AND-CASE-PRESERVATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-source-whitespace.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-source-whitespace.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/INITIAL-EAF-source-whitespace.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/RECONCILIATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-AND-CASE-PRESERVATION.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE-EAF.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE-INITIAL.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/SOURCE-FREEZE.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-newsletter.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-onboard.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-onboard.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-onboard.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-review-original.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-review-original.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-3769-review-original.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-newsletter.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-newsletter.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-newsletter.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-onboard.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-onboard.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-onboard.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-review-original.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-review-original.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-review-original.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-root-clause-final.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-root-clause-final.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/initial-eaf-root-clause-final.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-final.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-final.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-final.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-probe.RED.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/line-terminator-probe.mjs",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/newsletter.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/newsletter.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/newsletter.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/old-6503-helper.mjs.txt",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/old-6503-spec.mjs.txt",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/onboard.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/onboard.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/onboard.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment-probe.mjs",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment.RED.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment.RED.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/punctuated-comment.RED.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/repair-clause-comments.py.txt",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/repair-comment-linkage.py.txt",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/repair-line-terminators.py.txt",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original-probe.RED.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original-probe.mjs",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/review-original.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-comment-probe.RED.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-comment-probe.mjs",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-final.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-final.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/root-clause-final.stdout",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/safe-source-test-preload.cjs",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.command.json",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.stderr",
+      "exit": 1
+    },
+    {
+      "file": "docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence/source-whitespace.stdout",
+      "exit": 1
+    }
+  ],
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "fullFloorAccepted": false
+}

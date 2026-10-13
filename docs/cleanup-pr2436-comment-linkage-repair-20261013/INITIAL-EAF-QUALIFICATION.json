@@ -1,0 +1,31 @@
+{
+  "source": "eaf96f418bc621f6cc3f6339c094ef4a18b8b9f2",
+  "tree": "0c96047a606ec28209f29ef3f09579241c2451f7",
+  "base": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "sourcePaths": 2,
+  "cases": {
+    "onboard": 32,
+    "newsletter": 53,
+    "original72Retained": true,
+    "addedPermanent": 13,
+    "immutableInitialReview": 9,
+    "immutableRootClauseReview": 4
+  },
+  "originalRed": {
+    "6503Escapes": 5,
+    "3769ClauseEscapes": 3,
+    "preserved": true
+  },
+  "sourceWhitespace": 0,
+  "earlierSuccessfulRawReceipts": "initial-3769-* copied before final changed-source runs",
+  "hardcodedProbeSourceFields": "6503/3769 in unchanged probes; actualeaf boundbycommand",
+  "sourceScope": "comment/clause tokens in existing Onboard guard/spec only, no default config/serving changes",
+  "grammarLimit": "bounded static lexical recognizers, not complete language/FS race/runtime proof",
+  "independentReview": "O finalsame4 requested",
+  "unaccepted": [
+    "actualartifact/Onboardreplacement/browser/auth",
+    "backend179/frontendparity/historicalserving",
+    "Clio/workflowactivation",
+    "fullfloor/native/database/deploy"
+  ]
+}

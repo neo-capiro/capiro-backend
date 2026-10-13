@@ -1,0 +1,18 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "tree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "codeWorkingBytesExact": true,
+  "completedReceipts": {
+    "onboard": 26,
+    "newsletter": 53,
+    "originalReviewer": 9,
+    "derivedPunctuationReviewer": 9
+  },
+  "original6503": {
+    "reviewerPass": 4,
+    "reviewerEscapes": 5
+  },
+  "derivedFilenameClarification": "punctuated-comment.RED.* was preliminary naming; actual receipts are GREEN9/9. Kept byte-exact rather than rewritten.",
+  "activeStageProcesses": [],
+  "testsRepeated": false
+}

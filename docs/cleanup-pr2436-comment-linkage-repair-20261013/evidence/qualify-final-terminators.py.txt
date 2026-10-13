@@ -1,0 +1,30 @@
+import pathlib, subprocess, hashlib, json, time, shutil, re
+S=pathlib.Path('/workspace/cleanup-pr2436-compatible-artifact-guards-20261013'); E=S/'docs/cleanup-pr2436-comment-linkage-repair-20261013/evidence'; R=pathlib.Path('/workspace/capirov2')
+PIN='7a02ef622a77426409d69f9bda7c1e3d8fbe5236'; TREE='f856da3e3f0df6941fbb3837a41c19615ed78cd9'
+for p in ('HANDOFF.md','QUALIFICATION.json'):
+ q=E.parent/p; dest=E.parent/('INITIAL-EAF-'+p)
+ if not dest.exists(): shutil.copyfile(q,dest)
+for name in ('onboard','newsletter','review-original','root-clause-final'):
+ for suffix in ('stdout','stderr','command.json'):
+  p=E/(name+'.'+suffix); dest=E/('initial-eaf-'+p.name)
+  if not dest.exists(): shutil.copyfile(p,dest)
+for name in ('SOURCE-AND-CASE-PRESERVATION.json','source-whitespace.command.json','source-whitespace.stdout','source-whitespace.stderr'):
+ dest=E/('INITIAL-EAF-'+name)
+ if not dest.exists(): shutil.copyfile(E/name,dest)
+ref='7cef3937d418a084dd733b3d533987cb678543ae'; prefix='docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/'
+for source,dest,sha in [ ('line-terminator-probe.mjs','line-terminator-probe.mjs','668feab13037aa3a378c15910c93a47742110f48acc736c214b8d083584a7b1f'),('line-terminator-probe.stdout','line-terminator-probe.RED.stdout','f17b8f297fa2b2eb30bc0562124222cc5b22d92875d9b757c7e6be3b6a94a80c')]:
+ b=subprocess.check_output(['git','-C',str(R),'show',ref+':'+prefix+source]); assert hashlib.sha256(b).hexdigest()==sha; (E/dest).write_bytes(b)
+shutil.copyfile(S/'repair-line-terminators.py',E/'repair-line-terminators.py.txt')
+node='/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node'; preload=str(E/'safe-source-test-preload.cjs'); env={'PATH':str(pathlib.Path(node).parent)+':/usr/bin:/bin','GIT_DIR':str(R/'.git'),'GIT_WORK_TREE':str(S)}
+lanes=[('onboard',['--test','--test-isolation=none','scripts/ci/onboard-spa-artifact.contract.spec.mjs']),('line-terminator-final',[str(E/'line-terminator-probe.mjs')]),('review-original',[str(E/'review-original-probe.mjs')]),('root-clause-final',[str(E/'root-clause-comment-probe.mjs')])]
+for name,args in lanes:
+ argv=[node,'--require',preload,*args]; start=time.time(); p=subprocess.run(argv,cwd=S,env=env,capture_output=True,timeout=30)
+ (E/(name+'.stdout')).write_bytes(p.stdout); (E/(name+'.stderr')).write_bytes(p.stderr)
+ rec={'source':PIN,'tree':TREE,'argv':argv,'env':env,'cwd':str(S),'exit':p.returncode,'seconds':time.time()-start,'stdoutSha256':hashlib.sha256(p.stdout).hexdigest(),'stderrSha256':hashlib.sha256(p.stderr).hexdigest(),'scope':'actual pure guard; inert strings/fake ports only; no payload evaluation/native/default'}
+ (E/(name+'.command.json')).write_text(json.dumps(rec,indent=2)+'\n')
+ print(name,'exit',p.returncode)
+ if name=='onboard':
+  tail=p.stdout.decode().splitlines()[-10:]; print('\n'.join(tail)); assert len(re.findall(r'^✔ ',p.stdout.decode(),re.M))==37
+ else:
+  obj=json.loads(p.stdout); print(json.dumps({k:v for k,v in obj.items() if k in ['pass','fail','red','cases','source']})[:300]); assert p.returncode==0
+ assert p.returncode==0
