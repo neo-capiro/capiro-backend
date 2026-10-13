@@ -1,0 +1,90 @@
+{
+  "commit": "1da8a551b00bba0f98e87954ef0a87566db236e6",
+  "tree": "e1e96cff6d4cd864a86c00775777aeb5ea7d7141",
+  "files": [
+    {
+      "path": "apps/web/src/features/portfolio/client-profile/ActivityFeed.tsx",
+      "blob": "61f71b49efd7c0d3baacddb4284c2f35ab99c76b",
+      "bytes": 4830,
+      "sha256": "109613b7ab6adc563570804d1a83d35e452810fd6ac117c6f79a813e7185acc6"
+    },
+    {
+      "path": "apps/web/src/features/modules/engagement/OutreachView.tsx",
+      "blob": "4aad7447dd06cd39645e7591ab5fbfd8762e556e",
+      "bytes": 11121,
+      "sha256": "e2795611b5783cdf5e7f616f6fa7201d914a664bb88703f23e86bf90427fbe73"
+    },
+    {
+      "path": "apps/web/src/features/modules/engagement/CampaignSession.tsx",
+      "blob": "3dd143d06451c53629347f98af2c2ee096ce366c",
+      "bytes": 9048,
+      "sha256": "cdb73c9c996d0992e11e640563dd99fd5e0c0092b96bc045ac50b1881f36b583"
+    },
+    {
+      "path": "apps/web/src/features/modules/engagement/EngagementScreen.tsx",
+      "blob": "f79d100554d6146e86263851b7b765db06e9eee6",
+      "bytes": 5925,
+      "sha256": "5fd7837cdfa80ef0207d8e45dde870a442f3ff798b8266a95989ac27dc20e0e5"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/calendar/feeds.ts",
+      "blob": "cf37b4e908a8d976b9ff8654571f6ea6b01ae1e1",
+      "bytes": 4742,
+      "sha256": "e46c6dd4f6f41f3e27cb834498d067f3970caf7cd9d6186148b46b2f69745382"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/calendar/public-event/api.ts",
+      "blob": "2850f0538aa5eca08d6417b3cd847dc51330f60f",
+      "bytes": 1089,
+      "sha256": "7a45af06800cd3398a8c83726bd136766d0e7f115ff11038c7a66d7ae53a563d"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/calendar/public-event/contracts.ts",
+      "blob": "7ba0eb10e0aec73b655fe25bf5608f5c1e8dcb96",
+      "bytes": 3011,
+      "sha256": "49de43123fd0224bfd5763c7ef52c4978f15cb0eab7deafa21b60dbb7f014bfe"
+    },
+    {
+      "path": "apps/web/src/features/modules/calendar/useAgendaSources.ts",
+      "blob": "1c09c195d0e93ec69612168fcee36a20b95ffc5f",
+      "bytes": 1488,
+      "sha256": "b95434d76c53adcaedd0c17a7ae9de5d25547193d076ae9d54000f1b99d915a7"
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/prospects/ProspectWorkspace.tsx",
+      "blob": "389c73ebe9af267b200f5d19db86ae0e9ba9434f",
+      "bytes": 3919,
+      "sha256": "1f0ab120a964f5054d5ffedefc30deaf9ca9b9180cd3ae90726e7a4b5bcf5e2b"
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/prospects/useProspectDraftSave.ts",
+      "blob": "658ffd6677c408c1cf66d2ac007ec37663a6de93",
+      "bytes": 6661,
+      "sha256": "73e7b0473bccc679674f9404106ab98134c82e966d29bd70921f4d58909c7cdd"
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/prospects/manual-draft.ts",
+      "blob": "2354932143cf5c0e4a5ef2b636313a8012107964",
+      "bytes": 2025,
+      "sha256": "0a847d5876b16d0634fdbc8d35b3e0f90320f826f68190110730a44388424310"
+    },
+    {
+      "path": "apps/web/src/shared/capiro/operations/workspace-prospects.ts",
+      "blob": "2bc8cb9cdf430518995789420f27861c2cf82dd5",
+      "bytes": 2128,
+      "sha256": "6ff24314724157a6e0c621874896be4047d7945ff916c83fc744d63dab041a17"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/prospects/brief/contracts.ts",
+      "blob": "c251a53b999cf4ad1e3e3bcea9ee1e0f2b248dfa",
+      "bytes": 6239,
+      "sha256": "17d147e42b323497d59af171ea86cf68c415798dc0b88ebb108659faef12b0eb"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/prospects/proposals/contracts.ts",
+      "blob": "f14805a6a183995d7a66f6cb01da748124c8b0ca",
+      "bytes": 1306,
+      "sha256": "cca0da38f7f3e19500fc0d3ef4ec7a0d6937bb511fe4c644906efa93b533a3c1"
+    }
+  ]
+}

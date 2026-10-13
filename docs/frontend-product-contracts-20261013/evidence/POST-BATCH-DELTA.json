@@ -1,0 +1,311 @@
+{
+  "source": "0ba64efcd5372291d9b9cc7b8a2cd1f600c25fe6",
+  "baselineSource": "90ccdd47de7a989e822590d616d69baa15a37d5d",
+  "nativeRowsAccepted": 0,
+  "nativeRowsOpen": 337,
+  "scope": "Bounded implementation subcriteria in19 baseline rows, plus Activity completion lifetime and Meri theme/accessibility work. No whole-row acceptance or provider/native qualification.",
+  "rows": [
+    {
+      "audit_id": "CORE-059",
+      "functionality": "Manage access of all files in folder",
+      "boundedChange": "Normalized native folder-access receipts, same-session pending/unknown draft fencing, explicit current-state review and retired-completion protection.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Root should reproduce wrong semantic receipt, unknown resend/reopen and late actor/client completion first, then bounded repair and disposable native ACL checks; no backend-auth bypass claim.",
+        "Record actual deployed service/source and designated identity/client scope; prove row-relevant expiry/role/privacy and reload/retry behavior without secrets.",
+        "Complete exact selected-design/responsive/accessibility comparison; do not adopt new Figma designs or infer a mismatch merely from unreviewed evidence."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-notes_list",
+      "functionality": "Read meeting notes / summarized/restricted states",
+      "boundedChange": "Current-read concealment, per-parent list admission, valid omitted native echoes, exact duplicate/foreign-parent refusal and preserved interrupted artifact drafts.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Repair/verify current-read concealment and parent binding in list path; then native restricted/encrypted-body authorization and final view comparison.",
+        "P7 current source-bound native/sandbox workflow and final selected3.1 desktop/mobile/light/dark comparison remain open; broad fixture passes do not accept this row."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-debrief_list",
+      "functionality": "Read saved debriefs / draft/approved/restricted states",
+      "boundedChange": "Current-read concealment, per-parent list admission, valid omitted native echoes, exact duplicate/foreign-parent refusal and preserved interrupted artifact drafts.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Repair/verify current-read concealment and parent binding in list path; then native restricted/encrypted-body authorization and final view comparison.",
+        "P7 current source-bound native/sandbox workflow and final selected3.1 desktop/mobile/light/dark comparison remain open; broad fixture passes do not accept this row."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-org_read",
+      "functionality": "Read roster and display hierarchy/org chart",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Current successful native client roster under allowed and denied roles; refetch403/503 must conceal old records, then recover only on current success."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-org_drawer",
+      "functionality": "Open contact drawer / Mail / Note panels",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Current authorized person/detail state and invalid/missing deep link under native read failure, history, actor/client replacement; real Mail/Note boundaries."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-email_history",
+      "functionality": "Read contact email history",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native own-mailbox history and recipient/client association; denied current read concealment; sync/older-history contract and successful-send history refresh."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-email_thread",
+      "functionality": "Read full email thread / reply source",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Exact requested thread identity before display/reply; approved direct-client or recipient-derived association, message identity and current own-mailbox access; denied-current-read concealment. A legitimate associated thread with null/other stored clientId must not be rejected solely by a new presentation predicate."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-targets_read",
+      "functionality": "Read government targets including committee and personal-office staff",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native current target list, staff classification and representation under allowed/denied roles; failed refetch concealment and exact target/client scope."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-target_recommendations",
+      "functionality": "Read ranked Meri office recommendations",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native ranking/data freshness and correct client/source computation; denied-current-read removes former recommendations; current role and late response boundaries."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-targets_member_search",
+      "functionality": "Search members of Congress for Add relationship",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native Congress members search/paging and current permission/source freshness; no stale choices/actions after a current403/503; exact ID addition."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-targets_staff_search",
+      "functionality": "Search congressional/committee staff for Add relationship",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native current congressional staff search/paging and current permission/source freshness; no stale choices/actions after a current403/503; exact ID addition."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-targets_state_search",
+      "functionality": "Search state legislators for Add relationship",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native active state legislators search/paging and current permission/source freshness; no stale choices/actions after a current403/503; exact ID addition."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "ENG-target_committee_staff",
+      "functionality": "Read staff for exact selected committee",
+      "boundedChange": "Current roster/target/recommendation/directory/mail read admission, exact requested thread ID, valid recipient-derived histories and scoped create/send attempt lifetimes.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Native exact committee/staff identity, current/former status, paging and denied-current-read concealment; selected search and stale taxonomy/committee replacement."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "BILL-04",
+      "functionality": "Track-a-bill modal search by number or title",
+      "boundedChange": "Current successful search receipt and exact result membership required for selection and immediate Track dispatch.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Static gap: a cached successful search followed by same-key403/503 can leave prior rows/selection actionable. Runtime reproduction and a coherent current-search fence are still needed; native search authorization remains separate.",
+        "Individually evidence the original row behavior with the current approved service/contract/identity scope and applicable P7 role, client, retry, reload and visual criteria. No whole-row acceptance is inferred from adjacent feature tests."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "BILL-06",
+      "functionality": "Track selected bill / on-board confirmation / failure retry",
+      "boundedChange": "Current successful search receipt and exact result membership required for selection and immediate Track dispatch.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Same BILL-04 stale-search gap permits Track from obsolete selection. Native positive receipt/persistence, Core no identity echo and uncertain write recovery remain unaccepted.",
+        "Individually evidence the original row behavior with the current approved service/contract/identity scope and applicable P7 role, client, retry, reload and visual criteria. No whole-row acceptance is inferred from adjacent feature tests."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "OBJ-26",
+      "functionality": "Open Planner, Directory, engagement plan, context files and calendar from objective",
+      "boundedChange": "Distinct stable sibling keys for existing Outreach and Work destination panels; links and navigation semantics retained.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Repair unique sibling identities while preserving version remount/cancel behavior; independently prove both panels across version/selection changes. Native bound reads still need authorization/reload proof, and remaining destination families need exact owner contracts.",
+        "Individually evidence the original row behavior with the current approved service/contract/identity scope and applicable P7 role, client, retry, reload and visual criteria. No whole-row acceptance is inferred from adjacent feature tests."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "PROS-017",
+      "functionality": "Add / maintain prospect contacts",
+      "boundedChange": "Current Prospect subread/selection admission with retained dispatched editor ownership; unknown create retry binds the exact submitted input.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Repair/qualify cached-read/editor lifetime; then native Core20281011030000 DDL/RLS/roles/concurrency/replay and converted-client wall. Contact-to-ClientPerson carry-over is absent; browser reload does not have a durable contact journal.",
+        "P7 remains open: source-bound signed-in designated-service evidence for this row, relevant permission/session/expiry/tenant-client replacement, mutation/retry/reload/unknown outcomes, and selected desktop/mobile/light/dark Figma plus keyboard/accessibility comparison. Synthetic fixtures and source inspection do not prove native acceptance."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "PROS-023",
+      "functionality": "Read / save / version prospect brief",
+      "boundedChange": "Current Prospect subread/selection admission with retained dispatched editor ownership; unknown create retry binds the exact submitted input.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Qualify/fix subordinate current-read gates; native saved-version conflict/replay/citation history and scope. Legacy refresh apply is intentionally unavailable until immutable reviewed refresh contract is composed; manual Workspace save has separate PATCH+snapshot limits.",
+        "P7 remains open: source-bound signed-in designated-service evidence for this row, relevant permission/session/expiry/tenant-client replacement, mutation/retry/reload/unknown outcomes, and selected desktop/mobile/light/dark Figma plus keyboard/accessibility comparison. Synthetic fixtures and source inspection do not prove native acceptance."
+      ],
+      "offlineBoundedChangeVerified": true
+    },
+    {
+      "audit_id": "PROS-032",
+      "functionality": "Explicitly convert or link prospect to client",
+      "boundedChange": "Current Prospect subread/selection admission with retained dispatched editor ownership; unknown create retry binds the exact submitted input.",
+      "acceptance_state": "open",
+      "remaining_native_criteria": [
+        "Fix/qualify current candidate-list/selection lifetime; native link transaction/duplicate/identity/revocation/recovery. Paid new-client conversion and atomic carry-over remain distinct backend dependencies.",
+        "P7 remains open: source-bound signed-in designated-service evidence for this row, relevant permission/session/expiry/tenant-client replacement, mutation/retry/reload/unknown outcomes, and selected desktop/mobile/light/dark Figma plus keyboard/accessibility comparison. Synthetic fixtures and source inspection do not prove native acceptance."
+      ],
+      "offlineBoundedChangeVerified": true
+    }
+  ],
+  "deferredBroaderImplementationRows": [
+    {
+      "audit_id": "CORE-109",
+      "functionality": "Open meeting / outreach / file source record",
+      "acceptance_state": "open",
+      "blockers": [
+        {
+          "type": "runtime",
+          "detail": "No exact deployed service/configuration + compatible signed-in testing identity has been verified in this read-only mapping; obtain that binding before native requests."
+        },
+        {
+          "type": "evidence",
+          "detail": "Final 90cc component evidence is synthetic. Individual row native acceptance and cleanup/read-back receipts are absent."
+        },
+        {
+          "type": "implementation",
+          "detail": "ActivityFeed has no outreach source link; canonical /modules/engagement?clientId=\u2026&draft=\u2026 exists. Destination current-client association must be validated rather than assumed from URL."
+        },
+        {
+          "type": "design",
+          "detail": "No fresh Figma API/screenshots/AT evaluation performed during this mapping; preserved nodes identify targets only. No selected_figma31_mismatch is asserted from absence alone."
+        }
+      ]
+    },
+    {
+      "audit_id": "ENG-calendar_navigation",
+      "functionality": "Switch Day/List/Month, next/previous, Today, date picker",
+      "acceptance_state": "open",
+      "blockers": [
+        {
+          "type": "product",
+          "detail": "Literal old ENG Day requirement conflicts with retained Master Month/Week/Agenda vocabulary; no approved Day waiver found. Reconcile intent before adding behavior."
+        },
+        {
+          "type": "runtime",
+          "detail": "No approved signed-in frontend/backend identity pairing or native operation is exercised here. P7 current native authorization/persistence/privacy remains open."
+        },
+        {
+          "type": "design",
+          "detail": "No fresh final selected3.1 Figma comparison here; preserved node references are not a new parity acceptance."
+        }
+      ]
+    },
+    {
+      "audit_id": "MCAL-010",
+      "functionality": "Show regulatory comment and SAM / SBIR opportunity deadlines",
+      "acceptance_state": "open",
+      "blockers": [
+        {
+          "type": "contract",
+          "detail": "Existing funding search supports dates/sources/paging; verify latest owner detail precision and completeness before composition. Regulatory arbitrary-range source remains a separate dependency."
+        },
+        {
+          "type": "runtime",
+          "detail": "No approved signed-in frontend/backend identity pairing or native operation is exercised here. P7 current native authorization/persistence/privacy remains open."
+        },
+        {
+          "type": "design",
+          "detail": "No fresh final selected3.1 Figma comparison here; preserved node references are not a new parity acceptance."
+        }
+      ]
+    },
+    {
+      "audit_id": "PROS-024",
+      "functionality": "Rich document editing: undo/redo, text format, link, lists, table, insert and preview",
+      "acceptance_state": "open",
+      "blockers": [
+        {
+          "type": "contract",
+          "owner": "Canonical frontend feature owner / root integration",
+          "detail": "Implement rich document interaction in canonical Workspace only after reviewed serialization/version semantics; exact brief/proposal-to-document association remains a contract prerequisite. Native save fidelity/concurrency and full toolbar design/accessibility unrun."
+        },
+        {
+          "type": "runtime",
+          "owner": "Root qualification / designated Core, Workspace and identity service owners",
+          "detail": "P7 remains open: source-bound signed-in designated-service evidence for this row, relevant permission/session/expiry/tenant-client replacement, mutation/retry/reload/unknown outcomes, and selected desktop/mobile/light/dark Figma plus keyboard/accessibility comparison. Synthetic fixtures and source inspection do not prove native acceptance."
+        },
+        {
+          "type": "design",
+          "owner": "Frontend acceptance",
+          "detail": "Selected node mapping is preserved; current-source full visual/accessibility acceptance is not supplied by historical bounded screenshots. No mismatch inferred solely from missing comparison."
+        },
+        {
+          "type": "runtime",
+          "owner": "Core/Workspace release and migration owners",
+          "detail": "243248e is source-composed, not deployed proof. Allocated source includes Core stages20281011020000, Contacts20281011030000, origin20281012030000; Workspace origin20261012030000 and saved-version20261012040000. Manifest records source-only/unapplied; current native state has not been observed."
+        }
+      ]
+    }
+  ],
+  "otherRows": "The remaining baseline classifications and criteria remain visible in the immutable337-row reconciliation.",
+  "qualification": {
+    "status": "completed-offline",
+    "completedUTC": "2026-10-13T14:09:26.694143+00:00",
+    "portfolioUniquePassed": 1266,
+    "sharedPassed": 350,
+    "automaticRetries": 0,
+    "nativeRowsAccepted": 0,
+    "evidence": "qualification-ae8da60e/README.md"
+  },
+  "verificationSource": "ae8da60e6d63d02b65a6ff9eb71c90554f213a10",
+  "remaining_native_criteria_note": "The remaining_native_criteria arrays retain verbatim baseline whole-row criteria, including any historical reproduce-first or repair wording. boundedChange and offlineBoundedChangeVerified record the current completed offline subcriteria; the qualification receipt binds their successor evidence. Native/design/dependency portions remain open, and no whole row is accepted."
+}

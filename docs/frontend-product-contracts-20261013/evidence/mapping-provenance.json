@@ -1,0 +1,13 @@
+{
+  "backendHead": "35374ac826edf10c84061b255380d1165538b6b9",
+  "backendTree": "67f4171db2ee7a1c0eb629dd050ede435d50ad28",
+  "frontendDeltaHead": "1da8a551b00bba0f98e87954ef0a87566db236e6",
+  "frontendDeltaTree": "e1e96cff6d4cd864a86c00775777aeb5ea7d7141",
+  "frontendDeltaBlob": "3248545b0d637ad70f421c17e5e819eb6f698e03",
+  "frontendDeltaBytes": 20486,
+  "frontendDeltaSha256": "8cbd12c3d5380fdf41d86935f694d701379ee7ad5580cf1f06a89aa74d73f143",
+  "frontendRuntimeVerificationHead": "ae8da60e6d63d02b65a6ff9eb71c90554f213a10",
+  "sourceOnlyRead": "exact GitHub contents and tree verified; local frontend object cache did not resolve the commit",
+  "protectedReportingBodyInspected": false,
+  "nativeOrProviderCallPerformed": false
+}
