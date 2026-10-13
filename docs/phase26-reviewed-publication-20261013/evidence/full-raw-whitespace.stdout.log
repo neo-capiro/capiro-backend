@@ -1,0 +1,61 @@
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/06-coupled-path-spoof-red.stdout.log:17: trailing whitespace.
++  
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/06-coupled-path-spoof-red.stdout.log:38: trailing whitespace.
++  
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/alias-test-only.diff:41: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:6: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:13: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:16: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:38: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:53: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:87: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:201: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-attribution-only.diff:201: new blank line at EOF.
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:7: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:12: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:19: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:42: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:46: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:65: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:69: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:78: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:96: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:110: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:118: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:122: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:134: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:920: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:928: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:957: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:967: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:976: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:995: trailing whitespace.
++ 
+docs/cleanup-phase26-compatible-scopes-20261013/evidence/source-eight-path.diff:1014: trailing whitespace.
++ 

@@ -1,0 +1,3 @@
+The first git add reported that root-union stdout/stderr logs are ignored. It still staged the package alias and command receipt; the merge/source commit succeeded. The unchanged physical logs are explicitly force-added in the final evidence seal.
+
+Two read-only inspection mistakes changed no file: a guessed FINAL-HUNK-SHA256-INDEX.json path did not exist, and an inspection assumed sourceBindings was an array when it is the integer 8. Directory discovery and the actual entries arrays were then used. The composition verifier passed all 34 author entries and 1,789 inherited bindings.

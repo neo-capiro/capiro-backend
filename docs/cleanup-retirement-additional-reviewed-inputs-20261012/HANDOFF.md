@@ -1,6 +1,6 @@
 # Current contract and bounded retirement handoff
 
-This is the current combined handoff. It adds the independently reviewed client-first grant writer and consolidated native acceptance to PR2431; the reviewed Memory source-contract repair remains preserved. The prior fixture/reader/control and bounded operating-document adoptions remain preserved. It preserves the existing default Jest suites, all earlier qualified guards/aliases/process policies, original plans, package/CI fields, application services, shared exports, schema/migration history and every original/new source head. Broader frontend deletion and full release acceptance remain separate; bounded native evidence is recorded below.
+This is the current combined handoff. It adds the independently reviewed bounded Phase26 scopes to PR2433; the client-first grant writer, consolidated native acceptance and reviewed Memory source-contract repair remain preserved. The prior fixture/reader/control and bounded operating-document adoptions remain preserved. It preserves the existing default Jest suites, all earlier qualified guards/aliases/process policies, original plans, package/CI fields, application services, shared exports, schema/migration history and every original/new source head. Broader frontend deletion and full release acceptance remain separate; bounded native evidence is recorded below.
 
 ## Published stack and contract continuity
 
@@ -12,7 +12,8 @@ This is the current combined handoff. It adds the independently reviewed client-
 | PR2428 | `f76a101fd8b4fe9e1437a2d433924d1b81d82325`:13 exact backend-owned fixture/HTTP test input paths, independently accepted. |
 | PR2429 | `277053c8196dc1be4789c42ea304b0de0553fe00`: eleven non-document paths and one operating contract; original native/full-floor limits preserved. |
 | PR2431 | `2956443fb92efac356506cc06364735cca80fe7c`: reviewed Memory source contract, same 60 cases green, all failure evidence preserved. |
-| This slice | Two source paths: the canonical client-first grant writer and meaningful method-fragment spec, plus reviewed native/coverage prerequisite evidence. |
+| PR2433 | `c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4`: canonical client-first grant writer, method-fragment spec and reviewed native/coverage prerequisite evidence. |
+| This slice | Source `d69d26c210ea9307c9b8843e3a0930738c79abdb`, tree `967653ee07d8c550b0884e64433319721233edff`: eight scoped Phase26 paths and four additive package aliases. |
 
 | Canonical source contract | Preserved authority and overlap |
 | --- | --- |
@@ -63,4 +64,19 @@ The final isolated PostgreSQL 16.15 preflight found zero task schemas, roles, ot
 
 The unchanged canonical full Core typecheck passes all 17 segments with `PE_PHASE_A_B_SAFETY_OK` on the current source. Its first attempt hit the supplied 4 GB heap cap; the 8 GB retry revealed a stale local dependency symlink. Both failures remain. Correcting only the owned link to already verified current Prisma/Shared artifacts produced exit0 without source/package/compiler/gate relaxation. Meriv2-core passes its full 117 suites/1,717 cases plus its two original TODOs; Auth passes all 20 with diagnostic coverage. Five official locked V8 prerequisites and the actual small source-map/coverage pipeline are qualified, not a full install/five-target floor. [Install/gate audit and exact actions](../cleanup-current-install-gate-coverage-audit-20261012/AUDIT.md) records missing canonical coverage baseline, supported Node22/hosted CI, fresh frozen installation/lifecycle, full migration/runtime-role, default app/provider closures, pinned visual/route/repetition and contained-runtime requirements. All current aliases, newer parser/Jest/CI defaults and floors remain.
 
-Published operator PR2430 `0e59d26d5d96f805165b370e051d9d9d610342b4` and PR2432 `ed1bb4b539b297086413e7060979ea02226dc485` are being inspected as code-only inputs for a separate compatible Phase26 slice. Whole adoption is held: older scoped-Windows policy and omitted smoke/run guards conflict with current code, and scope helpers require matching callers. Resilience 14 versus required 15 and five Clio accounting refusals stay open with that owner. No denied report upload/retrieval is retried. This publication makes no operator-adoption claim.
+Published operator PR2430 `0e59d26d5d96f805165b370e051d9d9d610342b4` and PR2432 `ed1bb4b539b297086413e7060979ea02226dc485` supply code-only inputs for the bounded Phase26 slice below. Whole adoption remains held: older scoped-Windows policy and omitted smoke/run guards conflict with current code. Resilience 14 versus required 15 and five Clio accounting refusals stay open with that owner. No denied report upload/retrieval is retried.
+
+
+The compatible Phase26 source is `31cc12a6626be8586666dfa9ccf53b68fff10311`, tree `025aaef8f30fc4a9d3db39320f900325c40efe52`; author seal `8d08e2c8b17abfa2649bad073c0aeccf168ce0b4`, tree `503d2c25338c703e51cf166dc45da68ab9173b50`. Root adds only four explicit `--run` aliases and passes the same28 actual-source fake-I/O cases. Existing full/fast commands, strict help/run/ref grammar, full-mode body/census,16 diagnostic/two-suite attribution, Phase3 Windows, Jest/CI and resilience remain preserved. Frontend/source-only modes run scoped source/whitespace policy; backend typing/native markers describe selected commands, not new compiler/database/application acceptance. No actual default CLI, typing/Jest plan or native graph is executed here.
+
+Independent review found ordinary `++`/`--` source lines rejected as metadata and then demonstrated header-looking hunk content could redirect the inherited line scanner. The final scoped path accepts valid counted content and binds every addition to the declared section path. The same eight-input hunk corpus and two actual-caller spoof witnesses now pass expected outcomes; original failures and intermediate heads remain. The legacy full scanner remains exact and its inherited rebinding weakness is separately characterized; no blanket full-guard safety claim follows. [Author correction](../cleanup-phase26-compatible-scopes-20261013/HUNK-ATTRIBUTION-CORRECTION.md) and the publication receipt preserve source/alias/dependency checks and raw evidence.
+
+Independent acceptance `308443cb148cc5f8dc5d4fd67a838e3fe9724f20`, tree `1fc89b6c983b1c368fde9433f57b855190b2bafd`, verifies the final eight source blobs,34 author bindings and exact root alias union. Its fresh28-case run and20 independent counted-hunk/path controls pass under protected-read/network/real-child refusal. All18 committed independent hashes verify. [Independent handoff](../cleanup-phase26-operator-independent-review-20261013/HANDOFF.md) and [publication composition](../phase26-reviewed-publication-20261013/README.md) retain the original failures and explicit full-mode limitation.
+
+| Phase26 adoption boundary | Current disposition |
+| --- | --- |
+| Scoped census, counted diff projection, matched Phase26 caller | Adopted together; four helpers have active callers. No unused Phase27 exports or new store. |
+| Four explicit package aliases | Additive only: backend, backend typing, backend source and frontend; existing package metadata/scripts remain exact. |
+| Prior Phase3 Windows/process and outreach smoke policy | Kept current; older conflicting operator bodies are omitted. |
+| Phase27/27e/27f, CI/Jest repartition, architecture closeout and resilience | Held for their complete matching current dependencies and unchanged floors. |
+| Rich-newsletter frontend dependency | Separate newly authorized parser slice, based on frontend qualification `b945b799591c7a0345441a489b27cdadee202235`; this Phase26 publication makes no parser/persistence/delivery acceptance claim. |

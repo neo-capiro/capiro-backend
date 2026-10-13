@@ -1,0 +1,57 @@
+{
+  "base": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "source": "d69d26c210ea9307c9b8843e3a0930738c79abdb",
+  "sourceTree": "967653ee07d8c550b0884e64433319721233edff",
+  "sourcePaths": [
+    "package.json",
+    "scripts/check-context-plane-new-bypasses.mjs",
+    "scripts/ci/context-plane-scope.contract.spec.mjs",
+    "scripts/ci/context-plane-validation-scope.spec.mjs",
+    "scripts/lib/context-plane-scope.mjs",
+    "scripts/lib/context-plane-validation-scope.mjs",
+    "scripts/lib/knowledge-census-scope.mjs",
+    "scripts/lib/knowledge-validation-scope.mjs",
+    "scripts/validate-knowledge-plane-phase26.mjs"
+  ],
+  "allEightCandidateBlobsExact": true,
+  "onlyFourAdditiveAliases": {
+    "validate:knowledge-plane:phase26:backend": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only",
+    "validate:knowledge-plane:phase26:backend:typing": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --skip-tests",
+    "validate:knowledge-plane:phase26:backend:source": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --source-only",
+    "validate:knowledge-plane:phase26:frontend": "node scripts/validate-knowledge-plane-phase26.mjs --run --frontend-only"
+  },
+  "authorIndices": [
+    {
+      "path": "docs/cleanup-phase26-compatible-scopes-20261013/SHA256SUMS.json",
+      "verifiedEntries": 12
+    },
+    {
+      "path": "docs/cleanup-phase26-compatible-scopes-20261013/ALIAS-CORRECTION-SHA256SUMS.json",
+      "verifiedEntries": 6
+    },
+    {
+      "path": "docs/cleanup-phase26-compatible-scopes-20261013/HUNK-CORRECTION-SHA256SUMS.json",
+      "verifiedEntries": 16
+    }
+  ],
+  "independentReview": "308443cb148cc5f8dc5d4fd67a838e3fe9724f20",
+  "independentReviewTree": "1fc89b6c983b1c368fde9433f57b855190b2bafd",
+  "independentEntriesVerified": 18,
+  "sourceUnchangedAfterReviewMerge": true,
+  "oldIndexEntries": 1789,
+  "oldIndexPhysicallyUnchanged": true,
+  "oldEntriesPhysicallyExact": 1788,
+  "intentionalSupersessions": [
+    "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md"
+  ],
+  "originalHandoffPhysicallyPreserved": true,
+  "allOriginalAndCorrectedHeadsPreservedAsAncestors": [
+    "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+    "31cc12a6626be8586666dfa9ccf53b68fff10311",
+    "61453eca11f5aa93d67285c2016db34f66eaf6b6",
+    "b46dad56b0025d3f1043809d3322fe936f5d501f",
+    "1ce10b97ba0aa74b66fecbf20af07417b9d4617f",
+    "8d08e2c8b17abfa2649bad073c0aeccf168ce0b4"
+  ],
+  "noDatabaseProviderNativeDefaultCLIOrApplicationExecution": true
+}

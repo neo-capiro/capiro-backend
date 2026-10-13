@@ -1,0 +1,1 @@
+{"command":["git","diff","--check","c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4","--","package.json","scripts"],"exitCode":0,"scope":"nine authored source paths; raw evidence floor remains open"}
