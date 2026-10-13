@@ -175,8 +175,8 @@ export class DataStack extends cdk.Stack {
           : [
               rds.ClusterInstance.serverlessV2('reader1', {
                 publiclyAccessible: false,
-                enablePerformanceInsights: cfg.envName !== 'preview',
-                performanceInsightEncryptionKey: cfg.envName === 'preview' ? undefined : this.key,
+                enablePerformanceInsights: true,
+                performanceInsightEncryptionKey: this.key,
                 scaleWithWriter: true,
               }),
             ],
