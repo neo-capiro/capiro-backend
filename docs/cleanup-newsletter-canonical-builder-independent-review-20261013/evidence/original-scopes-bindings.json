@@ -1,0 +1,11 @@
+{
+  "source": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "originalSourceSha256": "757091e36c347f890295d7d414536f33d4a65d82878a6c8017692b5e87a3783e",
+  "harnessSha256": "43cdffbbc8fc5883dd8834d041273a86e94ef386a8ae8adb6f819c3ff022ea2f",
+  "onlyHarnessOperand": {
+    "from": "const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');",
+    "to": "const root = \"/tmp/capirov2-four-runtime-controls-review\";"
+  },
+  "inverseExact": true,
+  "scope": "all original six pure test bodies unchanged; current package/CI/workspace metadata only"
+}

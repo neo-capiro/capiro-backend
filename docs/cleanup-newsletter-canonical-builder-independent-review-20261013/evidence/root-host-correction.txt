@@ -1,0 +1,1 @@
+Initial host correctly refused retained Web/Onboard package metadata required by the existing19-workspace partition case. The original six passing/one failing test output and host bytes remain unchanged. Corrected host permits only their package.json metadata while retaining reporting-body and other frontend-body refusal; no source/code changes.

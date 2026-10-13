@@ -1,0 +1,30 @@
+✔ destination package preserves all 107 existing aliases and all metadata (2.61774ms)
+✔ only the four reviewed Phase26 aliases extend the original package inverse (9.115101ms)
+✔ Phase1 scoped operands retain one explicit run and every current syntax check (0.998099ms)
+✔ all twelve scoped verification aliases bind one run and exactly one declared scope (0.32363ms)
+✖ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (4.727333ms)
+✔ CI is exactly the destination scope hunk union and retains every old guard/test/condition (15.580308ms)
+✔ source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (54.956164ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 167.160742
+
+✖ failing tests:
+
+test at scripts/ci/rebuild-verification-scopes.spec.mjs:157:1
+✖ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (4.727333ms)
+  Error: Excluded filesystem source read refused
+      at fs.<computed> (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/pure-source-host.cjs:5:146)
+      at current (file:///tmp/capirov2-four-runtime-controls-review/scripts/ci/rebuild-verification-scopes.spec.mjs:16:27)
+      at TestContext.<anonymous> (file:///tmp/capirov2-four-runtime-controls-review/scripts/ci/rebuild-verification-scopes.spec.mjs:164:27)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

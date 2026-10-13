@@ -1,0 +1,17 @@
+{
+  "source": "56d565f8c698c526a05f822083ea616d09e81bb5",
+  "tree": "57ae9f8e7547d742fd094dc3f6dfcedc39046c18",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/pure-source-host-corrected.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs"
+  ],
+  "exit": 0,
+  "seconds": 0.19357728958129883,
+  "hostSha256": "f89e9b676c3a5fea30ac179406bf7654fb7d5841e36d6cbc62e6ea025377d40d",
+  "stdoutSha256": "f72dafe4503aeaa3f35a66e59939da70994d38c4144b25a890090ac99a191d1f",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

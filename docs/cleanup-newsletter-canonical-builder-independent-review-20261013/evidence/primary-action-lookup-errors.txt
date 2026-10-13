@@ -1,0 +1,1 @@
+Official GitHub source verification preparation: web.run could not access api.github.com/repos/actions/setup-node/git/ref/tags/v7 and reported restricted URL for github.com/actions/setup-node/tree/v7. The existing authorized read-only GitHub connector fetched action.yml at v7 successfully; no action, install or workflow was executed.

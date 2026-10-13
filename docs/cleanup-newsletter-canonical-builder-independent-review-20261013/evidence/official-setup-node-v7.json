@@ -1,0 +1,17 @@
+{
+  "scope": "Read-only official GitHub dependency source; first 40 action.yml lines only, returned Git blob identifies full file, no action execution.",
+  "content": [
+    {
+      "type": "text",
+      "text": "Action completed."
+    }
+  ],
+  "structuredContent": {
+    "content": "name: 'Setup Node.js environment'\ndescription: 'Setup a Node.js environment by adding problem matchers and optionally downloading and adding it to the PATH.'\nauthor: 'GitHub'\ninputs:\n  node-version:\n    description: 'Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.'\n  node-version-file:\n    description: 'File containing the version Spec of the version to use.  Examples: package.json, .nvmrc, .node-version, .tool-versions, mise.toml.'\n  architecture:\n    description: 'Target architecture for Node to use. Examples: x86, x64. Will use system architecture by default.'\n  check-latest:\n    description: 'Set this option if you want the action to check for the latest available version that satisfies the version spec.'\n    default: false\n  registry-url:\n    description: 'Optional registry to set up for auth. Will set the registry in a project level .npmrc and .yarnrc file, and set up auth to read in from env.NODE_AUTH_TOKEN.'\n  scope:\n    description: 'Optional scope for authenticating against scoped registries. Will fall back to the repository owner when using the GitHub Packages registry (https://npm.pkg.github.com/).'\n  token:\n    description: Used to pull node distributions from node-versions. Since there's a default, this is typically not supplied by the user. When running this action on github.com, the default value is sufficient. When running on GHES, you can pass a personal access token for github.com if you are experiencing rate limiting.\n    default: ${{ github.server_url == 'https://github.com' && github.token || '' }}\n  cache:\n    description: 'Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.'\n  package-manager-cache:\n    description: 'Set to false to disable automatic caching. By default, caching is enabled when either devEngines.packageManager or the top-level packageManager field in package.json specifies npm as the package manager.'\n    default: true\n  cache-dependency-path:\n    description: 'Used to specify the path to a dependency file: package-lock.json, yarn.lock, etc. Supports wildcards or a list of file names for caching multiple dependencies.'\n  mirror:\n    description: 'Used to specify an alternative mirror to download Node.js binaries from'\n  mirror-token:\n    description: 'The token used as Authorization header when fetching from the mirror'\n# TODO: add input to control forcing to pull from cloud or dist.\n#       escape valve for someone having issues or needing the absolute latest which isn't cached yet\noutputs:\n  cache-hit:\n    description: 'A boolean value to indicate if a cache was hit.'\n  cache-primary-key:\n    description: 'The key used to restore and save the cache.'\n  cache-matched-key:\n    description: 'The key of the cache that was restored. Empty when no cache is found.'",
+    "encoding": "utf-8",
+    "sha": "31057efa69b67281683c7b601a1d202329eaa3c1",
+    "display_url": "https://github.com/actions/setup-node/blob/v7/action.yml",
+    "display_title": "action.yml"
+  },
+  "isError": false
+}
