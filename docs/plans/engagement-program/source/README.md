@@ -1,8 +1,8 @@
 # Historical Engagement / Outreach Source Plan Redirects
 
-These files preserve the exact names of historical plans that were previously scattered across chat uploads and Library artifacts.
+This index and the remaining local files preserve the exact names of historical plans that were previously scattered across chat uploads and Library artifacts.
 
-They are navigation redirects, not verbatim stale execution plans. The original plans remain useful for requirements and threat models, but current code and current handoffs must be checked before execution.
+Local files are navigation redirects; archived entries link to their immutable redirect. The original plans remain useful for requirements and threat models, but current code and current handoffs must be checked before execution.
 
 ## Engagement API extraction
 
@@ -14,7 +14,7 @@ They are navigation redirects, not verbatim stale execution plans. The original 
 - `phase-3-engagement-api-full-ui-parity-gpt-5.6-pro-single-run.md`
 - `phase-4-engagement-api-decouple-ownership-executable-plan-gpt-5.6.md`
 - `HANDOVER-phase5-closed-phase6-inflight.md`
-- `phase-6-remaining-work-plan.md`
+- `phase-6-remaining-work-plan.md` — [archived redirect at 67fa9255](https://github.com/neo-capiro/capirov2/blob/67fa9255b8a73f489d7a57c8fe270ed6d03fa016/docs/plans/engagement-program/source/phase-6-remaining-work-plan.md); current source-designated authority: [canonical remaining work](../canonical-remaining-work-plan.md). Recovery locator: `67fa9255b8a73f489d7a57c8fe270ed6d03fa016:docs/plans/engagement-program/source/phase-6-remaining-work-plan.md`.
 - `PHASE-6-WS-A-D-HANDOFF.md`
 - `engagement-api-outreach-v3-master-context.md`
 

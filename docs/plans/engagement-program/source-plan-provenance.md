@@ -11,7 +11,7 @@ Historical plans remain valuable for requirements, threat models, edge cases, te
 For a fresh session:
 
 1. find the old filename below;
-2. read its filename-preserving redirect under `docs/plans/engagement-program/source/`;
+2. read its filename-preserving local redirect under `docs/plans/engagement-program/source/`, or its immutable archived redirect when the row supplies a recovery locator;
 3. read the listed current repo handoff/PR docs;
 4. inspect current code before editing;
 5. use `canonical-remaining-work-plan.md` for unresolved work.
@@ -32,7 +32,7 @@ A redirect file does **not** assert that every historical line remains executabl
 | `phase-3-engagement-api-full-ui-parity-gpt-5.6-pro-single-run.md` | Single-run executor version of Phase 3 parity plan | Historical executor wrapper; merged PR #781 is current implementation truth |
 | `phase-4-engagement-api-decouple-ownership-executable-plan-gpt-5.6.md` | Break reverse dependencies and assign future service ownership without premature production cutover | Partially represented by shared foundations/ownership work; remaining ownership transfer is Workstream H |
 | `HANDOVER-phase5-closed-phase6-inflight.md` | Historical extraction handoff into remaining Phase 6 work | Superseded for current state by `2026-08-10-session-handoff.md` |
-| `phase-6-remaining-work-plan.md` | Historical remaining extraction workstreams | Superseded for current unresolved work by `canonical-remaining-work-plan.md` |
+| `phase-6-remaining-work-plan.md` | Historical remaining extraction workstreams | [Archived redirect at 67fa9255](https://github.com/neo-capiro/capirov2/blob/67fa9255b8a73f489d7a57c8fe270ed6d03fa016/docs/plans/engagement-program/source/phase-6-remaining-work-plan.md), recovery locator `67fa9255b8a73f489d7a57c8fe270ed6d03fa016:docs/plans/engagement-program/source/phase-6-remaining-work-plan.md`; superseded for current unresolved work by the source-designated [canonical remaining work](./canonical-remaining-work-plan.md), subject to current-code re-audit |
 | `PHASE-6-WS-A-D-HANDOFF.md` | Historical handoff after Phase 6 workstreams A–D | Reference only; current status must be audited against main/current service |
 | `engagement-api-outreach-v3-master-context.md` | Master context tying service extraction and Outreach V3 together | Current program index + Outreach revised phase docs + current code |
 
@@ -144,7 +144,7 @@ Do not infer generation/send completion from this chain. Phase 6 deliberately st
 
 ## Filename-preserving redirects
 
-Redirect files under `docs/plans/engagement-program/source/` intentionally retain the historical filenames above. They exist so repository search finds the original names and points the reader to current authority.
+Remaining redirect files under `docs/plans/engagement-program/source/` intentionally retain their historical filenames. Archived entries retain their exact historical filename, immutable commit:path recovery locator, and current-authority link in this registry and the source index. Repository search therefore still finds the original names and their provenance.
 
 The redirects are preferable to silently copying stale line-number anchors as if they were current execution truth.
 

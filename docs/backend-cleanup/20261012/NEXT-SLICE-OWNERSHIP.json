@@ -1,0 +1,58 @@
+{
+  "candidates": [
+    {
+      "candidate": "G1",
+      "capability": "normalizeProfileV1Sections and existing finite/ISO helpers",
+      "component": "core-api",
+      "coreStartingBlob": "0456ddefc3f041e42b841147c399b0c156a3f6bf",
+      "declaredBlob": "0456ddefc3f041e42b841147c399b0c156a3f6bf",
+      "declaredRevision": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "path": "apps/api/src/intelligence/intelligence.service.ts",
+      "plannedQualification": "Existing inert facade tests before/after, edge characterization, facade/default/DI preservation, same-slice ownership ratchet and applicable mirror parity; no database/provider execution",
+      "rebuildPreservedBlob": "0456ddefc3f041e42b841147c399b0c156a3f6bf",
+      "sameSourceBlobAsPreservedRebuild": true,
+      "status": "UNASSIGNED: request exact disjoint path/method ownership from integration owner before extraction; source equality is not ownership authorization"
+    },
+    {
+      "candidate": "G2",
+      "capability": "parseIntakeJson and buildSectionPrompt",
+      "component": "workspace",
+      "coreStartingBlob": "fe972c8d9360a39daee6bb5d098776215b7a9334",
+      "declaredBlob": "fe972c8d9360a39daee6bb5d098776215b7a9334",
+      "declaredRevision": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+      "path": "apps/workspace/src/generation/generation.service.ts",
+      "plannedQualification": "Existing inert facade tests before/after, edge characterization, facade/default/DI preservation, same-slice ownership ratchet and applicable mirror parity; no database/provider execution",
+      "rebuildPreservedBlob": "7833c1d02c6391a011843ef2fe2df7be487db0f7",
+      "sameSourceBlobAsPreservedRebuild": false,
+      "status": "UNASSIGNED: request exact disjoint path/method ownership from integration owner before extraction; source equality is not ownership authorization"
+    },
+    {
+      "candidate": "G3",
+      "capability": "legislative action presentation helpers",
+      "component": "intel-api",
+      "coreStartingBlob": "712a2a0fbc8c24ade5e025806de043d8a07c0685",
+      "declaredBlob": "712a2a0fbc8c24ade5e025806de043d8a07c0685",
+      "declaredRevision": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "path": "apps/intel-api/src/bill-dossier/bill-dossier.service.ts",
+      "plannedQualification": "Existing inert facade tests before/after, edge characterization, facade/default/DI preservation, same-slice ownership ratchet and applicable mirror parity; no database/provider execution",
+      "rebuildPreservedBlob": "712a2a0fbc8c24ade5e025806de043d8a07c0685",
+      "sameSourceBlobAsPreservedRebuild": true,
+      "status": "UNASSIGNED: request exact disjoint path/method ownership from integration owner before extraction; source equality is not ownership authorization"
+    },
+    {
+      "candidate": "G4",
+      "capability": "listMembers alone; keep facade and lazy collaborator access",
+      "component": "core-api",
+      "coreStartingBlob": "753b425b3e6b8cf55a7d0863aa961a3c9a696dea",
+      "declaredBlob": "753b425b3e6b8cf55a7d0863aa961a3c9a696dea",
+      "declaredRevision": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "plannedQualification": "Existing inert facade tests before/after, edge characterization, facade/default/DI preservation, same-slice ownership ratchet and applicable mirror parity; no database/provider execution",
+      "rebuildPreservedBlob": "c4cc8ee7623c94b733650e9031d8b8e29388a3a1",
+      "sameSourceBlobAsPreservedRebuild": false,
+      "status": "UNASSIGNED: request exact disjoint path/method ownership from integration owner before extraction; source equality is not ownership authorization"
+    }
+  ],
+  "schema": "backend-cleanup-next-ownership/v1",
+  "scope": "Read-only first-capability proposals; no extraction performed. Coordinate shared/facade/registry seams with the separate active rebuild owner."
+}

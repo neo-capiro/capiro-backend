@@ -1,0 +1,11 @@
+# Reviewed cleanup plan-retirement records
+
+These historical records are adopted onto PR2450 source `bbb38185058fdc64c204da723943aee055b3dad3`, tree `77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2`. The active [backend acceptance index](../ACCEPTANCE.md) retains the original requirements at immutable commit `f1e83a3f194a8ebd972e370ff6e5b5f559888b29`. Adoption removes only the reviewed historical plans; it does not mark unfinished requirements complete or replace newer integration source.
+
+- [Cleanup plan retirement and original byte identities](PLAN-RETIREMENT.json).
+- [Client Intel history and recovery navigation](CLIENT-INTEL-HISTORY.md), with the [original retirement record](CLIENT-INTEL-PLAN-RETIREMENT.json).
+- [Historical next-slice ownership proposal](NEXT-SLICE-OWNERSHIP.json). Current integration ownership takes precedence over this earlier proposal.
+
+The [original source README](https://github.com/neo-capiro/capirov2/blob/bd9e44b2589abec03ef87a7c1715c3b3edb4874d/docs/backend-cleanup/20261012/README.md), [declared component baseline](https://github.com/neo-capiro/capirov2/blob/2991b0108fdda3c0c37a9134950828e723d52c23/docs/backend-cleanup/20261012/PRODUCTION-BASELINE.json), [preserved variants](https://github.com/neo-capiro/capirov2/blob/2991b0108fdda3c0c37a9134950828e723d52c23/docs/backend-cleanup/20261012/PRESERVED-VARIANTS.json), [Core preservation record](https://github.com/neo-capiro/capirov2/blob/2991b0108fdda3c0c37a9134950828e723d52c23/docs/backend-cleanup/20261012/PRESERVATION.json), and [portrait ownership record](https://github.com/neo-capiro/capirov2/blob/08c79d9fd2edd6ff53ae86018029c730c062ce40/docs/backend-cleanup/20261012/PORTRAIT-OWNERSHIP.md) remain available at their exact donor commits. Their source counts, freeze identities, proposed ownership, commands and workflow claims describe those historical trees. The old preservation scripts are not imported as guards for the newer integration tree.
+
+Operating/API documentation, migration and incident history, executable planning inputs, all newer rebuild work and the unpublished Engagement report remain retained. Current composition checks are scoped to these adopted deltas; they do not establish full Cleanup, frontend replacement or deployment acceptance.

@@ -136,7 +136,7 @@ async function main() {
   });
   await recording.enable(tenantId, session.id, userId);
   const transport = ts.transpileModule(
-    readFileSync(resolve('..', 'web', 'src', 'lib', 'hearing-recording-transport.ts'), 'utf8'),
+    readFileSync(resolve('test', 'qualification', 'hearing-recording-transport.ts'), 'utf8'),
     { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } },
   ).outputText;
   const sourceHtml =
@@ -261,7 +261,7 @@ async function main() {
     'src/hearing/recording/recording.service.ts',
     'src/hearing/recording/recording-storage.service.ts',
     'src/hearing/recording/recording-assembly.worker.ts',
-    '../web/src/lib/hearing-recording-transport.ts',
+    'test/qualification/hearing-recording-transport.ts',
   ];
   const sourceHashes = Object.fromEntries(
     sourceFiles.map((path) => [

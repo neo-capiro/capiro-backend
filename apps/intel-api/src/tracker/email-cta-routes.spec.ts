@@ -28,7 +28,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const REPO_ROOT = resolve(__dirname, '../../../..');
-const APP_TSX = join(REPO_ROOT, 'apps/web/src/App.tsx');
+const APP_TSX = join(REPO_ROOT, 'apps/intel-api/src/tracker/__fixtures__/email-cta-app-source.txt');
 
 /** Trees that may legitimately contain an outbound email/SMS CTA. */
 const CTA_SOURCE_DIRS = [

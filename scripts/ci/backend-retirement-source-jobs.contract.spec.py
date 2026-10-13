@@ -38,6 +38,8 @@ COMMANDS = [
      "node --test scripts/ci/newsletter-declared-edge.contract.spec.mjs"),
     ("Exercise isolated loopback fixtures with synthetic asset identities",
      "node --test scripts/ci/newsletter-loopback-serving.spec.mjs"),
+    ("Preserve backend-owned Intel inputs and retained frontend parity",
+     "node --test scripts/ci/backend-owned-qualification-inputs.spec.mjs apps/intel-api/test/qualification/hearing-recording-transport-parity.spec.mjs apps/intel-api/src/tracker/email-cta-route-input-parity.spec.mjs"),
 ]
 DEFAULTS = ["apps/web/Dockerfile", "apps/onboard-api/Dockerfile", "package.json", "apps/api/package.json",
             "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/web-image.yml",
