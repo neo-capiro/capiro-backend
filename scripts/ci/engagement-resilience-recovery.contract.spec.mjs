@@ -99,6 +99,20 @@ test('native result identity/count contract retains fourteen original identities
     (r) => { r.sourcePolicyOnly = true; }, (r) => { r.nativeProofPerformed = false; },
   ]) { const receipt = nativeReceipt(); mutate(receipt); assert.throws(() => assertResilienceReceipt(receipt)); }
 });
+test('optional native proof flags retain absence and require literal native booleans when present', () => {
+  for (const flags of [{}, { sourcePolicyOnly: false }, { nativeProofPerformed: true },
+    { sourcePolicyOnly: false, nativeProofPerformed: true }]) {
+    assert.doesNotThrow(() => assertResilienceReceipt({ ...nativeReceipt(), ...flags }));
+  }
+  for (const [flag, values] of [
+    ['sourcePolicyOnly', [true, 'true', 'false', 1, 0, {}, [], null, undefined]],
+    ['nativeProofPerformed', [false, 'false', 'true', 0, 1, {}, [], null, undefined]],
+  ]) for (const value of values) {
+    assert.throws(() => assertResilienceReceipt({ ...nativeReceipt(), [flag]: value }), /Source-only or non-native-marker/);
+    const inherited = Object.assign(Object.create({ [flag]: value }), nativeReceipt());
+    assert.throws(() => assertResilienceReceipt(inherited), /Source-only or non-native-marker/);
+  }
+});
 test('exact earlier producer and wrapper reconstruct through declared additive case/receipt seams', () => {
   const current = readSource(PROGRAM);
   assert.equal(current.split(AUTH_RECOVERY_CALL).length, 2);
@@ -147,6 +161,15 @@ test('wrapper validates fifteen attributable results before original residual-ze
 test('wrapper cannot accept source-only, missing-auth or duplicate-identity evidence as native', async () => {
   for (const mutate of [(r) => { r.sourcePolicyOnly = true; }, (r) => { r.results.at(-1).id = 'other'; },
     (r) => { r.results[0].id = r.results[1].id; }]) await assert.rejects(wrapperRun(mutate));
+});
+
+test('wrapper refuses malformed native proof flags before retry cleanup acceptance', async () => {
+  for (const [flag, values] of [
+    ['sourcePolicyOnly', ['true', 1, {}, []]],
+    ['nativeProofPerformed', ['false', 0, null]],
+  ]) for (const value of values) {
+    await assert.rejects(wrapperRun((receipt) => { receipt[flag] = value; }), /Source-only or non-native-marker/);
+  }
 });
 
 test('new regression is supported by guard-before-provider, protected task and shared service identity source', () => {

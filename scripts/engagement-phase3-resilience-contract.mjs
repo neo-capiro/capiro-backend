@@ -79,7 +79,9 @@ export async function probeAuthRejectionRecovery({ fetchResult, url, taskId, aut
 }
 
 export function assertResilienceReceipt(document) {
-  if (document?.marker !== 'ENGAGEMENT_PHASE3_RESILIENCE_COMPLETE' || document.sourcePolicyOnly === true || document.nativeProofPerformed === false) {
+  if (document?.marker !== 'ENGAGEMENT_PHASE3_RESILIENCE_COMPLETE' ||
+    ('sourcePolicyOnly' in document && document.sourcePolicyOnly !== false) ||
+    ('nativeProofPerformed' in document && document.nativeProofPerformed !== true)) {
     throw new Error('Source-only or non-native-marker evidence cannot satisfy the native resilience receipt');
   }
   const rows = document?.results;
