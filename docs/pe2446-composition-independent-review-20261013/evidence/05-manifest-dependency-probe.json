@@ -1,0 +1,9 @@
+{
+  "currentPositive": true,
+  "proposedWithCurrentGuardRefused": true,
+  "qualification": "Expected composition dependency, not a source waiver. Root must independently attest the new exact operand and retain all old inverse/refusal controls.",
+  "sha256": {
+    "currentAPI": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa",
+    "proposedAPI": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a"
+  }
+}

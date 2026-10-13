@@ -1,0 +1,74 @@
+{
+  "base": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "tip": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "checks": {
+    "registryInverseExact": true,
+    "noRemainingDockerExecByName": true,
+    "oldKnownPeAndMinimumGuardsRetained": true,
+    "oldUnmodifiedFunctionsExact": true,
+    "psqlMethodBoundedInverse": true
+  },
+  "functions": [
+    {
+      "name": "to_win_path",
+      "byteExact": true
+    },
+    {
+      "name": "resolve_script_dir",
+      "byteExact": true
+    },
+    {
+      "name": "resolve_git_root",
+      "byteExact": true
+    },
+    {
+      "name": "git_ok",
+      "byteExact": true
+    },
+    {
+      "name": "git_req",
+      "byteExact": true
+    },
+    {
+      "name": "cleanup",
+      "disposition": "moved into owned fixture helper; replaced name-based removal with created-ID+volume only",
+      "oldSHA256": "aacdf8ffce3aa5c332c5cb37e41a09e60f68ba20f9107518bfd1794402bc84dc"
+    },
+    {
+      "name": "psql_d",
+      "inverseExact": true,
+      "intendedChanges": [
+        "created-container ID",
+        "TCP127.0.0.1"
+      ]
+    },
+    {
+      "name": "resolve_node",
+      "byteExact": true
+    },
+    {
+      "name": "resolve_prisma_js",
+      "byteExact": true
+    },
+    {
+      "name": "run_migrate",
+      "byteExact": true
+    },
+    {
+      "name": "url_for",
+      "byteExact": true
+    },
+    {
+      "name": "count_lines",
+      "byteExact": true
+    },
+    {
+      "name": "restore_branch_migs",
+      "byteExact": true
+    }
+  ],
+  "preservedRestoreFunction": true,
+  "restoreLimit": "unchanged restore function skips preexisting destination; successful path later removes aside, so checkout must be exclusive and failure recovery manually inspected",
+  "endpointLimit": "Docker created-ID fence is not an explicit local-daemon or independent Prisma system-identifier attestation; existing operator assumptions remain",
+  "native": false
+}
