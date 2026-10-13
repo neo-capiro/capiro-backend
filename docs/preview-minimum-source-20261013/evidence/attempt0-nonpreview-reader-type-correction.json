@@ -1,0 +1,5 @@
+{
+  "sourceHead": "796c2f0af7b04c19527ecf8a1e84e66dd9cef752",
+  "cause": "the conditional reader now exists only outside preview; two retained preview comparisons are impossible under that narrowed type",
+  "correction": "reader PI true and key this.key exactly match all prior nonpreview values; no preview reader introduced"
+}

@@ -1,0 +1,19 @@
+{
+  "source": "27b3f8525a134e7f348dda6ff19834ee1397ba55",
+  "sourceTree": "b33ea0e7b49f65ba40a4c66d5b69118bb254c300",
+  "base": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "sourceChanges": [
+    "infra/cdk/bin/capiro.ts",
+    "infra/cdk/fixtures/preview-backends.synthetic.json",
+    "infra/cdk/lib/assets-stack.ts",
+    "infra/cdk/lib/compute-stack.ts",
+    "infra/cdk/lib/data-stack.ts",
+    "infra/cdk/lib/preview/bindings.ts",
+    "infra/cdk/lib/preview/services-stack.ts",
+    "infra/cdk/test/preview-backends.spec.ts"
+  ],
+  "unrelatedBaseEntriesExact": 26835,
+  "receivingPacketHead": "37339931788d8384b864192f2c2eacf56cd9bf06",
+  "currentNonDocsExactToReviewedSource": true,
+  "protectedReportingComparison": "mode/blob metadata only"
+}

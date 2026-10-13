@@ -1,0 +1,102 @@
+{
+  "renderRoot": "/tmp/preview-minimum-render-20261013",
+  "renderInventory": [
+    {
+      "path": "Capiro-Portfolio-Preview-Assets.assets.json",
+      "bytes": 749,
+      "sha256": "1fdc1fe0d518a72921235aa58e4efc73b7e59f634cda0ed1c7bce3bc933dc609"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Assets.metadata.json",
+      "bytes": 6524,
+      "sha256": "728f372d08eee415658c73ab0cdac8e4408d2207677d08dbdf5221d7fe1efb52"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Assets.template.json",
+      "bytes": 5445,
+      "sha256": "1811162878c74dcff539068b533cbaac4c7cda20ba8fc532ffcc44f30a70c2de"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backend-Network.assets.json",
+      "bytes": 767,
+      "sha256": "bee9953ac5ccfe2b45be32a18ca4013368c66eeb7a89b11d3a608b4213d5b53f"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backend-Network.metadata.json",
+      "bytes": 22912,
+      "sha256": "0647131ba8ed5cd73c8fe438d594af078d3026f3879da4dbfb4d30255414800d"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backend-Network.template.json",
+      "bytes": 7234,
+      "sha256": "23353407ed51848e53cb7c0b9f1f8a48035784e20259cd45bcafc39f64148f4e"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backends.assets.json",
+      "bytes": 753,
+      "sha256": "3dce32423d80f96c85e31d94a6c89051cc52631a36e9bf95dc52cf61429021cc"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backends.metadata.json",
+      "bytes": 52908,
+      "sha256": "ca968f97a10826434d8bd239b0da2f5b13d27a6635c2c9256098b36cc2a8694d"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backends.template.json",
+      "bytes": 34131,
+      "sha256": "aff6d9c84c54adab32c6dc2de7184808069fe849b79044e5e1dff80fd6db2041"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Data.assets.json",
+      "bytes": 745,
+      "sha256": "3b1aea53568f58898a0bd2c08be7f26153f371eb69f859c15332f2eaf564d2f6"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Data.metadata.json",
+      "bytes": 16433,
+      "sha256": "f6a511265742bec0ffe714cf12a3880250925cdd16fd919e76c9e761ed32322a"
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Data.template.json",
+      "bytes": 10394,
+      "sha256": "9df2976de11d3644470a90e7987c8c2ddfac32ad111aff615b1e249c2e191816"
+    },
+    {
+      "path": "cdk.out",
+      "bytes": 20,
+      "sha256": "2801c31b9ddf660f597e3c9d9ba2a9505ac144717ede055f34dc916602a35b25"
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 33344,
+      "sha256": "9624d26dcae0db830b1fe0abaa654a95e9cfe4f0a9f86bd95d809f1504db5d4d"
+    },
+    {
+      "path": "tree.json",
+      "bytes": 68613,
+      "sha256": "8ba9644d035f1a034711a0569001815c609aed3f237f91b416d96be8f4a2ddb9"
+    },
+    {
+      "path": "validation-report.json",
+      "bytes": 3050,
+      "sha256": "457b3d045cb908f4cf376941b97027c6a31f9373e3cd96e327e22e29214cea85"
+    }
+  ],
+  "renderRetired": true,
+  "typeInfo": {
+    "path": "/workspace/preview-minimum-type-20261013.tsbuildinfo",
+    "bytes": 738838,
+    "sha256": "ee75917e580ec05fff2cc47d0ddced08ba409caf4c0be94c2efb3c1fbbb341dd"
+  },
+  "linksRemovedWithoutFollowingTargets": [
+    {
+      "path": "/tmp/capirov2-preview-minimum-source-20261013/node_modules",
+      "target": "/workspace/capirov2/node_modules"
+    },
+    {
+      "path": "/tmp/capirov2-preview-minimum-source-20261013/infra/cdk/node_modules",
+      "target": "/workspace/capirov2/infra/cdk/node_modules"
+    }
+  ],
+  "borrowedTargetsModified": false
+}

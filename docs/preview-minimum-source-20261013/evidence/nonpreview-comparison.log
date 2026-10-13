@@ -1,0 +1,55 @@
+{"result":"PASS","baselineHead":"f61c401803f039dac92866400edd04e74ba8ea5d","cases":[{"envName":"dev","templatePropertiesExact":true,"scope":"same fixed synthetic config using this discriminator; not actual deployed environment inventory"},{"envName":"staging","templatePropertiesExact":true,"scope":"same fixed synthetic config using this discriminator; not actual deployed environment inventory"},{"envName":"prod","templatePropertiesExact":true,"scope":"same fixed synthetic config using this discriminator; not actual deployed environment inventory"}],"AWSOperationRequested":false}
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+../../docs/preview-minimum-source-20261013/compare-nonpreview.cjs:17:14
+WARNING Resources section must exist and be non-empty (CloudFormation Validate)
+   ComparisonNetwork aws-cdk-lib.Stack
+   Acknowledge with 'CloudFormation-Validate::F0001'
+
+A copy of this report can be found in: /tmp/preview-minimum-comparison-953502/dev-baseline/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+../../docs/preview-minimum-source-20261013/compare-nonpreview.cjs:17:14
+WARNING Resources section must exist and be non-empty (CloudFormation Validate)
+   ComparisonNetwork aws-cdk-lib.Stack
+   Acknowledge with 'CloudFormation-Validate::F0001'
+
+A copy of this report can be found in: /tmp/preview-minimum-comparison-953502/dev-candidate/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+../../docs/preview-minimum-source-20261013/compare-nonpreview.cjs:17:14
+WARNING Resources section must exist and be non-empty (CloudFormation Validate)
+   ComparisonNetwork aws-cdk-lib.Stack
+   Acknowledge with 'CloudFormation-Validate::F0001'
+
+A copy of this report can be found in: /tmp/preview-minimum-comparison-953502/staging-baseline/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+../../docs/preview-minimum-source-20261013/compare-nonpreview.cjs:17:14
+WARNING Resources section must exist and be non-empty (CloudFormation Validate)
+   ComparisonNetwork aws-cdk-lib.Stack
+   Acknowledge with 'CloudFormation-Validate::F0001'
+
+A copy of this report can be found in: /tmp/preview-minimum-comparison-953502/staging-candidate/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+../../docs/preview-minimum-source-20261013/compare-nonpreview.cjs:17:14
+WARNING Resources section must exist and be non-empty (CloudFormation Validate)
+   ComparisonNetwork aws-cdk-lib.Stack
+   Acknowledge with 'CloudFormation-Validate::F0001'
+
+A copy of this report can be found in: /tmp/preview-minimum-comparison-953502/prod-baseline/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+../../docs/preview-minimum-source-20261013/compare-nonpreview.cjs:17:14
+WARNING Resources section must exist and be non-empty (CloudFormation Validate)
+   ComparisonNetwork aws-cdk-lib.Stack
+   Acknowledge with 'CloudFormation-Validate::F0001'
+
+A copy of this report can be found in: /tmp/preview-minimum-comparison-953502/prod-candidate/validation-report.json

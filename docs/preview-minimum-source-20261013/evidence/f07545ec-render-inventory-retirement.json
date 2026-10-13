@@ -1,0 +1,69 @@
+{
+  "files": [
+    {
+      "path": "validation-report.json",
+      "bytes": 3050
+    },
+    {
+      "path": "cdk.out",
+      "bytes": 20
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 33344
+    },
+    {
+      "path": "tree.json",
+      "bytes": 71132
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backends.metadata.json",
+      "bytes": 53820
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backends.assets.json",
+      "bytes": 753
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backends.template.json",
+      "bytes": 37577
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Assets.metadata.json",
+      "bytes": 6524
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Assets.assets.json",
+      "bytes": 749
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Assets.template.json",
+      "bytes": 5445
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Data.metadata.json",
+      "bytes": 16433
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Data.assets.json",
+      "bytes": 745
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Data.template.json",
+      "bytes": 10394
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backend-Network.metadata.json",
+      "bytes": 22912
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backend-Network.assets.json",
+      "bytes": 767
+    },
+    {
+      "path": "Capiro-Portfolio-Preview-Backend-Network.template.json",
+      "bytes": 7234
+    }
+  ],
+  "ownedRenderRemoved": true
+}

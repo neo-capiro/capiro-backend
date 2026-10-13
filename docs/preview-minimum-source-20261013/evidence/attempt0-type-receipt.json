@@ -1,0 +1,19 @@
+{
+  "sourceHead": "796c2f0af7b04c19527ecf8a1e84e66dd9cef752",
+  "sourceTree": "9fa7c558e2909d8f5244082f109b58bce39381f5",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/infra/cdk/node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "-p",
+    "tsconfig.json",
+    "--tsBuildInfoFile",
+    "/workspace/preview-minimum-type-20261013.tsbuildinfo"
+  ],
+  "exitCode": 2,
+  "elapsedSeconds": 7.837,
+  "logBytes": 330,
+  "logSha256": "81c45745283f1a2fc227eea937de2d76e156e559c11e99736eb687e794bdf07f",
+  "AWSOrDatabaseOperationRequested": false,
+  "syntheticOnly": true
+}

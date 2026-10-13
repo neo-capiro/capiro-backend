@@ -1,0 +1,2 @@
+lib/data-stack.ts(178,44): error TS2367: This comparison appears to be unintentional because the types '"dev" | "staging" | "prod"' and '"preview"' have no overlap.
+lib/data-stack.ts(179,50): error TS2367: This comparison appears to be unintentional because the types '"dev" | "staging" | "prod"' and '"preview"' have no overlap.

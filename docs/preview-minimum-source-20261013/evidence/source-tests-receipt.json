@@ -1,0 +1,17 @@
+{
+  "sourceHead": "27b3f8525a134e7f348dda6ff19834ee1397ba55",
+  "sourceTree": "b33ea0e7b49f65ba40a4c66d5b69118bb254c300",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "ts-node/register/transpile-only",
+    "--test",
+    "test/preview-backends.spec.ts"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 3.755,
+  "logBytes": 1534,
+  "logSha256": "f801835d58ece35d0f25c1c3fe14d97e28bc5ad650c2795627d47ea43babbdc8",
+  "AWSOrDatabaseOperationRequested": false,
+  "syntheticOnly": true
+}

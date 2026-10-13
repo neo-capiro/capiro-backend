@@ -1,0 +1,7 @@
+{
+  "reportedBy": "/root/backend_repo_split_preparation",
+  "observation": "Initial git add/commit of the sole review note outside sparse patterns failed. Reviewer then used narrow git add --sparse and committed only the review note.",
+  "rawExitElapsedAndToolOutput": "Not supplied in reviewer result; not reconstructed.",
+  "reviewHead": "eb8452d882a6ab61eb7d36a1c6bd0b1bff0e52e4",
+  "reviewTree": "3d3e3611986cba6a1df3ebe8bac02947b6089561"
+}

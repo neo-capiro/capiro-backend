@@ -1,0 +1,16 @@
+{
+  "sourceHead": "efacbfd9b599e458250f9bb624a72626f4e769d2",
+  "sourceTree": "f73a270b9f526c8ff41d67199548a1b919ec7f17",
+  "path": "apps/runtime/README.md",
+  "gitBlob": "16fe542730f81ca7cbe6c233a9146dc5918b3a29",
+  "bytes": 12929,
+  "sha256": "72dbf3372a2f7276a0c395939a6a6d3417884483999e3862d4f0b723419e11c0",
+  "readOnlyGitHubSource": true,
+  "nativeOrProviderAcceptanceClaimed": false,
+  "runtimeContractRead": true,
+  "controlPort": 8080,
+  "pollerHealthPort": 8081,
+  "profile": "isolated-preview",
+  "sourceEnabled": false,
+  "unresolvedProviderModelProxy": true
+}

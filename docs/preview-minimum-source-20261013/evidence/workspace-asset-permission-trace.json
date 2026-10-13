@@ -1,0 +1,31 @@
+{
+  "sourceHead": "e50aed3c5b5cce58317b37de442482fa970842cb",
+  "command": [
+    "git",
+    "grep",
+    "-n",
+    "-e",
+    "S3Client",
+    "-e",
+    "GetObjectCommand",
+    "-e",
+    "PutObjectCommand",
+    "-e",
+    "@aws-sdk",
+    "-e",
+    "ASSETS_BUCKET",
+    "-e",
+    "DIRECTORY_S3_BUCKET",
+    "e50aed3c5b5cce58317b37de442482fa970842cb",
+    "--",
+    "apps/workspace/src",
+    "apps/workspace/package.json"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "",
+  "result": "no direct S3 SDK/bucket environment consumer in Workspace source/dependencies; preview WS SQL owners need no asset permission",
+  "limitation": "transitive runtime startup remains independently held; this is source dependency evidence, not live behavior",
+  "removedUnusedWorkspaceAssetGrants": true,
+  "CoreTwoTenantAssetGrantRetained": true
+}

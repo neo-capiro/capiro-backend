@@ -1,0 +1,15 @@
+{
+  "baselineHead": "f61c401803f039dac92866400edd04e74ba8ea5d",
+  "baselineSourcePaths": [
+    "infra/cdk/lib/data-stack.ts",
+    "infra/cdk/lib/assets-stack.ts"
+  ],
+  "adapter": "only ./config import relocated to exact unchanged config module; saved baseline files are adapted, not raw identical",
+  "syntheticComparisonDiscriminators": [
+    "dev",
+    "staging",
+    "prod"
+  ],
+  "emptyImportOnlyNetworkWarnings": 6,
+  "AWSOrLiveEnvironmentValidation": false
+}

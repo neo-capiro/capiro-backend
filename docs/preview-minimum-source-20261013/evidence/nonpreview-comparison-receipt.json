@@ -1,0 +1,17 @@
+{
+  "sourceHead": "f07545ec082fe36c7a2d83078674aecfdfd12c84",
+  "sourceTree": "e69fb0fc99f977cfe8cde8a5eed11435bfd80498",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-intelligence-final-integration-20261013/docs/intelligence-final-integration-20261013/network-fence.cjs",
+    "--require",
+    "ts-node/register/transpile-only",
+    "/tmp/capirov2-preview-minimum-source-20261013/docs/preview-minimum-source-20261013/compare-nonpreview.cjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 3.161,
+  "logBytes": 3845,
+  "logSha256": "4f7c863af6760a733cddfb0c4ddea584ac624105e917786728dfa81807872083",
+  "scope": "fixed synthetic cfg values for dev/staging/prod discriminators; original pinned Data/Assets templates vs candidate; no AWS/live environment acceptance"
+}

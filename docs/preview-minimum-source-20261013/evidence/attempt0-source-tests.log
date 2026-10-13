@@ -1,0 +1,27 @@
+lib/preview/network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet0 (DatabaseSubnet0) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+lib/preview/network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet1 (DatabaseSubnet1) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+A copy of this report can be found in: /tmp/capiro-preview-backends-synthetic-synth-950336/validation-report.json
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Preview rendering refused; invalid bindings, output or source configuration
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+✔ preview refuses production/default/extra resource configuration before allocation (7.145713ms)
+✔ held service templates use new DB/asset owners, preserve proxy routing and add no Meri worker (1883.543241ms)
+✔ CLI help/missing/unknown modes never allocate output (1.997408ms)
+✔ CLI refuses a dangling output symlink before assembly allocation (1.292565ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3391.84178
