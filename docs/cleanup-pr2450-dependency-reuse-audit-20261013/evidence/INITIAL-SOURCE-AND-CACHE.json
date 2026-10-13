@@ -1,0 +1,1426 @@
+{
+  "schemaVersion": 1,
+  "current": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "currentTree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+  "qualifiedInstallReportedBaseline": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "baselineTree": "19ee55e0a411f68b2a7e239544786e7f9987b892",
+  "manifestCount": 19,
+  "operands": [
+    {
+      "path": "apps/api-strategy/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c337ade2465a1d6a75010077e6fbdb7294e167ce"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c337ade2465a1d6a75010077e6fbdb7294e167ce"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a"
+      },
+      "exact": false
+    },
+    {
+      "path": "apps/clio-sandbox/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "981e98000c94494ce902082305799968c21410d5"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "981e98000c94494ce902082305799968c21410d5"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/defense-api/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "79c0157b7c5c08e096dff3bfec9c93d8a603bc95"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "79c0157b7c5c08e096dff3bfec9c93d8a603bc95"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/e2e/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ada02f00848d03f4df7ea4552d42cd438b744e2c"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ada02f00848d03f4df7ea4552d42cd438b744e2c"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/intel-api/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f604aad45b909a442827d9ccd3cfa58a48a5eeef"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f604aad45b909a442827d9ccd3cfa58a48a5eeef"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c86afa81acbdb66e01dda6bf059e3eec4a0d9375"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c86afa81acbdb66e01dda6bf059e3eec4a0d9375"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/onboard-api/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "be1945a1c588f7ded952f17cad981834aee3d901"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "be1945a1c588f7ded952f17cad981834aee3d901"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/onboard-web/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6465a55d9d163027811e180ce37c69180b38cf59"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6465a55d9d163027811e180ce37c69180b38cf59"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/web/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f6ff939f15e33fa1f4a9e2268e701c66b01741c7"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f6ff939f15e33fa1f4a9e2268e701c66b01741c7"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c4ef8a3c3a39f2877e759141c987929ff785ca51"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c4ef8a3c3a39f2877e759141c987929ff785ca51"
+      },
+      "exact": true
+    },
+    {
+      "path": "package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/auth/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-client/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "57a0ce37e11203f6253cee0874aef519886faa43"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "57a0ce37e11203f6253cee0874aef519886faa43"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-contracts/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02871c2ccf00d583632bbfbe412582404a55e18c"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02871c2ccf00d583632bbfbe412582404a55e18c"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f35b337f65180b29a7072a41f2a0cff4d03e5b52"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f35b337f65180b29a7072a41f2a0cff4d03e5b52"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b8469e8303f277ccf029180d011174e0a5e63e44"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b8469e8303f277ccf029180d011174e0a5e63e44"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/shared/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/strategy-verifier/package.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7c89dceb805b7bc88802a8cd5f71abdf22328eac"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7c89dceb805b7bc88802a8cd5f71abdf22328eac"
+      },
+      "exact": true
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58"
+      },
+      "exact": true
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5"
+      },
+      "exact": true
+    },
+    {
+      "path": ".npmrc",
+      "baseline": null,
+      "current": null,
+      "exact": true
+    },
+    {
+      "path": "tsconfig.base.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+      },
+      "exact": true
+    },
+    {
+      "path": "turbo.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.build.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7dd226f439717a3af68152f01118a60b2e8671fd"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7dd226f439717a3af68152f01118a60b2e8671fd"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/nest-cli.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f068a1e1ced8df87217cd28c62fcae3a3d319b4"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f068a1e1ced8df87217cd28c62fcae3a3d319b4"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "00998e78899becc7dc52818f3f81c2cb88f46f39"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "00998e78899becc7dc52818f3f81c2cb88f46f39"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cff5b3a8506d1a290987883f0ed773b2118da169"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cff5b3a8506d1a290987883f0ed773b2118da169"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/auth/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7069a40a273757ed9abe4c8eda8d7b9ebd4f6912"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7069a40a273757ed9abe4c8eda8d7b9ebd4f6912"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-contracts/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9460ae94af000a6643b92829d299fa54858f7840"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9460ae94af000a6643b92829d299fa54858f7840"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/tsconfig.json",
+      "baseline": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "410e389b6dc669e990526cdb19154a52373d2461"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "410e389b6dc669e990526cdb19154a52373d2461"
+      },
+      "exact": true
+    }
+  ],
+  "apiManifestFieldDelta": {
+    "scripts": {
+      "baseline": {
+        "build": "nest build",
+        "dev": "nest start --watch",
+        "start": "node dist/main.js",
+        "lint": "eslint src --ext .ts",
+        "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+        "test:e2e": "jest --config jest.e2e.config.cjs --runInBand --detectOpenHandles --forceExit",
+        "verify:engagement-phase-0": "tsx scripts/engagement-phase0-route-manifest.ts && tsx scripts/engagement-phase0-dependency-manifest.ts && tsx scripts/engagement-phase0-side-effect-verify.ts",
+        "verify:engagement-phase-0:update-fixtures": "tsx scripts/engagement-phase0-route-manifest.ts --write && tsx scripts/engagement-phase0-dependency-manifest.ts --write",
+        "dev:engagement-api": "tsx watch src/engagement-main.ts",
+        "start:engagement-api": "node dist/engagement-main.js",
+        "verify:engagement-phase-1": "jest --runInBand --forceExit src/bootstrap/configure-api-http-app.spec.ts src/engagement-api.app.module.spec.ts src/engagement-api/engagement-api-health.controller.spec.ts src/engagement/runtime src/engagement/engagement-sync-scheduler.service.spec.ts src/engagement/outreach-job.spec.ts src/engagement/outreach-send-intent.service.spec.ts src/engagement/notetaker/notetaker.service.spec.ts src/engagement/mail-sender.service.spec.ts src/engagement/llm-completion.service.spec.ts",
+        "eval:clio": "tsx scripts/eval-clio.ts",
+        "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",
+        "eval:clio:compaction": "tsx scripts/eval-clio-compaction.ts",
+        "eval:clio:thinking": "tsx scripts/eval-clio-thinking.ts",
+        "eval:clio:kb": "tsx scripts/eval-clio-kb.ts",
+        "eval:clio:mcp-injection": "tsx scripts/eval-clio-mcp-injection.ts",
+        "eval:clio:tool-selection": "tsx scripts/eval-clio-tool-selection.ts",
+        "eval:clio:analysis": "tsx scripts/eval-clio-analysis.ts",
+        "eval:meri:government-affairs": "tsx scripts/eval-meri-government-affairs.ts --offline",
+        "eval:outreach": "tsx scripts/eval-outreach.ts",
+        "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",
+        "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",
+        "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",
+        "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",
+        "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",
+        "diag:tango-health": "tsx scripts/diag-tango-health.ts",
+        "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",
+        "audit:pe-zero-request": "tsx scripts/audit-pe-zero-request.ts",
+        "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",
+        "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",
+        "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",
+        "reclaim:google-mail": "tsx scripts/reclaim-google-mail.ts",
+        "backfill:mail-removal-state": "tsx scripts/backfill-mail-removal-state.ts",
+        "smoke:integrations": "tsx scripts/smoke-integrations.ts",
+        "refresh:memory-graph": "tsx scripts/refresh-memory-graph.ts",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate:dev": "prisma migrate dev",
+        "prisma:migrate:deploy": "prisma migrate deploy",
+        "prisma:studio": "prisma studio",
+        "prisma:reset": "prisma migrate reset --force",
+        "bootstrap:tenant": "tsx scripts/bootstrap-tenant.ts",
+        "bootstrap:capiro-admin": "tsx scripts/bootstrap-capiro-admin.ts",
+        "sync:openlobby": "tsx scripts/sync-openlobby.ts",
+        "sync:lobby-trending": "tsx scripts/sync-lobby-trending.ts",
+        "refresh:lobby-intel": "tsx scripts/refresh-lobby-intel-mv.ts",
+        "refresh:kg-edge-cache": "tsx scripts/refresh-kg-edge-cache.ts",
+        "sync:openspending": "tsx scripts/sync-openspending.ts",
+        "sync:lda": "tsx scripts/sync-lda.ts",
+        "sync:lda:incremental": "tsx scripts/sync-lda.ts --incremental",
+        "sync:fec": "tsx scripts/sync-fec.ts",
+        "sync:federal-award": "tsx scripts/sync-federal-award.ts",
+        "seed:federal-contractors-from-awards": "tsx scripts/seed-federal-contractors-from-awards.ts",
+        "sync:federal-assistance-awards": "tsx scripts/sync-federal-assistance-awards.ts",
+        "enrich:assistance-awards": "tsx scripts/enrich-assistance-award-details.ts",
+        "backfill:assistance-awards-bulk": "tsx scripts/backfill-assistance-awards-bulk.ts",
+        "prune:assistance-recipient-candidates": "tsx scripts/prune-stale-assistance-recipient-candidates.ts",
+        "extract:press-personnel": "tsx scripts/extract-personnel-from-press-releases.ts",
+        "sync:sam-personnel": "tsx scripts/sync-sam-personnel.ts",
+        "sync:sam-opportunities": "tsx scripts/sync-sam-opportunities.ts",
+        "sync:tango-entities": "tsx scripts/sync-tango-entities.ts",
+        "generate:tango-enrichment-candidates": "tsx scripts/generate-tango-enrichment-candidates.ts",
+        "review:tango-enrichment-candidate": "tsx scripts/review-tango-enrichment-candidate.ts",
+        "diag:federal-business-profile": "tsx scripts/diag-federal-business-profile.ts",
+        "sync:tango-vehicles": "tsx scripts/sync-tango-vehicles.ts",
+        "sync:tango-forecasts": "tsx scripts/sync-tango-forecasts.ts",
+        "sync:tango-subawards": "tsx scripts/sync-tango-subawards.ts",
+        "reconcile:tango-webhook-alerts": "tsx scripts/reconcile-tango-webhook-alerts.ts",
+        "process:tango-events": "tsx scripts/process-tango-events.ts",
+        "diag:funding-opportunities-makegov": "tsx scripts/diag-funding-opportunities-makegov.ts",
+        "diag:tango-webhook-contract": "tsx scripts/diag-tango-webhook-contract.ts",
+        "sync:sam-opportunities-all-federal": "tsx scripts/sync-sam-opportunities.ts --all-federal",
+        "match:pe-person": "tsx scripts/match-pe-person.ts",
+        "extract:hearing-witnesses": "tsx scripts/extract-hearing-witnesses.ts",
+        "sync:hearing-transcripts": "tsx scripts/sync-hearing-transcripts.ts",
+        "extract:gao-interviewees": "tsx scripts/extract-gao-interviewees.ts",
+        "sync:fec-pac": "tsx scripts/sync-fec-pac.ts",
+        "sync:entity-resolution": "tsx scripts/sync-entity-resolution.ts",
+        "enrich:award-districts": "tsx scripts/enrich-award-districts.ts",
+        "enrich:award-pe": "tsx scripts/enrich-award-pe.ts",
+        "seed:acq-program-map": "tsx scripts/seed-acq-program-map.ts",
+        "seed:programs": "tsx scripts/seed-programs.ts",
+        "match:pe-program": "tsx scripts/match-pe-program.ts",
+        "report:award-pe-coverage": "tsx scripts/report-award-pe-coverage.ts",
+        "report:pe-coverage": "tsx scripts/report-pe-coverage.ts",
+        "rebuild:pe-years": "tsx scripts/rebuild-program-element-years.ts",
+        "normalize:pe-units": "tsx scripts/normalize-pe-units.ts",
+        "diag:stale-directory": "tsx scripts/diag-stale-directory.ts",
+        "diag:reconciliation-units": "tsx scripts/diag-reconciliation-units.ts",
+        "reconcile:personnel-supersede": "tsx scripts/reconcile-personnel-supersede.ts",
+        "reconcile:stale-pes": "tsx scripts/reconcile-stale-pes.ts",
+        "repair:person-pe-links": "tsx scripts/repair-person-pe-links.ts",
+        "sync:congress": "tsx scripts/sync-congress.ts",
+        "sync:federal-legislative-evidence": "tsx scripts/sync-federal-legislative-evidence.ts",
+        "drain:federal-evidence-outbox": "tsx scripts/drain-federal-evidence-outbox.ts",
+        "qualify:package3-congressional": "tsx scripts/qualify-package3-congressional-artifact.ts --run",
+        "qualify:package4-legislative-updates": "tsx scripts/qualify-package4-legislative-updates.ts",
+        "sync:program-acquisition-continuity": "tsx scripts/sync-program-acquisition-continuity.ts",
+        "qualify:package5-program-acquisition": "tsx scripts/qualify-package5-program-acquisition.ts",
+        "typecheck:package5": "tsc -p tsconfig.package5.json --noEmit",
+        "sync:florida-official-committees": "tsx scripts/sync-florida-official-committees.ts",
+        "ingest:florida-legislative-directories": "tsx scripts/ingest-florida-legislative-directories.ts",
+        "extract:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py",
+        "verify:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py --check",
+        "extract:bill-pe-codes": "tsx scripts/extract-bill-pe-codes.ts",
+        "ingest:defense-budget": "tsx scripts/ingest-defense-budget-pdf.ts",
+        "ingest:cpf-cds": "tsx scripts/ingest-cpf-cds.ts",
+        "sync:gsa-frpp": "tsx scripts/sync-gsa-frpp.ts",
+        "parse:hasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber HASC",
+        "parse:sasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber SASC",
+        "parse:hac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber HAC-D",
+        "parse:sac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber SAC-D",
+        "parse:ndaa-conference": "tsx scripts/parse-ndaa-conference.ts",
+        "parse:defense-approps-public-law": "tsx scripts/parse-defense-approps-public-law.ts",
+        "parse:pdoc": "tsx scripts/parse-pdoc-army.ts",
+        "convert:defense-budget-artifact": "tsx scripts/convert-defense-budget-artifact.ts",
+        "validate:defense-budget-artifact": "tsx scripts/validate-defense-budget-extraction-artifact.ts",
+        "validate:defense-budget-manifest": "tsx scripts/validate-defense-budget-cycle-manifest.ts",
+        "verify:pe-budget-phase-1": "jest --runInBand --forceExit src/defense-budget/contracts src/defense-budget/assertion-mapper.spec.ts src/defense-budget/verification",
+        "verify:pe-budget-phase-2": "jest --runInBand --forceExit src/defense-budget/verification src/defense-budget/contracts",
+        "verify:pe-budget-phase-3": "jest --runInBand --forceExit src/defense-budget/parser-router",
+        "verify:pe-budget-phase-4": "jest --runInBand --forceExit src/defense-budget/rdte && tsx scripts/verify-rdte-phase-4-safety.ts",
+        "verify:pe-budget-phase-5": "jest --runInBand --forceExit src/defense-budget/non-rdte src/defense-budget/procurement src/defense-budget/om src/defense-budget/milcon src/defense-budget/contracts/family-completeness-profiles-v1.spec.ts",
+        "phase6:extract-stage": "tsx scripts/phase6-stage-cycle.ts --command extract_stage_document",
+        "phase6:compose-authorization": "tsx scripts/phase6-stage-cycle.ts --command compose_authorization_cycle",
+        "phase6:compose-appropriations": "tsx scripts/phase6-stage-cycle.ts --command compose_appropriations_cycle",
+        "phase6:compose-post-enactment": "tsx scripts/phase6-stage-cycle.ts --command compose_post_enactment_evidence",
+        "phase6:verify-cycle": "tsx scripts/phase6-stage-cycle.ts --command verify_full_stage_cycle",
+        "phase6:report-cycle": "tsx scripts/phase6-stage-cycle.ts --command report_cycle_certification",
+        "verify:pe-budget-phase-6": "prisma generate --schema prisma/phase6-projection/schema.prisma && prisma validate --schema prisma/phase6-projection/schema.prisma && tsc -p tsconfig.phase6.json --noEmit && jest --runInBand --forceExit src/defense-budget/stages src/defense-budget/phase6 src/defense-budget/verification && tsx scripts/verify-pe-budget-phase6-negative-controls.ts --run && tsx scripts/verify-pe-budget-phase6-safety.ts",
+        "verify:pe-budget-phase6-producer:db": "bash scripts/phase6-producer-rehearsal.sh",
+        "verify:pe-budget-phase-6:db": "bash scripts/phase6-projection-rehearsal.sh",
+        "typecheck:phase7": "tsc -p tsconfig.phase7.json --noEmit",
+        "typecheck:legiwatch-phase7": "tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+        "verify:pe-budget-phase-7": "prisma generate && tsc -p tsconfig.phase7.json --noEmit && jest --runInBand --forceExit src/defense-budget/promotion src/defense-budget/projection-plan src/program-element/snapshot && tsx scripts/verify-pe-budget-phase-7-negative-controls.ts --run && tsx scripts/verify-pe-budget-phase-7-safety.ts",
+        "verify:pe-budget-phase-7:fast": "prisma generate && tsc -p tsconfig.phase7.json --noEmit && jest --runInBand --forceExit src/defense-budget/promotion src/defense-budget/projection-plan src/program-element/snapshot && tsx scripts/verify-pe-budget-phase-7-safety.ts",
+        "verify:pe-budget-phase-7:db": "node scripts/run-pe-budget-phase7-migration-rehearsal.mjs --run",
+        "verify:pe-budget-phase-10b31": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit src/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts && tsx scripts/verify-pe-budget-phase-10b31-metadata-regression.ts --run",
+        "verify:pe-budget-phase-10b31:db": "bash scripts/phase10b31-metadata-regression-rehearsal.sh",
+        "verify:pe-budget-phase-6:full": "bash scripts/verify-pe-budget-phase6-closeout.sh",
+        "build:rdte-cycle": "tsx scripts/build-rdte-cycle.ts",
+        "report:rdte-cycle": "tsx scripts/report-rdte-cycle.ts",
+        "plan:rdte-projection": "tsx scripts/plan-rdte-canonical-projection.ts",
+        "profile:defense-budget-document": "tsx scripts/profile-defense-budget-document.ts",
+        "plan:defense-budget-parse": "tsx scripts/plan-defense-budget-parse.ts",
+        "extract:defense-budget-cycle": "tsx scripts/extract-defense-budget-cycle.ts",
+        "replay:defense-budget-parser-artifact": "tsx scripts/replay-defense-budget-parser-artifact.ts",
+        "verify:defense-budget-artifact-v1": "tsx scripts/verify-defense-budget-extraction-v1.ts",
+        "review:defense-budget-verification-v1": "tsx scripts/review-defense-budget-verification-v1.ts",
+        "review:defense-budget-scoped-fact-v1": "tsx scripts/review-defense-budget-scoped-fact-v1.ts",
+        "revoke:defense-budget-scoped-fact-v1": "tsx scripts/revoke-defense-budget-scoped-fact-v1.ts",
+        "correct:defense-budget-candidate-v1": "tsx scripts/correct-defense-budget-candidate-v1.ts",
+        "replace:defense-budget-candidate-approvals-v1": "tsx scripts/replace-defense-budget-candidate-approvals-v1.ts",
+        "verify:replace-defense-budget-candidate-approvals-v1:db": "bash scripts/replace-defense-budget-candidate-approvals-v1-rehearsal.sh",
+        "verify:phase10b35-scoped-review-e2e:db": "bash scripts/phase10b35-scoped-review-e2e-rehearsal.sh",
+        "verify:phase10b35c-candidate-correction-e2e:db": "bash scripts/phase10b35c-candidate-correction-e2e-rehearsal.sh",
+        "verify:qualify-defense-budget-drain-image-v1:db": "bash scripts/qualify-defense-budget-drain-image-v1-rehearsal.sh",
+        "report:defense-budget-verification-cycle-v1": "tsx scripts/report-defense-budget-verification-cycle-v1.ts",
+        "snapshot:defense-budget-package0-v1": "tsx scripts/snapshot-defense-budget-package0-v1.ts",
+        "backfill:source-documents": "tsx scripts/backfill-source-documents.ts",
+        "verify:budget-reconciliation": "tsx scripts/verify-budget-reconciliation.ts",
+        "load:defense-budget-package": "tsx scripts/load-defense-budget-package.ts",
+        "verify:defense-budget-packages": "tsx scripts/verify-defense-budget-packages.ts --verify",
+        "deltas:compute": "tsx scripts/compute-budget-deltas.ts",
+        "measure:accuracy": "tsx scripts/measure-accuracy.ts",
+        "backfill:program-offices": "tsx scripts/backfill-program-offices.ts",
+        "reconcile:person-role-staleness": "tsx scripts/reconcile-person-role-staleness.ts",
+        "generate:actions": "tsx scripts/generate-actions.ts",
+        "sync:report-provisions": "tsx scripts/sync-report-provisions.ts",
+        "sync:federal-register": "tsx scripts/sync-federal-register.ts",
+        "sync:regulations": "tsx scripts/sync-regulations.ts",
+        "sync:sec": "tsx scripts/sync-sec-edgar.ts",
+        "sync:fara": "tsx scripts/sync-fara.ts",
+        "sync:fara-enrichment": "tsx scripts/sync-fara-enrichment.ts",
+        "sync:bls": "tsx scripts/sync-bls.ts",
+        "sync:census": "tsx scripts/sync-census.ts",
+        "sync:bea": "tsx scripts/sync-bea.ts",
+        "sync:grants": "tsx scripts/sync-grants.ts",
+        "sync:california-grants": "tsx src/california-grants/california-grants-ingestion.ts",
+        "sync:grants:reconcile": "tsx scripts/sync-grants.ts --all-statuses",
+        "enrich:grant-details": "tsx scripts/enrich-grant-details.ts",
+        "generate:grant-opportunity-candidates": "tsx scripts/generate-grant-opportunity-candidates.ts",
+        "match:contractor-identifiers": "tsx scripts/match-contractor-identifiers.ts",
+        "backfill:sam-opportunity-fields": "tsx scripts/backfill-sam-opportunity-fields.ts",
+        "sync:gao": "tsx scripts/sync-gao.ts",
+        "sync:openstates": "tsx scripts/sync-openstates.ts",
+        "sync:openstates-events": "tsx scripts/sync-openstates-events.ts",
+        "sync:crs": "tsx scripts/sync-crs.ts",
+        "sync:rss": "tsx scripts/sync-rss-intel.ts",
+        "sync:member-press": "tsx scripts/sync-member-press.ts",
+        "sync:legistorm-directory": "tsx scripts/sync-legistorm-directory.ts",
+        "sync:legistorm-districts": "tsx scripts/sync-legistorm-districts.ts",
+        "build:district-boundary-artifacts": "tsx scripts/build-district-boundary-artifacts.ts",
+        "sync:legistorm-trips": "tsx scripts/sync-legistorm-trips.ts",
+        "sync:hearings": "tsx scripts/sync-hearings.ts",
+        "discover:hearings": "tsx scripts/discover-hearings.ts",
+        "enrich:committee-hearings": "tsx scripts/enrich-committee-hearings.ts",
+        "detect:committee-site-updates": "tsx scripts/detect-committee-site-updates.ts",
+        "probe:committee-sources": "tsx scripts/probe-committee-sources.ts",
+        "reconcile:hearing-archives": "tsx scripts/reconcile-hearing-archives.ts",
+        "audit:hearing-coverage": "tsx scripts/audit-hearing-coverage.ts",
+        "sync:dod-orgcharts": "tsx scripts/sync-dod-orgcharts.ts",
+        "sync:dod-press-personnel": "tsx scripts/sync-dod-press-personnel.ts",
+        "seed:program-element": "tsx scripts/seed-program-element-fixtures.ts --run",
+        "import:stanford-dow": "tsx scripts/import-stanford-dow-directory.ts --import",
+        "parse:dow-directory": "tsx scripts/parse-dow-directory.ts --parse",
+        "recompute:conference-probability": "tsx scripts/recompute-conference-probability.ts",
+        "sync:all": "tsx scripts/sync-congress.ts && tsx scripts/sync-sec-edgar.ts && tsx scripts/sync-fara.ts && tsx scripts/sync-bls.ts && tsx scripts/sync-census.ts && tsx scripts/sync-hearings.ts && tsx scripts/sync-rss-intel.ts",
+        "embed:backfill": "tsx scripts/embed-backfill.ts",
+        "generate:meeting-briefings": "tsx scripts/generate-meeting-briefings.ts",
+        "load:defense-budget": "tsx scripts/sync-comptroller-jbooks.ts --commit && tsx scripts/sync-jbook-r2.ts --commit && tsx scripts/sync-jbook-performers.ts --commit && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2026.json --chamber HASC --fy 2026 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2027.json --chamber HASC --fy 2027 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_sasc_fy2026.json --chamber SASC --fy 2026 && tsx scripts/sync-peo-rosters.ts --commit && tsx scripts/seed-programs.ts --commit && tsx scripts/match-pe-program.ts --apply && tsx scripts/backfill-program-offices.ts --commit && tsx scripts/sync-sam-opportunities.ts --commit && tsx scripts/compute-budget-deltas.ts --commit && tsx scripts/generate-actions.ts --commit",
+        "verify:pe-phase-a": "tsx scripts/verify-pe-phase-a-safety.ts",
+        "verify:pe-phase-b": "jest --runInBand --forceExit src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts scripts/lib/pe-ingestion-mode.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/ingest-defense-budget-replay.spec.ts src/program-element/source-document/source-document-registry.spec.ts",
+        "verify:pe-phase-c": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-read.service.spec.ts src/program-element/program-element-watch.tenant-isolation.spec.ts scripts/send-pe-alert-emails.watch-isolation.spec.ts scripts/lib/pe-watch-tenant-isolation.spec.ts src/program-element/deltas/delta-engine.service.spec.ts src/program-element/extractors/bill-pe-extractor.spec.ts src/program-element/program-element-writer.service.spec.ts src/prisma/tenant-scope-guard.spec.ts",
+        "drain:pe-change-outbox": "tsx scripts/drain-pe-change-outbox.ts",
+        "backfill:pe-observation-keys": "tsx scripts/backfill-pe-observation-keys.ts",
+        "verify:pe-phase-d": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-field-ownership.spec.ts src/program-element/program-element-raw-merge.spec.ts src/program-element/reconciliation/reconciliation.service.spec.ts src/program-element/program-element-change-outbox.service.spec.ts src/program-element/program-element-writer.service.spec.ts scripts/backfill-pe-observation-keys.spec.ts scripts/drain-pe-change-outbox.spec.ts",
+        "verify:pe-phase-e": "jest --runInBand --forceExit scripts/lib/pe-exact-sha-loader-contract.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/lib/pe-ingestion-mode.spec.ts && tsx scripts/verify-pe-phase-e-exact-sha.ts",
+        "process:funding-opportunity-lifecycle": "tsx scripts/process-funding-opportunity-lifecycle.ts",
+        "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts",
+        "verify:pe-phase-f": "jest --runInBand --detectOpenHandles --forceExit src/ingestion/embed-watermark.spec.ts src/ingestion/sync-run.helper.spec.ts scripts/sam-opportunity-matcher.spec.ts scripts/sync-sam-opportunities.spec.ts",
+        "verify:pe-phase-g": "jest --runInBand --forceExit src/program-element/funding-claim.spec.ts src/program-element/deltas/delta-compute.spec.ts src/program-element/pe-funding-narrative.helpers.spec.ts src/program-element/program-element-read.service.spec.ts src/program-element/budget-position.spec.ts",
+        "verify:pe-phase-i": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-data-issue.service.spec.ts src/acquisition-personnel/contact-use.policy.spec.ts src/acquisition-personnel/acquisition-personnel-read.service.spec.ts src/acquisition-personnel/acquisition-personnel.controller.spec.ts src/program-element/program-element.controller.spec.ts",
+        "verify:pe-phase-j": "jest --runInBand --detectOpenHandles --forceExit src/program-element/defense-budget-grounding.spec.ts src/program-element/program-element-field-ownership.spec.ts src/meri/meri-domain-fanout.helpers.spec.ts src/meri/meri-pe-structural.helpers.spec.ts src/meri/meri-defense-budget-tool.helpers.spec.ts src/meri/meri-tools.defense-budget.spec.ts src/meri/meri-defense-budget-phase-j.eval.spec.ts",
+        "typecheck:pe-scripts": "tsc -p tsconfig.pe-scripts.json --noEmit",
+        "lint:pe-scripts": "tsx scripts/lint-pe-scripts.ts",
+        "test:pe-trust": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts",
+        "verify:pe-phase-k": "pnpm run typecheck:pe-scripts && pnpm run lint:pe-scripts && pnpm run test:pe-trust && tsx scripts/verify-pe-migration-guards.ts",
+        "verify:pe-migration-guards": "tsx scripts/verify-pe-migration-guards.ts",
+        "verify:pe-phase-9": "tsx scripts/verify-pe-phase-9.ts --run",
+        "verify:pe-phase-9:full": "tsx scripts/verify-pe-phase-9.ts --full --skip-install",
+        "verify:pe-phase-9:backend": "tsx scripts/verify-pe-phase-9.ts --backend-only --run",
+        "verify:pe-phase-9:backend:dry-run": "tsx scripts/verify-pe-phase-9.ts --backend-only --dry-run",
+        "verify:pe-phase-10": "tsx scripts/verify-pe-phase-10.ts --run",
+        "rehearse:pe-phase-9-migrations": "bash scripts/pe-phase-9-migration-replay.sh",
+        "probe:pe-phase-10-staging": "bash scripts/pe-phase-10-staging-probe.sh",
+        "ingest:cpf-cds:campaign": "tsx scripts/run-cpf-cds-campaign.ts",
+        "replay:pe-budget-phase-10b31-recovered-artifact": "tsx scripts/phase10b31-replay-recovered-artifact.ts",
+        "reextract:defense-budget-candidate-v1": "tsx scripts/reextract-defense-budget-candidate-v1.ts",
+        "run:defense-budget-ingestion-manifest-v1": "tsx scripts/run-defense-budget-ingestion-manifest-v1.ts",
+        "funding-execution-certification": "tsx scripts/funding-execution-certification-worker.ts",
+        "funding-execution-source-adapter": "tsx scripts/funding-execution-source-adapter.ts",
+        "test:funding-execution-source-adapter": "jest --runInBand --forceExit src/funding-execution/funding-execution-source-adapter.service.spec.ts",
+        "test:funding-execution": "jest --runInBand --forceExit src/program-element/funding-execution scripts/funding-execution-certification-worker.spec.ts",
+        "qualify:package6-funding-execution": "tsx scripts/qualify-package6-funding-execution.ts",
+        "typecheck:package6": "tsc -p tsconfig.package6.json --noEmit",
+        "typecheck:defense-budget-ingestion-manifest-v1": "tsc -p tsconfig.defense-budget-ingestion-manifest-v1.json --noEmit",
+        "verify:defense-budget-ingestion-manifest-v1": "jest --runInBand --forceExit src/defense-budget/governed-ingestion-manifest scripts/run-defense-budget-ingestion-manifest-v1.spec.ts",
+        "qualify:package9:durable": "tsx scripts/package9-durable-qualification.ts --run",
+        "qualify:package9:product-query": "node ../../scripts/package9-product-query-benchmark.mjs --run",
+        "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --coverage --coverageReporters=json-summary --coverageReporters=text --maxWorkers=2",
+        "test:diagnose-open-handles": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit --runInBand"
+      },
+      "current": {
+        "build": "nest build",
+        "dev": "nest start --watch",
+        "start": "node dist/main.js",
+        "lint": "eslint src --ext .ts",
+        "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+        "test:e2e": "jest --config jest.e2e.config.cjs --runInBand --detectOpenHandles --forceExit",
+        "verify:engagement-phase-0": "tsx scripts/engagement-phase0-route-manifest.ts && tsx scripts/engagement-phase0-dependency-manifest.ts && tsx scripts/engagement-phase0-side-effect-verify.ts",
+        "verify:engagement-phase-0:update-fixtures": "tsx scripts/engagement-phase0-route-manifest.ts --write && tsx scripts/engagement-phase0-dependency-manifest.ts --write",
+        "dev:engagement-api": "tsx watch src/engagement-main.ts",
+        "start:engagement-api": "node dist/engagement-main.js",
+        "verify:engagement-phase-1": "jest --runInBand --forceExit src/bootstrap/configure-api-http-app.spec.ts src/engagement-api.app.module.spec.ts src/engagement-api/engagement-api-health.controller.spec.ts src/engagement/runtime src/engagement/engagement-sync-scheduler.service.spec.ts src/engagement/outreach-job.spec.ts src/engagement/outreach-send-intent.service.spec.ts src/engagement/notetaker/notetaker.service.spec.ts src/engagement/mail-sender.service.spec.ts src/engagement/llm-completion.service.spec.ts",
+        "eval:clio": "tsx scripts/eval-clio.ts",
+        "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",
+        "eval:clio:compaction": "tsx scripts/eval-clio-compaction.ts",
+        "eval:clio:thinking": "tsx scripts/eval-clio-thinking.ts",
+        "eval:clio:kb": "tsx scripts/eval-clio-kb.ts",
+        "eval:clio:mcp-injection": "tsx scripts/eval-clio-mcp-injection.ts",
+        "eval:clio:tool-selection": "tsx scripts/eval-clio-tool-selection.ts",
+        "eval:clio:analysis": "tsx scripts/eval-clio-analysis.ts",
+        "eval:meri:government-affairs": "tsx scripts/eval-meri-government-affairs.ts --offline",
+        "eval:outreach": "tsx scripts/eval-outreach.ts",
+        "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",
+        "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",
+        "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",
+        "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",
+        "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",
+        "diag:tango-health": "tsx scripts/diag-tango-health.ts",
+        "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",
+        "audit:pe-zero-request": "tsx scripts/audit-pe-zero-request.ts",
+        "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",
+        "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",
+        "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",
+        "reclaim:google-mail": "tsx scripts/reclaim-google-mail.ts",
+        "backfill:mail-removal-state": "tsx scripts/backfill-mail-removal-state.ts",
+        "smoke:integrations": "tsx scripts/smoke-integrations.ts",
+        "refresh:memory-graph": "tsx scripts/refresh-memory-graph.ts",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate:dev": "prisma migrate dev",
+        "prisma:migrate:deploy": "prisma migrate deploy",
+        "prisma:studio": "prisma studio",
+        "prisma:reset": "prisma migrate reset --force",
+        "bootstrap:tenant": "tsx scripts/bootstrap-tenant.ts",
+        "bootstrap:capiro-admin": "tsx scripts/bootstrap-capiro-admin.ts",
+        "sync:openlobby": "tsx scripts/sync-openlobby.ts",
+        "sync:lobby-trending": "tsx scripts/sync-lobby-trending.ts",
+        "refresh:lobby-intel": "tsx scripts/refresh-lobby-intel-mv.ts",
+        "refresh:kg-edge-cache": "tsx scripts/refresh-kg-edge-cache.ts",
+        "sync:openspending": "tsx scripts/sync-openspending.ts",
+        "sync:lda": "tsx scripts/sync-lda.ts",
+        "sync:lda:incremental": "tsx scripts/sync-lda.ts --incremental",
+        "sync:fec": "tsx scripts/sync-fec.ts",
+        "sync:federal-award": "tsx scripts/sync-federal-award.ts",
+        "seed:federal-contractors-from-awards": "tsx scripts/seed-federal-contractors-from-awards.ts",
+        "sync:federal-assistance-awards": "tsx scripts/sync-federal-assistance-awards.ts",
+        "enrich:assistance-awards": "tsx scripts/enrich-assistance-award-details.ts",
+        "backfill:assistance-awards-bulk": "tsx scripts/backfill-assistance-awards-bulk.ts",
+        "prune:assistance-recipient-candidates": "tsx scripts/prune-stale-assistance-recipient-candidates.ts",
+        "extract:press-personnel": "tsx scripts/extract-personnel-from-press-releases.ts",
+        "sync:sam-personnel": "tsx scripts/sync-sam-personnel.ts",
+        "sync:sam-opportunities": "tsx scripts/sync-sam-opportunities.ts",
+        "sync:tango-entities": "tsx scripts/sync-tango-entities.ts",
+        "generate:tango-enrichment-candidates": "tsx scripts/generate-tango-enrichment-candidates.ts",
+        "review:tango-enrichment-candidate": "tsx scripts/review-tango-enrichment-candidate.ts",
+        "diag:federal-business-profile": "tsx scripts/diag-federal-business-profile.ts",
+        "sync:tango-vehicles": "tsx scripts/sync-tango-vehicles.ts",
+        "sync:tango-forecasts": "tsx scripts/sync-tango-forecasts.ts",
+        "sync:tango-subawards": "tsx scripts/sync-tango-subawards.ts",
+        "reconcile:tango-webhook-alerts": "tsx scripts/reconcile-tango-webhook-alerts.ts",
+        "process:tango-events": "tsx scripts/process-tango-events.ts",
+        "diag:funding-opportunities-makegov": "tsx scripts/diag-funding-opportunities-makegov.ts",
+        "diag:tango-webhook-contract": "tsx scripts/diag-tango-webhook-contract.ts",
+        "sync:sam-opportunities-all-federal": "tsx scripts/sync-sam-opportunities.ts --all-federal",
+        "match:pe-person": "tsx scripts/match-pe-person.ts",
+        "extract:hearing-witnesses": "tsx scripts/extract-hearing-witnesses.ts",
+        "sync:hearing-transcripts": "tsx scripts/sync-hearing-transcripts.ts",
+        "extract:gao-interviewees": "tsx scripts/extract-gao-interviewees.ts",
+        "sync:fec-pac": "tsx scripts/sync-fec-pac.ts",
+        "sync:entity-resolution": "tsx scripts/sync-entity-resolution.ts",
+        "enrich:award-districts": "tsx scripts/enrich-award-districts.ts",
+        "enrich:award-pe": "tsx scripts/enrich-award-pe.ts",
+        "seed:acq-program-map": "tsx scripts/seed-acq-program-map.ts",
+        "seed:programs": "tsx scripts/seed-programs.ts",
+        "match:pe-program": "tsx scripts/match-pe-program.ts",
+        "report:award-pe-coverage": "tsx scripts/report-award-pe-coverage.ts",
+        "report:pe-coverage": "tsx scripts/report-pe-coverage.ts",
+        "rebuild:pe-years": "tsx scripts/rebuild-program-element-years.ts",
+        "normalize:pe-units": "tsx scripts/normalize-pe-units.ts",
+        "diag:stale-directory": "tsx scripts/diag-stale-directory.ts",
+        "diag:reconciliation-units": "tsx scripts/diag-reconciliation-units.ts",
+        "reconcile:personnel-supersede": "tsx scripts/reconcile-personnel-supersede.ts",
+        "reconcile:stale-pes": "tsx scripts/reconcile-stale-pes.ts",
+        "repair:person-pe-links": "tsx scripts/repair-person-pe-links.ts",
+        "sync:congress": "tsx scripts/sync-congress.ts",
+        "sync:federal-legislative-evidence": "tsx scripts/sync-federal-legislative-evidence.ts",
+        "drain:federal-evidence-outbox": "tsx scripts/drain-federal-evidence-outbox.ts",
+        "qualify:package3-congressional": "tsx scripts/qualify-package3-congressional-artifact.ts --run",
+        "qualify:package4-legislative-updates": "tsx scripts/qualify-package4-legislative-updates.ts",
+        "sync:program-acquisition-continuity": "tsx scripts/sync-program-acquisition-continuity.ts",
+        "qualify:package5-program-acquisition": "tsx scripts/qualify-package5-program-acquisition.ts",
+        "typecheck:package5": "tsc -p tsconfig.package5.json --noEmit",
+        "sync:florida-official-committees": "tsx scripts/sync-florida-official-committees.ts",
+        "ingest:florida-legislative-directories": "tsx scripts/ingest-florida-legislative-directories.ts",
+        "extract:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py",
+        "verify:florida-legislative-directories": "python scripts/extract-florida-legislative-directories.py --check",
+        "extract:bill-pe-codes": "tsx scripts/extract-bill-pe-codes.ts",
+        "ingest:defense-budget": "tsx scripts/ingest-defense-budget-pdf.ts",
+        "ingest:cpf-cds": "tsx scripts/ingest-cpf-cds.ts",
+        "sync:gsa-frpp": "tsx scripts/sync-gsa-frpp.ts",
+        "parse:hasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber HASC",
+        "parse:sasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber SASC",
+        "parse:hac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber HAC-D",
+        "parse:sac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber SAC-D",
+        "parse:ndaa-conference": "tsx scripts/parse-ndaa-conference.ts",
+        "parse:defense-approps-public-law": "tsx scripts/parse-defense-approps-public-law.ts",
+        "parse:pdoc": "tsx scripts/parse-pdoc-army.ts",
+        "convert:defense-budget-artifact": "tsx scripts/convert-defense-budget-artifact.ts",
+        "validate:defense-budget-artifact": "tsx scripts/validate-defense-budget-extraction-artifact.ts",
+        "validate:defense-budget-manifest": "tsx scripts/validate-defense-budget-cycle-manifest.ts",
+        "verify:pe-budget-phase-1": "jest --runInBand --forceExit src/defense-budget/contracts src/defense-budget/assertion-mapper.spec.ts src/defense-budget/verification",
+        "verify:pe-budget-phase-2": "jest --runInBand --forceExit src/defense-budget/verification src/defense-budget/contracts",
+        "verify:pe-budget-phase-3": "jest --runInBand --forceExit src/defense-budget/parser-router",
+        "verify:pe-budget-phase-4": "jest --runInBand --forceExit src/defense-budget/rdte && tsx scripts/verify-rdte-phase-4-safety.ts",
+        "verify:pe-budget-phase-5": "jest --runInBand --forceExit src/defense-budget/non-rdte src/defense-budget/procurement src/defense-budget/om src/defense-budget/milcon src/defense-budget/contracts/family-completeness-profiles-v1.spec.ts",
+        "phase6:extract-stage": "tsx scripts/phase6-stage-cycle.ts --command extract_stage_document",
+        "phase6:compose-authorization": "tsx scripts/phase6-stage-cycle.ts --command compose_authorization_cycle",
+        "phase6:compose-appropriations": "tsx scripts/phase6-stage-cycle.ts --command compose_appropriations_cycle",
+        "phase6:compose-post-enactment": "tsx scripts/phase6-stage-cycle.ts --command compose_post_enactment_evidence",
+        "phase6:verify-cycle": "tsx scripts/phase6-stage-cycle.ts --command verify_full_stage_cycle",
+        "phase6:report-cycle": "tsx scripts/phase6-stage-cycle.ts --command report_cycle_certification",
+        "verify:pe-budget-phase-6": "prisma generate --schema prisma/phase6-projection/schema.prisma && prisma validate --schema prisma/phase6-projection/schema.prisma && tsc -p tsconfig.phase6.json --noEmit && jest --runInBand --forceExit src/defense-budget/stages src/defense-budget/phase6 src/defense-budget/verification && tsx scripts/verify-pe-budget-phase6-negative-controls.ts --run && tsx scripts/verify-pe-budget-phase6-safety.ts",
+        "verify:pe-budget-phase6-producer:db": "bash scripts/phase6-producer-rehearsal.sh",
+        "verify:pe-budget-phase-6:db": "bash scripts/phase6-projection-rehearsal.sh",
+        "typecheck:phase7": "tsc -p tsconfig.phase7.json --noEmit",
+        "typecheck:legiwatch-phase7": "tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+        "verify:pe-budget-phase-7": "prisma generate && tsc -p tsconfig.phase7.json --noEmit && jest --runInBand --forceExit src/defense-budget/promotion src/defense-budget/projection-plan src/program-element/snapshot && tsx scripts/verify-pe-budget-phase-7-negative-controls.ts --run && tsx scripts/verify-pe-budget-phase-7-safety.ts",
+        "verify:pe-budget-phase-7:fast": "prisma generate && tsc -p tsconfig.phase7.json --noEmit && jest --runInBand --forceExit src/defense-budget/promotion src/defense-budget/projection-plan src/program-element/snapshot && tsx scripts/verify-pe-budget-phase-7-safety.ts",
+        "verify:pe-budget-phase-7:db": "node scripts/run-pe-budget-phase7-migration-rehearsal.mjs --run",
+        "verify:pe-budget-phase-10b31": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit src/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts && tsx scripts/verify-pe-budget-phase-10b31-metadata-regression.ts --run",
+        "verify:pe-budget-phase-10b31:db": "bash scripts/phase10b31-metadata-regression-rehearsal.sh",
+        "verify:pe-budget-phase-6:full": "bash scripts/verify-pe-budget-phase6-closeout.sh",
+        "build:rdte-cycle": "tsx scripts/build-rdte-cycle.ts",
+        "report:rdte-cycle": "tsx scripts/report-rdte-cycle.ts",
+        "plan:rdte-projection": "tsx scripts/plan-rdte-canonical-projection.ts",
+        "profile:defense-budget-document": "tsx scripts/profile-defense-budget-document.ts",
+        "plan:defense-budget-parse": "tsx scripts/plan-defense-budget-parse.ts",
+        "extract:defense-budget-cycle": "tsx scripts/extract-defense-budget-cycle.ts",
+        "replay:defense-budget-parser-artifact": "tsx scripts/replay-defense-budget-parser-artifact.ts",
+        "verify:defense-budget-artifact-v1": "tsx scripts/verify-defense-budget-extraction-v1.ts",
+        "review:defense-budget-verification-v1": "tsx scripts/review-defense-budget-verification-v1.ts",
+        "review:defense-budget-scoped-fact-v1": "tsx scripts/review-defense-budget-scoped-fact-v1.ts",
+        "revoke:defense-budget-scoped-fact-v1": "tsx scripts/revoke-defense-budget-scoped-fact-v1.ts",
+        "correct:defense-budget-candidate-v1": "tsx scripts/correct-defense-budget-candidate-v1.ts",
+        "replace:defense-budget-candidate-approvals-v1": "tsx scripts/replace-defense-budget-candidate-approvals-v1.ts",
+        "verify:replace-defense-budget-candidate-approvals-v1:db": "bash scripts/replace-defense-budget-candidate-approvals-v1-rehearsal.sh",
+        "verify:phase10b35-scoped-review-e2e:db": "bash scripts/phase10b35-scoped-review-e2e-rehearsal.sh",
+        "verify:phase10b35c-candidate-correction-e2e:db": "bash scripts/phase10b35c-candidate-correction-e2e-rehearsal.sh",
+        "verify:qualify-defense-budget-drain-image-v1:db": "bash scripts/qualify-defense-budget-drain-image-v1-rehearsal.sh",
+        "report:defense-budget-verification-cycle-v1": "tsx scripts/report-defense-budget-verification-cycle-v1.ts",
+        "snapshot:defense-budget-package0-v1": "tsx scripts/snapshot-defense-budget-package0-v1.ts",
+        "backfill:source-documents": "tsx scripts/backfill-source-documents.ts",
+        "verify:budget-reconciliation": "tsx scripts/verify-budget-reconciliation.ts",
+        "load:defense-budget-package": "tsx scripts/load-defense-budget-package.ts",
+        "verify:defense-budget-packages": "tsx scripts/verify-defense-budget-packages.ts --verify",
+        "deltas:compute": "tsx scripts/compute-budget-deltas.ts",
+        "measure:accuracy": "tsx scripts/measure-accuracy.ts",
+        "backfill:program-offices": "tsx scripts/backfill-program-offices.ts",
+        "reconcile:person-role-staleness": "tsx scripts/reconcile-person-role-staleness.ts",
+        "generate:actions": "tsx scripts/generate-actions.ts",
+        "sync:report-provisions": "tsx scripts/sync-report-provisions.ts",
+        "sync:federal-register": "tsx scripts/sync-federal-register.ts",
+        "sync:regulations": "tsx scripts/sync-regulations.ts",
+        "sync:sec": "tsx scripts/sync-sec-edgar.ts",
+        "sync:fara": "tsx scripts/sync-fara.ts",
+        "sync:fara-enrichment": "tsx scripts/sync-fara-enrichment.ts",
+        "sync:bls": "tsx scripts/sync-bls.ts",
+        "sync:census": "tsx scripts/sync-census.ts",
+        "sync:bea": "tsx scripts/sync-bea.ts",
+        "sync:grants": "tsx scripts/sync-grants.ts",
+        "sync:california-grants": "tsx src/california-grants/california-grants-ingestion.ts",
+        "sync:grants:reconcile": "tsx scripts/sync-grants.ts --all-statuses",
+        "enrich:grant-details": "tsx scripts/enrich-grant-details.ts",
+        "generate:grant-opportunity-candidates": "tsx scripts/generate-grant-opportunity-candidates.ts",
+        "match:contractor-identifiers": "tsx scripts/match-contractor-identifiers.ts",
+        "backfill:sam-opportunity-fields": "tsx scripts/backfill-sam-opportunity-fields.ts",
+        "sync:gao": "tsx scripts/sync-gao.ts",
+        "sync:openstates": "tsx scripts/sync-openstates.ts",
+        "sync:openstates-events": "tsx scripts/sync-openstates-events.ts",
+        "sync:crs": "tsx scripts/sync-crs.ts",
+        "sync:rss": "tsx scripts/sync-rss-intel.ts",
+        "sync:member-press": "tsx scripts/sync-member-press.ts",
+        "sync:legistorm-directory": "tsx scripts/sync-legistorm-directory.ts",
+        "sync:legistorm-districts": "tsx scripts/sync-legistorm-districts.ts",
+        "build:district-boundary-artifacts": "tsx scripts/build-district-boundary-artifacts.ts",
+        "sync:legistorm-trips": "tsx scripts/sync-legistorm-trips.ts",
+        "sync:hearings": "tsx scripts/sync-hearings.ts",
+        "discover:hearings": "tsx scripts/discover-hearings.ts",
+        "enrich:committee-hearings": "tsx scripts/enrich-committee-hearings.ts",
+        "detect:committee-site-updates": "tsx scripts/detect-committee-site-updates.ts",
+        "probe:committee-sources": "tsx scripts/probe-committee-sources.ts",
+        "reconcile:hearing-archives": "tsx scripts/reconcile-hearing-archives.ts",
+        "audit:hearing-coverage": "tsx scripts/audit-hearing-coverage.ts",
+        "sync:dod-orgcharts": "tsx scripts/sync-dod-orgcharts.ts",
+        "sync:dod-press-personnel": "tsx scripts/sync-dod-press-personnel.ts",
+        "seed:program-element": "tsx scripts/seed-program-element-fixtures.ts --run",
+        "import:stanford-dow": "tsx scripts/import-stanford-dow-directory.ts --import",
+        "parse:dow-directory": "tsx scripts/parse-dow-directory.ts --parse",
+        "recompute:conference-probability": "tsx scripts/recompute-conference-probability.ts",
+        "sync:all": "tsx scripts/sync-congress.ts && tsx scripts/sync-sec-edgar.ts && tsx scripts/sync-fara.ts && tsx scripts/sync-bls.ts && tsx scripts/sync-census.ts && tsx scripts/sync-hearings.ts && tsx scripts/sync-rss-intel.ts",
+        "embed:backfill": "tsx scripts/embed-backfill.ts",
+        "generate:meeting-briefings": "tsx scripts/generate-meeting-briefings.ts",
+        "load:defense-budget": "tsx scripts/sync-comptroller-jbooks.ts --commit && tsx scripts/sync-jbook-r2.ts --commit && tsx scripts/sync-jbook-performers.ts --commit && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2026.json --chamber HASC --fy 2026 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2027.json --chamber HASC --fy 2027 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_sasc_fy2026.json --chamber SASC --fy 2026 && tsx scripts/sync-peo-rosters.ts --commit && tsx scripts/seed-programs.ts --commit && tsx scripts/match-pe-program.ts --apply && tsx scripts/backfill-program-offices.ts --commit && tsx scripts/sync-sam-opportunities.ts --commit && tsx scripts/compute-budget-deltas.ts --commit && tsx scripts/generate-actions.ts --commit",
+        "verify:pe-phase-a": "tsx scripts/verify-pe-phase-a-safety.ts",
+        "verify:pe-phase-b": "jest --runInBand --forceExit src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts scripts/lib/pe-ingestion-mode.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/ingest-defense-budget-replay.spec.ts src/program-element/source-document/source-document-registry.spec.ts",
+        "verify:pe-phase-c": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-read.service.spec.ts src/program-element/program-element-watch.tenant-isolation.spec.ts scripts/send-pe-alert-emails.watch-isolation.spec.ts scripts/lib/pe-watch-tenant-isolation.spec.ts src/program-element/deltas/delta-engine.service.spec.ts src/program-element/extractors/bill-pe-extractor.spec.ts src/program-element/program-element-writer.service.spec.ts src/prisma/tenant-scope-guard.spec.ts",
+        "drain:pe-change-outbox": "tsx scripts/drain-pe-change-outbox.ts",
+        "backfill:pe-observation-keys": "tsx scripts/backfill-pe-observation-keys.ts",
+        "verify:pe-phase-d": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-field-ownership.spec.ts src/program-element/program-element-raw-merge.spec.ts src/program-element/reconciliation/reconciliation.service.spec.ts src/program-element/program-element-change-outbox.service.spec.ts src/program-element/program-element-writer.service.spec.ts scripts/backfill-pe-observation-keys.spec.ts scripts/drain-pe-change-outbox.spec.ts",
+        "verify:pe-phase-e": "jest --runInBand --forceExit scripts/lib/pe-exact-sha-loader-contract.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/lib/pe-ingestion-mode.spec.ts && tsx scripts/verify-pe-phase-e-exact-sha.ts",
+        "process:funding-opportunity-lifecycle": "tsx scripts/process-funding-opportunity-lifecycle.ts",
+        "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts",
+        "verify:pe-phase-f": "jest --runInBand --detectOpenHandles --forceExit src/ingestion/embed-watermark.spec.ts src/ingestion/sync-run.helper.spec.ts scripts/sam-opportunity-matcher.spec.ts scripts/sync-sam-opportunities.spec.ts",
+        "verify:pe-phase-g": "jest --runInBand --forceExit src/program-element/funding-claim.spec.ts src/program-element/deltas/delta-compute.spec.ts src/program-element/pe-funding-narrative.helpers.spec.ts src/program-element/program-element-read.service.spec.ts src/program-element/budget-position.spec.ts",
+        "verify:pe-phase-i": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-data-issue.service.spec.ts src/acquisition-personnel/contact-use.policy.spec.ts src/acquisition-personnel/acquisition-personnel-read.service.spec.ts src/acquisition-personnel/acquisition-personnel.controller.spec.ts src/program-element/program-element.controller.spec.ts",
+        "verify:pe-phase-j": "jest --runInBand --detectOpenHandles --forceExit src/program-element/defense-budget-grounding.spec.ts src/program-element/program-element-field-ownership.spec.ts src/meri/meri-domain-fanout.helpers.spec.ts src/meri/meri-pe-structural.helpers.spec.ts src/meri/meri-defense-budget-tool.helpers.spec.ts src/meri/meri-tools.defense-budget.spec.ts src/meri/meri-defense-budget-phase-j.eval.spec.ts",
+        "typecheck:pe-scripts": "tsc -p tsconfig.pe-scripts.json --noEmit",
+        "lint:pe-scripts": "tsx scripts/lint-pe-scripts.ts",
+        "test:pe-phase-9-migration-discovery": "node --test scripts/lib/pe-phase-9-migration-discovery.spec.mjs scripts/lib/pe-phase-9-owned-postgres.spec.mjs",
+        "test:pe-trust": "pnpm run test:pe-phase-9-migration-discovery && jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-9-backend-scope.spec.ts scripts/lib/pe-phase-9-runner.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts",
+        "verify:pe-phase-k": "pnpm run typecheck:pe-scripts && pnpm run lint:pe-scripts && pnpm run test:pe-trust && tsx scripts/verify-pe-migration-guards.ts",
+        "verify:pe-migration-guards": "tsx scripts/verify-pe-migration-guards.ts",
+        "verify:pe-phase-9": "tsx scripts/verify-pe-phase-9.ts --run",
+        "verify:pe-phase-9:full": "tsx scripts/verify-pe-phase-9.ts --full --skip-install",
+        "verify:pe-phase-9:backend": "tsx scripts/verify-pe-phase-9.ts --backend-only --run",
+        "verify:pe-phase-9:backend:dry-run": "tsx scripts/verify-pe-phase-9.ts --backend-only --dry-run",
+        "verify:pe-phase-10": "tsx scripts/verify-pe-phase-10.ts --run",
+        "rehearse:pe-phase-9-migrations": "bash scripts/pe-phase-9-migration-replay.sh",
+        "probe:pe-phase-10-staging": "bash scripts/pe-phase-10-staging-probe.sh",
+        "ingest:cpf-cds:campaign": "tsx scripts/run-cpf-cds-campaign.ts",
+        "replay:pe-budget-phase-10b31-recovered-artifact": "tsx scripts/phase10b31-replay-recovered-artifact.ts",
+        "reextract:defense-budget-candidate-v1": "tsx scripts/reextract-defense-budget-candidate-v1.ts",
+        "run:defense-budget-ingestion-manifest-v1": "tsx scripts/run-defense-budget-ingestion-manifest-v1.ts",
+        "funding-execution-certification": "tsx scripts/funding-execution-certification-worker.ts",
+        "funding-execution-source-adapter": "tsx scripts/funding-execution-source-adapter.ts",
+        "test:funding-execution-source-adapter": "jest --runInBand --forceExit src/funding-execution/funding-execution-source-adapter.service.spec.ts",
+        "test:funding-execution": "jest --runInBand --forceExit src/program-element/funding-execution scripts/funding-execution-certification-worker.spec.ts",
+        "qualify:package6-funding-execution": "tsx scripts/qualify-package6-funding-execution.ts",
+        "typecheck:package6": "tsc -p tsconfig.package6.json --noEmit",
+        "typecheck:defense-budget-ingestion-manifest-v1": "tsc -p tsconfig.defense-budget-ingestion-manifest-v1.json --noEmit",
+        "verify:defense-budget-ingestion-manifest-v1": "jest --runInBand --forceExit src/defense-budget/governed-ingestion-manifest scripts/run-defense-budget-ingestion-manifest-v1.spec.ts",
+        "qualify:package9:durable": "tsx scripts/package9-durable-qualification.ts --run",
+        "qualify:package9:product-query": "node ../../scripts/package9-product-query-benchmark.mjs --run",
+        "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --coverage --coverageReporters=json-summary --coverageReporters=text --maxWorkers=2",
+        "test:diagnose-open-handles": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit --runInBand"
+      }
+    }
+  },
+  "schemas": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "bytes": 41761,
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    }
+  ],
+  "generatedClients": [
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+      "exists": true,
+      "resolved": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+      "files": [
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/package.json",
+          "bytes": 2601,
+          "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24",
+          "relativePath": "package.json"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js",
+          "bytes": 3815948,
+          "sha256": "fb6e22a71beb71c70dde87d3e637bec514ec4a174c89388537ef46016753e85a",
+          "relativePath": "index.js"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.d.ts",
+          "bytes": 54570016,
+          "sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6",
+          "relativePath": "index.d.ts"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+          "relativePath": "runtime/library.js"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/schema.prisma",
+          "bytes": 979560,
+          "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+          "relativePath": "schema.prisma"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048,
+          "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+          "relativePath": "libquery_engine-debian-openssl-3.0.x.so.node"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792,
+          "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f",
+          "relativePath": "libquery_engine-linux-arm64-openssl-3.0.x.so.node"
+        }
+      ],
+      "schemaMatches": {
+        "apps/api/prisma/schema.prisma": true,
+        "apps/workspace/prisma/schema.prisma": false
+      }
+    },
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client",
+      "exists": true,
+      "resolved": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client",
+      "files": [
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/package.json",
+          "bytes": 2601,
+          "sha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe",
+          "relativePath": "package.json"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.js",
+          "bytes": 194518,
+          "sha256": "5d19d22aec43c8933b3ed22bc48d619b528fc9ae59709c02a49637043c00c8bf",
+          "relativePath": "index.js"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.d.ts",
+          "bytes": 2456926,
+          "sha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9",
+          "relativePath": "index.d.ts"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+          "relativePath": "runtime/library.js"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/schema.prisma",
+          "bytes": 41761,
+          "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+          "relativePath": "schema.prisma"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048,
+          "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+          "relativePath": "libquery_engine-debian-openssl-3.0.x.so.node"
+        },
+        {
+          "file": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792,
+          "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f",
+          "relativePath": "libquery_engine-linux-arm64-openssl-3.0.x.so.node"
+        }
+      ],
+      "schemaMatches": {
+        "apps/api/prisma/schema.prisma": false,
+        "apps/workspace/prisma/schema.prisma": true
+      }
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client",
+      "exists": true,
+      "resolved": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client",
+      "files": [
+        {
+          "file": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/package.json",
+          "bytes": 2601,
+          "sha256": "c8a5418688457d533b8d61d5c6de20001e7c9e2ded83d9ff8d4e6425fb0e1a10",
+          "relativePath": "package.json"
+        },
+        {
+          "file": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/index.js",
+          "bytes": 3759597,
+          "sha256": "ad92dc8179270f52081050aceeaa4849c5ced2369657826c4a7d8da5de6d32b7",
+          "relativePath": "index.js"
+        },
+        {
+          "file": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/index.d.ts",
+          "bytes": 53431134,
+          "sha256": "5c748fc166a288102f1da6976e9a9d886e0ad7084aa35e4cae3751a8ede53389",
+          "relativePath": "index.d.ts"
+        },
+        {
+          "file": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/schema.prisma",
+          "bytes": 969925,
+          "sha256": "69ced004c4582ef9a4b611f6d97f4768fd014ac69d98290b2d30b07f07d4c700",
+          "relativePath": "schema.prisma"
+        },
+        {
+          "file": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048,
+          "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+          "relativePath": "libquery_engine-debian-openssl-3.0.x.so.node"
+        },
+        {
+          "file": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792,
+          "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f",
+          "relativePath": "libquery_engine-linux-arm64-openssl-3.0.x.so.node"
+        }
+      ],
+      "schemaMatches": {
+        "apps/api/prisma/schema.prisma": false,
+        "apps/workspace/prisma/schema.prisma": false
+      }
+    },
+    {
+      "path": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client",
+      "exists": true,
+      "resolved": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client",
+      "files": [
+        {
+          "file": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client/package.json",
+          "bytes": 2601,
+          "sha256": "9e3f7ed2a1e3972e90a3aa44b72b72901d7d043ceff08955caefb9e6f2599929",
+          "relativePath": "package.json"
+        },
+        {
+          "file": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client/index.js",
+          "bytes": 3794490,
+          "sha256": "f28dfcf0501e6c25274177d2d501bcc6b7b20e59c639c818f1576e5065057f34",
+          "relativePath": "index.js"
+        },
+        {
+          "file": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client/index.d.ts",
+          "bytes": 54300088,
+          "sha256": "09855aee11a33e9c5c76eb8706d75a25e247038e05c6fe2c8a952058f0f76862",
+          "relativePath": "index.d.ts"
+        },
+        {
+          "file": "/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client/schema.prisma",
+          "bytes": 975974,
+          "sha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa",
+          "relativePath": "schema.prisma"
+        }
+      ],
+      "schemaMatches": {
+        "apps/api/prisma/schema.prisma": false,
+        "apps/workspace/prisma/schema.prisma": false
+      }
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client",
+      "exists": true,
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client",
+      "files": [
+        {
+          "file": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client/package.json",
+          "bytes": 2601,
+          "sha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe",
+          "relativePath": "package.json"
+        },
+        {
+          "file": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client/index.js",
+          "bytes": 193689,
+          "sha256": "4af526978b788b843a88d5b1e79398e5f3d20da52454fea55d9a931769c2b108",
+          "relativePath": "index.js"
+        },
+        {
+          "file": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client/index.d.ts",
+          "bytes": 2456926,
+          "sha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9",
+          "relativePath": "index.d.ts"
+        },
+        {
+          "file": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+          "relativePath": "runtime/library.js"
+        },
+        {
+          "file": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client/schema.prisma",
+          "bytes": 41761,
+          "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+          "relativePath": "schema.prisma"
+        }
+      ],
+      "schemaMatches": {
+        "apps/api/prisma/schema.prisma": false,
+        "apps/workspace/prisma/schema.prisma": true
+      }
+    },
+    {
+      "path": "/workspace/capirov2/apps/workspace/generated/prisma-client",
+      "exists": true,
+      "resolved": "/workspace/capirov2/apps/workspace/generated/prisma-client",
+      "files": [
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/package.json",
+          "bytes": 2601,
+          "sha256": "56fdd2279dc95c382d99ebe057e4589a3fbd66258a33985d94a5c54ae3fe4a25",
+          "relativePath": "package.json"
+        },
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/index.js",
+          "bytes": 142260,
+          "sha256": "f4c6c04d1f595eadf7752b0d35b4775fb75065d964f70edbe2019771fa4d5a3f",
+          "relativePath": "index.js"
+        },
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/index.d.ts",
+          "bytes": 1678238,
+          "sha256": "70e1ae7a54214c25b9559bf62da70df3a19c3772d3d9121bac5e550bdb48f050",
+          "relativePath": "index.d.ts"
+        },
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050",
+          "relativePath": "runtime/library.js"
+        },
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/schema.prisma",
+          "bytes": 32762,
+          "sha256": "fcaca466895372c929723cdb403a9d5752314ce2151404c1e2d69793ecfa05a2",
+          "relativePath": "schema.prisma"
+        },
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048,
+          "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+          "relativePath": "libquery_engine-debian-openssl-3.0.x.so.node"
+        },
+        {
+          "file": "/workspace/capirov2/apps/workspace/generated/prisma-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792,
+          "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f",
+          "relativePath": "libquery_engine-linux-arm64-openssl-3.0.x.so.node"
+        }
+      ],
+      "schemaMatches": {
+        "apps/api/prisma/schema.prisma": false,
+        "apps/workspace/prisma/schema.prisma": false
+      }
+    }
+  ],
+  "overlayPackages": [
+    {
+      "name": "shared",
+      "root": "/workspace/capiro-rich-core-overlay-20261013/@capiro/shared",
+      "resolved": "/workspace/capiro-shared-newsletter-receiving-dist-7949d079-20261013/packages/shared",
+      "sourcePaths": 37,
+      "mismatches": [
+        "packages/shared/src/newsletter-receiving.ts"
+      ],
+      "packageFieldDelta": {},
+      "main": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "mainExists": true,
+      "typesExist": true
+    },
+    {
+      "name": "auth",
+      "root": "/workspace/capiro-rich-core-overlay-20261013/@capiro/auth",
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/auth",
+      "sourcePaths": 8,
+      "mismatches": [],
+      "packageFieldDelta": {},
+      "main": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "mainExists": true,
+      "typesExist": true
+    },
+    {
+      "name": "meriv2-core",
+      "root": "/workspace/capiro-rich-core-overlay-20261013/@capiro/meriv2-core",
+      "resolved": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/meriv2-core",
+      "sourcePaths": 273,
+      "mismatches": [],
+      "packageFieldDelta": {},
+      "main": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "mainExists": true,
+      "typesExist": true
+    },
+    {
+      "name": "defense-contracts",
+      "root": "/workspace/capiro-rich-core-overlay-20261013/@capiro/defense-contracts",
+      "resolved": "/workspace/capirov2-integrated-rc/packages/defense-contracts",
+      "sourcePaths": 13,
+      "mismatches": [],
+      "packageFieldDelta": {},
+      "main": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "mainExists": true,
+      "typesExist": true
+    },
+    {
+      "name": "defense-domain",
+      "root": "/workspace/capiro-rich-core-overlay-20261013/@capiro/defense-domain",
+      "resolved": "/workspace/capirov2-integrated-rc/packages/defense-domain",
+      "sourcePaths": 66,
+      "mismatches": [],
+      "packageFieldDelta": {
+        "scripts": {
+          "cache": {
+            "build": "tsc -p tsconfig.json",
+            "eval:package9-scorecard": "pnpm run build && node scripts/package9-scorecard.mjs",
+            "dev": "tsc -p tsconfig.json --watch",
+            "typecheck": "tsc -p tsconfig.json --noEmit",
+            "clean": "rm -rf dist"
+          },
+          "current": {
+            "build": "tsc -p tsconfig.json",
+            "eval:package9-scorecard": "pnpm run build && node scripts/package9-scorecard.mjs --write",
+            "dev": "tsc -p tsconfig.json --watch",
+            "typecheck": "tsc -p tsconfig.json --noEmit",
+            "clean": "rm -rf dist"
+          }
+        }
+      },
+      "main": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "mainExists": true,
+      "typesExist": true
+    }
+  ],
+  "currentSharedAlternative": {
+    "root": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/packages/shared",
+    "sourcePaths": 37,
+    "mismatches": [],
+    "distPresent": true
+  },
+  "reportedPeerReceipts": [
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/INSTALL-BUILD-ONLY-RECEIPT.json",
+      "expectedSha256": "e998efc8e4778532a13a323ef765ec73289ec999add6020c569d3347a779074b",
+      "exists": false,
+      "bytesOrHashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/selected-source.tar",
+      "expectedSha256": "1ecc2cb85f9b53bcc3b95fdd8fd3065241ee399162ae069ee6ecf63923217774",
+      "exists": false,
+      "bytesOrHashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/PROJECTION-BEFORE.json",
+      "expectedSha256": "82f93cdb138e957c37861a89654732c31f9a5eaa3dbd209614fc7cef41ae2a15",
+      "exists": false,
+      "bytesOrHashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/INSTALL-RESULT.json",
+      "expectedSha256": "d5bcb64fbb145609e0c8b734d0a129d8430cde7da7d84c57ef035c8b054c79f2",
+      "exists": false,
+      "bytesOrHashVerified": false
+    },
+    {
+      "path": "/workspace/backend-cleanup-recovery-20261012/pe9-real-qualification-457e84e7/FINAL-API-CHECKS.json",
+      "expectedSha256": "505f066246e69e38ef178695c1a4e841a5aeab6aa55a804525ac80f71bb9d570",
+      "exists": false,
+      "bytesOrHashVerified": false
+    }
+  ],
+  "libraryModulesImported": false,
+  "clientConstructed": false,
+  "engineExecuted": false,
+  "databaseConnected": false
+}

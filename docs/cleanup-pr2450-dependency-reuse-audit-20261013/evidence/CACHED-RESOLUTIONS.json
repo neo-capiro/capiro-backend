@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "base": "/workspace/capirov2/apps/api/package.json",
+  "nodeVersion": "v24.19.0",
+  "platform": "linux",
+  "architecture": "x64",
+  "packageCodeImported": false,
+  "clientConstructed": false,
+  "packages": [
+    {
+      "name": "@nestjs/common",
+      "version": "10.4.22",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/package.json",
+      "packageSha256": "4d8ded1c9d885249d6b57b7ca4024a838b896a7ca35c134cbbe11904ca840a0b"
+    },
+    {
+      "name": "@nestjs/core",
+      "version": "10.4.22",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_vhcxt2ghqzpfzw2j7os4velnmy/node_modules/@nestjs/core/package.json",
+      "packageSha256": "590631f74f4d546ab3b721d5c964f43bff6676519b0a6074b7a17d3c8e68e4fe"
+    },
+    {
+      "name": "@nestjs/platform-express",
+      "version": "10.4.22",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+platform-express@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validat_r5rxx23xh24owjjzj456fcgcoq/node_modules/@nestjs/platform-express/package.json",
+      "packageSha256": "c5de8cfbd05201e0ff1d46fe62c1d723b42955dc9d01ecc4bf72d3e12bb2a07e"
+    },
+    {
+      "name": "@nestjs/testing",
+      "version": "10.4.22",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+testing@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_2fzyx7wxmv7def2uszj53jyrvy/node_modules/@nestjs/testing/package.json",
+      "packageSha256": "0361c8a172e83b091691f213708d6e6997916fc7d783516018413f7116b63a10"
+    },
+    {
+      "name": "@nestjs/config",
+      "version": "3.3.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+config@3.3.0_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_rtw47cx5ovoio5eqbhh3u2vmtq/node_modules/@nestjs/config/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+config@3.3.0_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_rtw47cx5ovoio5eqbhh3u2vmtq/node_modules/@nestjs/config/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+config@3.3.0_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_re_rtw47cx5ovoio5eqbhh3u2vmtq/node_modules/@nestjs/config/package.json",
+      "packageSha256": "7da5b451fbc7117c47bba2e7f81c7dca69d8abafa6f301bc98307dc8b1b1b820"
+    },
+    {
+      "name": "@nestjs/cli",
+      "version": "10.4.9",
+      "packageFile": "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/package.json",
+      "resolvedPackageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+cli@10.4.9_@swc+core@1.16.2_@swc+helpers@0.5.23_/node_modules/@nestjs/cli/package.json",
+      "packageSha256": "417a854d615e2da1b740181f09872003c6cf7dd99ad7a524dd2595a68fb756fb",
+      "noModuleEntry": true,
+      "bin": {
+        "nest": "bin/nest.js"
+      },
+      "binFilesPresent": true
+    },
+    {
+      "name": "@nestjs/schematics",
+      "version": "10.2.3",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+schematics@10.2.3_chokidar@3.6.0_typescript@5.9.3/node_modules/@nestjs/schematics/dist/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@nestjs+schematics@10.2.3_chokidar@3.6.0_typescript@5.9.3/node_modules/@nestjs/schematics/dist/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@nestjs+schematics@10.2.3_chokidar@3.6.0_typescript@5.9.3/node_modules/@nestjs/schematics/package.json",
+      "packageSha256": "e6859590d011781423d3c4fabece4fb3d8b6d5a2cd74de2df94bbf21021093ea"
+    },
+    {
+      "name": "@clerk/backend",
+      "version": "1.34.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/dist/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@clerk+backend@1.34.0_react-dom@18.3.1_react@19.3.0__react@19.3.0_svix@1.92.2/node_modules/@clerk/backend/package.json",
+      "packageSha256": "a043d3bfd76cdad72fc5dfacb0f2f9332f114159c7fc5d33298cb1ad06388bdf"
+    },
+    {
+      "name": "@prisma/client",
+      "version": "5.22.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/default.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/default.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/package.json",
+      "packageSha256": "2efa3f7c0f05cf2bd4b681b71dd0e7a197006a3c29f2acdb5f88d5e7bc9bb2e3"
+    },
+    {
+      "name": "prisma",
+      "version": "5.22.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/package.json",
+      "packageSha256": "01c1aa746e5b0aebf01b38ec1aaffaebc098bacfe93b2f413fd4112de9251ae3"
+    },
+    {
+      "name": "typescript",
+      "version": "5.9.3",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/package.json",
+      "packageSha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6"
+    },
+    {
+      "name": "jest",
+      "version": "29.7.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/build/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/build/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/package.json",
+      "packageSha256": "679fd6f49e8dcb1fd82b7d610c5d555b70204ad2e5e5092e284e9bc10eb9f353"
+    },
+    {
+      "name": "ts-jest",
+      "version": "29.4.14",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest/dist/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest/dist/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest/package.json",
+      "packageSha256": "a1e0c2406857ad720d0f69ce4b27e5343969504f244c0094ce8b56d6ed19fb15"
+    },
+    {
+      "name": "tsx",
+      "version": "4.23.15",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/loader.mjs",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/loader.mjs",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/package.json",
+      "packageSha256": "ab5f14c4251638844ade3905d3cfc52fc1c833644694d655a05f6d0ca746b83c"
+    },
+    {
+      "name": "ts-node",
+      "version": "10.9.2",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node/dist/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node/dist/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3/node_modules/ts-node/package.json",
+      "packageSha256": "80961faab4990ab53d33976bf716aa32444d70c64f73a487c23c21b0ca81398e"
+    },
+    {
+      "name": "supertest",
+      "version": "7.3.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/package.json",
+      "packageSha256": "0d44c940d4b13a76347edf33c92311ee5e609f60f67aa8ede604be013779aa91"
+    },
+    {
+      "name": "reflect-metadata",
+      "version": "0.2.2",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/Reflect.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/Reflect.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/package.json",
+      "packageSha256": "e0f6d5cf809e02e338f501d3030e917fa57e3a10044387de890cbf142b4f4083"
+    },
+    {
+      "name": "class-transformer",
+      "version": "0.5.1",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer/cjs/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer/cjs/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/class-transformer@0.5.1/node_modules/class-transformer/package.json",
+      "packageSha256": "73490bf64a406c25ac02771de7990e65edafb55501166e3ccffad5b8030dc13d"
+    },
+    {
+      "name": "class-validator",
+      "version": "0.15.1",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator/cjs/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator/cjs/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/class-validator/package.json",
+      "packageSha256": "7cf635cde2fa6d4166fc105c71f1570307435dd444f8b4235326fc3a6a1a5dd2"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.8.2",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/cjs/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/cjs/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/package.json",
+      "packageSha256": "2399f5d968d1d693ecd206e7972fd26cb7e3daa45931ecc12202b3a924be38b7"
+    },
+    {
+      "name": "express",
+      "version": "4.22.1",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/express@4.22.1/node_modules/express/package.json",
+      "packageSha256": "c8c3c3159737c9747b5f77f0a5312a890a416563250cf5a12e3d09032f02e91b"
+    },
+    {
+      "name": "pg",
+      "version": "8.23.0",
+      "entry": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/index.js",
+      "resolvedEntry": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/index.js",
+      "packageFile": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg/package.json",
+      "packageSha256": "e42dd36cba6e9dd8dbb6f773a2f7be8a8c3c273e18b155e42e75961a4cb8bc28"
+    }
+  ]
+}

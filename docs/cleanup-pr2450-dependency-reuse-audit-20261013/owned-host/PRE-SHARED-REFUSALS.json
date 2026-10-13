@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "source": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "firstComparisonExitCode": 1,
+  "firstComparisonStdout": "Shared emitted outputs differ; not linked\n",
+  "prematureDependentResolutionExitCode": 1,
+  "prematureDependentResolutionError": "MODULE_NOT_FOUND: @capiro/shared; no module code was evaluated",
+  "comparisonFile": "SHARED-EMISSION-COMPARISON.json",
+  "disposition": "Fresh current-source emitted output is bound instead of stale cached dist."
+}
