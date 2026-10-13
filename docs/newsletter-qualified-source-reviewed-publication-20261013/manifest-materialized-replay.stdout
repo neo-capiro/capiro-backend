@@ -1,0 +1,13 @@
+✔ exact reviewed root manifest reconstructs every prior byte and retains its real entry points (32.903703ms)
+✔ root manifest mutations cannot turn this exact review into a general exemption (8.958158ms)
+✔ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (19.659471ms)
+✔ api manifest mutations cannot turn this exact review into a general exemption (11.839904ms)
+✔ unknown/coercible inputs refuse without executing application or coercion ports (0.648807ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 205.702736
