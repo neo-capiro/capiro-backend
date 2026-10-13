@@ -1,0 +1,18 @@
+{
+  "originalRawHead": "ac5cf502e5c328c0b93c8ebe52085300183b0143",
+  "originalRawTree": "7bd297a032db7ade78e31b6019dd8373660aa485",
+  "rawEnvelopes": [
+    {
+      "path": "docs/completion-final-integration-20261013/evidence/jest.log",
+      "originalBytes": 9714,
+      "originalSha256": "62915efe64cba7a56b385b87856359bae468c9ce504bf3c3bc0e8b2931920c8b",
+      "reason": "canonical ts-jest warning whitespace retained losslessly in JSON/base64 and original ancestor",
+      "schema": "capiro.lossless-evidence-bytes.v1"
+    }
+  ],
+  "receiptLogBytesAndSha256BindDecodedOriginal": true,
+  "emptyTypeAndBuildLogsUnchanged": true,
+  "initialUncachedDonorWrongCwdAndEmptyIndexObservationsRetained": true,
+  "allPriorFailedPassingEvidenceAndSourceObjectsPreserved": true,
+  "newHygieneExceptions": 0
+}

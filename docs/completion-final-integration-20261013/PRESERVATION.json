@@ -1,0 +1,119 @@
+{
+  "resolvedBaseHead": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773",
+  "priorMasterHead": "5c9eec18045f75704f99593855537d422b8f9bd1",
+  "priorMasterPath": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+  "priorMasterRows": 4426,
+  "priorLayers": [
+    {
+      "head": "579beebf92360d3d3b28256bcb44ec9a1ae42687",
+      "path": "docs/files-qualified-source-policy-20261013/PRESERVATION.json",
+      "sha256": "2bd3bc89a9ea49051e4c60a4081d122e853d48437e0156949e791f2efd0ef3d8"
+    },
+    {
+      "head": "2237b6c75ebcfafcf4f6dbd62d483f065b5b2773",
+      "path": "docs/fill-runtime-integration-20261013/PRESERVATION.json",
+      "sha256": "107163a34976418287a88e7cd051070a92aa56327f9bd120aa623d18512cd5e0"
+    }
+  ],
+  "allPriorCandidateAndRuntimeSupersessionsAppliedAndVerified": true,
+  "priorDeltaIndexPath": "docs/fill-runtime-integration-20261013/SHA256SUMS.json",
+  "priorDeltaRows": 49,
+  "effectiveUnionRows": 4473,
+  "unchangedResolvedUnionBlobModeRows": 4467,
+  "explicitReviewedDonorOrHandoffSupersessions": [
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter.contract.spec.ts",
+      "oldModeBlob": [
+        "100644",
+        "fd67336d0436e2f4c76a4768314052c3da361213"
+      ],
+      "oldSha256": "0542b096b002a417acd1abdf8a800ffcf8a998bb7680d2372a21d60b0b98f2f3",
+      "newModeBlob": [
+        "100644",
+        "735f6ceee1e27fb2b6d6c1c983640c15b250eef6"
+      ],
+      "newSha256": "2f2570afe26323a7e98b364d1d09c2fff8f2d1a50a885078947a69c067c9c28a",
+      "reason": "exact reviewed PR2465 donor"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "oldModeBlob": [
+        "100644",
+        "d6255fa7a0f96ea51bb11833936c99f5897adbac"
+      ],
+      "oldSha256": "4056c48173c95328505d2e7364fdb0b822794164baf9a1b47c9191fa2a376854",
+      "newModeBlob": [
+        "100644",
+        "45f7f9f3b75507e29bff7f6dd29e2ce258513b05"
+      ],
+      "newSha256": "d0758e3991d297c9d158afc1a17443ca4357721aa42c0f880f4d89d014c155bc",
+      "reason": "exact reviewed PR2465 donor"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-finding-source-check.contract.spec.ts",
+      "oldModeBlob": [
+        "100644",
+        "3d2bba38147eb7d40c3d5ea511be69e92f8351e0"
+      ],
+      "oldSha256": "8abdf8cfe6bd5dd3001bb6fbfdee795cb2df9e76088958f36e861e008e038e23",
+      "newModeBlob": [
+        "100644",
+        "e3aad59645b059bdd2e248b8daffec71e8789ee1"
+      ],
+      "newSha256": "9cae579d87034b9f944fc37752a3c9a09bb1da6c45a50445cb13e13cec691cf8",
+      "reason": "exact reviewed PR2465 donor"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-run-read-model.ts",
+      "oldModeBlob": [
+        "100644",
+        "0b86168476984ed15d8309c05f976e98bbb5d33a"
+      ],
+      "oldSha256": "dae2bfa23927ce3ca73221098ac5f21f1e99f6023f6bb79e7a68237488a18223",
+      "newModeBlob": [
+        "100644",
+        "9f40b743f9ea2cd3461097d1a63ec1e4375bdf9a"
+      ],
+      "newSha256": "28a13102f5c459e7997d5db7553deab9ccdb4faa200782d061f5b198d44bb255",
+      "reason": "exact reviewed PR2465 donor"
+    },
+    {
+      "path": "apps/api/test/fixtures/client-profile-fill-advocacy-history.ts",
+      "oldModeBlob": [
+        "100644",
+        "5783f588d5c444a85ec26a379019ccfec84ba0c7"
+      ],
+      "oldSha256": "68b0374b1d57a0929e7fb3efa7114457d45b19d5982d2e69998829fb2c464b39",
+      "newModeBlob": [
+        "100644",
+        "913fc3aa86d66229557f426ce1b0560872589ea9"
+      ],
+      "newSha256": "03493c4c83251268081e7d1ab596a0e85d3a4a17fb63b4e0e27966fa18332203",
+      "reason": "exact reviewed PR2465 donor"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldModeBlob": [
+        "100644",
+        "7b276a6f0c5b1d36b2697753e6b0938b3a82c2ab"
+      ],
+      "oldSha256": "005f010569909a8aa4342935de8fcef52bf9df40bd50bbddd13cd3726ed463ec",
+      "newModeBlob": [
+        "100644",
+        "2c838af24c5892c0953cf51f4716b8972f05a3b6"
+      ],
+      "newSha256": "edf7b80ba6877a30cbdf33eabcec51f4eedcdd2700c900458f80d62340fce198",
+      "reason": "append final Completion integration matrix"
+    }
+  ],
+  "priorMasterDeltaIndicesAndLayersUnchanged": true,
+  "canonicalHandoffOriginalBytesRetainedAsPrefix": true,
+  "noPriorEvidenceDeletedOrNormalized": true,
+  "independentReviewHead": "22e4214b867f48f56d1a1a0b9fb8b51aa3bac660",
+  "rawEvidenceCheckpointHead": "ac5cf502e5c328c0b93c8ebe52085300183b0143",
+  "sourceHead": "ffb021d2e790d24e5e81c6ddaa99153251f6c70c",
+  "codeChangesAfterSourceFreeze": 0,
+  "allOriginalHeadsRetained": true,
+  "sourceActive83Inactive90ArtifactPinsAndQualifiedAuthorityInputsUnchanged": true,
+  "wholeRepositoryCleanupNativeArtifactDeploymentClaimed": false
+}
