@@ -1,0 +1,26 @@
+{
+  "sourceHead": "6bb28db786d7328762a646e74f87c25d4bf22b3b",
+  "sourceTree": "e8c96017fe96d332ac00fcf4a68edd5dcf61fd49",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-intelligence-client-integration-20261013/docs/intelligence-client-integration-20261013/deny-source-effects.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-intelligence-client-integration-20261013/docs/intelligence-client-integration-20261013/inert-jest.config.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--runTestsByPath",
+    "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts",
+    "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts",
+    "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-intelligence-client-integration-20261013/docs/intelligence-client-integration-20261013/evidence/hygiene-jest-results.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 10.402,
+  "logBytes": 1197,
+  "logSha256": "12fa93cb515428cb7fe217b8356dabaa05f816aa8cc6fcdadce3a9684cb03c79",
+  "scope": "one-byte SQL whitespace source hygiene successor; no native/provider/auth check"
+}

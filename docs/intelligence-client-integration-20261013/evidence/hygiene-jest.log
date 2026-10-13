@@ -1,0 +1,13 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-intelligence-client-integration-20261013/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts
+PASS src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts
+PASS src/intelligence/intelligence-client-ownership.contract.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       46 passed, 46 total
+Snapshots:   0 total
+Time:        8.522 s
+Ran all test suites within paths "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-client-ownership.contract.spec.ts", "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-identity-v1-lda.characterization.spec.ts", "/tmp/capirov2-intelligence-client-integration-20261013/apps/api/src/intelligence/intelligence-identity-v1-filings.characterization.spec.ts".
+Test results written to: ../../docs/intelligence-client-integration-20261013/evidence/hygiene-jest-results.json

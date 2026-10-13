@@ -1,0 +1,10 @@
+{
+  "path": "apps/api/src/intelligence/client-identity-v1-lda.ts",
+  "rawSource": "cd827868794a3197aa557070a8ae162949e6209f",
+  "rawDonor": "e19ec92e1c40e92d6fe48803df57ec3b51ec8e8c",
+  "beforeSha256": "231570181c897fcee896c848ee9d9da47da14ff3b035dbff15ec5a1a76d174f4",
+  "afterSha256": "4f8edc887931f476f5b58dcb3e55d1c2fee840107dfa1851eed5db311e78c8ff",
+  "bytesRemoved": 1,
+  "change": "Remove exactly one ASCII space before a retained newline inside a SQL SELECT column-list template. No SQL token, interpolation, receiver, parameter, control flow, type or public contract changes.",
+  "originalHeadsPreserved": true
+}

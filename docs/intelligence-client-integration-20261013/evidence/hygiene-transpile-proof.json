@@ -1,0 +1,24 @@
+{
+  "originalSource": "cd827868794a3197aa557070a8ae162949e6209f",
+  "correctedSource": "6bb28db786d7328762a646e74f87c25d4bf22b3b",
+  "sourcePath": "apps/api/src/intelligence/client-identity-v1-lda.ts",
+  "sourceBytesRemoved": 1,
+  "queryTokenInterpolationReceiverTypeAndControlFlowChanged": false,
+  "rows": [
+    {
+      "module": "CommonJS",
+      "beforeSha256": "17d2c27159994b123c20ff071ee9569b87e7d54dbbcc5f6cfcefcd9af30fe251",
+      "afterSha256": "07294d6c2e0fd1b8f6add38c31996724dad2031fbd07003ff8622449633c3630",
+      "soleDifference": "same single ASCII SQL space before retained LF",
+      "syntaxPassed": true
+    },
+    {
+      "module": "ESNext",
+      "beforeSha256": "984a3d466a428885bca38041a88f728d3b50c6495eb0052b6c7c3fc4815d194d",
+      "afterSha256": "023fa862c78b1a96ad43414e2a3c91e22cc15f0d6e9793a6d94df2351eaad3b8",
+      "soleDifference": "same single ASCII SQL space before retained LF",
+      "syntaxPassed": true
+    }
+  ],
+  "nativeOrProviderExecuted": false
+}

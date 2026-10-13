@@ -1,6 +1,6 @@
 # Frozen receiving qualification
 
-All checks bind `cd827868794a3197aa557070a8ae162949e6209f` / tree `3326cbb0dca06a200a3937408b8af1cb6261013a` with no subsequent product-source edit.
+The broad receiving checks bind `cd827868794a3197aa557070a8ae162949e6209f` / tree `3326cbb0dca06a200a3937408b8af1cb6261013a` before the separately measured one-byte hygiene successor described below.
 
 | Check | Actual result |
 | --- | --- |
@@ -16,3 +16,5 @@ The owner's broader original/extracted characterization/coverage matrix is prese
 The first Jest attempt and its unavailable complete receipt remain a failed attempt. Map/cache placement corrections did not change product source, test selection, assertions, types or production emission. Empty type/build raw logs, full final Jest observations and failed partial log remain preserved. Build placement split defense-budget, meri and intelligence output directories into one owned `/tmp` root to fit the two filesystems; output source semantics/exclusions did not change. All owned outputs/caches/build-info were retired after inventory.
 
 Carried PR2475 native behavior acceptance stays bounded to that exact unchanged Workspace source and fixture. Its initial cleanup comparison cause remains unresolved despite verified absent owned resources and final equal catalogs/container. This composition does not advance that preservation gate.
+
+The source hygiene successor is 6bb28db786d7328762a646e74f87c25d4bf22b3b/treee8c96017fe96d332ac00fcf4a68edd5dcf61fd49. It removes one SQL-space byte before a retained LF; no token, binding, receiver, type or flow changes. Focused3/3 suites46/46 cases pass with no skip/failure (10.402s). Both CommonJS/ESNext transpile results differ only by that literal space and syntax-pass. Independent exact-byte review accepts this bounded correction; broad type/build and920 results remain attributed to their original source.
