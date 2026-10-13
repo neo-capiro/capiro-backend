@@ -1,3 +1,8 @@
+import { IntelligenceBillRelevanceInputs } from './intelligence-bill-relevance-inputs.js';
+import { IntelligenceRelevantBillDiscovery } from './intelligence-relevant-bill-discovery.js';
+import { IntelligenceTrackedBillDiscovery } from './intelligence-tracked-bill-discovery.js';
+import { IntelligenceManualBillTracking } from './intelligence-manual-bill-tracking.js';
+import { IntelligenceBillEnrichment } from './intelligence-bill-enrichment.js';
 import { IntelligenceClientProfileV1 } from './client-profile-v1.js';
 import {
   normalizeProfileV1Sections,
@@ -29,7 +34,6 @@ import {
   ownMeetingWhere,
   clientAssociatedMeetingWhere,
 } from '../engagement/engagement-access.helpers.js';
-import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { toCanonicalAlert } from './canonical-alert.adapter.js';
 import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
@@ -39,16 +43,8 @@ import {
   buildClientAwardScope,
   clientAwardScopeSql,
 } from '../funding-opportunities/client-award-scope.js';
-import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
-import {
-  buildKeywordMatchTerms,
-  columnKeywordMatchSql,
-  matchingBillIdsSql,
-} from './bill-keyword-match.helpers.js';
-import {
-  withBillKeywordProfileDeadline,
-  withBillKeywordSqlDeadline,
-} from './bill-keyword-deadline.js';
+import { columnKeywordMatchSql } from './bill-keyword-match.helpers.js';
+import { withBillKeywordProfileDeadline } from './bill-keyword-deadline.js';
 import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
@@ -145,6 +141,11 @@ const decToNumber = (v: unknown): number | null => {
 export class IntelligenceService {
   private readonly logger = new Logger(IntelligenceService.name);
   private readonly profileV1: IntelligenceClientProfileV1;
+  private readonly billRelevanceInputs: IntelligenceBillRelevanceInputs;
+  private readonly relevantBillDiscovery: IntelligenceRelevantBillDiscovery;
+  private readonly trackedBillDiscovery: IntelligenceTrackedBillDiscovery;
+  private readonly manualBillTracking: IntelligenceManualBillTracking;
+  private readonly billEnrichment: IntelligenceBillEnrichment;
 
   // Short-TTL in-memory cache for the cross-client portfolio alerts roll-up.
   // The roll-up runs the full per-client profile-v1 aggregate for every active
@@ -214,6 +215,35 @@ export class IntelligenceService {
         this.withSourceBudget(label, clientId, work),
       officeRecommender: () => this.officeRecommender,
       warn: (message) => this.logger.warn(message),
+    });
+    this.billRelevanceInputs = new IntelligenceBillRelevanceInputs(this.prisma);
+
+    this.relevantBillDiscovery = new IntelligenceRelevantBillDiscovery(this.prisma, {
+      confirmedLdaIds: (...args) => this.confirmedLdaIds(...args),
+      issueCodesForLdaIds: (...args) => this.issueCodesForLdaIds(...args),
+      findRelevantBills: (...args) => this.findRelevantBills(...args),
+      findRelevantBillsByEmbeddings: (...args) => this.findRelevantBillsByEmbeddings(...args),
+      findRelevantBillsByKeyword: (...args) => this.findRelevantBillsByKeyword(...args),
+      warn: (message) => this.logger.warn(message),
+    });
+
+    this.trackedBillDiscovery = new IntelligenceTrackedBillDiscovery(this.prisma, {
+      getManualTrackedBillIds: (...args) => this.getManualTrackedBillIds(...args),
+      getClientRelevanceTerms: (...args) => this.getClientRelevanceTerms(...args),
+      fetchBillsByIds: (...args) => this.fetchBillsByIds(...args),
+      findTrackedBillsByEmbeddings: (...args) => this.findTrackedBillsByEmbeddings(...args),
+      findTrackedBillsByKeyword: (...args) => this.findTrackedBillsByKeyword(...args),
+      embeddingSimilarityFloor: (hasCapabilitySignal) =>
+        embeddingSimilarityFloor(hasCapabilitySignal),
+      warn: (message) => this.logger.warn(message),
+    });
+
+    this.manualBillTracking = new IntelligenceManualBillTracking(this.prisma, {
+      fetchBillsByIds: (...args) => this.fetchBillsByIds(...args),
+    });
+
+    this.billEnrichment = new IntelligenceBillEnrichment(this.prisma, {
+      getTrackedBills: (...args) => this.getTrackedBills(...args),
     });
   }
 
@@ -1005,49 +1035,11 @@ export class IntelligenceService {
    * the same fallback set when LDA matching yields no issue codes.
    */
   private async capabilityFallbackTerms(tenantId: string, clientId: string): Promise<string[]> {
-    const terms: string[] = [];
-    const caps = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientCapability.findMany({
-        where: { clientId },
-        select: { sector: true, name: true, tags: true },
-      }),
-    );
-    for (const cap of caps) {
-      if (cap.sector) terms.push(cap.sector);
-      if (cap.name) {
-        cap.name
-          .split(/\s+/)
-          .filter((w) => w.length > 3)
-          .forEach((w) => terms.push(w));
-      }
-      const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
-      for (const t of tags) {
-        if (typeof t === 'string' && t.length > 3) terms.push(t);
-      }
-    }
-    return terms;
+    return this.billRelevanceInputs.capabilityFallbackTerms(tenantId, clientId);
   }
 
   private async findRelevantBills(issueCodes: string[], fallbackTerms: string[] = []) {
-    // Resolve LDA issue codes -> English issue names once, then run
-    // embeddings-first bill retrieval with transparent keyword fallback.
-    const issueNames: string[] = [];
-    if (issueCodes.length) {
-      const nameRows = await this.prisma.$queryRaw<Array<{ name: string }>>`
-        SELECT name FROM lda_issue_code WHERE code = ANY(${issueCodes}::text[])
-      `;
-      issueNames.push(...nameRows.map((r) => r.name));
-    }
-
-    const allTerms = expandTerms([...issueNames, ...fallbackTerms])
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-    if (!allTerms.length) return { total: 0, bills: [] };
-
-    const embedded = await this.findRelevantBillsByEmbeddings(allTerms);
-    if (embedded) return embedded;
-
-    return this.findRelevantBillsByKeyword(allTerms);
+    return this.relevantBillDiscovery.findRelevantBills(issueCodes, fallbackTerms);
   }
 
   private async findRelevantBillsByEmbeddings(allTerms: string[]): Promise<{
@@ -1068,151 +1060,11 @@ export class IntelligenceService {
       subjects: string[];
     }>;
   } | null> {
-    const query = normalize(allTerms.join('. '));
-    if (query.length < 10) return null;
-
-    try {
-      const vector = await embedText(query);
-      const vecLiteral = vectorLiteral(vector);
-      // Relevance floor (cosine similarity): drop weakly-related bills so the
-      // linker doesn't surface tangential matches. Mirrors the tracked-bills floor.
-      const SIMILARITY_FLOOR = 0.65;
-      const candidateRows = await this.prisma.$queryRawUnsafe<
-        Array<{ source_id: string; score: number }>
-      >(
-        `SELECT ce.source_id,
-                (1 - (ce.embedding <=> $1::vector))::float8 AS score
-           FROM context_embeddings ce
-          WHERE ce.source_type = 'bill'
-            AND ce.model = $2
-            AND ce.embedding IS NOT NULL
-            AND (1 - (ce.embedding <=> $1::vector)) >= $3
-          ORDER BY ce.embedding <=> $1::vector
-          LIMIT 150`,
-        vecLiteral,
-        EMBEDDING_MODEL,
-        SIMILARITY_FLOOR,
-      );
-
-      const candidateIds = Array.from(
-        new Set(
-          candidateRows
-            .filter((r) => typeof r.source_id === 'string' && r.source_id.trim().length > 0)
-            .map((r) => r.source_id.trim()),
-        ),
-      );
-      if (!candidateIds.length) return null;
-
-      const rows = await this.prisma.$queryRaw<
-        Array<{
-          id: string;
-          congress: number;
-          bill_type: string;
-          bill_number: string;
-          title: string;
-          introduced_date: Date | null;
-          sponsor_name: string | null;
-          sponsor_party: string | null;
-          sponsor_state: string | null;
-          latest_action_text: string | null;
-          latest_action_date: Date | null;
-          policy_area: string | null;
-          subjects: string[];
-        }>
-      >`
-        SELECT cb.id, cb.congress, cb.bill_type, cb.bill_number, cb.title,
-               cb.introduced_date, cb.sponsor_name, cb.sponsor_party, cb.sponsor_state,
-               cb.latest_action_text, cb.latest_action_date, cb.policy_area, cb.subjects
-        FROM congress_bill cb
-        WHERE cb.id = ANY(${candidateIds}::text[])
-        ORDER BY cb.latest_action_date DESC NULLS LAST
-        LIMIT 25
-      `;
-
-      if (!rows.length) return null;
-
-      const bills = rows.map((r) => ({
-        id: r.id,
-        congress: r.congress,
-        billType: r.bill_type,
-        billNumber: r.bill_number,
-        title: r.title,
-        introducedDate: r.introduced_date,
-        sponsorName: r.sponsor_name,
-        sponsorParty: r.sponsor_party,
-        sponsorState: r.sponsor_state,
-        latestActionText: r.latest_action_text,
-        latestActionDate: r.latest_action_date,
-        policyArea: r.policy_area,
-        subjects: r.subjects ?? [],
-      }));
-
-      return { total: candidateIds.length, bills };
-    } catch (error) {
-      this.logger.warn(
-        `Issue-bill embeddings lookup failed, falling back to keyword matcher: ${(error as Error).message}`,
-      );
-      return null;
-    }
+    return this.relevantBillDiscovery.findRelevantBillsByEmbeddings(allTerms);
   }
 
   private async findRelevantBillsByKeyword(allTerms: string[]) {
-    // Whole-word keyword fallback (legacy source). Keeps behavior stable when
-    // embeddings are unavailable or backfill has not populated bill vectors.
-    // Matching is index-backed via matchingBillIdsSql (UNION of per-table trigram
-    // branches); see bill-keyword-match.helpers.ts for the why + parity proof.
-    const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
-    const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
-
-    return withBillKeywordSqlDeadline(this.prisma, async (query) => {
-      const countRows = await query<Array<{ total: bigint }>>(Prisma.sql`
-      SELECT COUNT(*)::bigint AS total FROM ${matchingIds} AS m
-    `);
-
-      const rows = await query<
-        Array<{
-          id: string;
-          congress: number;
-          bill_type: string;
-          bill_number: string;
-          title: string;
-          introduced_date: Date | null;
-          sponsor_name: string | null;
-          sponsor_party: string | null;
-          sponsor_state: string | null;
-          latest_action_text: string | null;
-          latest_action_date: Date | null;
-          policy_area: string | null;
-          subjects: string[];
-        }>
-      >(Prisma.sql`
-      SELECT cb.id, cb.congress, cb.bill_type, cb.bill_number, cb.title,
-             cb.introduced_date, cb.sponsor_name, cb.sponsor_party, cb.sponsor_state,
-             cb.latest_action_text, cb.latest_action_date, cb.policy_area, cb.subjects
-      FROM congress_bill cb
-      WHERE cb.id IN (SELECT id FROM ${matchingIds} AS m)
-      ORDER BY cb.latest_action_date DESC NULLS LAST, cb.id
-      LIMIT 25
-    `);
-
-      const bills = rows.map((r) => ({
-        id: r.id,
-        congress: r.congress,
-        billType: r.bill_type,
-        billNumber: r.bill_number,
-        title: r.title,
-        introducedDate: r.introduced_date,
-        sponsorName: r.sponsor_name,
-        sponsorParty: r.sponsor_party,
-        sponsorState: r.sponsor_state,
-        latestActionText: r.latest_action_text,
-        latestActionDate: r.latest_action_date,
-        policyArea: r.policy_area,
-        subjects: r.subjects ?? [],
-      }));
-
-      return { total: Number(countRows[0]?.total ?? 0), bills };
-    });
+    return this.relevantBillDiscovery.findRelevantBillsByKeyword(allTerms);
   }
 
   /**
@@ -2747,11 +2599,7 @@ export class IntelligenceService {
 
   /** Relevant bills for a client, derived from their confirmed LDA issue codes */
   async getClientBills(clientId: string, tenantId: string) {
-    // Phase 4c: read issue codes across the client's FULL confirmed LDA id set
-    // (one real company = a SET of lda_client ids), not a single firm relationship.
-    const ldaClientIds = await this.confirmedLdaIds(clientId, tenantId);
-    const issueCodes = await this.issueCodesForLdaIds(ldaClientIds);
-    return this.findRelevantBills(issueCodes);
+    return this.relevantBillDiscovery.getClientBills(clientId, tenantId);
   }
 
   /** Auto-matched bills per client based on LDA issue codes ↔ CongressBillSubject name overlap */
@@ -2891,79 +2739,7 @@ export class IntelligenceService {
    * legible so users can see and trust the intel.
    */
   async getIssueCodeSignal(clientId: string, tenantId: string) {
-    const ldaMappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'lda', confirmed: true },
-        select: { externalId: true, externalName: true },
-      }),
-    );
-    const ldaIds = ldaMappings.map((m) => Number(m.externalId)).filter((n) => Number.isFinite(n));
-
-    const ldaCodes: string[] = [];
-    if (ldaIds.length) {
-      const codeRows = await this.prisma.$queryRaw<Array<{ code: string }>>`
-        SELECT DISTINCT unnest(issue_codes) AS code
-        FROM lda_client
-        WHERE id = ANY(${ldaIds}::int[]) AND issue_codes IS NOT NULL
-      `;
-      ldaCodes.push(
-        ...codeRows.map((r) => r.code).filter((c) => typeof c === 'string' && c.length > 0),
-      );
-    }
-
-    let overrideCodes: string[] = [];
-    let capabilityTagCount = 0;
-    let capabilityDescCount = 0;
-    try {
-      const [client, caps] = await this.prisma.withTenant(tenantId, (tx) =>
-        Promise.all([
-          tx.client.findFirst({ where: { id: clientId }, select: { issueCodes: true } }),
-          tx.clientCapability.findMany({
-            where: { clientId },
-            select: { tags: true, description: true },
-          }),
-        ]),
-      );
-      if (Array.isArray(client?.issueCodes)) {
-        overrideCodes = client!.issueCodes.filter((c): c is string => typeof c === 'string');
-      }
-      capabilityTagCount = caps.reduce(
-        (s, c) => s + (Array.isArray(c.tags) ? (c.tags as unknown[]).length : 0),
-        0,
-      );
-      capabilityDescCount = caps.filter(
-        (c) => typeof c.description === 'string' && c.description.trim().length > 0,
-      ).length;
-    } catch {
-      // tenant reads unavailable (e.g. mocked tx) — fall back to LDA-only signal.
-    }
-
-    const ldaSet = new Set(ldaCodes.map((c) => c.trim()).filter(Boolean));
-    const overrideSet = new Set(overrideCodes.map((c) => c.trim()).filter(Boolean));
-    const allCodes = Array.from(new Set([...ldaSet, ...overrideSet])).sort();
-
-    const names: Record<string, string> = {};
-    if (allCodes.length) {
-      const nameRows = await this.prisma.$queryRaw<Array<{ code: string; name: string }>>`
-        SELECT code, name FROM lda_issue_code WHERE code = ANY(${allCodes}::text[])
-      `;
-      for (const r of nameRows) names[r.code] = r.name;
-    }
-
-    return {
-      clientId,
-      ldaRegistrantCount: ldaIds.length,
-      ldaRegistrants: ldaMappings.map((m) => m.externalName),
-      codes: allCodes.map((code) => ({
-        code,
-        name: names[code] ?? null,
-        source:
-          ldaSet.has(code) && overrideSet.has(code) ? 'both' : ldaSet.has(code) ? 'lda' : 'manual',
-      })),
-      overrideCodeCount: overrideSet.size,
-      capabilityTagCount,
-      capabilityDescCount,
-    };
+    return this.billRelevanceInputs.getIssueCodeSignal(clientId, tenantId);
   }
 
   /**
@@ -3012,202 +2788,18 @@ export class IntelligenceService {
     embeddingPartsClean: string[];
     hasCapabilitySignal: boolean;
   }> {
-    // Union across ALL confirmed LDA registrants, not just one (a large client
-    // files under several registrant-name variants, each a distinct lda_client).
-    const ldaMappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'lda', confirmed: true },
-        select: { externalId: true },
-      }),
-    );
-
-    let issueCodes: string[] = [];
-    let issueNames: string[] = [];
-
-    const ldaCodes: string[] = [];
-    if (ldaMappings.length) {
-      const ldaIds = ldaMappings.map((m) => Number(m.externalId)).filter((n) => Number.isFinite(n));
-      if (ldaIds.length) {
-        // DISTINCT unnest = the union of issue codes across every confirmed
-        // registrant variant for this client.
-        const codeRows = await this.prisma.$queryRaw<Array<{ code: string }>>`
-          SELECT DISTINCT unnest(issue_codes) AS code
-          FROM lda_client
-          WHERE id = ANY(${ldaIds}::int[]) AND issue_codes IS NOT NULL
-        `;
-        ldaCodes.push(
-          ...codeRows.map((r) => r.code).filter((c) => typeof c === 'string' && c.length > 0),
-        );
-      }
-    }
-
-    // Client-level manual override (the "LDA Issue Codes" control). Unioned with
-    // the auto codes, applied even with NO LDA mapping so a thin-LDA client can
-    // still drive matching by hand. Defensive: a mocked tx may not stub client.
-    const overrideCodes: string[] = [];
-    try {
-      const c = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findFirst({ where: { id: clientId }, select: { issueCodes: true } }),
-      );
-      if (Array.isArray(c?.issueCodes)) overrideCodes.push(...c!.issueCodes);
-    } catch {
-      // tenant client read unavailable (e.g. mocked tx) — no override applied.
-    }
-
-    issueCodes = Array.from(
-      new Set([...ldaCodes, ...overrideCodes].map((c) => c.trim()).filter(Boolean)),
-    );
-    if (issueCodes.length) {
-      const nameRows = await this.prisma.$queryRaw<Array<{ name: string }>>`
-        SELECT name FROM lda_issue_code WHERE code = ANY(${issueCodes}::text[])
-      `;
-      issueNames = nameRows.map((r) => r.name);
-    }
-
-    // Build two term sets from the client's capabilities (combined with LDA issue
-    // names): keywordTerms (short precise tokens, acronym-expanded) for the
-    // whole-word matcher, and embeddingParts (richer prose) for the semantic one.
-    const keywordTerms: string[] = [...issueNames];
-    const embeddingParts: string[] = [...issueNames];
-    let hasCapabilitySignal = false;
-    const caps = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientCapability.findMany({
-        where: { clientId },
-        select: {
-          sector: true,
-          name: true,
-          tags: true,
-          description: true,
-          justification: true,
-          districtNexus: true,
-        },
-      }),
-    );
-    hasCapabilitySignal = caps.length > 0;
-    for (const cap of caps) {
-      if (cap.sector) {
-        keywordTerms.push(cap.sector);
-        embeddingParts.push(cap.sector);
-      }
-      if (cap.name) {
-        embeddingParts.push(cap.name);
-        cap.name
-          .split(/\s+/)
-          .filter((w) => w.length >= MIN_KEYWORD_TOKEN_LENGTH)
-          .forEach((w) => keywordTerms.push(w));
-      }
-      const tags = Array.isArray(cap.tags)
-        ? (cap.tags as unknown[]).filter((t): t is string => typeof t === 'string')
-        : [];
-      for (const t of tags) {
-        embeddingParts.push(t); // any length — the embedding query is cosine-floored
-        if (t.trim().length >= MIN_KEYWORD_TOKEN_LENGTH || isKnownAcronym(t)) {
-          keywordTerms.push(t);
-        }
-      }
-      for (const rich of [cap.description, cap.justification, cap.districtNexus]) {
-        if (rich) embeddingParts.push(rich);
-      }
-    }
-
-    // Acronym-expand the keyword tokens (EW → electronic warfare, etc.) so short
-    // client tags reach the full-phrase vocabulary used by bill subjects.
-    const keywordTermsExpanded = expandTerms(keywordTerms)
-      .map((n) => n.trim())
-      .filter((n) => n.length > 0);
-    const embeddingPartsClean = embeddingParts
-      .map((n) => (typeof n === 'string' ? n.trim() : ''))
-      .filter((n) => n.length > 0);
-
-    return {
-      issueCodes,
-      issueNames,
-      keywordTermsExpanded,
-      embeddingPartsClean,
-      hasCapabilitySignal,
-    };
+    return this.billRelevanceInputs.getClientRelevanceTerms(clientId, tenantId);
   }
 
   async getTrackedBills(clientId: string, tenantId?: string) {
-    // Union across ALL confirmed LDA registrants, not just one. A large client
-    // (e.g. RTX) files its lobbying under several registrant-name variants —
-    // "RTX CORPORATION", "RTX CORPORATION AND AFFILIATES", "RAYTHEON TECHNOLOGIES
-    // CORPORATION", various FKA forms — and each is a distinct lda_client. Picking
-    // a single one left big clients matching on a thin slice of their footprint.
-    // Manually pinned bills (explicit human picks) — always included regardless
-    // of embedding similarity, and flagged so the UI can mark them. Tenant-scoped.
-    const manualBillIds = tenantId ? await this.getManualTrackedBillIds(clientId, tenantId) : [];
-    const manualSet = new Set(manualBillIds);
-
-    // Relevance term sets (issue codes + acronym-expanded capability keywords +
-    // semantic prose), extracted into getClientRelevanceTerms so the Tracker
-    // Recommendations matcher feeds the embeddings/keyword matchers IDENTICAL
-    // inputs without re-deriving (or drifting from) this logic.
-    const { issueCodes, keywordTermsExpanded, embeddingPartsClean, hasCapabilitySignal } = tenantId
-      ? await this.getClientRelevanceTerms(clientId, tenantId)
-      : {
-          issueCodes: [] as string[],
-          keywordTermsExpanded: [] as string[],
-          embeddingPartsClean: [] as string[],
-          hasCapabilitySignal: false,
-        };
-
-    // Merge auto-matched bills with manually pinned ones. Manual picks are
-    // ALWAYS included (even with no terms / no embedding match) and flagged
-    // isManual so the UI can mark + pin them. Auto matches that are also
-    // manually tracked get isManual:true too.
-    const mergeManual = async (auto: {
-      total: number;
-      bills: Array<{
-        identifier: string;
-        title: string;
-        latestActionDate: Date | null;
-        latestActionText: string | null;
-        status?: string | null;
-        actionTexts?: string[];
-        sponsorName: string | null;
-        sponsorParty: string | null;
-        subjectNames: string[];
-        isManual?: boolean;
-      }>;
-    }) => {
-      const flagged = auto.bills.map((b) => ({ ...b, isManual: manualSet.has(b.identifier) }));
-      const presentIds = new Set(flagged.map((b) => b.identifier));
-      const missingManual = manualBillIds.filter((id) => !presentIds.has(id));
-      const manualBills = missingManual.length ? await this.fetchBillsByIds(missingManual) : [];
-      const merged = [...manualBills.map((b) => ({ ...b, isManual: true })), ...flagged];
-      // total counts the distinct universe of tracked bills (auto + manual).
-      return { total: merged.length, issueCodes, bills: merged };
-    };
-
-    if (!keywordTermsExpanded.length && !embeddingPartsClean.length) {
-      // No relevance signal, but manual picks may still exist — surface them.
-      return mergeManual({ total: 0, bills: [] });
-    }
-
-    // Thin-signal guard: a client with no capabilities matches on broad LDA
-    // issue-code names alone, which produces semantic false positives at the
-    // default floor. Require a tighter similarity for those clients.
-    const embedded = await this.findTrackedBillsByEmbeddings(
-      embeddingPartsClean,
-      embeddingSimilarityFloor(hasCapabilitySignal),
-    );
-    if (embedded) {
-      return mergeManual(embedded);
-    }
-
-    const keyword = await this.findTrackedBillsByKeyword(keywordTermsExpanded);
-    return mergeManual(keyword);
+    return this.trackedBillDiscovery.getTrackedBills(clientId, tenantId);
   }
 
   // ── Manual bill tracking (user-pinned) ────────────────────────────────────
 
   /** Confirmed-tracked bill ids for a client (tenant-scoped). */
   private async getManualTrackedBillIds(clientId: string, tenantId: string): Promise<string[]> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.findMany({ where: { clientId }, select: { billId: true } }),
-    );
-    return rows.map((r) => r.billId);
+    return this.manualBillTracking.getManualTrackedBillIds(clientId, tenantId);
   }
 
   /** Fetch congress_bill rows by id, shaped like the tracked-bill list entries. */
@@ -3224,58 +2816,12 @@ export class IntelligenceService {
       subjectNames: string[];
     }>
   > {
-    if (!ids.length) return [];
-    const bills = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        title: string;
-        latest_action_date: Date | null;
-        latest_action_text: string | null;
-        status?: string | null;
-        action_texts?: string[];
-        sponsor_name: string | null;
-        sponsor_party: string | null;
-        subjects: string[];
-      }>
-    >`
-      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
-             ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
-             cb.sponsor_name, cb.sponsor_party, cb.subjects
-      FROM congress_bill cb
-      WHERE cb.id = ANY(${ids}::text[])
-      ORDER BY cb.latest_action_date DESC NULLS LAST
-    `;
-    return bills.map((b) => ({
-      identifier: b.id,
-      title: b.title,
-      latestActionDate: b.latest_action_date,
-      latestActionText: b.latest_action_text,
-      status: b.status,
-      actionTexts: b.action_texts,
-      sponsorName: b.sponsor_name,
-      sponsorParty: b.sponsor_party,
-      subjectNames: b.subjects ?? [],
-    }));
+    return this.manualBillTracking.fetchBillsByIds(ids);
   }
 
   /** List a client's manually tracked bills with full bill detail. */
   async listTrackedBills(clientId: string, tenantId: string) {
-    const tracked = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.findMany({
-        where: { clientId },
-        orderBy: { createdAt: 'desc' },
-      }),
-    );
-    const billIds = tracked.map((t) => t.billId);
-    const bills = await this.fetchBillsByIds(billIds);
-    const billById = new Map(bills.map((b) => [b.identifier, b]));
-    return tracked.map((t) => ({
-      id: t.id,
-      billId: t.billId,
-      note: t.note,
-      createdAt: t.createdAt,
-      bill: billById.get(t.billId) ?? null,
-    }));
+    return this.manualBillTracking.listTrackedBills(clientId, tenantId);
   }
 
   /** Pin a bill for a client (idempotent on clientId+billId). */
@@ -3286,44 +2832,12 @@ export class IntelligenceService {
     note?: string,
     createdBy?: string,
   ) {
-    const trimmedId = billId.trim();
-    if (!trimmedId) {
-      throw new BadRequestException('billId is required');
-    }
-    // Verify the bill exists (global table) and the client belongs to the tenant.
-    const [billExists] = await this.prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM congress_bill WHERE id = ${trimmedId} LIMIT 1
-    `;
-    if (!billExists) {
-      throw new NotFoundException(`Bill ${trimmedId} not found`);
-    }
-    const client = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
-    );
-    if (!client) {
-      throw new NotFoundException(`Client ${clientId} not found`);
-    }
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.upsert({
-        where: { clientId_billId: { clientId, billId: trimmedId } },
-        update: { note: note ?? undefined },
-        create: {
-          tenantId,
-          clientId,
-          billId: trimmedId,
-          note: note ?? null,
-          createdBy: createdBy ?? null,
-        },
-      }),
-    );
+    return this.manualBillTracking.addTrackedBill(clientId, tenantId, billId, note, createdBy);
   }
 
   /** Unpin a tracked bill. No-op if it wasn't tracked. */
   async removeTrackedBill(clientId: string, tenantId: string, billId: string) {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.deleteMany({ where: { clientId, billId: billId.trim() } }),
-    );
-    return { removed: true };
+    return this.manualBillTracking.removeTrackedBill(clientId, tenantId, billId);
   }
 
   private async findTrackedBillsByEmbeddings(
@@ -3343,88 +2857,7 @@ export class IntelligenceService {
       subjectNames: string[];
     }>;
   } | null> {
-    const query = normalize(allTerms.join('. '));
-    if (query.length < 10) return null;
-
-    try {
-      const vector = await embedText(query);
-      const vecLiteral = vectorLiteral(vector);
-      // Relevance floor: cosine similarity (1 - distance) must clear this to count
-      // as a tracked bill. Without it the vector search returns its top-N nearest
-      // regardless of how weakly related, inflating the "tracked" count with noise.
-      // The floor is supplied by the caller (see embeddingSimilarityFloor): the
-      // default keeps genuinely on-topic bills while dropping tangential matches,
-      // and a tighter floor is used for thin-signal (no-capability) clients.
-      const SIMILARITY_FLOOR = similarityFloor;
-      const candidateRows = await this.prisma.$queryRawUnsafe<
-        Array<{ source_id: string; score: number }>
-      >(
-        `SELECT ce.source_id,
-                (1 - (ce.embedding <=> $1::vector))::float8 AS score
-           FROM context_embeddings ce
-          WHERE ce.source_type = 'bill'
-            AND ce.model = $2
-            AND ce.embedding IS NOT NULL
-            AND (1 - (ce.embedding <=> $1::vector)) >= $3
-          ORDER BY ce.embedding <=> $1::vector
-          LIMIT 200`,
-        vecLiteral,
-        EMBEDDING_MODEL,
-        SIMILARITY_FLOOR,
-      );
-
-      const rankedIds = Array.from(
-        new Set(
-          candidateRows
-            .filter((r) => typeof r.source_id === 'string' && r.source_id.trim().length > 0)
-            .map((r) => r.source_id.trim()),
-        ),
-      );
-      if (!rankedIds.length) return null;
-
-      const bills = await this.prisma.$queryRaw<
-        Array<{
-          id: string;
-          title: string;
-          latest_action_date: Date | null;
-          latest_action_text: string | null;
-          status?: string | null;
-          action_texts?: string[];
-          sponsor_name: string | null;
-          sponsor_party: string | null;
-          subjects: string[];
-        }>
-      >`
-        SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
-               ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
-               cb.sponsor_name, cb.sponsor_party, cb.subjects
-        FROM congress_bill cb
-        WHERE cb.id = ANY(${rankedIds}::text[])
-        ORDER BY cb.latest_action_date DESC NULLS LAST
-        LIMIT 50
-      `;
-      if (!bills.length) return null;
-
-      return {
-        total: rankedIds.length,
-        bills: bills.map((b) => ({
-          identifier: b.id,
-          title: b.title,
-          latestActionDate: b.latest_action_date,
-          latestActionText: b.latest_action_text,
-          status: b.status,
-          actionTexts: b.action_texts,
-          sponsorName: b.sponsor_name,
-          sponsorParty: b.sponsor_party,
-          subjectNames: b.subjects ?? [],
-        })),
-      };
-    } catch (error) {
-      this.logger.warn(
-        `Tracked-bills embeddings lookup failed, falling back to keyword matcher: ${(error as Error).message}`,
-      );
-      return null;
-    }
+    return this.trackedBillDiscovery.findTrackedBillsByEmbeddings(allTerms, similarityFloor);
   }
 
   private async findTrackedBillsByKeyword(allTerms: string[]): Promise<{
@@ -3441,54 +2874,7 @@ export class IntelligenceService {
       subjectNames: string[];
     }>;
   }> {
-    // Index-backed via matchingBillIdsSql (UNION of per-table trigram branches);
-    // see bill-keyword-match.helpers.ts. Identical result set to the prior
-    // cross-table-OR query, ~350x faster.
-    const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
-    const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
-
-    return withBillKeywordSqlDeadline(this.prisma, async (query) => {
-      const countRows = await query<Array<{ total: bigint }>>(Prisma.sql`
-      SELECT COUNT(*)::bigint AS total FROM ${matchingIds} AS m
-    `);
-
-      const bills = await query<
-        Array<{
-          id: string;
-          title: string;
-          latest_action_date: Date | null;
-          latest_action_text: string | null;
-          status?: string | null;
-          action_texts?: string[];
-          sponsor_name: string | null;
-          sponsor_party: string | null;
-          subjects: string[];
-        }>
-      >(Prisma.sql`
-      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
-             ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
-             cb.sponsor_name, cb.sponsor_party, cb.subjects
-      FROM congress_bill cb
-      WHERE cb.id IN (SELECT id FROM ${matchingIds} AS m)
-      ORDER BY cb.latest_action_date DESC NULLS LAST, cb.id
-      LIMIT 50
-    `);
-
-      return {
-        total: Number(countRows[0]?.total ?? 0),
-        bills: bills.map((b) => ({
-          identifier: b.id,
-          title: b.title,
-          latestActionDate: b.latest_action_date,
-          latestActionText: b.latest_action_text,
-          status: b.status,
-          actionTexts: b.action_texts,
-          sponsorName: b.sponsor_name,
-          sponsorParty: b.sponsor_party,
-          subjectNames: b.subjects ?? [],
-        })),
-      };
-    });
+    return this.trackedBillDiscovery.findTrackedBillsByKeyword(allTerms);
   }
 
   /** Live competitor leaderboard per LDA issue code with new-entrant and shared-lobbyist signals */
@@ -5356,97 +4742,7 @@ export class IntelligenceService {
       | Promise<Awaited<ReturnType<typeof this.getTrackedBills>>>
       | Awaited<ReturnType<typeof this.getTrackedBills>>,
   ) {
-    const tracked = await (precomputedTracked ?? this.getTrackedBills(clientId, tenantId));
-    if (!tracked.bills.length) {
-      return { links: [], totalBills: 0, totalRegulations: 0 };
-    }
-
-    // Collect all subjects + identifier search terms across bills.
-    const allSubjects = new Set<string>();
-    const identifierTerms: string[] = [];
-    for (const b of tracked.bills) {
-      for (const s of b.subjectNames) allSubjects.add(s);
-      // Build identifier variants from "119-hr-1234"
-      const parts = b.identifier.split('-');
-      if (parts.length === 3 && parts[1] && parts[2]) {
-        const upper = parts[1].toUpperCase();
-        const billNumber = parts[2];
-        identifierTerms.push(`%${upper} ${billNumber}%`);
-        identifierTerms.push(`%${upper}${billNumber}%`);
-      }
-    }
-    const subjects = [...allSubjects];
-
-    const regulations = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        document_number: string;
-        type: string;
-        title: string;
-        agency_names: string[];
-        topics: string[];
-        comment_end_date: Date | null;
-        publication_date: Date;
-        effective_date: Date | null;
-        significant_rule: boolean;
-        html_url: string | null;
-      }>
-    >`
-      SELECT id, document_number, type, title, agency_names, topics,
-             comment_end_date, publication_date, effective_date, significant_rule, html_url
-      FROM federal_register_document
-      WHERE topics && ${subjects}::text[]
-         OR title ILIKE ANY(${identifierTerms}::text[])
-         OR abstract ILIKE ANY(${identifierTerms}::text[])
-      ORDER BY publication_date DESC
-      LIMIT 200
-    `;
-
-    // Group regulations back to bills by topic overlap or identifier mention.
-    const links = tracked.bills
-      .map((bill) => {
-        const billSubjects = new Set(bill.subjectNames);
-        const billIdentVariants = (() => {
-          const parts = bill.identifier.split('-');
-          if (parts.length !== 3 || !parts[1] || !parts[2]) return [];
-          const upper = parts[1].toUpperCase();
-          const num = parts[2];
-          return [`${upper} ${num}`, `${upper}${num}`];
-        })().map((s) => s.toLowerCase());
-
-        const matched = regulations.filter((r) => {
-          if (r.topics.some((t) => billSubjects.has(t))) return true;
-          const haystack = r.title.toLowerCase();
-          return billIdentVariants.some((v) => haystack.includes(v));
-        });
-
-        return {
-          bill: {
-            identifier: bill.identifier,
-            title: bill.title,
-            latestActionDate: bill.latestActionDate,
-          },
-          regulations: matched.slice(0, 10).map((r) => ({
-            documentNumber: r.document_number,
-            type: r.type,
-            title: r.title,
-            agencyNames: r.agency_names,
-            publicationDate: r.publication_date,
-            commentEndDate: r.comment_end_date,
-            effectiveDate: r.effective_date,
-            significantRule: r.significant_rule,
-            htmlUrl: r.html_url,
-            matchedTopics: r.topics.filter((t) => billSubjects.has(t)),
-          })),
-        };
-      })
-      .filter((l) => l.regulations.length > 0);
-
-    return {
-      links,
-      totalBills: tracked.bills.length,
-      totalRegulations: regulations.length,
-    };
+    return this.billEnrichment.getBillRegulationLinks(clientId, tenantId, precomputedTracked);
   }
 
   /**
@@ -5574,98 +4870,7 @@ export class IntelligenceService {
    * bills, feeds RAG grounding and meeting prep.
    */
   async getBillResearchAttachments(clientId: string, tenantId: string) {
-    const tracked = await this.getTrackedBills(clientId, tenantId);
-    if (!tracked.bills.length) {
-      return { attachments: [], totalBills: 0, totalReports: 0 };
-    }
-
-    const allSubjects = new Set<string>();
-    for (const b of tracked.bills) for (const s of b.subjectNames) allSubjects.add(s);
-    const subjects = [...allSubjects];
-    if (!subjects.length) {
-      return { attachments: [], totalBills: tracked.bills.length, totalReports: 0 };
-    }
-
-    const [gaoRows, crsRows] = await Promise.all([
-      this.prisma.$queryRaw<
-        Array<{
-          id: string;
-          title: string;
-          publish_date: Date | null;
-          topics: string[];
-          report_type: string | null;
-          recommendations: number | null;
-          url: string | null;
-        }>
-      >`
-        SELECT id, title, publish_date, topics, report_type, recommendations, url
-        FROM gao_report
-        WHERE topics && ${subjects}::text[]
-        ORDER BY publish_date DESC NULLS LAST
-        LIMIT 150
-      `,
-      this.prisma.$queryRaw<
-        Array<{
-          id: string;
-          title: string;
-          date: Date | null;
-          topics: string[];
-          authors: string[];
-          html_url: string | null;
-        }>
-      >`
-        SELECT id, title, date, topics, authors, html_url
-        FROM crs_report
-        WHERE topics && ${subjects}::text[]
-          AND active = true
-        ORDER BY date DESC NULLS LAST
-        LIMIT 150
-      `,
-    ]);
-
-    const attachments = tracked.bills
-      .map((bill) => {
-        const billSubjects = new Set(bill.subjectNames);
-        const gao = gaoRows
-          .filter((r) => r.topics.some((t) => billSubjects.has(t)))
-          .slice(0, 8)
-          .map((r) => ({
-            id: r.id,
-            title: r.title,
-            publishDate: r.publish_date,
-            topics: r.topics.filter((t) => billSubjects.has(t)),
-            reportType: r.report_type,
-            recommendations: r.recommendations,
-            url: r.url,
-          }));
-        const crs = crsRows
-          .filter((r) => r.topics.some((t) => billSubjects.has(t)))
-          .slice(0, 8)
-          .map((r) => ({
-            id: r.id,
-            title: r.title,
-            date: r.date,
-            topics: r.topics.filter((t) => billSubjects.has(t)),
-            authors: r.authors,
-            htmlUrl: r.html_url,
-          }));
-        return {
-          bill: {
-            identifier: bill.identifier,
-            title: bill.title,
-            latestActionDate: bill.latestActionDate,
-          },
-          gao,
-          crs,
-        };
-      })
-      .filter((a) => a.gao.length > 0 || a.crs.length > 0);
-
-    return {
-      attachments,
-      totalBills: tracked.bills.length,
-      totalReports: gaoRows.length + crsRows.length,
-    };
+    return this.billEnrichment.getBillResearchAttachments(clientId, tenantId);
   }
 
   /**
