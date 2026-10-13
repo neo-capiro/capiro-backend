@@ -1,0 +1,11 @@
+{
+  "source": "c4c327c52f121bf514731fdd53bb017b44ed2403",
+  "compilerVersion": "5.9.3",
+  "isolatedDeclarationEmitOnly": true,
+  "publicCommentEmitted": true,
+  "diagnosticCodes": [
+    9010
+  ],
+  "wholeTypecheckClaim": false,
+  "reason": "Public JSDoc is emitted; relocate to body/handoff to retain exact declaration-body continuity for Core reuse."
+}

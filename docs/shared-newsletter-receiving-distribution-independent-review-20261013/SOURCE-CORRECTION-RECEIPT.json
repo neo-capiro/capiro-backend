@@ -1,0 +1,11 @@
+{
+  "decision": "ACCEPT bounded source correction; replacement artifact pending",
+  "source": "38fec5c83585850ed75a7d3693b3b90d517e70af",
+  "tree": "b5aef300e56fae9b523d7525f1abd0f9c6baec75",
+  "actualGetHistoricalWitness": "PASS",
+  "targetedControls": 16,
+  "suppliedPublicCorpus": 130,
+  "serverTypePackageRendererChanges": 0,
+  "originalInterimHashEntriesUnchanged": 21,
+  "coreReuseRequiresActualFinalDeclarationEquality": true
+}

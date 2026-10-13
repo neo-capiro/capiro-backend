@@ -1,0 +1,11 @@
+{
+  "oldExports": 38,
+  "newExports": 49,
+  "additions": 11,
+  "loaded": [
+    "newsletter-fonts.catalog.js",
+    "newsletter-fonts.js",
+    "newsletter-receiving.js",
+    "newsletter.js"
+  ]
+}
