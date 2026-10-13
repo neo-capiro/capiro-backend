@@ -44,27 +44,81 @@ import {
   isCommunityFundingAdvocacyRecord,
   matchCommunityFundingAppropriationsDeterministically,
 } from './community-funding-appropriations-outcome.js';
+import {
+  buildClientProfileFillCompletionPlan,
+  calculateProfileCompletion,
+  mergeFillProgress,
+  type ClientProfileFillCompletionTaskType,
+} from './client-profile-fill-completion-projection.js';
+import {
+  ADVOCACY_SOURCE_NAMES,
+  buildAdvocacyHistoryHealth,
+  deriveAdvocacyBackfillOverallStatus,
+  deriveAdvocacyOverallHealth,
+  updateAdvocacySourceHealth,
+  type AdvocacyBackfillOverallStatus,
+  type AdvocacyBackfillStatus,
+  type AdvocacyHistoryHealth,
+  type AdvocacySourceBackfillState,
+} from './client-profile-fill-advocacy-health.js';
+import {
+  buildRegulatoryOutcomeFinding,
+  containsAdvocacyTerm,
+  deriveRegulatoryCommentSubmitterLabel,
+  faraMatchConfidence,
+  matchAdvocacyOutcomeDeterministically,
+  normalizeEvidenceClass,
+  normalizePersistedAdvocacy,
+  parseDate,
+  planTestimonyScanBatch,
+  recordsFromUnknown,
+  resolveFaraMatchedRole,
+  sameActivityDay,
+  scoreAdvocacyOutcome,
+  summarizeLdaActivity,
+  testimonyMatchConfidence,
+  titleOverlapRatio,
+} from './client-profile-fill-advocacy-mapping.js';
 
-export const CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES = [
-  'federal_market',
-  'facility_resolution',
-  'district_nexus',
-  'advocacy_history',
-  'lifecycle_outcomes',
-  'reconciliation',
-  'completion_audit',
-] as const;
-
-export type ClientProfileFillCompletionTaskType =
-  (typeof CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES)[number];
+export {
+  CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES,
+  buildClientProfileFillCompletionPlan,
+  calculateProfileCompletion,
+  mergeFillProgress,
+  type ClientProfileFillCompletionTaskType,
+  type ProfileCompletionInput,
+  type ProfileCompletionResult,
+} from './client-profile-fill-completion-projection.js';
+export {
+  ADVOCACY_SOURCE_NAMES,
+  buildAdvocacyHistoryHealth,
+  deriveAdvocacyBackfillOverallStatus,
+  deriveAdvocacyFreshness,
+  deriveAdvocacyOverallHealth,
+  updateAdvocacySourceHealth,
+  type AdvocacyBackfillOverallStatus,
+  type AdvocacyBackfillStatus,
+  type AdvocacyHistoryHealth,
+  type AdvocacyOverallHealth,
+  type AdvocacySourceAvailability,
+  type AdvocacySourceBackfillState,
+  type AdvocacySourceFreshness,
+  type AdvocacySourceHealth,
+} from './client-profile-fill-advocacy-health.js';
+export {
+  buildRegulatoryOutcomeFinding,
+  deriveRegulatoryCommentSubmitterLabel,
+  faraMatchConfidence,
+  matchAdvocacyOutcomeDeterministically,
+  planTestimonyScanBatch,
+  resolveFaraMatchedRole,
+  sameActivityDay,
+  scoreAdvocacyOutcome,
+  testimonyMatchConfidence,
+  titleOverlapRatio,
+} from './client-profile-fill-advocacy-mapping.js';
 
 type CompletionTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled';
-
-interface CompletionTaskPlanEntry {
-  taskType: ClientProfileFillCompletionTaskType;
-  taskKey: string;
-  dependsOn: string[];
-}
 
 interface CompletionTaskRow {
   id: string;
@@ -116,73 +170,12 @@ export interface RefreshScheduleRow {
   updatedAt: Date;
 }
 
-export type AdvocacyBackfillStatus =
-  | 'not_started'
-  | 'in_progress'
-  | 'complete'
-  | 'partial'
-  | 'failed';
-
-export interface AdvocacySourceBackfillState {
-  status: AdvocacyBackfillStatus;
-  startedAt?: string;
-  completedAt?: string;
-  checkpoint?: Record<string, unknown> | null;
-  historyStart?: string | null;
-  examined: number;
-  candidates: number;
-  lastError?: string | null;
-  lastErrorAt?: string;
-  limitation?: string | null;
-  suggestions?: unknown[];
-  availability?: AdvocacySourceAvailability;
-  lastAttemptAt?: string;
-  lastSuccessAt?: string;
-  freshness?: AdvocacySourceFreshness;
-  nextRefreshAt?: string;
-}
-
-export type AdvocacySourceAvailability = 'available' | 'unavailable' | 'degraded' | 'unknown';
-export type AdvocacySourceFreshness = 'fresh' | 'stale' | 'unknown';
-export type AdvocacyOverallHealth =
-  | 'not_built'
-  | 'building_history'
-  | 'current'
-  | 'stale'
-  | 'partial'
-  | 'degraded'
-  | 'failed';
-
-export interface AdvocacySourceHealth extends AdvocacySourceBackfillState {
-  source: string;
-  backfillStatus: AdvocacyBackfillStatus;
-  availability: AdvocacySourceAvailability;
-  freshness: AdvocacySourceFreshness;
-}
-
-export interface AdvocacyHistoryHealth {
-  overall: AdvocacyOverallHealth;
-  refreshedAt?: string;
-  nextRefreshAt?: string;
-  pendingFindings: number;
-  acceptedFindings: number;
-  rejectedFindings: number;
-  sources: AdvocacySourceHealth[];
-}
-
 interface AdvocacyHistoryTaskResult {
   [key: string]: unknown;
   count: number;
   overallStatus: AdvocacyBackfillOverallStatus;
   sources: Record<string, AdvocacySourceBackfillState>;
 }
-
-export type AdvocacyBackfillOverallStatus =
-  | 'never_started'
-  | 'backfill_running'
-  | 'backfill_partial'
-  | 'backfill_complete'
-  | 'backfill_failed';
 
 interface LdaBackfillRow {
   filingUuid: string;
@@ -207,28 +200,6 @@ export interface UpdateClientProfileFillScheduleInput {
   enabled: boolean;
   cadenceHours?: number;
   sources?: ClientProfileFillSource[];
-}
-
-export interface ProfileCompletionInput {
-  federalIdentity: boolean;
-  website: boolean;
-  overview: boolean;
-  governmentIdentity: boolean;
-  capabilities: boolean;
-  relationships: boolean;
-  facilities: boolean;
-  districtNexus: boolean;
-  federalMarket: boolean;
-  lobbyingHistory: boolean;
-  advocacyHistory: boolean;
-  programElements: boolean;
-  bills: boolean;
-}
-
-export interface ProfileCompletionResult {
-  score: number;
-  completed: string[];
-  missing: string[];
 }
 
 const ADVANCED_FINDING_KINDS = new Set([
@@ -307,30 +278,6 @@ const REGULATIONS_GOV_TIMEOUT_MS = 15_000;
 // ever needs a handful of top hits for one client-name search, not a full
 // paginated crawl.
 const REGULATORY_COMMENT_SEARCH_PAGE_SIZE = 10;
-export const ADVOCACY_SOURCE_NAMES = [
-  'lda',
-  'fara',
-  'testimony',
-  'regulations_gov',
-  'federal_register',
-  'community_funding',
-  'client_submission',
-  'private_evidence',
-] as const;
-// Low-frequency canonical/enrichment sources tolerate two configured cycles;
-// continuously growing activity sources become stale after one missed cycle.
-const ADVOCACY_FRESHNESS_CADENCE_MULTIPLIER: Record<string, number> = {
-  lda: 1,
-  testimony: 1,
-  regulations_gov: 1,
-  client_submission: 1,
-  private_evidence: 1,
-  fara: 2,
-  federal_register: 2,
-  // Canonical CPF/CDS tables grow with each congressional cycle, not daily —
-  // same low-frequency class as FARA / Federal Register.
-  community_funding: 2,
-};
 // Bounded page for the CPF/CDS canonical-request KEYSET SCAN. Distinct from
 // MAX_ADVOCACY_FINDINGS (which caps FINDINGS emitted). community_funding_request
 // is global and can hold thousands of rows per FY; the scan must be a real
@@ -339,22 +286,6 @@ const COMMUNITY_FUNDING_SCAN_BATCH_SIZE = 500;
 // client_intel_mapping.source value for Regulations.gov comment client-match
 // confirmations. Same named-constant reasoning as FARA_INTEL_MAPPING_SOURCE.
 const REGULATORY_COMMENT_INTEL_MAPPING_SOURCE = 'regulatory_comment';
-const ADVOCACY_TITLE_TERMS = [
-  'appropriation',
-  'amendment',
-  'authorization',
-  'bill',
-  'budget',
-  'congress',
-  'funding',
-  'hearing',
-  'legislation',
-  'policy',
-  'regulation',
-  'request',
-  'submission',
-  'testimony',
-];
 
 class TaskDeferredError extends Error {}
 
@@ -5006,511 +4937,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 }
 
-export function buildClientProfileFillCompletionPlan(): CompletionTaskPlanEntry[] {
-  return [
-    { taskType: 'federal_market', taskKey: 'federal_market', dependsOn: [] },
-    { taskType: 'facility_resolution', taskKey: 'facility_resolution', dependsOn: [] },
-    {
-      taskType: 'district_nexus',
-      taskKey: 'district_nexus',
-      dependsOn: ['facility_resolution'],
-    },
-    { taskType: 'advocacy_history', taskKey: 'advocacy_history', dependsOn: [] },
-    {
-      taskType: 'lifecycle_outcomes',
-      taskKey: 'lifecycle_outcomes',
-      dependsOn: ['advocacy_history', 'federal_market'],
-    },
-    {
-      taskType: 'reconciliation',
-      taskKey: 'reconciliation',
-      dependsOn: [
-        'federal_market',
-        'facility_resolution',
-        'district_nexus',
-        'advocacy_history',
-        'lifecycle_outcomes',
-      ],
-    },
-    {
-      taskType: 'completion_audit',
-      taskKey: 'completion_audit',
-      dependsOn: ['reconciliation'],
-    },
-  ];
-}
 
-export function mergeFillProgress(tasks: ReadonlyArray<{ status?: unknown }>) {
-  const statusOf = (task: { status?: unknown }) => asString(task.status) ?? '';
-  return {
-    total: tasks.length,
-    queued: tasks.filter((task) => statusOf(task) === 'queued').length,
-    running: tasks.filter((task) => statusOf(task) === 'running').length,
-    completed: tasks.filter((task) => statusOf(task) === 'completed').length,
-    failed: tasks.filter((task) => statusOf(task) === 'failed').length,
-    cancelled: tasks.filter((task) => statusOf(task) === 'cancelled').length,
-  };
-}
 
-export function deriveAdvocacyBackfillOverallStatus(
-  sources: Record<string, Pick<AdvocacySourceBackfillState, 'status'>>,
-): AdvocacyBackfillOverallStatus {
-  const statuses = Object.values(sources).map((source) => source.status);
-  if (statuses.length === 0 || statuses.every((status) => status === 'not_started')) {
-    return 'never_started';
-  }
-  if (statuses.every((status) => status === 'complete')) return 'backfill_complete';
-  if (statuses.every((status) => status === 'failed')) return 'backfill_failed';
-  if (statuses.some((status) => status === 'partial' || status === 'failed')) {
-    return 'backfill_partial';
-  }
-  return 'backfill_running';
-}
 
-export function deriveAdvocacyFreshness(
-  source: string,
-  lastSuccessAt: string | null | undefined,
-  cadenceHours: number,
-  now = new Date(),
-): AdvocacySourceFreshness {
-  if (!lastSuccessAt) return 'unknown';
-  const lastSuccess = Date.parse(lastSuccessAt);
-  if (!Number.isFinite(lastSuccess)) return 'unknown';
-  const multiplier = ADVOCACY_FRESHNESS_CADENCE_MULTIPLIER[source] ?? 1;
-  const windowMs = Math.max(1, cadenceHours) * multiplier * 60 * 60_000;
-  return now.getTime() - lastSuccess <= windowMs ? 'fresh' : 'stale';
-}
-
-export function updateAdvocacySourceHealth(
-  source: string,
-  prior: Record<string, unknown>,
-  current: AdvocacySourceBackfillState,
-  attemptedAt: string,
-  cadenceHours: number,
-  nextRefreshAt: Date | string | null,
-): AdvocacySourceBackfillState {
-  const hadError = Boolean(current.lastError);
-  const priorSuccess = asString(prior.lastSuccessAt);
-  const limitation = current.limitation ?? null;
-  // A transient refresh failure must never erase already-earned historical
-  // completeness. The failure belongs to availability/freshness, not backfill.
-  const status = hadError && asString(prior.status) === 'complete' ? 'complete' : current.status;
-  const lastSuccessAt = hadError ? priorSuccess : attemptedAt;
-  const availability: AdvocacySourceAvailability = hadError
-    ? priorSuccess
-      ? 'degraded'
-      : 'unavailable'
-    : limitation
-      ? 'degraded'
-      : 'available';
-  return {
-    ...current,
-    status,
-    completedAt:
-      status === 'complete'
-        ? (current.completedAt ?? asString(prior.completedAt) ?? undefined)
-        : current.completedAt,
-    checkpoint:
-      hadError && !current.checkpoint && Object.keys(asRecord(prior.checkpoint)).length
-        ? asRecord(prior.checkpoint)
-        : current.checkpoint,
-    examined: hadError ? Math.max(Number(prior.examined ?? 0), current.examined) : current.examined,
-    candidates: hadError
-      ? Math.max(Number(prior.candidates ?? 0), current.candidates)
-      : current.candidates,
-    availability,
-    lastAttemptAt: attemptedAt,
-    lastSuccessAt: lastSuccessAt ?? undefined,
-    freshness: deriveAdvocacyFreshness(source, lastSuccessAt, cadenceHours, new Date(attemptedAt)),
-    nextRefreshAt:
-      nextRefreshAt instanceof Date ? nextRefreshAt.toISOString() : (nextRefreshAt ?? undefined),
-    lastError: hadError ? sourceHealthMessage(source, current.lastError!) : null,
-    lastErrorAt: hadError ? attemptedAt : undefined,
-  };
-}
-
-export function deriveAdvocacyOverallHealth(
-  sources: Record<
-    string,
-    Pick<AdvocacySourceBackfillState, 'status' | 'availability' | 'freshness' | 'limitation'>
-  >,
-): AdvocacyOverallHealth {
-  const states = Object.values(sources);
-  if (!states.length || states.every((state) => state.status === 'not_started')) return 'not_built';
-  if (states.some((state) => state.status === 'in_progress')) return 'building_history';
-  if (
-    states.length > 0 &&
-    states.every((state) => state.status === 'failed' || state.availability === 'unavailable')
-  ) {
-    return 'failed';
-  }
-  if (states.some((state) => state.status === 'partial' || Boolean(state.limitation))) {
-    return 'partial';
-  }
-  if (
-    states.some(
-      (state) => state.availability === 'unavailable' || state.availability === 'degraded',
-    )
-  ) {
-    return 'degraded';
-  }
-  if (states.some((state) => state.freshness !== 'fresh')) return 'stale';
-  return states.every((state) => state.status === 'complete') ? 'current' : 'not_built';
-}
-
-export function buildAdvocacyHistoryHealth(
-  cursor: Record<string, unknown>,
-  cadenceHours: number,
-  nextRefreshAt: Date | string | null,
-  counts: { pending: number; accepted: number; rejected: number },
-  now = new Date(),
-): AdvocacyHistoryHealth {
-  const persisted = asRecord(asRecord(cursor.backfill).sources);
-  const sources = ADVOCACY_SOURCE_NAMES.map((source): AdvocacySourceHealth => {
-    const state = asRecord(persisted[source]);
-    const lastSuccessAt = asString(state.lastSuccessAt);
-    const lastError = asString(state.lastError);
-    return {
-      source,
-      status: (asString(state.status) as AdvocacyBackfillStatus) ?? 'not_started',
-      backfillStatus: (asString(state.status) as AdvocacyBackfillStatus) ?? 'not_started',
-      startedAt: asString(state.startedAt) ?? undefined,
-      completedAt: asString(state.completedAt) ?? undefined,
-      checkpoint: Object.keys(asRecord(state.checkpoint)).length
-        ? asRecord(state.checkpoint)
-        : null,
-      historyStart: asString(state.historyStart),
-      examined: Number(state.examined ?? 0),
-      candidates: Number(state.candidates ?? 0),
-      limitation: asString(state.limitation),
-      availability: (asString(state.availability) as AdvocacySourceAvailability) ?? 'unknown',
-      lastAttemptAt: asString(state.lastAttemptAt) ?? undefined,
-      lastSuccessAt: lastSuccessAt ?? undefined,
-      freshness: deriveAdvocacyFreshness(source, lastSuccessAt, cadenceHours, now),
-      nextRefreshAt:
-        nextRefreshAt instanceof Date ? nextRefreshAt.toISOString() : (nextRefreshAt ?? undefined),
-      lastError: lastError ? sourceHealthMessage(source, lastError) : null,
-      lastErrorAt: asString(state.lastErrorAt) ?? undefined,
-    };
-  });
-  const sourceRecord = Object.fromEntries(sources.map((source) => [source.source, source]));
-  return {
-    overall: deriveAdvocacyOverallHealth(sourceRecord),
-    refreshedAt: asString(cursor.refreshedAt) ?? undefined,
-    nextRefreshAt:
-      nextRefreshAt instanceof Date ? nextRefreshAt.toISOString() : (nextRefreshAt ?? undefined),
-    pendingFindings: counts.pending,
-    acceptedFindings: counts.accepted,
-    rejectedFindings: counts.rejected,
-    sources,
-  };
-}
-
-function sourceHealthMessage(source: string, error: string): string {
-  const label =
-    source === 'regulations_gov'
-      ? 'Regulations.gov'
-      : source === 'federal_register'
-        ? 'Federal Register'
-        : source === 'community_funding'
-          ? 'Community Project Funding / Congressionally Directed Spending'
-          : source === 'client_submission'
-            ? 'Client submissions'
-            : source === 'private_evidence'
-              ? 'Private evidence'
-              : source.toUpperCase();
-  if (/not configured|api.?key/i.test(error))
-    return `${label} is unavailable because it is not configured`;
-  return `${label} is temporarily unavailable`;
-}
-
-export function calculateProfileCompletion(input: ProfileCompletionInput): ProfileCompletionResult {
-  const labels: Array<[keyof ProfileCompletionInput, string]> = [
-    ['federalIdentity', 'Federal identity'],
-    ['website', 'Company website'],
-    ['overview', 'Company overview'],
-    ['governmentIdentity', 'Government identifiers'],
-    ['capabilities', 'Capabilities'],
-    ['relationships', 'Relationships and history'],
-    ['facilities', 'Facilities'],
-    ['districtNexus', 'District Nexus'],
-    ['federalMarket', 'Federal Market footprint'],
-    ['lobbyingHistory', 'Lobbying history'],
-    ['advocacyHistory', 'Advocacy history'],
-    ['programElements', 'Program Elements'],
-    ['bills', 'Bill recommendations'],
-  ];
-  const completed = labels.filter(([key]) => input[key]).map(([, label]) => label);
-  const missing = labels.filter(([key]) => !input[key]).map(([, label]) => label);
-  return {
-    score: Math.round((completed.length / labels.length) * 100),
-    completed,
-    missing,
-  };
-}
-
-/** §16 outcome-matching priority steps 1-2: exact PE code / exact bill ID.
- *  Checked BEFORE any semantic scoring — an outcome whose evidence carries
- *  the SAME PE code or bill number as the record's own Matter is
- *  materially stronger evidence than token overlap, and must never be
- *  computed by the same 0.24-baseline formula that a title-similarity
- *  guess uses. Returns null when no deterministic identifier lines up
- *  (falls through to scoreAdvocacyOutcome), never a fabricated partial
- *  match. Steps 3-4 (regulatory docket, appropriations account) are not
- *  implemented here: OutcomeEvent.evidence has no documented docket/account
- *  field today (schema comment only documents peCode/billNumber/fiscalYear/
- *  stage/amountFrom/amountTo) — adding a docket/account check now would
- *  match against a field that doesn't exist in any evidence payload the
- *  outcome-detection pipeline actually writes, which is worse than not
- *  matching at all. Revisit if/when a regulatory or appropriations outcome
- *  rail starts populating those evidence fields. */
-/**
- * Confidence assigned to a FARA discovery candidate. A CONFIRMED
- * `client_intel_mapping` always yields full confidence (a human already
- * decided this registration belongs to the client, independent of how the
- * registrant name happens to be spelled today). Otherwise confidence is a
- * function of pg_trgm name similarity, floored at FARA_AUTO_MATCH_THRESHOLD's
- * own value (anything scored at all already cleared that gate) and capped
- * below 1 — an unconfirmed name match is never presented with the same
- * certainty as a human-reviewed one.
- */
-export function faraMatchConfidence(isConfirmed: boolean, similarity: number): number {
-  if (isConfirmed) return 1;
-  return Number(Math.min(0.95, Math.max(0.5, 0.5 + similarity * 0.45)).toFixed(3));
-}
-
-/**
- * Role-aware FARA match resolution. Picks whichever of the two identity
- * columns (registrant_name vs foreign_principal) scored higher, and reports
- * BOTH which role matched and the winning similarity score — never averages
- * or otherwise blends the two, since a client matching as a registrant and
- * a client matching as a foreign principal are two materially different
- * claims about the client's relationship to the filing. A tie (including
- * both scoring exactly 0, e.g. a confirmed-mapping-only hit with no live
- * similarity signal on either side) resolves to 'registrant' as the
- * conventional default — `matchedRole` is deliberately dropped by the
- * caller in that specific zero/zero case rather than reported as a real
- * signal (see gatherFaraAdvocacyCandidates).
- */
-export function resolveFaraMatchedRole(
-  registrantSimilarity: number,
-  principalSimilarity: number,
-): { role: 'registrant' | 'foreign_principal'; similarity: number } {
-  if (principalSimilarity > registrantSimilarity) {
-    return { role: 'foreign_principal', similarity: principalSimilarity };
-  }
-  return { role: 'registrant', similarity: registrantSimilarity };
-}
-
-/**
- * Confidence assigned to a testimony discovery candidate. Same shape as
- * `faraMatchConfidence` — a CONFIRMED `client_intel_mapping` always yields
- * full confidence; otherwise confidence is a function of similarity,
- * floored at TESTIMONY_AUTO_MATCH_THRESHOLD's own value and capped below 1.
- * Kept as a SEPARATE exported function (not a shared parameterized helper)
- * because the two sources' floors/caps are independent product decisions
- * that can diverge later without one source's tuning silently affecting
- * the other.
- */
-export function testimonyMatchConfidence(isConfirmed: boolean, similarity: number): number {
-  if (isConfirmed) return 1;
-  return Number(Math.min(0.95, Math.max(0.55, 0.55 + similarity * 0.4)).toFixed(3));
-}
-
-/**
- * Pure cursor-advancement logic for the testimony source scan, deliberately
- * factored out of `gatherTestimonyAdvocacyCandidates` so pagination/cursor
- * correctness (skip-safety, zero-match advancement, budget-cap behavior) is
- * independently unit-testable without a real database.
- *
- * INPUT ROWS ARE ALREADY THE FULL BOUNDED BATCH, in
- * `(syncedAt ASC, compoundKey ASC)` order — the exact order the SQL query
- * scans in. This function's only job is: which rows get emitted as
- * findings, and — critically — how far the cursor may safely advance.
- *
- * `remainingBudget` is the number of NEW findings still allowed this call
- * (MAX_ADVOCACY_FINDINGS minus everything already emitted by earlier
- * rails/queries in this Fill run). The rule that matters most: if the
- * budget runs out partway through the batch, the cursor must land on the
- * LAST ROW ACTUALLY EXAMINED (the row whose emit-or-skip decision was made),
- * never on a later row in the batch that was never evaluated — checkpointing
- * an unexamined row would silently drop it forever, the exact class of bug
- * this rewrite exists to fix.
- */
-export function planTestimonyScanBatch(
-  rows: Array<{
-    hearingId: string;
-    title: string;
-    committeeName: string;
-    chamber: string;
-    date: Date;
-    url: string | null;
-    syncedAt: Date;
-    witnessText: string;
-    similarity: number;
-  }>,
-  confirmedKeys: Set<string>,
-  threshold: number,
-  remainingBudget: number,
-): {
-  toEmit: Array<{
-    hearingId: string;
-    title: string;
-    committeeName: string;
-    chamber: string;
-    date: Date;
-    url: string | null;
-    witnessText: string;
-    similarity: number;
-  }>;
-  cursor: { syncedAt: string; key: string } | null;
-} {
-  const toEmit: Array<{
-    hearingId: string;
-    title: string;
-    committeeName: string;
-    chamber: string;
-    date: Date;
-    url: string | null;
-    witnessText: string;
-    similarity: number;
-  }> = [];
-  let cursor: { syncedAt: string; key: string } | null = null;
-  let emitted = 0;
-  for (const row of rows) {
-    if (emitted >= Math.max(0, remainingBudget)) break;
-    const compoundKey = `${row.hearingId}::${row.witnessText}`;
-    const isConfirmed = confirmedKeys.has(compoundKey);
-    // Confirmed rows are never emitted here (the confirmed-mapping bypass
-    // query already emitted, or will emit, them) but they ARE still
-    // "examined" for cursor purposes — the loop does not `continue` before
-    // updating the cursor below.
-    if (!isConfirmed && row.similarity >= threshold) {
-      toEmit.push(row);
-      emitted += 1;
-    }
-    // Cursor advances to THIS row precisely because this row's emit-or-skip
-    // decision was just made — this is the "last row actually examined"
-    // rule. Only rows strictly before the `break` above ever reach here.
-    cursor = { syncedAt: row.syncedAt.toISOString(), key: compoundKey };
-  }
-  return { toEmit, cursor };
-}
-
-/**
- * Best-effort human-readable label for a Regulations.gov comment submitter.
- * Prefers a real person's name (firstName + lastName); falls back to the
- * organization when no personal name is present (a comment submitted on
- * an organization's letterhead but without a named individual attributed);
- * falls back to 'Anonymous' only when NEITHER is present — the API itself
- * returns fully anonymous submissions (confirmed live: the search sample
- * that included "Comment from Anonymous").
- */
-export function deriveRegulatoryCommentSubmitterLabel(
-  firstName: string | null,
-  lastName: string | null,
-  organization: string | null,
-): string {
-  const personalName = [firstName, lastName].filter((part): part is string => !!part).join(' ');
-  return personalName || organization || 'Anonymous';
-}
-
-export function matchAdvocacyOutcomeDeterministically(
-  matter: { primaryPeCode: string | null; primaryBillId: string | null } | undefined,
-  outcomeEvidence: Record<string, unknown>,
-): { matchedOn: 'pe_code' | 'bill_id'; score: number } | null {
-  if (!matter) return null;
-  const evidencePeCode = asString(outcomeEvidence.peCode);
-  if (matter.primaryPeCode && evidencePeCode && evidencePeCode === matter.primaryPeCode) {
-    return { matchedOn: 'pe_code', score: 0.95 };
-  }
-  const evidenceBillNumber = asString(outcomeEvidence.billNumber);
-  if (matter.primaryBillId && evidenceBillNumber && evidenceBillNumber === matter.primaryBillId) {
-    return { matchedOn: 'bill_id', score: 0.95 };
-  }
-  return null;
-}
-
-export function scoreAdvocacyOutcome(
-  advocacy: Record<string, unknown>,
-  outcome: Record<string, unknown>,
-): number {
-  const advocacyTokens = meaningfulTokens(
-    [advocacy.title, advocacy.summary, stableJson(advocacy.metadata)].join(' '),
-  );
-  const outcomeTokens = meaningfulTokens(
-    [outcome.kind, outcome.notes, stableJson(outcome.evidence)].join(' '),
-  );
-  const intersection = [...advocacyTokens].filter((token) => outcomeTokens.has(token)).length;
-  const semantic = intersection / Math.max(4, Math.min(advocacyTokens.size, outcomeTokens.size));
-  const sourceMatch =
-    asString(advocacy.sourceType) === asString(outcome.sourceType) &&
-    asString(advocacy.sourceId) &&
-    asString(advocacy.sourceId) === asString(outcome.sourceId)
-      ? 0.55
-      : 0;
-  return Number(Math.min(0.99, 0.24 + semantic * 0.65 + sourceMatch).toFixed(3));
-}
-
-/** A single `suggestFederalRegisterCorrelations` result — the shape
- *  `gatherFederalRegisterBackfill` already receives from `advocacyMatters`. */
-interface RegulatoryOutcomeCandidate {
-  documentNumber: string;
-  documentType: string;
-  agencyNames: string[];
-  publicationDate: string;
-  matchedDocketIds: string[];
-  sourceUrl: string | null;
-}
-
-/**
- * Deterministic regulatory-outcome finding builder (Advocacy History
- * follow-on to PR #1310's `suggestFederalRegisterCorrelations`, which
- * explicitly deferred this exact step: "a later final agency action
- * becoming an Outcome is a distinct, separately-confirmed step ... not
- * inferred here"). Pure and side-effect free — never touches Prisma — so
- * every rule from the product spec is directly testable:
- *
- *  - Priority 1 (exact docket id) is the ONLY tier this builds; it never
- *    falls back to agency/title/text similarity (the candidate shape has
- *    no such fields to fall back to in the first place).
- *  - "Regulatory action after attributable comment" is enforced literally:
- *    a candidate published at or before the client's earliest attributable
- *    Regulations.gov submission on this Matter produces nothing — a
- *    Federal Register document that predates the client's own advocacy
- *    cannot be described as a movement observed after it.
- *  - `causationClaimed: false` and `relationship: 'strongly_aligned'` are
- *    hardcoded, matching `matchAdvocacyOutcomeDeterministically`'s own
- *    deterministic-match tier exactly (same honest-vocabulary rule, §17).
- *
- * Returns the `client_profile_fill_finding` `proposedValue` shape (kind
- * `regulatory_outcome`), or `null` when this candidate should not become a
- * finding at all.
- */
-export function buildRegulatoryOutcomeFinding(
-  matterId: string,
-  candidate: RegulatoryOutcomeCandidate,
-  attributableActivityDate: Date | null,
-): Record<string, unknown> | null {
-  if (candidate.matchedDocketIds.length === 0) return null;
-  if (!attributableActivityDate) return null;
-  const publishedAt = parseDate(candidate.publicationDate);
-  if (!publishedAt || publishedAt <= attributableActivityDate) return null;
-  return {
-    matterId,
-    documentNumber: candidate.documentNumber,
-    docketId: candidate.matchedDocketIds[0],
-    matchedDocketIds: candidate.matchedDocketIds,
-    documentType: candidate.documentType,
-    agencyNames: candidate.agencyNames,
-    publicationDate: candidate.publicationDate,
-    sourceUrl: candidate.sourceUrl,
-    attributableActivityDate: attributableActivityDate.toISOString(),
-    relationship: 'strongly_aligned' as const,
-    matchedOn: 'docket_id' as const,
-    causationClaimed: false as const,
-  };
-}
 
 function missingAddressParts(
   value:
@@ -5529,120 +4958,10 @@ function missingAddressParts(
   return missing;
 }
 
-function recordsFromUnknown(value: unknown): Record<string, unknown>[] {
-  if (Array.isArray(value)) return value.map(asRecord).filter((row) => Object.keys(row).length > 0);
-  const row = asRecord(value);
-  for (const key of ['activities', 'lobbying_activities', 'items', 'results']) {
-    if (Array.isArray(row[key])) return (row[key] as unknown[]).map(asRecord);
-  }
-  return Object.keys(row).length ? [row] : [];
-}
-
-function summarizeLdaActivity(activity: Record<string, unknown>, fallback: string | null) {
-  for (const key of [
-    'specific_issues',
-    'specificIssues',
-    'description',
-    'issue_description',
-    'issueDescription',
-    'text',
-  ]) {
-    const value = asString(activity[key]);
-    if (value) return value.slice(0, 4_000);
-  }
-  return fallback?.slice(0, 4_000) ?? null;
-}
-
-function normalizePersistedAdvocacy(row: Record<string, unknown>) {
-  return {
-    externalKey: row.external_key,
-    recordType: row.record_type,
-    title: row.title,
-    summary: row.summary,
-    activityDate: row.activity_date,
-    sourceType: row.source_type,
-    sourceId: row.source_id,
-    metadata: row.metadata_jsonb,
-    matterId: row.matter_id,
-  };
-}
-
-function containsAdvocacyTerm(value: string) {
-  const normalized = value.toLowerCase();
-  return ADVOCACY_TITLE_TERMS.some((term) => normalized.includes(term));
-}
-
-function parseDate(value: unknown): Date | null {
-  const text = asString(value);
-  if (!text) return null;
-  const date = new Date(text);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function requiredString(value: unknown, label: string): string {
   const text = asString(value);
   if (!text) throw new BadRequestException(`${label} is required`);
   return text;
-}
-
-function normalizeEvidenceClass(value: unknown) {
-  const text = asString(value);
-  return ['PUBLIC_VERIFIED', 'CLIENT_VERIFIED', 'PRIVATE_ACTIVITY', 'INFERRED'].includes(text ?? '')
-    ? text!
-    : 'INFERRED';
-}
-
-/** §27 duplicate-candidate signal 1 (deterministic before semantic): same
- *  calendar day. Two records timestamped on different days are never
- *  flagged as a possible duplicate regardless of title similarity — a
- *  recurring monthly meeting produces near-identical titles across many
- *  distinct real events, and only the date makes them distinguishable. */
-export function sameActivityDay(a: unknown, b: unknown): boolean {
-  const dateA = parseDate(a);
-  const dateB = parseDate(b);
-  if (!dateA || !dateB) return false;
-  return dateA.toISOString().slice(0, 10) === dateB.toISOString().slice(0, 10);
-}
-
-/** §27 duplicate-candidate signal 2: title token overlap, reusing the exact
- *  same tokenizer scoreAdvocacyOutcome already uses for consistency. Only
- *  ever a SECONDARY signal gated behind sameActivityDay returning true
- *  first — text similarity alone must never flag two distinct events
- *  (§27: "Do not collapse two distinct events merely because text is
- *  similar"). */
-export function titleOverlapRatio(a: string | null, b: string | null): number {
-  if (!a || !b) return 0;
-  const tokensA = meaningfulTokens(a);
-  const tokensB = meaningfulTokens(b);
-  if (tokensA.size === 0 || tokensB.size === 0) return 0;
-  const intersection = [...tokensA].filter((token) => tokensB.has(token)).length;
-  return intersection / Math.max(tokensA.size, tokensB.size);
-}
-
-function meaningfulTokens(value: string) {
-  const stop = new Set([
-    'about',
-    'after',
-    'again',
-    'also',
-    'been',
-    'from',
-    'have',
-    'into',
-    'that',
-    'their',
-    'this',
-    'with',
-    'were',
-    'will',
-  ]);
-  return new Set(
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-      .split(/\s+/)
-      .filter((token) => token.length >= 4 && !stop.has(token)),
-  );
 }
 
 function jsonSafe(value: unknown): unknown {
