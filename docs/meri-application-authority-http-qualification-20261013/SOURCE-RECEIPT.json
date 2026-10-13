@@ -3,10 +3,10 @@
   "productionSourceDelta": 0,
   "harnessOnly": true,
   "HTTPExecuted": false,
-  "DBConnected": false,
+  "DBConnected": true,
   "files": {
     "critical-loader.cjs": "b0a66be8d1b5249511fdece7bc70a94a376907ef62a47e4007471d7e3c5af4d9",
-    "http-driver.cjs": "3d39370833f3f7370be042bb19a3812636da292d40840ec5f919f10fc680e8d7",
+    "http-driver.cjs": "3fdf8bfee898c223fc026bd2673dcd43fe5aefd68195221825c4b573ff8b0f10",
     "http-driver.test.cjs": "131400c905246fc18322d8e00ff34fa2e53a2ba07214e0253446cc7ad10e9e4b",
     "critical-source-sha256.json": "93b9376025224a1d9448efbd4abb0d5d828a9316f56605fb5aec232e02f707c3",
     "PREPARATION.md": "f9e6cec5bbab90e025700d01bfa6c80b113dd652f64cb1d2a079e5cb6f649cfd",

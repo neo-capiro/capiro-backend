@@ -103,7 +103,7 @@ async function main(configPath, output, {supplementary}={}) {
   try {
     // First query is read-only target fencing. No fixture write precedes it.
     await prisma.$connect();
-    const rows = await prisma.$queryRaw`SELECT current_database() AS "databaseName",d.oid::int AS "databaseOid",obj_description(d.oid,'pg_database') AS "databaseComment",system_identifier::text AS "systemIdentifier",current_user AS "currentUser",session_user AS "sessionUser",r.rolsuper AS "superuser",r.rolbypassrls AS "bypassRls",inet_server_addr()::text AS "serverAddress",version() AS version FROM pg_database d CROSS JOIN pg_control_system() CROSS JOIN pg_roles r WHERE d.datname=current_database() AND r.rolname=current_user`;
+    const rows = await prisma.$queryRaw`SELECT current_database() AS "databaseName",d.oid::int AS "databaseOid",shobj_description(d.oid,'pg_database') AS "databaseComment",system_identifier::text AS "systemIdentifier",current_user AS "currentUser",session_user AS "sessionUser",r.rolsuper AS "superuser",r.rolbypassrls AS "bypassRls",inet_server_addr()::text AS "serverAddress",version() AS version FROM pg_database d CROSS JOIN pg_control_system() CROSS JOIN pg_roles r WHERE d.datname=current_database() AND r.rolname=current_user`;
     assert.equal(rows.length,1);targetIdentity=rows[0];
     for (const key of ['databaseName','databaseOid','databaseComment','systemIdentifier']) assert.equal(targetIdentity[key],config[key],`Owned target mismatch: ${key}`);
     assert.equal(targetIdentity.currentUser,'capiro');assert.equal(targetIdentity.sessionUser,'capiro');
