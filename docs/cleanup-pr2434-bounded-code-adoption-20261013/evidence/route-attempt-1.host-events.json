@@ -1,0 +1,15 @@
+{
+  "pid": 545766,
+  "events": [
+    {
+      "denied": "child:execSync"
+    },
+    {
+      "localTool": "/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild",
+      "args": [
+        "--service=0.21.5",
+        "--ping"
+      ]
+    }
+  ]
+}

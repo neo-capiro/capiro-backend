@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "ed62dd1e67be152b6b760815f79bc475925659e7",
+    "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+    "--"
+  ],
+  "exit": 0
+}

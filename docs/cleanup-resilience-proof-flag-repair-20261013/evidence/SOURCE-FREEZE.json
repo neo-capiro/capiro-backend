@@ -1,0 +1,12 @@
+{
+  "base": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "source": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "tree": "24945192668a0df687042e54670f81be301bee20",
+  "branch": "refs/heads/codex/cleanup-resilience-proof-flag-repair-20261013",
+  "stage": "/workspace/cleanup-pr2434-receipt-flag-repair-20261013",
+  "changed": [
+    "scripts/engagement-phase3-resilience-contract.mjs",
+    "scripts/ci/engagement-resilience-recovery.contract.spec.mjs"
+  ],
+  "method": "isolated GIT_INDEX_FILE; read-tree base, replace only2 blobs, write-tree +commit-tree; original branch/index/worktrees unchanged"
+}

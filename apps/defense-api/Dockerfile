@@ -22,30 +22,17 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
-
-# pnpm install --frozen-lockfile validates the lockfile against every project
-# pnpm-workspace.yaml's globs (apps/*, packages/*, infra/*) can discover, not
-# just the ones --filter will actually build below. Every workspace member's
-# package.json has to be present for the lockfile to validate correctly.
-COPY apps/api-strategy/package.json apps/api-strategy/package.json
-COPY apps/api/package.json apps/api/package.json
-COPY apps/clio-sandbox/package.json apps/clio-sandbox/package.json
+# Image-owned workspace: keep the frozen root lockfile and only the Defense
+# service's transitive workspace manifests. Extra lockfile importers remain
+# historical lock data; package discovery is limited to these backend members.
+COPY apps/defense-api/pnpm-workspace.build.yaml ./pnpm-workspace.yaml
+COPY package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/defense-api/package.json apps/defense-api/package.json
-COPY apps/intel-api/package.json apps/intel-api/package.json
-COPY apps/meriv2-orchestrator/package.json apps/meriv2-orchestrator/package.json
-COPY apps/onboard-api/package.json apps/onboard-api/package.json
-COPY apps/onboard-web/package.json apps/onboard-web/package.json
-COPY apps/web/package.json apps/web/package.json
-COPY apps/workspace/package.json apps/workspace/package.json
 COPY packages/auth/package.json packages/auth/package.json
 COPY packages/defense-client/package.json packages/defense-client/package.json
 COPY packages/defense-contracts/package.json packages/defense-contracts/package.json
 COPY packages/defense-domain/package.json packages/defense-domain/package.json
-COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
 COPY packages/shared/package.json packages/shared/package.json
-COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
-COPY infra/cdk/package.json infra/cdk/package.json
 
 # Isolated cache mount id so defense-api installs never share a host-contaminated
 # pnpm store with other Windows Desktop builds.

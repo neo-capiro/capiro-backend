@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/capirov2",
+    "diff",
+    "--check",
+    "d4723114e93ff61bb8db0f602a3088ef8033a810",
+    "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+    "--"
+  ],
+  "exit": 0
+}

@@ -1,0 +1,12 @@
+{
+  "source": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/safe-source-test-preload.cjs",
+    "docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/preflight-probes.mjs"
+  ],
+  "exit": 0,
+  "stdoutSha256": "e5a166e8afd38538378198508cfecbfb5305ffa0472fb3eedacefd571a9f59ed",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,75 @@
+✔ Defense image workspace closes over exactly six backend members and seven frozen importers (10.287677ms)
+✔ the Defense guard reads only image-owned manifests; unrelated/frontend inputs can be absent (6.511939ms)
+✔ rejects frontend member admission (3.188384ms)
+✔ rejects workspace wildcard (1.023525ms)
+✔ rejects frontend manifest COPY (11.568292ms)
+✔ rejects missing backend manifest COPY (6.084514ms)
+✔ rejects new undeclared workspace dependency (1.115091ms)
+✔ rejects manifest/lockfile specifier drift (5.51865ms)
+✔ rejects missing frozen importer (7.663352ms)
+✔ rejects wrong transitive workspace link (4.556538ms)
+✔ rejects missing external frozen snapshot (6.261945ms)
+✔ rejects unqualified manifest peer metadata (8.471156ms)
+✔ rejects weakened frozen install (6.384633ms)
+✔ rejects lost runtime/schema/client artifact (7.01049ms)
+✔ rejects changed build ordering (4.954803ms)
+✔ rejects changed runtime security (4.621383ms)
+✔ rejects changed pinned toolchain (4.413191ms)
+✔ new auth regression makes four local-proxy reads with isolated anonymous/authenticated headers (0.923896ms)
+✔ new auth regression refuses: anonymous successful data (0.264342ms)
+✔ new auth regression refuses: wrong denial status (0.545031ms)
+✔ new auth regression refuses: provider/shadow refusal (0.884653ms)
+✔ new auth regression refuses: transport denial (0.524219ms)
+✔ new auth regression refuses: malformed denial (0.187069ms)
+✔ new auth regression refuses: denial with leaked rows (0.175059ms)
+✔ new auth regression refuses: unexpected main identity (0.108668ms)
+✔ new auth regression refuses: unsupported main-api label (0.310732ms)
+✔ new auth regression refuses: wrong optional error class (0.378648ms)
+✔ new auth regression refuses: wrong auth error (0.393513ms)
+✔ new auth regression refuses: missing preview denial identity (0.235728ms)
+✔ new auth regression refuses: main misrouted preview (0.157631ms)
+✔ new auth regression refuses: authenticated session poisoned (0.146128ms)
+✔ new auth regression refuses: recovery remains timed out (0.101232ms)
+✔ new auth regression refuses: empty successful recovery (0.082465ms)
+✔ new auth regression refuses: wrong row recovered (0.082809ms)
+✔ new auth regression refuses: duplicate recovered row (0.117625ms)
+✔ new auth regression refuses: wrong recovered preview identity (0.092686ms)
+✔ new auth regression refuses: recovery data mismatch (0.094001ms)
+✔ new probe requires existing retry attribution and protected route before requests (0.60313ms)
+✔ native result identity/count contract retains fourteen original identities plus new behavior (1.11652ms)
+✔ exact earlier producer and wrapper reconstruct through declared additive case/receipt seams (0.485532ms)
+✔ final evidence verifier original source reconstructs and retains all prior checks before additions (0.312215ms)
+✔ wrapper validates fifteen attributable results before original residual-zero cleanup (3.205634ms)
+✔ wrapper cannot accept source-only, missing-auth or duplicate-identity evidence as native (3.288778ms)
+✔ new regression is supported by guard-before-provider, protected task and shared service identity source (1.531269ms)
+✔ ordinary missing-bearer envelope permits absent optional error label, never wrong labels (0.410044ms)
+✖ scripts/ci/florida-owned-portrait-release.spec.mjs (0.064091ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 45
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 194.946814
+
+✖ failing tests:
+
+test at scripts/ci/florida-owned-portrait-release.spec.mjs:1:1
+✖ scripts/ci/florida-owned-portrait-release.spec.mjs (0.064091ms)
+  Error: ENOENT: no such file or directory, open '/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api/data/florida-legislative-directory/portraits/house-district-001-michelle-salzman.jpg'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at fs.<computed> (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/safe-source-test-preload.cjs:4:210)
+      at file:///tmp/capirov2-cleanup-meri-local-dispatch-independent-review/scripts/ci/florida-owned-portrait-release.spec.mjs:23:78
+      at Array.map (<anonymous>)
+      at file:///tmp/capirov2-cleanup-meri-local-dispatch-independent-review/scripts/ci/florida-owned-portrait-release.spec.mjs:23:35
+      at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+      at async node:internal/modules/esm/loader:643:26
+      at async node:internal/test_runner/runner:1071:15
+      at async runFiles (node:internal/test_runner/runner:1037:9) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/api/data/florida-legislative-directory/portraits/house-district-001-michelle-salzman.jpg'
+  }

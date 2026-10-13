@@ -1,0 +1,33 @@
+{
+  "node": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12",
+    "version": "v24.19.0",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "vitest": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/vitest@2.1.9_@types+node@26.6.3_jsdom@29.1.1_@noble+hashes@1.8.0__lightningcss@1.32.0_terser@5.46.2/node_modules/vitest/package.json",
+    "sha256": "6ea35e567829660d9832744086c18526b9ddebd5358c4a0cadfb0a355925f917",
+    "version": "2.1.9"
+  },
+  "vite": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/vite@5.4.21_@types+node@26.6.3_lightningcss@1.32.0_terser@5.46.2/node_modules/vite/package.json",
+    "sha256": "e9802045cdc313b6da55ec2e2dd79312074645816089d64f6021f567c10c0a03",
+    "version": "5.4.21"
+  },
+  "jsdom": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/jsdom@29.1.1_@noble+hashes@1.8.0/node_modules/jsdom/package.json",
+    "sha256": "def961b4c0a5fe3c37f68fb2b35fc80707975a1c0ff4f8d39ff5b7106c387e5c",
+    "version": "29.1.1"
+  },
+  "esbuild": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild",
+    "sha256": "b567f467fdac92c606717c86ea5cd1d6c30145c616776c0f2ff5429ad48586ba",
+    "version": "0.21.5",
+    "invocation": [
+      "--service=0.21.5",
+      "--ping"
+    ]
+  }
+}

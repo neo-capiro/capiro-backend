@@ -1,0 +1,37 @@
+{
+  "source": "ed62dd1e67be152b6b760815f79bc475925659e7",
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/apps/web",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/apps/web/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/vnext/pages/client-crm/client-crm-entry.before.review.test.tsx",
+    "--pool=threads",
+    "--no-file-parallelism",
+    "--testTimeout=20000",
+    "--hookTimeout=20000",
+    "--reporter=json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.json",
+    "--config",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route.safe.config.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "NODE_OPTIONS": "--require /tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/intercepted-route-preload.cjs",
+    "CI": "1",
+    "TERM": "dumb",
+    "ROUTE_CHECK_EVENT_PATH": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-pr2434-bounded-code-adoption-20261013/evidence/route-before.host-events.json"
+  },
+  "exit": 0,
+  "seconds": 3.090972900390625,
+  "stdoutSha256": "5880bb3461505d3006efb84a3404b120d79b9efd609bdb55559dc22bfe466981",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "privateCacheLinks": [
+    "node_modules",
+    "apps/web/node_modules"
+  ],
+  "hostOverride": "numeric loopback hostname prevents startup DNS lookup; listener and outgoing I/O remain refused",
+  "actualFrozenCheckout": "b051e32392cfd18b1bfd4a159c500ae8c3ac0680",
+  "testSourceProjection": "exact original test + exact retired component temporary untracked data at same relative path; all other imports unchanged frozen source"
+}

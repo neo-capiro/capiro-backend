@@ -1,0 +1,107 @@
+{
+  "source": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "tree": "24945192668a0df687042e54670f81be301bee20",
+  "packet": [
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/HANDOFF.md",
+      "bytes": 2373,
+      "sha256": "43be1d60dffa71ed7159bd2693ead4078def54a7751f7f7f36af5a4a41211433"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/QUALIFICATION.json",
+      "bytes": 947,
+      "sha256": "e7efed136518751f6bbf8e5c9b4e3319ad2cf86cfea0ce97c89a3e1a7179cc54"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/BEFORE-INPUTS.json",
+      "bytes": 2175,
+      "sha256": "4300d7c754b426e1bbe232ac652d0c35972eea81d3eb27b894c1ca7253c48461"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/SOURCE-CHANGE.json",
+      "bytes": 1263,
+      "sha256": "3b6594ed800b734eff9c464acf8ec562632cc3a64619b486de466e9ca25ef6ad"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/SOURCE-FREEZE.json",
+      "bytes": 601,
+      "sha256": "a8ee6d5303c1003bef73eb93194d5df192fde6be9b6897b9b1b7800f70073359"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/affected-spec.command.json",
+      "bytes": 874,
+      "sha256": "a4aa08b4e40044475de252022cb0537e11783aeadd03dde31e5da1e704cbe6d1"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/affected-spec.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/affected-spec.stdout",
+      "bytes": 2633,
+      "sha256": "b19707baa7f5cb7114f96594f8fbe15c0c197e3fa339dcd571c6113219df4e55"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/review-original-seven.RED.json",
+      "bytes": 727,
+      "sha256": "1de019fe02608291c753ba4cee09d38e31b643b3e33cfb986d8d5f0a32531ecb"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/review-original-seven.mjs",
+      "bytes": 1457,
+      "sha256": "4b7cb5ba02192dc293ebf4350a97e5b92c8b3c2d57ed1e3921db82b337f04830"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/review-seven.command.json",
+      "bytes": 913,
+      "sha256": "76ce9d864074952a06e977b981ee1b73caadb96dbc7e996419e06e3b4433633e"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/review-seven.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/review-seven.stdout",
+      "bytes": 734,
+      "sha256": "0975fe7b7995e7481612dd0f2e9ec535d09b4c1211bb5b4d6a18a690ca2ed7b1"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/safe-source-test-preload.cjs",
+      "bytes": 1893,
+      "sha256": "7ff0afb7c32ce107f2e0ea2aea6df2d62496dcdb26f88a2d065d7fb38cac0bef"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/source-whitespace.command.json",
+      "bytes": 213,
+      "sha256": "1d6e1e8ce2094940a94e5360f7654c5ef7c287102b2711457712735bf4e12496"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/source-whitespace.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-resilience-proof-flag-repair-20261013/evidence/source-whitespace.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "scripts/engagement-phase3-resilience-contract.mjs",
+      "beforeSha256": "7df16e9894e94d551ffc6cab75e504082fd8b5dfb21ac1914b1b10e4056535d8",
+      "afterSha256": "7b5b0d779cb52a9a28a63a6576810e213e45cf8b845d7083c0074ef8767ad334",
+      "afterGitBlob": "35f469a6706089b1788dbf5d73fbe11c4bf61605",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ci/engagement-resilience-recovery.contract.spec.mjs",
+      "beforeSha256": "cd397fd506df0a8d50d3c426954e16da7e31e20bc74a27cfd387676ac6610bcc",
+      "afterSha256": "4cc65224f928dc19412a8db5f5470708703cc4488c045630908e0d820a93bdf4",
+      "afterGitBlob": "94b98000680078fe59c914fbb455ec715bed976c",
+      "mode": "100644"
+    }
+  ]
+}

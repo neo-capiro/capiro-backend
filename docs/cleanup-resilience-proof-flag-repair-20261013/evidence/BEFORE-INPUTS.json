@@ -1,0 +1,61 @@
+{
+  "base": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "loadedOnlyNeededCode": [
+    {
+      "path": "scripts/engagement-phase3-resilience-contract.mjs",
+      "sha256": "7df16e9894e94d551ffc6cab75e504082fd8b5dfb21ac1914b1b10e4056535d8",
+      "bytes": 5644
+    },
+    {
+      "path": "scripts/ci/engagement-resilience-recovery.contract.spec.mjs",
+      "sha256": "cd397fd506df0a8d50d3c426954e16da7e31e20bc74a27cfd387676ac6610bcc",
+      "bytes": 11914
+    },
+    {
+      "path": "scripts/engagement-phase3-resilience.mjs",
+      "sha256": "28416446211c95b5a639ab200a323611215f66d9162be96fed6793889bbb4c0f",
+      "bytes": 19081
+    },
+    {
+      "path": "scripts/run-engagement-phase3-resilience.mjs",
+      "sha256": "8d28ec316f37136a8b1b6a7ef8ce0faf573a5ba3db08d95ee31445336532d1dc",
+      "bytes": 4533
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "sha256": "5f68930f22efe4a36e13a5dcbe981e8fbd7810d2264a484d5c2fc7da4d312b0a",
+      "bytes": 11221
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "25f51b1d894370b6d735822001e06345360f213475eaece21d1c1fd403d61b1f",
+      "bytes": 23173
+    },
+    {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c",
+      "bytes": 7342
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-security-parity.ts",
+      "sha256": "f95ebcc6d7085c12dda0a12684187a1788ee2f22a5b9c79cb021146081296b2b",
+      "bytes": 22989
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "sha256": "9e4cb0008290eb3afaac654dc0f15909f16c88e4db28149971f6790737dccdae",
+      "bytes": 83984
+    },
+    {
+      "path": "apps/api/src/main.ts",
+      "sha256": "58a7473c17e116dfe3c13197f124ed2c5fa1e9bb4ea708aa3092268bb92bbd36",
+      "bytes": 1600
+    },
+    {
+      "path": "apps/api/src/engagement-main.ts",
+      "sha256": "2d6e181d6d1428c9eab35b45a5cc62916d951e0f14481c13052fe548da2e4194",
+      "bytes": 1721
+    }
+  ],
+  "scope": "actual affected pure/fake-port spec inputs; no protected reporting body or native imports"
+}

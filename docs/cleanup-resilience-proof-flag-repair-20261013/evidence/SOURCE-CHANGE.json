@@ -1,0 +1,26 @@
+{
+  "base": "d4723114e93ff61bb8db0f602a3088ef8033a810",
+  "source": "bb4cff94884bc5f1f20fee4fd1ff06ac0a41c627",
+  "tree": "24945192668a0df687042e54670f81be301bee20",
+  "onlyChangedSourcePaths": [
+    {
+      "path": "scripts/engagement-phase3-resilience-contract.mjs",
+      "beforeSha256": "7df16e9894e94d551ffc6cab75e504082fd8b5dfb21ac1914b1b10e4056535d8",
+      "afterSha256": "7b5b0d779cb52a9a28a63a6576810e213e45cf8b845d7083c0074ef8767ad334",
+      "afterGitBlob": "35f469a6706089b1788dbf5d73fbe11c4bf61605",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/ci/engagement-resilience-recovery.contract.spec.mjs",
+      "beforeSha256": "cd397fd506df0a8d50d3c426954e16da7e31e20bc74a27cfd387676ac6610bcc",
+      "afterSha256": "4cc65224f928dc19412a8db5f5470708703cc4488c045630908e0d820a93bdf4",
+      "afterGitBlob": "94b98000680078fe59c914fbb455ec715bed976c",
+      "mode": "100644"
+    }
+  ],
+  "helperInverseExact": true,
+  "oldSpec28NamesAndBodiesExactAfterRemovingOnlyTwoAdditiveTests": true,
+  "allOtherTreeEntriesExact": true,
+  "nativeFloor15Original14ProbePreflightsUntouched": true,
+  "legacy184IndexRemainsBoundToOriginalD472": "two source hashes explicitly superseded only in this new source pin; old committed index preserved unchanged"
+}
