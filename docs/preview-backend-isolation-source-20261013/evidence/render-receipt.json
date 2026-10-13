@@ -1,0 +1,19 @@
+{
+  "sourceHead": "42d6705b02af712f729150f51f11665290d696c7",
+  "sourceTree": "9d56d0854b07ae1bd42a52ffcf992ddab75dccb4",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "ts-node/register/transpile-only",
+    "bin/preview-backends.ts",
+    "--render",
+    "fixtures/preview-backends.synthetic.json",
+    "/tmp/capiro-preview-rendered-proposal-42d6705b-20261013"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 2.806,
+  "logBytes": 794,
+  "logSha256": "5bc2b8ae065ef575ca6f0c1324b47f79ecb573c4c08719b4188f46c32f03b154",
+  "syntheticOnly": true,
+  "AWSOrDatabaseOperationRequested": false
+}

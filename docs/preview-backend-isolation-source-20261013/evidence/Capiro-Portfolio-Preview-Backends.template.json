@@ -1,0 +1,1358 @@
+{
+ "Resources": {
+  "FrontendProxyRoutes": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/portfolio-preview/0000000000000001",
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "host-header",
+      "HostHeaderConfig": {
+       "Values": [
+        "portfolio-preview.app.capiro.ai"
+       ]
+      }
+     },
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/api/capiro/*",
+        "/api/backend/*",
+        "/api/action-followthrough/*",
+        "/api/documents/*",
+        "/api/conversations/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-portfolio-preview/0000000000000001/0000000000000002",
+    "Priority": 609
+   }
+  },
+  "UnavailableBackends": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "FixedResponseConfig": {
+       "ContentType": "application/json",
+       "MessageBody": "{\"error\":\"PREVIEW_SERVICE_UNAVAILABLE\"}",
+       "StatusCode": "503"
+      },
+      "Type": "fixed-response"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "host-header",
+      "HostHeaderConfig": {
+       "Values": [
+        "portfolio-preview.app.capiro.ai"
+       ]
+      }
+     },
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/strategy-api/*",
+        "/onboard-api/*",
+        "/meri-api/*",
+        "/api/meri/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-portfolio-preview/0000000000000001/0000000000000002",
+    "Priority": 608
+   }
+  },
+  "coreTaskRole334FB4BE": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   }
+  },
+  "coreTaskRoleDefaultPolicy77C823EE": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":s3:::",
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+           }
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":s3:::",
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputFnGetAttAssetsKey6C8A65ACArnE24C9CC3"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "coreTaskRoleDefaultPolicy77C823EE",
+    "Roles": [
+     {
+      "Ref": "coreTaskRole334FB4BE"
+     }
+    ]
+   }
+  },
+  "coreExecutionRoleF11D6733": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  "coreExecutionRoleDefaultPolicy3139C316": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": "arn:aws:kms:us-east-1:967807252336:key/00000000-0000-4000-8000-000000000001"
+      },
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputFnGetAttDataKey17AFBB84ArnCE2A1BC6"
+       }
+      },
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "coreLogs4A84F1D4",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "coreExecutionRoleDefaultPolicy3139C316",
+    "Roles": [
+     {
+      "Ref": "coreExecutionRoleF11D6733"
+     }
+    ]
+   }
+  },
+  "coreTask6F15CFF2": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Command": [
+       "serve"
+      ],
+      "Environment": [
+       {
+        "Name": "NODE_ENV",
+        "Value": "production"
+       },
+       {
+        "Name": "WEB_ORIGIN",
+        "Value": "https://portfolio-preview.app.capiro.ai"
+       },
+       {
+        "Name": "DATABASE_URL",
+        "Value": ""
+       },
+       {
+        "Name": "DB_HOST",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputFnGetAttAuroraCluster23D869C0EndpointAddress064B8907"
+        }
+       },
+       {
+        "Name": "DB_PORT",
+        "Value": "5432"
+       },
+       {
+        "Name": "DB_NAME",
+        "Value": "capiro"
+       },
+       {
+        "Name": "CLERK_JWT_ISSUER",
+        "Value": "https://synthetic-preview.clerk.accounts.dev"
+       },
+       {
+        "Name": "RELEASE_SHA",
+        "Value": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+       },
+       {
+        "Name": "ASSETS_BUCKET",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+        }
+       },
+       {
+        "Name": "DIRECTORY_S3_BUCKET",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+        }
+       }
+      ],
+      "Essential": true,
+      "Image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-core@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "coreLogs4A84F1D4"
+        },
+        "awslogs-stream-prefix": "core",
+        "awslogs-region": "us-east-1"
+       }
+      },
+      "Name": "core",
+      "PortMappings": [
+       {
+        "ContainerPort": 4000,
+        "Protocol": "tcp"
+       }
+      ],
+      "Secrets": [
+       {
+        "Name": "DB_USER",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+           },
+           ":username::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "DB_PASSWORD",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+           },
+           ":password::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "CLERK_SECRET_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf"
+       }
+      ]
+     }
+    ],
+    "Cpu": "512",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "coreExecutionRoleF11D6733",
+      "Arn"
+     ]
+    },
+    "Family": "capiro-preview-core",
+    "Memory": "1024",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "coreTaskRole334FB4BE",
+      "Arn"
+     ]
+    }
+   }
+  },
+  "coreLogs4A84F1D4": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/capiro/preview/core",
+    "RetentionInDays": 14
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain"
+  },
+  "coreTarget72B6E63D": {
+   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+   "Properties": {
+    "HealthCheckPath": "/api/health",
+    "Port": 4000,
+    "Protocol": "HTTP",
+    "TargetGroupAttributes": [
+     {
+      "Key": "stickiness.enabled",
+      "Value": "false"
+     }
+    ],
+    "TargetType": "ip",
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "coreService81A18003": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "Cluster": "capiro-portfolio-preview",
+    "DeploymentConfiguration": {
+     "Alarms": {
+      "AlarmNames": [],
+      "Enable": false,
+      "Rollback": false
+     },
+     "DeploymentCircuitBreaker": {
+      "Enable": true,
+      "Rollback": true
+     },
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 50
+    },
+    "DeploymentController": {
+     "Type": "ECS"
+    },
+    "DesiredCount": 0,
+    "EnableECSManagedTags": false,
+    "HealthCheckGracePeriodSeconds": 60,
+    "LaunchType": "FARGATE",
+    "LoadBalancers": [
+     {
+      "ContainerName": "core",
+      "ContainerPort": 4000,
+      "TargetGroupArn": {
+       "Ref": "coreTarget72B6E63D"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "ENABLED",
+      "SecurityGroups": [
+       {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputFnGetAttBackendServiceGroup2054D59BGroupId654F2BCD"
+       }
+      ],
+      "Subnets": [
+       "subnet-00000000000000001",
+       "subnet-00000000000000002"
+      ]
+     }
+    },
+    "ServiceName": "capiro-preview-core",
+    "TaskDefinition": {
+     "Ref": "coreTask6F15CFF2"
+    }
+   },
+   "DependsOn": [
+    "coreTaskRoleDefaultPolicy77C823EE",
+    "coreTaskRole334FB4BE"
+   ]
+  },
+  "coreRoute": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "coreTarget72B6E63D"
+      },
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "host-header",
+      "HostHeaderConfig": {
+       "Values": [
+        "portfolio-preview.app.capiro.ai"
+       ]
+      }
+     },
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/api/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-portfolio-preview/0000000000000001/0000000000000002",
+    "Priority": 610
+   }
+  },
+  "workspaceTaskRoleB98DB565": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   }
+  },
+  "workspaceTaskRoleDefaultPolicyB150E236": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":s3:::",
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+           }
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":s3:::",
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputFnGetAttAssetsKey6C8A65ACArnE24C9CC3"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "workspaceTaskRoleDefaultPolicyB150E236",
+    "Roles": [
+     {
+      "Ref": "workspaceTaskRoleB98DB565"
+     }
+    ]
+   }
+  },
+  "workspaceExecutionRole9B27ACC9": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  "workspaceExecutionRoleDefaultPolicy9893EFC7": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": "arn:aws:kms:us-east-1:967807252336:key/00000000-0000-4000-8000-000000000001"
+      },
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputFnGetAttDataKey17AFBB84ArnCE2A1BC6"
+       }
+      },
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "workspaceLogsCBFDCA46",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "workspaceExecutionRoleDefaultPolicy9893EFC7",
+    "Roles": [
+     {
+      "Ref": "workspaceExecutionRole9B27ACC9"
+     }
+    ]
+   }
+  },
+  "workspaceTask686E128A": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Command": [
+       "serve"
+      ],
+      "Environment": [
+       {
+        "Name": "NODE_ENV",
+        "Value": "production"
+       },
+       {
+        "Name": "WEB_ORIGIN",
+        "Value": "https://portfolio-preview.app.capiro.ai"
+       },
+       {
+        "Name": "DATABASE_URL",
+        "Value": ""
+       },
+       {
+        "Name": "DB_HOST",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputFnGetAttAuroraCluster23D869C0EndpointAddress064B8907"
+        }
+       },
+       {
+        "Name": "DB_PORT",
+        "Value": "5432"
+       },
+       {
+        "Name": "DB_NAME",
+        "Value": "capiro"
+       },
+       {
+        "Name": "CLERK_JWT_ISSUER",
+        "Value": "https://synthetic-preview.clerk.accounts.dev"
+       },
+       {
+        "Name": "RELEASE_SHA",
+        "Value": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+       },
+       {
+        "Name": "ASSETS_BUCKET",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+        }
+       },
+       {
+        "Name": "DIRECTORY_S3_BUCKET",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+        }
+       }
+      ],
+      "Essential": true,
+      "Image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-workspace@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "workspaceLogsCBFDCA46"
+        },
+        "awslogs-stream-prefix": "workspace",
+        "awslogs-region": "us-east-1"
+       }
+      },
+      "Name": "workspace",
+      "PortMappings": [
+       {
+        "ContainerPort": 4200,
+        "Protocol": "tcp"
+       }
+      ],
+      "Secrets": [
+       {
+        "Name": "DB_USER",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+           },
+           ":username::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "DB_PASSWORD",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+           },
+           ":password::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "CLERK_SECRET_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf"
+       }
+      ]
+     }
+    ],
+    "Cpu": "512",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "workspaceExecutionRole9B27ACC9",
+      "Arn"
+     ]
+    },
+    "Family": "capiro-preview-workspace",
+    "Memory": "1024",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "workspaceTaskRoleB98DB565",
+      "Arn"
+     ]
+    }
+   }
+  },
+  "workspaceLogsCBFDCA46": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/capiro/preview/workspace",
+    "RetentionInDays": 14
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain"
+  },
+  "workspaceTarget770E2440": {
+   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+   "Properties": {
+    "HealthCheckPath": "/health",
+    "Port": 4200,
+    "Protocol": "HTTP",
+    "TargetGroupAttributes": [
+     {
+      "Key": "stickiness.enabled",
+      "Value": "false"
+     }
+    ],
+    "TargetType": "ip",
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "workspaceServiceCFD076D4": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "Cluster": "capiro-portfolio-preview",
+    "DeploymentConfiguration": {
+     "Alarms": {
+      "AlarmNames": [],
+      "Enable": false,
+      "Rollback": false
+     },
+     "DeploymentCircuitBreaker": {
+      "Enable": true,
+      "Rollback": true
+     },
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 50
+    },
+    "DeploymentController": {
+     "Type": "ECS"
+    },
+    "DesiredCount": 0,
+    "EnableECSManagedTags": false,
+    "HealthCheckGracePeriodSeconds": 60,
+    "LaunchType": "FARGATE",
+    "LoadBalancers": [
+     {
+      "ContainerName": "workspace",
+      "ContainerPort": 4200,
+      "TargetGroupArn": {
+       "Ref": "workspaceTarget770E2440"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "ENABLED",
+      "SecurityGroups": [
+       {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputFnGetAttBackendServiceGroup2054D59BGroupId654F2BCD"
+       }
+      ],
+      "Subnets": [
+       "subnet-00000000000000001",
+       "subnet-00000000000000002"
+      ]
+     }
+    },
+    "ServiceName": "capiro-preview-workspace",
+    "TaskDefinition": {
+     "Ref": "workspaceTask686E128A"
+    }
+   },
+   "DependsOn": [
+    "workspaceTaskRoleDefaultPolicyB150E236",
+    "workspaceTaskRoleB98DB565"
+   ]
+  },
+  "workspaceRoute": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "workspaceTarget770E2440"
+      },
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "host-header",
+      "HostHeaderConfig": {
+       "Values": [
+        "portfolio-preview.app.capiro.ai"
+       ]
+      }
+     },
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/workspace-api/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-portfolio-preview/0000000000000001/0000000000000002",
+    "Priority": 611
+   }
+  },
+  "intelligenceTaskRole73DE23CC": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   }
+  },
+  "intelligenceExecutionRoleF746F00E": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  "intelligenceExecutionRoleDefaultPolicyB601D92B": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": "arn:aws:kms:us-east-1:967807252336:key/00000000-0000-4000-8000-000000000001"
+      },
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputFnGetAttDataKey17AFBB84ArnCE2A1BC6"
+       }
+      },
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "intelligenceLogs2DEEEED7",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "intelligenceExecutionRoleDefaultPolicyB601D92B",
+    "Roles": [
+     {
+      "Ref": "intelligenceExecutionRoleF746F00E"
+     }
+    ]
+   }
+  },
+  "intelligenceTask146D80EB": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Command": [
+       "serve"
+      ],
+      "Environment": [
+       {
+        "Name": "NODE_ENV",
+        "Value": "production"
+       },
+       {
+        "Name": "WEB_ORIGIN",
+        "Value": "https://portfolio-preview.app.capiro.ai"
+       },
+       {
+        "Name": "DATABASE_URL",
+        "Value": ""
+       },
+       {
+        "Name": "DB_HOST",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputFnGetAttAuroraCluster23D869C0EndpointAddress064B8907"
+        }
+       },
+       {
+        "Name": "DB_PORT",
+        "Value": "5432"
+       },
+       {
+        "Name": "DB_NAME",
+        "Value": "capiro"
+       },
+       {
+        "Name": "CLERK_JWT_ISSUER",
+        "Value": "https://synthetic-preview.clerk.accounts.dev"
+       },
+       {
+        "Name": "RELEASE_SHA",
+        "Value": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+       },
+       {
+        "Name": "ASSETS_BUCKET",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+        }
+       },
+       {
+        "Name": "DIRECTORY_S3_BUCKET",
+        "Value": {
+         "Fn::ImportValue": "Capiro-Portfolio-Preview-Assets:ExportsOutputRefAssetsBucket5CB761808BF2E271"
+        }
+       }
+      ],
+      "Essential": true,
+      "Image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/preview-intelligence@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "intelligenceLogs2DEEEED7"
+        },
+        "awslogs-stream-prefix": "intelligence",
+        "awslogs-region": "us-east-1"
+       }
+      },
+      "Name": "intelligence",
+      "PortMappings": [
+       {
+        "ContainerPort": 4300,
+        "Protocol": "tcp"
+       }
+      ],
+      "Secrets": [
+       {
+        "Name": "DB_USER",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+           },
+           ":username::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "DB_PASSWORD",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "Capiro-Portfolio-Preview-Data:ExportsOutputRefDbAppSecretBE2ADA0056F9A2EB"
+           },
+           ":password::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "CLERK_SECRET_KEY",
+        "ValueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf"
+       }
+      ]
+     }
+    ],
+    "Cpu": "512",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "intelligenceExecutionRoleF746F00E",
+      "Arn"
+     ]
+    },
+    "Family": "capiro-preview-intelligence",
+    "Memory": "1024",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "intelligenceTaskRole73DE23CC",
+      "Arn"
+     ]
+    }
+   }
+  },
+  "intelligenceLogs2DEEEED7": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/capiro/preview/intelligence",
+    "RetentionInDays": 14
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain"
+  },
+  "intelligenceTarget22ABA55E": {
+   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+   "Properties": {
+    "HealthCheckPath": "/health",
+    "Port": 4300,
+    "Protocol": "HTTP",
+    "TargetGroupAttributes": [
+     {
+      "Key": "stickiness.enabled",
+      "Value": "false"
+     }
+    ],
+    "TargetType": "ip",
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "intelligenceService9FE51B77": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "Cluster": "capiro-portfolio-preview",
+    "DeploymentConfiguration": {
+     "Alarms": {
+      "AlarmNames": [],
+      "Enable": false,
+      "Rollback": false
+     },
+     "DeploymentCircuitBreaker": {
+      "Enable": true,
+      "Rollback": true
+     },
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 50
+    },
+    "DeploymentController": {
+     "Type": "ECS"
+    },
+    "DesiredCount": 0,
+    "EnableECSManagedTags": false,
+    "HealthCheckGracePeriodSeconds": 60,
+    "LaunchType": "FARGATE",
+    "LoadBalancers": [
+     {
+      "ContainerName": "intelligence",
+      "ContainerPort": 4300,
+      "TargetGroupArn": {
+       "Ref": "intelligenceTarget22ABA55E"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "ENABLED",
+      "SecurityGroups": [
+       {
+        "Fn::ImportValue": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputFnGetAttBackendServiceGroup2054D59BGroupId654F2BCD"
+       }
+      ],
+      "Subnets": [
+       "subnet-00000000000000001",
+       "subnet-00000000000000002"
+      ]
+     }
+    },
+    "ServiceName": "capiro-preview-intelligence",
+    "TaskDefinition": {
+     "Ref": "intelligenceTask146D80EB"
+    }
+   },
+   "DependsOn": [
+    "intelligenceTaskRole73DE23CC"
+   ]
+  },
+  "intelligenceRoute": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "intelligenceTarget22ABA55E"
+      },
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "host-header",
+      "HostHeaderConfig": {
+       "Values": [
+        "portfolio-preview.app.capiro.ai"
+       ]
+      }
+     },
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/intel-api/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-portfolio-preview/0000000000000001/0000000000000002",
+    "Priority": 612
+   }
+  }
+ },
+ "Outputs": {
+  "FrontendCoreApiBaseUrl": {
+   "Value": "https://portfolio-preview.app.capiro.ai/api"
+  },
+  "FrontendWorkspaceApiBaseUrl": {
+   "Value": "https://portfolio-preview.app.capiro.ai/workspace-api"
+  },
+  "FrontendIntelligenceApiBaseUrl": {
+   "Value": "https://portfolio-preview.app.capiro.ai/intel-api"
+  },
+  "FrontendStrategyApiBaseUrl": {
+   "Value": "https://portfolio-preview.app.capiro.ai/strategy-api"
+  },
+  "FrontendOnboardApiBaseUrl": {
+   "Value": "https://portfolio-preview.app.capiro.ai/onboard-api"
+  },
+  "FrontendExistingAppUrl": {
+   "Value": "https://portfolio-preview.app.capiro.ai"
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

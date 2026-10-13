@@ -1,0 +1,11 @@
+{
+  "ownedOutput": "/tmp/capiro-preview-backends-synthetic-synth-20261013",
+  "files": [
+    {
+      "path": "asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d/index.js",
+      "bytes": 3147,
+      "sha256": "657245e15f1cad37ae2bb71ae890018748569e945a44d29457d73262c0690fd7"
+    }
+  ],
+  "removedOnlyOwnedSyntheticAssembly": true
+}

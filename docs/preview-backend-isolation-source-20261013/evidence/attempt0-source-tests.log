@@ -1,0 +1,25 @@
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+✔ preview refuses production/default/extra resource configuration before allocation (5.834519ms)
+✖ held service templates use new DB/asset owners, preserve proxy routing and add no Meri worker (998.581069ms)
+✔ CLI help/missing/unknown modes never allocate output (2.20396ms)
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+Usage: preview-backends --render <public-bindings.json> <fresh-output-directory> | --help
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1875.264182
+
+✖ failing tests:
+
+test at test/preview-backends.spec.ts:80:22
+✖ held service templates use new DB/asset owners, preserve proxy routing and add no Meri worker (998.581069ms)
+  [«DependencyCycle» 'Capiro-Portfolio-Preview-Data' depends on 'Capiro-Portfolio-Preview-Backends' (Capiro-Portfolio-Preview-Data -> Capiro-Portfolio-Preview-Backends/coreExecutionRole/Resource.Arn). Adding this dependency (Capiro-Portfolio-Preview-Backends -> Capiro-Portfolio-Preview-Data/DbAppSecret/Resource.Ref) would create a cyclic reference.
+      ....pnpm...
+      (no user code in 10 frames, use --stack-trace-limit to capture more)
+  Relates to construct:
+      <.> (aws-cdk-lib.App)
+       └─ Capiro-Portfolio-Preview-Backends (aws-cdk-lib.Stack)]

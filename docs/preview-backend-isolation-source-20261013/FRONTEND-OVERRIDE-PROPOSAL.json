@@ -1,0 +1,48 @@
+{
+  "proposalOnly": true,
+  "frontendTemplateChanged": false,
+  "applyAuthorized": false,
+  "inspectedTemplateSource": "02c02d95bdf3949662b9123f425271c6491ffdab",
+  "shippingFrontendSource": "1da8a551b00bba0f98e87954ef0a87566db236e6",
+  "cloudFormationParameterOverrides": {
+    "CoreApiBaseUrl": "https://portfolio-preview.app.capiro.ai/api",
+    "StrategyApiBaseUrl": "https://portfolio-preview.app.capiro.ai/strategy-api",
+    "WorkspaceApiBaseUrl": "https://portfolio-preview.app.capiro.ai/workspace-api",
+    "IntelligenceApiBaseUrl": "https://portfolio-preview.app.capiro.ai/intel-api",
+    "ExistingAppUrl": "https://portfolio-preview.app.capiro.ai",
+    "ClerkPublishableKeySecretArn": null,
+    "ClerkSecretKeySecretArn": null,
+    "ClerkKmsKeyArn": null
+  },
+  "shippingEnvironment": {
+    "CORE_API_BASE_URL": "https://portfolio-preview.app.capiro.ai/api",
+    "STRATEGY_API_BASE_URL": "https://portfolio-preview.app.capiro.ai/strategy-api",
+    "WORKSPACE_API_BASE_URL": "https://portfolio-preview.app.capiro.ai/workspace-api",
+    "INTELLIGENCE_API_BASE_URL": "https://portfolio-preview.app.capiro.ai/intel-api",
+    "CAPIRO_EXISTING_APP_URL": "https://portfolio-preview.app.capiro.ai",
+    "CLERK_JWT_ISSUER": null,
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "<matching-Test-Clerk-build-secret; do not store value here>",
+    "CLERK_SECRET_KEY": "<matching-Test-Clerk-runtime-secret; do not store value here>"
+  },
+  "heldRoutes": {
+    "strategy": "HTTP503",
+    "onboard": "HTTP503",
+    "legacyMeri": "HTTP503"
+  },
+  "greenfield": {
+    "canonicalNamespace": "/api/conversations",
+    "controlUrl": null,
+    "publicPackage": "0.1.4 freeze required",
+    "acceptedBootstrapSource": null,
+    "acceptedImageDigest": null
+  },
+  "shippingOwnerRequiredChanges": [
+    "Replace os.capiro.ai defaults and production Clerk descriptions in the actual shipping preview template with explicit mandatory preview inputs; this backend packet does not change that template.",
+    "Verify the shipping frontend consumes these exact env bindings and fails closed when they are missing; compile/build matching Test Clerk public key into its own immutable image.",
+    "Use a Test Clerk application/key/issuer pair verified together and allowed preview origins; never inherit production credentials.",
+    "Preserve current conversation/document/action proxy authorities and same-origin routing before Core wildcard; prove real proxy and CORS behavior.",
+    "No MERIV2_ORCHESTRATOR_URL fallback; bind Greenfield only after accepted isolated bootstrap and public0.1.4 pins.",
+    "Existing template has no OnboardApiBaseUrl parameter; do not pass an unknown parameter. If shipping owner needs an Onboard binding, use the explicit held preview URL and reviewed owner contract.",
+    "Preserve current approved ingress /32 and frontend topology; changes require their separately authorized owner."
+  ]
+}

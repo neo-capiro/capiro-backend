@@ -1,0 +1,12 @@
+lib/preview/network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet0 (DatabaseSubnet0) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+lib/preview/network-stack.ts:17:2
+WARNING AvailabilityZone: Avoid hardcoding availability zones 'us-east-1a' (CloudFormation Validate)
+   Capiro-Portfolio-Preview-Backend-Network/DatabaseSubnet1 (DatabaseSubnet1) aws-cdk-lib.aws_ec2.CfnSubnet
+   Acknowledge with 'CloudFormation-Validate::W3010'
+
+A copy of this report can be found in: /tmp/capiro-preview-rendered-proposal-42d6705b-20261013/validation-report.json
+Rendered source proposal only; services held at zero. No AWS operation performed.

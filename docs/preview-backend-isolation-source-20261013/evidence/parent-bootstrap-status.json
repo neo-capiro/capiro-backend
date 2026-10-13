@@ -1,0 +1,8 @@
+{
+  "publishedOwnerContract": "9e2e197d1e0f11392e0284a77aea775393a3b23f",
+  "bootstrapSourceAcceptancePinSupplied": false,
+  "parallelBootstrapStagedByOwner": true,
+  "processTestsUnderRepairAtLastReport": true,
+  "legacyRoutesOrDiagnosticContainersSelected": false,
+  "greenfieldResourceCreatedOrCopied": false
+}

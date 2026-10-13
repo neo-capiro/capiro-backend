@@ -1,0 +1,54 @@
+{
+  "baseHead": "b9da0ae2938821e08a3bfea563c6267608ae9909",
+  "baseTree": "91436b73ebff4c9807c5c877093e8502430a50c9",
+  "frozenSourceHead": "42d6705b02af712f729150f51f11665290d696c7",
+  "frozenSourceTree": "9d56d0854b07ae1bd42a52ffcf992ddab75dccb4",
+  "baseEntryCount": 26754,
+  "unchangedBaseEntries": 26751,
+  "modifiedBasePaths": 3,
+  "newSourcePaths": 7,
+  "changedEntries": {
+    "infra/cdk/bin/preview-backends.ts": {
+      "base": null,
+      "source": "100644 blob 3e3c3f2d1522014bbfb8ade137ca6f99ba5a2a9a"
+    },
+    "infra/cdk/fixtures/preview-backends.synthetic.json": {
+      "base": null,
+      "source": "100644 blob dc3242f409e08d6360e0ea2e8526bfb0ef0de05d"
+    },
+    "infra/cdk/lib/assets-stack.ts": {
+      "base": "100644 blob 7328213fe1d22f6072d9c403d46362d4de8ea54d",
+      "source": "100644 blob 250a26b0e28c2f909a90b4379c4be074c7868c5b"
+    },
+    "infra/cdk/lib/config.ts": {
+      "base": "100644 blob 4028db5fd43b46bfba9db6e69f4975ba0d10feaa",
+      "source": "100644 blob 01ccc054eafe3cfae50dd0f8597d71da5347821d"
+    },
+    "infra/cdk/lib/data-stack.ts": {
+      "base": "100644 blob 94da578ee7981d155f18989a11e8bd7efca9d9cf",
+      "source": "100644 blob 9e75be3774c67ab13f7ff3e3e230ac3eed75c661"
+    },
+    "infra/cdk/lib/preview/application.ts": {
+      "base": null,
+      "source": "100644 blob f53edcb7c4297e188aeaa6c72431df4f86b03763"
+    },
+    "infra/cdk/lib/preview/bindings.ts": {
+      "base": null,
+      "source": "100644 blob 3398702e5a4ff1871097b487e59011c53ffa1e37"
+    },
+    "infra/cdk/lib/preview/network-stack.ts": {
+      "base": null,
+      "source": "100644 blob 6daa767fb968e4a2111bdab178912ba0e52fb242"
+    },
+    "infra/cdk/lib/preview/services-stack.ts": {
+      "base": null,
+      "source": "100644 blob efcd7ea84bb6246bf1a9aba29f23a0ae63dffb87"
+    },
+    "infra/cdk/test/preview-backends.spec.ts": {
+      "base": null,
+      "source": "100644 blob 58057edeb7429a047c2cc800099d1182069eb780"
+    }
+  },
+  "comparison": "Git mode/type/blob metadata only; no protected code or credential body reads",
+  "allAppsPackagesAndNativePacketEntriesExact": true
+}

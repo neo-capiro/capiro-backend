@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "ts-node/register/transpile-only",
+    "--test",
+    "test/preview-backends.spec.ts"
+  ],
+  "cwd": "/tmp/capirov2-preview-backend-isolation-source-20261013/infra/cdk",
+  "exitCode": 1,
+  "elapsedSeconds": 2.471,
+  "logBytes": 1412,
+  "logSha256": "0c4c20f88ee6328263d594de1743b4287d5b181899614d690f8ceeffdad85f18",
+  "syntheticOnly": true,
+  "AWSOrDatabaseOperationRequested": false
+}

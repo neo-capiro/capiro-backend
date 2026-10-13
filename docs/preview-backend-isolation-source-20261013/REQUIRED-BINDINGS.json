@@ -1,0 +1,39 @@
+{
+  "vpcId": null,
+  "vpcCidr": "10.90.0.0/16",
+  "clusterArn": null,
+  "listenerArn": null,
+  "albSecurityGroupId": null,
+  "publicSubnetIds": [
+    null,
+    null
+  ],
+  "availabilityZones": [
+    null,
+    null
+  ],
+  "frontendTargetGroupArn": null,
+  "clerkIssuer": null,
+  "clerkApplicationId": null,
+  "clerkSecretArn": null,
+  "clerkPublishableKeyArn": null,
+  "clerkKeyArn": null,
+  "neoTenantId": null,
+  "automationTenantId": null,
+  "neoActorId": null,
+  "automationActorId": null,
+  "images": {
+    "core": {
+      "uri": null,
+      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+    },
+    "workspace": {
+      "uri": null,
+      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+    },
+    "intelligence": {
+      "uri": null,
+      "sourceHead": "b9da0ae2938821e08a3bfea563c6267608ae9909"
+    }
+  }
+}

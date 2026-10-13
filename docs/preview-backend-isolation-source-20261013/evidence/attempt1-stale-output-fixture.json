@@ -1,0 +1,6 @@
+{
+  "failure": "Second attempt asserted fresh fixed output but first failed CDK attempt left its owned local directory",
+  "sourceCycleCorrectionExercisedByThisAttempt": false,
+  "correction": "Unique process-owned local assembly and Node after-hook cleanup; old owned output inventoried and removed",
+  "AWSOrDBResourceMutated": false
+}

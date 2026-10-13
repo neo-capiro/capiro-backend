@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "stdout": "{\n  \"sourceHygiene\": \"FAIL\",\n  \"base\": \"b9da0ae2938821e08a3bfea563c6267608ae9909\",\n  \"checkedPaths\": 47,\n  \"checkedStates\": [\n    \"index\",\n    \"working-tree\"\n  ],\n  \"rawArchivesClassified\": [],\n  \"checkedDiagnostics\": \"docs/preview-backend-isolation-source-20261013/evidence/attempt1-source-tests.log:21: trailing whitespace.\\n+  \\ndocs/preview-backend-isolation-source-20261013/evidence/attempt1-source-tests.log:23: trailing whitespace.\\n+  \\ndocs/preview-backend-isolation-source-20261013/evidence/attempt1-source-tests.log:40: trailing whitespace.\\n+  \\ndocs/preview-backend-isolation-source-20261013/evidence/attempt1-source-tests.log:42: trailing whitespace.\\n+  \\n\",\n  \"rawArchiveSource\": \"9db4e1cd5589a05e08fb88caa38a4ac44937def5\"\n}\n",
+  "stderr": ""
+}

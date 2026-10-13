@@ -1,0 +1,134 @@
+{
+  "syntheticOnly": true,
+  "sourceHead": "42d6705b02af712f729150f51f11665290d696c7",
+  "templates": {
+    "Capiro-Portfolio-Preview-Assets.template.json": {
+      "resourceCounts": {
+        "AWS::IAM::Policy": 1,
+        "AWS::IAM::Role": 1,
+        "AWS::KMS::Alias": 1,
+        "AWS::KMS::Key": 1,
+        "AWS::S3::Bucket": 1,
+        "AWS::S3::BucketPolicy": 1
+      },
+      "logicalIds": {
+        "AssetsBucket5CB76180": "AWS::S3::Bucket",
+        "AssetsBucketPolicyFFACF6C4": "AWS::S3::BucketPolicy",
+        "AssetsKey6C8A65AC": "AWS::KMS::Key",
+        "AssetsKeyAlias2371AE1C": "AWS::KMS::Alias",
+        "StrategyReportTaskRole7FB3D6C1": "AWS::IAM::Role",
+        "StrategyReportTaskRoleDefaultPolicyD6380A78": "AWS::IAM::Policy"
+      },
+      "bytes": 8370,
+      "sha256": "8c9a2211729534788fbd9e94534a8815778a2e2355d1ab8b60f656779826ced7"
+    },
+    "Capiro-Portfolio-Preview-Backend-Network.template.json": {
+      "resourceCounts": {
+        "AWS::EC2::RouteTable": 1,
+        "AWS::EC2::SecurityGroup": 2,
+        "AWS::EC2::SecurityGroupEgress": 4,
+        "AWS::EC2::SecurityGroupIngress": 4,
+        "AWS::EC2::Subnet": 2,
+        "AWS::EC2::SubnetRouteTableAssociation": 2
+      },
+      "logicalIds": {
+        "BackendServiceGroup2054D59B": "AWS::EC2::SecurityGroup",
+        "BackendServiceGroupfromCapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D4000F470137D": "AWS::EC2::SecurityGroupIngress",
+        "BackendServiceGroupfromCapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D4200944B04AE": "AWS::EC2::SecurityGroupIngress",
+        "BackendServiceGroupfromCapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D4300601E994D": "AWS::EC2::SecurityGroupIngress",
+        "BackendServiceGrouptoCapiroPortfolioPreviewBackendNetworkDatabaseGroup921D101F5432EA03C870": "AWS::EC2::SecurityGroupEgress",
+        "DatabaseGroupB493B4E2": "AWS::EC2::SecurityGroup",
+        "DatabaseGroupfromCapiroPortfolioPreviewBackendNetworkBackendServiceGroup31E7970E543269EABD73": "AWS::EC2::SecurityGroupIngress",
+        "DatabaseRoute0": "AWS::EC2::SubnetRouteTableAssociation",
+        "DatabaseRoute1": "AWS::EC2::SubnetRouteTableAssociation",
+        "DatabaseSubnet0": "AWS::EC2::Subnet",
+        "DatabaseSubnet1": "AWS::EC2::Subnet",
+        "IsolatedDatabaseRoutes": "AWS::EC2::RouteTable",
+        "PreviewAlbBackendEgress4000": "AWS::EC2::SecurityGroupEgress",
+        "PreviewAlbBackendEgress4200": "AWS::EC2::SecurityGroupEgress",
+        "PreviewAlbBackendEgress4300": "AWS::EC2::SecurityGroupEgress"
+      },
+      "bytes": 7234,
+      "sha256": "23353407ed51848e53cb7c0b9f1f8a48035784e20259cd45bcafc39f64148f4e"
+    },
+    "Capiro-Portfolio-Preview-Backends.template.json": {
+      "resourceCounts": {
+        "AWS::ECS::Service": 3,
+        "AWS::ECS::TaskDefinition": 3,
+        "AWS::ElasticLoadBalancingV2::ListenerRule": 5,
+        "AWS::ElasticLoadBalancingV2::TargetGroup": 3,
+        "AWS::IAM::Policy": 5,
+        "AWS::IAM::Role": 6,
+        "AWS::Logs::LogGroup": 3
+      },
+      "logicalIds": {
+        "FrontendProxyRoutes": "AWS::ElasticLoadBalancingV2::ListenerRule",
+        "UnavailableBackends": "AWS::ElasticLoadBalancingV2::ListenerRule",
+        "coreExecutionRoleDefaultPolicy3139C316": "AWS::IAM::Policy",
+        "coreExecutionRoleF11D6733": "AWS::IAM::Role",
+        "coreLogs4A84F1D4": "AWS::Logs::LogGroup",
+        "coreRoute": "AWS::ElasticLoadBalancingV2::ListenerRule",
+        "coreService81A18003": "AWS::ECS::Service",
+        "coreTarget72B6E63D": "AWS::ElasticLoadBalancingV2::TargetGroup",
+        "coreTask6F15CFF2": "AWS::ECS::TaskDefinition",
+        "coreTaskRole334FB4BE": "AWS::IAM::Role",
+        "coreTaskRoleDefaultPolicy77C823EE": "AWS::IAM::Policy",
+        "intelligenceExecutionRoleDefaultPolicyB601D92B": "AWS::IAM::Policy",
+        "intelligenceExecutionRoleF746F00E": "AWS::IAM::Role",
+        "intelligenceLogs2DEEEED7": "AWS::Logs::LogGroup",
+        "intelligenceRoute": "AWS::ElasticLoadBalancingV2::ListenerRule",
+        "intelligenceService9FE51B77": "AWS::ECS::Service",
+        "intelligenceTarget22ABA55E": "AWS::ElasticLoadBalancingV2::TargetGroup",
+        "intelligenceTask146D80EB": "AWS::ECS::TaskDefinition",
+        "intelligenceTaskRole73DE23CC": "AWS::IAM::Role",
+        "workspaceExecutionRole9B27ACC9": "AWS::IAM::Role",
+        "workspaceExecutionRoleDefaultPolicy9893EFC7": "AWS::IAM::Policy",
+        "workspaceLogsCBFDCA46": "AWS::Logs::LogGroup",
+        "workspaceRoute": "AWS::ElasticLoadBalancingV2::ListenerRule",
+        "workspaceServiceCFD076D4": "AWS::ECS::Service",
+        "workspaceTarget770E2440": "AWS::ElasticLoadBalancingV2::TargetGroup",
+        "workspaceTask686E128A": "AWS::ECS::TaskDefinition",
+        "workspaceTaskRoleB98DB565": "AWS::IAM::Role",
+        "workspaceTaskRoleDefaultPolicyB150E236": "AWS::IAM::Policy"
+      },
+      "bytes": 32045,
+      "sha256": "9adc3b46e0cea23560c168f7a8c2cd6d81b9f9c8110c8734d0198f47674289c0"
+    },
+    "Capiro-Portfolio-Preview-Data.template.json": {
+      "resourceCounts": {
+        "AWS::IAM::Policy": 1,
+        "AWS::IAM::Role": 1,
+        "AWS::KMS::Alias": 1,
+        "AWS::KMS::Key": 1,
+        "AWS::Lambda::Function": 1,
+        "AWS::RDS::DBCluster": 1,
+        "AWS::RDS::DBClusterParameterGroup": 1,
+        "AWS::RDS::DBInstance": 2,
+        "AWS::RDS::DBSubnetGroup": 1,
+        "AWS::SecretsManager::Secret": 4,
+        "AWS::SecretsManager::SecretTargetAttachment": 1,
+        "Custom::LogRetention": 1
+      },
+      "logicalIds": {
+        "AnalyticsSecret2705A4FA": "AWS::SecretsManager::Secret",
+        "AuroraCluster23D869C0": "AWS::RDS::DBCluster",
+        "AuroraClusterLogRetentionpostgresql3202E189": "Custom::LogRetention",
+        "AuroraClusterSubnetsF3E9E6AD": "AWS::RDS::DBSubnetGroup",
+        "AuroraClusterreader13116B38E": "AWS::RDS::DBInstance",
+        "AuroraClusterwriter499C523E": "AWS::RDS::DBInstance",
+        "DataKey17AFBB84": "AWS::KMS::Key",
+        "DataKeyAliasF989EB84": "AWS::KMS::Alias",
+        "DbAppSecretBE2ADA00": "AWS::SecretsManager::Secret",
+        "DbMasterSecret80A406EE": "AWS::SecretsManager::Secret",
+        "DbMasterSecretAttachment0B0E4F0C": "AWS::SecretsManager::SecretTargetAttachment",
+        "DbParameterGroupD5340A4D": "AWS::RDS::DBClusterParameterGroup",
+        "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A": "AWS::Lambda::Function",
+        "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB": "AWS::IAM::Role",
+        "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB": "AWS::IAM::Policy",
+        "PromoterSecret5CAD7475": "AWS::SecretsManager::Secret"
+      },
+      "bytes": 15043,
+      "sha256": "45896b69f9e3a94ff0bee7270d4f45a83139a2d9a48f9b60c52e5d20ac5257ba"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "failure": "Local CDK cross-stack dependency cycle from direct canonical KMS/secret/bucket grant relationships",
+  "sourceCorrection": "Import only the new Data/Assets resource references into the service stack before identity grants",
+  "completeOriginalSourceSnapshotPreserved": false,
+  "attemptedReconstructionIsNotExactEvidence": true,
+  "AWSResourceOrPermissionChanged": false
+}

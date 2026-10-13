@@ -1,0 +1,291 @@
+{
+ "Resources": {
+  "IsolatedDatabaseRoutes": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "DatabaseSubnet0": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.90.11.0/24",
+    "MapPublicIpOnLaunch": false,
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "DatabaseRoute0": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "IsolatedDatabaseRoutes"
+    },
+    "SubnetId": {
+     "Ref": "DatabaseSubnet0"
+    }
+   }
+  },
+  "DatabaseSubnet1": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.90.12.0/24",
+    "MapPublicIpOnLaunch": false,
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "DatabaseRoute1": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "IsolatedDatabaseRoutes"
+    },
+    "SubnetId": {
+     "Ref": "DatabaseSubnet1"
+    }
+   }
+  },
+  "BackendServiceGroup2054D59B": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Preview backend targets only",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "from 0.0.0.0/0:443",
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "BackendServiceGrouptoCapiroPortfolioPreviewBackendNetworkDatabaseGroup921D101F5432EA03C870": {
+   "Type": "AWS::EC2::SecurityGroupEgress",
+   "Properties": {
+    "Description": "to CapiroPortfolioPreviewBackendNetworkDatabaseGroup921D101F:5432",
+    "DestinationSecurityGroupId": {
+     "Fn::GetAtt": [
+      "DatabaseGroupB493B4E2",
+      "GroupId"
+     ]
+    },
+    "FromPort": 5432,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "ToPort": 5432
+   }
+  },
+  "BackendServiceGroupfromCapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D4000F470137D": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "from CapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D:4000",
+    "FromPort": 4000,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": "sg-00000000000000001",
+    "ToPort": 4000
+   }
+  },
+  "BackendServiceGroupfromCapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D4200944B04AE": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "from CapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D:4200",
+    "FromPort": 4200,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": "sg-00000000000000001",
+    "ToPort": 4200
+   }
+  },
+  "BackendServiceGroupfromCapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D4300601E994D": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "from CapiroPortfolioPreviewBackendNetworkPreviewAlbGroup19315D9D:4300",
+    "FromPort": 4300,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": "sg-00000000000000001",
+    "ToPort": 4300
+   }
+  },
+  "DatabaseGroupB493B4E2": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Preview database only",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "255.255.255.255/32",
+      "Description": "Disallow all traffic",
+      "FromPort": 252,
+      "IpProtocol": "icmp",
+      "ToPort": 86
+     }
+    ],
+    "VpcId": "vpc-00000000000000001"
+   }
+  },
+  "DatabaseGroupfromCapiroPortfolioPreviewBackendNetworkBackendServiceGroup31E7970E543269EABD73": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "from CapiroPortfolioPreviewBackendNetworkBackendServiceGroup31E7970E:5432",
+    "FromPort": 5432,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "DatabaseGroupB493B4E2",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "ToPort": 5432
+   }
+  },
+  "PreviewAlbBackendEgress4000": {
+   "Type": "AWS::EC2::SecurityGroupEgress",
+   "Properties": {
+    "DestinationSecurityGroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "FromPort": 4000,
+    "GroupId": "sg-00000000000000001",
+    "IpProtocol": "tcp",
+    "ToPort": 4000
+   }
+  },
+  "PreviewAlbBackendEgress4200": {
+   "Type": "AWS::EC2::SecurityGroupEgress",
+   "Properties": {
+    "DestinationSecurityGroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "FromPort": 4200,
+    "GroupId": "sg-00000000000000001",
+    "IpProtocol": "tcp",
+    "ToPort": 4200
+   }
+  },
+  "PreviewAlbBackendEgress4300": {
+   "Type": "AWS::EC2::SecurityGroupEgress",
+   "Properties": {
+    "DestinationSecurityGroupId": {
+     "Fn::GetAtt": [
+      "BackendServiceGroup2054D59B",
+      "GroupId"
+     ]
+    },
+    "FromPort": 4300,
+    "GroupId": "sg-00000000000000001",
+    "IpProtocol": "tcp",
+    "ToPort": 4300
+   }
+  }
+ },
+ "Outputs": {
+  "ExportsOutputRefDatabaseSubnet03E8FBE1A": {
+   "Value": {
+    "Ref": "DatabaseSubnet0"
+   },
+   "Export": {
+    "Name": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputRefDatabaseSubnet03E8FBE1A"
+   }
+  },
+  "ExportsOutputRefDatabaseSubnet1B03E1F22": {
+   "Value": {
+    "Ref": "DatabaseSubnet1"
+   },
+   "Export": {
+    "Name": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputRefDatabaseSubnet1B03E1F22"
+   }
+  },
+  "ExportsOutputFnGetAttDatabaseGroupB493B4E2GroupId4F5C738C": {
+   "Value": {
+    "Fn::GetAtt": [
+     "DatabaseGroupB493B4E2",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputFnGetAttDatabaseGroupB493B4E2GroupId4F5C738C"
+   }
+  },
+  "ExportsOutputFnGetAttBackendServiceGroup2054D59BGroupId654F2BCD": {
+   "Value": {
+    "Fn::GetAtt": [
+     "BackendServiceGroup2054D59B",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Capiro-Portfolio-Preview-Backend-Network:ExportsOutputFnGetAttBackendServiceGroup2054D59BGroupId654F2BCD"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

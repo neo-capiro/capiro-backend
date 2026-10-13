@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "ts-node/register/transpile-only",
+    "--test",
+    "test/preview-backends.spec.ts"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 5.735,
+  "logBytes": 1377,
+  "logSha256": "71617934515a6466d548317a6cfb479059ad085e34f21efc266d3c25e8cd326f",
+  "syntheticOnly": true,
+  "AWSOrDatabaseOperationRequested": false
+}
