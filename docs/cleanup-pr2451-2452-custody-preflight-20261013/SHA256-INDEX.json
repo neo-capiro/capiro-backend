@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "receiving": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "mode": "read-only-source-and-custody-preflight",
+  "entries": [
+    {
+      "path": "docs/cleanup-pr2451-2452-custody-preflight-20261013/ARCHIVE-CUSTODY.json",
+      "bytes": 10991,
+      "sha256": "f4e97d5db9c39b715d5b8e5cb12c036a3615c4835f8cde597ab27e8066b6a629"
+    },
+    {
+      "path": "docs/cleanup-pr2451-2452-custody-preflight-20261013/CODE-BINDINGS.json",
+      "bytes": 3196,
+      "sha256": "2c401add00fbed84ba576c482aaa3ac1c79cb4c1e2685bea40d6ff944f57e8c0"
+    },
+    {
+      "path": "docs/cleanup-pr2451-2452-custody-preflight-20261013/HANDOFF.md",
+      "bytes": 4936,
+      "sha256": "98a8ed5515f3c070426fbda73abb69688fb07eae6cef13ca94102bf4de08d281"
+    },
+    {
+      "path": "docs/cleanup-pr2451-2452-custody-preflight-20261013/INSPECTION-LIMITS.json",
+      "bytes": 1081,
+      "sha256": "c0141a74748ef978b67289989fea4ddb3edf91b9e76d17872e7c50f55bd21e14"
+    },
+    {
+      "path": "docs/cleanup-pr2451-2452-custody-preflight-20261013/PE-GUARD-EFFECT.json",
+      "bytes": 7738,
+      "sha256": "a634b132f84d0488673540272d70aa93482dbcd3c36fba8ec93cee7abb193050"
+    }
+  ]
+}
