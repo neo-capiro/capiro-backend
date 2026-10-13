@@ -1,0 +1,1 @@
+fatal: path 'docs/cleanup-pr2436-compatible-artifact-guards-20261013/SOURCE-RECEIPT.json' does not exist in '2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f'

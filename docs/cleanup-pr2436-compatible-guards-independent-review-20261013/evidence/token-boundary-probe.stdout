@@ -1,0 +1,170 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "scope": "inert recognized token-boundary and quoted-resource strings only; never executed as payloads",
+  "results": [
+    {
+      "name": "line-comment bare static import",
+      "code": "import//review\n\"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "line-comment nonstatic dynamic import",
+      "code": "import//review\n(variable);",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: nonstatic module reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "line-comment bare export-from",
+      "code": "export//review\n{x}//review\nfrom//review\n\"react\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "multiple block comments module",
+      "code": "import/**/ /*gap*/ (/**/\"react\"/**/);",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unbundled module reference in assets/main.js: react",
+      "pass": true
+    },
+    {
+      "name": "line-comment nonstatic newURL",
+      "code": "const x=new//review\nURL//review\n(variable,import//review\n.//review\nmeta//review\n.//review\nurl);",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: nonstatic asset reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "comment-separated newURL wrong base",
+      "code": "const x=new/**/URL/**/(\"../favicon.svg\",otherBase);",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unsupported asset reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "unsupported unmatched import parenthesis",
+      "code": "import/**/(variable",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unsupported module reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "unsupported unmatched newURL parenthesis",
+      "code": "const x=new/**/URL/**/(variable",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unsupported asset reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "comment-separated CSS url missing",
+      "code": "export const valid=1;",
+      "css": "body{background:url/**/(\"./missing.png\")}",
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: missing asset closure: assets/main.css -> ./missing.png",
+      "pass": true
+    },
+    {
+      "name": "multiple CSS comment import missing",
+      "code": "export const valid=1;",
+      "css": "@import/**/ /*gap*/\"./missing.css\";",
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: missing asset closure: assets/main.css -> ./missing.css",
+      "pass": true
+    },
+    {
+      "name": "quoted remote module with comment text",
+      "code": "import/**/\"https://example.test/path/*literal*/x.js\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unsafe module reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "escaped module string preserved refusal",
+      "code": "import/**/\".\\/missing.js\";",
+      "css": null,
+      "expectedRefusal": true,
+      "accepted": false,
+      "error": "Onboard SPA artifact refused: unsafe module reference in assets/main.js",
+      "pass": true
+    },
+    {
+      "name": "complete line-comment module with relative existing file",
+      "code": "import//review\n\"./main.js\";",
+      "css": null,
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    },
+    {
+      "name": "complete comment-separated newURL reference",
+      "code": "const x=new/**/URL/**/(/**/\"../favicon.svg\"/**/,/**/import/**/./**/meta/**/./**/url/**/);",
+      "css": null,
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    },
+    {
+      "name": "complete comment-separated CSS local reference",
+      "code": "export const valid=1;",
+      "css": "@import/**/\"./main.css\";body{background:url/**/(\"../favicon.svg\")}",
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    },
+    {
+      "name": "quoted CSS HTTPS URL is not comment-stripped",
+      "code": "export const valid=1;",
+      "css": "body{background:url/**/(\"https://example.test/path/*literal*/image.png\")}",
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    },
+    {
+      "name": "quoted CSS data URI comment text remains raw",
+      "code": "export const valid=1;",
+      "css": "body{background:url(\"data:image/svg+xml;utf8,<svg>/*literal*/</svg>\")}",
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    },
+    {
+      "name": "inert ordinary quoted JS comment text",
+      "code": "const marker=\"/* literal */ // more literal\";export const valid=1;",
+      "css": null,
+      "expectedRefusal": false,
+      "accepted": true,
+      "error": null,
+      "pass": true
+    }
+  ],
+  "pass": 18,
+  "fail": 0
+}

@@ -1,0 +1,11 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "before": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "specInverseExact6503": true,
+  "specInverse": "remove sole appended function/tests suffix and invert exactly two next=beforeCommentLinkageGuard calls",
+  "originalSpecSha256": "e8f1252a87e5d2afd782348878f6010dbb9c55cbfdcfbd5f4aeeee082721964b",
+  "inverseSpecSha256": "e8f1252a87e5d2afd782348878f6010dbb9c55cbfdcfbd5f4aeeee082721964b",
+  "helperPrefixBeforeLexicalRepairExact": true,
+  "helperSuffixAfterLexicalRepairExact": true,
+  "helperChangeOnlyResourceReferencesTokenSeparatorsAndRecognizedUnsupportedForms": true
+}

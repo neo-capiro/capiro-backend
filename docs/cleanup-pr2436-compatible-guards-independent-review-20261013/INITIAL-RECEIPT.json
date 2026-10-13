@@ -1,0 +1,38 @@
+{
+  "decision": "HOLD",
+  "source": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "tree": "dd829a84528eb576b2337cc091fff5255c42bc5f",
+  "authorEvidence": "2f391e9337b65a1ebfc60ba589ac0b8f1ebf335f",
+  "inherited": {
+    "onboard": {
+      "pass": 19,
+      "fail": 0
+    },
+    "newsletter": {
+      "pass": 53,
+      "fail": 0
+    }
+  },
+  "independentNewsletter": {
+    "pass": 10,
+    "fail": 0
+  },
+  "staticLinkage": {
+    "pass": 4,
+    "red": 5,
+    "programPath": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.mjs",
+    "programSha256": "011edca74b049d9aaa6a25ff18f79dd1499c20b49c2897f6cd8b38c8e3a2852f",
+    "rawPath": "docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/static-linkage-probe.stdout",
+    "rawSha256": "fe98faa34bd1213dfa6b1d91e90e8267b167eafc3a1471ac60c29c53b4c0d028"
+  },
+  "sourceScope": "exact five additive paths; 24004 outside entries exact by Git metadata",
+  "unaccepted": [
+    "Onboard static linkage pending repair",
+    "Onboard actual artifact/browser/auth flows",
+    "backend 179-asset parity",
+    "deployed serving",
+    "Clio/workflow absent dependency closure",
+    "full cleanup/native gates"
+  ],
+  "effects": "pure/fake ports and synthetic temporary filesystem only; payload source strings never executed; protected/report/provider/native/DB/default app graphs refused or absent"
+}

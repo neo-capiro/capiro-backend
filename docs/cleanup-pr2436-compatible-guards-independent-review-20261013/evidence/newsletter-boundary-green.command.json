@@ -1,0 +1,21 @@
+{
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "sourceTree": "2ea07720973fe5a54ef781ca5bc5f3ad9b0ce61a",
+  "reviewGitHead": "112273ae5b9821c49b075254d792ae94ba1bfdde",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/safe-source-test-preload.cjs",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-pr2436-compatible-guards-independent-review-20261013/evidence/newsletter-boundary-probe.mjs"
+  ],
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "HOME": "/home/agent"
+  },
+  "exit": 0,
+  "seconds": 0.10587358474731445,
+  "stdoutSha256": "82621dd8aabfde9d88dcdc893faedd04b307f1c1bbab48cd9ac5933d90b2ca2c",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "note": "Original immutable probe programs retain historical source label6503. This command plus Git blob bindings identify the actual3769 subject; no program/input/expected-result changes."
+}

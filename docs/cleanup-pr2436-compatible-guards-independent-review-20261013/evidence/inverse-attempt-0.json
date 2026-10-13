@@ -1,0 +1,9 @@
+{
+  "exit": 1,
+  "source": "3769ae8f091289e3a6e14ddcacef6beb9916bc36",
+  "before": "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+  "kind": "reviewer proof-harness failure, not source/test failure",
+  "cause": "Initial inverse added a newline even though the exact split prefix already retained the original terminal newline. The resulting sole extra separator line failed byte equality. Diagnostic compared exact inverse suffix; no source edits or raw trimming performed.",
+  "initialOperand": "a.split('\\nfunction beforeCommentLinkageGuard() {')[0]+'\\n'",
+  "correctedOperand": "a.split('\\nfunction beforeCommentLinkageGuard() {')[0]"
+}
