@@ -72,11 +72,12 @@ function createHost({ fixtureConfig, sdk, sourceManifest, native = false }) {
     else if (name === 'createGovernedMeriToolsService' || name === 'createGovernedMeriResearchService') {
       value = (..._args) => { hostCalls.push(`${id}:inert-factory`); return inertObject(id); };
     } else if (/^[A-Z]/.test(name)) {
-      value = name.endsWith('Module') ? class FixtureUnrelatedModule {} : class FixtureUnrelatedPort {
+      value = name.endsWith('Module') || name.endsWith('Controller') ? class FixtureUnrelatedEmptyMetadata {} : class FixtureUnrelatedPort {
         constructor() { return inertObject(id); }
       };
       Object.defineProperty(value, 'name', {value: `Fixture_${name}`});
       if (name.endsWith('Module')) common.Module({})(value);
+      else if (name.endsWith('Controller')) common.Controller(`__fixture_closed__/${name}`)(value);
       else common.Injectable()(value);
     } else value = (..._args) => { throw new Error(`Refused unrelated import invocation: ${id}`); };
     tokens.set(id, value);
