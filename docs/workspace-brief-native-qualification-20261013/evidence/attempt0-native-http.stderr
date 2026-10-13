@@ -1,35 +1,10 @@
-PrismaClientValidationError: 
-Invalid `prisma.wsCollaborator.create()` invocation in
-/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:134:72
-
-  131   await prisma.wsDraft.create({ data: { id, tenantId, prospectId, ownerId, docTitle: 'Native Workspace copy fixture', config: { preserved: true }, docCount: 1 } });
-  132   await prisma.wsDocument.create({ data: { id: newId(), tenantId, draftId: id, name: 'Original ordinary tab', ordinal: 0, body: { blocks: [] } } });
-  133 }
-→ 134 for (const name of ['editor', 'viewer']) await prisma.wsCollaborator.create({
-        data: {
-          tenantId: "8113a079-92a4-495b-b511-fca395a722ab",
-          draftId: "7d77d5a1-8bcf-4231-adc2-5f4f1dd9f40c",
-          role: "editor",
-          subjectId: "native_ws_editor_eb204774-bc9e-4ed5-b2ce-9088e4e80266",
-          invitedBy: "native_ws_owner_6992e2f0-e9b7-4815-8da1-a6d41d160e1d",
-          ~~~~~~~~~
-          status: "active",
-      ?   id?: String,
-      ?   email?: String | Null,
-      ?   name?: String | Null,
-      ?   invitedById?: String | Null,
-      ?   createdAt?: DateTime,
-      ?   updatedAt?: DateTime
-        }
-      })
-
-Unknown argument `invitedBy`. Did you mean `invitedById`? Available options are marked with ?.
-    at wn (/tmp/workspace-brief-native-client-20261013/runtime/library.js:29:1363)
-    at $n.handleRequestError (/tmp/workspace-brief-native-client-20261013/runtime/library.js:121:6958)
-    at $n.handleAndLogRequestError (/tmp/workspace-brief-native-client-20261013/runtime/library.js:121:6623)
-    at $n.request (/tmp/workspace-brief-native-client-20261013/runtime/library.js:121:6307)
-    at async l (/tmp/workspace-brief-native-client-20261013/runtime/library.js:130:9633)
-    at async seed (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:134:44)
-    at async main (/tmp/capirov2-workspace-brief-native-qualification-20261013/docs/workspace-brief-native-qualification-20261013/native-http.cjs:144:3) {
-  clientVersion: '5.22.0'
+{
+  "format": "capiro-lossless-raw-v1",
+  "encoding": "base64",
+  "originalPath": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http.stderr",
+  "rawCheckpoint": "c7d1a4b088beb57e02dcd57d54b1eb54599a3102",
+  "rawGitBlob": "6f8a2b8ce21acd72d5b3e395c6d764c8c2e1bd0c",
+  "bytes": 2122,
+  "sha256": "e90449c8b52b6a15d106cfe301f4c9282ed5364bb98ea09654ceb6871f90e145",
+  "data": "UHJpc21hQ2xpZW50VmFsaWRhdGlvbkVycm9yOiAKSW52YWxpZCBgcHJpc21hLndzQ29sbGFib3JhdG9yLmNyZWF0ZSgpYCBpbnZvY2F0aW9uIGluCi90bXAvY2FwaXJvdjItd29ya3NwYWNlLWJyaWVmLW5hdGl2ZS1xdWFsaWZpY2F0aW9uLTIwMjYxMDEzL2RvY3Mvd29ya3NwYWNlLWJyaWVmLW5hdGl2ZS1xdWFsaWZpY2F0aW9uLTIwMjYxMDEzL25hdGl2ZS1odHRwLmNqczoxMzQ6NzIKCiAgMTMxICAgYXdhaXQgcHJpc21hLndzRHJhZnQuY3JlYXRlKHsgZGF0YTogeyBpZCwgdGVuYW50SWQsIHByb3NwZWN0SWQsIG93bmVySWQsIGRvY1RpdGxlOiAnTmF0aXZlIFdvcmtzcGFjZSBjb3B5IGZpeHR1cmUnLCBjb25maWc6IHsgcHJlc2VydmVkOiB0cnVlIH0sIGRvY0NvdW50OiAxIH0gfSk7CiAgMTMyICAgYXdhaXQgcHJpc21hLndzRG9jdW1lbnQuY3JlYXRlKHsgZGF0YTogeyBpZDogbmV3SWQoKSwgdGVuYW50SWQsIGRyYWZ0SWQ6IGlkLCBuYW1lOiAnT3JpZ2luYWwgb3JkaW5hcnkgdGFiJywgb3JkaW5hbDogMCwgYm9keTogeyBibG9ja3M6IFtdIH0gfSB9KTsKICAxMzMgfQrihpIgMTM0IGZvciAoY29uc3QgbmFtZSBvZiBbJ2VkaXRvcicsICd2aWV3ZXInXSkgYXdhaXQgcHJpc21hLndzQ29sbGFib3JhdG9yLmNyZWF0ZSh7CiAgICAgICAgZGF0YTogewogICAgICAgICAgdGVuYW50SWQ6ICI4MTEzYTA3OS05MmE0LTQ5NWItYjUxMS1mY2EzOTVhNzIyYWIiLAogICAgICAgICAgZHJhZnRJZDogIjdkNzdkNWExLThiY2YtNDIzMS1hZGMyLTVmNGYxZGQ5ZjQwYyIsCiAgICAgICAgICByb2xlOiAiZWRpdG9yIiwKICAgICAgICAgIHN1YmplY3RJZDogIm5hdGl2ZV93c19lZGl0b3JfZWIyMDQ3NzQtYmM5ZS00ZWQ1LWIyY2UtOTA4OGU0ZTgwMjY2IiwKICAgICAgICAgIGludml0ZWRCeTogIm5hdGl2ZV93c19vd25lcl82OTkyZTJmMC1lOWI3LTQ4MTUtOGRhMS1hNmQ0MWQxNjBlMWQiLAogICAgICAgICAgfn5+fn5+fn5+CiAgICAgICAgICBzdGF0dXM6ICJhY3RpdmUiLAogICAgICA/ICAgaWQ/OiBTdHJpbmcsCiAgICAgID8gICBlbWFpbD86IFN0cmluZyB8IE51bGwsCiAgICAgID8gICBuYW1lPzogU3RyaW5nIHwgTnVsbCwKICAgICAgPyAgIGludml0ZWRCeUlkPzogU3RyaW5nIHwgTnVsbCwKICAgICAgPyAgIGNyZWF0ZWRBdD86IERhdGVUaW1lLAogICAgICA/ICAgdXBkYXRlZEF0PzogRGF0ZVRpbWUKICAgICAgICB9CiAgICAgIH0pCgpVbmtub3duIGFyZ3VtZW50IGBpbnZpdGVkQnlgLiBEaWQgeW91IG1lYW4gYGludml0ZWRCeUlkYD8gQXZhaWxhYmxlIG9wdGlvbnMgYXJlIG1hcmtlZCB3aXRoID8uCiAgICBhdCB3biAoL3RtcC93b3Jrc3BhY2UtYnJpZWYtbmF0aXZlLWNsaWVudC0yMDI2MTAxMy9ydW50aW1lL2xpYnJhcnkuanM6Mjk6MTM2MykKICAgIGF0ICRuLmhhbmRsZVJlcXVlc3RFcnJvciAoL3RtcC93b3Jrc3BhY2UtYnJpZWYtbmF0aXZlLWNsaWVudC0yMDI2MTAxMy9ydW50aW1lL2xpYnJhcnkuanM6MTIxOjY5NTgpCiAgICBhdCAkbi5oYW5kbGVBbmRMb2dSZXF1ZXN0RXJyb3IgKC90bXAvd29ya3NwYWNlLWJyaWVmLW5hdGl2ZS1jbGllbnQtMjAyNjEwMTMvcnVudGltZS9saWJyYXJ5LmpzOjEyMTo2NjIzKQogICAgYXQgJG4ucmVxdWVzdCAoL3RtcC93b3Jrc3BhY2UtYnJpZWYtbmF0aXZlLWNsaWVudC0yMDI2MTAxMy9ydW50aW1lL2xpYnJhcnkuanM6MTIxOjYzMDcpCiAgICBhdCBhc3luYyBsICgvdG1wL3dvcmtzcGFjZS1icmllZi1uYXRpdmUtY2xpZW50LTIwMjYxMDEzL3J1bnRpbWUvbGlicmFyeS5qczoxMzA6OTYzMykKICAgIGF0IGFzeW5jIHNlZWQgKC90bXAvY2FwaXJvdjItd29ya3NwYWNlLWJyaWVmLW5hdGl2ZS1xdWFsaWZpY2F0aW9uLTIwMjYxMDEzL2RvY3Mvd29ya3NwYWNlLWJyaWVmLW5hdGl2ZS1xdWFsaWZpY2F0aW9uLTIwMjYxMDEzL25hdGl2ZS1odHRwLmNqczoxMzQ6NDQpCiAgICBhdCBhc3luYyBtYWluICgvdG1wL2NhcGlyb3YyLXdvcmtzcGFjZS1icmllZi1uYXRpdmUtcXVhbGlmaWNhdGlvbi0yMDI2MTAxMy9kb2NzL3dvcmtzcGFjZS1icmllZi1uYXRpdmUtcXVhbGlmaWNhdGlvbi0yMDI2MTAxMy9uYXRpdmUtaHR0cC5janM6MTQ0OjMpIHsKICBjbGllbnRWZXJzaW9uOiAnNS4yMi4wJwp9Cg=="
 }

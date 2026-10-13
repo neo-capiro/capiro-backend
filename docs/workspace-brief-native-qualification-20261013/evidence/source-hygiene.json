@@ -1,0 +1,41 @@
+{
+  "sourceHygiene": "PASS",
+  "base": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "checkedPaths": 84,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "whitespaceRules": [
+    "blank-at-eol",
+    "blank-at-eof",
+    "space-before-tab"
+  ],
+  "rawArchivesClassified": [],
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5",
+  "rawArchiveHashes": [
+    {
+      "file": "docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch",
+      "sha256": "04c1a6da2d286c29e01d072b20c292341df784a365eb55f66bfc5a5063413931",
+      "bytes": 42780
+    },
+    {
+      "file": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout",
+      "sha256": "99be960ecfc6232814832661cb9bd074fba90130322519369035bed44b6ab3e2",
+      "bytes": 3338
+    },
+    {
+      "file": "docs/newsletter-builder-reviewed-publication-20261013/physical-evidence-whitespace.txt",
+      "sha256": "5b6296b3ffce8f2da9ef49bc12af2dc1781d9da4d592eb2e5b3a0de7f5a2bf91",
+      "bytes": 605
+    },
+    {
+      "file": "docs/newsletter-builder-reviewed-publication-20261013/root-wired-backend-source-guards.tap",
+      "sha256": "0372d5dc0d64e3b09d6be464ebc9836612b1c7c85e98977ffab6003bb45e6423",
+      "bytes": 33487
+    }
+  ],
+  "checkedDiagnostics": "",
+  "rawArchiveDiagnostics": "",
+  "wholePhysicalPatchWhitespacePass": true
+}

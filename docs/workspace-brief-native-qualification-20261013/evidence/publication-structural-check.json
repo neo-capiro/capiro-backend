@@ -1,0 +1,7 @@
+{
+  "losslessRawArchivesVerified": 2,
+  "helpersSyntaxPassed": true,
+  "compressedArchivesDecompressed": 4,
+  "native19GroupsAndCleanupAssertionsPassed": true,
+  "noNativeRerunOrExternalMutation": true
+}

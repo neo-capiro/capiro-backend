@@ -1,0 +1,427 @@
+{
+  "sourceHead": "76f50b2667d06a121b2dd772abc9d64adb556c36",
+  "sourceTree": "d6e615533e4c36970779962b1391af90e5576314",
+  "rawCheckpoint": "c7d1a4b088beb57e02dcd57d54b1eb54599a3102",
+  "independentReview": "16d561275bd0e1131f045bd965f2f46ad749d1cf",
+  "rows": [
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/EVIDENCE-CUSTODY.md",
+      "bytes": 1511,
+      "sha256": "954a2144ad89af8c87e8c0426ba008c8d3a65e48a37e6a35475095d0bee09d3a"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/FINAL-PUBLICATION-REVIEW.md",
+      "bytes": 966,
+      "sha256": "6b65bf76de7b16d5344aa17cd0f07d7c8e90ee4e5c456107e2a6be8f3d3c0b93"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/HANDOFF.md",
+      "bytes": 5149,
+      "sha256": "bc23c9df4f03f434803d9af9f0242cd65b8dc7b937351c8cfb2b323502a199da"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/INDEPENDENT-BACKEND-REVIEW.md",
+      "bytes": 3793,
+      "sha256": "b03184eb4542b5dcdbd5c118b0f210e261a81c8e4de8d9e9f2a5baed739b2182"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/OWNED-DB-RECEIPT.json",
+      "bytes": 10855,
+      "sha256": "edafcb41c2a2359a8da2f7d25fd1dc3f368bf567e5fbe8ee584fa92604aab4bd"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/OWNED-TARGET-PLAN.json",
+      "bytes": 8811,
+      "sha256": "626cce4f412e573eeef4c926b263eb54efd40d0c04ea49690b505141e008e676"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/PLAN.md",
+      "bytes": 3311,
+      "sha256": "cc667ffd12fa7317b9d2628dc336aca3b6f894ebdf6e4273c01dc79aa0a1cd63"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-cleanup-command.json",
+      "bytes": 151,
+      "sha256": "74981797ae6c18ca76de4e63ba60f8f3e26b7ded99b003b27becc07701eef5b8"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-cleanup.stderr",
+      "bytes": 779,
+      "sha256": "9235bad4615ff4137c14a066c22e1b19058582c4d07ee5048dd2af2d2d79f3fd"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-cleanup.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-final-consumers.json",
+      "bytes": 302,
+      "sha256": "5a0b4f886d83bad6441dc8832c527db928fa3c83d3f7d2e73430b8c4bfff63c6"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http-command.json",
+      "bytes": 766,
+      "sha256": "d39e93659652e8912d8fd32d82056278c136e68384206c7b0076b12d230c1e59"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http.cjs.txt",
+      "bytes": 31191,
+      "sha256": "183cbafe808e7a195c678989597f72200eac84f274a90906c5ebb6d60755ebe6"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http.stderr",
+      "bytes": 3240,
+      "sha256": "ac537cccf9ee7136662f9cbc2c0ec1c68cd9f1080a6a224685f3658d76fbf361"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-query-events.jsonl.gz",
+      "bytes": 3054,
+      "sha256": "9700cf6c08d6a2e48a74739b610c46a0599dddd993f63081fd35fc397ff581d7"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-output-inventory-failure.json",
+      "bytes": 378,
+      "sha256": "86371a2a201ffffac731306c4c750939ffdb382426240228a6eed81e3451fd0a"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-preservation.json",
+      "bytes": 1160,
+      "sha256": "3d793d8e524e3c161be18a1fd39e08133efadfb31417737694f830aba50334b6"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-capacity-before-http.json",
+      "bytes": 61,
+      "sha256": "453719b3cb26a0dcdc1830ad63e34f4921ff0cd563e5ac54418949fade883283"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-native-final-consumers.json",
+      "bytes": 2565,
+      "sha256": "25c527836213167feeb797758ada4269df2b7d636aeeff6983046befb8ab5a2a"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-native-http-command.json",
+      "bytes": 765,
+      "sha256": "aaca0f86bbd1621b58b2395576771803af9dd0e5f5e64b48bddd3f24264070e0"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-native-http.cjs.txt",
+      "bytes": 31193,
+      "sha256": "a11f32bc4e813f612516fdf31f266bd3a9f97e59ad5246a6599b569010f71ab6"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-native-http.stderr",
+      "bytes": 916,
+      "sha256": "0d2274201878d125c174c681db65172cde7050edceb1e873a4e26f173d006415"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-native-http.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-native-query-events.jsonl.gz",
+      "bytes": 14511,
+      "sha256": "c0d1eb6b5784e388eb9ee47315014c5a5868ec81e9e944389dcd31b6289fc5c1"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-owned-database.py.txt",
+      "bytes": 16935,
+      "sha256": "93391087b5528b2206a6e3a6301aae2511af5b338016bc0a21c5c236540298c2"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt1-preservation.json",
+      "bytes": 1199,
+      "sha256": "f8835696a48d1e534ada31b485a98b2df1a72dd3d3c57429438fd7f3dc3b669c"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/attempt2-capacity-before-http.json",
+      "bytes": 61,
+      "sha256": "1835e2eb50dbda655d92fd51f9ceec32b769fba708550111c71da23e96be0933"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/build-receipt.json",
+      "bytes": 650,
+      "sha256": "ab569f7af86d4780ab273f53fd1492fc56c04ed45a42d4863cdc33b694d5decd"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/capacity-before-http.json",
+      "bytes": 108,
+      "sha256": "328b3010c0452e070796535b3976d7c10ae2a1bd8c5b7a6aca941fd1b9e5f96f"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/cleanup-acceptance-limit.json",
+      "bytes": 429,
+      "sha256": "d8ded5bc1b610c076cb703110599280318e4dc65ec99658f0bc237c5df7a76f3"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/cleanup-attempt0-preservation.json",
+      "bytes": 892,
+      "sha256": "a38c55780ce88931aa4709982362b4cc3fa63a72c1c3df82987ae761577a7010"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/cleanup-command.json",
+      "bytes": 170,
+      "sha256": "ded09e95200572b87c9370c00542cc3561e355c51d0f4c8cf4bd1813a7d2dc09"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/cleanup-post-drop-differences.json",
+      "bytes": 968,
+      "sha256": "37a4c7fbc07dec08b8680f1f97c55708c79459446d82c58cddeda0c10c129e14"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/cleanup.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/cleanup.stdout",
+      "bytes": 128,
+      "sha256": "abe957f93662b47db0b3cabeac12e35919aa84a7ee81ebde76f364618258b1e8"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/created-owned-database.json",
+      "bytes": 10165,
+      "sha256": "0e6713c45282ad6f5016835a76fa8a7b2b59bda7339e60c5dfc925c1d9266003"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/generate-command.json",
+      "bytes": 612,
+      "sha256": "49732d0c28cb46b969ce61d6cd8e8b779308a13f799c869361b9117a433798fc"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/generate.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/generate.stdout",
+      "bytes": 101,
+      "sha256": "a6d9bf2edd8c87a258afaaade964fe484e6308da66d88a1916701d1720e9d1d2"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/generated-workspace-client.json",
+      "bytes": 1356,
+      "sha256": "bfd25c8630313e038a47818573b5adf2a588c4bcc9151cfaaaacaa697f6b6b0f"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/generation-intent.json",
+      "bytes": 235,
+      "sha256": "c9825b32d8efe7ce6e28f8b0d9d18059c79810cd1b7f96b4d454ac2acbe651a4"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/lossless-raw-bindings.json",
+      "bytes": 948,
+      "sha256": "804eb319b81a20963ce4b6c11461dfb9edc89c339706a4f9654dcfbed0357641"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-final-consumers.json",
+      "bytes": 3069,
+      "sha256": "281584a56e8687aac6acdfbb171932a12d1d9e00a227efff165514d5f5400d0c"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-http-command.json",
+      "bytes": 765,
+      "sha256": "e9d73dc28bf4f586d0ba04c4456575c089d7a4cd19055df35e9b6adc2898e57b"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-http.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-http.stdout",
+      "bytes": 152,
+      "sha256": "1dd0dfcc8a96e8d213e50cfa0e4b4c5542ee0ee539124441f9d925d4156e10dd"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-query-events.jsonl.gz",
+      "bytes": 15799,
+      "sha256": "550c12a0381569ad34986f5608b70c6defd3a72ea81ef7fdec282747d0fc601d"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-results.json",
+      "bytes": 3534,
+      "sha256": "8ac5a66e9fc1ddf6a22142d61f08dfae5b5e629b6d0c187b60dcafd33f292390"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/native-target-catalog.json",
+      "bytes": 205,
+      "sha256": "6fe2fb2b3b372b6bf2cde9677c771c79aa8cd2e297d8108e3474da196d63ca51"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/owned-generated-output-inventory.json.gz",
+      "bytes": 41969,
+      "sha256": "908e9b460f45da82b4ac3c358c3084017abd91fd217f7e5dc3f703adbc52207a"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/owned-output-retirement.json",
+      "bytes": 1056,
+      "sha256": "eaf4c9e5ca43a81e1973a04bf84a53801dfba22ee9cb1f6545154df1dd141c32"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/owned-target-cleanup.json",
+      "bytes": 16740,
+      "sha256": "0fb8665c009ca3a6b4ff116cde5c756406115b1e7657336217c1c27491b0480b"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/owned-tooling-links.json",
+      "bytes": 302,
+      "sha256": "5334d36ddfea7f2aa2393aac539f7b6b1d97e3d6a430c1f628788e30ace2dc5a"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/plan-command.json",
+      "bytes": 127,
+      "sha256": "c1ba453c1d8478a8d851b162827d8a823c3a492c4a45f1241a74c69bb5354ba0"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/plan.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/plan.stdout",
+      "bytes": 152,
+      "sha256": "ab045d2ea9cd0e86a03f749a09926576db6cf420fc8bafd2e90006541eaf3cfd"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-ddl-command.json",
+      "bytes": 1016,
+      "sha256": "0a3ea2c50a56ba0d7275b2ba03990124f9a98ee1b09d6a88b9387e55495300f9"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-ddl.sql",
+      "bytes": 47416,
+      "sha256": "055ea1ab2b1f5cb71708d4994ea9ee1c14d496c65b37ae2d22feff6f02f9f6d7"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-ddl.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-schema.prisma",
+      "bytes": 41761,
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/prepare-command.json",
+      "bytes": 130,
+      "sha256": "29b75b0ad8c44f087f2b01d306ebe66bb1e12e5cf6c24bad8bb855743aa9b1be"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/prepare.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/prepare.stdout",
+      "bytes": 221,
+      "sha256": "6f578450c98676fc210f4cb84fac29315a20427043f5851370ea52c1d6b8ba4f"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/publication-polishing.json",
+      "bytes": 376,
+      "sha256": "f46a5eb41d8465c1384c5c73fe3fcb8cf441284987aeaad1cc953bb31380aa53"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/publication-structural-check.json",
+      "bytes": 204,
+      "sha256": "e964cacef71679df0c419fde61e0605c1af814997260b6e1934f5bcf4fa0a59a"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/raw-whitespace-observation.json",
+      "bytes": 510,
+      "sha256": "9a106437ef8ad240b69edbb9de9c2d11c256ca27aeeea86c80781172d92d6415"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/selected-baseline-fixture.sql",
+      "bytes": 50024,
+      "sha256": "cb9d639074eeb329907a4aedfd8efd1cd647dd2616bbe57404e5c28a7d6b23e8"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/selected-source-action-prerequisite.sql",
+      "bytes": 773,
+      "sha256": "6012a70563b8b16eae9037d1c2a4554f531b4d49b503145be133b07ffbf2bcac"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/shared-compile.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/shared-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/shared-runtime-source-binding.json",
+      "bytes": 13152,
+      "sha256": "9b4fbcef4af8d8e878d303dac48f46ee403adc53728de9114952742686bd4b53"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/source-action-prerequisite-applied.json",
+      "bytes": 669,
+      "sha256": "3b804848a537af09cadaab4724decfc2a5c565468454fe928555447bd5eadb58"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/source-preservation.json",
+      "bytes": 405,
+      "sha256": "af397ffa65200f0e2429d0268b172c0fc1a77d63bd2ed3f18d43666a0257a9e5"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/type-receipt.json",
+      "bytes": 781,
+      "sha256": "d377e5a8108cc25786bbf1c9eb2f7975d065851a6dc71bac46d5927f77df923e"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/evidence/type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/generate-workspace-client.cjs",
+      "bytes": 4890,
+      "sha256": "511519de10927fa6405c9ce1b05e6292b1099c98381c33d212f3d21938e898e8"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/native-http.cjs",
+      "bytes": 31193,
+      "sha256": "a11f32bc4e813f612516fdf31f266bd3a9f97e59ad5246a6599b569010f71ab6"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/offline-generation-preload.cjs",
+      "bytes": 1943,
+      "sha256": "6cc6fe8e596a64e4a78b5d2602bd885854ff83a4059174030d87222775c7e266"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/owned-database.py",
+      "bytes": 19380,
+      "sha256": "13a9357f7b6504887a9f66f839a6813f73d2f8445ff8d8359532176623b9b1c2"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/run-workspace-build.py",
+      "bytes": 1810,
+      "sha256": "462ecf19f18ff7a5b36a9932f26b2a1a7f8d19187d2650aa4a931f288f2393fd"
+    },
+    {
+      "path": "docs/workspace-brief-native-qualification-20261013/schema-diff-preload.cjs",
+      "bytes": 697,
+      "sha256": "e404343e77596da0f045dc3b17379218eba03238a6b6983fb0fefbb93e995db9"
+    }
+  ],
+  "excludedLiteralPaths": [
+    "docs/workspace-brief-native-qualification-20261013/SHA256-INDEX.json",
+    "docs/workspace-brief-native-qualification-20261013/evidence/source-hygiene.json"
+  ]
+}

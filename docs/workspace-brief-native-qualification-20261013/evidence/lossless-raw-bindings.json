@@ -1,0 +1,23 @@
+{
+  "rawCheckpoint": "c7d1a4b088beb57e02dcd57d54b1eb54599a3102",
+  "archives": [
+    {
+      "format": "capiro-lossless-raw-v1",
+      "encoding": "base64",
+      "originalPath": "docs/workspace-brief-native-qualification-20261013/evidence/attempt0-native-http.stderr",
+      "rawCheckpoint": "c7d1a4b088beb57e02dcd57d54b1eb54599a3102",
+      "rawGitBlob": "6f8a2b8ce21acd72d5b3e395c6d764c8c2e1bd0c",
+      "bytes": 2122,
+      "sha256": "e90449c8b52b6a15d106cfe301f4c9282ed5364bb98ea09654ceb6871f90e145"
+    },
+    {
+      "format": "capiro-lossless-raw-v1",
+      "encoding": "base64",
+      "originalPath": "docs/workspace-brief-native-qualification-20261013/evidence/pre-copy-workspace-ddl.sql",
+      "rawCheckpoint": "c7d1a4b088beb57e02dcd57d54b1eb54599a3102",
+      "rawGitBlob": "964ec556dc27c0cfced1a69ded0e8541772a96b7",
+      "bytes": 35254,
+      "sha256": "0d15663f559610adad4cae4082ac3c478a0784776736b331b506f4b768b93972"
+    }
+  ]
+}

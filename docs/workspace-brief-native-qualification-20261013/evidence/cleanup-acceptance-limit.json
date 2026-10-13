@@ -1,0 +1,11 @@
+{
+  "ownedResourcesAbsentVerified": true,
+  "finalUnrelatedCatalogAndContainerEqualVerified": true,
+  "initialPostDropComparisonAssertionFailed": true,
+  "initialDifferingValuesPersisted": false,
+  "comparisonToolFailureEstablished": false,
+  "transientResourceChangeEstablished": false,
+  "initialPreservationIncidentResolved": false,
+  "unconditionallyClosedCleanup": false,
+  "nativeProductBehaviorAcceptanceChanged": false
+}

@@ -1,0 +1,10 @@
+{
+  "rawCheckpoint": "c7d1a4b088beb57e02dcd57d54b1eb54599a3102",
+  "productSourceChanged": false,
+  "nativeChecksRerun": false,
+  "changes": [
+    "Two finite lossless raw envelopes retain original bytes/Git blobs",
+    "Database operator decodes exact bound baseline envelope before its existing SHA assertion"
+  ],
+  "executedOperatorSourcePreservedAtRawCheckpoint": true
+}

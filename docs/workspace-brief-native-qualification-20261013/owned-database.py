@@ -106,7 +106,10 @@ def fixture_sql():
     enums = [b for b in blocks if b.startswith('-- CreateEnum') and '"' + re.search(r'CREATE TYPE "([^"\n]+)"', b).group(1) + '"' in joined]
     indexes = [b for b in blocks if b.startswith('-- CreateIndex') and re.search(r' ON "([^"\n]+)"', b).group(1) in TABLES]
     foreign_keys = [b for b in blocks if b.startswith('-- AddForeignKey') and set(re.search(r'ALTER TABLE "([^"\n]+)".*REFERENCES "([^"\n]+)"', b, re.S).groups()) <= TABLES]
-    baseline = (PACKET / 'evidence/pre-copy-workspace-ddl.sql').read_text()
+    baseline_archive = json.loads((PACKET / 'evidence/pre-copy-workspace-ddl.sql').read_text())
+    baseline_bytes = base64.b64decode(baseline_archive['data'], validate=True)
+    assert baseline_archive['rawCheckpoint'] == 'c7d1a4b088beb57e02dcd57d54b1eb54599a3102' and len(baseline_bytes) == baseline_archive['bytes'] and sha(baseline_bytes) == baseline_archive['sha256']
+    baseline = baseline_bytes.decode()
     assert sha(baseline.encode()) == '0d15663f559610adad4cae4082ac3c478a0784776736b331b506f4b768b93972'
     origin_path = ROOT / 'apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql'
     origin = origin_path.read_text()
