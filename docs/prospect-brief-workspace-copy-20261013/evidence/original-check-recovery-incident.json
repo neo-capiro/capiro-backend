@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "originalSourceHead": "b4f73e4fc4e060c4c2afb1ab3e2a187e0a2e5d22",
+  "originalSourceTree": "2819b641ae5a0ec2f8d4cb0980c4dd91737073a4",
+  "originalExitCode": 2,
+  "originalElapsedSeconds": 8.018,
+  "originalLogBytes": 48756,
+  "originalLogSha256": "366598488a16b8d73b340df6db97bde4373081db5ff43b931b8adc992d8c5a61",
+  "originalObservation": "Retained tool result and independent reviewer read; raw file was overwritten after a failed dependency setup interrupted archival.",
+  "recoveryCommand": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/prospect-brief-copy-workspace-type-20261013.tsbuildinfo"
+  ],
+  "recoveryElapsedSeconds": 8.59,
+  "recoveryExitCode": 2,
+  "recoveryLogBytes": 48756,
+  "recoveryLogSha256": "366598488a16b8d73b340df6db97bde4373081db5ff43b931b8adc992d8c5a61",
+  "byteIdenticalRecoveryVerified": true,
+  "recoveryScope": "Same exact tracked source and original cached client/dependency bindings; static TypeScript only; no native generation/database/provider operation",
+  "sourceAndCurrentClientRestored": true,
+  "oldPassingJestObservation": {
+    "sourceHead": "b4f73e4fc4e060c4c2afb1ab3e2a187e0a2e5d22",
+    "passed": 59,
+    "failed": 0,
+    "skipped": 0,
+    "elapsedSeconds": 4.44,
+    "logBytes": 1247,
+    "logSha256": "1318babb8d46cc095c9083dc8b9e4fecbde324f79cc8eda9497836b160f08ade",
+    "rawFileOverwritten": true,
+    "retained": "Original tool receipt + independent reviewer observation; latest2a raw59-case result retained. No claim original raw passing file survived."
+  }
+}

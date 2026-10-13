@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "check": "type",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/prospect-brief-copy-workspace-type-20261013.tsbuildinfo"
+  ],
+  "cwd": "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace",
+  "sourceHead": "2a83a957856de89892ecf2ed042d7c72ab179ba4",
+  "sourceTree": "2106e12c76ea01ecab55af91cdfab890b577c9ac",
+  "elapsedSeconds": 8.088,
+  "exitCode": 2,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/prospect-brief-workspace-copy-20261013/evidence/type.log",
+  "logBytes": 1512,
+  "logSha256": "6ae4e3dc8085fba3ec37f9c9ccd59eb18fafa7a17d060c20e42a5be518dcc95e"
+}

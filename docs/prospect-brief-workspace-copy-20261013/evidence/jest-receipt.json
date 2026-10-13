@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "check": "jest",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/docs/prospect-brief-workspace-copy-20261013/deny-source-effects.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/docs/prospect-brief-workspace-copy-20261013/inert-jest.config.cjs",
+    "--runInBand",
+    "--no-cache",
+    "--runTestsByPath",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/documents/prospect-brief-copy.spec.ts",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/documents/documents.service.spec.ts",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/docs/prospect-brief-workspace-copy-20261013/evidence/jest-results.json"
+  ],
+  "cwd": "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace",
+  "sourceHead": "2a83a957856de89892ecf2ed042d7c72ab179ba4",
+  "sourceTree": "2106e12c76ea01ecab55af91cdfab890b577c9ac",
+  "elapsedSeconds": 4.959,
+  "exitCode": 0,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/prospect-brief-workspace-copy-20261013/evidence/jest.log",
+  "logBytes": 1247,
+  "logSha256": "24a0fa7acdbee908fe79c805256e8408dcbe36c1efc9904ab044756a834e8a64"
+}

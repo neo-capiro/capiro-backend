@@ -1,0 +1,74 @@
+{
+  "sourceHead": "f073aacdef4fbf0ca860b9bfe0debd94022b9c1a",
+  "sourceTree": "f957843c0709fa64081b8084b7d356c251a07a12",
+  "outputFiles": 660,
+  "outputBytes": 2951317,
+  "inventoryGzipBytes": 4775,
+  "inventoryGzipSha256": "c688657df075389a4dc6d5adcc01ca1a22e0068e68f99edca1722c1a95b4436e",
+  "inventoryDecodedSha256": "c6a4ba931ae7efbbfb7a365180410c05f3e913e6c523d9a07ca76d1e27e4bfc1",
+  "changedProductionEmitted": [
+    {
+      "path": "documents/documents.controller.js",
+      "bytes": 7783,
+      "sha256": "e6f7ece946ce3c9549856b868833a627cc968b13a33de825b8a60d01e537dddb",
+      "syntaxExit": 0
+    },
+    {
+      "path": "documents/documents.service.js",
+      "bytes": 8745,
+      "sha256": "9ec780d6f9261e0049c827c18a2cc72f17d1c62817ab1625a065796fa31cbf11",
+      "syntaxExit": 0
+    },
+    {
+      "path": "documents/dto/prospect-brief-copy.dto.js",
+      "bytes": 3251,
+      "sha256": "69e60906b825a6677986af5877d1dd7ed8a3492535072a2dc7097bba54eafa7d",
+      "syntaxExit": 0
+    },
+    {
+      "path": "documents/prospect-brief-copy-contract.js",
+      "bytes": 6249,
+      "sha256": "5396fb2275864db3d64b7cee014fdfc52e3abc814f111ab328d1ca79bc2a246f",
+      "syntaxExit": 0
+    },
+    {
+      "path": "documents/prospect-brief-copy.js",
+      "bytes": 13951,
+      "sha256": "db588ae8b29062812359f76a218cc7954f6c051231f583f280254b69d4a549e6",
+      "syntaxExit": 0
+    },
+    {
+      "path": "drafts/drafts.service.js",
+      "bytes": 19533,
+      "sha256": "50baad826191146b5f2dcffc66019325f531a91c37388f087a2e658a4657ad5a",
+      "syntaxExit": 0
+    },
+    {
+      "path": "prospect-resources/prospect-draft-access.js",
+      "bytes": 7637,
+      "sha256": "54d2c54532418e047b72321c6ee97f3e105b4d4c6461ebed52497e97fd80ee9a",
+      "syntaxExit": 0
+    },
+    {
+      "path": "versions/versions.service.js",
+      "bytes": 12347,
+      "sha256": "bbf83daad5ebf68b58f27d143b22e5c1244c3cf002b305a526a2bca8e348af92",
+      "syntaxExit": 0
+    },
+    {
+      "path": "shared/index.js",
+      "bytes": 253473,
+      "sha256": "04697e0f2166ca0d1468d8289c0d3d1ad823bba0910d4f8a15f11f6375b75cc2",
+      "syntaxExit": 0
+    },
+    {
+      "path": "shared/prospect-brief-source.js",
+      "bytes": 3376,
+      "sha256": "e276a5a57f48809bb7959c12d7233ce0937f525461d2589c11b73e21ac7dc6e2",
+      "syntaxExit": 0
+    }
+  ],
+  "bodyReadScope": "8changedWorkspaceand2changedSharedmodules only; inventorynames/sizes forotheroutput",
+  "nativeArtifactAbiOrDeploymentQualified": false,
+  "retired": "Owned Workspace build/type info/Jest cache only; shared cache retained for this source consumer"
+}

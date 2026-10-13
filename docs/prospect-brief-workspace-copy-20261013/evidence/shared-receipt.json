@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "check": "shared",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/packages/shared/tsconfig.json",
+    "--outDir",
+    "/tmp/prospect-brief-copy-shared-runtime-20261013/dist",
+    "--tsBuildInfoFile",
+    "/tmp/prospect-brief-copy-shared-20261013.tsbuildinfo"
+  ],
+  "cwd": "/tmp/capirov2-prospect-brief-workspace-copy-20261013",
+  "sourceHead": "5da422f44e2e8470d7aae45feefec1bb53fe54b3",
+  "sourceTree": "9c642f6a662e61f692a18c58b3719968472d4b4a",
+  "elapsedSeconds": 2.63,
+  "exitCode": 0,
+  "scope": "receiving source/pure/mocked only; no install, generation, native DB, provider, AppModule or deployment",
+  "log": "docs/prospect-brief-workspace-copy-20261013/evidence/shared.log",
+  "logBytes": 0,
+  "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

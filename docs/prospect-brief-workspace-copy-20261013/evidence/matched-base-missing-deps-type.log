@@ -1,0 +1,12 @@
+src/newsletters/newsletter-link-preview.service.ts(2,24): error TS2307: Cannot find module 'htmlparser2' or its corresponding type declarations.
+src/newsletters/newsletter-link-preview.service.ts(3,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.
+src/newsletters/newsletter-link-preview.service.ts(10,16): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/newsletters/newsletter-link-preview.service.ts(32,17): error TS7006: Parameter 'name' implicitly has an 'any' type.
+src/newsletters/newsletter-link-preview.service.ts(32,23): error TS7006: Parameter 'attrs' implicitly has an 'any' type.
+src/newsletters/newsletter-link-preview.service.ts(41,14): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/newsletters/newsletter-link-preview.service.ts(44,18): error TS7006: Parameter 'name' implicitly has an 'any' type.
+src/newsletters/newsletter-validation.ts(2,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.
+src/newsletters/newsletter-validation.ts(79,11): error TS7006: Parameter '_tag' implicitly has an 'any' type.
+src/newsletters/newsletter-validation.ts(79,17): error TS7006: Parameter 'attrs' implicitly has an 'any' type.
+src/newsletters/newsletter-video.service.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.
+src/newsletters/newsletter-video.spec.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.

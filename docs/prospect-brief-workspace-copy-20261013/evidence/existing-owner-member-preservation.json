@@ -1,0 +1,81 @@
+{
+  "base": "46aa2164c299151225c6cdb9f3cc565fee347657",
+  "source": "f073aacdef4fbf0ca860b9bfe0debd94022b9c1a",
+  "owners": [
+    {
+      "path": "apps/workspace/src/documents/documents.service.ts",
+      "preservedMemberBodies": [
+        "constructor",
+        "assertDraft",
+        "assertCanEdit",
+        "list",
+        "listForMeriImport",
+        "readForMeriImport",
+        "add",
+        "syncPacket"
+      ],
+      "changedExistingMembers": [
+        "update",
+        "remove"
+      ],
+      "added": [
+        "briefCopyState",
+        "copyBrief",
+        "saveBriefCopy"
+      ]
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.controller.ts",
+      "preservedMemberBodies": [
+        "constructor",
+        "listForMeriImport",
+        "list",
+        "meriImport",
+        "add",
+        "update",
+        "remove"
+      ],
+      "changedExistingMembers": [],
+      "added": [
+        "briefCopyState",
+        "briefCopy",
+        "copyBrief",
+        "saveBriefCopy"
+      ]
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.service.ts",
+      "preservedMemberBodies": [
+        "constructor",
+        "create",
+        "createPreparation",
+        "createResearch",
+        "createEditorial",
+        "createSourceDraft",
+        "byId",
+        "list",
+        "detectAnonymizeNames",
+        "remove"
+      ],
+      "changedExistingMembers": [
+        "update"
+      ],
+      "added": []
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "preservedMemberBodies": [
+        "constructor",
+        "loadDraft",
+        "outreachRevision",
+        "objectiveDestination",
+        "list"
+      ],
+      "changedExistingMembers": [
+        "create",
+        "restore"
+      ],
+      "added": []
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "target": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client",
+  "cachedSchemaSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+  "baseSchemaSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+  "baseSchemaByteEqual": true,
+  "newSourceColumnAbsentInCachedGeneration": true,
+  "newColumnAccess": "explicit bound SQL; no generated-model sourceBriefVersion field is used",
+  "existingDependencies": [
+    {
+      "package": "htmlparser2",
+      "target": "/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package",
+      "version": "8.0.2"
+    },
+    {
+      "package": "sanitize-html",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html",
+      "version": "2.17.7"
+    },
+    {
+      "package": "sharp",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp",
+      "version": "0.35.5"
+    },
+    {
+      "package": "@types/sanitize-html",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+sanitize-html@2.16.1/node_modules/@types/sanitize-html",
+      "version": "2.16.1"
+    }
+  ],
+  "downloadsInstallsNativeGenerationDatabaseExecution": false
+}

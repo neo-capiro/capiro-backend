@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/tmp/prospect-brief-copy-workspace-build-20261013",
+    "tsBuildInfoFile": "/tmp/prospect-brief-copy-workspace-build-20261013.tsbuildinfo"
+  }
+}

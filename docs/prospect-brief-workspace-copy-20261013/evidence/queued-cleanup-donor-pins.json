@@ -1,0 +1,20 @@
+{
+  "consumed": false,
+  "pairedCompositionPlanned": true,
+  "receivingQueue": "codex/intelligence-bills-integration-20261013",
+  "donors": [
+    {
+      "pr": 2469,
+      "head": "b78f9d4ce28089139d60b2c7a601750c99f67e69",
+      "tree": "264d044daa4c1e8c606f49793ffa612d7957e535",
+      "base": "348e542a44a6b842a5f0531280105f8e73dd3188"
+    },
+    {
+      "pr": 2471,
+      "head": "4970927fe1951636ab002522a20a35310d3dc7c4",
+      "tree": "1d1bec950a693e8c75e4eadbda843c70480c8e9f",
+      "base": "b78f9d4ce28089139d60b2c7a601750c99f67e69"
+    }
+  ],
+  "priority": "Publish the approved Workspace contract first; then compose both donors together and qualify once."
+}

@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "sourceHead": "f073aacdef4fbf0ca860b9bfe0debd94022b9c1a",
+  "sourceTree": "f957843c0709fa64081b8084b7d356c251a07a12",
+  "baseHead": "46aa2164c299151225c6cdb9f3cc565fee347657",
+  "baseTree": "4fbcf7aa57df661faaf0fac12251c3788ae1edc4",
+  "changedSourcePaths": [
+    {
+      "path": "apps/workspace/prisma/migrations/20261013090000_prospect_brief_workspace_copy/migration.sql",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "7922e4c7fe6ec2ff75bd9f9e90349c26abf91266"
+      }
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "7367184b71dda07e33e1577179768840a9a998e1"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "e42752de937aa412887878f7e2d15fcf9ea4fc4f"
+      }
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.controller.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "3811cad5d6f56b215ebb8043e9d2480b3f44ef9b"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "f5ed552b826029b19b1d48883878d15208848855"
+      }
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.service.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "16496a633dcf8341b6b33878de7899b90dafabaf"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "1f474d3fcbcf8ecda55a871a275f136409c731cf"
+      }
+    },
+    {
+      "path": "apps/workspace/src/documents/dto/prospect-brief-copy.dto.ts",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "8e41359f2b069548a60994774f9450acfc2656fc"
+      }
+    },
+    {
+      "path": "apps/workspace/src/documents/prospect-brief-copy-contract.ts",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "3650ed261d163f145ad13e136b9a7f298bea00f9"
+      }
+    },
+    {
+      "path": "apps/workspace/src/documents/prospect-brief-copy.spec.ts",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "a35f1ae7eb149dfe37289d3303bc7bebfb94abcb"
+      }
+    },
+    {
+      "path": "apps/workspace/src/documents/prospect-brief-copy.ts",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "be48eece35b29fafe1982ddb987e6593ff2f05af"
+      }
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.service.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "e4f2b5e90d0fe3c091164a7bcea2c3ea0cbf8622"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "98d36f6a48691460f9a044f00e19124a3f859638"
+      }
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "decc4a3ce0de3b9d9d9b1842e7c966ccdb116899"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "f068d087818b62baad7dc4b383a614bee0712f2a"
+      }
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "60541a9bfebcd51033a5cdcdb1d3d21220c8d347"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "37437f27d5ba109170ce5c91e2fbb794478690bd"
+      }
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "92c87c3c57acdbbabeb5ed8292edcbb28a7629bd"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "1ea206d169fd28e1b96a44e78efb063e8e6c5053"
+      }
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "403fa2ab75555daad73a379a9ef7a7980ba7fe31"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "971f51ec0b8ce8545d4fb1d3281f27be649d8aa5"
+      }
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "before": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "39ed5db53cf9599b72f9ddf1885568441b873217"
+      },
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "738f07ae4ac4791533a0c315ef02d54328b74cf7"
+      }
+    },
+    {
+      "path": "packages/shared/src/prospect-brief-source.ts",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "af21291b58f89da7b8d8472ef6b29fded5f9eeb3"
+      }
+    }
+  ],
+  "unchangedBaseEntries": 26433,
+  "allApiSourceAndQualified33AuthorityInputsUnchanged": true,
+  "protectedReportingBodyInspected": false,
+  "protectedReportingModeBlobUnchanged": true,
+  "allPolicyArtifactPackageLocksAndProductionConfigsUnchanged": true,
+  "newSourceOnlyMigration": "20261013090000_prospect_brief_workspace_copy",
+  "schemaMigrationDatabaseExecuted": false,
+  "newServiceOrStore": false,
+  "queued2469And2471Consumed": false,
+  "sourceQualificationScope": "Existing owners, shared source authority, mocked transactions and static compiler/build; no native/RLS/deployment acceptance"
+}

@@ -1,0 +1,31 @@
+{
+  "head": "1da8a551b00bba0f98e87954ef0a87566db236e6",
+  "files": [
+    {
+      "path": "apps/web/src/shared/capiro/config.ts",
+      "blob": "5327375f16fc3fc74624ffc3a20b3dfb4fdee600",
+      "bytes": 2578,
+      "sha256": "09ce8ba9a869cc0a8efce4540afda473bfad2c5bacd3f9e385131df64880fddb"
+    },
+    {
+      "path": "apps/web/src/shared/capiro/http.ts",
+      "blob": "24b8e90a9869433e62ec16d68c3b2b65c41f03e9",
+      "bytes": 6365,
+      "sha256": "0899d9f0735a77b0b0a76c581776d4a6d7e16915633c36dec332d7c2602ead01"
+    },
+    {
+      "path": "apps/web/src/shared/capiro/CapiroBoundary.tsx",
+      "blob": "6a2096e2c4ee95a13dfdf97d5bcc74bf56e847bc",
+      "bytes": 3482,
+      "sha256": "395f9979790f7cd9c4d95f6ecc4fd5db899270ee968c08a596b6e1011bda04a1"
+    },
+    {
+      "path": "apps/web/src/shared/portfolio/auth/SessionBoundary.tsx",
+      "blob": "b4e959b335c9d52d02b144dc9719905503d00b88",
+      "bytes": 96,
+      "sha256": "ae3f75ae424551cf09c59a765da0b21c4b969964e5f24cc97fb0b7c522dca41d"
+    }
+  ],
+  "missingAtExactHead": "apps/web/public/runtime-config.js returned HTTP404; not used as source evidence",
+  "runtimeServiceCalls": false
+}

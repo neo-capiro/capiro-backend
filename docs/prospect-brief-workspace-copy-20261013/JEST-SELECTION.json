@@ -1,0 +1,10 @@
+{
+  "sourceHead": "f073aacdef4fbf0ca860b9bfe0debd94022b9c1a",
+  "sourceTree": "f957843c0709fa64081b8084b7d356c251a07a12",
+  "testPaths": [
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/documents/prospect-brief-copy.spec.ts",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+    "/tmp/capirov2-prospect-brief-workspace-copy-20261013/apps/workspace/src/documents/documents.service.spec.ts"
+  ]
+}

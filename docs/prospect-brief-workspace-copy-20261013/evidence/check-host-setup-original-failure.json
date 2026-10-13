@@ -1,0 +1,5 @@
+{
+  "phase": "before checks",
+  "error": "Installed .bin/jest is a shim file, not a package symlink",
+  "correction": "Skip .bin; commands use explicit existing Node/CLI paths. No package download/install."
+}
