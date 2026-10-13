@@ -1,0 +1,107 @@
+{
+  "source": "f18f918a8103e8e3cb36e47c65d2f6651cb1fd7b",
+  "checkedComposedSource": "43c14e3b5bde8eb76371394a50abbd718556382e",
+  "rows": [
+    {
+      "name": "production pending c8aa693e884de86001d2fc04fbb60d48db09341c",
+      "pass": true
+    },
+    {
+      "name": "production pending 7c87678730538958ace9762f824dc3e588bf445b",
+      "pass": true
+    },
+    {
+      "name": "production pending 0000000000000000000000000000000000000000",
+      "pass": true
+    },
+    {
+      "name": "labelled current amd64",
+      "pass": true
+    },
+    {
+      "name": "labelled current arm64",
+      "pass": true
+    },
+    {
+      "name": "inactive model source 7c87678730538958ace9762f824dc3e588bf445b",
+      "pass": true
+    },
+    {
+      "name": "inactive model source 0000000000000000000000000000000000000000",
+      "pass": true
+    },
+    {
+      "name": "accessor profile",
+      "pass": true
+    },
+    {
+      "name": "accessor runtime",
+      "pass": true
+    },
+    {
+      "name": "accessor receipt",
+      "pass": true
+    },
+    {
+      "name": "proxy fixture",
+      "pass": true
+    },
+    {
+      "name": "proxy profile",
+      "pass": true
+    },
+    {
+      "name": "proxy runtime",
+      "pass": true
+    },
+    {
+      "name": "proxy entries",
+      "pass": true
+    },
+    {
+      "name": "getters and proxy traps remain zero",
+      "pass": true
+    },
+    {
+      "name": "malformed model 15",
+      "pass": true
+    },
+    {
+      "name": "malformed model 16",
+      "pass": true
+    },
+    {
+      "name": "malformed model 17",
+      "pass": true
+    },
+    {
+      "name": "malformed model 18",
+      "pass": true
+    },
+    {
+      "name": "malformed model 19",
+      "pass": true
+    },
+    {
+      "name": "coercible architecture amd64",
+      "pass": true,
+      "refusal": true,
+      "coercions": 0,
+      "error": "Frontend standalone artifact refused: source policy pinned runtime"
+    },
+    {
+      "name": "coercible architecture arm64",
+      "pass": true,
+      "refusal": true,
+      "coercions": 0,
+      "error": "Frontend standalone artifact refused: source policy pinned runtime"
+    }
+  ],
+  "passed": 22,
+  "failed": 0,
+  "ordinaryAccessorGetterCalls": 0,
+  "ordinaryProxyTrapCalls": 0,
+  "coercions": 0,
+  "productionAdmissionStillPending": true,
+  "scope": "pure model data and callbacks only; no artifactFS/app/native/network"
+}

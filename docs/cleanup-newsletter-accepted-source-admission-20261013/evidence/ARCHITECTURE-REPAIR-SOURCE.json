@@ -1,0 +1,11 @@
+{
+  "head": "358d953a42129a19ba82fdd8373c86c9a455f49a",
+  "tree": "79457baad024618e16ebf2b580e126edf566be87",
+  "parent": "0ac13d445a90032272aa2397e25e7a12a93192a9",
+  "paths": [
+    "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs"
+  ],
+  "checks": "101/101 (19+32+50)",
+  "policyActive": "null/empty unchanged"
+}

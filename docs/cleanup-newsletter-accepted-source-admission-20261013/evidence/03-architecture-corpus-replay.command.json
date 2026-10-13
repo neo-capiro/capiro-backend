@@ -1,0 +1,18 @@
+{
+  "actualSource": "358d953a42129a19ba82fdd8373c86c9a455f49a",
+  "actualTree": "79457baad024618e16ebf2b580e126edf566be87",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/cleanup-newsletter-accepted-source-admission-20261013/docs/cleanup-newsletter-accepted-source-admission-20261013/evidence/profile-adversarial-controls.mjs"
+  ],
+  "cwd": "/workspace/cleanup-newsletter-accepted-source-admission-20261013",
+  "environment": {
+    "PATH": "/usr/bin:/bin"
+  },
+  "exit": 0,
+  "programByteExactOriginalSHA256": "bb7cf9a9634327d91d090fd3b768a190ff703d5b3a784644da4c5b39bb4873c9",
+  "metadataQualifier": "Program is unchanged, including historical source/composed-source labels in its report; those labels describe original corpus provenance, NOT replay source. Actual replay source is pinned here and by unchanged import paths into this sparse stage. Original JSON/raw captured under REVIEW-ORIGINAL prefixes before run.",
+  "stdoutSHA256": "99a37edaea54d9b2e681d09ec556c971135e1eb951f2ecb3a5948c0820eb837e",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "reportSHA256": "5c542faafea664453cbc9f4b1ef5b275633f06b8a738e700dadfeb49129ff32a"
+}
