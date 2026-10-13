@@ -1,0 +1,27 @@
+✔ exact reviewed root manifest reconstructs every prior byte and retains its real entry points (24.041326ms)
+✔ root manifest mutations cannot turn this exact review into a general exemption (7.162493ms)
+✖ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (0.482101ms)
+✔ api manifest mutations cannot turn this exact review into a general exemption (7.975216ms)
+✔ unknown/coercible inputs refuse without executing application or coercion ports (0.364916ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 165.479651
+
+✖ failing tests:
+
+test at scripts/ci/reviewed-pe-manifest-contract.spec.mjs:15:3
+✖ exact reviewed api manifest reconstructs every prior byte and retains its real entry points (0.482101ms)
+  Error: Unreviewed PE manifest change refused
+      at restoreReviewedPeManifest (file:///workspace/capirov2-native-replay-composition-reviewed-20261013/scripts/lib/reviewed-pe-manifest-contract.mjs:34:11)
+      at TestContext.<anonymous> (file:///workspace/capirov2-native-replay-composition-reviewed-20261013/scripts/ci/reviewed-pe-manifest-contract.spec.mjs:17:34)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

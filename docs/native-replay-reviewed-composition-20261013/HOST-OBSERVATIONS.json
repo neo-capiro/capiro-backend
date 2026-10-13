@@ -1,0 +1,11 @@
+{
+  "sourcePreparationRead": {
+    "command": "cat scripts/lib/reviewed-pe-manifest-contract.spec.mjs",
+    "exit": 1,
+    "reason": "reader used lib path; actual existing spec is scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+    "nativeSourceAndReviewMergesHadAlreadySucceeded": true,
+    "sourceMutationToCorrectRead": false
+  },
+  "missingRawReceipts": "No receiving raw artifact route exposed; no private hunt, credential change, rejected action or transfer bypass",
+  "blockedPrismaDownloads": "Prior native HTTPS CONNECT failure remains; no retry/bypass/checksum weakening by this lane"
+}

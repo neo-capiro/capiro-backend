@@ -1,0 +1,49 @@
+✔ whole original Phase26 caller and exact16-error/two-suite baseline reconstruct (16.541201ms)
+✔ full default/typing-fast/legacy unknown/Windows traces and receipts remain exact (165.24583ms)
+✔ new source-only and malformed named modes require explicit valid scope before any effect (14.257574ms)
+✔ backend source and frontend scope run only exact scoped guard/whitespace with no typing baseline read (8.203461ms)
+✔ backend native and typing retain all original selectors/process options and distinct receipts (13.776228ms)
+✔ all16 attributed diagnostics and exacttwo attributed Jest failures remain allowed (12.067537ms)
+✔ new scoped typing refuses unmatched/increased diagnostics and failed compiler without attributed evidence (7.490179ms)
+✔ inherited full API compiler false-green remains characterized and scoped mode refuses it (4.54587ms)
+✔ new native mode cannot accept missing/unattributed Jest exit evidence or unknownfailed suite (9.389934ms)
+✔ guard and whitespace failures cannot produce any scoped completion (7.342112ms)
+✔ current package metadata/aliases survive the four exact scoped run aliases (17.23711ms)
+✔ strict run/help/noargs/unknown/base grammar fails before any process or baseline read (28.301349ms)
+✔ opt-in Docker consumes only an explicit validated rootfs using the frontend-owned runtime profile (16.541444ms)
+✔ default Web Docker, release operator, workspace, lock and Onboard default remain unchanged (70.671908ms)
+✔ missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify (35.645647ms)
+✔ destination package preserves all 107 existing aliases and all metadata (2.347939ms)
+✔ only the four reviewed Phase26 aliases extend the original package inverse (8.939625ms)
+✔ Phase1 scoped operands retain one explicit run and every current syntax check (0.252507ms)
+✔ all twelve scoped verification aliases bind one run and exactly one declared scope (0.755568ms)
+✖ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (1.291786ms)
+✔ CI is exactly the destination scope hunk union and retains every old guard/test/condition (7.705285ms)
+✔ source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (45.747297ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 21
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 814.129085
+
+✖ failing tests:
+
+test at scripts/ci/rebuild-verification-scopes.spec.mjs:158:1
+✖ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (1.291786ms)
+  Error: ENOENT: no such file or directory, scandir '/workspace/capirov2-native-replay-composition-reviewed-20261013/packages'
+      at readdirSync (node:fs:1631:26)
+      at TestContext.<anonymous> (file:///workspace/capirov2-native-replay-composition-reviewed-20261013/scripts/ci/rebuild-verification-scopes.spec.mjs:161:29)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'scandir',
+    path: '/workspace/capirov2-native-replay-composition-reviewed-20261013/packages'
+  }

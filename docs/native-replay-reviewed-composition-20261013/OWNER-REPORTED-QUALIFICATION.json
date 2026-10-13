@@ -1,0 +1,52 @@
+{
+  "actualOperatorDuplicated": false,
+  "deployment": false,
+  "earlierRequiredBackendQualification": {
+    "apiCases": 1308,
+    "apiSuites": 100,
+    "integrityMigrationDiffProofMapping": "PASS",
+    "obligations": 16,
+    "phases": "A\u2013G/I\u2013K",
+    "skips": 0,
+    "workspaceCases": 10
+  },
+  "fullReleaseQualified": false,
+  "hashesReported": {
+    "finalQualification": "87e5cea3a7ca4e2f58ccdb46df2c7fb30e167a80e827ecc0b96da38ed58f99fd",
+    "operatorMachineSummary": "c336b2db23aa3e2430b8b889435c9e1c308753e21d5e04a8679282f874ce3202",
+    "operatorTerminalReview": "f9a35db06f6b51c062060d9375e5bce74ed07a38058a6058f6ee992ee4c8f3f9",
+    "requiredBackendResults": "dd82fd06befab06755419c66ead94931bc743be200799a8c4ac9ac4c60de43ee",
+    "requiredBackendReview": "f180d63da98b7e9424f82ee6c709d73898831da356a285c22b3302ee893dceca"
+  },
+  "independentSourceReviewIsNativeAcceptance": false,
+  "kind": "exact source scoped coordination report; raw receiving-byte verification pending",
+  "nativeReplay": {
+    "cleanMigrationNames": 469,
+    "rlsPassedCases": 23,
+    "upgradeAddedNames": 11,
+    "upgradeBaseNames": 458,
+    "upgradeFinalNames": 469
+  },
+  "noPermittedInternalRawTransferRouteAvailable": true,
+  "operator": {
+    "elapsedSeconds": 379.36,
+    "exit": 0,
+    "independentTerminalReview": "PASS",
+    "install": "verified prior install reuse",
+    "ownedDatabasesAndVolumesRemoved": true,
+    "requiredOutcomes": 29,
+    "requiredZeroExits": 29,
+    "steps": 31,
+    "terminal": "PE_PHASE_9_BACKEND_OK"
+  },
+  "optionalFormatting": {
+    "allUnchangedFrom2444": true,
+    "disposition": "warning; no reported blocker",
+    "exit": 1,
+    "files": 122
+  },
+  "qualifiedHead": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "qualifiedTree": "5cc7473db36e1b23a6fc0982f1652a9b20565a95",
+  "rawFilesReceivedOrHashVerified": false,
+  "receivingHeadWholeBackendOrNativeAcceptance": false
+}
