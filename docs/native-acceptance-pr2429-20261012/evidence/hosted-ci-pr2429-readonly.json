@@ -1,0 +1,13 @@
+{
+  "action": "Read-only workflow-run lookup; no dispatch",
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capirov2/actions/runs?head_sha=277053c8196dc1be4789c42ea304b0de0553fe00&per_page=20",
+    "--jq",
+    "{total_count,workflow_runs:[.workflow_runs[]|{id,name,head_sha,status,conclusion,html_url,path}]}"
+  ],
+  "exitCode": 0,
+  "stdout": "{\"total_count\":0,\"workflow_runs\":[]}\n",
+  "stderr": ""
+}

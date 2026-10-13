@@ -1,0 +1,84 @@
+2026-10-12 23:09:13.551 UTC [499724] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+2026-10-12 23:09:13.551 UTC [499724] LOG:  listening on Unix socket "/tmp/capiro-native-pg-socket-pr2429-20261012/.s.PGSQL.5432"
+2026-10-12 23:09:13.553 UTC [499727] LOG:  database system was shut down at 2026-10-12 23:09:13 UTC
+2026-10-12 23:09:13.556 UTC [499724] LOG:  database system is ready to accept connections
+2026-10-12 23:14:13.629 UTC [499725] LOG:  checkpoint starting: time
+2026-10-12 23:14:17.843 UTC [499725] LOG:  checkpoint complete: wrote 45 buffers (2.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.214 s, sync=0.001 s, total=4.214 s; sync files=11, longest=0.001 s, average=0.001 s; distance=268 kB, estimate=268 kB; lsn=0/648DC8, redo lsn=0/648D90
+2026-10-12 23:19:23.449 UTC [503920] ERROR:  new row violates row-level security policy for table "client_objectives"
+2026-10-12 23:19:23.449 UTC [503920] STATEMENT:  INSERT INTO client_objectives(tenant_id,client_id,created_by_user_id,client_request_id,create_request_hash) VALUES($1,$2,$3,gen_random_uuid(),repeat('a',64))
+2026-10-12 23:19:23.474 UTC [503921] ERROR:  new row for relation "client_objectives" violates check constraint "client_objectives_ready_check"
+2026-10-12 23:19:23.474 UTC [503921] STATEMENT:  UPDATE client_objectives SET status='ready' WHERE id=$1
+2026-10-12 23:19:23.498 UTC [503922] ERROR:  insert or update on table "client_objectives" violates foreign key constraint "client_objectives_client_fkey"
+2026-10-12 23:19:23.498 UTC [503922] DETAIL:  Key is not present in table "clients".
+2026-10-12 23:19:23.498 UTC [503922] STATEMENT:  INSERT INTO client_objectives(tenant_id,client_id,created_by_user_id,client_request_id,create_request_hash) VALUES($1,$2,$3,gen_random_uuid(),repeat('a',64))
+2026-10-12 23:19:23.525 UTC [503924] ERROR:  permission denied for table client_objective_revisions
+2026-10-12 23:19:23.525 UTC [503924] STATEMENT:  SELECT id FROM client_objective_revisions FOR SHARE
+2026-10-12 23:19:23.541 UTC [503925] ERROR:  permission denied for table client_objective_revisions
+2026-10-12 23:19:23.541 UTC [503925] STATEMENT:  UPDATE client_objective_revisions SET snapshot='{}'
+2026-10-12 23:19:23.577 UTC [503926] ERROR:  permission denied for table client_objective_revisions
+2026-10-12 23:19:23.577 UTC [503926] STATEMENT:  DELETE FROM client_objective_revisions
+2026-10-12 23:19:23.710 UTC [503954] ERROR:  workspace saved version is immutable
+2026-10-12 23:19:23.710 UTC [503954] CONTEXT:  PL/pgSQL function ws_preserve_saved_version() line 4 at RAISE
+2026-10-12 23:19:23.710 UTC [503954] STATEMENT:  UPDATE ws_doc_version SET label='changed' WHERE id=$1
+2026-10-12 23:19:24.968 UTC [503962] ERROR:  deadlock detected
+2026-10-12 23:19:24.968 UTC [503962] DETAIL:  Process 503962 waits for ShareLock on transaction 791; blocked by process 503963.
+	Process 503963 waits for ShareLock on transaction 790; blocked by process 503962.
+	Process 503962: 
+	      SELECT id FROM client_memory_access
+	      WHERE tenant_id=$1::uuid AND client_id=$2::uuid
+	        AND user_id=$3::uuid FOR SHARE
+	    
+	Process 503963: UPDATE clients SET memory_wall=false WHERE id=$1
+2026-10-12 23:19:24.968 UTC [503962] HINT:  See server log for query details.
+2026-10-12 23:19:24.968 UTC [503962] CONTEXT:  while locking tuple (0,2) in relation "client_memory_access"
+2026-10-12 23:19:24.968 UTC [503962] STATEMENT:  
+	      SELECT id FROM client_memory_access
+	      WHERE tenant_id=$1::uuid AND client_id=$2::uuid
+	        AND user_id=$3::uuid FOR SHARE
+	    
+2026-10-12 23:19:24.969 UTC [503962] WARNING:  there is no transaction in progress
+2026-10-12 23:19:24.970 UTC [503962] WARNING:  there is no transaction in progress
+2026-10-12 23:19:24.971 UTC [503963] WARNING:  there is no transaction in progress
+2026-10-12 23:19:24.998 UTC [503965] ERROR:  new row violates row-level security policy for table "newsletter_account_invitations"
+2026-10-12 23:19:24.998 UTC [503965] STATEMENT:  INSERT INTO newsletter_account_invitations(id,tenant_id,document_id,author_id,email,organization_id,account_role,status) VALUES($1,$2,$3,'user_synthetic','synthetic@example.invalid','org_synthetic','member','waiting')
+2026-10-12 23:19:25.010 UTC [503966] ERROR:  new row for relation "newsletter_account_invitations" violates check constraint "newsletter_account_invitations_check"
+2026-10-12 23:19:25.010 UTC [503966] STATEMENT:  UPDATE newsletter_account_invitations SET attempted_at=now(),attempt_kind=NULL
+2026-10-12 23:19:25.016 UTC [503917] ERROR:  new row for relation "federal_register_document" violates check constraint "federal_register_effective_evidence_pair"
+2026-10-12 23:19:25.016 UTC [503917] DETAIL:  Failing row contains (c7519e1c-2fa2-4656-a234-992c79a9feb2, 2026-12345, RULE, Synthetic public rule, null, {}, 2026-10-01 00:00:00+00, null, 2026-10-15 00:00:00+00, {}, {}, null, null, {}, f, 2026-10-12 23:19:25.014779+00, {"date": "2026-10-15", "status": "supported", "dateKind": "publi..., 2026-10-12 23:19:25.013+00).
+2026-10-12 23:19:25.016 UTC [503917] STATEMENT:  UPDATE federal_register_document SET effective_date_evidence=jsonb_set(effective_date_evidence,'{dateKind}','"publication"')
+2026-10-12 23:24:14.044 UTC [499725] LOG:  checkpoint starting: time
+2026-10-12 23:24:34.324 UTC [499725] LOG:  checkpoint complete: wrote 203 buffers (9.9%); 0 WAL file(s) added, 0 removed, 2 recycled; write=20.274 s, sync=0.005 s, total=20.281 s; sync files=241, longest=0.004 s, average=0.001 s; distance=1903 kB, estimate=1903 kB; lsn=0/824D08, redo lsn=0/824CD0
+2026-10-12 23:35:33.740 UTC [511651] ERROR:  permission denied for table client_objective_revisions
+2026-10-12 23:35:33.740 UTC [511651] STATEMENT:  SELECT id FROM client_objective_revisions FOR SHARE
+2026-10-12 23:35:33.809 UTC [511651] ERROR:  workspace saved version is immutable
+2026-10-12 23:35:33.809 UTC [511651] CONTEXT:  PL/pgSQL function ws_preserve_saved_version() line 4 at RAISE
+2026-10-12 23:35:33.809 UTC [511651] STATEMENT:  UPDATE ws_doc_version SET label='changed' WHERE id=$1::uuid
+2026-10-12 23:35:34.026 UTC [511653] ERROR:  new row for relation "federal_register_document" violates check constraint "federal_register_effective_evidence_pair"
+2026-10-12 23:35:34.026 UTC [511653] DETAIL:  Failing row contains (558c9e18-28f6-4dc6-8526-b51f91182bc3, 2026-23456, RULE, Native synthetic rule, null, {}, 2026-10-01 00:00:00+00, null, 2026-10-15 00:00:00+00, {}, {}, null, null, {}, f, 2026-10-12 23:35:34.005379+00, {"dateKind": null, "schemaVersion": 1, "documentNumber": "2026-2..., 2026-10-12 23:35:34.004+00).
+2026-10-12 23:35:34.026 UTC [511653] STATEMENT:  UPDATE federal_register_document SET effective_date_evidence='{"schemaVersion":1,"dateKind":null,"documentNumber":"2026-23456"}'::jsonb
+2026-10-12 23:39:14.626 UTC [499725] LOG:  checkpoint starting: time
+2026-10-12 23:39:32.640 UTC [499725] LOG:  checkpoint complete: wrote 180 buffers (8.8%); 0 WAL file(s) added, 0 removed, 1 recycled; write=18.013 s, sync=0.002 s, total=18.015 s; sync files=240, longest=0.001 s, average=0.001 s; distance=1815 kB, estimate=1894 kB; lsn=0/9EAAA8, redo lsn=0/9EAA70
+2026-10-12 23:52:43.663 UTC [519791] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.668 UTC [519792] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.715 UTC [519793] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.721 UTC [519794] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.795 UTC [519795] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.801 UTC [519796] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.860 UTC [519797] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.862 UTC [519798] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.895 UTC [519799] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.945 UTC [519800] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.945 UTC [519801] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.983 UTC [519802] WARNING:  there is no transaction in progress
+2026-10-12 23:52:43.985 UTC [519803] WARNING:  there is no transaction in progress
+2026-10-12 23:52:44.026 UTC [519804] WARNING:  there is no transaction in progress
+2026-10-12 23:52:44.026 UTC [519805] WARNING:  there is no transaction in progress
+2026-10-12 23:54:14.892 UTC [499725] LOG:  checkpoint starting: time
+2026-10-12 23:54:26.693 UTC [499725] LOG:  checkpoint complete: wrote 118 buffers (5.8%); 0 WAL file(s) added, 0 removed, 1 recycled; write=11.800 s, sync=0.001 s, total=11.802 s; sync files=92, longest=0.001 s, average=0.001 s; distance=599 kB, estimate=1765 kB; lsn=0/A80A98, redo lsn=0/A80A60
+2026-10-12 23:57:34.334 UTC [499724] LOG:  received fast shutdown request
+2026-10-12 23:57:34.334 UTC [499724] LOG:  aborting any active transactions
+2026-10-12 23:57:34.343 UTC [499724] LOG:  background worker "logical replication launcher" (PID 499730) exited with exit code 1
+2026-10-12 23:57:34.344 UTC [499725] LOG:  shutting down
+2026-10-12 23:57:34.344 UTC [499725] LOG:  checkpoint starting: shutdown immediate
+2026-10-12 23:57:34.346 UTC [499725] LOG:  checkpoint complete: wrote 1 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.002 s; sync files=1, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=1588 kB; lsn=0/A80B48, redo lsn=0/A80B48
+2026-10-12 23:57:34.350 UTC [499724] LOG:  database system is shut down

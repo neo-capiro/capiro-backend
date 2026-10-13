@@ -1,0 +1,52 @@
+{
+  "base": "2956443fb92efac356506cc06364735cca80fe7c",
+  "sourceReferences": {
+    "Memory": "1f285e2a8c3d377c0e660eecb64e62ad30cc83bf",
+    "writer": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+    "nativePostgres": "3c28ed933722ce896d6ba421236219001bea9ae5",
+    "nativePrisma": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+    "artifactGuard": "51cc812e0c371c170562bd6bb7711e50764af7cf",
+    "artifactGuardEvidence": "f4ed98ad00c1c9d29178f87aa24ea498c92d8466",
+    "writerNative": "aa187db9cce3a3611eb42b2312978756fe2efa66",
+    "packageCoverageAudit": "bbc1bb5fad625970bd2d54d974b2a8cb7ca1f1ff",
+    "pgIndependent": "f5a05012aadc806b6a91b4a4696a500992a021a4",
+    "prismaIndependent": "b316890f617f7f3daf1a9bb86cf55d93ae295e47",
+    "guardIndependent": "1a171c69bd4951ea6b2ed47e9345e210a4d9a915",
+    "writerIndependent": "8e9a15897d1ffcf89a5e22d8106cc4fd5431e05e"
+  },
+  "sourcePaths": [
+    "apps/api/src/clients/clients.memory-access-lock-order.spec.ts",
+    "apps/api/src/clients/clients.service.ts"
+  ],
+  "priorIndexEntries": 1433,
+  "unchangedPriorIndexedEntries": 1432,
+  "explicitSupersessions": {
+    "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md": {
+      "before": "a43a691a4a52bd1a1d7605d981c01433d1acbbc7523959724dcf7fc7c0c3a96c",
+      "after": "feeb4daa8d9d75cf298ad7e2b5feafb6f85af46db646ae470c77c516ec262019"
+    }
+  },
+  "coreCanonicalSegments": 17,
+  "coreExit": 0,
+  "coreCheckedHead": "43e0cc4da3439771190efc18aa71dc2ad1405046",
+  "coreFinalSourceDelta": 0,
+  "nativePgGroups": 11,
+  "nativeActualPrismaGroups": 6,
+  "nativeWriterGroups": 8,
+  "fullMeriSuites": 117,
+  "fullMeriPassingCases": 1717,
+  "existingMeriTodos": 2,
+  "fullAuthPassingCases": 20,
+  "syntheticV8ToolchainCases": 3,
+  "strictSyntheticRoleIsProductionHardening": false,
+  "fullMigrationReplay": false,
+  "fullWriterPrismaSchema": false,
+  "hostedSupportedVersionCI": false,
+  "frozenInstall": false,
+  "canonicalFiveTargetCoverageFloor": "MISSING",
+  "sourceWhitespaceExit": 0,
+  "completeRawWhitespaceFloor": "OPEN",
+  "privateServerStopped": true,
+  "allOriginalAndNewHeadsPreserved": true,
+  "operatorAdoption": "separate pending compatible source slice"
+}

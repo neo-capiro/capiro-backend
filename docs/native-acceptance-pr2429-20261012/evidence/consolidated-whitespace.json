@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "2956443fb92efac356506cc06364735cca80fe7c",
+    "HEAD"
+  ],
+  "exitCode": 2,
+  "floor": "OPEN",
+  "rawEvidenceRetainedWithoutTrimReencodingExclusion": true
+}

@@ -1,0 +1,21 @@
+[
+  {
+    "argv": [
+      "/tmp/capiro-native-pg-pr2429-20261012/usr/lib/postgresql/16/bin/initdb",
+      "--pgdata",
+      "/tmp/capiro-native-pg-pr2429-20261012/data",
+      "--username",
+      "agent",
+      "--auth-local",
+      "peer",
+      "--auth-host",
+      "reject",
+      "--no-locale",
+      "--encoding",
+      "UTF8",
+      "--wal-segsize",
+      "1"
+    ],
+    "exitCode": 1
+  }
+]

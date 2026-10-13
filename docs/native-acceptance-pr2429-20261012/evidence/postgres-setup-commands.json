@@ -1,0 +1,35 @@
+[
+  {
+    "argv": [
+      "/tmp/capiro-native-pg-pr2429-20261012/usr/lib/postgresql/16/bin/initdb",
+      "--pgdata",
+      "/tmp/capiro-native-pg-pr2429-20261012/data",
+      "--username",
+      "agent",
+      "--auth-local",
+      "peer",
+      "--auth-host",
+      "reject",
+      "--no-locale",
+      "--encoding",
+      "UTF8",
+      "--wal-segsize",
+      "1"
+    ],
+    "exitCode": 0
+  },
+  {
+    "argv": [
+      "/tmp/capiro-native-pg-pr2429-20261012/usr/lib/postgresql/16/bin/pg_ctl",
+      "-D",
+      "/tmp/capiro-native-pg-pr2429-20261012/data",
+      "-l",
+      "/tmp/capiro-native-pg-pr2429-20261012/server.log",
+      "-o",
+      "-k /tmp/capiro-native-pg-socket-pr2429-20261012 -c listen_addresses='' -c unix_socket_permissions=0700 -c shared_buffers=16MB -c max_connections=10 -c min_wal_size=2MB -c max_wal_size=16MB -c logging_collector=off",
+      "-w",
+      "start"
+    ],
+    "exitCode": 0
+  }
+]

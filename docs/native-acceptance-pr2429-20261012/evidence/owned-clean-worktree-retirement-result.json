@@ -1,0 +1,10 @@
+{
+  "retiredCleanOwnedCopy": true,
+  "headAndTreeRetained": true,
+  "branch": "refs/heads/codex/cleanup-next-tango-seam-audit-20261012",
+  "head": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "trackedEntries": 21062,
+  "originalShellExit": 128,
+  "errorAfterSuccessfulRemoval": "Final read-only verification guessed codex/cleanup-tango-seam-audit-20261012 instead of captured codex/cleanup-next-tango-seam-audit-20261012; the guessed reference was absent. Correct captured reference verified unchanged.",
+  "workspaceFreeAfterBytes": "459735040"
+}

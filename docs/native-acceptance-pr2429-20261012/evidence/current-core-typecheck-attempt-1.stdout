@@ -1,0 +1,112 @@
+
+> @capiro/api@0.0.0 typecheck /tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api
+> tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit
+
+src/engagement/newsletter-outreach.service.spec.ts(3,70): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/engagement/newsletter-outreach.service.ts(16,8): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/engagement/newsletter-outreach.service.ts(21,8): error TS2307: Cannot find module '@capiro/shared/newsletter-render' or its corresponding type declarations.
+src/engagement/newsletter-outreach.service.ts(260,10): error TS2339: Property 'newsletterRecipientAccess' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(306,33): error TS18046: 'accesses' is of type 'unknown'.
+src/engagement/newsletter-outreach.service.ts(306,48): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/engagement/newsletter-outreach.service.ts(365,12): error TS2339: Property 'newsletterSubscription' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(375,11): error TS18046: 'blocked' is of type 'unknown'.
+src/engagement/newsletter-outreach.service.ts(376,26): error TS18046: 'blocked' is of type 'unknown'.
+src/engagement/newsletter-outreach.service.ts(376,39): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/engagement/newsletter-outreach.service.ts(405,21): error TS7006: Parameter 'blockId' implicitly has an 'any' type.
+src/engagement/newsletter-outreach.service.ts(405,30): error TS7006: Parameter 'answer' implicitly has an 'any' type.
+src/engagement/newsletter-outreach.service.ts(413,12): error TS2339: Property 'newsletterRecipientAccess' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(425,65): error TS18046: 'access' is of type 'unknown'.
+src/engagement/newsletter-outreach.service.ts(437,12): error TS2339: Property 'newsletterRecipientAccess' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(438,24): error TS18046: 'access' is of type 'unknown'.
+src/engagement/newsletter-outreach.service.ts(535,10): error TS2339: Property 'newsletterRecipientAccess' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(537,15): error TS2339: Property 'draftVersionId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(538,32): error TS2339: Property 'draftVersionId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(539,56): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(542,25): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(553,45): error TS2339: Property 'html' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(558,40): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(559,12): error TS2339: Property 'newsletterSubscription' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(561,52): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(561,74): error TS2339: Property 'userId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(561,93): error TS2339: Property 'email' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(564,27): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(565,25): error TS2339: Property 'userId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(566,24): error TS2339: Property 'email' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(582,11): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(584,63): error TS2339: Property 'stageId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(584,100): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(591,40): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(592,12): error TS2339: Property 'newsletterRecipientAccess' does not exist on type 'TransactionClient'.
+src/engagement/newsletter-outreach.service.ts(593,28): error TS2339: Property 'id' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(593,46): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/engagement/newsletter-outreach.service.ts(595,38): error TS2339: Property 'surveyAnswers' does not exist on type '{}'.
+src/engagement/newsletter-source-access.ts(7,8): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/engagement/outreach-draft.service.ts(1022,50): error TS2353: Object literal may only specify known properties, and 'contentFormat' does not exist in type 'Without<OutreachDraftVersionCreateInput, OutreachDraftVersionUncheckedCreateInput> & OutreachDraftVersionUncheckedCreateInput'.
+src/engagement/outreach-draft.service.ts(1030,37): error TS2345: Argument of type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }' is not assignable to parameter of type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; version: number; provider: string | null; subject: string; contentHash: string; promptSpecVersion: string | null; ... 11 more ...; artifact: { ...; }; }'.
+  Property 'artifact' is missing in type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }' but required in type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; version: number; provider: string | null; subject: string; contentHash: string; promptSpecVersion: string | null; ... 11 more ...; artifact: { ...; }; }'.
+src/engagement/outreach-send-intent.service.ts(308,27): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(310,11): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(310,50): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(332,27): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(338,44): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(351,26): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(352,25): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(726,14): error TS2339: Property 'newsletterRecipientAccess' does not exist on type 'TransactionClient'.
+src/engagement/outreach-send-intent.service.ts(743,71): error TS2339: Property 'stageId' does not exist on type '{}'.
+src/engagement/outreach-send-intent.service.ts(753,16): error TS2339: Property 'newsletterSubscription' does not exist on type 'TransactionClient'.
+src/engagement/outreach-send-intent.service.ts(1160,11): error TS2353: Object literal may only specify known properties, and 'contentFormat' does not exist in type 'OutreachDraftVersionSelect<DefaultArgs>'.
+src/engagement/outreach-send-intent.service.ts(1190,11): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(1191,11): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(1195,27): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(1211,64): error TS2339: Property 'newsletterStageId' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'.
+src/engagement/outreach-send-intent.service.ts(1214,42): error TS2551: Property 'artifact' does not exist on type '{ tenantId: string; model: string | null; id: string; createdAt: Date; body: string; createdByUserId: string; version: number; provider: string | null; subject: string; contentHash: string; ... 11 more ...; contextPacketId: string | null; }'. Did you mean 'artifactId'?
+src/engagement/outreach-send-intent.service.ts(1216,14): error TS2339: Property 'newsletterSubscription' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(10,8): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/workspace-collab/newsletter-account-invitation.service.ts(159,10): error TS2339: Property 'newsletterAccountInvitation' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(165,18): error TS2724: '"/workspace/capirov2-integrated-rc/apps/api/node_modules/.prisma/client/index".Prisma' has no exported member named 'NewsletterAccountInvitationUpdateManyMutationInput'. Did you mean 'FecContributionUpdateManyMutationInput'?
+src/workspace-collab/newsletter-account-invitation.service.ts(168,10): error TS2339: Property 'newsletterAccountInvitation' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(174,26): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">'.
+  Type '{}' is missing the following properties from type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">': status, id, errorCode, attemptedAt, accountRole
+src/workspace-collab/newsletter-account-invitation.service.ts(215,30): error TS2339: Property 'newsletterAccountInvitation' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(251,32): error TS2339: Property 'newsletterAccountInvitation' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(263,32): error TS2339: Property 'newsletterAccountInvitation' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(297,31): error TS2339: Property 'newsletterAccountInvitation' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-account-invitation.service.ts(389,23): error TS2339: Property 'attemptedAt' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(395,26): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">'.
+  Type '{}' is missing the following properties from type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">': status, id, errorCode, attemptedAt, accountRole
+src/workspace-collab/newsletter-account-invitation.service.ts(406,31): error TS2339: Property 'attemptedAt' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(417,40): error TS2339: Property 'organizationId' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(418,28): error TS2345: Argument of type '{ status: string; }' is not assignable to parameter of type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">'.
+  Type '{ status: string; }' is missing the following properties from type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">': id, errorCode, attemptedAt, accountRole
+src/workspace-collab/newsletter-account-invitation.service.ts(420,48): error TS2339: Property 'status' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(421,15): error TS2339: Property 'updatedAt' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(423,28): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">'.
+  Type '{}' is missing the following properties from type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">': status, id, errorCode, attemptedAt, accountRole
+src/workspace-collab/newsletter-account-invitation.service.ts(424,17): error TS2339: Property 'status' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(424,51): error TS2339: Property 'attemptedAt' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(424,75): error TS2339: Property 'providerInvitationId' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(425,48): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Receipt'.
+  Type '{}' is missing the following properties from type 'Receipt': id, status, accountRole, errorCode, and 7 more.
+src/workspace-collab/newsletter-account-invitation.service.ts(434,30): error TS2339: Property 'providerInvitationId' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(435,52): error TS2339: Property 'organizationId' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(435,76): error TS2339: Property 'providerInvitationId' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(441,43): error TS2339: Property 'organizationId' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(453,29): error TS2339: Property 'status' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(456,32): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Receipt'.
+  Type '{}' is missing the following properties from type 'Receipt': id, status, accountRole, errorCode, and 7 more.
+src/workspace-collab/newsletter-account-invitation.service.ts(462,26): error TS2339: Property 'attemptedAt' does not exist on type '{}'.
+src/workspace-collab/newsletter-account-invitation.service.ts(463,32): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Receipt'.
+  Type '{}' is missing the following properties from type 'Receipt': id, status, accountRole, errorCode, and 7 more.
+src/workspace-collab/newsletter-account-invitation.service.ts(468,26): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">'.
+  Type '{}' is missing the following properties from type 'Pick<Receipt, "status" | "id" | "errorCode" | "attemptedAt" | "accountRole">': status, id, errorCode, attemptedAt, accountRole
+src/workspace-collab/newsletter-invitation-email.worker.spec.ts(2,70): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/workspace-collab/newsletter-invitation-email.worker.ts(8,8): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/workspace-collab/newsletter-invitation-email.worker.ts(191,31): error TS2339: Property 'newsletterInvitationEmailDelivery' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-invitation-email.worker.ts(269,32): error TS2339: Property 'newsletterInvitationEmailDelivery' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-review-email.worker.spec.ts(2,70): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/workspace-collab/newsletter-review-email.worker.ts(8,8): error TS2307: Cannot find module '@capiro/shared/newsletter' or its corresponding type declarations.
+src/workspace-collab/newsletter-review-email.worker.ts(199,31): error TS2339: Property 'newsletterReviewEmailDelivery' does not exist on type 'TransactionClient'.
+src/workspace-collab/newsletter-review-email.worker.ts(274,32): error TS2339: Property 'newsletterReviewEmailDelivery' does not exist on type 'TransactionClient'.
+/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @capiro/api@0.0.0 typecheck: `tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit`
+Exit status 2

@@ -1,0 +1,13 @@
+{
+  "owner": "/root/objective_destinations confirmed completed own Tango seam audit",
+  "path": "/workspace/capirov2-cleanup-tango-seam-audit",
+  "head": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "branchPreserved": "refs/heads/codex/cleanup-next-tango-seam-audit-20261012",
+  "ancestorOfReviewedHead": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "trackedChanges": 0,
+  "untracked": 0,
+  "ignoredUntracked": 0,
+  "trackedTreeInventorySha256": "59e2d49076c8082da6a8697f29907b99618c506fb38d6e0fbe707fe352509397",
+  "trackedEntries": 21062,
+  "action": "Remove only clean completed owned worktree copy; retain branch, all Git objects and original/new heads. No source/evidence/cache pruning."
+}

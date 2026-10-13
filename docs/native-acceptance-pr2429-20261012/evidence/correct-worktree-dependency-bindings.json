@@ -1,0 +1,10 @@
+{
+  "link": "apps/api/node_modules",
+  "oldTarget": "/workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules",
+  "newTarget": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/node_modules",
+  "change": "Only own excluded dependency symlink; no source/package/lock/global cache mutation",
+  "currentCoreSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "currentNativeClientVersion": "5.22.0",
+  "sharedSourceUnchangedSinceQualifiedPristineDistribution": true,
+  "reason": "Canonical typecheck resolved stale integrated-rc Prisma models and Shared exports through prior symlink; original diagnostics retained."
+}

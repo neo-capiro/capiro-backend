@@ -1,0 +1,2 @@
+initdb: error: file "/tmp/capiro-native-pg-pr2429-20261012/usr/share/postgresql/16/postgresql.conf.sample" does not exist
+initdb: hint: This might mean you have a corrupted installation or identified the wrong directory with the invocation option -L.
