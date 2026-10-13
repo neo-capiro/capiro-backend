@@ -9,13 +9,18 @@
     },
     {
       "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/HANDOFF.md",
-      "bytes": 4418,
-      "sha256": "44d2de3a43e35741398bd4849dd9fb9b4b40be68e08fdab6cf2125b61f7731d3"
+      "bytes": 4768,
+      "sha256": "17e2eded4186e7f3fbe63fe50a216f4980b17ccc4d7f6f0478ade0043df99f89"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/INITIAL-SHA256-INDEX.json",
+      "bytes": 8834,
+      "sha256": "05276d02efe9006eb18ff7d5b093a5a6cc984d343bea1d835643035dee9e0202"
     },
     {
       "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/QUALIFICATION.json",
-      "bytes": 1702,
-      "sha256": "8b74805d0a800f911b324c9a5af5986c591de11d51c7243d3ffe8753548371da"
+      "bytes": 1879,
+      "sha256": "97d4c21b6c3aaeef627693c24a10b801c875f9875a755e8c3455990624ace8e0"
     },
     {
       "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/CURRENT-HEADER-LITERAL-CHECK.json",
@@ -141,6 +146,21 @@
       "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/prepare-source.py.txt",
       "bytes": 6703,
       "sha256": "57b7a5eff6f10d9b603366e12a75ae46961bea11c231db775c30b94d1c06549b"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.command.json",
+      "bytes": 377,
+      "sha256": "be879e8b72b05c5a9f02d942f75848ae2ce3d52b1f82fa7e639edb754f72fa84"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/raw-evidence-whitespace.stdout",
+      "bytes": 238,
+      "sha256": "09596593c9246766bd8004de4c843c7586ae509984bff0a33755a29f819271f5"
     },
     {
       "path": "docs/cleanup-pr2436-compatible-artifact-guards-20261013/evidence/safe-source-test-preload.cjs",

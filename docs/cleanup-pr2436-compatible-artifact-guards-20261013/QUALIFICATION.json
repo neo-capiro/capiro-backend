@@ -54,5 +54,11 @@
     "default CLI/backend graph",
     "CI/SQL/DB/provider/security/permissions/deploy"
   ],
-  "guardScope": "bounded source/static grammar and synthetic-response tests; not arbitrary JS/dataflow/network containment"
+  "guardScope": "bounded source/static grammar and synthetic-response tests; not arbitrary JS/dataflow/network containment",
+  "rawEvidenceWhitespace": {
+    "exit": 2,
+    "receipt": "evidence/raw-evidence-whitespace.command.json",
+    "fullFloorAccepted": false,
+    "physicalRawRetained": true
+  }
 }

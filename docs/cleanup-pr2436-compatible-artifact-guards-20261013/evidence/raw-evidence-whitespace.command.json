@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/capirov2",
+    "diff",
+    "--check",
+    "6503f933d3d8a0e6dcb92b68e53db24e96831076",
+    "2fcf9f8fb5d83dc392fea5a1f146938826432caf",
+    "--",
+    "docs/cleanup-pr2436-compatible-artifact-guards-20261013"
+  ],
+  "exit": 2,
+  "scope": "exact new evidence only, physical raw failure bytes retained; no trim/exclusion/waiver"
+}
