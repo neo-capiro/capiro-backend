@@ -1,0 +1,14 @@
+{
+  "rawCheckpoint": "6bac4b9a3f761b1e8666025e484d9d4eaf3b44c3",
+  "encoded": [
+    {
+      "rawPath": "docs/bill-dossier-integration-20261013/evidence/jest.log",
+      "envelope": "docs/bill-dossier-integration-20261013/evidence/jest.log.json"
+    },
+    {
+      "rawPath": "docs/bill-dossier-integration-20261013/evidence/no-engine-generate.log",
+      "envelope": "docs/bill-dossier-integration-20261013/evidence/no-engine-generate.log.json"
+    }
+  ],
+  "noTrimmingOrExemption": true
+}
