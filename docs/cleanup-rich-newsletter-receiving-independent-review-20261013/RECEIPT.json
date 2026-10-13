@@ -1,0 +1,45 @@
+{
+  "decision": "ACCEPT bounded source",
+  "sourceHead": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "sourceTree": "ea8adba9e132a9c0d498ff7a49e0249d14b1682c",
+  "base": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "authorEvidenceHead": "a52aee45902799235ba2485619b213049bc33e93",
+  "initialIndependentRed": "5b68186146ac4ce351ac6429103d85bf8c865e12",
+  "independentChecks": {
+    "producer": 6,
+    "actualSaveAndTimestamp": 5,
+    "actualCanonicalMethodFakePorts": 41,
+    "receivingGrammar": 70,
+    "sourcePreservation": 40,
+    "total": 162
+  },
+  "suppliedPublicCorpusReplayed": 129,
+  "authorPacketHashes": 60,
+  "originalRawHashesUnchanged": 38,
+  "existingUnchangedPaths": 23653,
+  "sourcePaths": [
+    "apps/api/src/engagement/newsletter-outreach-admission.spec.ts",
+    "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+    "apps/api/src/engagement/newsletter-outreach.service.ts",
+    "apps/api/src/engagement/outreach-draft.service.ts",
+    "apps/api/src/engagement/outreach-draft.types.ts",
+    "packages/shared/src/newsletter-receiving.ts",
+    "packages/shared/src/newsletter.ts",
+    "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+    "scripts/ci/newsletter-receiving.test.cjs"
+  ],
+  "sourceBlockers": [],
+  "sqlExecuted": false,
+  "protectedBodyRead": false,
+  "frontendMutated": false,
+  "claimsNotMade": [
+    "real current tenant/actor/grant/RLS authorization",
+    "native SQL/client/production acceptance",
+    "arbitrary JavaScript or Proxy containment",
+    "whole Core compiler rerun",
+    "frontend delivery/consumption",
+    "packed artifact/browser/declaration qualification owned separately"
+  ],
+  "liveProviderModelOrApplicationNetworkCalls": false,
+  "authorizedReadOnlyGitHubDocs": "Two exact frontend dependency docs at b945b799591c7a0345441a489b27cdadee202235"
+}

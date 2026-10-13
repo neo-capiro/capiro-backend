@@ -1,0 +1,77 @@
+{
+  "head": "c07d00e27fdda64dfbd13c36d0ac433c81d9f7f4",
+  "tree": "265e9799565f579c81b87a475f74c55f7daf59bd",
+  "files": [
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-packages__shared__src__newsletter.ts.txt",
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+      "blob": "c1b58fbc64883f6794a2928e9ee89613aea42742",
+      "bytes": 36470
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-packages__shared__src__newsletter-fonts.ts.txt",
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "blob": "98286f542da05527fb124a16dd1e831ae40cf558",
+      "bytes": 5766
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-packages__shared__src__newsletter-fonts.catalog.ts.txt",
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "blob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "bytes": 94631
+    },
+    {
+      "path": "packages/shared/package.json",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-packages__shared__package.json.txt",
+      "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf",
+      "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6",
+      "bytes": 3761
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-apps__api__src__engagement__newsletter-outreach.controller.ts.txt",
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d",
+      "blob": "038cbd5db39bb9ce6235ec85c586542310b1f506",
+      "bytes": 5292
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-apps__api__src__engagement__newsletter-outreach.service.ts.txt",
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7",
+      "blob": "0ea45aed85acb24431e0f806462af59f3e1c6b5c",
+      "bytes": 24560
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-apps__api__src__engagement__newsletter-source-access.ts.txt",
+      "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3",
+      "blob": "65d908f0b0b5cd50058012f9e8f72d153cfa8c34",
+      "bytes": 1748
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.controller.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-apps__workspace__src__newsletters__newsletter.controller.ts.txt",
+      "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7",
+      "blob": "7ec9136ff6f6d2e8d26934d8c2037e3482dc3725",
+      "bytes": 16288
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-apps__workspace__src__newsletters__newsletter.service.ts.txt",
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583",
+      "blob": "95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+      "bytes": 86320
+    },
+    {
+      "path": "docs/contracts/newsletter-outreach-response-routing.md",
+      "rawFile": "docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/baseline-docs__contracts__newsletter-outreach-response-routing.md.txt",
+      "sha256": "dc8377aefa66ed65521154a680a0cc2f03532a2146c076b2e80c3aec054d83f6",
+      "blob": "b06f6d6f2a95ba880ffcd673c4f587b7fffc3575",
+      "bytes": 3739
+    }
+  ],
+  "protectedEngagementImplementationRead": false
+}

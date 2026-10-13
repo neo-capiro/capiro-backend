@@ -1,0 +1,251 @@
+{
+  "head": "a52aee45902799235ba2485619b213049bc33e93",
+  "source": "37d574a35cd6d9aef79239a830b588fe1bd9769f",
+  "sourceDelta": 0,
+  "entries": 60,
+  "passed": 60,
+  "failed": 0,
+  "results": [
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/AUTHOR-SOURCE-RECEIPT.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/HANDOFF.md",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/01-first-tsc-composite-refusal.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/02-shared-noemit-pass.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/03-shared-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/04-original-corpus-with-fixture-errors.cjs",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/04-public-source-corpus.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/05-public-source-corpus-corrected.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/06-canonical-methods.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/06-canonical-methods.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/07-source-format.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/08-original-admission-red.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/09-focused-strict-tsc.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-client-red.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-client-red.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-revision-red.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-revision-red.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-type-red.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/10-remove-type-red.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/11-frozen-shared-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/12-frozen-canonical-methods.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/13-actual-hash-producer.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/14-repair-format.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/15-repair-shared-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/16-canonical-hash-corpus.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/17-original-union-text-harness.cjs",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/17-source-preservation.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/18-source-preservation-corrected.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/18-source-preservation-corrected.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/19-repair-focused-strict.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/20-repair-format.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/21-repair-focused-strict.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/22-repair-focused-strict.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/23-repair-shared-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/24-repaired-public-corpus.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/25-owner-profile-format.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/26-owner-profile-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/27-owner-profile-corpus.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/28-post-save-format.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/29-post-save-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/30-post-save-corpus.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/31-final-focused-strict.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/33-timestamp-format.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/34-timestamp-build.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/35-final-timestamp-corpus.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.cjs",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/36-final-source-preservation.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/37-final-focused-strict.log",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/bounded.jest.cjs",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/focused.tsconfig.json",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/inject-source-overlay.cjs",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/original-newsletter-outreach.service.ts",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/refuse-unrelated-runtime.cjs",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-client.ts",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-revision.ts",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/remove-type.ts",
+      "passed": true
+    },
+    {
+      "path": "docs/cleanup-newsletter-receiving-contracts-20261013/evidence/source-preservation.cjs",
+      "passed": true
+    }
+  ],
+  "claimReview": "Author handoff correctly separates pure receiving, current canonical owner calls, immutable package owner qualification, frontend consumption, and native/live-provider/whole-Core limits. Preview is untrusted text; saved-survey dates use legacy finite parser; canonical timestamps exact roundtrip."
+}

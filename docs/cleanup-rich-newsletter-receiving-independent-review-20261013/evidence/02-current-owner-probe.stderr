@@ -1,0 +1,11 @@
+ReferenceError: return1 is not defined
+    at Object.$executeRaw (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/02-current-owner-probe.cjs:23:173)
+    at prisma.$transaction.maxWait (evalmachine.<anonymous>:5:34)
+    at Object.$transaction (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/02-current-owner-probe.cjs:26:381)
+    at Source.withTenant (evalmachine.<anonymous>:4:28)
+    at Source.getClient (evalmachine.<anonymous>:18:33)
+    at Newsletter.assertClient (evalmachine.<anonymous>:39:42)
+    at async Newsletter.assertDesignClients (evalmachine.<anonymous>:45:13)
+    at async Newsletter.save (evalmachine.<anonymous>:60:9)
+    at async producer (/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/02-current-owner-probe.cjs:30:14)
+    at async /tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-rich-newsletter-receiving-independent-review-20261013/evidence/02-current-owner-probe.cjs:40:16

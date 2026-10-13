@@ -1,0 +1,160 @@
+{
+  "checkpoint": "5b68186146ac4ce351ac6429103d85bf8c865e12",
+  "entries": 38,
+  "passed": 38,
+  "failed": 0,
+  "rows": [
+    {
+      "path": "INITIAL-RED-RECEIPT.json",
+      "passed": true
+    },
+    {
+      "path": "REVIEW-PLAN.md",
+      "passed": true
+    },
+    {
+      "path": "evidence/01-producer-boundary-probe.cjs",
+      "passed": true
+    },
+    {
+      "path": "evidence/01-producer-boundary-probe.json",
+      "passed": true
+    },
+    {
+      "path": "evidence/01-producer-boundary-probe.stderr",
+      "passed": true
+    },
+    {
+      "path": "evidence/01-producer-boundary-probe.stdout",
+      "passed": true
+    },
+    {
+      "path": "evidence/02-current-owner-probe.cjs",
+      "passed": true
+    },
+    {
+      "path": "evidence/02-current-owner-probe.stderr",
+      "passed": true
+    },
+    {
+      "path": "evidence/02-current-owner-probe.stdout",
+      "passed": true
+    },
+    {
+      "path": "evidence/03-current-owner-probe.cjs",
+      "passed": true
+    },
+    {
+      "path": "evidence/03-current-owner-probe.json",
+      "passed": true
+    },
+    {
+      "path": "evidence/03-current-owner-probe.stderr",
+      "passed": true
+    },
+    {
+      "path": "evidence/03-current-owner-probe.stdout",
+      "passed": true
+    },
+    {
+      "path": "evidence/BASELINE-BINDINGS.json",
+      "passed": true
+    },
+    {
+      "path": "evidence/FROZEN8F-BINDINGS.json",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__api__src__engagement__newsletter-outreach.controller.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__api__src__engagement__newsletter-outreach.service.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__api__src__engagement__newsletter-source-access.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__api__src__engagement__outreach-draft.types.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__workspace__src__newsletters__newsletter-validation.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__workspace__src__newsletters__newsletter.controller.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-apps__workspace__src__newsletters__newsletter.service.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-docs__contracts__newsletter-outreach-response-routing.md.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-packages__shared__package.json.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-packages__shared__src__newsletter-fonts.catalog.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-packages__shared__src__newsletter-fonts.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/baseline-packages__shared__src__newsletter.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frontend-contract-review.md",
+      "passed": true
+    },
+    {
+      "path": "evidence/frontend-rich-slice-qualification.md",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-apps__api__src__engagement__newsletter-outreach.service.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-apps__api__src__engagement__outreach-draft.service.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-apps__workspace__src__hillday__hillday-source.service.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-packages__shared__src__newsletter-fonts.catalog.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-packages__shared__src__newsletter-fonts.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-packages__shared__src__newsletter-receiving.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-packages__shared__src__newsletter.ts.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/frozen8f-scripts__ci__fixtures__newsletter-receiving-corpus.cjs.txt",
+      "passed": true
+    },
+    {
+      "path": "evidence/public-runtime.cjs",
+      "passed": true
+    }
+  ]
+}

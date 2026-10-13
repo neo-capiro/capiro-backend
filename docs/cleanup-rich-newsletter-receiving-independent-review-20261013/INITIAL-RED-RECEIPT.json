@@ -1,0 +1,20 @@
+{
+  "reviewedHead": "8f19f4d7c77c621f8ea3a2d1c3d9b551e0d60414",
+  "reviewedTree": "0d90dd28ec51050df39ab53494f253d67f40f1a6",
+  "acceptance": false,
+  "producerBoundary": {
+    "passed": 0,
+    "failed": 6,
+    "rawPrefix": "evidence/01-producer-boundary-probe"
+  },
+  "actualSaveBoundary": {
+    "passed": 0,
+    "failed": 5,
+    "exit": 1,
+    "rawPrefix": "evidence/03-current-owner-probe"
+  },
+  "harnessFailurePreserved": "evidence/02-current-owner-probe.stderr",
+  "sqlExecuted": false,
+  "protectedBodyRead": false,
+  "limits": "Actual selected owner fragments with fake current grants. Receiving shape is not authority. No UI/route/provider/native execution."
+}

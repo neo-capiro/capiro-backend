@@ -1,0 +1,62 @@
+{
+  "head": "7949d079b1b46acf9c18c86898d6eedf9290428a",
+  "tree": "fd151ac5409ad0ead6b1808ae85f5707dd0d9bbd",
+  "sources": [
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter.ts.txt",
+      "sha256": "861f749f8d9bd8057d3839543abfae51dd6f2313728291e1024b062f63c245e7",
+      "blob": "d8143fddeec98820bf5b16f8f2d8f3d534259e05",
+      "bytes": 36609
+    },
+    {
+      "path": "packages/shared/src/newsletter-receiving.ts",
+      "rawFile": "frozen794-packages__shared__src__newsletter-receiving.ts.txt",
+      "sha256": "4eb4751ad7524b04aed23f9bf7be6e51f15c98c3252dc2dc33057122eaf61bce",
+      "blob": "d1fb2f4433455fb610aada646ac5a2cefa02f4c1",
+      "bytes": 30609
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter-fonts.ts.txt",
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "blob": "98286f542da05527fb124a16dd1e831ae40cf558",
+      "bytes": 5766
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "rawFile": "frozen8f-packages__shared__src__newsletter-fonts.catalog.ts.txt",
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "blob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32",
+      "bytes": 94631
+    },
+    {
+      "path": "scripts/ci/fixtures/newsletter-receiving-corpus.cjs",
+      "rawFile": "frozen794-scripts__ci__fixtures__newsletter-receiving-corpus.cjs.txt",
+      "sha256": "9386b55e62db456fcd6fb74fb25a6b69afa4f13494b536e90a49d2e3255d9377",
+      "blob": "187f2f51fbd98127448d5cacdf07411cac43e153",
+      "bytes": 32616
+    },
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "rawFile": "frozen8f-apps__api__src__engagement__newsletter-outreach.service.ts.txt",
+      "sha256": "ad6f90090a601f7f89e3d4da5a51e4b0752567a649bb2c6e4b450c383028f522",
+      "blob": "15b6d76e025165264115c6081616311f7be639aa",
+      "bytes": 25409
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-source.service.ts",
+      "rawFile": "frozen8f-apps__workspace__src__hillday__hillday-source.service.ts.txt",
+      "sha256": "87674714c36948cf1ae2d508deccd9ca9a39d98f0b7a7b5cd912a530bf863676",
+      "blob": "8a2b18461133695db9f82768f91d89fb576aea71",
+      "bytes": 24325
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-draft.service.ts",
+      "rawFile": "frozen8f-apps__api__src__engagement__outreach-draft.service.ts.txt",
+      "sha256": "82b73cd518395129ac1bed1b1d0b8ec6a7b39a6eb88352811a9486472774a701",
+      "blob": "1ebc1eed09a9bee3c89ef859febd316d56217eee",
+      "bytes": 41867
+    }
+  ]
+}
