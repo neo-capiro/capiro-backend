@@ -1,0 +1,41 @@
+{
+  "peer": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "current": "9d84edb5669e9a07d1632a0dbd0aeb256d5a7454",
+  "files": [
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/HANDOFF.md",
+      "bytes": 4401,
+      "sha256": "0dd6202e9a1347852aafb18e2c9c1048f62783ac2737910b0ccccdf190f71169"
+    },
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/RECEIPT.json",
+      "bytes": 1470,
+      "sha256": "0e4a31f8161ed2d894ae60cd2fcdc40539a2ec842caf86381dcc086ecd2ee636"
+    },
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/evidence/ALL-WORKSPACE-MANIFEST-METADATA.json",
+      "bytes": 5952,
+      "sha256": "e8a87fa662cb9da81390e87457c7be162b734ebebbbf8680e56503732fef644f"
+    },
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/evidence/BACKEND-CLOSURE-DECLARATIONS.json",
+      "bytes": 16636,
+      "sha256": "6452f568b1eed6df871fefffd3032d584b1ba0ac0b074aa12072eeeb2c44f8be"
+    },
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/evidence/PEER-RECEIPT-CUSTODY.json",
+      "bytes": 2253,
+      "sha256": "a732f16c80fbf5b204d13c7bef7076fb12bde0748f1d3c1bb6a6938f4c7cc7ae"
+    },
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/evidence/RETAINED-ENTRYPOINT-IDENTITIES.json",
+      "bytes": 3676,
+      "sha256": "62827d0aa91fb04fe14d22459a9dcf17ead8d76b3eca91174d27597beaa3cdba"
+    },
+    {
+      "path": "docs/cleanup-pe2445-postcomposition-install-build-audit-20261013/evidence/SOURCE-COMPATIBILITY.json",
+      "bytes": 35772,
+      "sha256": "52c52dd94b812fc867419558043c9bf43082b6719309d71b27680f2b1c9db4e7"
+    }
+  ]
+}

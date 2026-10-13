@@ -1,0 +1,1342 @@
+{
+  "peerHead": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "peerTree": "19ee55e0a411f68b2a7e239544786e7f9987b892",
+  "currentHead": "9d84edb5669e9a07d1632a0dbd0aeb256d5a7454",
+  "currentTree": "1b6978e4760fccfebe5c25636eafcd847a5cb871",
+  "pe13": [
+    {
+      "path": "apps/api/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-backend-scope.spec.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c7085d212574e1f157fc542d6641cec2b1db2135"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c7085d212574e1f157fc542d6641cec2b1db2135"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-backend-scope.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "584c3443ae7efd4ed6a1596e516f508cee81e649"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "584c3443ae7efd4ed6a1596e516f508cee81e649"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-evidence.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2bc2065ba86e0d33948a410864174f88aa930fa2"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2bc2065ba86e0d33948a410864174f88aa930fa2"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f51953f885d5a499867d3f3cef6d6d941c45d6fd"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f51953f885d5a499867d3f3cef6d6d941c45d6fd"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-rehearsal.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "51a399f5d1c11089a5324214aa09ace154d0c338"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "51a399f5d1c11089a5324214aa09ace154d0c338"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-runner.spec.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ff76f888e151428d2e38921920ed7a17ef052f26"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ff76f888e151428d2e38921920ed7a17ef052f26"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-runner.test-support.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f830b2f681428f0e837ca67ce6310380576fae1c"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f830b2f681428f0e837ca67ce6310380576fae1c"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-runner.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "46183c7a4fab5360ee2dd219529635038cb87efe"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "46183c7a4fab5360ee2dd219529635038cb87efe"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b26b8688edca0fd2153f0327307e32dd6a5f5be3"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b26b8688edca0fd2153f0327307e32dd6a5f5be3"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-9.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5c662ca843f4fcf909f090a0835937d2da452317"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5c662ca843f4fcf909f090a0835937d2da452317"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-scripts.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "61458916512b629a4399cb7cb466b4a5801e1d85"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "61458916512b629a4399cb7cb466b4a5801e1d85"
+      },
+      "exact": true
+    },
+    {
+      "path": "package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "exact": true
+    }
+  ],
+  "backendPackages": [
+    {
+      "path": "package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      "exact": true,
+      "name": "capiro",
+      "packageManager": "pnpm@9.12.0",
+      "engines": {
+        "node": ">=20.11.0"
+      },
+      "build": "turbo run build",
+      "typecheck": "turbo run typecheck",
+      "postinstall": null,
+      "workspaceDependencies": {}
+    },
+    {
+      "path": "apps/api/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "exact": true,
+      "name": "@capiro/api",
+      "packageManager": null,
+      "engines": null,
+      "build": "nest build",
+      "typecheck": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {
+        "@capiro/defense-contracts": "workspace:*",
+        "@capiro/defense-domain": "workspace:*",
+        "@capiro/meriv2-core": "workspace:*",
+        "@capiro/shared": "workspace:*"
+      }
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c4ef8a3c3a39f2877e759141c987929ff785ca51"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c4ef8a3c3a39f2877e759141c987929ff785ca51"
+      },
+      "exact": true,
+      "name": "@capiro/workspace",
+      "packageManager": null,
+      "engines": null,
+      "build": "nest build",
+      "typecheck": "tsc --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {
+        "@capiro/auth": "workspace:*",
+        "@capiro/meriv2-core": "workspace:*",
+        "@capiro/shared": "workspace:*"
+      }
+    },
+    {
+      "path": "packages/shared/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+      },
+      "exact": true,
+      "name": "@capiro/shared",
+      "packageManager": null,
+      "engines": null,
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {}
+    },
+    {
+      "path": "packages/auth/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08"
+      },
+      "exact": true,
+      "name": "@capiro/auth",
+      "packageManager": null,
+      "engines": null,
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {}
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b8469e8303f277ccf029180d011174e0a5e63e44"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b8469e8303f277ccf029180d011174e0a5e63e44"
+      },
+      "exact": true,
+      "name": "@capiro/meriv2-core",
+      "packageManager": null,
+      "engines": null,
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {
+        "@capiro/shared": "workspace:*"
+      }
+    },
+    {
+      "path": "packages/defense-contracts/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02871c2ccf00d583632bbfbe412582404a55e18c"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02871c2ccf00d583632bbfbe412582404a55e18c"
+      },
+      "exact": true,
+      "name": "@capiro/defense-contracts",
+      "packageManager": null,
+      "engines": null,
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {}
+    },
+    {
+      "path": "packages/defense-domain/package.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f35b337f65180b29a7072a41f2a0cff4d03e5b52"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f35b337f65180b29a7072a41f2a0cff4d03e5b52"
+      },
+      "exact": true,
+      "name": "@capiro/defense-domain",
+      "packageManager": null,
+      "engines": null,
+      "build": "tsc -p tsconfig.json",
+      "typecheck": "tsc -p tsconfig.json --noEmit",
+      "postinstall": null,
+      "workspaceDependencies": {
+        "@capiro/shared": "workspace:*"
+      }
+    }
+  ],
+  "installBuildConfigs": [
+    {
+      "path": "apps/api/Dockerfile",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "dcbb443eeccc9ad4adef2899ed1e4552d6d065af"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "dcbb443eeccc9ad4adef2899ed1e4552d6d065af"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "00998e78899becc7dc52818f3f81c2cb88f46f39"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "00998e78899becc7dc52818f3f81c2cb88f46f39"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.e2e.config.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "dc30ffe69eaebc91473183e13e8f846f6f7af3f9"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "dc30ffe69eaebc91473183e13e8f846f6f7af3f9"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.native-runtime-environment.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5682accba9ead35890424577759e84c50ebc7514"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5682accba9ead35890424577759e84c50ebc7514"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/nest-cli.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f068a1e1ced8df87217cd28c62fcae3a3d319b4"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f068a1e1ced8df87217cd28c62fcae3a3d319b4"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.budget-extraction-contract.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7b887dd92103a68b86c56e7bbcce387c92836c37"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7b887dd92103a68b86c56e7bbcce387c92836c37"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.budget-parser-router.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d690d409be044534f860566f0fcfa02d7de4c3b2"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d690d409be044534f860566f0fcfa02d7de4c3b2"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.budget-verification-v1.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "28396d8a073bc64ae6631268ac0a08dea204d040"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "28396d8a073bc64ae6631268ac0a08dea204d040"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.build.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7dd226f439717a3af68152f01118a60b2e8671fd"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7dd226f439717a3af68152f01118a60b2e8671fd"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.defense-budget-ingestion-manifest-v1.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "579711e9690b55a9baf0d5900a53af808c09a712"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "579711e9690b55a9baf0d5900a53af808c09a712"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.defense-research-phase8.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5c1a1514fab78eec6d18f6b3f2668a6f68f5dc2c"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5c1a1514fab78eec6d18f6b3f2668a6f68f5dc2c"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.engagement-phase3-fixtures.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02193f58caee3ff9e7a50926b4d46278084bfe3e"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "02193f58caee3ff9e7a50926b4d46278084bfe3e"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.funding-opportunities.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5aed462bf0736b3ad274391c04babb6cddb68136"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5aed462bf0736b3ad274391c04babb6cddb68136"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.hearings.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7fed6e9b5f9d53836bc7f52138d1c9beb85ff70f"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7fed6e9b5f9d53836bc7f52138d1c9beb85ff70f"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.integration-smoke.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "926614eaf1f28084a1f3c5feb95892f124812bb3"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "926614eaf1f28084a1f3c5feb95892f124812bb3"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.legiwatch-phase7.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5f97b2fe94690b108adf2067b40c83cfa26767b2"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5f97b2fe94690b108adf2067b40c83cfa26767b2"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.memory-governance-backfill.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "3c6e1ca38268cebb93e2aa0150170a885459b98b"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "3c6e1ca38268cebb93e2aa0150170a885459b98b"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.memory-review-phase3.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "044029056a4fc6b3d6a28d3f1d7a01dfa973f488"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "044029056a4fc6b3d6a28d3f1d7a01dfa973f488"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.non-rdte-phase-5.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "eb39ea6eea7dcbf747050d58a62ff3f25227a8a3"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "eb39ea6eea7dcbf747050d58a62ff3f25227a8a3"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-generation.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7ea177091c3c825a1d08c7be4329869e7eec2877"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7ea177091c3c825a1d08c7be4329869e7eec2877"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase1.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "abf0333d346326e318fdf9409025202c17d8f308"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "abf0333d346326e318fdf9409025202c17d8f308"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase2.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6ae596a38c82dfcb1ff2952ec5a71b0b1ef464f0"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6ae596a38c82dfcb1ff2952ec5a71b0b1ef464f0"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase3.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a6fa974fe44d206d5bc0813bf2f44c906ec41083"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a6fa974fe44d206d5bc0813bf2f44c906ec41083"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase4.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "dd449cf61f48675985e988557240c5fbc1775d84"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "dd449cf61f48675985e988557240c5fbc1775d84"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase5.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c8778f2c1351d4f744e8d24cd47cbdcd5a6009a5"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c8778f2c1351d4f744e8d24cd47cbdcd5a6009a5"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.package5.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "677f859f657ce643cbc5e6b4ce9640fe19cce56d"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "677f859f657ce643cbc5e6b4ce9640fe19cce56d"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.package6.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "8aece047fd91e4a3ff70aa5a9bec7b70225b3baf"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "8aece047fd91e4a3ff70aa5a9bec7b70225b3baf"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-phase-a.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "38c4dac5c58f391d61f59f34e22387a550e766a7"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "38c4dac5c58f391d61f59f34e22387a550e766a7"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-phase-f.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "35d782913113a6e6da28391ac472af3a0e9cfcbc"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "35d782913113a6e6da28391ac472af3a0e9cfcbc"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-phase-g.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "85c917dc53388c1d95c3d1b2fb98414c2a1fdca1"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "85c917dc53388c1d95c3d1b2fb98414c2a1fdca1"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-scripts-catalog.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9f8e4e541407bb87ee9ed30759686c24e2bb4dcd"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9f8e4e541407bb87ee9ed30759686c24e2bb4dcd"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-scripts.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "61458916512b629a4399cb7cb466b4a5801e1d85"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "61458916512b629a4399cb7cb466b4a5801e1d85"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.phase6.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "8af75a7e76d0aaa1a0d89a249a92381dcba4137b"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "8af75a7e76d0aaa1a0d89a249a92381dcba4137b"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.phase7.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fff43bf0a796d721750c8e5d09ebcd588d1ba36d"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "fff43bf0a796d721750c8e5d09ebcd588d1ba36d"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.rdte-phase-4.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0be6e215c0e6a475314432667f09f28680456f70"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0be6e215c0e6a475314432667f09f28680456f70"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/api/tsconfig.verification.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0488ff1b53e5da1a47cd86f08ac6c09695b51711"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "0488ff1b53e5da1a47cd86f08ac6c09695b51711"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/Dockerfile",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "095eda0b4c260c22a7aa6043817f1470fbfb4734"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "095eda0b4c260c22a7aa6043817f1470fbfb4734"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/jest.config.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "de20edec8f91ec8ce2af7d5f7e987937194cd937"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "de20edec8f91ec8ce2af7d5f7e987937194cd937"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/jest.setup.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ce2e11302a6b8c71d09a30698bf6ddb9d27f055d"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ce2e11302a6b8c71d09a30698bf6ddb9d27f055d"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/nest-cli.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f068a1e1ced8df87217cd28c62fcae3a3d319b4"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "2f068a1e1ced8df87217cd28c62fcae3a3d319b4"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/tsconfig.build.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6c73a30dc6d6c173b563da558bb498f03b28f84f"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "6c73a30dc6d6c173b563da558bb498f03b28f84f"
+      },
+      "exact": true
+    },
+    {
+      "path": "apps/workspace/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "410e389b6dc669e990526cdb19154a52373d2461"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "410e389b6dc669e990526cdb19154a52373d2461"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/auth/jest.config.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "25d655ec45d4b59efc8edca0ccde27783ec58a1f"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "25d655ec45d4b59efc8edca0ccde27783ec58a1f"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/auth/jest.setup.ts",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ec2350d7d7c6e2bbbf9c91a11540c5743937a8d7"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ec2350d7d7c6e2bbbf9c91a11540c5743937a8d7"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/auth/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7069a40a273757ed9abe4c8eda8d7b9ebd4f6912"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "7069a40a273757ed9abe4c8eda8d7b9ebd4f6912"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-contracts/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9460ae94af000a6643b92829d299fa54858f7840"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9460ae94af000a6643b92829d299fa54858f7840"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/defense-domain/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/jest.config.cjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4516684889bb6e9fa59a27f197c962127e747955"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4516684889bb6e9fa59a27f197c962127e747955"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9"
+      },
+      "exact": true
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cff5b3a8506d1a290987883f0ed773b2118da169"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "cff5b3a8506d1a290987883f0ed773b2118da169"
+      },
+      "exact": true
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58"
+      },
+      "exact": true
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5"
+      },
+      "exact": true
+    },
+    {
+      "path": "tsconfig.base.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+      },
+      "exact": true
+    },
+    {
+      "path": "turbo.json",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf"
+      },
+      "exact": true
+    }
+  ],
+  "postCompositionSourceDeltas": [
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "5025128bb1c20019e458dbfd35501aadc03d7217"
+      }
+    },
+    {
+      "path": "apps/web/Dockerfile.frontend-artifact",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "1df389777949a6df4cc5c8f1eb43e2db4beb9265"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "9e64bd16f929bace9961d10ad8576ecc5d4156ce"
+      }
+    },
+    {
+      "path": "scripts/build-newsletter-release.sh",
+      "peer": null,
+      "current": {
+        "mode": "100755",
+        "type": "blob",
+        "blob": "db7fea14bf7feff409d63a53c3373b3f82a6e97b"
+      }
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "52eb7fb74834a8649fc1814430c10ec32d3de26f"
+      }
+    },
+    {
+      "path": "scripts/ci/context-plane-validation-scope.spec.mjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "57d6b4a6307e01b9ee909be8297b88c080294bb6"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4e4ed24d8c79012ecbbfea8949da32317ba94cf6"
+      }
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "d5394c0af71a63691eb580281b28e3d00bc0f30a"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "65fe60604e650d431c39070aee9f79f45c6f3e10"
+      }
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "857efb18f53f892b8d901f360ad9bb67517939c0"
+      }
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "261bf0aa740250d53805da45005c721b3bf5109e"
+      }
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "4da28e295150897e9e3219f72de63bf44bbaef35"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "8b329c3300accd3bf7878a27f8eac36c26948fd3"
+      }
+    },
+    {
+      "path": "scripts/ci/reviewed-pe-manifest-contract.spec.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "f0e6b059937eef3dce84e3238c5a3b01c4dcb0bb"
+      }
+    },
+    {
+      "path": "scripts/ci/reviewed-source-hygiene.spec.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "56d4f2b1b37e0ae43760b1dedfa6994c3f2f141a"
+      }
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "peer": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ac4d7bbd80307e55a05a5068c4fcaf483ddbcab3"
+      },
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ca0b91c782baa0a5e3cb84a6671236988da98f6e"
+      }
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "b84b4efba2701a377092e73fbf0b8ab06e203437"
+      }
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "ea181f0b3ff34af950594b75591cf7442818be93"
+      }
+    },
+    {
+      "path": "scripts/lib/reviewed-pe-manifest-contract.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "be6d87620ebc28b31c0f9e6c07139681b09cf725"
+      }
+    },
+    {
+      "path": "scripts/lib/reviewed-source-hygiene.mjs",
+      "peer": null,
+      "current": {
+        "mode": "100644",
+        "type": "blob",
+        "blob": "58cbb239565fb4b305b47d5c7d9daf54c75a62af"
+      }
+    }
+  ],
+  "differenceMeaning": "16 artifact/admission/guard/source-CI paths; no PE/install/build operand change; source equality is not actual composed install/build evidence"
+}

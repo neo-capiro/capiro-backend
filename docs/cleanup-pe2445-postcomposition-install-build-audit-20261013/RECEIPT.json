@@ -1,0 +1,36 @@
+{
+  "peer": {
+    "head": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+    "tree": "19ee55e0a411f68b2a7e239544786e7f9987b892"
+  },
+  "current": {
+    "head": "9d84edb5669e9a07d1632a0dbd0aeb256d5a7454",
+    "tree": "1b6978e4760fccfebe5c25636eafcd847a5cb871"
+  },
+  "equality": {
+    "peSourcePathsModesBlobs": 13,
+    "selectedBackendPackages": 8,
+    "installBuildConfigs": 57,
+    "allWorkspaceManifestMetadata": 20,
+    "selectedBackendSourceTreesGitDiffEmpty": true
+  },
+  "postCompositionSourceDeltas": 16,
+  "unavailablePeerReceipts": 5,
+  "peerBytesVerified": 0,
+  "actualInstallBuildQualificationAccepted": false,
+  "actualPeerBuildResultsReproduced": false,
+  "heavyInstallOrNativeExecuted": false,
+  "boundPriorPureReceipt": {
+    "head": "c8693e28abd65d91ba6f38183d4d3e2a0ad89226",
+    "source": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+    "cases": 101,
+    "qualification": "Pure/fake3suites only; exact13 and oldhelper/spec closure identities permit source-level carry, no rerun/native claim"
+  },
+  "currentProfileSourceReceipt": {
+    "head": "0ac13d445a90032272aa2397e25e7a12a93192a9",
+    "source": "f18f918a8103e8e3cb36e47c65d2f6651cb1fd7b",
+    "cases": 100,
+    "qualification": "Source-level owner receipt, actual independent acceptance/root wiring remains separate"
+  },
+  "pending": "Approved peer five-file transfer; verify all provided SHA256 before parsing/extracting; bind exact command/tool/env/lock/selected tar before any result carry"
+}
