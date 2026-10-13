@@ -1,0 +1,30 @@
+{
+  "base": "07e92408d9c396de2003259d125f828cc99c7e2c",
+  "paths": [
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "blob": "d9868f30a0e39acd2893c39643f606d56c2c80bf",
+      "sha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816"
+    },
+    {
+      "path": "scripts/lib/newsletter-static-release-contract.mjs",
+      "blob": "a36aeeda53ef77265ae449d813fd85bcf59b1d8f",
+      "sha256": "5e254d4d1594ac9458c64e39f03d07f5ef0ee6332302ea779cbb2ab25749969d"
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "blob": "4ade69f2bb34f8124b489883776b3c119525fdd2",
+      "sha256": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461"
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "blob": "62760cd00b366294fb2f7debbf68f16a63bc1380",
+      "sha256": "44dbd36e9dcb8f6dbd1354fcd250615afd84d151d150f9523955278d805e6f79"
+    },
+    {
+      "path": "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+      "blob": "f5b6e4b24c654bcf09a7ae0f4844bb9c6b8dddd3",
+      "sha256": "d7baed581ff402f9a86ff9b192848737e62041e0b31f87d3880c38b7ffe54b3a"
+    }
+  ]
+}

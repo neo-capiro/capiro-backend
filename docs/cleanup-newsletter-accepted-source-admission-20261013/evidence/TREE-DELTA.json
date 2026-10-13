@@ -1,0 +1,1626 @@
+{
+  "historical": "7c87678730538958ace9762f824dc3e588bf445b",
+  "candidate": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "changed": [
+    {
+      "path": "apps/web/package.json",
+      "before": {
+        "path": "apps/web/package.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "3aebcc9ee30d21ceb6f56cc98d36d075ebf2b6f6",
+        "size": 1882,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/3aebcc9ee30d21ceb6f56cc98d36d075ebf2b6f6"
+      },
+      "after": {
+        "path": "apps/web/package.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4e6c06863855b4dd514ea195064103cc054ff4aa",
+        "size": 1891,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/4e6c06863855b4dd514ea195064103cc054ff4aa"
+      }
+    },
+    {
+      "path": "apps/web/playwright.config.ts",
+      "before": {
+        "path": "apps/web/playwright.config.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "1f8c3d362e2f1e12dbb05b87017d500027e4e0fe",
+        "size": 1042,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/1f8c3d362e2f1e12dbb05b87017d500027e4e0fe"
+      },
+      "after": {
+        "path": "apps/web/playwright.config.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "1f575a2f50d72bd80494ecb545a9500d46773eb8",
+        "size": 1075,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/1f575a2f50d72bd80494ecb545a9500d46773eb8"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/engagement/newsletter-route.ts",
+      "before": {
+        "path": "apps/web/src/features/modules/engagement/newsletter-route.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ee27f2bbc733e796130709cc5a5e473fb93e4fbb",
+        "size": 1708,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ee27f2bbc733e796130709cc5a5e473fb93e4fbb"
+      },
+      "after": {
+        "path": "apps/web/src/features/modules/engagement/newsletter-route.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "88ca46e9a346ddafcff05a19c0030e7cfb2cb77b",
+        "size": 1817,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/88ca46e9a346ddafcff05a19c0030e7cfb2cb77b"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/README.md",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "95a50f1763d14bfa269d33d9c6cccab9dd8d2c63",
+        "size": 2713,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/95a50f1763d14bfa269d33d9c6cccab9dd8d2c63"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichDocumentActions.tsx",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichDocumentActions.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "54ddffa25f1cd7513fb05672671bb294c1b58ab8",
+        "size": 6930,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/54ddffa25f1cd7513fb05672671bb294c1b58ab8"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichNewsletterEditor.tsx",
+      "before": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichNewsletterEditor.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "91e088a4f8ea430f5ecae49dc3babba75317d0a5",
+        "size": 6504,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/91e088a4f8ea430f5ecae49dc3babba75317d0a5"
+      },
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichNewsletterEditor.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "9a2550199cfc951df12537ee3164697a4df6845d",
+        "size": 6203,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/9a2550199cfc951df12537ee3164697a4df6845d"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichPreview.tsx",
+      "before": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichPreview.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "182aa871fcb6b53a096a7464640071c5be60e8c0",
+        "size": 2897,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/182aa871fcb6b53a096a7464640071c5be60e8c0"
+      },
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/RichPreview.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6b1eff26af2eb660aa3d0bdb80a64eabbf104d26",
+        "size": 4471,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/6b1eff26af2eb660aa3d0bdb80a64eabbf104d26"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/document-controller.test.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/document-controller.test.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2e9412c8101313e19f46634c0a1e2b021ecfc172",
+        "size": 23464,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/2e9412c8101313e19f46634c0a1e2b021ecfc172"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/document-controller.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/document-controller.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "77e29f2a20c942cc643dc612a42768220d74b7d1",
+        "size": 11461,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/77e29f2a20c942cc643dc612a42768220d74b7d1"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/draft.ts",
+      "before": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/draft.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "68157e3340ad48f246103deec7898e5674e163ad",
+        "size": 2152,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/68157e3340ad48f246103deec7898e5674e163ad"
+      },
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/draft.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "00ecdc96286935d8d39fbcc4ecf9ebb6bca72f08",
+        "size": 2166,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/00ecdc96286935d8d39fbcc4ecf9ebb6bca72f08"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/rich-newsletter.module.css",
+      "before": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/rich-newsletter.module.css",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "581ebf8979b4989aac2e26acb2a14711e887b214",
+        "size": 2155,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/581ebf8979b4989aac2e26acb2a14711e887b214"
+      },
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/rich-newsletter.module.css",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "f7d9c96701411e9ce5a39591f9656280a43d22e9",
+        "size": 2277,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/f7d9c96701411e9ce5a39591f9656280a43d22e9"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/use-rich-document.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/use-rich-document.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a05ba797e25736dd8ef1a82bfd84cef8d464eed4",
+        "size": 1001,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/a05ba797e25736dd8ef1a82bfd84cef8d464eed4"
+      }
+    },
+    {
+      "path": "apps/web/src/features/modules/workspace/rich-newsletter/write-journal.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/modules/workspace/rich-newsletter/write-journal.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "63b7c734e141797248f92ee48bc6e3a70d9d1472",
+        "size": 4675,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/63b7c734e141797248f92ee48bc6e3a70d9d1472"
+      }
+    },
+    {
+      "path": "apps/web/src/features/portfolio/relationships/email/RichMailEditor.tsx",
+      "before": {
+        "path": "apps/web/src/features/portfolio/relationships/email/RichMailEditor.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ebcaf4b241edb02f17ed52aae7e2b2d34cf14159",
+        "size": 4507,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ebcaf4b241edb02f17ed52aae7e2b2d34cf14159"
+      },
+      "after": {
+        "path": "apps/web/src/features/portfolio/relationships/email/RichMailEditor.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5186370222e0e920c3a1f6836f4b700daf382ff6",
+        "size": 4621,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/5186370222e0e920c3a1f6836f4b700daf382ff6"
+      }
+    },
+    {
+      "path": "apps/web/src/features/portfolio/relationships/email/rich-mail-selection.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/features/portfolio/relationships/email/rich-mail-selection.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "81dc83374c0e8fdde98256de3f10b1d951270c30",
+        "size": 1060,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/81dc83374c0e8fdde98256de3f10b1d951270c30"
+      }
+    },
+    {
+      "path": "apps/web/src/shared/capiro/operations/newsletter-routing.ts",
+      "before": {
+        "path": "apps/web/src/shared/capiro/operations/newsletter-routing.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cc9da4b09423efe6468fc3546d7f326936f5ba62",
+        "size": 567,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/cc9da4b09423efe6468fc3546d7f326936f5ba62"
+      },
+      "after": {
+        "path": "apps/web/src/shared/capiro/operations/newsletter-routing.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "58b28b2ccbf242d1c4b1347bfc6bea7fbdcf3428",
+        "size": 702,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/58b28b2ccbf242d1c4b1347bfc6bea7fbdcf3428"
+      }
+    },
+    {
+      "path": "apps/web/src/shared/capiro/operations/rich-newsletter.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/shared/capiro/operations/rich-newsletter.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d9984532ad2286b356971d03403de9122a8523a7",
+        "size": 4619,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d9984532ad2286b356971d03403de9122a8523a7"
+      }
+    },
+    {
+      "path": "apps/web/src/shared/capiro/operations/workspace.ts",
+      "before": {
+        "path": "apps/web/src/shared/capiro/operations/workspace.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "feaf1e215c0fc80802d77a74507767560e9397ca",
+        "size": 876,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/feaf1e215c0fc80802d77a74507767560e9397ca"
+      },
+      "after": {
+        "path": "apps/web/src/shared/capiro/operations/workspace.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "fe62955aed6288b11590a0903553946b4e110211",
+        "size": 969,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/fe62955aed6288b11590a0903553946b4e110211"
+      }
+    },
+    {
+      "path": "apps/web/src/shared/capiro/rich-newsletter.test.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/shared/capiro/rich-newsletter.test.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c4205a6dcca0d851b502eabe5b3dc917c2b9ce77",
+        "size": 12244,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/c4205a6dcca0d851b502eabe5b3dc917c2b9ce77"
+      }
+    },
+    {
+      "path": "apps/web/src/shared/capiro/rich-newsletter.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/src/shared/capiro/rich-newsletter.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "948311829f447633f9e2ec4b8a9b9d1552825393",
+        "size": 3887,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/948311829f447633f9e2ec4b8a9b9d1552825393"
+      }
+    },
+    {
+      "path": "apps/web/test/browser/newsletter-document-fixtures.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/test/browser/newsletter-document-fixtures.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7bd4c0400545b731cb3e9288162952aed96aec71",
+        "size": 6410,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7bd4c0400545b731cb3e9288162952aed96aec71"
+      }
+    },
+    {
+      "path": "apps/web/test/browser/newsletter-document-lifecycle.spec.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/test/browser/newsletter-document-lifecycle.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "890c49b318c98901e48696f46b819a306f00ae31",
+        "size": 11143,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/890c49b318c98901e48696f46b819a306f00ae31"
+      }
+    },
+    {
+      "path": "apps/web/test/browser/newsletter-document-navigation.spec.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/test/browser/newsletter-document-navigation.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c17352e8dbf90dd30cc84fab92496cdc5ffe355f",
+        "size": 8411,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/c17352e8dbf90dd30cc84fab92496cdc5ffe355f"
+      }
+    },
+    {
+      "path": "apps/web/tests/browser/mail-rich-compose.spec.ts",
+      "before": {
+        "path": "apps/web/tests/browser/mail-rich-compose.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a6d93141b222474d880005a8bbbc4506b23f4fd6",
+        "size": 14236,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/a6d93141b222474d880005a8bbbc4506b23f4fd6"
+      },
+      "after": {
+        "path": "apps/web/tests/browser/mail-rich-compose.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "b01997ffa13b25e52a73a45cb3e53ec9528edf30",
+        "size": 15736,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/b01997ffa13b25e52a73a45cb3e53ec9528edf30"
+      }
+    },
+    {
+      "path": "apps/web/tests/browser/profile-identity-layout.spec.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/tests/browser/profile-identity-layout.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e7b01b257c865a3d9cf24ee79640e151bee0b56d",
+        "size": 2375,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/e7b01b257c865a3d9cf24ee79640e151bee0b56d"
+      }
+    },
+    {
+      "path": "apps/web/tests/browser/profile-tools-integration.spec.ts",
+      "before": {
+        "path": "apps/web/tests/browser/profile-tools-integration.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5cfa8f457491c8349c718a6301170c695c4896de",
+        "size": 4757,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/5cfa8f457491c8349c718a6301170c695c4896de"
+      },
+      "after": {
+        "path": "apps/web/tests/browser/profile-tools-integration.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cee4a2e7a3e3254d06f7b1f10cdeb898f354be7f",
+        "size": 4864,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/cee4a2e7a3e3254d06f7b1f10cdeb898f354be7f"
+      }
+    },
+    {
+      "path": "apps/web/tests/browser/rich-mail-selection-fixture.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/tests/browser/rich-mail-selection-fixture.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a837dca93e84ae4b431fba8ec2936f3b96bb47fc",
+        "size": 1060,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/a837dca93e84ae4b431fba8ec2936f3b96bb47fc"
+      }
+    },
+    {
+      "path": "apps/web/tests/rich-mail-selection.test.ts",
+      "before": null,
+      "after": {
+        "path": "apps/web/tests/rich-mail-selection.test.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8d710bb2a9317211dff9a9b91cebeb5ef1e72231",
+        "size": 3768,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/8d710bb2a9317211dff9a9b91cebeb5ef1e72231"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/.gitattributes",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/.gitattributes",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "796f307cb9f7911cc5553b9b0391aa4c417d7e65",
+        "size": 138,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/796f307cb9f7911cc5553b9b0391aa4c417d7e65"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/IMPLEMENTATION.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/IMPLEMENTATION.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "bfaba1ff26d654644442ed2d1e2d4304390214f3",
+        "size": 7229,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/bfaba1ff26d654644442ed2d1e2d4304390214f3"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/AFTER-BUNDLE-MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/AFTER-BUNDLE-MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d28b81afdc281fd30c15096e56a6f8584e7a94aa",
+        "size": 70025,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d28b81afdc281fd30c15096e56a6f8584e7a94aa"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/ASSERTION-MAPPING.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/ASSERTION-MAPPING.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a0fa3f62dd7fa38dd4fad23cf7f99d2affb9f7f2",
+        "size": 1764,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/a0fa3f62dd7fa38dd4fad23cf7f99d2affb9f7f2"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/BEFORE-BUNDLE-MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/BEFORE-BUNDLE-MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "98855f7b2c80825a1c7a8a6b1aae73537dcf7757",
+        "size": 67697,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/98855f7b2c80825a1c7a8a6b1aae73537dcf7757"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/LEASE-RELEASE.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/LEASE-RELEASE.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e17e26ed897b7be7b30b166eb63b4359637ce7f7",
+        "size": 88,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/e17e26ed897b7be7b30b166eb63b4359637ce7f7"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a21e4c8cc49af545b5e4df0858f533ea0829ff17",
+        "size": 8335,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/a21e4c8cc49af545b5e4df0858f533ea0829ff17"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/PLAN.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/PLAN.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5cf5e6683b8600f544a7ae553c70b8a4d727aa93",
+        "size": 868,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/5cf5e6683b8600f544a7ae553c70b8a4d727aa93"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/REPORT.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/REPORT.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "56662332224459cc2967a0735ebf7fa740dcee6f",
+        "size": 6238,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/56662332224459cc2967a0735ebf7fa740dcee6f"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/SOURCE-BINDING.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/SOURCE-BINDING.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "67e59eb810a7002e34b48d9ed5ee5a4b500fa872",
+        "size": 15422,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/67e59eb810a7002e34b48d9ed5ee5a4b500fa872"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/TEST-SOURCE-REVIEW.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/TEST-SOURCE-REVIEW.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "30b313fbceb81fb85a51c629fb3a23789031796c",
+        "size": 3210,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/30b313fbceb81fb85a51c629fb3a23789031796c"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/before-server-closed.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/before-server-closed.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8dab86249b6b64db9aaac26faa3ff20b3103397d",
+        "size": 91,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/8dab86249b6b64db9aaac26faa3ff20b3103397d"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/diff-check.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/diff-check.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "size": 0,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/discovery.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/discovery.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "be48ec1ac3e30142cdd953d69ca416f61f9d43c0",
+        "size": 1624,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/be48ec1ac3e30142cdd953d69ca416f61f9d43c0"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/.last-run.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/.last-run.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ce94a7a82aef3ae238856873f1ac8517ed9b0cfe",
+        "size": 145,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ce94a7a82aef3ae238856873f1ac8517ed9b0cfe"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-3d2dc-ory-navigation-and-late-503/error-context.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-3d2dc-ory-navigation-and-late-503/error-context.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "26d5bffea30ee00215d19dd2f5b507f2f000142e",
+        "size": 19535,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/26d5bffea30ee00215d19dd2f5b507f2f000142e"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-3d2dc-ory-navigation-and-late-503/test-failed-1.png",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-3d2dc-ory-navigation-and-late-503/test-failed-1.png",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "3346a4244c340da47eb93be1c903c2a7d1f1ffa0",
+        "size": 135511,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/3346a4244c340da47eb93be1c903c2a7d1f1ffa0"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-3d2dc-ory-navigation-and-late-503/trace.zip",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-3d2dc-ory-navigation-and-late-503/trace.zip",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "9fb647d1f063ef0a644c0faa0da053709d2ca302",
+        "size": 860433,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/9fb647d1f063ef0a644c0faa0da053709d2ca302"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-e95a8-ory-navigation-and-late-200/error-context.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-e95a8-ory-navigation-and-late-200/error-context.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "0e6b7239a6011e93328d951c9cde6f47fd0c694a",
+        "size": 19535,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/0e6b7239a6011e93328d951c9cde6f47fd0c694a"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-e95a8-ory-navigation-and-late-200/test-failed-1.png",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-e95a8-ory-navigation-and-late-200/test-failed-1.png",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "3346a4244c340da47eb93be1c903c2a7d1f1ffa0",
+        "size": 135511,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/3346a4244c340da47eb93be1c903c2a7d1f1ffa0"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-e95a8-ory-navigation-and-late-200/trace.zip",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-artifacts/newsletter-document-naviga-e95a8-ory-navigation-and-late-200/trace.zip",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7187e9bf0bf0b9553c5f024c0d0f0f2e0d817183",
+        "size": 889467,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7187e9bf0bf0b9553c5f024c0d0f0f2e0d817183"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-browser.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-browser.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cfa59a39477ec6d38645a0f19000102196b71a6d",
+        "size": 7712,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/cfa59a39477ec6d38645a0f19000102196b71a6d"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-results.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-results.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "189a3a0226a564214b5853bc7af304a8421a20b4",
+        "size": 19896,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/189a3a0226a564214b5853bc7af304a8421a20b4"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-source/newsletter-document-fixtures.ts",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-source/newsletter-document-fixtures.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7bd4c0400545b731cb3e9288162952aed96aec71",
+        "size": 6410,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7bd4c0400545b731cb3e9288162952aed96aec71"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-source/newsletter-document-lifecycle.spec.ts",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-source/newsletter-document-lifecycle.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7d66bff10e13ca1b491d3519bde820519446d89f",
+        "size": 10245,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7d66bff10e13ca1b491d3519bde820519446d89f"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/first-source/newsletter-document-navigation.spec.ts",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/first-source/newsletter-document-navigation.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4a7aed947b09b7836854cf744286df2c4a6ed793",
+        "size": 8183,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/4a7aed947b09b7836854cf744286df2c4a6ed793"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/format-check.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/format-check.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4aa0d16e7a0ff5c16269bf45771cebe89cc2e81d",
+        "size": 66,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/4aa0d16e7a0ff5c16269bf45771cebe89cc2e81d"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/green-artifacts/.last-run.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/green-artifacts/.last-run.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cbcc1fbac11a74b608b2b3edc3a2ffd6ab639cb2",
+        "size": 45,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/cbcc1fbac11a74b608b2b3edc3a2ffd6ab639cb2"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/green-browser.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/green-browser.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8fecd53201444ad4f2ac3967f6f371cdb11508f3",
+        "size": 2247,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/8fecd53201444ad4f2ac3967f6f371cdb11508f3"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/green-results.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/green-results.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "1b7bbc8bd1333628b79063be27105c6d99b4aed9",
+        "size": 15420,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/1b7bbc8bd1333628b79063be27105c6d99b4aed9"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/green-server.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/green-server.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "93e246e3d20203ccd314bc5aecb79c282bd5a9c6",
+        "size": 71,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/93e246e3d20203ccd314bc5aecb79c282bd5a9c6"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/green-server.mjs",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/green-server.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d1fffb5e385acf439e22ab68ce5ed261194bfe6c",
+        "size": 1843,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d1fffb5e385acf439e22ab68ce5ed261194bfe6c"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/green.config.mjs",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/green.config.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "9aa5eb8a6dd3b1a409f0184f70592a7b6adf0356",
+        "size": 520,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/9aa5eb8a6dd3b1a409f0184f70592a7b6adf0356"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-artifacts/.last-run.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-artifacts/.last-run.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cbcc1fbac11a74b608b2b3edc3a2ffd6ab639cb2",
+        "size": 45,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/cbcc1fbac11a74b608b2b3edc3a2ffd6ab639cb2"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-browser.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-browser.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7f41f32024d61c2201cfc625df38ed983312eece",
+        "size": 383,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7f41f32024d61c2201cfc625df38ed983312eece"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-diagnostic.spec.ts",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-diagnostic.spec.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "035f0a3c230cc15a8e2fdec2baf688d15f491afc",
+        "size": 2222,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/035f0a3c230cc15a8e2fdec2baf688d15f491afc"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-inspection.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-inspection.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5c6dd61cbba43140242bc0d8953305ea378e562f",
+        "size": 6690,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/5c6dd61cbba43140242bc0d8953305ea378e562f"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/.last-run.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/.last-run.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "9e2ca1b7b19b00785d1f99a35f3f0c8eb16f88d5",
+        "size": 96,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/9e2ca1b7b19b00785d1f99a35f3f0c8eb16f88d5"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/newsletter-document-lifecy-4d494-TML-without-remote-requests/error-context.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/newsletter-document-lifecy-4d494-TML-without-remote-requests/error-context.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7bc302013dca1f0e3c0c1c3546968e01f4858af2",
+        "size": 18303,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7bc302013dca1f0e3c0c1c3546968e01f4858af2"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/newsletter-document-lifecy-4d494-TML-without-remote-requests/test-failed-1.png",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/newsletter-document-lifecy-4d494-TML-without-remote-requests/test-failed-1.png",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "52bb424f7319164481af61dbd7cc6872f6b48cdb",
+        "size": 137380,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/52bb424f7319164481af61dbd7cc6872f6b48cdb"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/newsletter-document-lifecy-4d494-TML-without-remote-requests/trace.zip",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-artifacts/newsletter-document-lifecy-4d494-TML-without-remote-requests/trace.zip",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "80c17ec39c7ffe941f4a8c151bb1f3631ffac270",
+        "size": 761820,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/80c17ec39c7ffe941f4a8c151bb1f3631ffac270"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-results.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red-results.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "95342e5c8bc5f214c39aec8aad44856c63822360",
+        "size": 7162,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/95342e5c8bc5f214c39aec8aad44856c63822360"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red.config.mjs",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red.config.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c66a005884d47f41e8a8ce25af2640535ebc5d71",
+        "size": 554,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/c66a005884d47f41e8a8ce25af2640535ebc5d71"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-regression-red.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "f43ff657563a09aee506e569b61429a07fe75e4b",
+        "size": 3079,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/f43ff657563a09aee506e569b61429a07fe75e4b"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history-results.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history-results.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "dcfaef8e8b85d71fe384aad4d8566d6cc34ea39f",
+        "size": 12267,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/dcfaef8e8b85d71fe384aad4d8566d6cc34ea39f"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/history.config.mjs",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/history.config.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "dc151938c68477d797674536955aa17420cfa8aa",
+        "size": 466,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/dc151938c68477d797674536955aa17420cfa8aa"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/playwright.config.mjs",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/playwright.config.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "12491c359a9f9bdb933794d97302697a4fb0d568",
+        "size": 520,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/12491c359a9f9bdb933794d97302697a4fb0d568"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/server.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/server.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "93e246e3d20203ccd314bc5aecb79c282bd5a9c6",
+        "size": 71,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/93e246e3d20203ccd314bc5aecb79c282bd5a9c6"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/development-browser/server.mjs",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/development-browser/server.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c05a3fc380c41d0080be80feefb646e6b75ebf1f",
+        "size": 1831,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/c05a3fc380c41d0080be80feefb646e6b75ebf1f"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/APPLIED-SIZE-REVIEWS.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/APPLIED-SIZE-REVIEWS.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6531a26ee521e23e8976e625696675a1c210a438",
+        "size": 8113,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/6531a26ee521e23e8976e625696675a1c210a438"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/README.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "454a949e3f5f2af64d60502d61d26bf7dda0092e",
+        "size": 1340,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/454a949e3f5f2af64d60502d61d26bf7dda0092e"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/boundary/MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/boundary/MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2063de951846bc4272dd271b86e63ce0e557034c",
+        "size": 2629,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/2063de951846bc4272dd271b86e63ce0e557034c"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/boundary/REVIEW.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/boundary/REVIEW.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "da1a5e691d000ee9a96e5c2590654b2c4f747e21",
+        "size": 8224,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/da1a5e691d000ee9a96e5c2590654b2c4f747e21"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "fd33372da999a2fe44fb7d4b58c99b0b634c4c79",
+        "size": 7700,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/fd33372da999a2fe44fb7d4b58c99b0b634c4c79"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/REVIEW.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/REVIEW.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7dc1942d87539c645db2f2b0879b63194aec2ad9",
+        "size": 7323,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7dc1942d87539c645db2f2b0879b63194aec2ad9"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/SOURCE-VERIFICATION.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/SOURCE-VERIFICATION.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "257369d7e8779982127e62b3f32f117655bd7425",
+        "size": 6556,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/257369d7e8779982127e62b3f32f117655bd7425"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/STRUCTURE-REVIEW.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/lifecycle/STRUCTURE-REVIEW.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "42919a2c445d1d94aa1bd2910224f7ed708cac21",
+        "size": 8499,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/42919a2c445d1d94aa1bd2910224f7ed708cac21"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/package/MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/package/MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "00a7c6640bfec314616759beff7642426adac129",
+        "size": 41903,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/00a7c6640bfec314616759beff7642426adac129"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/package/REVIEW.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/package/REVIEW.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "33d0317ae66eccd86f3192566fbfd80eb42307c6",
+        "size": 12816,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/33d0317ae66eccd86f3192566fbfd80eb42307c6"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/BROWSER-TEST-STRUCTURE.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/BROWSER-TEST-STRUCTURE.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "388472f6aeb678113be9f1ac681995ee7c64fdf1",
+        "size": 3324,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/388472f6aeb678113be9f1ac681995ee7c64fdf1"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/MANIFEST.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/MANIFEST.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d0624f628e678cc7ffca4c9f787c7a3d65dd5a8a",
+        "size": 1831,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d0624f628e678cc7ffca4c9f787c7a3d65dd5a8a"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RECEIPT.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RECEIPT.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5af2617af023db308575bd774c73438961e2314b",
+        "size": 9022,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/5af2617af023db308575bd774c73438961e2314b"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/REVIEW.md",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/REVIEW.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "610a5f87caf1d507bf6e9f62570afca2a89a5b4b",
+        "size": 5634,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/610a5f87caf1d507bf6e9f62570afca2a89a5b4b"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RichPreview.before.tsx",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RichPreview.before.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ee7f6caa1ea6aaba4ef1bd1a446293f4df804976",
+        "size": 4263,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ee7f6caa1ea6aaba4ef1bd1a446293f4df804976"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RichPreview.diff",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RichPreview.diff",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c520330ea3b7506b0314a4e34276d91349b48b02",
+        "size": 684,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/c520330ea3b7506b0314a4e34276d91349b48b02"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RichPreview.reviewed.tsx",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/RichPreview.reviewed.tsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6b1eff26af2eb660aa3d0bdb80a64eabbf104d26",
+        "size": 4471,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/6b1eff26af2eb660aa3d0bdb80a64eabbf104d26"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/SIZE-BINDINGS.json",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/SIZE-BINDINGS.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "bdb32dfbd224eab5af9e88ef511545c2c2c1078b",
+        "size": 13721,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/bdb32dfbd224eab5af9e88ef511545c2c2c1078b"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/lifecycle-test-delta.diff",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/lifecycle-test-delta.diff",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "22022a0dbaedbc46831455acb9936a9d10e4bfaa",
+        "size": 2124,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/22022a0dbaedbc46831455acb9936a9d10e4bfaa"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/navigation-test-delta.diff",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/navigation-test-delta.diff",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "694be7618af1805e5151a9bcd0b2db2e111813c7",
+        "size": 1911,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/694be7618af1805e5151a9bcd0b2db2e111813c7"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/verification.log",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/verification.log",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2b637df0df982caddaa74aa175a91a21ac51c82c",
+        "size": 169,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/2b637df0df982caddaa74aa175a91a21ac51c82c"
+      }
+    },
+    {
+      "path": "docs/newsletter-receiving-20261013/reviews/preview-history/verify_static.py",
+      "before": null,
+      "after": {
+        "path": "docs/newsletter-receiving-20261013/reviews/preview-history/verify_static.py",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8a4bf98dff5c6cee028d108cb1be19b02e45bac8",
+        "size": 7505,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/8a4bf98dff5c6cee028d108cb1be19b02e45bac8"
+      }
+    },
+    {
+      "path": "docs/shipping-browser-correction-20261013/IMPLEMENTATION.md",
+      "before": null,
+      "after": {
+        "path": "docs/shipping-browser-correction-20261013/IMPLEMENTATION.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "003d643fcb527ae883f8054f00bc68453aa593b3",
+        "size": 5154,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/003d643fcb527ae883f8054f00bc68453aa593b3"
+      }
+    },
+    {
+      "path": "docs/shipping-browser-correction-20261013/reviews/mail-READY-RUNTIME-SIZE-RECORDS.json",
+      "before": null,
+      "after": {
+        "path": "docs/shipping-browser-correction-20261013/reviews/mail-READY-RUNTIME-SIZE-RECORDS.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "dfb67e200ffc840c963527493998320ce90ffa70",
+        "size": 1316,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/dfb67e200ffc840c963527493998320ce90ffa70"
+      }
+    },
+    {
+      "path": "docs/shipping-browser-correction-20261013/reviews/mail-TEST-SIZE-REVIEW.json",
+      "before": null,
+      "after": {
+        "path": "docs/shipping-browser-correction-20261013/reviews/mail-TEST-SIZE-REVIEW.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e9cbe5ec6d7bef294b77c3ba0feeb84bc22bd15f",
+        "size": 1837,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/e9cbe5ec6d7bef294b77c3ba0feeb84bc22bd15f"
+      }
+    },
+    {
+      "path": "docs/shipping-browser-correction-20261013/reviews/profile-REVIEW.md",
+      "before": null,
+      "after": {
+        "path": "docs/shipping-browser-correction-20261013/reviews/profile-REVIEW.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "0bf32f3ebfa1d6793008b95abf64bd38ef94d1fd",
+        "size": 4897,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/0bf32f3ebfa1d6793008b95abf64bd38ef94d1fd"
+      }
+    },
+    {
+      "path": "package-lock.json",
+      "before": {
+        "path": "package-lock.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "03ef917e000b57de62690c83cc991c36cbcc293b",
+        "size": 511299,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/03ef917e000b57de62690c83cc991c36cbcc293b"
+      },
+      "after": {
+        "path": "package-lock.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ccbdfb8bceae9217662d7c0e40038d8c534b411d",
+        "size": 511326,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ccbdfb8bceae9217662d7c0e40038d8c534b411d"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/README.md",
+      "before": {
+        "path": "packages/qualification-newsletter/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "71c232de4296a4f6a5bf205d163a93033bb457df",
+        "size": 2264,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/71c232de4296a4f6a5bf205d163a93033bb457df"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "185e14aefc660db979b1a111be0b897b02d04ad8",
+        "size": 6889,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/185e14aefc660db979b1a111be0b897b02d04ad8"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/browser-check.mjs",
+      "before": {
+        "path": "packages/qualification-newsletter/browser-check.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "0467e12955bfed5f61769f00775a94a13ceedf3b",
+        "size": 5013,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/0467e12955bfed5f61769f00775a94a13ceedf3b"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/browser-check.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "46e0ca694fc997784c7082ba349672bb5d6fb1a2",
+        "size": 6196,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/46e0ca694fc997784c7082ba349672bb5d6fb1a2"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/browser-entry.mjs",
+      "before": {
+        "path": "packages/qualification-newsletter/browser-entry.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cd3fd34144c6d3356b9cc7552b66469406eb363c",
+        "size": 361,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/cd3fd34144c6d3356b9cc7552b66469406eb363c"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/browser-entry.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ea2f51ebe44ef4c9b67a07a8de45146dd2b9c6fb",
+        "size": 798,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ea2f51ebe44ef4c9b67a07a8de45146dd2b9c6fb"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/declarations.mjs",
+      "before": {
+        "path": "packages/qualification-newsletter/declarations.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d179d040d3b368bdb96a9f06ae0a20551c641a0f",
+        "size": 3871,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d179d040d3b368bdb96a9f06ae0a20551c641a0f"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/declarations.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "3d212eefc02c60522649c80ee3210cdd22501d4f",
+        "size": 4240,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/3d212eefc02c60522649c80ee3210cdd22501d4f"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/fixtures/PUBLIC-ENTRY-BINDINGS.json",
+      "before": {
+        "path": "packages/qualification-newsletter/fixtures/PUBLIC-ENTRY-BINDINGS.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d192fea428f00adc08f78f3edfd1132a3bffaa39",
+        "size": 2510,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d192fea428f00adc08f78f3edfd1132a3bffaa39"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/fixtures/PUBLIC-ENTRY-BINDINGS.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "09e53ccf83d55a670d1be0dd59e2821d45180d7f",
+        "size": 3074,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/09e53ccf83d55a670d1be0dd59e2821d45180d7f"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/fixtures/RECEIVING-FIXTURE-BINDINGS.json",
+      "before": null,
+      "after": {
+        "path": "packages/qualification-newsletter/fixtures/RECEIVING-FIXTURE-BINDINGS.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "fd558504c23df5d62c11d9a9a6508923ab8dbf26",
+        "size": 2893,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/fd558504c23df5d62c11d9a9a6508923ab8dbf26"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/fixtures/newsletter-receiving-corpus.cjs",
+      "before": null,
+      "after": {
+        "path": "packages/qualification-newsletter/fixtures/newsletter-receiving-corpus.cjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6caecdb1007f8802acebf7959b355b28c23d73df",
+        "size": 33583,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/6caecdb1007f8802acebf7959b355b28c23d73df"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/fixtures/receiving-negative.ts",
+      "before": null,
+      "after": {
+        "path": "packages/qualification-newsletter/fixtures/receiving-negative.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "3e0e31c9a35069eca6740db6b1eae73633c3ef25",
+        "size": 788,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/3e0e31c9a35069eca6740db6b1eae73633c3ef25"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/fixtures/receiving-positive.ts",
+      "before": null,
+      "after": {
+        "path": "packages/qualification-newsletter/fixtures/receiving-positive.ts",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7fc24275b1b135a406774294954b1622839cb4f2",
+        "size": 3854,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/7fc24275b1b135a406774294954b1622839cb4f2"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/package.json",
+      "before": {
+        "path": "packages/qualification-newsletter/package.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8ece4471ef9cc946b5891cb4a059abe76acee91a",
+        "size": 648,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/8ece4471ef9cc946b5891cb4a059abe76acee91a"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/package.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d5be2e8d2cda727027d93740e71763bdfa69d2ac",
+        "size": 657,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/d5be2e8d2cda727027d93740e71763bdfa69d2ac"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/public-namespace.mjs",
+      "before": null,
+      "after": {
+        "path": "packages/qualification-newsletter/public-namespace.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "016909597f87c4fc61c00cc517a9109180e40900",
+        "size": 2294,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/016909597f87c4fc61c00cc517a9109180e40900"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/qualification.test.mjs",
+      "before": {
+        "path": "packages/qualification-newsletter/qualification.test.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "73e19511bea7eb6ef0b0ec571ff98eef26351a8f",
+        "size": 2963,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/73e19511bea7eb6ef0b0ec571ff98eef26351a8f"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/qualification.test.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e660200dd0953884381fc38522d2a811e3e9c45d",
+        "size": 5078,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/e660200dd0953884381fc38522d2a811e3e9c45d"
+      }
+    },
+    {
+      "path": "packages/qualification-newsletter/tsconfig.json",
+      "before": {
+        "path": "packages/qualification-newsletter/tsconfig.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "da2741854e2fb5f4e38ef7478efdcd4328d0a129",
+        "size": 311,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/da2741854e2fb5f4e38ef7478efdcd4328d0a129"
+      },
+      "after": {
+        "path": "packages/qualification-newsletter/tsconfig.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a733010d2ff62eec43a43844fa54a71a8cdedbf4",
+        "size": 345,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/a733010d2ff62eec43a43844fa54a71a8cdedbf4"
+      }
+    },
+    {
+      "path": "scripts/architecture/reviewed-size-findings.json",
+      "before": {
+        "path": "scripts/architecture/reviewed-size-findings.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ef8ee4659cefdb8656761b068881f9bf3754da66",
+        "size": 133284,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ef8ee4659cefdb8656761b068881f9bf3754da66"
+      },
+      "after": {
+        "path": "scripts/architecture/reviewed-size-findings.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "466f7ed6f45f966c943e8a2b4b9745e0a9d4bfe7",
+        "size": 141743,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/466f7ed6f45f966c943e8a2b4b9745e0a9d4bfe7"
+      }
+    },
+    {
+      "path": "vendor/README.md",
+      "before": {
+        "path": "vendor/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ff79e869cad2deae4c257079c97b1151a1349012",
+        "size": 2263,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/ff79e869cad2deae4c257079c97b1151a1349012"
+      },
+      "after": {
+        "path": "vendor/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "894d96e6b752b7cc50382300e30eeea6dc13b83a",
+        "size": 2869,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/894d96e6b752b7cc50382300e30eeea6dc13b83a"
+      }
+    },
+    {
+      "path": "vendor/capiro-shared-0.0.0-38fec5c8.tgz",
+      "before": null,
+      "after": {
+        "path": "vendor/capiro-shared-0.0.0-38fec5c8.tgz",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "df067ad7e9a96125a33353aad50b8dabbde9e206",
+        "size": 532178,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/df067ad7e9a96125a33353aad50b8dabbde9e206"
+      }
+    },
+    {
+      "path": "vendor/newsletter-public-packages.json",
+      "before": {
+        "path": "vendor/newsletter-public-packages.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8c73593ac7c1a24995442ab1cee325501a2ed278",
+        "size": 1052,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/8c73593ac7c1a24995442ab1cee325501a2ed278"
+      },
+      "after": {
+        "path": "vendor/newsletter-public-packages.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "886c8f2b690ddabc59d270ac7be6a1a0706579ff",
+        "size": 2172,
+        "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/blobs/886c8f2b690ddabc59d270ac7be6a1a0706579ff"
+      }
+    }
+  ]
+}

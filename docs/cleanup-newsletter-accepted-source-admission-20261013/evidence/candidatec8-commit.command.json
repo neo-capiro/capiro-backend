@@ -1,0 +1,11 @@
+{
+  "head": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capiro-frontend/git/commits/c8aa693e884de86001d2fc04fbb60d48db09341c"
+  ],
+  "exit": 0,
+  "stdoutSHA256": "3991833eb5f4fb1e30601dc9ff52c1b0e18fc11e552fdfde62753f200c10b1f2",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

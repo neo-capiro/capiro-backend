@@ -1,0 +1,209 @@
+[
+  {
+    "sourceLabel": "historical7c",
+    "path": "package.json",
+    "mode": "100644",
+    "blob": "8ff3a6d21dd28d80b213dbbda3c81b3380298411",
+    "bytes": 2034,
+    "sha256": "f6159deb8588ef341d6ea5f48cb3d68a1534217758c012a813975a2d9570e51d",
+    "local": "approved-read-only-blobs/historical7c/package.json"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "apps/web/package.json",
+    "mode": "100644",
+    "blob": "3aebcc9ee30d21ceb6f56cc98d36d075ebf2b6f6",
+    "bytes": 1882,
+    "sha256": "36cd7a98306d00ef3667bbf0a47a707e7896431feb0d60638be575a70155e6ec",
+    "local": "approved-read-only-blobs/historical7c/apps/web/package.json"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "apps/web/Dockerfile",
+    "mode": "100644",
+    "blob": "575c2216592b0fa7e8db183f9a8e0df931c102fd",
+    "bytes": 855,
+    "sha256": "03225dcc94257dfd919f3b889f0886d4981156890897fee579e50d644959cbe1",
+    "local": "approved-read-only-blobs/historical7c/apps/web/Dockerfile"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "apps/web/next.config.ts",
+    "mode": "100644",
+    "blob": "bab73aa64bb6d3ca2db4c828d1fcface0ebd0aae",
+    "bytes": 559,
+    "sha256": "b74e94a2d41d0e6587a8607a4fb3dc8800f46bd99d10ef3af43e78928af03e57",
+    "local": "approved-read-only-blobs/historical7c/apps/web/next.config.ts"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "apps/web/tests/production/run-standalone.mjs",
+    "mode": "100644",
+    "blob": "2eb2f32f05e68c0edb0c56186b10185d544f84ab",
+    "bytes": 5491,
+    "sha256": "c4c271a1738ca2425afd3eefe1540864af3f6a11cd465e8d25de2a7cd1fc2e21",
+    "local": "approved-read-only-blobs/historical7c/apps/web/tests/production/run-standalone.mjs"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "apps/web/tests/production/verify-standalone.mjs",
+    "mode": "100644",
+    "blob": "440636cbe6fb6d15c490192e35c9340b1af7ea42",
+    "bytes": 7388,
+    "sha256": "2b06e07abd048aa2d7de43be5ea89fe3115d9ef6bd2993cc7b0f1a60e7846dd8",
+    "local": "approved-read-only-blobs/historical7c/apps/web/tests/production/verify-standalone.mjs"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "docs/newsletter-port-20261012/HANDOVER.md",
+    "mode": "100644",
+    "blob": "ecf3814b9ee9ffdbaf86e32ab0ee994daa19101d",
+    "bytes": 5693,
+    "sha256": "419d7b78c5c8b0895196be9ca520ef70b494b0f81ab0d6f96704ee286e0d101b",
+    "local": "approved-read-only-blobs/historical7c/docs/newsletter-port-20261012/HANDOVER.md"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "docs/newsletter-port-20261012/RICH-SLICE-QUALIFICATION.md",
+    "mode": "100644",
+    "blob": "e913f7ffa87961f216a5eb39a266c240c97595a3",
+    "bytes": 7303,
+    "sha256": "8bd7ace94774f08b62e76e0493b8d71e924fbea5c92b5015728a3a74f6d973ab",
+    "local": "approved-read-only-blobs/historical7c/docs/newsletter-port-20261012/RICH-SLICE-QUALIFICATION.md"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "vendor/newsletter-public-packages.json",
+    "mode": "100644",
+    "blob": "8c73593ac7c1a24995442ab1cee325501a2ed278",
+    "bytes": 1052,
+    "sha256": "03a191db7912271f585abb2199fd1404170ef76739f8083047666aaf22c4f855",
+    "local": "approved-read-only-blobs/historical7c/vendor/newsletter-public-packages.json"
+  },
+  {
+    "sourceLabel": "historical7c",
+    "path": "packages/qualification-newsletter/README.md",
+    "mode": "100644",
+    "blob": "71c232de4296a4f6a5bf205d163a93033bb457df",
+    "bytes": 2264,
+    "sha256": "ec319597a797ab9cac43d36016fe6ffd7f52ffae312f9fe4efff37c52ce67add",
+    "local": "approved-read-only-blobs/historical7c/packages/qualification-newsletter/README.md"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "package.json",
+    "mode": "100644",
+    "blob": "8ff3a6d21dd28d80b213dbbda3c81b3380298411",
+    "bytes": 2034,
+    "sha256": "f6159deb8588ef341d6ea5f48cb3d68a1534217758c012a813975a2d9570e51d",
+    "local": "approved-read-only-blobs/candidatec8/package.json"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/package.json",
+    "mode": "100644",
+    "blob": "4e6c06863855b4dd514ea195064103cc054ff4aa",
+    "bytes": 1891,
+    "sha256": "0745ca8c6eb1ae42b8b06fa2f70eedf0b164e2cbdc53c25eaf25b144337e6521",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/package.json"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/Dockerfile",
+    "mode": "100644",
+    "blob": "575c2216592b0fa7e8db183f9a8e0df931c102fd",
+    "bytes": 855,
+    "sha256": "03225dcc94257dfd919f3b889f0886d4981156890897fee579e50d644959cbe1",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/Dockerfile"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/next.config.ts",
+    "mode": "100644",
+    "blob": "bab73aa64bb6d3ca2db4c828d1fcface0ebd0aae",
+    "bytes": 559,
+    "sha256": "b74e94a2d41d0e6587a8607a4fb3dc8800f46bd99d10ef3af43e78928af03e57",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/next.config.ts"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/tests/production/run-standalone.mjs",
+    "mode": "100644",
+    "blob": "2eb2f32f05e68c0edb0c56186b10185d544f84ab",
+    "bytes": 5491,
+    "sha256": "c4c271a1738ca2425afd3eefe1540864af3f6a11cd465e8d25de2a7cd1fc2e21",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/tests/production/run-standalone.mjs"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/tests/production/verify-standalone.mjs",
+    "mode": "100644",
+    "blob": "440636cbe6fb6d15c490192e35c9340b1af7ea42",
+    "bytes": 7388,
+    "sha256": "2b06e07abd048aa2d7de43be5ea89fe3115d9ef6bd2993cc7b0f1a60e7846dd8",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/tests/production/verify-standalone.mjs"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "docs/newsletter-port-20261012/HANDOVER.md",
+    "mode": "100644",
+    "blob": "ecf3814b9ee9ffdbaf86e32ab0ee994daa19101d",
+    "bytes": 5693,
+    "sha256": "419d7b78c5c8b0895196be9ca520ef70b494b0f81ab0d6f96704ee286e0d101b",
+    "local": "approved-read-only-blobs/candidatec8/docs/newsletter-port-20261012/HANDOVER.md"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "docs/newsletter-port-20261012/RICH-SLICE-QUALIFICATION.md",
+    "mode": "100644",
+    "blob": "e913f7ffa87961f216a5eb39a266c240c97595a3",
+    "bytes": 7303,
+    "sha256": "8bd7ace94774f08b62e76e0493b8d71e924fbea5c92b5015728a3a74f6d973ab",
+    "local": "approved-read-only-blobs/candidatec8/docs/newsletter-port-20261012/RICH-SLICE-QUALIFICATION.md"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "docs/newsletter-receiving-20261013/IMPLEMENTATION.md",
+    "mode": "100644",
+    "blob": "bfaba1ff26d654644442ed2d1e2d4304390214f3",
+    "bytes": 7229,
+    "sha256": "19d9ac78bb90e6a974894b2d9724d60481fb8914e9746b397315236ed6d02df4",
+    "local": "approved-read-only-blobs/candidatec8/docs/newsletter-receiving-20261013/IMPLEMENTATION.md"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "vendor/newsletter-public-packages.json",
+    "mode": "100644",
+    "blob": "886c8f2b690ddabc59d270ac7be6a1a0706579ff",
+    "bytes": 2172,
+    "sha256": "573ffe47485d6c31ba531bac2ed2a14093d7430561ab0242140b9ba708022630",
+    "local": "approved-read-only-blobs/candidatec8/vendor/newsletter-public-packages.json"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "packages/qualification-newsletter/README.md",
+    "mode": "100644",
+    "blob": "185e14aefc660db979b1a111be0b897b02d04ad8",
+    "bytes": 6889,
+    "sha256": "efd54da642ebb94a0ce0ed1406cddcca0c1279294af623dc2d57f080fbb40d25",
+    "local": "approved-read-only-blobs/candidatec8/packages/qualification-newsletter/README.md"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/src/shared/capiro/operations/rich-newsletter.ts",
+    "mode": "100644",
+    "blob": "d9984532ad2286b356971d03403de9122a8523a7",
+    "bytes": 4619,
+    "sha256": "d28cbba88c631f6d53d901b1277bc566e60d10f17b2bb819894d8d2886c95d77",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/src/shared/capiro/operations/rich-newsletter.ts"
+  },
+  {
+    "sourceLabel": "candidatec8",
+    "path": "apps/web/src/shared/capiro/rich-newsletter.ts",
+    "mode": "100644",
+    "blob": "948311829f447633f9e2ec4b8a9b9d1552825393",
+    "bytes": 3887,
+    "sha256": "c25183acddcd61f8b3b0f19b70f7a422738d14c45c234e5d4d6ec6860bfbd3c6",
+    "local": "approved-read-only-blobs/candidatec8/apps/web/src/shared/capiro/rich-newsletter.ts"
+  }
+]

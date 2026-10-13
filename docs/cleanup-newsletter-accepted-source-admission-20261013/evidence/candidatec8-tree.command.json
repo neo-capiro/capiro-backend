@@ -1,0 +1,12 @@
+{
+  "head": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "tree": "9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4",
+  "argv": [
+    "gh",
+    "api",
+    "repos/neo-capiro/capiro-frontend/git/trees/9d11bfbd7121887bc06f5cb793e8a4c4e6e682b4?recursive=1"
+  ],
+  "exit": 0,
+  "stdoutSHA256": "3d63e4bd26e054f62d19d1349edb2f7bb882dd9bab1ef9e30b084e84136bbeeb",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
