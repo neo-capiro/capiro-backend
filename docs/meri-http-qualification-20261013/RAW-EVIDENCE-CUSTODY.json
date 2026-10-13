@@ -48,6 +48,15 @@
       "envelopeSha256": "f97f9ff211ff37b8c24635f06c3b9d38ccf336c3abc896e4f03565d768e22746",
       "originalGitBlob": "f0dc284a22c09a30b72bbac1bd8559c8ebb58d75",
       "decodedByteEqual": true
+    },
+    {
+      "path": "docs/meri-http-qualification-20261013/evidence/13-whole-new-physical-whitespace.stdout",
+      "originalHead": "29653c763638dca44f79ae27ed16220c9cb0a093",
+      "originalBytes": 575,
+      "originalSha256": "ee2b1e4e47ead202974e23210f97919668ca8bdc41e47206ff55c38e091f58b3",
+      "envelopeSha256": "71bd9429ba4fd1d5587e3841a5d82527e44889ef4633b611fb8d3fb4a6e89489",
+      "originalGitBlob": "05814b97c8c55ae20c2f2fc392651e653ec052d5",
+      "decodedByteEqual": true
     }
   ],
   "byteExactLocalRuntime": {

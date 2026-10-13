@@ -20,7 +20,7 @@ All three HTTP listeners and native pools closed normally. Root's cleanup verifi
 | Independent authorization/replay/concurrency coverage | Author 45 cases, independent 24 controls, direct controlled-role RLS 30 assertions, exact client pair; failed and passing evidence retained. |
 | Meri PR52 private consumer | Two unchanged-client native responses validated; positive synthetic response bytes, hashes, safe headers and timing exported. Full currentRun and TLS remain separate. |
 | Current native dependency graph | Exact cached engine/client operands and fresh Shared source emission audited; no installation/generation/download. |
-| PR2451 and PR2452 reviewed cleanup successors | Preserve both published heads; bounded composition queued after this qualification publication. No old 31-step operator repeat. |
+| PR2451, PR2452 and PR2453 reviewed cleanup successors | Preserve all three published heads; bounded composition queued after this qualification publication. No old 31-step operator repeat. |
 | Frontend navigation successor | Await its combined qualification before accepted-source policy changes. PR17 AWS source remains separately frozen. |
 | Full release / live production acceptance | OPEN: live Clerk, full AppModule, deployed roles/full migrations, TLS/currentRun, shipping producer/ABI/image/edge and app/browser acceptance. |
 

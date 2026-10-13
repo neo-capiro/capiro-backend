@@ -1,0 +1,17 @@
+{
+  "sourceHygiene": "FAIL",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "checkedPaths": 8260,
+  "checkedStates": [
+    "index",
+    "working-tree"
+  ],
+  "rawArchivesClassified": [
+    "docs/cleanup-newsletter-canonical-builder-20261013/evidence/five-path-code-diff.patch",
+    "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout",
+    "docs/newsletter-builder-reviewed-publication-20261013/physical-evidence-whitespace.txt",
+    "docs/newsletter-builder-reviewed-publication-20261013/root-wired-backend-source-guards.tap"
+  ],
+  "checkedDiagnostics": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt:1441: new blank line at EOF.\n",
+  "rawArchiveSource": "9db4e1cd5589a05e08fb88caa38a4ac44937def5"
+}

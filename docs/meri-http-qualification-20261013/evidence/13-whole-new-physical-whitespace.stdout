@@ -1,6 +1,9 @@
-docs/meri-http-qualification-20261013/evidence/01-current-schema-native-diff.sql:15339: new blank line at EOF.
-docs/meri-http-qualification-20261013/evidence/07-actual-api-nest-build.stdout:3: new blank line at EOF.
-docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stderr:33: new blank line at EOF.
-docs/meri-http-qualification-20261013/evidence/08-relative-path-api-nest-build.stdout:2: new blank line at EOF.
-docs/pr2450-dependency-reuse-local-20261013/local-host/shared-runtime/dist/newsletter-receiving.js:393: trailing whitespace.
-+    }, 
+{
+  "schema": "capiro.lossless-evidence-bytes.v1",
+  "originalHead": "29653c763638dca44f79ae27ed16220c9cb0a093",
+  "originalPath": "docs/meri-http-qualification-20261013/evidence/13-whole-new-physical-whitespace.stdout",
+  "bytes": 575,
+  "sha256": "ee2b1e4e47ead202974e23210f97919668ca8bdc41e47206ff55c38e091f58b3",
+  "encoding": "base64",
+  "data": "ZG9jcy9tZXJpLWh0dHAtcXVhbGlmaWNhdGlvbi0yMDI2MTAxMy9ldmlkZW5jZS8wMS1jdXJyZW50LXNjaGVtYS1uYXRpdmUtZGlmZi5zcWw6MTUzMzk6IG5ldyBibGFuayBsaW5lIGF0IEVPRi4KZG9jcy9tZXJpLWh0dHAtcXVhbGlmaWNhdGlvbi0yMDI2MTAxMy9ldmlkZW5jZS8wNy1hY3R1YWwtYXBpLW5lc3QtYnVpbGQuc3Rkb3V0OjM6IG5ldyBibGFuayBsaW5lIGF0IEVPRi4KZG9jcy9tZXJpLWh0dHAtcXVhbGlmaWNhdGlvbi0yMDI2MTAxMy9ldmlkZW5jZS8wOC1yZWxhdGl2ZS1wYXRoLWFwaS1uZXN0LWJ1aWxkLnN0ZGVycjozMzogbmV3IGJsYW5rIGxpbmUgYXQgRU9GLgpkb2NzL21lcmktaHR0cC1xdWFsaWZpY2F0aW9uLTIwMjYxMDEzL2V2aWRlbmNlLzA4LXJlbGF0aXZlLXBhdGgtYXBpLW5lc3QtYnVpbGQuc3Rkb3V0OjI6IG5ldyBibGFuayBsaW5lIGF0IEVPRi4KZG9jcy9wcjI0NTAtZGVwZW5kZW5jeS1yZXVzZS1sb2NhbC0yMDI2MTAxMy9sb2NhbC1ob3N0L3NoYXJlZC1ydW50aW1lL2Rpc3QvbmV3c2xldHRlci1yZWNlaXZpbmcuanM6MzkzOiB0cmFpbGluZyB3aGl0ZXNwYWNlLgorICAgIH0sIAo="
+}

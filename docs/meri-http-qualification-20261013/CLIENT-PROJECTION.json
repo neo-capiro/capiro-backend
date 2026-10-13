@@ -1,0 +1,123 @@
+{
+  "sourceHead": "08bf6e0d30c312bdbb3717f5c677eb01bf782585",
+  "sourceTree": "3989c32c20b0f89be7545771fbecb4e9e45cbbb1",
+  "productionCarrierNotMerged": true,
+  "all23ByteExact": true,
+  "files": [
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/CAPTURE-CORRECTION.json",
+      "mode": "100644",
+      "blob": "240a24cb2d4830cf60ea26837cfcdfd3777da128"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/CLIENT-STAGE-BINDINGS.json",
+      "mode": "100644",
+      "blob": "1ee77b01a77028fe8dd7e4412e07c901856c9a37"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/FINAL-HANDOFF.md",
+      "mode": "100644",
+      "blob": "21657c9beb1fddf25bd28be872535844f201a58e"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/FINAL-SHA256-INDEX.json",
+      "mode": "100644",
+      "blob": "901500893bab4093a63655e95cd583882acad9da"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/HANDOFF.md",
+      "mode": "100644",
+      "blob": "9f64cdc39a5b3bbd0ccf35390fca90be5b8e3a95"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/SHA256-INDEX.json",
+      "mode": "100644",
+      "blob": "5e6c4e67bc5f4f3ea9937054812ac9f0a58a8c25"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/consumeOwnedHttp.mjs",
+      "mode": "100644",
+      "blob": "db6aadf8adbd3af94ae6212618611209dc9e8f56"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/01-syntax.command.json",
+      "mode": "100644",
+      "blob": "ba104798ead79c82c026a89bbf8df5a85b39c6bd"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/01-syntax.stderr.log",
+      "mode": "100644",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/01-syntax.stdout.log",
+      "mode": "100644",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/02-capture-syntax.command.json",
+      "mode": "100644",
+      "blob": "2c22bec39e68feb173ee3469a313205b6d5cfb1a"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/02-capture-syntax.stderr.log",
+      "mode": "100644",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/02-capture-syntax.stdout.log",
+      "mode": "100644",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/03-owned-http-client-pair.command.json",
+      "mode": "100644",
+      "blob": "39738cd802d915a9d38f84ebcfdc166d7ac599df"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/03-owned-http-client-pair.json",
+      "mode": "100644",
+      "blob": "b2f3636a1e789db7be76be82e920173d0907915d"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/03-owned-http-client-pair.stderr.log",
+      "mode": "100644",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/03-owned-http-client-pair.stdout.log",
+      "mode": "100644",
+      "blob": "44f8e7697b477a0e1e0a9c1d54c3c484b68982dc"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/04-actual-pair-custody.command.json",
+      "mode": "100644",
+      "blob": "d5d97dcce017782e4e4a7975524236962d6454c8"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/04-actual-pair-custody.json",
+      "mode": "100644",
+      "blob": "eaf0e7c0c96f325b8c6ccd9314f25cbe28e3fd66"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/04-actual-pair-custody.stderr.log",
+      "mode": "100644",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/04-actual-pair-custody.stdout.log",
+      "mode": "100644",
+      "blob": "35d83296eca91665e383d025aabfc94f3d283c2d"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/transport-disconnect.json",
+      "mode": "100644",
+      "blob": "09ebf3d7379d63197ee35b50808e978d8678f7a4"
+    },
+    {
+      "path": "docs/meri-application-authority-pr52-actual-client-qualification-20261013/evidence/verify-actual-pair.py",
+      "mode": "100644",
+      "blob": "bd15757677c041cd1d9a9b1d76b53e575900a67f"
+    }
+  ]
+}

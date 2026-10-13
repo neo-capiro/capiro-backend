@@ -1,0 +1,26 @@
+{
+  "allPriorHeadsAndIndicesPreserved": true,
+  "changedProductionCodePaths": 0,
+  "explicitSupersessions": [
+    {
+      "currentModeBlob": [
+        "100644",
+        "73c5457fdb6b4a683ac8ad755bdb3799edbec529"
+      ],
+      "currentSha256": "702ecef5566fcc6167c684e6b227080ad6c9dc15607cd3f719213c21af1fd27e",
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "previousHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+      "previousModeBlob": [
+        "100644",
+        "2acef93d9242b750724699d083bf11a1445185a5"
+      ],
+      "previousSha256": "29a98eccc25dcc230b446467dc110302f1a498430eb0e37451d3c7da6a660d80",
+      "reason": "append actual bounded qualification and correct canonical clio route; complete prior handoff retained"
+    }
+  ],
+  "newHygieneExceptions": 0,
+  "oldRows": 3802,
+  "outsideDocsByteExact": true,
+  "previousMasterHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "unchangedBlobMode": 3801
+}
