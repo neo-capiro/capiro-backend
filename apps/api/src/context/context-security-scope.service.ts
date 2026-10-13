@@ -29,7 +29,7 @@ export class ContextSecurityScopeService {
    * Facts are hashed by the caller, not returned as a roster or profile. */
   async resolveApplicationAuthorityClient(tenantId: string, actorUserId: string, clientId: string) {
     return this.prisma.withTenant(tenantId, async (tx) => {
-      await this.resolveClients(tx, actorUserId, [clientId], true);
+      await this.resolveClients(tx, tenantId, actorUserId, [clientId], true);
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId, status: { not: 'archived' } },
         select: {
@@ -45,7 +45,7 @@ export class ContextSecurityScopeService {
         throw new ForbiddenException('Application authority unavailable');
       }
       // Recheck through the canonical predicate after the fact read as well.
-      await this.resolveClients(tx, actorUserId, [clientId], true);
+      await this.resolveClients(tx, tenantId, actorUserId, [clientId], true);
       return [client.id, client.tenantId, client.status, client.memoryWall,
         client.memoryAccessGrants.map((grant) => [grant.id, grant.tenantId, grant.clientId, grant.userId, grant.createdAt.getTime()])];
     });
@@ -63,6 +63,7 @@ export class ContextSecurityScopeService {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const authorizedClientIds = await this.resolveClients(
         tx,
+        tenantId,
         actorUserId,
         requestedClientIds,
         clientConstraintProvided,
@@ -90,6 +91,7 @@ export class ContextSecurityScopeService {
 
   private async resolveClients(
     tx: Prisma.TransactionClient,
+    tenantId: string,
     actorUserId: string,
     requestedIds: string[],
     constraintProvided: boolean,
@@ -98,8 +100,9 @@ export class ContextSecurityScopeService {
 
     const rows = await tx.client.findMany({
       where: {
+        tenantId,
         ...(constraintProvided ? { id: { in: requestedIds } } : {}),
-        OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: actorUserId } } }],
+        OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { tenantId, userId: actorUserId } } }],
       },
       select: { id: true },
       orderBy: { id: 'asc' },

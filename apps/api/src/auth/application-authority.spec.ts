@@ -348,7 +348,7 @@ describe('actual Meri and scope-owner source integration', () => {
     const events: string[] = []; let allowed = true;
     const owner = new exports.ContextSecurityScopeService({ withTenant: async (id: string, fn: any) => {
       expect(id).toBe(tenantId); return fn({ client: {
-        findMany: async (args: any) => { events.push('canonicalWall'); expect(args.where).toEqual({ id: { in: [clientId] }, OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: actorId } } }] }); return allowed ? [{ id: clientId }] : []; },
+        findMany: async (args: any) => { events.push('canonicalWall'); expect(args.where).toEqual({ tenantId, id: { in: [clientId] }, OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { tenantId, userId: actorId } } }] }); return allowed ? [{ id: clientId }] : []; },
         findFirst: async (args: any) => { events.push('facts'); expect(args.where).toEqual({ id: clientId, tenantId, status: { not: 'archived' } }); expect(args.select.memoryAccessGrants.where).toEqual({ tenantId, clientId, userId: actorId }); return { id: clientId, tenantId, status: 'active', memoryWall: true, memoryAccessGrants: [{ id: 'grant', tenantId, clientId, userId: actorId, createdAt: new Date(1) }] }; },
       } });
     } });
@@ -362,5 +362,37 @@ describe('actual Meri and scope-owner source integration', () => {
     expect(controller).toContain("@Roles('standard_user')");
     const module = sources('context/context.module.ts');
     expect(module.match(/^    ContextSecurityScopeService,$/gm)).toHaveLength(2);
+  });
+  it('canonical resolver rejects a foreign-tenant wall grant and preserves same-tenant/unwalled admission in both consumers', async () => {
+    const exports = load(sources('context/context-security-scope.service.ts'), {
+      '@nestjs/common': nest, '../prisma/prisma.service.js': {}, './context.types.js': { ContextResolutionError: Refusal },
+    });
+    let wall = true;
+    let grantTenant = tenantId;
+    const queries: any[] = [];
+    const tx = { client: {
+      findMany: async ({ where }: any) => {
+        queries.push(where);
+        expect(where.tenantId).toBe(tenantId);
+        const grant = where.OR[1].memoryAccessGrants.some;
+        expect(grant).toEqual({ tenantId, userId: actorId });
+        return (!wall || (grant.tenantId === grantTenant && grant.userId === actorId)) ? [{ id: clientId }] : [];
+      },
+      findFirst: async () => ({ id: clientId, tenantId, status: 'active', memoryWall: wall,
+        memoryAccessGrants: grantTenant === tenantId ? [{ id: 'grant', tenantId, clientId, userId: actorId, createdAt: new Date(1) }] : [] }),
+    } };
+    const owner = new exports.ContextSecurityScopeService({ withTenant: async (id: string, fn: any) => {
+      expect(id).toBe(tenantId); return fn(tx);
+    } });
+    const request = { tenantId, actorUserId: actorId, securityScope: { authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] } };
+    expect((await owner.resolve(request)).authorizedClientIds).toEqual([clientId]);
+    expect((await owner.resolveApplicationAuthorityClient(tenantId, actorId, clientId))[3]).toBe(true);
+    grantTenant = conversationId;
+    await expect(owner.resolve(request)).rejects.toThrow();
+    await expect(owner.resolveApplicationAuthorityClient(tenantId, actorId, clientId)).rejects.toThrow();
+    wall = false;
+    expect((await owner.resolve(request)).authorizedClientIds).toEqual([clientId]);
+    expect((await owner.resolveApplicationAuthorityClient(tenantId, actorId, clientId))[4]).toEqual([]);
+    expect(queries.length).toBe(8);
   });
 });
