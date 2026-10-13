@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "--test-name-pattern=scoped hunk additions",
+    "scripts/ci/context-plane-scope.contract.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 1,
+  "originalGuardHead": "b46dad56b0025d3f1043809d3322fe936f5d501f",
+  "state": "hunk-count repair present, scoped caller still original unbound scanner",
+  "actualGuardUnderFakeIO": true,
+  "nativeDefaultUnrun": true
+}

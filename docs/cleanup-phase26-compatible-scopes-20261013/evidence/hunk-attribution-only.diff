@@ -1,0 +1,201 @@
+diff --git a/scripts/check-context-plane-new-bypasses.mjs b/scripts/check-context-plane-new-bypasses.mjs
+index ba0c23b04..250ef8943 100644
+--- a/scripts/check-context-plane-new-bypasses.mjs
++++ b/scripts/check-context-plane-new-bypasses.mjs
+@@ -7,7 +7,7 @@ import { join } from 'node:path';
+ 
+ import { architectureGuardBase, guardRef } from './cleanup-gates/lib/cli.mjs';
+ import {
+-  parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
++  parseContextPlaneInvocation, projectContextPlaneDiff, partitionContextPlaneDiff, assertContextPlaneReadPath,
+   contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
+ } from './lib/context-plane-scope.mjs';
+ 
+@@ -321,6 +321,7 @@ try {
+ }
+ 
+ const violations = [];
++if (scope === 'full') {
+ let file = null;
+ for (const line of diff.split('\n')) {
+   if (line.startsWith('+++ b/')) {
+@@ -338,6 +339,18 @@ for (const line of diff.split('\n')) {
+   const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
+   if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
+ }
++} else {
++  for (const { path: file, additions } of partitionContextPlaneDiff(diff)) {
++    if (IMPLEMENTATION_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;
++    if (TEST_SUFFIXES.some((suffix) => file.endsWith(suffix))) continue;
++    for (const added of additions) {
++      if (isCommentOnly(added)) continue;
++      if (isApproved(file, added)) continue;
++      const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
++      if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
++    }
++  }
++}
+ 
+ // Product adoption/neutralization invariants remain backend/full obligations.
+ if (scope !== 'frontend') {
+diff --git a/scripts/ci/context-plane-scope.contract.spec.mjs b/scripts/ci/context-plane-scope.contract.spec.mjs
+index 898cdb8a3..5ca13997d 100644
+--- a/scripts/ci/context-plane-scope.contract.spec.mjs
++++ b/scripts/ci/context-plane-scope.contract.spec.mjs
+@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
+ import vm from 'node:vm';
+ import test from 'node:test';
+ import {
+-  parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
++  parseContextPlaneInvocation, projectContextPlaneDiff, partitionContextPlaneDiff, assertContextPlaneReadPath,
+   contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
+ } from '../lib/context-plane-scope.mjs';
+ 
+@@ -36,6 +36,20 @@ function legacyProjection(source) {
+   result = result.replace('diff = projectContextPlaneDiff(execFileSync(', 'diff = execFileSync(')
+     .replace('  ), scope);', '  );');
+   result = result.replaceAll("  if (scope !== 'full') console.error(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`);\n", '');
++  result = result.replace("if (scope === 'full') {\nlet file = null;", 'let file = null;')
++    .replace(`} else {
++  for (const { path: file, additions } of partitionContextPlaneDiff(diff)) {
++    if (IMPLEMENTATION_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;
++    if (TEST_SUFFIXES.some((suffix) => file.endsWith(suffix))) continue;
++    for (const added of additions) {
++      if (isCommentOnly(added)) continue;
++      if (isApproved(file, added)) continue;
++      const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
++      if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
++    }
++  }
++}
++`, '');
+   result = result.replace("// Product adoption/neutralization invariants remain backend/full obligations.\nif (scope !== 'frontend') {\n", '')
+     .replace('\n}\n\n/**\n * Repo-wide census sweep.', '\n/**\n * Repo-wide census sweep.');
+   result = result.replace('let censusSourceCount = 0;\n', '').replace('    censusSourceCount += 1;\n', '');
+@@ -97,7 +111,7 @@ function run(source, args, files = seed, options = {}) {
+   let thrown = null;
+   const context = vm.createContext({
+     ...fs, readSourceFileSync: fs.readFileSync, join,
+-    parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
++    parseContextPlaneInvocation, projectContextPlaneDiff, partitionContextPlaneDiff, assertContextPlaneReadPath,
+     contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
+     process: { argv: ['node', 'guard.mjs', ...args], exit: (code) => { exit = code; throw stopped; }, stdout: { write: (value) => messages.log.push(value.trimEnd()) }, stderr: { write: (value) => messages.error.push(value.trimEnd()) } },
+     console: Object.fromEntries(Object.keys(messages).map((key) => [key, (...values) => messages[key].push(values.join(' '))])),
+@@ -125,10 +139,20 @@ test('complete original guard/predicates/regex/allowlist/census/operations/catch
+   }
+ });
+ 
+-test('published helper custody has only unused Phase27 walker removal and strict ref addition', () => {
++test('published helper custody has only unused walker removal, strict ref and attributed-count fixes', () => {
+   const published = execFileSync('git', ['show', 'ed1bb4b539b297086413e7060979ea02226dc485:scripts/lib/knowledge-census-scope.mjs'], { cwd: root, encoding: 'utf8' });
+   const omitted = published.slice(published.indexOf('function canTraverse('), published.indexOf('function headerPath('));
+-  const expected = published.replace(omitted, '').replace('      base = arg;', "      if (!/^[A-Za-z0-9._/@^~-]+$/.test(arg)) throw new Error('invalid scoped Git ref');\n      base = arg;");
++  const expected = published.replace(omitted, '').replace('      base = arg;', "      if (!/^[A-Za-z0-9._/@^~-]+$/.test(arg)) throw new Error('invalid scoped Git ref');\n      base = arg;")
++    .replace(`        if (line.startsWith('--- ') || line.startsWith('+++ ')) {
++          throw new Error('ambiguous file header inside a hunk');
++        }`, `        // A leading +/- belongs to content until both declared counts finish.
++        // For example, added \`++ count;\` is encoded as \`+++ count;\`.
++        if (hunk.old === hunk.wantOld && hunk.next === hunk.wantNext) {
++          throw new Error('extra content after complete diff hunk');
++        }`)
++    .replace('    let metadataChange = false;', '    let metadataChange = false;\n    const additions = [];')
++    .replace("        if (line.startsWith('+')) hunk.next += 1;", "        if (line.startsWith('+')) { hunk.next += 1; additions.push(line.slice(1)); }")
++    .replace('    return { path, scope: knowledgeCensusPathScope(path), text };', '    return { path, scope: knowledgeCensusPathScope(path), text, additions };');
+   assert.equal(readFileSync(join(root, 'scripts/lib/knowledge-census-scope.mjs'), 'utf8'), expected);
+   for (const file of ['context-plane-scope.mjs', 'knowledge-census-scope.mjs']) {
+     assert.doesNotMatch(readFileSync(join(root, 'scripts/lib/' + file), 'utf8'), /from ['"]node:|\b(?:require|process|globalThis|execFileSync|readFileSync|fetch)\b/);
+@@ -267,3 +291,45 @@ test('unavailable Git and malformed/truncated/quoted/binary sections fail before
+     assert.ok(result.messages.error.includes(`CONTEXT_PLANE_${scope.toUpperCase()}_FAILED`));
+   }
+ });
++
++
++test('valid ++/-- hunk content preserves target identity while count/header faults refuse', () => {
++  for (const file of ['apps/api/src/example.ts', 'apps/web/src/example.ts']) {
++    const header = `diff --git a/${file} b/${file}\nindex 1111111..2222222 100644\n--- a/${file}\n+++ b/${file}\n`;
++    for (const body of ['@@ -0,0 +1 @@\n+++ count;\n', '@@ -1 +0,0 @@\n--- count;\n',
++      '@@ -1 +1 @@\n--- count;\n+++ count;\n',
++      '@@ -0,0 +1 @@\n+++ count;\n\\ No newline at end of file\n',
++      '@@ -0,0 +1 @@\n+++ count;\n@@ -2 +3 @@\n--- count;\n+++ count;\n']) {
++      const diff = header + body;
++      for (const scope of ['backend', 'frontend']) {
++        assert.equal(projectContextPlaneDiff(diff, scope),
++          file.startsWith('apps/web/') === (scope === 'frontend') ? diff : '');
++      }
++    }
++    for (const body of ['@@ -0,0 +1 @@\n+++ count;\n+++ b/other.ts\n',
++      '@@ -1 +0,0 @@\n--- count;\n--- a/other.ts\n',
++      '@@ -0,0 +1,2 @@\n+++ count;\n',
++      '@@ -1 +1 @@\n+++ count;\n',
++      '@@ -0,0 +1 @@\n+++ count;\n+extra\n']) {
++      for (const scope of ['backend', 'frontend']) assert.throws(() => projectContextPlaneDiff(header + body, scope));
++    }
++    for (const scope of ['backend', 'frontend']) {
++      assert.throws(() => projectContextPlaneDiff(header.replace('+++ b/' + file, '+++ b/other.ts') + '@@ -0,0 +1 @@\n+safe\n', scope));
++    }
++  }
++});
++
++
++test('scoped hunk additions stay bound to actual product path despite +++ content', () => {
++  const outcomes = [];
++  for (const [scope, file] of [['backend', 'apps/api/src/future/a.ts'], ['frontend', 'apps/web/src/future/a.ts']]) {
++    const diff = `diff --git a/${file} b/${file}\nindex 1111111..2222222 100644\n--- a/${file}\n+++ b/${file}\n@@ -0,0 +1,2 @@\n+++ b/apps/api/src/context/decoy.ts\n+resolveContextPacketMode();\n`;
++    const selected = run(current, [baseline, '--' + scope + '-only'], seed, {diff});
++    outcomes.push({scope, exit:selected.exit,
++      originalPathRefusal:selected.messages.error.some((line) => line.includes(file) && line.includes('resolveContextPacketMode')),
++      completion:selected.messages.log.some((line)=>line.endsWith('_COMPLETE'))});
++    // Current full scanner's header-looking-content weakness is inherited.
++    assert.deepEqual(run(current, [baseline], seed, {diff}), run(original, [baseline], seed, {diff}));
++  }
++  assert.deepEqual(outcomes, ['backend', 'frontend'].map((scope)=>({scope,exit:1,originalPathRefusal:true,completion:false})));
++});
+diff --git a/scripts/lib/context-plane-scope.mjs b/scripts/lib/context-plane-scope.mjs
+index 943526ce7..5b60f9c63 100644
+--- a/scripts/lib/context-plane-scope.mjs
++++ b/scripts/lib/context-plane-scope.mjs
+@@ -5,6 +5,7 @@ import {
+ export {
+   parseKnowledgeCensusInvocation as parseContextPlaneInvocation,
+   projectKnowledgeCensusDiff as projectContextPlaneDiff,
++  partitionKnowledgeCensusDiff as partitionContextPlaneDiff,
+   assertKnowledgeCensusReadPath as assertContextPlaneReadPath,
+   knowledgeCensusIncludesPath as contextPlaneIncludesPath,
+ } from './knowledge-census-scope.mjs';
+diff --git a/scripts/lib/knowledge-census-scope.mjs b/scripts/lib/knowledge-census-scope.mjs
+index 0bce92f30..4d970e758 100644
+--- a/scripts/lib/knowledge-census-scope.mjs
++++ b/scripts/lib/knowledge-census-scope.mjs
+@@ -88,6 +88,7 @@ export function partitionKnowledgeCensusDiff(diff) {
+     let hunk;
+     let metadata = 0;
+     let metadataChange = false;
++    const additions = [];
+     const fields = new Map();
+     const finishHunk = () => {
+       if (hunk && (hunk.old !== hunk.wantOld || hunk.next !== hunk.wantNext)) {
+@@ -105,10 +106,12 @@ export function partitionKnowledgeCensusDiff(diff) {
+         hunk = { old: 0, next: 0, wantOld: Number(match[2] ?? 1), wantNext: Number(match[4] ?? 1) };
+       } else if (hunk) {
+         if (line === '\\ No newline at end of file') continue;
+-        if (line.startsWith('--- ') || line.startsWith('+++ ')) {
+-          throw new Error('ambiguous file header inside a hunk');
++        // A leading +/- belongs to content until both declared counts finish.
++        // For example, added `++ count;` is encoded as `+++ count;`.
++        if (hunk.old === hunk.wantOld && hunk.next === hunk.wantNext) {
++          throw new Error('extra content after complete diff hunk');
+         }
+-        if (line.startsWith('+')) hunk.next += 1;
++        if (line.startsWith('+')) { hunk.next += 1; additions.push(line.slice(1)); }
+         else if (line.startsWith('-')) hunk.old += 1;
+         else if (line.startsWith(' ')) { hunk.old += 1; hunk.next += 1; }
+         else throw new Error('unsupported diff hunk content');
+@@ -150,7 +153,7 @@ export function partitionKnowledgeCensusDiff(diff) {
+     }
+     if (fields.has('new file mode') && fields.has('deleted file mode')) throw new Error('conflicting diff file modes');
+     const path = next ?? old ?? to;
+-    return { path, scope: knowledgeCensusPathScope(path), text };
++    return { path, scope: knowledgeCensusPathScope(path), text, additions };
+   });
+ }
+ 

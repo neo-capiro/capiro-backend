@@ -1,0 +1,85 @@
+{
+  "old18HashBindingsVerifiedUnchanged": 18,
+  "entries": [
+    {
+      "path": "HUNK-ATTRIBUTION-CORRECTION.md",
+      "sha256": "34c8c791d97c65635b2166c4476da37ef8b5cbc06f25103e88a1a764b0bef90e",
+      "bytes": 2188
+    },
+    {
+      "path": "evidence/SOURCE-BINDINGS-FINAL.json",
+      "sha256": "1571ce52cdac9ebabf963b8f3de73b9e07e88882e2c8ef1b32db18e7a5749618",
+      "bytes": 2812
+    },
+    {
+      "path": "evidence/hunk-attribution-only.diff",
+      "sha256": "09745e6e3f79bb191a2dc00b0ac6ba8f8bc97a22b6706432f962e8609a671041",
+      "bytes": 12177
+    },
+    {
+      "path": "evidence/hunk-content-probe.mjs",
+      "sha256": "32b414499059561c89eddd0e6169f426bbae3eace54b3def0fc1fcd74ca8f4ed",
+      "bytes": 1023
+    },
+    {
+      "path": "evidence/05-hunk-content-original-red.json",
+      "sha256": "74de7bd9f6e5cc1c415020705c16c36ca12d6a825337e4d82964335202f96f68",
+      "bytes": 468
+    },
+    {
+      "path": "evidence/05-hunk-content-original-red.stdout.log",
+      "sha256": "fbce11f89da8f1d201bf8311a7c6942d9b13a1c2ba84920af1a21270c8d5c6b6",
+      "bytes": 1559
+    },
+    {
+      "path": "evidence/05-hunk-content-original-red.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/06-coupled-path-spoof-red.json",
+      "sha256": "0fb4d9829d21d00c68fc9fa5b5ede373b8c0d38a431e37866ac1f9938a344a0d",
+      "bytes": 599
+    },
+    {
+      "path": "evidence/06-coupled-path-spoof-red.stdout.log",
+      "sha256": "15cf77945cfceb4948c7387418a6d577528228fb93fc618741a0f75da74f0cf7",
+      "bytes": 1769
+    },
+    {
+      "path": "evidence/06-coupled-path-spoof-red.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/07-hunk-content-corrected.json",
+      "sha256": "74c08aaf4239f92ccaeec5024796bf56147b8da5a232121c1edb3e7b1fb6cf58",
+      "bytes": 485
+    },
+    {
+      "path": "evidence/07-hunk-content-corrected.stdout.log",
+      "sha256": "fdae0cba9ac8c8126c2530c1588f5a3b5ad5cbc7079eef8084afcbc18996a74b",
+      "bytes": 1111
+    },
+    {
+      "path": "evidence/07-hunk-content-corrected.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "evidence/08-attributed-scope-controls.json",
+      "sha256": "083d4dc5e9c1799d1285ecbc1e8a6c5c16aea97d79455316e65b751372cddc07",
+      "bytes": 526
+    },
+    {
+      "path": "evidence/08-attributed-scope-controls.stdout.log",
+      "sha256": "bdf61efa312c256b48d333e34e5c8e0654a8185b7cc92ebd2daff272e1262a9f",
+      "bytes": 3145
+    },
+    {
+      "path": "evidence/08-attributed-scope-controls.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-phase26-compatible-scopes-20261013/evidence/hunk-content-probe.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "exitCode": 0,
+  "sourceHead": "31cc12a6626be8586666dfa9ccf53b68fff10311",
+  "pureActualOwnerFakeIO": true,
+  "nativeDefaultVerifierExecuted": false
+}
