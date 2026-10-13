@@ -1,0 +1,44 @@
+{
+  "status": "Prepared initial source candidate; pending donors are preserved, not semantically adopted",
+  "acceptedReceiving": {
+    "pr": 2482,
+    "head": "37339931788d8384b864192f2c2eacf56cd9bf06",
+    "tree": "c9c73e1343b35ac274d0b45881b2d78c6c5fd416"
+  },
+  "acceptedPreview": {
+    "pr": 2483,
+    "head": "5b88210f024c7ca04ae7a3bea668e72ad41f94a4",
+    "tree": "da2ca029707c033fadf25bf2dc9afdadea1c6226"
+  },
+  "repositoryPreparation": {
+    "pr": 2479,
+    "head": "d8ae27e913f32dc6292dc11565b2b85722977a37",
+    "tree": "be08ac3ba84a929ed747bbd10496d5b48a2db768"
+  },
+  "preservedPendingSiblings": [
+    {
+      "pr": 2480,
+      "head": "64a79469e5864b5e1b069a6ea7050cf7efb849bd",
+      "tree": "e69cd621afb05835efe7644159165431c92c30be",
+      "base": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+      "state": "published open draft; not composed; metadata-only inventory"
+    },
+    {
+      "pr": 2481,
+      "head": "b17fb898f667a6fb17e2e565a2e77f4a903e96cc",
+      "tree": "19a32179300851342902cab3afdaf3f50992975f",
+      "base": "3d76ab21c1dcf9020b050988b315d11ab986a5d9",
+      "state": "published open draft; not composed; sibling not sequential"
+    }
+  ],
+  "meriRuntime": {
+    "pr": 65,
+    "head": "efacbfd9b599e458250f9bb624a72626f4e769d2",
+    "tree": "f73a270b9f526c8ff41d67199548a1b919ec7f17",
+    "state": "published contract read; native/release gates held"
+  },
+  "originalInventory": "../backend-repository-split-preparation-20261013/evidence/candidate-reachability.json",
+  "originalInventoryLimit": "301-PR/15-original-pin historical metadata snapshot; not a current complete PR inventory or proof of semantic adoption",
+  "protectedReporting": "Unpublished scoped owner remains preserved separately; no branch/body inspected",
+  "repositoryPublication": "No creation/new-destination push/default setting/main merge/deployment executed"
+}

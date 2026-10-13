@@ -1,0 +1,1447 @@
+{
+  "sourceHead": "93a5fd5fed531e06dfd78d93f938964f32d62675",
+  "sourceTree": "31810b9977d514474aa099df28a7172fb826357b",
+  "workflowCount": 73,
+  "dependabotCount": 1,
+  "rows": [
+    {
+      "path": ".github/workflows/api-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "ac2d2f4621aeae4b00c9026f4b10a046b0e34536",
+      "bytes": 2806,
+      "sha256": "56e08d0251a3a70809c1005241ce6e8685609daab7aaa8b0ed257d3cdbff8113",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/api-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/api-strategy-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "4ca4b18ea7d87d3d08d1b11976d779578cbfcd9a",
+      "bytes": 2306,
+      "sha256": "85b9be92d29b0e089dd909505447bbff4c2024edc64eed5e4f416f8f8232f901",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/api-strategy-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/architecture-guards.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "9cda09b23b68388ba4b537895355dd1668abd4d1",
+      "bytes": 2234,
+      "sha256": "e1f3143c7af7863f713286ee843addc4c93acd45705871508e628a3c38fccbf2",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/architecture-guards.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "923e171a34ee488bf0ee977257296985b6518375",
+      "bytes": 3506,
+      "sha256": "0d00e5971689247f76c2a61326e89a74ee2c97e41eaa6013b15d2ffb28f0ed59",
+      "triggers": [
+        "pull_request"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/backend-cleanup-preservation.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "2890d40278d4987b8cced7333397d435a3902da4",
+      "bytes": 17465,
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128",
+      "triggers": [
+        "pull_request"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/ci-pr.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/cleanup1-gate.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "257206a891b0ccf4a9d9fa5c32c9d283609c757b",
+      "bytes": 14395,
+      "sha256": "d147dffe5145bfa5573c06f48661c9ea86640a3ff01d5f0463088618ba26fc4d",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/cleanup1-gate.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/client-profile-qa.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7c6d51855615781861df3b65703513279b449d16",
+      "bytes": 4237,
+      "sha256": "01ef7b2f37ee49b81b86c556f5d180ded72a5cd2cd1b5baa928b94058486b3d4",
+      "triggers": [
+        "pull_request"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/client-profile-qa.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/clio-evals.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7416bbd0fc52318aa48c02d1fef745c3f2fc8316",
+      "bytes": 5474,
+      "sha256": "be6bd9742ba4225f387463d2a16e329b2a309b935526b96ad0a90a35b72eb09b",
+      "triggers": [
+        "schedule",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "source_reference_categories": [
+        "schedule",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/clio-evals.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/context-plane-architecture-guard.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "137350415fc38a2d7628668544a2107411ad9492",
+      "bytes": 1084,
+      "sha256": "1447297fe0eee8b22c737109ace72cdef943843af7b40f9cee10c6a65a5316a7",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/context-plane-architecture-guard.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/defense-budget-parser-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "152f0076e1051a7196f5115378e4bf128edec317",
+      "bytes": 2193,
+      "sha256": "44a217e3403a191b57dd3a054cc20618654776b797e35cbe4089bad9978b665f",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/defense-budget-parser-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/deploy-all.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "42e183bf45bef81811795050c544992fa6110185",
+      "bytes": 5670,
+      "sha256": "f9ab643162a8b6b0d58f89611a517588b80054215b71dc13fe26964d7d98a1a6",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication",
+        "service-update"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/deploy-all.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/district-nexus-release3-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "8cb207e19e5ebfebe1cd9e4b0c6e1f50ebf124cc",
+      "bytes": 6686,
+      "sha256": "8571041f4831a14198e826f8097962a8b90a3a55ec88dc0e0a4164c7540c429a",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/district-nexus-release3-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/engagement-api-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "f7f3f46e7296a507d5cbce1cf9df03b04fa5069d",
+      "bytes": 2340,
+      "sha256": "21fd0acfb55395d792d7a981eca97c63bde0c01f1370e00dda9a55dfe7583ee4",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/engagement-api-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/engagement-phase3.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "e865477fb72405d15b86896ea74e8fa9e3d9903a",
+      "bytes": 4717,
+      "sha256": "2de84fc5087bd51c50732eb924de137182ce8fdfe97a77bd32f54ee024a47d9a",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "status-write"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/engagement-phase3.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/engagement-trust-boundary.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "4c368bc77f372a8bd50e36d863debf65064c66bd",
+      "bytes": 9043,
+      "sha256": "9afce7be7233879543fba64428feb933588e229a77528443ee5a56b16d05e9e5",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/engagement-trust-boundary.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/federal-market-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "715cac57874b21184a50f2d7a699f18e62e6524a",
+      "bytes": 7563,
+      "sha256": "d27010d2634fc7e87d5ddf4ec7fcdf9a3c36fff97aa52b3ff9ea8968af417f17",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/federal-market-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/funding-opportunities-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7a5439c38d79a5ff66112b2385164d41be601878",
+      "bytes": 28836,
+      "sha256": "1af1a830699e2dca0ba8acd283eb5c30b67094ccdbb738847a6d278538c48969",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/funding-opportunities-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/grounding-nightly.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "331af149f2f8a2b562b35e37173c75d23719f40b",
+      "bytes": 2225,
+      "sha256": "485429d45b0889cee28810b2d806fbee03310d2e71ce49aac6f81c0b53ab9a4a",
+      "triggers": [
+        "schedule",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "schedule"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/grounding-nightly.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/intel-api-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "1ef836e16e70470a1e7bb2b48c947bf22c176420",
+      "bytes": 2312,
+      "sha256": "5c51584275a4828934ea1cb321c32a7974add685cd73bec97a2a013af9decf7f",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/intel-api-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase10-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "eb4f88b56be6a3e208547c930cb6a54c12dc233c",
+      "bytes": 2608,
+      "sha256": "a020b4ff75a7adaea107a166704d5e56d360a8a9dce5d73b758fe03b657d0637",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase10-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase11-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6a325c9f5337b14db56d5721a5bf1d17eb510a45",
+      "bytes": 5153,
+      "sha256": "613ddccd03588b7aecaacfa4b4d581c8627866d097802e56ba6ef75949601a44",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase11-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase12-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7f99862988f8e7f495ac69b6eb9d9b4347681c8e",
+      "bytes": 8321,
+      "sha256": "b7a31eb6929f50cffc21e1844cc9048f53fa1326d54fb73bf7800976149cf756",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase12-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase13-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "78084272c0ee49a6c71c3632d30d40047aed0f27",
+      "bytes": 3428,
+      "sha256": "5c1fd7c5857f25f782beeb74452d0b4200bbc3e46415f5224a35e26354918ec2",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase13-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase14-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "c03ee1f44ba6912971f6dea1ba9c25fb3ce57e6b",
+      "bytes": 3157,
+      "sha256": "71b60e26da7360984851ae53c2c784647b4cfbeff99dff4485a32bc481981ec7",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase14-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase15-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "c9cf5d351c19869e40456b12a630797dbb67537f",
+      "bytes": 3649,
+      "sha256": "59e3064d455eccfda469519519b08f2d8f2c5e885f5577cccf00be8f5c13e900",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase15-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase16-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "b924494c49ddd2faf7b3e878fe86e83b3672bd75",
+      "bytes": 3431,
+      "sha256": "b5af47b8c1c3b3f0de8b4d804cc7b3f1b7b6078b9d62decc81952736641e3a9b",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase16-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase17-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "18465b22786035e81057623f1dcd8c7d0af38844",
+      "bytes": 4036,
+      "sha256": "7d7610d47e44133e8f08cc340ba3dcbfff6803fb294e876cf0b258486a81b242",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase17-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase18-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "09585cbcebf757fed893f9624725663be7f1da07",
+      "bytes": 3931,
+      "sha256": "1e6c27f6c39294005d63c20a0d187540682c9ddb11e43add5d79d7a60e01a34b",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase18-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase5-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "a948caf0f46875bcd267ca031cd4b6631b70dcc0",
+      "bytes": 10788,
+      "sha256": "a2f583c896c63fa70327ed0cea423aac64e74426705af6cf93d2cde16d24ff91",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase5-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase8-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "9d78d1c932c6e41997ce24cfb556d3e70d28a271",
+      "bytes": 4375,
+      "sha256": "6f3c5dfdf5d9d2be4c28d5c4789df9e4cdb338168b6215d841700411c416c0d0",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase8-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-phase9-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "25cdfe5710c05b90f0c49a61160cdaf1a3ffbf0a",
+      "bytes": 4074,
+      "sha256": "f515df1b35358161f7fe473d67bca843ff4743d32744037f81ab8fb51c04aaca",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-phase9-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/knowledge-plane-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "5b13d5228e5a7d1590034786b69b9aabd6ed6bc5",
+      "bytes": 3649,
+      "sha256": "ed511fe39a1da3f3e96f51300f6e1e048503e4173ef69bd3f30dddba50b22fe5",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/knowledge-plane-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/legiwatch-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "4358c8ec84329705d13418fc9201e024f84c2868",
+      "bytes": 28040,
+      "sha256": "aec4e2724eb73b8cff9aa4cb14837ea533b6846658bddddc4c20125a0fb0f701",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/legiwatch-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/legiwatch-deploy-verify.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "29bebc4411d6441a5fde1722c0349cf60de8b832",
+      "bytes": 4230,
+      "sha256": "a1feb65d3bd4b73b6217d3bad6a7d087337996061d1498fa07f2c069d2a4ad23",
+      "triggers": [
+        "workflow_dispatch",
+        "workflow_run"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/legiwatch-deploy-verify.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/marketing-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "853b3dcd78500cef31c516aff980b2e7755c18aa",
+      "bytes": 3486,
+      "sha256": "06da6fd8911342610d588a1a1143a73b4a2ab4f90e85fe21b77acada73e72c44",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication",
+        "service-update"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/marketing-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/memory-governance-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "37dc46e1708b4a92aea4936cfde5d35cffcca7e0",
+      "bytes": 7570,
+      "sha256": "12d248a9999a80a6401ad8855307136dd55658e892a83fbb0260d8fd2d728111",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/memory-governance-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/memory-postgres-qualification.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "a833e91d3d969780e4bd38ceca67e20fb78353cd",
+      "bytes": 2751,
+      "sha256": "981a7d9def9c63e6106e81e357a885169a32fef487220521aa81ab7702eebac2",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/memory-postgres-qualification.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meri-connectors-verify.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "b89cb005b0a7aa44ee91b491e468f9f3abd36872",
+      "bytes": 4962,
+      "sha256": "cb2b23a103d844cc9520058d8d0bb450e215c1c80f62cf09c319274a8b96e099",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_READONLY_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meri-connectors-verify.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-evals.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "856faaba82a71ca6d34a2fe7b3ac983511d8794f",
+      "bytes": 1851,
+      "sha256": "d8f62dfb8c19578d443ddb8efee1561e718ef62c8ad0f6bd5ce7e489a8cbcbbe",
+      "triggers": [
+        "pull_request"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-evals.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-orchestrator-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "595bfac9545408c5f9dce0c4ae41cd47d70334fd",
+      "bytes": 2604,
+      "sha256": "8275467990dcac562c9fce02e5cb2b959bc4d9db00d1c700928ac7d794ac925a",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-orchestrator-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-parity.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "eef4667537145cff416a37577db46bdcb9346cee",
+      "bytes": 3793,
+      "sha256": "ca963c1cf0aff555c4321088e4ad6b1bff53584f7da6faa94ea43c5bf0694d58",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "PARITY_API_BASE_URL",
+        "PARITY_BEARER_TOKEN",
+        "PARITY_CLIENT_ID",
+        "PARITY_DRAFT_ID",
+        "PARITY_ORCH_BASE_URL",
+        "PARITY_WS_BASE_URL"
+      ],
+      "source_reference_categories": [
+        "schedule"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-parity.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-phase17-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "c047a43c5cd17c4f6d88ed19158121a467b93346",
+      "bytes": 11951,
+      "sha256": "c7f04c1dd48bb1356785ad0f41e1ef67820feb3410a7c000f003fd1db212cc90",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase17-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-phase18-database-rehearsal.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "8b5c297b6d5d21e5a0734cb3e84f11615a7819f6",
+      "bytes": 2814,
+      "sha256": "5ec88d99fa7ec80db08a2a471deddfabd19ecf246b1eb7482bdf45d4c4506c2d",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase18-database-rehearsal.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-phase19-browser-acceptance.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "e1fb689053713c8ae1bcb6fca58c6bb60b682b93",
+      "bytes": 10319,
+      "sha256": "c1c31a9fa81eeb7e998fb5b21318b264200427b0db0321d28e83be7bfd6842ef",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "PHASE18_ACCEPTED_SHA",
+        "PHASE19_ANTHROPIC_API_KEY",
+        "PHASE19_CLERK_JWT_ISSUER",
+        "PHASE19_CLERK_ORG_ID",
+        "PHASE19_CLERK_PUBLISHABLE_KEY",
+        "PHASE19_CLERK_SECRET_KEY",
+        "PHASE19_CLERK_WEBHOOK_SIGNING_SECRET",
+        "PHASE19_CLIENT_REVIEWER_CLERK_USER_ID",
+        "PHASE19_CLIENT_REVIEWER_COOKIE",
+        "PHASE19_CLIENT_REVIEWER_EMAIL",
+        "PHASE19_DENIED_CLERK_USER_ID",
+        "PHASE19_DENIED_COOKIE",
+        "PHASE19_DENIED_EMAIL",
+        "PHASE19_LIVE_CHAT_EXPECT",
+        "PHASE19_LIVE_CHAT_PATH",
+        "PHASE19_LIVE_CONTEXT_EXPECT",
+        "PHASE19_LIVE_CONTEXT_PATH",
+        "PHASE19_LIVE_EDITOR_EXPECT",
+        "PHASE19_LIVE_EDITOR_PATH",
+        "PHASE19_LIVE_ENFORCE_EXPECT",
+        "PHASE19_LIVE_ENFORCE_PATH",
+        "PHASE19_LIVE_EXPORT_EXPECT",
+        "PHASE19_LIVE_EXPORT_PATH",
+        "PHASE19_LIVE_PROPOSAL_EXPECT",
+        "PHASE19_LIVE_PROPOSAL_PATH",
+        "PHASE19_LIVE_SHADOW_EXPECT",
+        "PHASE19_LIVE_SHADOW_PATH",
+        "PHASE19_LIVE_STRATEGY_EXPECT",
+        "PHASE19_LIVE_STRATEGY_PATH",
+        "PHASE19_LIVE_WORKSPACE_EXPECT",
+        "PHASE19_LIVE_WORKSPACE_PATH",
+        "PHASE19_PROPOSER_CLERK_USER_ID",
+        "PHASE19_PROPOSER_COOKIE",
+        "PHASE19_PROPOSER_EMAIL",
+        "PHASE19_REVIEWER_CLERK_USER_ID",
+        "PHASE19_REVIEWER_COOKIE",
+        "PHASE19_REVIEWER_EMAIL"
+      ],
+      "source_reference_categories": [
+        "database-action",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase19-browser-acceptance.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv2-phase20-control-system.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "7ab2ee2bb8ca4a0b26160153798652236792dd5f",
+      "bytes": 8260,
+      "sha256": "a2fdf993b423edd5f398a9604db986cb2dd712bae74444c63e7023a93e22cdf9",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv2-phase20-control-system.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv3-canary-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "68214732a6dd3be34f132937c301b5992cb15c20",
+      "bytes": 13650,
+      "sha256": "faf8318b34b99762da1c19e04459ffd5cff73ebe9000ea227278c062e0ce3c85",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv3-canary-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/meriv3-visual-analysis-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "11ac68e84920243dcb66a81fb4571e3d39b22c20",
+      "bytes": 9557,
+      "sha256": "82b9f7fe3acb8ffe74a5868edf53e465dbe043d042aae70fba66810b0b6c6b43",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/meriv3-visual-analysis-ci.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/oidc-verify.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "3c35ad8d9d91e07f5130945f47562c28a470f34f",
+      "bytes": 4479,
+      "sha256": "62620ab4423526bacfa8f4c4cdaae9c606aa090006f0ffaf743db9a8535c5754",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_PROD_GHA_ROLE_ARN",
+        "AWS_READONLY_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "service-update"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/oidc-verify.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/onboard-api-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "cf755c2ee75e0b5bd89f14b8538286a65c6c339f",
+      "bytes": 2351,
+      "sha256": "eb58495f7326433e06e6e323e087c31fda7dc9d47b51997f41d11cfcf6d7a14b",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/onboard-api-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-evals.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "b3fc760180fd73f5a9cfd5f78dea3dc526a5c6cf",
+      "bytes": 4693,
+      "sha256": "809f0b2467d0e617e398d886711dab77aae2669e65f3a5266766235e37d17dc6",
+      "triggers": [
+        "push",
+        "schedule",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "source_reference_categories": [
+        "schedule",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-evals.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-p1-preflight.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "6d4a53bddff92600cdc583fe0680dae6e8ccdb09",
+      "bytes": 3672,
+      "sha256": "0c6b2f8b985f254897460a85ea0992835902a970a9c21e00d2ab1ab1b55a5336",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-p1-preflight.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-p4.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "a66f326822b7ee5a449a79f25f67e5be8edf09e9",
+      "bytes": 1981,
+      "sha256": "75c2bac06e0954ac054aa618eed3029d77514fbf45dbf388917a2341a738a977",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-p4.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase2.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "635dff844390f9b386bd9ca430a7b3d154a2f4c4",
+      "bytes": 3790,
+      "sha256": "2f8ea901e991275c096f9c7e4e3fa6e48edcc71f32f6c5c3da291aa205a40872",
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase2.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase3-provider-contract.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "41f277ba1a5d10387d91d4acd61ff6d00ec30071",
+      "bytes": 1357,
+      "sha256": "ee50752d66fa456b49b890237e5cf6d542f9818b74dc77b2436a1fa3d426ee39",
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase3-provider-contract.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase3.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "9a7fd9e74a9a466d1ee8f717883b0b654b4fd429",
+      "bytes": 3941,
+      "sha256": "855c0251299c1e3bfcab3b4bd5e27de1ee1eff5e2f25ba545f7854f10cd36f10",
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase3.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase4-6-combined.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "ac9812c8c37777e11dde629dd99940fa18a98c2b",
+      "bytes": 2373,
+      "sha256": "49bf604d414a5977c8a470895f3c941277f5880ea1aea0a6816cd33e1cc2f717",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase4-6-combined.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase4-6-final.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "ec3c7c73d0fa27eea6020bc408b655e8b38040d6",
+      "bytes": 2256,
+      "sha256": "d2046db74cad3fb8819af75bf321efbc79971733accc458715d8a8333cc45813",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase4-6-final.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase6-final.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "e19723dbe34d8b0105a124606490f3d5b36a6385",
+      "bytes": 1514,
+      "sha256": "e5a2e71f874af732523adcc2e372993edc26b22a70b8ae32d28648870c6d8e75",
+      "triggers": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase6-final.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/outreach-v3-phase6.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "bedc0a5bce4e8b012bd8c42c479204ab0c2c454f",
+      "bytes": 1693,
+      "sha256": "47e6fe51b32639fa95ab7b2721b712ba77d05b18987fcb199ef04e472971bc22",
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/outreach-v3-phase6.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session10-schedule-control-plane.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "da165c32e80cf9ba292272d3c98e71c75a57de19",
+      "bytes": 5461,
+      "sha256": "e34331d9c9268b774ca8163d08df995dcef3ba12fcec5624d82ba4697241b023",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session10-schedule-control-plane.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session11-product-integration.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "77570cae01487866bb8f1b814c8f45555e610615",
+      "bytes": 6157,
+      "sha256": "e8daeb6dd10e1366f8b6594fc6278b98e511a933ac25a4428ed0e6997cf04cf0",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session11-product-integration.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session2-boundary.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "b64acdc28510b70858e0dcfec37602e8adf28fdc",
+      "bytes": 5536,
+      "sha256": "d8e6d81dce9778ba8c1cd0b921bdd98a5f77d75b38d87e03c75660ab65cfb574",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session2-boundary.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session4-runtime.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "5868d3444d84d2c0558c6be25c7d1bd0eeb3a790",
+      "bytes": 6224,
+      "sha256": "a1e0dd4b122403e5b91ea04e78d6a4cd273980a8bf152c902954d5a1b97f2494",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session4-runtime.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session5-nvidia-benchmark.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "d4823bce2fb52e7d0cbc48e4b2a36e6a6431e200",
+      "bytes": 6275,
+      "sha256": "dc7a542589feba0d49abd60146f5386d5b21108e0f33af6edac5c65c120560eb",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action",
+        "provider-or-live-evaluation-reference"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session5-nvidia-benchmark.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session6-federal-funding.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "a12ec804e4bdb48aa7749a9b4fecafa5f4af04be",
+      "bytes": 3241,
+      "sha256": "5329e1000138d8a31ee3767ab35fd76d53e59a32d26ad06d33aec2f1ba357229",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session6-federal-funding.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session7-lifecycle-watcher.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "d845790e3e764b0a52cb60c0cb81321ff4f828f8",
+      "bytes": 4819,
+      "sha256": "b1147be2658b462acce4c0afe6f9d7086ac21af54a489c9852f8c674ece85e63",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session7-lifecycle-watcher.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session8-live-source-discovery.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "de7cf2615edd0d2b98b8dfed967f6a549666c127",
+      "bytes": 6048,
+      "sha256": "a20155eca698c36d058e5308ae7afc1c9d60c82aa1a50964b32d3e00af38b906",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session8-live-source-discovery.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/phase8-session9-provider-runtime.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "bf5739a290aa4bcbf0dfa49ddecf6145b1ace423",
+      "bytes": 5334,
+      "sha256": "07f71a26385240252f0d84d61288c05a1a81ee6e77c6dd9d436cd72fdac70364",
+      "triggers": [
+        "pull_request",
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [
+        "database-action"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/phase8-session9-provider-runtime.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/sandbox-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "c53b8fc3609cede130b66655d9252004f5f9d9a6",
+      "bytes": 3201,
+      "sha256": "e4406fa78e8842110a442b0d1ec5667c8b4f1df2eea68f184bbedd74675751eb",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication",
+        "service-update"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/sandbox-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/web-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "9bd6e3337eeb42896fc269b1a482dfe7ee0bfcab",
+      "bytes": 2665,
+      "sha256": "1cdc1e85d7220d45485d7957769630297fdcc1a8f3ff3759d093c20623b04d3c",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/web-image.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/web-vnext-deploy.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "9ced045a91e953b77b1af106443215aaf3bea1f1",
+      "bytes": 4067,
+      "sha256": "3dcbcd65bd89ba8498e50e3d15e9be5b9ed7e117433d1c903450aeb123068ba9",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/web-vnext-deploy.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/web-vnext-foundation.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "ab540c63f6c442a1836f59a105d85991010971c4",
+      "bytes": 3186,
+      "sha256": "06c31d70bec82a03c593ccd4a054cd949dbfb4a4e10c99f42d2832e2c1ffb341",
+      "triggers": [
+        "pull_request"
+      ],
+      "reference_names": [],
+      "source_reference_categories": [],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/web-vnext-foundation.yml.disabled"
+    },
+    {
+      "path": ".github/workflows/workspace-image.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "d80f1447ff8fbd88c853adcf5a34e60ae0a3cb38",
+      "bytes": 2430,
+      "sha256": "2104c2b678d6495b505cc7ec171a9625f71454827d41d4ba1b51be364596601d",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reference_names": [
+        "AWS_DEV_GHA_ROLE_ARN",
+        "AWS_PROD_GHA_ROLE_ARN"
+      ],
+      "source_reference_categories": [
+        "aws-oidc",
+        "image-publication"
+      ],
+      "classification_limit": "source-reference match only; no claim every referenced job executes external side effects",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/github-workflows/workspace-image.yml.disabled"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "mode": "100644",
+      "type": "blob",
+      "blob": "1e4b3c8ccc9a90fe4dee310bceec8973b1f21185",
+      "proposed_quarantine": "docs/backend-repository-split-preparation-20261013/quarantine/dependabot.yml.disabled",
+      "classification": "retire automatic dependency update configuration at initial imported tip",
+      "bytes": 1096,
+      "sha256": "dc276820311c34f77d0b43df6385e890818ee1c74f58ccad8249a75eb8f2ca39"
+    }
+  ],
+  "bytesModesBlobsUnchanged": true,
+  "newDestinationActionsExecuted": false
+}

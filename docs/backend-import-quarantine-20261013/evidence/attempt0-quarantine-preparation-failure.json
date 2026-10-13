@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "observation": "KeyError: 'bytes' at Dependabot row after 73 workflow files had moved. No commit or publication occurred. Original plan supplies workflow hashes, but Dependabot only mode/blob. Recovery derives exact Dependabot bytes/SHA from the original Git blob and checks already-moved files without overwriting.",
+  "partialMoves": 73,
+  "sourceHead": "93a5fd5fed531e06dfd78d93f938964f32d62675"
+}
