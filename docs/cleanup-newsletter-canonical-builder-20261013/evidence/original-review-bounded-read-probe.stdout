@@ -1,0 +1,8 @@
+{
+  "source": "df86e43aba9f16d0c28c68202ebd88f913aa2ce3",
+  "scope": "fake fd callbacks only; no allocations over16MiB+1/private/assets/writes/native operations",
+  "readFileCalls": 1,
+  "boundedReads": [],
+  "error": "UNBOUNDED_READFILE_CONTROLLED_STOP",
+  "pass": false
+}

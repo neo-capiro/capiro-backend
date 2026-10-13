@@ -1,0 +1,24 @@
+{
+  "source": "9647f297761020f8d8f51c8ebdc49d1a5f8e981f",
+  "tree": "0505542d4bd3fcb7bb8f39c4ff54f0ce42d2f042",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/workspace/cleanup-newsletter-canonical-builder-20261013/docs/cleanup-newsletter-canonical-builder-20261013/evidence/safe-source-host.cjs",
+    "--test",
+    "--test-isolation=none",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "GIT_DIR": "/workspace/capirov2/.git",
+    "GIT_WORK_TREE": "/workspace/cleanup-newsletter-canonical-builder-20261013"
+  },
+  "cwd": "/workspace/cleanup-newsletter-canonical-builder-20261013",
+  "exit": 0,
+  "seconds": 3.1085996627807617,
+  "stdoutSha256": "54cda02e4c0c77508bc4cf4f6e5227666801912425b5d9da6502da9fe27e1a34",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "hostSha256": "7edf4b7bb3378b42412740579f6ef0dc595f07bc9511c5e71d9da812c87baa78",
+  "effects": "actual owned physical synthetic files/locks/rename/fsync, exact harmless shell plan/help/refusal child; no app/Next/Docker/native/provider/DB"
+}

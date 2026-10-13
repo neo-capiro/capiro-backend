@@ -1,0 +1,44 @@
+{
+  "source": "6d24ee5a210ee92ccaeaf6f465e0b3b69b32fd32",
+  "tree": "d5ef58129c1a9cb8cc76e90b73509ac5e1ff7697",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "branch": "refs/heads/codex/cleanup-newsletter-canonical-builder-20261013",
+  "paths": [
+    {
+      "path": "scripts/build-newsletter-release.sh",
+      "mode": "100755",
+      "gitBlob": "fd3cdeedbcc64378b4a38849f7c86bc4c32f9d1a",
+      "sha256": "65a35b3afcde13a390c441ffb93c32e717ff76b02af8d7d60af505dc27cc62d1",
+      "bytes": 1031
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "mode": "100644",
+      "gitBlob": "78dda398e5ccb46ee5a169fb74b81ddf7a17278e",
+      "sha256": "f44b1071da4d29fe016d70cdffa6ad5b8cf5dcec2aafd42a3313675daaca23f1",
+      "bytes": 17057
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "mode": "100644",
+      "gitBlob": "acd29adc9fdc7a1dce8b071381edc7d73fdd13f5",
+      "sha256": "7cc069b9effb1755fa8a4811de6eb189f9bd3f9fc272f72a00bbbac7e78fb8c0",
+      "bytes": 20264
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "mode": "100644",
+      "gitBlob": "d9868f30a0e39acd2893c39643f606d56c2c80bf",
+      "sha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816",
+      "bytes": 17659
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "mode": "100644",
+      "gitBlob": "9f70a4cfd0434a248440245ae63ee7552dcb3514",
+      "sha256": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e",
+      "bytes": 4581
+    }
+  ],
+  "previousSource": "df86e43aba9f16d0c28c68202ebd88f913aa2ce3"
+}

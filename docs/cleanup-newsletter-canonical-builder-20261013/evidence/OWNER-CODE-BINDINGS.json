@@ -1,0 +1,37 @@
+[
+  {
+    "repository": "capiro-frontend",
+    "path": "apps/web/Dockerfile",
+    "gitBlob": "575c2216592b0fa7e8db183f9a8e0df931c102fd",
+    "sha256": "03225dcc94257dfd919f3b889f0886d4981156890897fee579e50d644959cbe1",
+    "bytes": 855
+  },
+  {
+    "repository": "capiro-frontend",
+    "path": "apps/web/next.config.ts",
+    "gitBlob": "bab73aa64bb6d3ca2db4c828d1fcface0ebd0aae",
+    "sha256": "b74e94a2d41d0e6587a8607a4fb3dc8800f46bd99d10ef3af43e78928af03e57",
+    "bytes": 559
+  },
+  {
+    "repository": "capiro-frontend",
+    "path": "apps/web/package.json",
+    "gitBlob": "3aebcc9ee30d21ceb6f56cc98d36d075ebf2b6f6",
+    "sha256": "36cd7a98306d00ef3667bbf0a47a707e7896431feb0d60638be575a70155e6ec",
+    "bytes": 1882
+  },
+  {
+    "repository": "capiro-frontend",
+    "path": "package.json",
+    "gitBlob": "8ff3a6d21dd28d80b213dbbda3c81b3380298411",
+    "sha256": "f6159deb8588ef341d6ea5f48cb3d68a1534217758c012a813975a2d9570e51d",
+    "bytes": 2034
+  },
+  {
+    "repository": "capirov2",
+    "path": "scripts/build-newsletter-release.sh",
+    "gitBlob": "1fcd26f8c9fba14bd4c251ebe8ebb745034e2420",
+    "sha256": "e6067f99745802f1df9ac284d8a923354725628e4d2c4e33bfbaafcb9f747e0e",
+    "bytes": 4222
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "source": "df86e43aba9f16d0c28c68202ebd88f913aa2ce3",
+  "scope": "inert callback stop and pure plan; no file/private path/asset/output or native operation",
+  "results": [
+    {
+      "name": "unlabelled nondefault filesystem port must refuse before callbacks",
+      "calls": 0,
+      "error": "Newsletter assembly refused: explicit labelled synthetic identity/filesystem port",
+      "pass": true
+    },
+    {
+      "name": "pure plan does not claim assembly/native/UI/shipping",
+      "pass": true
+    }
+  ],
+  "pass": 2,
+  "red": 0
+}

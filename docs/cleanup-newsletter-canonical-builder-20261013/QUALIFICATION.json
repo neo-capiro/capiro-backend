@@ -1,0 +1,23 @@
+{
+  "source": "c26ae029e3c6319a265f735f687758b22093c401",
+  "tree": "c23bf6bdc107734f5101eb1df4086e717b21546e",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "pass": {
+    "freshAssembly": 32,
+    "freshDocker": 3,
+    "actualDirectCLI": 4,
+    "immutableReviewerCredentialCarry": 8,
+    "immutableReviewerInjectedFSCarry": 2,
+    "immutableReviewerBoundedFDCarry": true
+  },
+  "skipped": 0,
+  "todo": 0,
+  "effects": "actual owned temporary synthetic file assembly/rename/fsync/modes and exact shellplan/help/refusal, no application/inputpayload execution",
+  "independentFilesystemAttestation": false,
+  "actualApprovedArtifactAvailableAt2CheckedBackendLocations": false,
+  "donor3054And5208Measured": false,
+  "actual179BytesInFixtureAdmitted": false,
+  "noAppNextDockerInstallProviderNativeSQLAWSCredentialOperations": true,
+  "fullFloorOrShippingAccepted": false,
+  "independentReview": "O final acceptance pending"
+}

@@ -1,0 +1,629 @@
+diff --git a/scripts/build-newsletter-release.sh b/scripts/build-newsletter-release.sh
+new file mode 100755
+index 000000000..db7fea14b
+--- /dev/null
++++ b/scripts/build-newsletter-release.sh
+@@ -0,0 +1,15 @@
++#!/bin/sh
++# Local assembly only. Never builds/runs images, applications, providers or publishes.
++set -eu
++usage='Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run [all explicit source, target, manifest and input/output flags]'
++if [ "$#" -eq 1 ] && [ "$1" = --help ]; then printf '%s\n' "$usage"; exit 0; fi
++if [ "$#" -lt 3 ] || [ "$1" != --node-bin ]; then printf '%s\n' "$usage" >&2; exit 2; fi
++node_bin=$2
++case "$node_bin" in /*/node) ;; *) printf '%s\n' 'An explicit absolute Node executable is required' >&2; exit 2 ;; esac
++case "$node_bin" in *'..'*|*'\'*|*'
++'*) printf '%s\n' 'Nonliteral Node executable path refused' >&2; exit 2 ;; esac
++if [ ! -f "$node_bin" ] || [ ! -x "$node_bin" ] || [ -L "$node_bin" ]; then printf '%s\n' 'Regular explicit Node executable required' >&2; exit 2; fi
++shift 2
++owner=${0%/*}/lib/newsletter-artifact-packaging-plan.mjs
++# No inherited NODE_OPTIONS/loaders/proxy/cloud/model credentials reach Node.
++exec /usr/bin/env -i PATH=/usr/bin:/bin "$node_bin" --no-addons "$owner" "$@"
+diff --git a/scripts/ci/frontend-artifact-docker.contract.spec.mjs b/scripts/ci/frontend-artifact-docker.contract.spec.mjs
+index d5394c0af..9f70a4cfd 100644
+--- a/scripts/ci/frontend-artifact-docker.contract.spec.mjs
++++ b/scripts/ci/frontend-artifact-docker.contract.spec.mjs
+@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
+ import test from 'node:test';
+ 
+ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+-const BASE = '0a76666dc57aa852586c35167426a540939c9918';
++const BASE = '523ef9167f05a33efdbdfbbfc08d5fc2e2679012';
+ const read = file => readFileSync(path.join(ROOT, file), 'utf8');
+ const DOCKER = read('apps/web/Dockerfile.frontend-artifact');
+ const RUNTIME = `FROM base AS runtime
+@@ -53,8 +53,12 @@ test('default Web Docker, release operator, workspace, lock and Onboard default
+     const before = execFileSync('git', ['show', `${BASE}:${file}`], { cwd: ROOT, encoding: 'utf8' });
+     assert.equal(read(file), before, file);
+   }
+-  // The receiving branch has no active legacy release operator. Do not restore it as a dependency.
+-  assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), false);
++  // The current canonical builder only assembles explicit already-built inputs; deployment defaults stay untouched.
++  assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), true);
++  const builder = read('scripts/build-newsletter-release.sh');
++  assert.match(builder, /newsletter-artifact-packaging-plan\.mjs/);
++  assert.match(builder, /exec \/usr\/bin\/env -i PATH=\/usr\/bin:\/bin/);
++  assert.doesNotMatch(builder, /aws |ecr|docker (?:build|run|push)|npm (?:ci|install)|pnpm/);
+   assert.match(read('apps/web/Dockerfile'), /^EXPOSE 8080$/m);
+ });
+ 
+diff --git a/scripts/ci/newsletter-artifact-packaging-plan.spec.mjs b/scripts/ci/newsletter-artifact-packaging-plan.spec.mjs
+new file mode 100644
+index 000000000..62760cd00
+--- /dev/null
++++ b/scripts/ci/newsletter-artifact-packaging-plan.spec.mjs
+@@ -0,0 +1,299 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import * as fs from 'node:fs/promises';
++import { createHash } from 'node:crypto';
++import path from 'node:path';
++import os from 'node:os';
++import { fileURLToPath } from 'node:url';
++import { spawnSync } from 'node:child_process';
++import { canonicalNewsletterManifest } from '../lib/newsletter-static-release-contract.mjs';
++import { inspectFrontendStandaloneManifest, readFrontendStandaloneArtifact } from '../lib/frontend-standalone-artifact-contract.mjs';
++import { NEWSLETTER_FRONTEND_ARTIFACT_PROFILE as PROFILE, parseNewsletterBuildInvocation,
++  createNewsletterArtifactPackagingPlan, assembleNewsletterReleaseArtifact } from '../lib/newsletter-artifact-packaging-plan.mjs';
++const sha = bytes => createHash('sha256').update(bytes).digest('hex');
++const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
++const assets = canonicalNewsletterManifest(), byUrl = new Map(assets.map(entry => [entry.publicPath, entry]));
++const identity = (bytes, url) => bytes.equals(Buffer.from(url)) ? byUrl.get(url) : null;
++const source = { repository: PROFILE.repository, commit: PROFILE.commit };
++const model = { newsletterIdentity: identity, fixtureLabel: 'synthetic already-built input' };
++const pins = options => ({ sourceRepository: options.sourceRepository, sourceCommit: options.sourceCommit,
++  manifestSha256: options.manifestSha256, runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 } });
++function argv(options, mode = '--plan') {
++  return [mode, ...Object.entries({ '--standalone-dir': options.standaloneDir, '--public-dir': options.publicDir,
++    '--static-dir': options.staticDir, '--manifest': options.manifestPath, '--manifest-sha256': options.manifestSha256,
++    '--source-repository': options.sourceRepository, '--source-commit': options.sourceCommit,
++    '--target-platform': options.targetPlatform, '--target-libc': options.targetLibc,
++    '--target-node-major': options.targetNodeMajor, '--backend-source-commit': options.backendSourceCommit,
++    '--output-dir': options.outputDir }).flat()];
++}
++async function fixture(run) {
++  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'newsletter-assembly-'));
++  const standalone = root + '/standalone', pub = root + '/public', statics = root + '/static';
++  await Promise.all([standalone, pub, statics].map(folder => fs.mkdir(folder)));
++  const files = new Map([
++    ['apps/web/server.js', Buffer.from('// inert compiled fixture; never execute')],
++    ['apps/web/.next/BUILD_ID', Buffer.from('synthetic')],
++    ['apps/web/.next/required-server-files.json', Buffer.from(JSON.stringify({ config: { output: 'standalone' },
++      relativeAppDir: 'apps/web', files: ['.next/BUILD_ID', '.next/server/route.js'] }))],
++    ['apps/web/.next/server/route.js', Buffer.from('// inert declared route')],
++    ['apps/web/.next/server/route.js.nft.json', Buffer.from(JSON.stringify({ files: ['../../../../node_modules/alias/runtime.js'] }))],
++    ['node_modules/runtime/runtime.js', Buffer.from('// inert dependency; never import')],
++    ['apps/web/.next/static/chunk.js', Buffer.from('// inert static file')],
++    ...assets.map(entry => ['apps/web/public' + entry.publicPath, Buffer.from(entry.publicPath)]),
++  ]);
++  const links = new Map([['node_modules/alias', './runtime']]);
++  for (const [name, bytes] of files) {
++    const destination = name.startsWith('apps/web/public/') ? pub + '/' + name.slice('apps/web/public/'.length)
++      : name.startsWith('apps/web/.next/static/') ? statics + '/' + name.slice('apps/web/.next/static/'.length)
++      : standalone + '/' + name;
++    await fs.mkdir(path.dirname(destination), { recursive: true }); await fs.writeFile(destination, bytes);
++  }
++  for (const [name, target] of links) await fs.symlink(target, standalone + '/' + name);
++  const manifest = { schemaVersion: 1, artifactType: 'capiro-frontend-next-standalone', source,
++    runtimeTarget: { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 }, serverEntrypoint: 'apps/web/server.js',
++    entries: [...files].map(([name, bytes]) => ({ path: name, type: 'file', bytes: bytes.length, sha256: sha(bytes) }))
++      .concat([...links].map(([name, target]) => ({ path: name, type: 'symlink', target }))) };
++  const manifestPath = root + '/producer-manifest.json', bytes = Buffer.from(JSON.stringify(manifest));
++  await fs.writeFile(manifestPath, bytes);
++  const options = { standaloneDir: standalone, publicDir: pub, staticDir: statics, manifestPath, manifestSha256: sha(bytes),
++    sourceRepository: source.repository, sourceCommit: source.commit, targetPlatform: 'linux/amd64',
++    targetLibc: 'musl', targetNodeMajor: '24', backendSourceCommit: 'a'.repeat(40), outputDir: root + '/published' };
++  try { await run({ root, files, links, options, manifest, manifestBytes: bytes }); }
++  finally { await fs.rm(root, { recursive: true, force: true }); }
++}
++async function absent(value) { await assert.rejects(fs.lstat(value), { code: 'ENOENT' }); }
++function ioWith(changes) { return { ...fs, ...changes }; }
++const readPorts = { lstat: fs.lstat, readdir: fs.readdir, realpath: fs.realpath, readlink: fs.readlink, readFile: fs.readFile };
++
++test('physical synthetic assembly publishes complete bytes, links and durable receipt then independently revalidates', async () => {
++  await fixture(async ({ files, links, options, manifestBytes, root }) => {
++    const receipt = await assembleNewsletterReleaseArtifact(options, model);
++    assert.equal(receipt.status, 'PASS'); assert.equal(receipt.syntheticModel, true);
++    assert.equal(receipt.artifact.actualArtifactBytesVerified, false); assert.equal(receipt.shippingAuthorized, false);
++    assert.equal(receipt.atomicDirectoryPublishPerformed, true); assert.equal(receipt.durableFilesAndDirectorySyncPerformed, true);
++    assert.deepEqual(receipt.runtimeTarget, { os: 'linux', arch: 'amd64', libc: 'musl', nodeMajor: 24 });
++    assert.equal(receipt.counts.regularFiles, files.size); assert.equal(receipt.counts.symlinks, links.size);
++    assert.equal(receipt.backendSourceIndependentlyVerified, false);
++    assert.equal(receipt.builtinFilesystemEffectsPerformed, true);
++    assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
++    const saved = JSON.parse(await fs.readFile(options.outputDir + '/build-receipt.json', 'utf8')); assert.deepEqual(saved, receipt);
++    assert.deepEqual(await fs.readFile(options.outputDir + '/manifest.json'), manifestBytes);
++    for (const [name, bytes] of files) assert.deepEqual(await fs.readFile(options.outputDir + '/rootfs/' + name), bytes);
++    for (const [name, target] of links) assert.equal(await fs.readlink(options.outputDir + '/rootfs/' + name), target);
++    const independentlyRead = await readFrontendStandaloneArtifact({ artifactDir: options.outputDir,
++      pins: pins(options), newsletterIdentity: identity, ports: readPorts });
++    assert.equal(independentlyRead.artifactEntriesSha256, receipt.artifact.artifactEntriesSha256);
++    assert.equal(independentlyRead.actualArtifactBytesVerified, false);
++    await assert.rejects(readFrontendStandaloneArtifact({ artifactDir: options.outputDir, pins: pins(options), ports: readPorts }));
++    assert.equal((await fs.readdir(root)).some(name => name.startsWith('.newsletter-assembly-') || name.endsWith('.lock')), false);
++  });
++});
++
++test('canonical inspector has no ports and rejects invalid declaration/pin grammar before input scans', async () => {
++  await fixture(async ({ options, manifest }) => {
++    assert.equal(inspectFrontendStandaloneManifest({ manifestBytes: Buffer.from(JSON.stringify(manifest)), pins: pins(options) }).entries.length, manifest.entries.length);
++    for (const mutate of [value => { value.schemaVersion = 2; }, value => { value.source.commit = 'b'.repeat(40); },
++      value => { value.entries[0].path = '../escape'; }, value => { value.entries[0].extra = true; },
++      value => { value.entries.push(value.entries[0]); }]) {
++      const changed = structuredClone(manifest); mutate(changed); const bytes = Buffer.from(JSON.stringify(changed));
++      await fs.writeFile(options.manifestPath, bytes); let scans = 0;
++      await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, manifestSha256: sha(bytes) }, { ...model,
++        io: ioWith({ readdir: async () => { scans++; throw new Error('scan must not run'); } }) }));
++      assert.equal(scans, 0); await absent(options.outputDir);
++    }
++  });
++});
++
++for (const [name, change] of [
++  ['unapproved source', { sourceCommit: 'b'.repeat(40) }], ['wrong repository', { sourceRepository: 'other/repo' }],
++  ['old Node', { targetNodeMajor: '22' }], ['wrong libc', { targetLibc: 'glibc' }], ['unknown platform', { targetPlatform: 'linux/x64' }],
++  ['coerced pin', { backendSourceCommit: { toString() { throw new Error('coercion'); } } }],
++  ['manifest newline', { manifestSha256: 'a'.repeat(64) + '\n' }], ['credential output', { outputDir: '/tmp/.aws/release' }],
++]) test(`assembly refuses ${name} before filesystem calls`, async () => {
++  await fixture(async ({ options }) => {
++    let calls = 0; await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, ...change }, { ...model,
++      io: ioWith({ lstat: async () => { calls++; throw new Error('unexpected file call'); } }) }));
++    assert.equal(calls, 0);
++  });
++});
++
++test('parser and plan require explicit run mode and every literal option, with no I/O admission', async () => {
++  await fixture(async ({ options }) => {
++    const parsed = parseNewsletterBuildInvocation(argv(options)); assert.equal(parsed.mode, 'plan');
++    assert.equal(createNewsletterArtifactPackagingPlan(parsed.options).assemblyPerformed, false);
++    assert.equal(parseNewsletterBuildInvocation(['--help']).mode, 'help');
++    for (const bad of [[], ['--run'], argv(options).slice(1), [...argv(options), '--run'],
++      [...argv(options), '--unknown', 'x'], argv(options).slice(0, -2),
++      argv(options).map(value => value === '--static-dir' ? '--public-dir' : value)]) assert.throws(() => parseNewsletterBuildInvocation(bad));
++    await absent(options.outputDir);
++  });
++});
++
++test('argv pins and manifest checksum drift cannot create a lock or output', async () => {
++  await fixture(async ({ options, root }) => {
++    await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, manifestSha256: '0'.repeat(64) }, model));
++    await absent(options.outputDir); assert.equal((await fs.readdir(root)).some(name => name.endsWith('.lock')), false);
++  });
++});
++
++test('unlisted payloads, modified compiled bytes and changed internal link refuse before output writes', async () => {
++  for (const mode of ['extra', 'bytes', 'link']) await fixture(async ({ options }) => {
++    if (mode === 'extra') await fs.writeFile(options.standaloneDir + '/unexpected.js', 'never execute');
++    if (mode === 'bytes') await fs.writeFile(options.standaloneDir + '/apps/web/server.js', 'tampered');
++    if (mode === 'link') { await fs.unlink(options.standaloneDir + '/node_modules/alias'); await fs.symlink('/tmp', options.standaloneDir + '/node_modules/alias'); }
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, model)); await absent(options.outputDir);
++  });
++});
++
++test('declared resource overrun refuses before any raw input enumeration', async () => {
++  await fixture(async ({ options, manifest }) => {
++    const next = structuredClone(manifest); next.entries[0].bytes = PROFILE.maxFileBytes + 1;
++    const bytes = Buffer.from(JSON.stringify(next)); await fs.writeFile(options.manifestPath, bytes); let scans = 0;
++    await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, manifestSha256: sha(bytes) }, { ...model,
++      io: ioWith({ readdir: async () => { scans++; throw new Error('unexpected scan'); } }) }), /resource budget/);
++    assert.equal(scans, 0);
++  });
++});
++
++test('existing output, replay and input/output overlap preserve current bytes', async () => {
++  await fixture(async ({ options }) => {
++    await assembleNewsletterReleaseArtifact(options, model);
++    const before = await fs.readFile(options.outputDir + '/build-receipt.json');
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, model), /already exists/);
++    assert.deepEqual(await fs.readFile(options.outputDir + '/build-receipt.json'), before);
++    let calls = 0; await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, outputDir: options.publicDir + '/nested' }, { ...model,
++      io: ioWith({ lstat: async () => { calls++; throw new Error('overlap'); } }) }), /overlaps/); assert.equal(calls, 0);
++  });
++});
++
++test('cooperative same-output concurrency allows one immutable publication and cleans its lock', async () => {
++  await fixture(async ({ options }) => {
++    let release, entered; const waiting = new Promise(resolve => { entered = resolve; });
++    const gate = new Promise(resolve => { release = resolve; });
++    const first = assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ mkdtemp: async value => {
++      entered(); await gate; return fs.mkdtemp(value);
++    } }) });
++    await waiting; await assert.rejects(assembleNewsletterReleaseArtifact(options, model), { code: 'EEXIST' });
++    release(); const receipt = await first; assert.equal(receipt.status, 'PASS'); await absent(options.outputDir + '.newsletter-assembly.lock');
++  });
++});
++
++test('failed staged rename rolls back only owned scratch and leaves inputs untouched', async () => {
++  await fixture(async ({ options, root, manifestBytes }) => {
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ rename: async () => {
++      throw new Error('injected rename failure');
++    } }) }), /injected rename/);
++    await absent(options.outputDir); await absent(options.outputDir + '.newsletter-assembly.lock');
++    assert.deepEqual(await fs.readFile(options.manifestPath), manifestBytes);
++    assert.equal((await fs.readdir(root)).some(name => name.startsWith('.newsletter-assembly-')), false);
++  });
++});
++
++test('unlabelled injected identity cannot pretend to be production assembly', async () => {
++  await fixture(async ({ options }) => {
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, { newsletterIdentity: identity }), /labelled synthetic/);
++    await absent(options.outputDir);
++  });
++});
++
++test('actual canonical shell help/noargs/unknown/plan remain explicit and remove ambient Node loaders', async () => {
++  await fixture(async ({ options }) => {
++    const shell = ROOT + '/scripts/build-newsletter-release.sh';
++    const run = args => spawnSync('/bin/sh', [shell, ...args], { encoding: 'utf8',
++      env: { PATH: '/usr/bin:/bin', NODE_OPTIONS: '--require /nonexistent-newsletter-loader.cjs',
++        OPENAI_API_KEY: 'synthetic-not-a-credential', HTTPS_PROXY: 'https://example.invalid' } });
++    assert.equal(run(['--help']).status, 0); assert.equal(run([]).status, 2);
++    assert.equal(run(['--node-bin', process.execPath, '--unknown']).status, 2);
++    const planned = run(['--node-bin', process.execPath, ...argv(options)]);
++    assert.equal(planned.status, 0, planned.stderr);
++    assert.equal(JSON.parse(planned.stdout).assemblyPerformed, false); await absent(options.outputDir);
++  });
++});
++
++
++test('physical assembly preserves0755 helper execute bits without authenticating modes or granting runtime admission', async () => {
++  await fixture(async ({ options }) => {
++    const name = 'node_modules/runtime/runtime.js';
++    await fs.chmod(options.standaloneDir + '/' + name, 0o755);
++    const before = await fs.readFile(options.standaloneDir + '/' + name);
++    const receipt = await assembleNewsletterReleaseArtifact(options, model);
++    assert.equal((await fs.stat(options.outputDir + '/rootfs/' + name)).mode & 0o777, 0o755);
++    assert.deepEqual(await fs.readFile(options.outputDir + '/rootfs/' + name), before);
++    assert.equal(receipt.counts.fileModes.find(entry => entry.path === name).mode, '755');
++    assert.equal(receipt.permissionHandling.privilegedBitsPreserved, false);
++    assert.equal(receipt.permissionHandling.manifestAuthenticatesPermissions, false);
++    assert.equal(receipt.permissionHandling.runtimePermissionsCompatibilityVerified, false);
++    assert.equal(receipt.syntheticModel, true); assert.equal(receipt.shippingAuthorized, false);
++  });
++});
++
++for (const phase of ['prepublication', 'postrename']) test(`${phase} directory fsync failure never returns a success receipt and rolls back owned output`, async () => {
++  await fixture(async ({ options, root, manifestBytes }) => {
++    let failed = false;
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ open: async (value, ...args) => {
++      const handle = await fs.open(value, ...args);
++      const selected = phase === 'prepublication' ? value.includes('/.newsletter-assembly-') && value.endsWith('/rootfs')
++        : value === root;
++      if (!selected) return handle;
++      return { sync: async () => { failed = true; throw new Error(`injected ${phase} fsync failure`); }, close: () => handle.close() };
++    } }) }), new RegExp(`injected ${phase} fsync`));
++    assert.equal(failed, true); await absent(options.outputDir); await absent(options.outputDir + '.newsletter-assembly.lock');
++    assert.deepEqual(await fs.readFile(options.manifestPath), manifestBytes);
++    assert.equal((await fs.readdir(root)).some(name => name.startsWith('.newsletter-assembly-')), false);
++  });
++});
++
++
++for (const [name, key, value] of [
++  ['credentials.json manifest', 'manifestPath', '/tmp/credentials.json'],
++  ['envrc manifest', 'manifestPath', '/tmp/.envrc'],
++  ['npmrc manifest', 'manifestPath', '/tmp/.npmrc'],
++  ['service account manifest', 'manifestPath', '/tmp/service-account.json'],
++  ['private key manifest', 'manifestPath', '/tmp/private.key'],
++  ['uppercase AWS output', 'outputDir', '/tmp/.AWS/output'],
++  ['env variant output', 'outputDir', '/tmp/.env.local/output'],
++]) test(`canonical path owner refuses ${name} before filesystem callbacks`, async () => {
++  await fixture(async ({ options }) => {
++    let calls = 0;
++    await assert.rejects(assembleNewsletterReleaseArtifact({ ...options, [key]: value }, { ...model,
++      io: ioWith({ lstat: async () => { calls++; throw new Error('private input must not be touched'); } }) }));
++    assert.equal(calls, 0);
++  });
++});
++
++test('unlabelled filesystem injection refuses before callbacks and extra labels cannot alter production mode', async () => {
++  await fixture(async ({ options }) => {
++    let calls = 0; await assert.rejects(assembleNewsletterReleaseArtifact(options,
++      { io: ioWith({ lstat: async () => { calls++; throw new Error('synthetic callback'); } }) }), /labelled synthetic/);
++    assert.equal(calls, 0);
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, { fixtureLabel: 'not a port' }), /labelled synthetic/);
++  });
++});
++
++test('explicit filesystem model cannot attest atomic or durable native filesystem effects', async () => {
++  await fixture(async ({ options }) => {
++    const receipt = await assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({}) });
++    assert.equal(receipt.status, 'PASS'); assert.equal(receipt.syntheticModel, true);
++    assert.equal(receipt.builtinFilesystem, false);
++    assert.equal(receipt.builtinFilesystemEffectsPerformed, false);
++    assert.equal(receipt.filesystemEffectsIndependentlyAttested, false);
++    assert.equal(receipt.atomicDirectoryPublishPerformed, false);
++    assert.equal(receipt.durableFilesAndDirectorySyncPerformed, false);
++    assert.equal(receipt.artifact.actualArtifactBytesVerified, false);
++    assert.equal(receipt.shippingAuthorized, false);
++  });
++});
++
++test('stat/read growth consumes at most manifest budget+1 bytes and never calls whole-file readFile', async () => {
++  await fixture(async ({ options }) => {
++    let consumed = 0, wholeReads = 0;
++    await assert.rejects(assembleNewsletterReleaseArtifact(options, { ...model, io: ioWith({ open: async (value, ...args) => {
++      const handle = await fs.open(value, ...args);
++      if (value !== options.manifestPath) return handle;
++      return { readFile: async () => { wholeReads++; throw new Error('unbounded read'); },
++        read: async (buffer, offset, length) => { consumed += length; buffer.fill(120, offset, offset + length); return { bytesRead: length }; },
++        close: () => handle.close() };
++    } }) }), /bounded snapshot read/);
++    assert.equal(wholeReads, 0); assert.equal(consumed, PROFILE.maxManifestBytes + 1); await absent(options.outputDir);
++  });
++});
+diff --git a/scripts/lib/frontend-standalone-artifact-contract.mjs b/scripts/lib/frontend-standalone-artifact-contract.mjs
+index ac4d7bbd8..d9868f30a 100644
+--- a/scripts/lib/frontend-standalone-artifact-contract.mjs
++++ b/scripts/lib/frontend-standalone-artifact-contract.mjs
+@@ -135,6 +135,16 @@ function manifestContract(manifestBytes, pins) {
+   return { manifest, index, directories, dereference };
+ }
+ 
++/** Canonical relative path grammar only; no I/O or normalization. */
++export function inspectFrontendStandalonePath(value) {
++  return safePath(value);
++}
++
++/** Canonical declaration grammar only; no I/O or byte/runtime admission. */
++export function inspectFrontendStandaloneManifest({ manifestBytes, pins }) {
++  return manifestContract(manifestBytes, pins).manifest;
++}
++
+ /** All regular buffers and all symlinks must be exhaustively provided. A custom
+  * Newsletter identity port is an inert model and can never produce a byte receipt.
+  * Source equality is not proof that this was the tree used by a Next build.
+diff --git a/scripts/lib/newsletter-artifact-packaging-plan.mjs b/scripts/lib/newsletter-artifact-packaging-plan.mjs
+new file mode 100644
+index 000000000..4ade69f2b
+--- /dev/null
++++ b/scripts/lib/newsletter-artifact-packaging-plan.mjs
+@@ -0,0 +1,248 @@
++/** @cleanup-smoke noArgsExit=2 helpExit=0 */
++import { createHash } from 'node:crypto';
++import * as fs from 'node:fs/promises';
++import { constants } from 'node:fs';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { inspectFrontendStandaloneManifest, inspectFrontendStandalonePath, validateFrontendStandaloneArtifact,
++  readFrontendStandaloneArtifact } from './frontend-standalone-artifact-contract.mjs';
++
++export const NEWSLETTER_BACKEND_PACKAGING_SOURCE = Object.freeze({
++  repository: 'neo-capiro/capirov2', path: 'scripts/build-newsletter-release.sh',
++  boundary: 'local-already-built-artifact-assembly', nodeMajor: 24,
++});
++export const NEWSLETTER_FRONTEND_ARTIFACT_PROFILE = Object.freeze({
++  repository: 'neo-capiro/capiro-frontend', commit: '7c87678730538958ace9762f824dc3e588bf445b',
++  dockerConsumer: 'apps/web/Dockerfile.frontend-artifact',
++  serverEntrypoint: 'apps/web/server.js', receipt: 'build-receipt.json',
++  maxEntries: 20000, maxTotalBytes: 512 * 1024 * 1024, maxFileBytes: 64 * 1024 * 1024,
++  maxManifestBytes: 16 * 1024 * 1024,
++});
++const refuse = reason => { throw new Error('Newsletter assembly refused: ' + reason); };
++const sha = bytes => createHash('sha256').update(bytes).digest('hex');
++const keys = ['standaloneDir', 'publicDir', 'staticDir', 'manifestPath', 'manifestSha256',
++  'sourceRepository', 'sourceCommit', 'targetPlatform', 'targetLibc', 'targetNodeMajor',
++  'backendSourceCommit', 'outputDir'];
++const flags = new Map([['--standalone-dir', 'standaloneDir'], ['--public-dir', 'publicDir'],
++  ['--static-dir', 'staticDir'], ['--manifest', 'manifestPath'], ['--manifest-sha256', 'manifestSha256'],
++  ['--source-repository', 'sourceRepository'], ['--source-commit', 'sourceCommit'],
++  ['--target-platform', 'targetPlatform'], ['--target-libc', 'targetLibc'],
++  ['--target-node-major', 'targetNodeMajor'], ['--backend-source-commit', 'backendSourceCommit'],
++  ['--output-dir', 'outputDir']]);
++const literal = value => typeof value === 'string' && value.length > 0 && value === value.trim()
++  && !/[\u0000-\u001f\u007f\\]/.test(value);
++function absolute(value) {
++  if (!literal(value) || !value.startsWith('/') || value === '/' || path.posix.normalize(value) !== value)
++    refuse('literal canonical absolute input/output path');
++  inspectFrontendStandalonePath(value.slice(1));
++  return value;
++}
++function optionsContract(options) {
++  if (!options || typeof options !== 'object' || Array.isArray(options)
++      || Object.keys(options).sort().join(',') !== [...keys].sort().join(',')) refuse('exact explicit build options');
++  const copy = Object.fromEntries(keys.map(key => [key, options[key]]));
++  for (const key of ['standaloneDir', 'publicDir', 'staticDir', 'manifestPath', 'outputDir']) absolute(copy[key]);
++  if (copy.sourceRepository !== NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.repository
++      || copy.sourceCommit !== NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.commit
++      || !literal(copy.manifestSha256) || !/^[a-f0-9]{64}$/.test(copy.manifestSha256)
++      || !literal(copy.backendSourceCommit) || !/^[a-f0-9]{40}$/.test(copy.backendSourceCommit)
++      || !['linux/amd64', 'linux/arm64'].includes(copy.targetPlatform)
++      || copy.targetLibc !== 'musl' || copy.targetNodeMajor !== '24') refuse('approved source/manifest/Linux/musl/Node24 pins');
++  const inputs = [copy.standaloneDir, copy.publicDir, copy.staticDir, copy.manifestPath];
++  for (const input of inputs) if (copy.outputDir === input || copy.outputDir.startsWith(input + '/')
++      || input.startsWith(copy.outputDir + '/')) refuse('output overlaps input');
++  return Object.freeze(copy);
++}
++export function parseNewsletterBuildInvocation(args) {
++  if (Array.isArray(args) && args.length === 1 && args[0] === '--help') return Object.freeze({ mode: 'help' });
++  if (!Array.isArray(args) || !['--plan', '--run'].includes(args[0]) || args.length !== 1 + flags.size * 2)
++    refuse('one explicit --plan/--run and all twelve flag values required');
++  const options = {};
++  for (let i = 1; i < args.length; i += 2) {
++    const key = flags.get(args[i]);
++    if (!key || Object.hasOwn(options, key) || !literal(args[i + 1])) refuse('unknown/duplicate/nonliteral build argument');
++    options[key] = args[i + 1];
++  }
++  return Object.freeze({ mode: args[0].slice(2), options: optionsContract(options) });
++}
++function pinsFor(options) {
++  return { sourceRepository: options.sourceRepository, sourceCommit: options.sourceCommit,
++    manifestSha256: options.manifestSha256,
++    runtimeTarget: { os: 'linux', arch: options.targetPlatform.split('/')[1], libc: 'musl', nodeMajor: 24 } };
++}
++export function createNewsletterArtifactPackagingPlan(input) {
++  const options = optionsContract(input);
++  return Object.freeze({ schemaVersion: 1, kind: 'newsletter-release-assembly-plan',
++    sourceOnly: true, source: { repository: options.sourceRepository, commit: options.sourceCommit },
++    declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
++    runtimeTarget: pinsFor(options).runtimeTarget, manifestSha256: options.manifestSha256,
++    inputs: { standalone: options.standaloneDir, public: options.publicDir, static: options.staticDir, manifest: options.manifestPath },
++    outputDir: options.outputDir, receiptPath: options.outputDir + '/build-receipt.json',
++    dockerConsumer: NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.dockerConsumer,
++    assemblyPerformed: false, buildUsedSourceVerified: false, nativeRuntimeCompatibilityVerified: false,
++    localServingVerified: false, uiAcceptanceVerified: false, shippingAuthorized: false });
++}
++async function directory(io, value) {
++  await io.lstat('/').then(stat => { if (!stat.isDirectory() || stat.isSymbolicLink()) refuse('nonregular root directory'); });
++  const parts = value.split('/').filter(Boolean);
++  for (let i = 1; i <= parts.length; i++) {
++    const item = '/' + parts.slice(0, i).join('/');
++    const stat = await io.lstat(item);
++    if (!stat.isDirectory() || stat.isSymbolicLink() || await io.realpath(item) !== item) refuse('symlink/nonregular input/output ancestor');
++  }
++}
++async function absent(io, value) {
++  try { await io.lstat(value); } catch (error) { if (error.code === 'ENOENT') return; throw error; }
++  refuse('immutable output already exists');
++}
++async function regularBuffer(io, file, limit) {
++  const stat = await io.lstat(file);
++  if (!stat.isFile() || stat.isSymbolicLink() || stat.size > limit || await io.realpath(file) !== file)
++    refuse('regular bounded input file required');
++  const handle = await io.open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
++  try {
++    const chunks = []; let count = 0;
++    while (count <= limit) {
++      const chunk = Buffer.alloc(Math.min(65536, limit + 1 - count));
++      const { bytesRead } = await handle.read(chunk, 0, chunk.length, count);
++      if (!Number.isInteger(bytesRead) || bytesRead < 0 || bytesRead > chunk.length) refuse('bounded snapshot read');
++      if (bytesRead === 0) break;
++      count += bytesRead;
++      if (count > limit) refuse('bounded snapshot read');
++      chunks.push(chunk.subarray(0, bytesRead));
++    }
++    if (count !== stat.size) refuse('bounded snapshot read');
++    return Buffer.concat(chunks, count);
++  } finally { await handle.close(); }
++}
++async function syncDirectory(io, value) {
++  const handle = await io.open(value, constants.O_RDONLY);
++  try { await handle.sync(); } finally { await handle.close(); }
++}
++async function writeBuffer(io, value, bytes, mode = 0o644) {
++  const handle = await io.open(value, 'wx', mode);
++  try { await handle.writeFile(bytes); await handle.chmod(mode); await handle.sync(); } finally { await handle.close(); }
++}
++function receiptFor(options, artifact, counts, fixtureLabel, builtinFilesystem) {
++  return { schemaVersion: 1, kind: 'newsletter-release-assembly', status: 'PASS',
++    syntheticModel: fixtureLabel !== undefined, fixtureLabel: fixtureLabel ?? null,
++    builtinFilesystem, builtinFilesystemEffectsPerformed: builtinFilesystem, filesystemEffectsIndependentlyAttested: false,
++    approvedSource: { repository: options.sourceRepository, commit: options.sourceCommit },
++    declaredBackendSource: { repository: NEWSLETTER_BACKEND_PACKAGING_SOURCE.repository, commit: options.backendSourceCommit },
++    backendSourceIndependentlyVerified: false, manifestSha256: options.manifestSha256,
++    runtimeTarget: pinsFor(options).runtimeTarget, artifact, counts,
++    permissionHandling: { regularFileMode: '0644 | observed source execute bits (0111)',
++      privilegedBitsPreserved: false, manifestAuthenticatesPermissions: false, runtimePermissionsCompatibilityVerified: false },
++    assemblyHost: { node: process.version, platform: process.platform, architecture: process.arch },
++    outputDir: options.outputDir, receiptPath: options.outputDir + '/build-receipt.json',
++    atomicDirectoryPublishPerformed: builtinFilesystem, durableFilesAndDirectorySyncPerformed: builtinFilesystem,
++    buildUsedSourceVerified: false, nativeRuntimeCompatibilityVerified: false,
++    runtimeDependencyClosureVerified: false, localServingVerified: false,
++    uiAcceptanceVerified: false, shippingAuthorized: false };
++}
++/** Copy already-built declared bytes, never execute them. Test identity ports
++ * require a fixture label and retain the canonical owner's false admission.
++ * Exclusive locks coordinate this builder; hostile filesystem races are outside
++ * the same bounded static filesystem model as the canonical reader. */
++export async function assembleNewsletterReleaseArtifact(input, { io = fs, newsletterIdentity, fixtureLabel } = {}) {
++  const options = optionsContract(input);
++  if (process.versions.node.split('.')[0] !== '24' || process.platform !== 'linux') refuse('assembly host requires Linux/Node24');
++  const customPort = newsletterIdentity !== undefined || io !== fs;
++  if ((newsletterIdentity !== undefined && typeof newsletterIdentity !== 'function')
++      || (customPort && (typeof fixtureLabel !== 'string' || !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixtureLabel)))
++      || (!customPort && fixtureLabel !== undefined)) refuse('explicit labelled synthetic identity/filesystem port');
++  await directory(io, path.dirname(options.manifestPath));
++  const manifestBytes = await regularBuffer(io, options.manifestPath, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxManifestBytes);
++  const pins = pinsFor(options);
++  // Full canonical declaration grammar is checked before any root inventory/content read.
++  const manifest = inspectFrontendStandaloneManifest({ manifestBytes, pins });
++  const entries = new Map(manifest.entries.map(entry => [entry.path, entry]));
++  const totalBytes = manifest.entries.reduce((sum, entry) => sum + (entry.type === 'file' ? entry.bytes : 0), 0);
++  if (entries.size > NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxEntries
++      || totalBytes > NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxTotalBytes
++      || manifest.entries.some(entry => entry.type === 'file' && entry.bytes > NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes))
++    refuse('artifact resource budget');
++  const files = new Map(), symlinks = new Map(), fileModes = new Map();
++  async function walk(root, prefix) {
++    await directory(io, root);
++    const names = await io.readdir(root);
++    if (!Array.isArray(names) || new Set(names).size !== names.length) refuse('ambiguous input directory');
++    for (const name of names) {
++      if (!literal(name) || name.includes('/') || ['.', '..'].includes(name)) refuse('nonliteral input name');
++      const local = root + '/' + name, target = prefix + name, stat = await io.lstat(local);
++      if (stat.isDirectory() && !stat.isSymbolicLink()) {
++        if (![...entries.keys()].some(item => item.startsWith(target + '/'))) refuse('unlisted input directory');
++        await walk(local, target + '/');
++      } else {
++        const entry = entries.get(target);
++        if (!entry) refuse('unlisted input entry');
++        if (stat.isSymbolicLink()) {
++          if (entry.type !== 'symlink') refuse('input type drift');
++          const link = await io.readlink(local);
++          if (link !== entry.target || files.has(target) || (symlinks.has(target) && symlinks.get(target) !== link)) refuse('conflicting input link');
++          symlinks.set(target, link);
++        } else {
++          if (!stat.isFile() || entry.type !== 'file' || symlinks.has(target)) refuse('input type drift');
++          const bytes = await regularBuffer(io, local, Math.min(entry.bytes, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes));
++          if (bytes.length !== entry.bytes || sha(bytes) !== entry.sha256 || (files.has(target) && !files.get(target).equals(bytes)))
++            refuse('input byte identity/conflicting overlay');
++          const mode = 0o644 | (stat.mode & 0o111);
++          if (fileModes.has(target) && fileModes.get(target) !== mode) refuse('conflicting input executable modes');
++          fileModes.set(target, mode); files.set(target, bytes);
++        }
++      }
++    }
++  }
++  await walk(options.standaloneDir, '');
++  await walk(options.publicDir, 'apps/web/public/');
++  await walk(options.staticDir, 'apps/web/.next/static/');
++  const artifact = await validateFrontendStandaloneArtifact({ manifestBytes, files, symlinks, pins, newsletterIdentity });
++  const counts = { regularFiles: files.size, symlinks: symlinks.size, bytes: totalBytes,
++    fileModes: [...fileModes].sort(([a], [b]) => a.localeCompare(b)).map(([name, mode]) => ({ path: name, mode: mode.toString(8) })) };
++  const parent = path.dirname(options.outputDir), lockPath = options.outputDir + '.newsletter-assembly.lock';
++  await directory(io, parent); await absent(io, options.outputDir);
++  let lock, temporary, published = false;
++  try {
++    lock = await io.open(lockPath, 'wx', 0o600);
++    await lock.writeFile(options.manifestSha256 + '\n'); await lock.sync();
++    await absent(io, options.outputDir);
++    temporary = await io.mkdtemp(parent + '/.newsletter-assembly-');
++    const rootfs = temporary + '/rootfs'; await io.mkdir(rootfs);
++    const dirs = new Set([rootfs]);
++    for (const entry of manifest.entries) {
++      for (let folder = path.posix.dirname(entry.path); folder !== '.'; folder = path.posix.dirname(folder)) dirs.add(rootfs + '/' + folder);
++    }
++    for (const folder of [...dirs].sort((a, b) => a.length - b.length)) if (folder !== rootfs) await io.mkdir(folder);
++    for (const [name, bytes] of files) await writeBuffer(io, rootfs + '/' + name, bytes, fileModes.get(name));
++    for (const [name, target] of symlinks) await io.symlink(target, rootfs + '/' + name);
++    await writeBuffer(io, temporary + '/manifest.json', manifestBytes);
++    const revalidated = await readFrontendStandaloneArtifact({ artifactDir: temporary, pins, newsletterIdentity,
++      ports: { lstat: value => io.lstat(value), readdir: value => io.readdir(value), realpath: value => io.realpath(value),
++        readlink: value => io.readlink(value), readFile: value => regularBuffer(io, value, NEWSLETTER_FRONTEND_ARTIFACT_PROFILE.maxFileBytes) } });
++    if (revalidated.artifactEntriesSha256 !== artifact.artifactEntriesSha256 || revalidated.actualArtifactBytesVerified !== artifact.actualArtifactBytesVerified)
++      refuse('assembled output validation drift');
++    const receipt = receiptFor(options, revalidated, counts, fixtureLabel, io === fs);
++    await writeBuffer(io, temporary + '/build-receipt.json', Buffer.from(JSON.stringify(receipt, null, 2) + '\n'));
++    for (const folder of [...dirs].sort((a, b) => b.length - a.length)) await syncDirectory(io, folder);
++    await syncDirectory(io, temporary);
++    await absent(io, options.outputDir);
++    await io.rename(temporary, options.outputDir); published = true; temporary = undefined;
++    await syncDirectory(io, parent);
++    return Object.freeze(receipt);
++  } catch (error) {
++    if (temporary) await io.rm(temporary, { recursive: true, force: true });
++    if (published) await io.rm(options.outputDir, { recursive: true, force: true });
++    throw error;
++  } finally {
++    if (lock) { await lock.close(); await io.unlink(lockPath); }
++  }
++}
++export const NEWSLETTER_BUILD_USAGE = 'Usage: build-newsletter-release.sh --node-bin /absolute/node --plan|--run --standalone-dir ABS --public-dir ABS --static-dir ABS --manifest ABS --manifest-sha256 SHA256 --source-repository neo-capiro/capiro-frontend --source-commit 7c87678730538958ace9762f824dc3e588bf445b --target-platform linux/amd64|linux/arm64 --target-libc musl --target-node-major 24 --backend-source-commit SHA --output-dir ABS';
++if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  try {
++    const invocation = parseNewsletterBuildInvocation(process.argv.slice(2));
++    if (invocation.mode === 'help') console.log(NEWSLETTER_BUILD_USAGE);
++    else if (invocation.mode === 'plan') console.log(JSON.stringify(createNewsletterArtifactPackagingPlan(invocation.options), null, 2));
++    else console.log(JSON.stringify(await assembleNewsletterReleaseArtifact(invocation.options), null, 2));
++  } catch (error) { console.error(JSON.stringify({ status: 'FAIL', assemblyCompleted: false, shippingAuthorized: false, usage: NEWSLETTER_BUILD_USAGE, error: String(error.message).slice(0, 300) })); process.exitCode = 2; }
++}

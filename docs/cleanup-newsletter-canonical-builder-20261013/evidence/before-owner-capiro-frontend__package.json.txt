@@ -1,0 +1,42 @@
+{
+  "name": "capiro-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @capiro/web --",
+    "build": "npm run build --workspace @capiro/meri-client && npm run build --workspace @capiro/web",
+    "start": "npm run start --workspace @capiro/web --",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "node --test scripts/*.test.mjs apps/web/test/*.test.mjs",
+    "architecture": "node scripts/architecture.mjs",
+    "check:packages": "node scripts/public-packages.mjs",
+    "test:transport": "npm test --workspace @capiro/qualification-transport",
+    "check:elements": "npm run pins:check --workspace @capiro/qualification-elements && npm run check --workspace @capiro/qualification-elements",
+    "check": "npm run check:packages && npm run typecheck && npm test && npm run architecture && npm run test:transport && npm run lint --workspace @capiro/web && npm run format:check --workspace @capiro/web && npm run test:portfolio && npm run test:capiro --workspace @capiro/web && npm run test:newsletter",
+    "test:portfolio": "npm test --workspace @capiro/web",
+    "test:browser": "npm run test:browser --workspace @capiro/web --",
+    "test:production": "node apps/web/tests/production/run-standalone.mjs",
+    "test:docker-context": "node scripts/docker-context-regression.mjs",
+    "test:browser:modules": "npm run test:browser:modules --workspace @capiro/web",
+    "test:newsletter": "npm test --workspace @capiro/qualification-newsletter && npm run test:declarations --workspace @capiro/qualification-newsletter",
+    "test:newsletter:browser": "node packages/qualification-newsletter/browser-check.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "uuid": "14.0.2"
+  },
+  "packageManager": "npm@11.9.0"
+}

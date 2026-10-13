@@ -1,0 +1,15 @@
+{
+  "frontendExactCommitLocalObjectInitiallyAbsent": {
+    "exit": 128,
+    "stderr": "fatal: git cat-file: could not get object info\n",
+    "fallback": "GitHub git/commits +treesmetadata +4 exact codeblobs only"
+  },
+  "guessedInventoryPathAbsent": {
+    "path": "scripts/cleanup-script-smoke/generate-inventory.mjs",
+    "at": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+    "exit": 128,
+    "stderr": "fatal: path 'scripts/cleanup-script-smoke/generate-inventory.mjs' does not exist in '523ef9167f05a33efdbdfbbfc08d5fc2e2679012'\n",
+    "followup": "exactfoldermetadata andcontract.mjs read; no guardchange"
+  },
+  "actualArtifactLocations": "root checked two explicitbackend locations absent; no broadcache scan"
+}
