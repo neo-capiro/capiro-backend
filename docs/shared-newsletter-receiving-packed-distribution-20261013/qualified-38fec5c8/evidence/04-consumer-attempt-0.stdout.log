@@ -1,0 +1,12 @@
+{
+  "checks": 19,
+  "characterizationCases": 116,
+  "packedCommonJs": "PASS",
+  "packedEsm": "PASS",
+  "strictNodeAndBrowserTypes": "PASS",
+  "negativeTypes": "6 refusals each",
+  "parserCases": 130,
+  "browserParserCases": 130,
+  "browserBundleClosed": true,
+  "originalCPackedBrowserEqual": true
+}
