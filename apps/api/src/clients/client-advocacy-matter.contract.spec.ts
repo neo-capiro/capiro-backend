@@ -11,6 +11,14 @@ describe('Advocacy Matter architecture contract', () => {
     resolve(process.cwd(), 'src/clients/client-profile-fill-completion.service.ts'),
     'utf8',
   );
+  const recordApplication = readFileSync(
+    resolve(process.cwd(), 'src/clients/client-profile-fill-advocacy-record-application.ts'),
+    'utf8',
+  );
+  const outcomeApplication = readFileSync(
+    resolve(process.cwd(), 'src/clients/client-profile-fill-outcome-application.ts'),
+    'utf8',
+  );
   const migration = readFileSync(
     resolve(process.cwd(), 'prisma/migrations/20271231040000_client_advocacy_matter/migration.sql'),
     'utf8',
@@ -66,13 +74,13 @@ describe('Advocacy Matter architecture contract', () => {
   });
 
   it('assigns a Matter as a side effect of applying an advocacy record, never blocking the apply on failure', () => {
-    expect(completion).toContain('this.advocacyMatters.assignMatterForRecord');
-    expect(completion).toMatch(/applyAdvocacyRecord[\s\S]{0,4000}assignMatterForRecord/);
+    expect(recordApplication).toContain('this.advocacyMatters.assignMatterForRecord');
+    expect(recordApplication).toMatch(/applyAdvocacyRecord[\s\S]{0,4000}assignMatterForRecord/);
   });
 
   it('links observed outcomes into the same Matter as their advocacy record without claiming causation', () => {
-    expect(completion).toContain("linkType: 'outcome_event'");
-    expect(completion).toContain('causationClaimed: false');
+    expect(outcomeApplication).toContain("linkType: 'outcome_event'");
+    expect(outcomeApplication).toContain('causationClaimed: false');
   });
 
   it('§26 incremental refresh: client-submission and private-candidate advocacy discovery both filter by a stored watermark, not a full re-scan every run', () => {
