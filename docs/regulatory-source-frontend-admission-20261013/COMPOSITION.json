@@ -1,0 +1,36 @@
+{
+  "sourceHead": "1f01d0217a5d6e67172de3249730e859bb5b4beb",
+  "sourceTree": "f79f50a128d2895beaf07b082539aad7292f270f",
+  "baseHead": "bc429e038b3e1faa9f13de4df0828de821b841e4",
+  "donorHead": "d54a857b1f8edd279e8798ff41f56389c2efeb69",
+  "independentBackendReviewHead": "a51c0b3067410e3ce4f75eb8bdcf8bc2ab2140fe",
+  "independentBackendReviewTree": "382dbdcc95cb4f8127239216bd7206b47ffd8223",
+  "independentPolicyReview": "INDEPENDENT-POLICY-REVIEW.md",
+  "originalRawHead": "db2ab4e9a54c7f241c3a6773bcb8c543883de6c4",
+  "productionCodePaths": 8,
+  "exactDonorPaths": 6,
+  "sourcePolicyPaths": 2,
+  "checks": {
+    "policy": {
+      "passed": 24,
+      "failed": 0
+    },
+    "backendMocked": {
+      "passed": 125,
+      "retainedSkipped": 5,
+      "failed": 0
+    },
+    "apiTypecheck": {
+      "exitCode": 0,
+      "elapsedSeconds": 121.865
+    },
+    "nestBuild": {
+      "exitCode": 0,
+      "elapsedSeconds": 122.128
+    }
+  },
+  "completedNativeGatesRepeated": false,
+  "FilesImplementationAdmitted": false,
+  "mainMerge": false,
+  "deployment": false
+}

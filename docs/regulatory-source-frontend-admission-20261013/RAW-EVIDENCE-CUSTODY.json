@@ -1,0 +1,17 @@
+{
+  "originalRawHead": "db2ab4e9a54c7f241c3a6773bcb8c543883de6c4",
+  "rawEnvelopes": [
+    {
+      "path": "docs/regulatory-source-frontend-admission-20261013/evidence/jest.log",
+      "originalBytes": 3134,
+      "originalSha256": "ef664fc7089d607913399cb4774bcf4277cafc7de350a9d360cc2baf1d01abb1",
+      "sourceHead": "db2ab4e9a54c7f241c3a6773bcb8c543883de6c4",
+      "why": "canonical ts-jest warning contains trailing whitespace; original bytes retained in ancestor and lossless envelope",
+      "envelopeSchema": "capiro.lossless-evidence-bytes.v1"
+    }
+  ],
+  "otherRawObservationsUnchanged": true,
+  "originalFailedNodeExit1Preserved": true,
+  "originalKilledCompilerMinus9Preserved": true,
+  "newHygieneExceptions": 0
+}

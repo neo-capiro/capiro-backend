@@ -1,0 +1,73 @@
+{
+  "previousMasterHead": "bc429e038b3e1faa9f13de4df0828de821b841e4",
+  "previousMasterPath": "docs/reviewed-cleanup-integration-20261013/SHA256SUMS.json",
+  "oldRows": 4293,
+  "unchangedBlobMode": 4289,
+  "explicitSupersessions": [
+    {
+      "path": "apps/api/src/clients/client-profile-fill-completion.service.ts",
+      "oldHead": "bc429e038b3e1faa9f13de4df0828de821b841e4",
+      "oldModeBlob": [
+        "100644",
+        "9484a84c0faaaee68352ed1d5a814f5a91567933"
+      ],
+      "oldSha256": "083525fea521aab90126f832dbd67c31e03429f5a5e8b793b39dd3f83cab4052",
+      "currentModeBlob": [
+        "100644",
+        "6037c120f35510275a88eadeebf39011ad8cb862"
+      ],
+      "currentSha256": "1787ce77f93d6f05478230a87da847c494bd48dddfdb0c7f8fcf0c6f45782af2",
+      "reason": "bounded reviewed canonical source or handoff supersession"
+    },
+    {
+      "path": "docs/cleanup-retirement-additional-reviewed-inputs-20261012/HANDOFF.md",
+      "oldHead": "bc429e038b3e1faa9f13de4df0828de821b841e4",
+      "oldModeBlob": [
+        "100644",
+        "4536c8ebd8d040763878d589663089913aa87c09"
+      ],
+      "oldSha256": "f167d218a9805ae5b286f78cc8c503f45440d06960cc362b855a02a93f728609",
+      "currentModeBlob": [
+        "100644",
+        "408186d5fefdcbd95164e275739fd8f57b51247b"
+      ],
+      "currentSha256": "bc4937f5aee25b91cc8432be9f1ab021f5ea62ff55414056cfaface50dd54906",
+      "reason": "bounded reviewed canonical source or handoff supersession"
+    },
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "oldHead": "bc429e038b3e1faa9f13de4df0828de821b841e4",
+      "oldModeBlob": [
+        "100644",
+        "1791299834d532bc0020356c127b0ed555b6c010"
+      ],
+      "oldSha256": "1a007adde20bf87929ce076ba7902a8e483df30de479005b0d884975f5075214",
+      "currentModeBlob": [
+        "100644",
+        "d926a6e23bc4aa4c3c3dc711970f5f831b43033a"
+      ],
+      "currentSha256": "33b92061e6de6048fc3c24a909e33aa78573aa9acdcbd32a24a05cc7331b0199",
+      "reason": "bounded reviewed canonical source or handoff supersession"
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "oldHead": "bc429e038b3e1faa9f13de4df0828de821b841e4",
+      "oldModeBlob": [
+        "100644",
+        "cde0de0fe3e2656baf7228030af5689651c8a6f3"
+      ],
+      "oldSha256": "1dfde9a004d61e64a292811b06bf0fddd36c799a53b399b227ec5a6fed87e27d",
+      "currentModeBlob": [
+        "100644",
+        "43c4903e05cc370c5a4a0f0fd0e1c8b7fb4a7950"
+      ],
+      "currentSha256": "287f59908afabd8ab811a602436af5fad930f6eb1c2111ad8129dbd7cc0a380c",
+      "reason": "bounded reviewed canonical source or handoff supersession"
+    }
+  ],
+  "recoverableIndexedRetirements": [],
+  "allOriginalHeadsRetained": true,
+  "allCodeDeltaExplicitlyReviewed": 8,
+  "newHygieneExceptions": 0,
+  "unchangedPriorHashesCarriedByExactGitBlobMode": true
+}
