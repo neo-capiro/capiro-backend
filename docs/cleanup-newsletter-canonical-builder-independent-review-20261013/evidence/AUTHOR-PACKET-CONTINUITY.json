@@ -1,0 +1,11 @@
+{
+  "authorEvidence": "e24e4693800c1eef4d68556bea4f63866a36f453",
+  "authorTree": "fddcbd17cf74f1a0018f73c638a7324f75a8ea6a",
+  "packetHashesVerified": 88,
+  "sourceBindingsVerified": 5,
+  "originalThreeFcccProgramsAndSixRawLogsCopiedByteExact": true,
+  "OPERATORReviewed": true,
+  "recipeExecuted": false,
+  "source": "c26ae029e3c6319a265f735f687758b22093c401",
+  "scope": "complete canonical declaration recipe and copy/receipt limits; no approved artifact/native/serving/provenance acceptance"
+}

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation.py", line 81, in <module>
+    print(json.dumps({'sourcePaths':len(changed),'outsideNonDocExact':same_baseline,'initialHashesPreserved':len(old_index['entries']),'inverses':True,'immutableCorpusReplayed':True,'CLI4':True}))
+                                                                                                                 ~~~~~~~~~^^^^^^^^^^^
+KeyError: 'entries'

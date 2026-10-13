@@ -1,0 +1,110 @@
+{
+  "builderSource": "c26ae029e3c6319a265f735f687758b22093c401",
+  "builderTree": "c23bf6bdc107734f5101eb1df4086e717b21546e",
+  "qualifiedCoreSource": "7ee13b8d26888a33377a29cf00637ca64b20bded",
+  "rootSource": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+  "edgeSource": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "checkedComposedHead": "d59a41128c78f5335e6775ff58187494e494991f",
+  "sourceRows": [
+    {
+      "path": "scripts/build-newsletter-release.sh",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 1038,
+      "sha256": "7e770ccf72b164b90594dc490fed9fca1db0e3d8fd7cb310aa02d6307c93259e",
+      "gitEntry": "100755 blob db7fea14bf7feff409d63a53c3373b3f82a6e97b\tscripts/build-newsletter-release.sh"
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 17184,
+      "sha256": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461",
+      "gitEntry": "100644 blob 4ade69f2bb34f8124b489883776b3c119525fdd2\tscripts/lib/newsletter-artifact-packaging-plan.mjs"
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 20472,
+      "sha256": "44dbd36e9dcb8f6dbd1354fcd250615afd84d151d150f9523955278d805e6f79",
+      "gitEntry": "100644 blob 62760cd00b366294fb2f7debbf68f16a63bc1380\tscripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 17659,
+      "sha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816",
+      "gitEntry": "100644 blob d9868f30a0e39acd2893c39643f606d56c2c80bf\tscripts/lib/frontend-standalone-artifact-contract.mjs"
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 4581,
+      "sha256": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e",
+      "gitEntry": "100644 blob 9f70a4cfd0434a248440245ae63ee7552dcb3514\tscripts/ci/frontend-artifact-docker.contract.spec.mjs"
+    },
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "source": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+      "bytes": 2368,
+      "sha256": "34a9024fc7d9384b5d7d74f2eb69f7f6e9ceafb60eff4e7398804b18a6d78167",
+      "gitEntry": "100644 blob d017fb9ee86999f6c18cd4867238134728c8b551\t.github/workflows/backend-cleanup-preservation.yml"
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "source": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+      "bytes": 9284,
+      "sha256": "219e0b5ffd63e7ec6201380b388b43d21ce9a77790a2bb7aa8932ead4f633acd",
+      "gitEntry": "100644 blob 2ea9050b511aff6fa530d1a3959caa66050030ff\tscripts/ci/backend-retirement-source-jobs.contract.spec.py"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "source": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+      "bytes": 9698,
+      "sha256": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553",
+      "gitEntry": "100644 blob 6584b8c6596a262c74f83b146faa412dd0c3c784\tscripts/ci/rebuild-verification-scopes.spec.mjs"
+    },
+    {
+      "path": "scripts/lib/newsletter-declared-edge-contract.mjs",
+      "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+      "bytes": 21235,
+      "sha256": "0c61e5902882fdc51e56559b3bb862c53be0aa03e8d08a0d024ebd3ee90c7bd6",
+      "gitEntry": "100644 blob 9a669e4092c8a420df2508a801c2332084e1351a\tscripts/lib/newsletter-declared-edge-contract.mjs"
+    },
+    {
+      "path": "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+      "bytes": 23781,
+      "sha256": "e0294f1e1407a23fc296fb08c8a3ea5d1adfc7884443a4e0c927515b19f1ef36",
+      "gitEntry": "100644 blob 6cc8ea27e1b7753e9da45cf88b83cf2af88fc78d\tscripts/ci/newsletter-declared-edge.contract.spec.mjs"
+    }
+  ],
+  "nonDocSourcePaths": [
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "scripts/build-newsletter-release.sh",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/lib/newsletter-declared-edge-contract.mjs"
+  ],
+  "allOtherBaselineNonDocEntriesExact": 11926,
+  "canonicalOwnerPrivateEntireBodyInverseExact": true,
+  "tinyCLIChildInverseCoreExact": true,
+  "defaultDockerSpecDeclaredAdaptationInverseExact": true,
+  "rootScopeGuardThreeAdditiveHunksInverseEntireBaselineExact": true,
+  "rootEdgeStepOnlyExactSixLineAddition": true,
+  "fourPhase26AliasesMatchPublishedEd62": true,
+  "originalFcccThreeProgramsByteExact": true,
+  "initialIndexHashesUnchanged": 31,
+  "finalImmutablePrograms": {
+    "credential": 8,
+    "customIO": 2,
+    "fdNoWholeRead": true
+  },
+  "CLIControls": 4,
+  "sourceInputsExecuted": false,
+  "protectedReportingBodyRead": false,
+  "deniedReportRead": false
+}

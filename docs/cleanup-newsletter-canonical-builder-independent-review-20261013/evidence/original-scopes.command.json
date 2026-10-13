@@ -1,0 +1,16 @@
+{
+  "source": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "currentRootSource": "56d565f8c698c526a05f822083ea616d09e81bb5",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/pure-source-host-corrected.cjs",
+    "--test",
+    "--test-isolation=none",
+    "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.spec.mjs"
+  ],
+  "exit": 1,
+  "seconds": 0.17600154876708984,
+  "stdoutSha256": "99be960ecfc6232814832661cb9bd074fba90130322519369035bed44b6ab3e2",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,156 @@
+{
+  "cwd": "/tmp/capirov2-four-runtime-controls-review",
+  "node": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "nodeVersion": "v24.19.0",
+  "coreQualifiedSource": "7ee13b8d26888a33377a29cf00637ca64b20bded",
+  "finalBuilderSource": "c26ae029e3c6319a265f735f687758b22093c401",
+  "rootSource": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+  "commands": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "credential-path-probe-final"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "injected-fs-probe-final"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "bounded-read-probe-final"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/boundary-controls.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "boundary-controls"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "builder-final"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "--test",
+        "--test-isolation=none",
+        "scripts/ci/frontend-artifact-docker.contract.spec.mjs"
+      ],
+      "exitCode": 0,
+      "raw": "docker-final"
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/ci/backend-retirement-source-jobs.contract.spec.py"
+      ],
+      "exitCode": 0,
+      "raw": "workflow-final"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "--help"
+      ],
+      "exitCode": 0,
+      "raw": "cli-help",
+      "boundedCLIQualification": true
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "scripts/lib/newsletter-artifact-packaging-plan.mjs"
+      ],
+      "exitCode": 2,
+      "raw": "cli-noargs",
+      "boundedCLIQualification": true
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "--run"
+      ],
+      "exitCode": 2,
+      "raw": "cli-run-missing",
+      "boundedCLIQualification": true
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--require",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+        "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "raw": "cli-unknown",
+      "boundedCLIQualification": true
+    },
+    {
+      "argv": [
+        "python3",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt0.py"
+      ],
+      "exitCode": 1,
+      "raw": "final-preservation-attempt0",
+      "harnessOnlyFailure": true
+    },
+    {
+      "argv": [
+        "python3",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt1.py"
+      ],
+      "exitCode": 1,
+      "raw": "final-preservation-attempt1",
+      "harnessOnlyFailure": true
+    },
+    {
+      "argv": [
+        "python3",
+        "/tmp/capirov2-four-runtime-controls-review/docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation.py"
+      ],
+      "exitCode": 0,
+      "raw": "final-preservation",
+      "harnessOnlyFailure": false
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "source": "7ee13b8d26888a33377a29cf00637ca64b20bded",
+  "passed": 25,
+  "rows": [
+    {
+      "name": "unknown option",
+      "count": 0,
+      "error": "Newsletter assembly refused: exact explicit build options"
+    },
+    {
+      "name": "wrong repo",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "wrong source",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "wrong Node",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "wrong libc",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "wrong architecture",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "invalid manifest checksum",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "invalid backend identity",
+      "count": 0,
+      "error": "Newsletter assembly refused: approved source/manifest/Linux/musl/Node24 pins"
+    },
+    {
+      "name": "output same input",
+      "count": 0,
+      "error": "Newsletter assembly refused: output overlaps input"
+    },
+    {
+      "name": "output ancestor",
+      "count": 0,
+      "error": "Newsletter assembly refused: output overlaps input"
+    },
+    {
+      "name": "output below input",
+      "count": 0,
+      "error": "Newsletter assembly refused: output overlaps input"
+    },
+    {
+      "name": "unlabelled io",
+      "count": 0,
+      "error": "Newsletter assembly refused: explicit labelled synthetic identity/filesystem port"
+    },
+    {
+      "name": "invalid label",
+      "count": 0,
+      "error": "Newsletter assembly refused: explicit labelled synthetic identity/filesystem port"
+    },
+    {
+      "name": "empty label",
+      "count": 0,
+      "error": "Newsletter assembly refused: explicit labelled synthetic identity/filesystem port"
+    },
+    {
+      "name": "nonfunction identity",
+      "count": 0,
+      "error": "Newsletter assembly refused: explicit labelled synthetic identity/filesystem port"
+    },
+    {
+      "name": "fd negative",
+      "reads": 1,
+      "closes": 1,
+      "wholeReads": 0,
+      "error": "Newsletter assembly refused: bounded snapshot read"
+    },
+    {
+      "name": "fd fractional",
+      "reads": 1,
+      "closes": 1,
+      "wholeReads": 0,
+      "error": "Newsletter assembly refused: bounded snapshot read"
+    },
+    {
+      "name": "fd exceeds request",
+      "reads": 1,
+      "closes": 1,
+      "wholeReads": 0,
+      "error": "Newsletter assembly refused: bounded snapshot read"
+    },
+    {
+      "name": "fd not number",
+      "reads": 1,
+      "closes": 1,
+      "wholeReads": 0,
+      "error": "Newsletter assembly refused: bounded snapshot read"
+    },
+    {
+      "name": "pure plan linux/amd64",
+      "allAcceptanceFlagsFalse": true
+    },
+    {
+      "name": "pure plan linux/arm64",
+      "allAcceptanceFlagsFalse": true
+    },
+    {
+      "name": "invalid argv []"
+    },
+    {
+      "name": "invalid argv [\"--run\"]"
+    },
+    {
+      "name": "invalid argv [\"--plan\"]"
+    },
+    {
+      "name": "invalid argv [\"--help\",\"--run\"]"
+    }
+  ],
+  "scope": "inert callbacks and pure plan/argv only; no filesystem or payload effect"
+}

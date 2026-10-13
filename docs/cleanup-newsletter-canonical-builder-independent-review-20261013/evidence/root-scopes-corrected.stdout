@@ -1,0 +1,15 @@
+✔ destination package preserves all 107 existing aliases and all metadata (2.045708ms)
+✔ only the four reviewed Phase26 aliases extend the original package inverse (7.470727ms)
+✔ Phase1 scoped operands retain one explicit run and every current syntax check (0.423477ms)
+✔ all twelve scoped verification aliases bind one run and exactly one declared scope (0.289891ms)
+✔ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (8.597987ms)
+✔ CI is exactly the destination scope hunk union and retains every old guard/test/condition (6.301196ms)
+✔ source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (51.950799ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 138.580879

@@ -1,0 +1,23 @@
+{
+  "source": "56d565f8c698c526a05f822083ea616d09e81bb5",
+  "tree": "57ae9f8e7547d742fd094dc3f6dfcedc39046c18",
+  "base": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "onlyRootSourcePaths": [
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/ci/rebuild-verification-scopes.spec.mjs"
+  ],
+  "scopeSpecInverseExact": true,
+  "inverseMethod": "remove only three additive textual hunks: alias declaration/comment, exact-command inverse loop, and adversarial test; original body is unchanged",
+  "originalSpecSha256": "757091e36c347f890295d7d414536f33d4a65d82878a6c8017692b5e87a3783e",
+  "inverseSha256": "757091e36c347f890295d7d414536f33d4a65d82878a6c8017692b5e87a3783e",
+  "publishedAliasHead": "ed62dd1e67be152b6b760815f79bc475925659e7",
+  "publishedFourCommandsExact": {
+    "validate:knowledge-plane:phase26:backend": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only",
+    "validate:knowledge-plane:phase26:backend:typing": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --skip-tests",
+    "validate:knowledge-plane:phase26:backend:source": "node scripts/validate-knowledge-plane-phase26.mjs --run --backend-only --source-only",
+    "validate:knowledge-plane:phase26:frontend": "node scripts/validate-knowledge-plane-phase26.mjs --run --frontend-only"
+  },
+  "workflowTwoPathsExact6be": true,
+  "note": "No deployment/default/package/CI-pr/body change. Actual dependency closure waits I source."
+}

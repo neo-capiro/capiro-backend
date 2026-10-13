@@ -1,0 +1,448 @@
+{
+  "builderSource": "c26ae029e3c6319a265f735f687758b22093c401",
+  "rootSource": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+  "packet": [
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/ACCEPTANCE.json",
+      "bytes": 2334,
+      "sha256": "4996a4a937ba6f4ff960e8f984b0a49a33fa6111e0ab7928030b6860358b5d4a"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/ACCEPTANCE.md",
+      "bytes": 4978,
+      "sha256": "04d7033351659f4d89adda53f2f3341aa43f6a507082db2f64e0234318495778"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/INITIAL-HOLD.md",
+      "bytes": 1550,
+      "sha256": "6bc16e2eac5725c6690b9357e8db3de4cf1b82d7a2bba4cfc2e930998f3926eb"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/SHA256-INITIAL-INDEX.json",
+      "bytes": 7532,
+      "sha256": "f7ec6c6188364b0541fdb1e897161f0b529d04c875260fa5a48dbb3c6a1a1d2a"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/AUTHOR-PACKET-CONTINUITY.json",
+      "bytes": 499,
+      "sha256": "1cfbad7bc068151eeb5345c326cdabd543eec7dbba0b0482e361b51c1767690c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/FINAL-COMMANDS.json",
+      "bytes": 6228,
+      "sha256": "24d7fcd1540892ecb8765999bed7022a3ddc4370bcfab1ba950c79d36af20eac"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/FINAL-PRESERVATION-attempt1.json",
+      "bytes": 5409,
+      "sha256": "fcbb5751eb4f85e158d680a47693c9d80350923e9a974ff79213c7aac9bdd1a8"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/FINAL-PRESERVATION.json",
+      "bytes": 5409,
+      "sha256": "fcbb5751eb4f85e158d680a47693c9d80350923e9a974ff79213c7aac9bdd1a8"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/ROOT-SOURCE-INVERSE.json",
+      "bytes": 1534,
+      "sha256": "a8d7cfe1d2567bac4b643a46e336486e88c722a316e7397ba07c63d2d24eb2aa"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/boundary-controls.json",
+      "bytes": 3566,
+      "sha256": "6853f044508cbe554df58ecfdccc6ec7fb224232d2161762da57dbafa56ad788"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/boundary-controls.mjs",
+      "bytes": 3683,
+      "sha256": "bc13e48b7e2777ed341a1eaf50a191687f09733a78da27c233e0c6d04c16fe5c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/boundary-controls.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/boundary-controls.stdout",
+      "bytes": 97,
+      "sha256": "32dcbd4a64bf22c8d75a02e9855896b998c50899afcba457fc30b160935333be"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe-final.stdout",
+      "bytes": 509,
+      "sha256": "49b444be1c42536cff8bbf10d414772d8dc0b360948e36137cef14c252d59314"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe.command.json",
+      "bytes": 840,
+      "sha256": "d1c4ebfd50216919887ef2b53b9a53bca2103140ef45a7dfb906ff5accaa65d1"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe.mjs",
+      "bytes": 1676,
+      "sha256": "25d29248065d2184aa02d23bd937e1dc0a9177dec70d6f3b4644693b0ce72bfd"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/bounded-read-probe.stdout",
+      "bytes": 274,
+      "sha256": "b7d2bb2f9c7cde4d79a7aa2e894f92bb9b86af790c722798a2921558fd336f68"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-final.stdout",
+      "bytes": 3211,
+      "sha256": "96c2750076b5ba7b108a23d77475bb57953b7d2505a641df350dd006f0f0ee32"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/builder-host.cjs",
+      "bytes": 2827,
+      "sha256": "ce6f8cf63d3d12ec470783aaf816dfcf87b04a7f3855bf22e64aa9b05cda39ff"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-help.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-help.stdout",
+      "bytes": 402,
+      "sha256": "c6241fc8ad6916293ad9aca925d2bb34ae8ffdc71633a9e123b6095c890e70b9"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-noargs.stderr",
+      "bytes": 584,
+      "sha256": "676dc560d3e04e7cb40c49763eba942dfc8e99d1d561051f3d7f3dc691ba10c3"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-noargs.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-run-missing.stderr",
+      "bytes": 584,
+      "sha256": "676dc560d3e04e7cb40c49763eba942dfc8e99d1d561051f3d7f3dc691ba10c3"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-run-missing.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-unknown.stderr",
+      "bytes": 584,
+      "sha256": "676dc560d3e04e7cb40c49763eba942dfc8e99d1d561051f3d7f3dc691ba10c3"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/cli-unknown.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe-final.stdout",
+      "bytes": 2481,
+      "sha256": "a1d4ce94aea22dff6a27fb1c09f740f339109e7c385df04a44cbcc6335ce5550"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe.command.json",
+      "bytes": 843,
+      "sha256": "29492975000130b37ea591eaaf18371489f7f14b7a4d14e86d0e65fe1e25c191"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe.mjs",
+      "bytes": 2014,
+      "sha256": "e76d1b036369bf6605e1e2d7a18ff5f61e68ee0b7fc21f4ea474c19cfbf0ccfc"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/credential-path-probe.stdout",
+      "bytes": 6328,
+      "sha256": "300e0a7dadb87b2b05fe46b7ce943c4d143465f4e7bec7152c7a4a5fbbb21946"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/docker-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/docker-final.stdout",
+      "bytes": 444,
+      "sha256": "3a3f04adcd4efe0eb26d360e834a2cf7476987e2d389bca32cd4cc8722562295"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt0.py",
+      "bytes": 7528,
+      "sha256": "4cf4e29f21d1596da7d6bba58c53e6ab8f8409736466cb9576fbb6981e048003"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt0.stderr",
+      "bytes": 303,
+      "sha256": "e71c47ce842e9a29b884616bffab2bc035ae70231841148df33d8f8ca9a8e580"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt0.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt1.py",
+      "bytes": 7519,
+      "sha256": "4cb0b3e301e9a8fa4e94f86be3588d55e1f59af5e6a941980d2053c9c86a05c6"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt1.stderr",
+      "bytes": 561,
+      "sha256": "2b9e4ed400eb512366235dea807ad6cf2f79c6512f024c5a294a5699e848db18"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation-attempt1.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation.py",
+      "bytes": 7518,
+      "sha256": "6c82210fd0bdd2fe9681044942c5f885aab884423becdb4c2efd1b763369998c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-preservation.stdout",
+      "bytes": 144,
+      "sha256": "a5667a95d116c048f2da9db912c8282c6bce865bffd9bb0a21a2b8eefc416aad"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-source-diff-check.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/final-source-diff-check.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe-final.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe-final.stdout",
+      "bytes": 542,
+      "sha256": "c458c16ef0ab9eb490daac8eddb743b21c08fc2edabc38cb280e734bb79a378e"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe.command.json",
+      "bytes": 838,
+      "sha256": "00035b4975a35581e58976e7ecffd24e3ecd5d42cd60ed92f0323188becb1416"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe.mjs",
+      "bytes": 1464,
+      "sha256": "997826e397e23216f9aec166412f12e3c78bba26e8979e1efbc89095b7a58c9d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/injected-fs-probe.stdout",
+      "bytes": 477,
+      "sha256": "705f745cccabe5fb5675d8a0c23b6a570dc27f15140a4bf60a6378ce8e782fdb"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/official-setup-node-v7.json",
+      "bytes": 3372,
+      "sha256": "35a6c40694a10a593d5a5add820f4bb7ccc4cb247a60094b88596336d1e00097"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes-bindings.json",
+      "bytes": 557,
+      "sha256": "b6646818290cdeb182061c7668269d73e12c355942ea2536b4f4c6ff4e6d4b12"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.command.json",
+      "bytes": 811,
+      "sha256": "8db3dbf4da90fe554dd2f54d37e7340d87067200d6e16da78f6f1df6e9b2f2d8"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.spec.mjs",
+      "bytes": 7835,
+      "sha256": "43cdffbbc8fc5883dd8834d041273a86e94ef386a8ae8adb6f819c3ff022ea2f"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/original-scopes.stdout",
+      "bytes": 3338,
+      "sha256": "99be960ecfc6232814832661cb9bd074fba90130322519369035bed44b6ab3e2"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/primary-action-lookup-errors.txt",
+      "bytes": 336,
+      "sha256": "f0beec7d60d4915e23e6ead65a29c56fee321568ce9b849f14c4dd73d6d1d85a"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/pure-source-host-attempt0.cjs",
+      "bytes": 1990,
+      "sha256": "bbaad93c540b90d1d18dffa2bbec52478c3a85d832c4ab64ef46c9664fb75ba3"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/pure-source-host-corrected.cjs",
+      "bytes": 2022,
+      "sha256": "f89e9b676c3a5fea30ac179406bf7654fb7d5841e36d6cbc62e6ea025377d40d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/pure-source-host.cjs",
+      "bytes": 1990,
+      "sha256": "bbaad93c540b90d1d18dffa2bbec52478c3a85d832c4ab64ef46c9664fb75ba3"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-host-correction.txt",
+      "bytes": 348,
+      "sha256": "0994ef9d9897ae3a1ab6362dad0598e028948d35d8c8438d97ac6bf05514b4d4"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-scopes-corrected.command.json",
+      "bytes": 783,
+      "sha256": "14d2f3b8bcef214dbbbdb0aac9de966284fc1139ef8b2e4855acd370405e167b"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-scopes-corrected.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-scopes-corrected.stdout",
+      "bytes": 830,
+      "sha256": "f72dafe4503aeaa3f35a66e59939da70994d38c4144b25a890090ac99a191d1f"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-scopes.command.json",
+      "bytes": 773,
+      "sha256": "cd7432cd22dbfea63e1780c0de4425a35e8444171734ba3b5a76c2867fa19fc8"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-scopes.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/root-scopes.stdout",
+      "bytes": 1895,
+      "sha256": "aa5ba9f2b80ee562495a280ce4e538349b81ec520e4431ff97d88d9c450690ad"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/workflow-final.stderr",
+      "bytes": 103,
+      "sha256": "fe66eb66a2b55fcf1d91af283c01c8809698e85e792f2a15113ec7f6b662da18"
+    },
+    {
+      "path": "docs/cleanup-newsletter-canonical-builder-independent-review-20261013/evidence/workflow-final.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourceBindings": [
+    {
+      "path": "scripts/build-newsletter-release.sh",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 1038,
+      "sha256": "7e770ccf72b164b90594dc490fed9fca1db0e3d8fd7cb310aa02d6307c93259e",
+      "gitEntry": "100755 blob db7fea14bf7feff409d63a53c3373b3f82a6e97b\tscripts/build-newsletter-release.sh"
+    },
+    {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 17184,
+      "sha256": "c2e2b03a1b23d631ec89d6fc6938f4cc99f673ca263996029d4c38eb57280461",
+      "gitEntry": "100644 blob 4ade69f2bb34f8124b489883776b3c119525fdd2\tscripts/lib/newsletter-artifact-packaging-plan.mjs"
+    },
+    {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 20472,
+      "sha256": "44dbd36e9dcb8f6dbd1354fcd250615afd84d151d150f9523955278d805e6f79",
+      "gitEntry": "100644 blob 62760cd00b366294fb2f7debbf68f16a63bc1380\tscripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 17659,
+      "sha256": "df7c0a08713ddfb5aad076c917b879071c7e6d698b499463afd0c14fec8cf816",
+      "gitEntry": "100644 blob d9868f30a0e39acd2893c39643f606d56c2c80bf\tscripts/lib/frontend-standalone-artifact-contract.mjs"
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "source": "c26ae029e3c6319a265f735f687758b22093c401",
+      "bytes": 4581,
+      "sha256": "ba9ef1a08a3d45533cbdaadf40aa0595d695a87df31b83d8a824c84f6d2bf20e",
+      "gitEntry": "100644 blob 9f70a4cfd0434a248440245ae63ee7552dcb3514\tscripts/ci/frontend-artifact-docker.contract.spec.mjs"
+    },
+    {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "source": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+      "bytes": 2368,
+      "sha256": "34a9024fc7d9384b5d7d74f2eb69f7f6e9ceafb60eff4e7398804b18a6d78167",
+      "gitEntry": "100644 blob d017fb9ee86999f6c18cd4867238134728c8b551\t.github/workflows/backend-cleanup-preservation.yml"
+    },
+    {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "source": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+      "bytes": 9284,
+      "sha256": "219e0b5ffd63e7ec6201380b388b43d21ce9a77790a2bb7aa8932ead4f633acd",
+      "gitEntry": "100644 blob 2ea9050b511aff6fa530d1a3959caa66050030ff\tscripts/ci/backend-retirement-source-jobs.contract.spec.py"
+    },
+    {
+      "path": "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "source": "62bb7e6a9bf74961d0da6e9c5aa3f83225f4531c",
+      "bytes": 9698,
+      "sha256": "d4d25d7760117f90e30c28ce7c8f31c1ae1834bbe182d813f7957ae73efcb553",
+      "gitEntry": "100644 blob 6584b8c6596a262c74f83b146faa412dd0c3c784\tscripts/ci/rebuild-verification-scopes.spec.mjs"
+    },
+    {
+      "path": "scripts/lib/newsletter-declared-edge-contract.mjs",
+      "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+      "bytes": 21235,
+      "sha256": "0c61e5902882fdc51e56559b3bb862c53be0aa03e8d08a0d024ebd3ee90c7bd6",
+      "gitEntry": "100644 blob 9a669e4092c8a420df2508a801c2332084e1351a\tscripts/lib/newsletter-declared-edge-contract.mjs"
+    },
+    {
+      "path": "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+      "source": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+      "bytes": 23781,
+      "sha256": "e0294f1e1407a23fc296fb08c8a3ea5d1adfc7884443a4e0c927515b19f1ef36",
+      "gitEntry": "100644 blob 6cc8ea27e1b7753e9da45cf88b83cf2af88fc78d\tscripts/ci/newsletter-declared-edge.contract.spec.mjs"
+    }
+  ]
+}
