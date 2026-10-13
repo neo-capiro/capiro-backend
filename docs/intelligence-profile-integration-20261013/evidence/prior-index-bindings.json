@@ -1,0 +1,37 @@
+{
+  "baseHead": "f075a3a9b903b3234c64b1770ef76b1bd8bebae1",
+  "unchangedPriorIndicesAndLayers": [
+    {
+      "path": "docs/advocacy-history-integration-20261013/SHA256SUMS.json",
+      "sha256": "0bcd1c70cdada68f20e2f17b3e4545c4b434aae48887366f862e911dfbff41c7",
+      "rows": 4426
+    },
+    {
+      "path": "docs/files-qualified-source-policy-20261013/PRESERVATION.json",
+      "sha256": "2bd3bc89a9ea49051e4c60a4081d122e853d48437e0156949e791f2efd0ef3d8",
+      "rows": null
+    },
+    {
+      "path": "docs/fill-runtime-integration-20261013/PRESERVATION.json",
+      "sha256": "107163a34976418287a88e7cd051070a92aa56327f9bd120aa623d18512cd5e0",
+      "rows": null
+    },
+    {
+      "path": "docs/fill-runtime-integration-20261013/SHA256SUMS.json",
+      "sha256": "8dfb475cba59e5fa164a202fe6c6f15291644a21fc4df49579b8f877243b2e69",
+      "rows": 49
+    },
+    {
+      "path": "docs/completion-final-integration-20261013/PRESERVATION.json",
+      "sha256": "3e706c212f75c7fe5a8f6a056be9e2f0d87599e32a31d32c84f3c2f8b8904682",
+      "rows": null
+    },
+    {
+      "path": "docs/completion-final-integration-20261013/SHA256SUMS.json",
+      "sha256": "1ea203b70f4a6342e50c2f88b53929f7b4b60ce0815ac9ad50494b13c05ad8d0",
+      "rows": 60
+    }
+  ],
+  "modeBlobsVerifiedBySourceComposition": true,
+  "noIndexCopyOrNormalization": true
+}

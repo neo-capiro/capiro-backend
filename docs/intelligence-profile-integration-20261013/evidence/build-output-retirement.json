@@ -1,0 +1,62 @@
+{
+  "sourceHead": "a54b47282c73dad51bf2d58cff00c7e58a055182",
+  "sourceTree": "a345918866d8df59a994b903eb84cb00172dd8a2",
+  "check": "actual receiving Nest build",
+  "outputRoot": "/tmp/intelligence-profile-api-build-20261013",
+  "emittedFiles": 3860,
+  "emittedBytes": 36463064,
+  "namesAndSizesInventory": "evidence/build-output-names-sizes.tsv.gz",
+  "uncompressedInventoryBytes": 213283,
+  "uncompressedInventorySha256": "4a9d71636b5eacbee9df6abfa735b4f953dfa7653aed54b63de084883706d522",
+  "reviewedProductionDeltaJs": [
+    {
+      "path": "intelligence/client-profile-v1-legislative.js",
+      "bytes": 6169,
+      "sha256": "b67ccd778b552dca285a03547ba4f3ffc2ab1fe26f4529eafe5245d09c385ccc"
+    },
+    {
+      "path": "intelligence/client-profile-v1-presentation.js",
+      "bytes": 11970,
+      "sha256": "9e0277e50cc884597df309815e6dff108fb7f0923f60d78146444265d065ed82"
+    },
+    {
+      "path": "intelligence/client-profile-v1-regulatory.js",
+      "bytes": 3717,
+      "sha256": "c7951db474a6257f7ceb5afb93d5d5cc3d582147ee65f289088352947f91b0ec"
+    },
+    {
+      "path": "intelligence/client-profile-v1-relationships.js",
+      "bytes": 2957,
+      "sha256": "a6b72dd0baf7b344b5a11f6548024db7a12ba27931b29c284c78438385342cca"
+    },
+    {
+      "path": "intelligence/client-profile-v1-snapshot.js",
+      "bytes": 11149,
+      "sha256": "7c5758c54a2d71bea626b9d18f40c48f52a0dc67ce817462783a29598b67cb09"
+    },
+    {
+      "path": "intelligence/client-profile-v1-sources.js",
+      "bytes": 12475,
+      "sha256": "ec3bca642bfb13250dd16cf924ad50a7763d9c9fb3587ca01a6993a42e7068b8"
+    },
+    {
+      "path": "intelligence/client-profile-v1.js",
+      "bytes": 6321,
+      "sha256": "2180660d5e22e4d5879086655f582a03f87cb1baebaa3413e99503e4d89ec5b2"
+    },
+    {
+      "path": "intelligence/client-profile-v1.shared.js",
+      "bytes": 129,
+      "sha256": "b78e12d87b33de92fd4e8eb04e28f4d9dddd09cdefe92b75d655b9f5c0e5b71c"
+    },
+    {
+      "path": "intelligence/intelligence.service.js",
+      "bytes": 266708,
+      "sha256": "6c8f13b7736098a41e64ab8246c7b44d22c54c8effd411e07a157983a4f546de"
+    }
+  ],
+  "protectedReportingBodiesInspectedForThisInventory": false,
+  "frontendArtifactOrNativeABIClaim": false,
+  "ownGeneratedOutputRetiredAfterReceiptAndInventory": true,
+  "sourceSharedCachesAndOtherOwnerArtifactsRetained": true
+}

@@ -1,0 +1,20 @@
+{
+  "baseHead": "f075a3a9b903b3234c64b1770ef76b1bd8bebae1",
+  "baseTree": "821f55af90dcbffca22d8141d5101f06072de7c2",
+  "sourceHead": "a54b47282c73dad51bf2d58cff00c7e58a055182",
+  "sourceTree": "a345918866d8df59a994b903eb84cb00172dd8a2",
+  "baseTrackedPaths": 26355,
+  "exactDonorDeltaPaths": 18,
+  "addedSourcePaths": 16,
+  "changedExistingSourcePaths": [
+    "apps/api/src/intelligence/intelligence.client-issue-codes.spec.ts",
+    "apps/api/src/intelligence/intelligence.service.ts"
+  ],
+  "unchangedBaseModeBlobPaths": 26353,
+  "deletedBasePaths": [],
+  "allPriorSourcePathsOutsideExactDonorDeltaUnchanged": true,
+  "ordinaryMergePreservesOriginalHeadsAndFailedPassingEvidence": true,
+  "noCodeChangesAfterFrozenSource": true,
+  "nativeAcceptanceRepeated": false,
+  "scope": "Intelligence profile aggregation; no whole-repository Cleanup or runtime/artifact/deployment acceptance"
+}

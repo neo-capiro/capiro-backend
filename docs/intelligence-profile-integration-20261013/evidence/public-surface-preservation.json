@@ -1,0 +1,418 @@
+{
+  "sourceHead": "a54b47282c73dad51bf2d58cff00c7e58a055182",
+  "baseHead": "f075a3a9b903b3234c64b1770ef76b1bd8bebae1",
+  "serviceLines": {
+    "old": 8032,
+    "new": 6839
+  },
+  "publicMethods": 57,
+  "publicSignatures": [
+    {
+      "name": "getClientProfile",
+      "signature": "async getClientProfile(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getClientRegulatoryProfile",
+      "signature": "async getClientRegulatoryProfile(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getClientProfileV1",
+      "signature": "async getClientProfileV1(clientId: string, tenantId: string, userId?: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getClientLdaFilings",
+      "signature": "async getClientLdaFilings(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getChanges",
+      "signature": "async getChanges(\n    tenantId: string,\n    since?: string,\n    clientId?: string,\n    source?: string,\n    consumed?: boolean,\n    peCodes?: string[],\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getMappings",
+      "signature": "async getMappings(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "searchLdaClients",
+      "signature": "async searchLdaClients(query: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "searchFecEmployers",
+      "signature": "async searchFecEmployers(query: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "searchFecCommittees",
+      "signature": "async searchFecCommittees(query: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "searchContractors",
+      "signature": "async searchContractors(query: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "searchAssistanceRecipients",
+      "signature": "async searchAssistanceRecipients(query: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "createManualMapping",
+      "signature": "async createManualMapping(\n    clientId: string,\n    tenantId: string,\n    input: {\n      source: string;\n      externalId: string;\n      externalName: string;\n      relationshipType?: string | null;\n      rollUpAwards?: boolean | null;\n      actorUserId: string;\n    },\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "rejectMappingCandidate",
+      "signature": "async rejectMappingCandidate(\n    clientId: string,\n    tenantId: string,\n    input: {\n      source: 'contracting';\n      externalId: string;\n      externalName: string;\n      reason: string | null;\n      actorUserId: string;\n    },\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "resolveMapping",
+      "signature": "async resolveMapping(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "confirmMapping",
+      "signature": "async confirmMapping(\n    mappingId: string,\n    input: {\n      confirmed: boolean;\n      relationshipType?: string;\n      rollUpAwards?: boolean;\n      rejectionReason?: string;\n      actorUserId: string;\n    },\n    tenantId: string,\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "markChangeConsumed",
+      "signature": "async markChangeConsumed(id: string, consumed: boolean)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getUnreadChangesCount",
+      "signature": "async getUnreadChangesCount()",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getLobbyingRoi",
+      "signature": "async getLobbyingRoi(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getFecMoneyFlow",
+      "signature": "async getFecMoneyFlow(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getCompetitorBoard",
+      "signature": "async getCompetitorBoard(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getExStaffers",
+      "signature": "async getExStaffers(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getClientBills",
+      "signature": "async getClientBills(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getSetupCompleteness",
+      "signature": "async getSetupCompleteness(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getIssueCodeSignal",
+      "signature": "async getIssueCodeSignal(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "computeOfficeRecommendations",
+      "signature": "async computeOfficeRecommendations(\n    clientId: string,\n    tenantId: string,\n  ): Promise<OfficeRecommendation[]>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getClientRelevanceTerms",
+      "signature": "async getClientRelevanceTerms(\n    clientId: string,\n    tenantId: string,\n  ): Promise<{\n    issueCodes: string[];\n    issueNames: string[];\n    keywordTermsExpanded: string[];\n    embeddingPartsClean: string[];\n    hasCapabilitySignal: boolean;\n  }>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getTrackedBills",
+      "signature": "async getTrackedBills(clientId: string, tenantId?: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "listTrackedBills",
+      "signature": "async listTrackedBills(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "addTrackedBill",
+      "signature": "async addTrackedBill(\n    clientId: string,\n    tenantId: string,\n    billId: string,\n    note?: string,\n    createdBy?: string,\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "removeTrackedBill",
+      "signature": "async removeTrackedBill(clientId: string, tenantId: string, billId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getIssueLeaderboard",
+      "signature": "async getIssueLeaderboard(issueCode: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "computeEngagementHealth",
+      "signature": "async computeEngagementHealth(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getCommentPeriodAlerts",
+      "signature": "async getCommentPeriodAlerts(tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getHearingAlerts",
+      "signature": "async getHearingAlerts(\n    clientId: string,\n    tenantId: string,\n    now: Date,\n    until: Date,\n    precomputedTracked?:\n      | Promise<Awaited<ReturnType<typeof this.getTrackedBills>>>\n      | Awaited<ReturnType<typeof this.getTrackedBills>>,\n  ): Promise<AlertRow[]>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getOverdueCommentAlerts",
+      "signature": "async getOverdueCommentAlerts(\n    clientId: string,\n    tenantId: string,\n    now: Date,\n    lookbackStart: Date,\n  ): Promise<AlertRow[]>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getCompetitorLdaAlerts",
+      "signature": "async getCompetitorLdaAlerts(\n    clientId: string,\n    tenantId: string,\n    since: Date,\n  ): Promise<AlertRow[]>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getContractAwardAlerts",
+      "signature": "async getContractAwardAlerts(\n    clientId: string,\n    tenantId: string,\n    since: Date,\n  ): Promise<AlertRow[]>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "setAlertState",
+      "signature": "async setAlertState(\n    tenantId: string,\n    userId: string,\n    clientId: string,\n    alertId: string,\n    state: 'acknowledged' | 'dismissed' | 'snoozed',\n    snoozedUntil?: Date | null,\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "clearAlertState",
+      "signature": "async clearAlertState(tenantId: string, userId: string, clientId: string, alertId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "listClientBriefs",
+      "signature": "async listClientBriefs(tenantId: string, clientId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "addClientBrief",
+      "signature": "async addClientBrief(\n    tenantId: string,\n    clientId: string,\n    userId: string,\n    input: {\n      title: string;\n      body: string;\n      sourceAlertId?: string | null;\n      sourceType?: string | null;\n    },\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "deleteClientBrief",
+      "signature": "async deleteClientBrief(tenantId: string, clientId: string, briefId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getKnowledgeGraph",
+      "signature": "async getKnowledgeGraph(\n    clientId: string,\n    tenantId: string,\n    opts?: {\n      viewerUserId?: string | null;\n      envIntelGraphOn?: boolean;\n      envTraversalSource?: 'legacy' | 'cache';\n    },\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getOutreachContext",
+      "signature": "async getOutreachContext(clientId: string, tenantId: string, recipientOffice?: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getAllMappingsForTenant",
+      "signature": "async getAllMappingsForTenant(tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getDistrictNexus",
+      "signature": "async getDistrictNexus(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getDistrictNexusSpend",
+      "signature": "async getDistrictNexusSpend(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getBillRegulationLinks",
+      "signature": "async getBillRegulationLinks(\n    clientId: string,\n    tenantId: string,\n    precomputedTracked?:\n      | Promise<Awaited<ReturnType<typeof this.getTrackedBills>>>\n      | Awaited<ReturnType<typeof this.getTrackedBills>>,\n  )",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getBillResearchAttachments",
+      "signature": "async getBillResearchAttachments(clientId: string, tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getTodayTimeline",
+      "signature": "async getTodayTimeline(tenantId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getLiveTicker",
+      "signature": "async getLiveTicker(tenantId: string, limit = 12)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getComingUp",
+      "signature": "async getComingUp(tenantId: string, userId: string)",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getPortfolioSummary",
+      "signature": "async getPortfolioSummary(tenantId: string, userId: string, window?: { from?: string; to?: string })",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getPortfolioAlerts",
+      "signature": "async getPortfolioAlerts(\n    tenantId: string,\n    userId: string | undefined,\n    opts?: { limit?: number; maxClients?: number },\n  ): Promise<{\n    alerts: Array<Record<string, unknown> & { clientId: string; clientName: string }>;\n    total: number;\n    clientCount: number;\n    generatedAt: string;\n  }>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getPortfolioRollup",
+      "signature": "async getPortfolioRollup(tenantId: string): Promise<{\n    rollup: Record<\n      string,\n      {\n        attentionCount: number;\n        intelCount: number;\n        nextTouch: { id: string; startsAt: string; subject: string } | null;\n        /** Item 5: count of in_progress engagement tasks (work/readiness signal). */\n        workCount: number;\n      }\n    >;\n  }>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getPortfolioPeSummary",
+      "signature": "async getPortfolioPeSummary(\n    tenantId: string,\n    _userId: string | undefined,\n  ): Promise<{\n    netDeltaPct: number | null;\n    peAttribution: Record<string, string[]>;\n    watchedCount: number;\n  }>",
+      "literalSignatureExact": true
+    },
+    {
+      "name": "getPortfolioEngagementTrend",
+      "signature": "async getPortfolioEngagementTrend(tenantId: string): Promise<PortfolioEngagementTrendResponse>",
+      "literalSignatureExact": true
+    }
+  ],
+  "constructorParameterTexts": [
+    "private readonly prisma: PrismaService",
+    "private readonly prepopulation?: ClientPrepopulationService",
+    "private readonly officeRecommender?: OfficeRecommenderService"
+  ],
+  "constructorParameterTextsExact": true,
+  "exportNames": [
+    "IntelligenceService",
+    "PortfolioEngagementTrendResponse",
+    "buildQuarterWindows",
+    "embeddingSimilarityFloor",
+    "foldEngagementTrend"
+  ],
+  "unrelatedMemberTextsExact": [
+    "logger",
+    "portfolioAlertsCache",
+    "PORTFOLIO_ALERTS_TTL_MS",
+    "PORTFOLIO_ALERTS_REQUEST_BUDGET_MS",
+    "portfolioAlertsInflight",
+    "portfolioAlertsGate",
+    "getClientProfile",
+    "PROFILE_V1_SOURCE_BUDGET_MS",
+    "PROFILE_V1_SLOW_SOURCE_MS",
+    "withSourceBudget",
+    "getClientRegulatoryProfile",
+    "getClientProfileV1",
+    "pickLdaClientIds",
+    "resolveLdaClientIds",
+    "confirmedLdaIds",
+    "issueCodesForLdaIds",
+    "fetchLdaByIds",
+    "getClientLdaFilings",
+    "isUuid",
+    "fetchContractorById",
+    "fetchLobbyIntelById",
+    "fuzzyMatchLda",
+    "fuzzyMatchContractor",
+    "fuzzyMatchLobbyIntel",
+    "capabilityFallbackTerms",
+    "findRelevantBills",
+    "findRelevantBillsByEmbeddings",
+    "findRelevantBillsByKeyword",
+    "findActiveRegulations",
+    "findCompetitors",
+    "getChanges",
+    "getMappings",
+    "searchLdaClients",
+    "searchFecEmployers",
+    "searchFecCommittees",
+    "searchContractors",
+    "searchAssistanceRecipients",
+    "createManualMapping",
+    "rejectMappingCandidate",
+    "resolveMapping",
+    "confirmMapping",
+    "markChangeConsumed",
+    "getUnreadChangesCount",
+    "getLobbyingRoi",
+    "getPacGiving",
+    "getFecMoneyFlow",
+    "getCompetitorBoard",
+    "getExStaffers",
+    "getClientBills",
+    "getSetupCompleteness",
+    "getIssueCodeSignal",
+    "computeOfficeRecommendations",
+    "getClientRelevanceTerms",
+    "getTrackedBills",
+    "getManualTrackedBillIds",
+    "fetchBillsByIds",
+    "listTrackedBills",
+    "addTrackedBill",
+    "removeTrackedBill",
+    "findTrackedBillsByEmbeddings",
+    "findTrackedBillsByKeyword",
+    "getIssueLeaderboard",
+    "computeEngagementHealth",
+    "getCommentPeriodAlerts",
+    "alertCountdownLabel",
+    "getClientIssueCodes",
+    "getHearingAlerts",
+    "getOverdueCommentAlerts",
+    "getCompetitorLdaAlerts",
+    "getContractAwardAlerts",
+    "resolveContractorUeisForAlerts",
+    "setAlertState",
+    "clearAlertState",
+    "listClientBriefs",
+    "addClientBrief",
+    "deleteClientBrief",
+    "walkClientGraph",
+    "getKnowledgeGraph",
+    "getOutreachContext",
+    "getAllMappingsForTenant",
+    "getDistrictNexus",
+    "getDistrictNexusSpend",
+    "getBillRegulationLinks",
+    "getClientRelevantRegulations",
+    "getBillResearchAttachments",
+    "getTodayTimeline",
+    "getLiveTicker",
+    "getComingUp",
+    "getPortfolioSummary",
+    "emptyPortfolioAlerts",
+    "withPortfolioAlertsRequestBudget",
+    "getPortfolioAlerts",
+    "computePortfolioAlerts",
+    "getPortfolioRollup",
+    "getPortfolioPeSummary",
+    "getPortfolioEngagementTrend",
+    "buildRoiQuarterSeries"
+  ],
+  "changedSelectedMemberBodies": [
+    "asFinite",
+    "asFiniteOrNull",
+    "asIsoOrNull",
+    "normalizeProfileV1Sections",
+    "buildRegulatoryLifecycle",
+    "getClientProfileV1WithinBillDeadline"
+  ],
+  "removedMembers": [],
+  "constructorBodyByteExact": false
+}

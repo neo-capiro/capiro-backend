@@ -1,0 +1,11 @@
+{
+  "sourceHead": "a54b47282c73dad51bf2d58cff00c7e58a055182",
+  "sourceTree": "a345918866d8df59a994b903eb84cb00172dd8a2",
+  "cachedRootDependencies": "/workspace/capirov2/node_modules",
+  "borrowedApiDependencySymlinks": 53,
+  "existingExactCoreClientSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "newInstallDownloadGeneration": false,
+  "newNativeDatabaseProviderArtifactOperation": false,
+  "checksRunSequentially": true,
+  "effectDenialAndProtectedReportingBodyReadRefusalReused": true
+}

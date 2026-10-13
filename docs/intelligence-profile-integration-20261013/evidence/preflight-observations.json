@@ -1,0 +1,13 @@
+{
+  "exactDonorCacheProbeExit": 1,
+  "resolution": "fetched only published Intelligence profile donor and verified exact head/tree/parent",
+  "initialOwnedMergeObservation": {
+    "exitCode": 128,
+    "message": "index.lock existed because owned sparse materialization was still completing",
+    "resolution": "waited for successful owned initializer, then ordinary merge succeeded",
+    "lockRemovedManually": false,
+    "sourceBaseOrDonorChanged": false
+  },
+  "allPreviousFailedPassingEvidenceRetained": true,
+  "noAuthorizationDeniedOrBypassed": true
+}
