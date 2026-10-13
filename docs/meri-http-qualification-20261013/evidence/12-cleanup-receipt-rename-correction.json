@@ -1,0 +1,6 @@
+{
+  "failedOuterWrapper": "original cleanup receipt filename mismatch",
+  "SQLOrDockerExecuted": false,
+  "stdoutAndStderrRenamedBeforeFailure": true,
+  "commandReceiptRenamedWithCorrectLiteralName": true
+}

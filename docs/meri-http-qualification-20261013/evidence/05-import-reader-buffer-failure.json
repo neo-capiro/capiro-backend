@@ -1,0 +1,9 @@
+{
+  "command": "node /tmp/materialize-api-type-imports.cjs",
+  "exit": 1,
+  "error": "spawnSync git ENOBUFS",
+  "errno": -105,
+  "signal": "SIGTERM",
+  "cause": "initial helper requested whole repository path inventory with default 1MiB stdout buffer",
+  "correction": "inventory only apps/api tracked paths; no compiler flags/source changes or fixture execution"
+}

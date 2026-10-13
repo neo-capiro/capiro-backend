@@ -1,0 +1,33 @@
+[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m39[0m:[93m18[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
+
+[7m39[0m       findFirst: jest.fn(async ({ where }: any) =>
+[7m  [0m [91m                 ~~~~[0m
+[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m48[0m:[93m22[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
+
+[7m48[0m     $queryRawUnsafe: jest.fn(async () => [{ allowed: state.wall }]),
+[7m  [0m [91m                     ~~~~[0m
+[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m49[0m:[93m16[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
+
+[7m49[0m     $queryRaw: jest.fn(async (q: any, ...args: any[]) => {
+[7m  [0m [91m               ~~~~[0m
+[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m82[0m:[93m18[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
+
+[7m82[0m     $executeRaw: jest.fn(async (q: any, ...values: any[]) => {
+[7m  [0m [91m                 ~~~~[0m
+[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m94[0m:[93m15[0m - [91merror[0m[90m TS2304: [0mCannot find name 'jest'.
+
+[7m94[0m       create: jest.fn(async (data) => {
+[7m  [0m [91m              ~~~~[0m
+[96msrc/clients/client-ordered-owner.test-support.ts[0m:[93m94[0m:[93m30[0m - [91merror[0m[90m TS7006: [0mParameter 'data' implicitly has an 'any' type.
+
+[7m94[0m       create: jest.fn(async (data) => {
+[7m  [0m [91m                             ~~~~[0m
+[96msrc/clients/client-profile-fill.service.ts[0m:[93m1898[0m:[93m13[0m - [91merror[0m[90m TS7022: [0m'response' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m1898[0m       const response = await fetch(current, {
+[7m    [0m [91m            ~~~~~~~~[0m
+[96msrc/clients/client-profile-fill.service.ts[0m:[93m1904[0m:[93m15[0m - [91merror[0m[90m TS7022: [0m'location' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+
+[7m1904[0m         const location = response.headers.get('location');
+[7m    [0m [91m              ~~~~~~~~[0m
+

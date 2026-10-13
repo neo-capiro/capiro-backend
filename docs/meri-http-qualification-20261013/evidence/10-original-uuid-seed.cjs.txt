@@ -1,0 +1,21 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const {PrismaClient}=require('/tmp/capirov2-local-native-prerequisite-20261012/core-client');
+const config=JSON.parse(fs.readFileSync('/tmp/capiro-authority-http-runtime.json','utf8'));
+assert.equal(config.sourceHead,'bbb38185058fdc64c204da723943aee055b3dad3');assert.equal(config.databaseName,'capiro_auth_http_20261013_4966f869fa');assert.equal(config.databaseOid,16917);
+const uri=new URL(config.connectionUrl);assert.equal(uri.hostname,'127.0.0.1');assert.equal(uri.port,'5432');assert.equal(uri.pathname,'/'+config.databaseName);
+const p=new PrismaClient({datasources:{db:{url:uri.href}}});
+const id=(prefix,side)=>`a${prefix}00000-0000-4000-8000-00000000000${side}`;
+async function main(){
+ const rows=await p.$queryRaw`SELECT current_database() AS name,d.oid::int AS oid,shobj_description(d.oid,'pg_database') AS comment,system_identifier::text AS system FROM pg_database d CROSS JOIN pg_control_system() WHERE d.datname=current_database()`;
+ assert.equal(rows.length,1);assert.equal(rows[0].name,config.databaseName);assert.equal(rows[0].oid,config.databaseOid);assert.equal(rows[0].comment,config.databaseComment);assert.equal(rows[0].system,config.systemIdentifier);
+ for(const side of [1,2]){
+  const tenantId=id('1',side),userId=id('2',side),clientId=id('4',side);
+  await p.tenantMembership.upsert({where:{id:id('3',side)},create:{id:id('3',side),tenantId,userId,role:'standard_user',status:'active'},update:{tenantId,userId,role:'standard_user',status:'active'}});
+  await p.clioConversation.upsert({where:{id:id('5',side)},create:{id:id('5',side),tenantId,userId,clientId,title:`Synthetic RLS witness ${side}`},update:{tenantId,userId,clientId,status:'active',archivedAt:null}});
+  await p.clientMemoryAccess.upsert({where:{id:id('6',side)},create:{id:id('6',side),tenantId,clientId,userId},update:{tenantId,clientId,userId}});
+  await p.auditLog.upsert({where:{id:id('8',side)},create:{id:id('8',side),tenantId,actorUserId:userId,actorRole:'standard_user',action:'fixture.rls_witness',entityType:'owned_fixture'},update:{tenantId,actorUserId:userId,action:'fixture.rls_witness'}});
+ }
+ console.log(JSON.stringify({ownedDatabase:config.databaseName,oid:config.databaseOid,seededSides:2,coveredTables:6,customerData:false,newCredentials:false,otherDatabaseOrContainerChanges:false}));
+}
+main().catch(e=>{console.error(JSON.stringify({failure:e.name,code:e.code??null,message:'owned synthetic witness seed failed'}));process.exitCode=1;}).finally(()=>p.$disconnect());

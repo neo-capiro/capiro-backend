@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "python3",
+    "-I",
+    "docs/meri-http-qualification-20261013/cleanup-owned-native-db.py"
+  ],
+  "env": {
+    "PATH": "/usr/local/bin:/usr/bin:/bin",
+    "TZ": "UTC"
+  },
+  "exit": 1,
+  "elapsedSeconds": 1.1928155400091782,
+  "independentStaticReview": "ACCEPT",
+  "noForceNoCascadeNoTermination": true,
+  "priorMinimalPathFailedBeforeDockerOrAnySql": true
+}

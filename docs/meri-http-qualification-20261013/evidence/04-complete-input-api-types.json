@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=6144",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "/workspace/capirov2-meri-http-qualified-20261013/apps/api/tsconfig.json",
+    "--noEmit",
+    "--rootDir",
+    ".",
+    "--tsBuildInfoFile",
+    "/tmp/pr2450-api-types-20261013.tsbuildinfo"
+  ],
+  "cwd": "/workspace/capirov2-meri-http-qualified-20261013/apps/api",
+  "exit": 2,
+  "elapsedSeconds": 98.047,
+  "envKeys": [
+    "PATH",
+    "TZ"
+  ],
+  "noInstallOrGenerationOrRuntimeBootstrap": true,
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "sameCommandAfterMaterializingExactInheritedInputs": true,
+  "sourceOrTypeFlagChanges": false
+}

@@ -1,0 +1,77 @@
+error TS5083: Cannot read file '/workspace/capirov2-meri-http-qualified-20261013/tsconfig.base.json'.
+src/business-development/bizdev-brief.telemetry.spec.ts(131,8): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(7,8): error TS2307: Cannot find module '../../../test/support/activity-command.fixture.js' or its corresponding type declarations.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(12,52): error TS7006: Parameter '_ctx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(12,58): error TS7006: Parameter '_bearer' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(12,67): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(40,45): error TS7006: Parameter 'call' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(49,51): error TS7006: Parameter 'tenant' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(49,59): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(50,31): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(59,48): error TS7006: Parameter '_ctx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(59,54): error TS7006: Parameter '_bearer' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(59,63): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(63,48): error TS7006: Parameter '_ctx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(63,54): error TS7006: Parameter '_bearer' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.additional-review.spec.ts(63,63): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.http.spec.ts(6,46): error TS2307: Cannot find module '../../../test/support/activity-command.fixture.js' or its corresponding type declarations.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(9,8): error TS2307: Cannot find module '../../../test/support/activity-command.fixture.js' or its corresponding type declarations.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(19,54): error TS7006: Parameter '_ctx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(19,60): error TS7006: Parameter '_bearer' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(19,69): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(45,55): error TS7006: Parameter 'tenant' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(45,63): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(73,45): error TS7006: Parameter 'call' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(151,36): error TS7006: Parameter 'activity' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.independent-review.spec.ts(157,8): error TS7006: Parameter 'activity' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.planner.spec.ts(2,34): error TS2307: Cannot find module '../../../test/support/activity-command.fixture.js' or its corresponding type declarations.
+src/clients/activity-commands/activity-command.service.spec.ts(8,8): error TS2307: Cannot find module '../../../test/support/activity-command.fixture.js' or its corresponding type declarations.
+src/clients/activity-commands/activity-command.service.spec.ts(100,52): error TS7006: Parameter '_ctx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.service.spec.ts(100,58): error TS7006: Parameter '_bearer' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.service.spec.ts(100,67): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.service.spec.ts(304,52): error TS7006: Parameter '_ctx' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.service.spec.ts(304,58): error TS7006: Parameter '_bearer' implicitly has an 'any' type.
+src/clients/activity-commands/activity-command.service.spec.ts(304,67): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/clients/client-activity.wall.spec.ts(8,8): error TS2307: Cannot find module '../../test/support/activity-command.fixture.js' or its corresponding type declarations.
+src/defense-budget/contracts/validator-cli-regressions.spec.ts(8,8): error TS2307: Cannot find module '../../../scripts/validate-defense-budget-cycle-manifest.js' or its corresponding type declarations.
+src/defense-budget/contracts/validator-cli-regressions.spec.ts(13,8): error TS2307: Cannot find module '../../../scripts/validate-defense-budget-extraction-artifact.js' or its corresponding type declarations.
+src/defense-budget/governed-acceptance/candidate-correction/phase10b41-hardening.integration.spec.ts(66,47): error TS2307: Cannot find module '../../../../scripts/replace-defense-budget-candidate-approvals-v1.js' or its corresponding type declarations.
+src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts(9,8): error TS2307: Cannot find module '../../../scripts/lib/non-rdte-phase5-operator-lib.js' or its corresponding type declarations.
+src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts(156,24): error TS7006: Parameter 'proof' implicitly has an 'any' type.
+src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts(159,26): error TS7006: Parameter 'proof' implicitly has an 'any' type.
+src/defense-budget/verification/verification-cycle-report-r83.spec.ts(4,8): error TS2307: Cannot find module '../../../scripts/report-defense-budget-verification-cycle-v1.js' or its corresponding type declarations.
+src/defense-research/defense-research.service.ts(952,73): error TS2339: Property 'key' does not exist on type 'never'.
+src/district-nexus/district-nexus-strategic-refactor.spec.ts(208,30): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/engagement/engagement.service.ts(9637,43): error TS2339: Property 'restricted' does not exist on type 'never'.
+src/engagement/engagement.service.ts(9638,55): error TS2339: Property 'restricted' does not exist on type 'never'.
+src/engagement/engagement.service.ts(9689,79): error TS2339: Property 'restricted' does not exist on type 'never'.
+src/funding-opportunities/funding-opportunity-v2-detail.http.spec.ts(268,133): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/hearing-discovery/official-identity-repair.spec.ts(1,37): error TS2307: Cannot find module '../../scripts/repair-official-hearing-observations.js' or its corresponding type declarations.
+src/ingestion/florida-substitution-qa.spec.ts(2,37): error TS2307: Cannot find module '../../scripts/derive-state-bill-status.js' or its corresponding type declarations.
+src/ingestion/legal-chapter-checkpoint-postgres.spec.ts(5,34): error TS2307: Cannot find module '../../scripts/sync-legal-research.js' or its corresponding type declarations.
+src/intelligence/fec-pac-filter.spec.ts(2,48): error TS2307: Cannot find module '../../scripts/fec-pac-sync.js' or its corresponding type declarations.
+src/intelligence/intelligence.service.ts(852,27): error TS2352: Conversion of type '{ clientId: string; clientName: string; mappedLdaClientId: null; mappedLdaClientIds: never[]; mappedContractorId: null; lobbySpend: number; contractWins: number; roi: null; gap: number; }' to type '{ clientId: string; clientName: null; mappedLdaClientId: null; mappedLdaClientIds: number[]; mappedContractorId: null; lobbySpend: number; contractWins: number; roi: null; gap: number; } | { clientId: string; ... 7 more ...; gap: number; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ clientId: string; clientName: string; mappedLdaClientId: null; mappedLdaClientIds: never[]; mappedContractorId: null; lobbySpend: number; contractWins: number; roi: null; gap: number; }' is not comparable to type '{ clientId: string; clientName: string; mappedLdaClientId: number; mappedLdaClientIds: number[]; mappedContractorId: string | null; lobbySpend: number; contractWins: number; roi: number | null; gap: number; }'.
+    Types of property 'mappedLdaClientId' are incompatible.
+      Type 'null' is not comparable to type 'number'.
+src/meri/meri-research-durable-replay.spec.ts(558,34): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(566,27): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(568,17): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(569,24): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(570,18): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(572,24): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(579,28): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(580,29): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(582,19): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(583,26): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(584,24): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(588,46): error TS2698: Spread types may only be created from object types.
+src/meri/meri-research-durable-replay.spec.ts(588,71): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(598,32): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-research-durable-replay.spec.ts(600,7): error TS2698: Spread types may only be created from object types.
+src/meri/meri-research-durable-replay.spec.ts(601,23): error TS18046: 'input' is of type 'unknown'.
+src/meri/meri-tools.list-members.spec.ts(55,29): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/meri/meri-tools.list-members.spec.ts(57,31): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/meri/meri-tools.service.ts(6936,43): error TS2339: Property 'restricted' does not exist on type 'never'.
+src/meri/meri-tools.service.ts(6937,55): error TS2339: Property 'restricted' does not exist on type 'never'.
+src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts(15,8): error TS2307: Cannot find module '../../../test/memory-postgres-qualification/harness.js' or its corresponding type declarations.

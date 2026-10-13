@@ -1,0 +1,11 @@
+src/defense-budget/contracts/validator-cli-regressions.spec.ts(8,8): error TS2307: Cannot find module '../../../scripts/validate-defense-budget-cycle-manifest.js' or its corresponding type declarations.
+src/defense-budget/contracts/validator-cli-regressions.spec.ts(13,8): error TS2307: Cannot find module '../../../scripts/validate-defense-budget-extraction-artifact.js' or its corresponding type declarations.
+src/defense-budget/governed-acceptance/candidate-correction/phase10b41-hardening.integration.spec.ts(66,47): error TS2307: Cannot find module '../../../../scripts/replace-defense-budget-candidate-approvals-v1.js' or its corresponding type declarations.
+src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts(9,8): error TS2307: Cannot find module '../../../scripts/lib/non-rdte-phase5-operator-lib.js' or its corresponding type declarations.
+src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts(156,24): error TS7006: Parameter 'proof' implicitly has an 'any' type.
+src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts(159,26): error TS7006: Parameter 'proof' implicitly has an 'any' type.
+src/defense-budget/verification/verification-cycle-report-r83.spec.ts(4,8): error TS2307: Cannot find module '../../../scripts/report-defense-budget-verification-cycle-v1.js' or its corresponding type declarations.
+src/hearing-discovery/official-identity-repair.spec.ts(1,37): error TS2307: Cannot find module '../../scripts/repair-official-hearing-observations.js' or its corresponding type declarations.
+src/ingestion/florida-substitution-qa.spec.ts(2,37): error TS2307: Cannot find module '../../scripts/derive-state-bill-status.js' or its corresponding type declarations.
+src/ingestion/legal-chapter-checkpoint-postgres.spec.ts(5,34): error TS2307: Cannot find module '../../scripts/sync-legal-research.js' or its corresponding type declarations.
+src/intelligence/fec-pac-filter.spec.ts(2,48): error TS2307: Cannot find module '../../scripts/fec-pac-sync.js' or its corresponding type declarations.

@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/workspace/capirov2-meri-http-qualified-20261013/docs/meri-http-qualification-20261013/cleanup-owned-native-db.py", line 10, in <module>
+    raise RuntimeError("Optimized Python would disable ownership fences")
+RuntimeError: Optimized Python would disable ownership fences

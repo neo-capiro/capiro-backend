@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    "/workspace/capirov2-meri-http-qualified-20261013/docs/pr2450-dependency-reuse-local-20261013/api-build-owned.tsconfig.json"
+  ],
+  "cwd": "/workspace/capirov2-meri-http-qualified-20261013/apps/api",
+  "exit": 1,
+  "elapsedSeconds": 0.386,
+  "envKeys": [
+    "PATH",
+    "TZ"
+  ],
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "canonicalNestCliConfigPreserved": true,
+  "outputOnlyChangedToOwnedTemporaryDirectory": "/tmp/pr2450-api-nest-build-20261013",
+  "noGenerationInstallOrBootstrap": true
+}

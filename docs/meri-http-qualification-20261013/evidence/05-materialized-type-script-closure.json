@@ -1,0 +1,59 @@
+{
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "compiler": "5.9.3",
+  "initiallyMissing": 10,
+  "rows": [
+    {
+      "path": "apps/api/scripts/validate-defense-budget-cycle-manifest.ts",
+      "bytes": 3855,
+      "blob": "3374e404d61a8ff4c4c5995ac8a4f665ea7145a2"
+    },
+    {
+      "path": "apps/api/scripts/validate-defense-budget-extraction-artifact.ts",
+      "bytes": 5259,
+      "blob": "c3d27c4748cf8f36e4e7b2d59487bde67335df6e"
+    },
+    {
+      "path": "apps/api/scripts/replace-defense-budget-candidate-approvals-v1.ts",
+      "bytes": 67909,
+      "blob": "70a41454a656cc746eae78d7473753d10447ade3"
+    },
+    {
+      "path": "apps/api/scripts/lib/non-rdte-phase5-operator-lib.ts",
+      "bytes": 19550,
+      "blob": "9253b3593aeffd18921fcf2048ddd14c1aaf3d64"
+    },
+    {
+      "path": "apps/api/scripts/report-defense-budget-verification-cycle-v1.ts",
+      "bytes": 12220,
+      "blob": "e9a16b913e01924a6b40d87d35b4e0b16bf4437d"
+    },
+    {
+      "path": "apps/api/scripts/repair-official-hearing-observations.ts",
+      "bytes": 8878,
+      "blob": "fe68c8a9a909a327fa89b46d0ae413306e3edc16"
+    },
+    {
+      "path": "apps/api/scripts/derive-state-bill-status.ts",
+      "bytes": 16143,
+      "blob": "ec0d4577f5548dc6afbc3ab7952255f6584b0464"
+    },
+    {
+      "path": "apps/api/scripts/sync-legal-research.ts",
+      "bytes": 12899,
+      "blob": "2b9cd3ccd74d03eb5da0a00b6d8752b8963303b0"
+    },
+    {
+      "path": "apps/api/scripts/fec-pac-sync.ts",
+      "bytes": 6370,
+      "blob": "8dc322e5fb3e859ec92c3e5e859b9bfbc6b2c364"
+    },
+    {
+      "path": "apps/api/scripts/fec-api.ts",
+      "bytes": 3553,
+      "blob": "4525b1669813f2c527d9fb30aa48d43d6c76306e"
+    }
+  ],
+  "sourceChanges": false,
+  "typeFlagsChanged": false
+}

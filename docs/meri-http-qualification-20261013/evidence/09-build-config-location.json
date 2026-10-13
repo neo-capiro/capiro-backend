@@ -1,0 +1,24 @@
+{
+  "location": "apps/api/.pr2450-http-native-build.tsconfig.json",
+  "bytes": 227,
+  "sha256": "172d0bcf1752497187c9049034624195d42f3229b61e96074cb28f27ff2a90d0",
+  "content": {
+    "extends": "./tsconfig.build.json",
+    "compilerOptions": {
+      "outDir": "/tmp/pr2450-api-nest-build-canonical-types-20261013",
+      "tsBuildInfoFile": "/tmp/pr2450-api-nest-build-canonical-types-20261013.tsbuildinfo"
+    }
+  },
+  "causeOfPriorErrors": "moving config to docs removed automatic API @types roots; Jest globals and Node-related inference differed",
+  "originalAutomaticTypes": [
+    "express",
+    "jest",
+    "node",
+    "pg",
+    "sanitize-html",
+    "shpjs",
+    "supertest"
+  ],
+  "docTemporaryAutomaticTypes": [],
+  "compilerStrictFlagsChanged": false
+}

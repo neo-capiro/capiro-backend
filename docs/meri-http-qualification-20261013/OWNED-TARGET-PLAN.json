@@ -1,0 +1,26 @@
+{
+  "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "tree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+  "container": "capiro-postgres",
+  "clusterSystemIdentifier": "7695590366852821031",
+  "database": "capiro_auth_http_20261013_4966f869fa",
+  "resourceOwner": "/root",
+  "mustNotPreexist": true,
+  "existingContainerOrOtherDatabaseChanges": false,
+  "existingFixtureAuthenticationUnchanged": true,
+  "createNewCredentials": false,
+  "roleScope": "native application uses existing fixture owner/bypass role; direct RLS uses separately named owned NOLOGIN role only",
+  "applicationTables": [
+    "Tenant",
+    "User",
+    "TenantMembership",
+    "ImpersonationSession",
+    "Client",
+    "ClientMemoryAccess",
+    "ClioConversation",
+    "AuditLog"
+  ],
+  "schemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "nativeSchemaEngineSha256": "cedeae04739cfa085493da2bafb5d1e4da0247fc74f2995a51ee24f20c9890be",
+  "nativeSchemaEnginePath": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x"
+}

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/workspace/capirov2-meri-http-qualified-20261013/docs/meri-http-qualification-20261013/cleanup-owned-native-db.py", line 81, in <module>
+    assert target == {"oid": 16917, "name": DATABASE, "comment": COMMENT}, target
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'oid': '16917', 'name': 'capiro_auth_http_20261013_4966f869fa', 'comment': 'owned /root authority HTTP fixture at bbb38185058fdc64c204da723943aee055b3dad3'}

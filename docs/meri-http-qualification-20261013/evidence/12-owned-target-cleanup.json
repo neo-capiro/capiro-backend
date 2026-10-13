@@ -1,0 +1,26 @@
+{
+  "database": "capiro_auth_http_20261013_4966f869fa",
+  "databaseAbsent": true,
+  "databaseOid": 16917,
+  "existingContainerAfter": {
+    "containerId": "3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183",
+    "healthy": true,
+    "immutableConfigurationSha256": "adb183f013b06fb307eaca48b2051b40ccd477628d4af7bbfff0bc009521e2ed"
+  },
+  "existingContainerBefore": {
+    "containerId": "3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183",
+    "healthy": true,
+    "immutableConfigurationSha256": "adb183f013b06fb307eaca48b2051b40ccd477628d4af7bbfff0bc009521e2ed"
+  },
+  "existingContainerOrOtherDatabaseChanges": false,
+  "forcedTermination": false,
+  "openOwnedConnectionsBeforeDrop": 0,
+  "otherCatalogFingerprintAfter": "10b76a6eebb00c381d9ef25aaa8b2294cf150319f8ca91ec4fec54f86e52dc2b",
+  "otherCatalogFingerprintBefore": "10b76a6eebb00c381d9ef25aaa8b2294cf150319f8ca91ec4fec54f86e52dc2b",
+  "ownershipFencePassed": true,
+  "privateRuntimeConfigRemoved": true,
+  "role": "capiro_auth_http_20261013_4966f869fa_rls",
+  "roleAbsent": true,
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "sourceTree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2"
+}

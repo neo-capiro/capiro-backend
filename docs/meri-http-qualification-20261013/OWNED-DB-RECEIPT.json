@@ -1,0 +1,59 @@
+{
+  "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "tree": "77a6cc091e6bfa02afa8b9e558a7d2e2a1e523a2",
+  "container": "capiro-postgres",
+  "clusterSystemIdentifier": "7695590366852821031",
+  "database": "capiro_auth_http_20261013_4966f869fa",
+  "resourceOwner": "/root",
+  "mustNotPreexist": true,
+  "existingContainerOrOtherDatabaseChanges": false,
+  "existingFixtureAuthenticationUnchanged": true,
+  "createNewCredentials": false,
+  "roleScope": "native application uses existing fixture owner/bypass role; direct RLS uses separately named owned NOLOGIN role only",
+  "applicationTables": [
+    "Tenant",
+    "User",
+    "TenantMembership",
+    "ImpersonationSession",
+    "Client",
+    "ClientMemoryAccess",
+    "ClioConversation",
+    "AuditLog"
+  ],
+  "schemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "nativeSchemaEngineSha256": "cedeae04739cfa085493da2bafb5d1e4da0247fc74f2995a51ee24f20c9890be",
+  "nativeSchemaEnginePath": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x",
+  "databaseOid": "16917",
+  "createdDatabase": true,
+  "role": "capiro_auth_http_20261013_4966f869fa_rls",
+  "roleCreated": true,
+  "schemaApplied": true,
+  "fullMigrationHistoryReplayed": false,
+  "selectedExistingPolicyStatements": 20,
+  "sourceBindings": [
+    {
+      "path": "apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql",
+      "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+      "sha256": "d7d178d03a5dcec7086f4515fa877e5c269f211195a7a48e8cb07ae07ab311e6"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql",
+      "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+      "sha256": "7cf65c125e45737add64e5a178b4375ae4d948614426b52834ad83edea105603"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260510010000_clio_nanoclaw_workspace/migration.sql",
+      "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+      "sha256": "d2b0bd50d5ca013beb3c58ce971ec76b230ef73d927686c6a25c2365d2dec066"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql",
+      "head": "bbb38185058fdc64c204da723943aee055b3dad3",
+      "sha256": "4198b1fc80c801f0c2b0ff1a7ad8f72916e3d68502731abd78a0e0f0ee5db8c7"
+    }
+  ],
+  "generatedFullDiffSha256": "a5c1d59d93f18d5f3ca6272ab142ba1b0bc408057d62a4888325805163f99793",
+  "selectedFixtureSqlSha256": "09b0615a2ce6be4fdd29a6036956685f76212033e3a95abc5bdbbe24a6ca3ab0",
+  "runtimeOwnerRoleBypassesRls": true,
+  "directControlledRlsScopeSeparate": true
+}

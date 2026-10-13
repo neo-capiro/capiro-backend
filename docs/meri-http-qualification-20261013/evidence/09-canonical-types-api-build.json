@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--max-old-space-size=4096",
+    "/workspace/capirov2/apps/api/node_modules/@nestjs/cli/bin/nest.js",
+    "build",
+    "--path",
+    ".pr2450-http-native-build.tsconfig.json"
+  ],
+  "exit": 0,
+  "elapsedSeconds": 98.238,
+  "sourceHead": "bbb38185058fdc64c204da723943aee055b3dad3",
+  "sameDirectoryAsCanonicalConfig": true,
+  "sameAutomaticTypeRootsAndStrictFlags": true,
+  "onlyOutputBuildInfoChanged": true,
+  "noInstallGenerationOrRuntimeBootstrap": true
+}

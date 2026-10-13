@@ -1,0 +1,55 @@
+{
+  "database": "capiro_auth_http_20261013_4966f869fa",
+  "user": "capiro",
+  "server": "16.15 (Debian 16.15-1.pgdg12+2)",
+  "tables": [
+    {
+      "relname": "audit_logs",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "owner": "capiro"
+    },
+    {
+      "relname": "client_memory_access",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "owner": "capiro"
+    },
+    {
+      "relname": "clients",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "owner": "capiro"
+    },
+    {
+      "relname": "clio_conversations",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "owner": "capiro"
+    },
+    {
+      "relname": "impersonation_sessions",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "capiro"
+    },
+    {
+      "relname": "tenant_memberships",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "owner": "capiro"
+    },
+    {
+      "relname": "tenants",
+      "relrowsecurity": true,
+      "relforcerowsecurity": true,
+      "owner": "capiro"
+    },
+    {
+      "relname": "users",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "capiro"
+    }
+  ]
+}
