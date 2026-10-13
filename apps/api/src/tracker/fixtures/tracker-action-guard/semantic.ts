@@ -24,7 +24,7 @@ export const originalActionPins = {
     comments: 'bed74dd46c72508c725d850ae96c2719137f85d87c2cbdb4c8984f740ac7c8f4',
   },
   barrel: {
-    declarations: '2e7a7dac5ff77b8e25cf27479a1249fb099b9e0d680bfa5718b66e65ebca11aa',
+    declarations: '1276c9abe859c65c0afca391edb730d6879317d24b1331018263031a3df99623',
     comments: 'dec43d3b8cc8ae8c15557f32955ab7ee0c9085d3a131e15a63479cd41568f897',
   },
   classifierStatements: 'ddcfbfd03e51e8a2a6c200b120ff04ca3ca1e8e50257262ec1d5745bd370af8f',
