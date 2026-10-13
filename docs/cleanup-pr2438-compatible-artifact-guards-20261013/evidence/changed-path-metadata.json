@@ -1,0 +1,148 @@
+[
+  {
+    "path": ".github/workflows/backend-cleanup-preservation.yml",
+    "before": {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d63b85c6be7c73541f4da484705c1c45f41ae1d6",
+      "size": 7010,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/d63b85c6be7c73541f4da484705c1c45f41ae1d6"
+    },
+    "after": {
+      "path": ".github/workflows/backend-cleanup-preservation.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "243ca673dd073c54f02c37496b7b615b9b2f3535",
+      "size": 7363,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/243ca673dd073c54f02c37496b7b615b9b2f3535"
+    }
+  },
+  {
+    "path": "apps/web/Dockerfile.frontend-artifact",
+    "before": null,
+    "after": {
+      "path": "apps/web/Dockerfile.frontend-artifact",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1df389777949a6df4cc5c8f1eb43e2db4beb9265",
+      "size": 1737,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/1df389777949a6df4cc5c8f1eb43e2db4beb9265"
+    }
+  },
+  {
+    "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "before": {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9dbbfaf7d7b9cff94b82af8b1442767cbaaf02a8",
+      "size": 18697,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/9dbbfaf7d7b9cff94b82af8b1442767cbaaf02a8"
+    },
+    "after": {
+      "path": "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f49a5da84b577357a8017a2f9df62bd2f1d5eb9",
+      "size": 21722,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/3f49a5da84b577357a8017a2f9df62bd2f1d5eb9"
+    }
+  },
+  {
+    "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "62d72a39df7d8992c2df59c1e5c927d260118eaa",
+      "size": 4353,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/62d72a39df7d8992c2df59c1e5c927d260118eaa"
+    }
+  },
+  {
+    "path": "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f5b6e4b24c654bcf09a7ae0f4844bb9c6b8dddd3",
+      "size": 30348,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/f5b6e4b24c654bcf09a7ae0f4844bb9c6b8dddd3"
+    }
+  },
+  {
+    "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e920a319afd64a480cce1aa8f9b834377002bc97",
+      "size": 17614,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/e920a319afd64a480cce1aa8f9b834377002bc97"
+    }
+  },
+  {
+    "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23d0924dc0162328d9ee0b183ba0663011d4373a",
+      "size": 24329,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/23d0924dc0162328d9ee0b183ba0663011d4373a"
+    }
+  },
+  {
+    "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac4d7bbd80307e55a05a5068c4fcaf483ddbcab3",
+      "size": 17291,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/ac4d7bbd80307e55a05a5068c4fcaf483ddbcab3"
+    }
+  },
+  {
+    "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6231e5020d168833334251367119ec6801c55440",
+      "size": 15135,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/6231e5020d168833334251367119ec6801c55440"
+    }
+  },
+  {
+    "path": "scripts/lib/newsletter-loopback-serving.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/lib/newsletter-loopback-serving.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "41fde76f39821f0f88856b32b31d96ae6bebdbd3",
+      "size": 22504,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/41fde76f39821f0f88856b32b31d96ae6bebdbd3"
+    }
+  },
+  {
+    "path": "scripts/verify-newsletter-loopback-serving.mjs",
+    "before": null,
+    "after": {
+      "path": "scripts/verify-newsletter-loopback-serving.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e1650ba562f3562c8d82459263b5195335b74cc5",
+      "size": 1639,
+      "url": "https://api.github.com/repos/neo-capiro/capirov2/git/blobs/e1650ba562f3562c8d82459263b5195335b74cc5"
+    }
+  }
+]

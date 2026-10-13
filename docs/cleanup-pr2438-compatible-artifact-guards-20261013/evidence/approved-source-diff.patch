@@ -1,0 +1,1635 @@
+diff --git a/apps/web/Dockerfile.frontend-artifact b/apps/web/Dockerfile.frontend-artifact
+new file mode 100644
+index 000000000..1df389777
+--- /dev/null
++++ b/apps/web/Dockerfile.frontend-artifact
+@@ -0,0 +1,35 @@
++# Opt-in replacement artifact consumer; apps/web/Dockerfile stays the default.
++# Context: repository root plus explicitly supplied
++# release-artifacts/capiro-frontend/{manifest.json,rootfs/**}.
++# This byte gate neither qualifies the UI nor changes public origin routing.
++# Runtime profile mirrors frontend source 7c87678730538958ace9762f824dc3e588bf445b.
++# PORT adapts that runtime to the existing Web container's port 8080.
++
++FROM node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2 AS base
++RUN apk add --no-cache --upgrade zlib=1.3.2-r1 ca-certificates
++WORKDIR /app
++
++FROM base AS artifact-check
++WORKDIR /workspace
++COPY scripts/lib/frontend-standalone-artifact-contract.mjs scripts/lib/frontend-standalone-artifact-contract.mjs
++COPY scripts/lib/newsletter-static-release-contract.mjs scripts/lib/newsletter-static-release-contract.mjs
++COPY release-artifacts/capiro-frontend release-artifacts/capiro-frontend
++ARG FRONTEND_ARTIFACT_MANIFEST_SHA256
++ARG FRONTEND_ARTIFACT_SOURCE_REPOSITORY
++ARG FRONTEND_ARTIFACT_SOURCE_COMMIT
++ARG TARGETPLATFORM
++RUN node scripts/lib/frontend-standalone-artifact-contract.mjs \
++      --artifact-dir /workspace/release-artifacts/capiro-frontend \
++      --manifest-sha256 "$FRONTEND_ARTIFACT_MANIFEST_SHA256" \
++      --source-repository "$FRONTEND_ARTIFACT_SOURCE_REPOSITORY" \
++      --source-commit "$FRONTEND_ARTIFACT_SOURCE_COMMIT" \
++      --target-platform "$TARGETPLATFORM" \
++      --target-libc musl \
++      --target-node-major 24
++
++FROM base AS runtime
++ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
++COPY --from=artifact-check --chown=node:node /workspace/release-artifacts/capiro-frontend/rootfs ./
++USER node
++EXPOSE 8080
++CMD ["node", "apps/web/server.js"]
+diff --git a/scripts/ci/frontend-artifact-docker.contract.spec.mjs b/scripts/ci/frontend-artifact-docker.contract.spec.mjs
+new file mode 100644
+index 000000000..d5394c0af
+--- /dev/null
++++ b/scripts/ci/frontend-artifact-docker.contract.spec.mjs
+@@ -0,0 +1,75 @@
++import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
++import { readFileSync, existsSync } from 'node:fs';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++import test from 'node:test';
++
++const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
++const BASE = '0a76666dc57aa852586c35167426a540939c9918';
++const read = file => readFileSync(path.join(ROOT, file), 'utf8');
++const DOCKER = read('apps/web/Dockerfile.frontend-artifact');
++const RUNTIME = `FROM base AS runtime
++ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
++COPY --from=artifact-check --chown=node:node /workspace/release-artifacts/capiro-frontend/rootfs ./
++USER node
++EXPOSE 8080
++CMD ["node", "apps/web/server.js"]
++`;
++const BASE_PROFILE = `FROM node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2 AS base
++RUN apk add --no-cache --upgrade zlib=1.3.2-r1 ca-certificates
++WORKDIR /app
++`;
++
++function validate(source) {
++  assert.equal(source.split(BASE_PROFILE).length, 2, 'frontend runtime base profile');
++  assert.equal(source.slice(source.indexOf('FROM base AS runtime')), RUNTIME, 'frontend runtime projection');
++  assert.equal((source.match(/^FROM /gm) ?? []).length, 3);
++  for (const suffix of ['MANIFEST_SHA256', 'SOURCE_REPOSITORY', 'SOURCE_COMMIT']) {
++    assert.match(source, new RegExp(`^ARG FRONTEND_ARTIFACT_${suffix}$`, 'm'));
++    assert.match(source, new RegExp(`"\\$FRONTEND_ARTIFACT_${suffix}"`));
++  }
++  assert.match(source, /^COPY release-artifacts\/capiro-frontend release-artifacts\/capiro-frontend$/m);
++  assert.match(source, /--artifact-dir \/workspace\/release-artifacts\/capiro-frontend/);
++  assert.match(source, /--manifest-sha256 /);
++  assert.match(source, /--source-repository /);
++  assert.match(source, /--source-commit /);
++  assert.match(source, /^ARG TARGETPLATFORM$/m);
++  assert.match(source, /--target-platform "\$TARGETPLATFORM"/);
++  assert.match(source, /--target-libc musl/);
++  assert.match(source, /--target-node-major 24/);
++  assert.equal((source.match(/^RUN node scripts\/lib\/frontend-standalone-artifact-contract\.mjs /gm) ?? []).length, 1);
++  assert.ok(source.indexOf('RUN node scripts/lib/frontend-standalone-artifact-contract.mjs ') < source.indexOf('FROM base AS runtime'));
++  assert.doesNotMatch(source, /npm (?:ci|install)|pnpm|COPY apps\/web\/|COPY packages\/|--from=build|--from=frontend_artifact|^ARG FRONTEND_ARTIFACT_[^\n]*=/m);
++}
++
++test('opt-in Docker consumes only an explicit validated rootfs using the frontend-owned runtime profile', () => {
++  validate(DOCKER);
++});
++
++test('default Web Docker, release operator, workspace, lock and Onboard default remain unchanged', () => {
++  for (const file of ['apps/web/Dockerfile',
++    'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/onboard-api/Dockerfile']) {
++    const before = execFileSync('git', ['show', `${BASE}:${file}`], { cwd: ROOT, encoding: 'utf8' });
++    assert.equal(read(file), before, file);
++  }
++  // The receiving branch has no active legacy release operator. Do not restore it as a dependency.
++  assert.equal(existsSync(path.join(ROOT, 'scripts/build-newsletter-release.sh')), false);
++  assert.match(read('apps/web/Dockerfile'), /^EXPOSE 8080$/m);
++});
++
++test('missing pins, bypassed byte gate, guessed image stage and changed runtime cannot qualify', () => {
++  for (const changed of [
++    DOCKER.replace('ARG FRONTEND_ARTIFACT_SOURCE_COMMIT\n', ''),
++    DOCKER.replace('ARG FRONTEND_ARTIFACT_SOURCE_COMMIT\n', 'ARG FRONTEND_ARTIFACT_SOURCE_COMMIT=main\n'),
++    DOCKER.replace('RUN node scripts/lib/frontend-standalone-artifact-contract.mjs ', 'RUN echo '),
++    DOCKER.replace('--from=artifact-check', '--from=frontend_artifact'),
++    DOCKER.replace('USER node', 'USER root'),
++    DOCKER.replace('PORT=8080', 'PORT=5188'),
++    DOCKER.replace('CMD ["node", "apps/web/server.js"]', 'CMD ["node", "server.js"]'),
++    DOCKER.replace('zlib=1.3.2-r1', 'zlib'),
++    DOCKER.replace('--target-platform "$TARGETPLATFORM"', '--target-platform linux/amd64'),
++    DOCKER.replace('--target-libc musl', '--target-libc glibc'),
++    DOCKER.replace('FROM base AS runtime', 'COPY apps/web/src apps/web/src\nFROM base AS runtime'),
++  ]) assert.throws(() => validate(changed));
++});
+diff --git a/scripts/ci/frontend-standalone-artifact.contract.spec.mjs b/scripts/ci/frontend-standalone-artifact.contract.spec.mjs
+new file mode 100644
+index 000000000..f5b6e4b24
+--- /dev/null
++++ b/scripts/ci/frontend-standalone-artifact.contract.spec.mjs
+@@ -0,0 +1,431 @@
++import assert from 'node:assert/strict';
++import { createHash } from 'node:crypto';
++import test from 'node:test';
++import { canonicalNewsletterManifest } from '../lib/newsletter-static-release-contract.mjs';
++import { FRONTEND_ARTIFACT_TYPE, FRONTEND_SERVER_ENTRYPOINT, validateFrontendStandaloneArtifact,
++  readFrontendStandaloneArtifact, parseFrontendStandaloneInvocation } from '../lib/frontend-standalone-artifact-contract.mjs';
++
++// No Web/source artifact/native process/environment reads. All bytes below are
++// inert fixtures; explicit temporary filesystem ports test physical traversal.
++// An injected Newsletter identity port explicitly bars byte admission.
++const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
++const newsletter = canonicalNewsletterManifest();
++const newsletterByUrl = new Map(newsletter.map((entry) => [entry.publicPath, entry]));
++const newsletterIdentity = (bytes, path) => bytes.equals(Buffer.from(path)) ? newsletterByUrl.get(path) : null;
++const source = { repository: 'fixtures/frontend-standalone', commit: 'a'.repeat(40) };
++const runtimeTarget = { os: 'linux', arch: 'amd64', libc: 'glibc', nodeMajor: 24 };
++function fixture() {
++  const files = new Map([
++    [FRONTEND_SERVER_ENTRYPOINT, Buffer.from('// inert server fixture; never execute')],
++    ['apps/web/.next/BUILD_ID', Buffer.from('fixture-build')],
++    ['apps/web/.next/required-server-files.json', Buffer.from(JSON.stringify({ version: 1,
++      config: { output: 'standalone', distDir: '.next' }, relativeAppDir: 'apps/web',
++      files: ['.next/BUILD_ID', '.next/routes-manifest.json', '.next/server/app/index.js'] }))],
++    ['apps/web/.next/routes-manifest.json', Buffer.from('{"version":3}')],
++    ['apps/web/.next/static/chunks/main.js', Buffer.from('// inert static fixture')],
++    ['apps/web/.next/server/app/index.js', Buffer.from('// inert route fixture')],
++    ['apps/web/.next/server/app/index.js.nft.json', Buffer.from(JSON.stringify({ version: 1,
++      files: ['../../../../../node_modules/next-alias/server.js'] }))],
++    ['node_modules/next/server.js', Buffer.from('// inert dependency fixture')],
++    ...newsletter.map((entry) => ['apps/web/public' + entry.publicPath, Buffer.from(entry.publicPath)]),
++  ]);
++  return pack(files, new Map([['node_modules/.bin/next', '../next/server.js'], ['node_modules/next-alias', './next']]));
++}
++const directoryTracePath = 'apps/web/.next/server/app/meri/fixture/run-activity/page.js.nft.json';
++const directoryTraceLink = 'apps/web/.next/node_modules/shiki-43d062b67f27bbdc';
++function directoryTraceFixture(reference = '../../../../../node_modules/shiki-43d062b67f27bbdc') {
++  const data = fixture();
++  data.files.set(directoryTracePath, Buffer.from(JSON.stringify({ version: 1, files: [reference] })));
++  data.files.set('node_modules/shiki/dist/bundle-full.mjs', Buffer.from('// inert shiki bundle fixture'));
++  data.files.set('node_modules/shiki/dist/index.mjs', Buffer.from('// inert shiki index fixture'));
++  data.symlinks.set(directoryTraceLink, '../../../../node_modules/shiki');
++  return pack(data.files, data.symlinks);
++}
++function parentTraversalFixture() {
++  const data = fixture();
++  data.files.set('safe/decoy.txt', Buffer.from('inert lexical decoy'));
++  data.files.set('decoy.txt', Buffer.from('inert internal decoy'));
++  data.symlinks.set('safe/back', '..');
++  data.symlinks.set('nested/alias', '../safe/back');
++  data.symlinks.set('bridge', 'nested/alias');
++  data.symlinks.set('safe/leading', '../decoy.txt');
++  return pack(data.files, data.symlinks);
++}
++function pack(files, symlinks = new Map(), changes = {}) {
++  const manifest = { schemaVersion: 1, artifactType: FRONTEND_ARTIFACT_TYPE, source: { ...source },
++    runtimeTarget: { ...runtimeTarget }, serverEntrypoint: FRONTEND_SERVER_ENTRYPOINT,
++    entries: [...files].map(([path, bytes]) => ({ path, type: 'file', bytes: bytes.length, sha256: sha(bytes) }))
++      .concat([...symlinks].map(([path, target]) => ({ path, type: 'symlink', target }))), ...changes };
++  return fromManifest(manifest, files, symlinks);
++}
++function fromManifest(manifest, files, symlinks = new Map()) {
++  const manifestBytes = Buffer.from(JSON.stringify(manifest));
++  return { manifest, manifestBytes, files, symlinks, newsletterIdentity, pins: {
++    manifestSha256: sha(manifestBytes), sourceRepository: source.repository, sourceCommit: source.commit,
++    runtimeTarget: { ...runtimeTarget } } };
++}
++const validate = (data) => validateFrontendStandaloneArtifact(data);
++function portsFor(data, changes = {}) {
++  const artifactDir = '/provided/release-artifacts/capiro-frontend', rootfs = artifactDir + '/rootfs';
++  const nodes = new Map([['/', 'directory'], ['/provided', 'directory'], ['/provided/release-artifacts', 'directory'],
++    [artifactDir, 'directory'], [rootfs, 'directory'], [artifactDir + '/manifest.json', data.manifestBytes]]);
++  for (const [path, bytes] of data.files) {
++    const parts = path.split('/');
++    for (let i = 1; i < parts.length; i++) nodes.set(rootfs + '/' + parts.slice(0, i).join('/'), 'directory');
++    nodes.set(rootfs + '/' + path, bytes);
++  }
++  for (const [path, target] of data.symlinks) {
++    const parts = path.split('/');
++    for (let i = 1; i < parts.length; i++) nodes.set(rootfs + '/' + parts.slice(0, i).join('/'), 'directory');
++    nodes.set(rootfs + '/' + path, { link: target });
++  }
++  for (const [path, value] of Object.entries(changes)) {
++    if (value === null) nodes.delete(path); else nodes.set(path, value);
++  }
++  const calls = [];
++  const get = (operation, path) => {
++    calls.push([operation, path]);
++    if (!nodes.has(path)) throw new Error('injected missing metadata/read');
++    return nodes.get(path);
++  };
++  const ports = {
++    lstat(path) { const value = get('lstat', path); return {
++      isFile: () => Buffer.isBuffer(value), isDirectory: () => value === 'directory',
++      isSymbolicLink: () => value !== null && typeof value === 'object' && !Buffer.isBuffer(value) && Object.hasOwn(value, 'link'),
++    }; },
++    readdir(path) {
++      assert.equal(get('readdir', path), 'directory');
++      return [...new Set([...nodes.keys()].filter((key) => key.startsWith(path + '/'))
++        .map((key) => key.slice(path.length + 1).split('/')[0]))];
++    },
++    readFile(path) { const value = get('readFile', path); assert.ok(Buffer.isBuffer(value)); return value; },
++    readlink(path) { return get('readlink', path).link; },
++    realpath(path) { get('realpath', path); return path; },
++  };
++  return { artifactDir, rootfs, ports, calls };
++}
++const read = (data, input) => readFrontendStandaloneArtifact({ artifactDir: input.artifactDir,
++  ports: input.ports, pins: data.pins, newsletterIdentity });
++const rootfsReads = (input) => input.calls.filter(([operation, path]) => operation === 'readFile' && path.startsWith(input.rootfs + '/'));
++async function physicalPortsFor(data) {
++  const fs = await import('node:fs/promises'), { constants } = await import('node:fs');
++  const parent = '/tmp/backend-cleanup-serving-consumers-20261013';
++  await fs.mkdir(parent, { recursive: true });
++  const artifactDir = await fs.mkdtemp(parent + '/standalone-parent-segment-spec-'), rootfs = artifactDir + '/rootfs';
++  try {
++    for (const [path, bytes] of data.files) {
++      await fs.mkdir(rootfs + '/' + path.slice(0, path.lastIndexOf('/') + 1), { recursive: true });
++      await fs.writeFile(rootfs + '/' + path, bytes);
++    }
++    for (const [path, target] of data.symlinks) {
++      await fs.mkdir(rootfs + '/' + path.slice(0, path.lastIndexOf('/') + 1), { recursive: true });
++      await fs.symlink(target, rootfs + '/' + path);
++    }
++    await fs.writeFile(artifactDir + '/manifest.json', data.manifestBytes);
++    await fs.writeFile(artifactDir + '/decoy.txt', Buffer.from('inert outside-rootfs decoy'));
++    const calls = [];
++    const ports = { lstat: fs.lstat, readdir: fs.readdir, realpath: fs.realpath, readlink: fs.readlink,
++      readFile: (path) => { calls.push(['readFile', path]); return fs.readFile(path, { flag: constants.O_RDONLY | constants.O_NOFOLLOW }); } };
++    return { artifactDir, rootfs, ports, calls, fs, cleanup: () => fs.rm(artifactDir, { recursive: true, force: true }) };
++  } catch (error) { await fs.rm(artifactDir, { recursive: true, force: true }); throw error; }
++}
++
++test('explicit exhaustive supplied model preserves layout, symlinks, trace closure and source-only boundaries', async () => {
++  const receipt = await validate(fixture());
++  assert.equal(receipt.serverEntrypoint, FRONTEND_SERVER_ENTRYPOINT);
++  assert.equal(receipt.regularFiles, 187); assert.equal(receipt.symlinks, 2);
++  assert.equal(receipt.exhaustiveArtifactIndexVerified, true); assert.equal(receipt.safeInternalSymlinksVerified, true);
++  assert.equal(receipt.requiredServerFileClosureVerified, true); assert.equal(receipt.traceManifestsVerified, 1);
++  assert.equal(receipt.traceFileReferencesVerified, 1); assert.equal(receipt.newsletter.staticPaths, 179);
++  assert.deepEqual(receipt.runtimeTarget, runtimeTarget); assert.equal(receipt.runtimeTargetEqualityVerified, true);
++  assert.equal(receipt.actualArtifactBytesVerified, false); assert.equal(receipt.nativeRuntimeCompatibilityVerified, false);
++  for (const key of ['buildUsedSourceVerified', 'runtimeDependencyClosureVerified', 'localServingVerified', 'deployedServingVerified', 'uiAcceptanceVerified'])
++    assert.equal(receipt[key], false);
++});
++test('physical hashing cannot be replaced by synthetic byte claims without a false admission flag', async () => {
++  const data = fixture(); delete data.newsletterIdentity;
++  await assert.rejects(validate(data), /artifact byte identity/);
++});
++for (const [name, change, message] of [
++  ['missing entrypoint', (data) => data.files.delete(FRONTEND_SERVER_ENTRYPOINT), /required regular/],
++  ['missing BUILD_ID', (data) => data.files.delete('apps/web/.next/BUILD_ID'), /required regular/],
++  ['missing required manifest', (data) => data.files.delete('apps/web/.next/required-server-files.json'), /required regular/],
++  ['missing static tree', (data) => data.files.delete('apps/web/.next/static/chunks/main.js'), /static/],
++  ['missing Newsletter identity', (data) => data.files.delete('apps/web/public/newsletter/capitol.png'), /Newsletter/],
++]) test(name, async () => {
++  const data = fixture(); change(data); await assert.rejects(validate(pack(data.files, data.symlinks)), message);
++});
++test('manifest pin, source pin and raw file identity drift each refuse', async () => {
++  const data = fixture();
++  await assert.rejects(validate({ ...data, pins: { ...data.pins, manifestSha256: '0'.repeat(64) } }), /manifest byte/);
++  await assert.rejects(validate({ ...data, pins: { ...data.pins, sourceCommit: 'b'.repeat(40) } }), /source-pin/);
++  data.files.set(FRONTEND_SERVER_ENTRYPOINT, Buffer.from('altered'));
++  await assert.rejects(validate(data), /byte identity/);
++});
++test('runtime target declarations require exact explicit equality and cannot establish native compatibility', async () => {
++  const data = fixture();
++  await assert.rejects(validate({ ...data, pins: { ...data.pins, runtimeTarget: undefined } }), /runtime target/);
++  for (const change of [{ arch: 'arm64' }, { libc: 'musl' }])
++    await assert.rejects(validate({ ...data, pins: { ...data.pins, runtimeTarget: { ...runtimeTarget, ...change } } }), /target equality/);
++  for (const change of [{ os: 'darwin' }, { arch: 'x64' }, { libc: 'unknown' }, { nodeMajor: 22 }])
++    await assert.rejects(validate({ ...data, pins: { ...data.pins, runtimeTarget: { ...runtimeTarget, ...change } } }), /runtime target/);
++  const musl = fromManifest({ ...data.manifest, runtimeTarget: { ...runtimeTarget, libc: 'musl' } }, data.files, data.symlinks);
++  musl.pins.runtimeTarget.libc = 'musl';
++  assert.equal((await validate(musl)).nativeRuntimeCompatibilityVerified, false);
++});
++test('duplicate paths, duplicate JSON keys and ambiguous manifest fields refuse', async () => {
++  const data = fixture();
++  await assert.rejects(validate(fromManifest({ ...data.manifest, entries: [...data.manifest.entries, data.manifest.entries[0]] }, data.files, data.symlinks)), /duplicate artifact/);
++  const manifestBytes = Buffer.from(JSON.stringify(data.manifest).replace('"schemaVersion":1', '"schemaVersion":1,"schemaVersion":1'));
++  await assert.rejects(validate({ ...data, manifestBytes, pins: { ...data.pins, manifestSha256: sha(manifestBytes) } }), /duplicate/);
++  await assert.rejects(validate(fromManifest({ ...data.manifest, guessedBuildProof: true }, data.files, data.symlinks)), /layout/);
++});
++test('unlisted files, links and symlink drift cannot pass exhaustive index', async () => {
++  const data = fixture(); data.files.set('unlisted.js', Buffer.from('unlisted'));
++  await assert.rejects(validate(data), /unlisted/);
++  const link = fixture(); link.symlinks.set('node_modules/extra', './next');
++  await assert.rejects(validate(link), /unlisted/);
++  const drift = fixture(); drift.symlinks.set('node_modules/.bin/next', '../other');
++  await assert.rejects(validate(drift), /symlink identity/);
++});
++for (const path of ['../escape', '/absolute', 'C:/windows', 'apps/web/..\\..\\.env', 'apps/web/\u0000bad',
++  'apps/web/.env', 'apps/web/.env.local', 'apps/web/.env-backup', 'apps/web/.envrc', 'node_modules/.npmrc',
++  '.aws/credentials', '.ssh/id_rsa', 'apps/web/private.key', 'apps/web/service-account.json'])
++  test(`unsafe/credential manifest path refuses before rootfs reads: ${JSON.stringify(path)}`, async () => {
++    const data = fixture(); data.files.set(path, Buffer.from('inert refusal payload'));
++    const packed = pack(data.files, data.symlinks), input = portsFor(packed);
++    await assert.rejects(read(packed, input), /unsafe/); assert.deepEqual(rootfsReads(input), []);
++  });
++for (const [name, target] of [['absolute', '/etc/passwd'], ['escaping', '../../outside'], ['Windows', '..\\secret'], ['credential', '../.env']])
++  test(`symlink ${name} target refuses before rootfs reads`, async () => {
++    const data = fixture(); data.symlinks.set('escape', target);
++    const packed = pack(data.files, data.symlinks), input = portsFor(packed);
++    await assert.rejects(read(packed, input)); assert.deepEqual(rootfsReads(input), []);
++  });
++test('dangling, cyclic and file-as-directory indexes refuse', async () => {
++  const dangling = fixture(); dangling.symlinks.set('missing', './absent');
++  await assert.rejects(validate(pack(dangling.files, dangling.symlinks)), /missing declared/);
++  const cyclic = fixture(); cyclic.symlinks.set('a', 'b'); cyclic.symlinks.set('b', 'a');
++  await assert.rejects(validate(pack(cyclic.files, cyclic.symlinks)), /cyclic/);
++  const descendant = fixture(); descendant.files.set('node_modules/.bin/next/child', Buffer.from('inert'));
++  await assert.rejects(validate(pack(descendant.files, descendant.symlinks)), /ancestor/);
++});
++test('symlink targets cannot cancel named components, including nested and dot-separated aliases', async () => {
++  for (const target of ['safe/back/../decoy.txt', 'bridge/../decoy.txt', 'safe/back/./../decoy.txt',
++    'safe/back//../decoy.txt', 'safe/back/..', 'safe/../decoy.txt', 'safe/decoy.txt/../decoy.txt']) {
++    const data = parentTraversalFixture(); data.symlinks.set('escape', target);
++    const packed = pack(data.files, data.symlinks), input = portsFor(packed);
++    await assert.rejects(validate(packed), /parent segment after named/);
++    await assert.rejects(read(packed, input), /parent segment after named/);
++    assert.deepEqual(rootfsReads(input), []);
++  }
++});
++test('physical POSIX symlink-plus-parent escapes refuse before rootfs content reads', async () => {
++  for (const target of ['safe/back/../decoy.txt', 'bridge/../decoy.txt', 'safe/back/./../decoy.txt']) {
++    const data = parentTraversalFixture(); data.symlinks.set('escape', target);
++    const packed = pack(data.files, data.symlinks), input = await physicalPortsFor(packed);
++    try {
++      assert.equal(await input.fs.realpath(input.rootfs + '/escape'), input.artifactDir + '/decoy.txt');
++      await assert.rejects(read(packed, input), /parent segment after named/);
++      assert.deepEqual(rootfsReads(input), []);
++    } finally { await input.cleanup(); }
++  }
++});
++test('leading-parent links and nested aliases qualify in inert and physical models', async () => {
++  const data = parentTraversalFixture(); data.symlinks.set('file-alias', 'bridge/decoy.txt');
++  data.files.set('apps/web/.next/required-server-files.json', Buffer.from(JSON.stringify({
++    config: { output: 'standalone' }, files: ['.next/BUILD_ID', '../../safe/leading'] })));
++  data.files.set('apps/web/.next/server/app/index.js.nft.json', Buffer.from(JSON.stringify({
++    files: ['../../../../../bridge/decoy.txt'] })));
++  const packed = pack(data.files, data.symlinks), inert = await validate(packed), input = await physicalPortsFor(packed);
++  try {
++    assert.equal(await input.fs.realpath(input.rootfs + '/file-alias'), input.rootfs + '/decoy.txt');
++    assert.equal(await input.fs.realpath(input.rootfs + '/safe/leading'), input.rootfs + '/decoy.txt');
++    const physical = await read(packed, input);
++    assert.deepEqual(physical, inert);
++    assert.equal(physical.safeInternalSymlinksVerified, true);
++    assert.equal(physical.requiredServerFileClosureVerified, true);
++    assert.equal(physical.traceFileReferencesVerified, 1);
++    assert.equal(rootfsReads(input).length, packed.files.size);
++    assert.equal(physical.actualArtifactBytesVerified, false);
++    assert.ok(input.calls.every(([, path]) => path === input.artifactDir + '/manifest.json' ||
++      path.startsWith(input.rootfs + '/')));
++  } finally { await input.cleanup(); }
++});
++test('required-server-file and NFT references cannot cancel intermediate aliases', async () => {
++  for (const alias of ['safe/back/..', 'bridge/..', 'safe/back/./..']) {
++    for (const kind of ['required', 'trace']) {
++      const data = parentTraversalFixture();
++      const path = kind === 'required' ? 'apps/web/.next/required-server-files.json' : 'apps/web/.next/server/app/index.js.nft.json';
++      const reference = (kind === 'required' ? '../../' : '../../../../../') + alias + '/decoy.txt';
++      data.files.set(path, Buffer.from(JSON.stringify(kind === 'required' ?
++        { config: { output: 'standalone' }, files: ['.next/BUILD_ID', reference] } : { files: [reference] })));
++      const packed = pack(data.files, data.symlinks), input = portsFor(packed);
++      await assert.rejects(validate(packed), /parent segment after named/);
++      await assert.rejects(read(packed, input), /parent segment after named/);
++      assert.ok(rootfsReads(input).every(([, absolute]) => packed.files.has(absolute.slice(input.rootfs.length + 1))));
++    }
++  }
++});
++test('physical required-server-file and NFT parent references refuse without outside-rootfs reads', async () => {
++  for (const kind of ['required', 'trace']) {
++    const data = parentTraversalFixture();
++    const path = kind === 'required' ? 'apps/web/.next/required-server-files.json' : 'apps/web/.next/server/app/index.js.nft.json';
++    const reference = (kind === 'required' ? '../../' : '../../../../../') + 'bridge/../decoy.txt';
++    data.files.set(path, Buffer.from(JSON.stringify(kind === 'required' ?
++      { config: { output: 'standalone' }, files: ['.next/BUILD_ID', reference] } : { files: [reference] })));
++    const packed = pack(data.files, data.symlinks), input = await physicalPortsFor(packed);
++    try {
++      const containingDirectory = kind === 'required' ? input.rootfs + '/apps/web' :
++        input.rootfs + '/' + path.slice(0, path.lastIndexOf('/'));
++      assert.equal(await input.fs.realpath(containingDirectory + '/' + reference), input.artifactDir + '/decoy.txt');
++      await assert.rejects(read(packed, input), /parent segment after named/);
++      assert.ok(input.calls.every(([, absolute]) => absolute === input.artifactDir + '/manifest.json' ||
++        (absolute.startsWith(input.rootfs + '/') && packed.files.has(absolute.slice(input.rootfs.length + 1)))));
++    } finally { await input.cleanup(); }
++  }
++});
++test('required-server-files and all included trace references are checked conservatively', async () => {
++  for (const [path, value, message] of [
++    ['apps/web/.next/required-server-files.json', { config: { output: 'standalone' }, files: ['.next/missing.json'] }, /missing declared/],
++    ['apps/web/.next/required-server-files.json', { config: { output: 'export' }, files: ['.next/BUILD_ID'] }, /layout/],
++    ['apps/web/.next/required-server-files.json', { config: { output: 'standalone' }, files: ['../../../../outside'] }, /escaping/],
++    ['apps/web/.next/server/app/index.js.nft.json', { files: ['../../../../../.env'] }, /unsafe/],
++    ['apps/web/.next/server/app/index.js.nft.json', { files: ['../../../../../../outside'] }, /escaping/],
++    ['apps/web/.next/server/app/index.js.nft.json', { files: ['../../../../../node_modules/missing.js'] }, /missing declared/],
++  ]) {
++    const data = fixture(); data.files.set(path, Buffer.from(JSON.stringify(value)));
++    await assert.rejects(validate(pack(data.files, data.symlinks)), message);
++  }
++});
++test('Next directory trace references admit nonempty indexed contents through an internal symlink', async () => {
++  const data = directoryTraceFixture(), input = portsFor(data), receipt = await read(data, input);
++  assert.equal(receipt.regularFiles, data.files.size); assert.equal(receipt.symlinks, data.symlinks.size);
++  assert.equal(receipt.exhaustiveArtifactIndexVerified, true); assert.equal(receipt.safeInternalSymlinksVerified, true);
++  assert.equal(receipt.requiredServerFileClosureVerified, true);
++  assert.equal(receipt.traceManifestsVerified, 2); assert.equal(receipt.traceFileReferencesVerified, 2);
++  assert.equal(rootfsReads(input).length, data.files.size);
++  assert.ok(input.calls.every(([, path]) => !path.startsWith(input.rootfs + '/' + directoryTraceLink + '/')));
++  for (const key of ['actualArtifactBytesVerified', 'nativeRuntimeCompatibilityVerified', 'buildUsedSourceVerified',
++    'runtimeDependencyClosureVerified', 'localServingVerified', 'deployedServingVerified', 'uiAcceptanceVerified'])
++    assert.equal(receipt[key], false);
++  const direct = directoryTraceFixture('../../../../../../../../node_modules/shiki');
++  assert.equal((await validate(direct)).traceFileReferencesVerified, 2);
++});
++test('directory trace contents must remain exhaustive and byte-identical', async () => {
++  const missing = directoryTraceFixture(); missing.files.delete('node_modules/shiki/dist/index.mjs');
++  await assert.rejects(validate(missing), /missing artifact entries/);
++  const drift = directoryTraceFixture(); drift.files.set('node_modules/shiki/dist/index.mjs', Buffer.from('changed'));
++  await assert.rejects(validate(drift), /byte identity drift/);
++  for (const change of [
++    { '/provided/release-artifacts/capiro-frontend/rootfs/node_modules/shiki/dist/index.mjs': null },
++    { '/provided/release-artifacts/capiro-frontend/rootfs/node_modules/shiki/dist/unlisted.mjs': Buffer.from('unlisted') },
++  ]) {
++    const data = directoryTraceFixture(), input = portsFor(data, change);
++    await assert.rejects(read(data, input), /exhaustive artifact inventory mismatch/);
++    assert.deepEqual(rootfsReads(input), []);
++  }
++});
++test('empty or missing directory trace targets cannot replace indexed contents', async () => {
++  const data = directoryTraceFixture();
++  data.files.delete('node_modules/shiki/dist/bundle-full.mjs'); data.files.delete('node_modules/shiki/dist/index.mjs');
++  const packed = pack(data.files, data.symlinks);
++  const input = portsFor(packed, { '/provided/release-artifacts/capiro-frontend/rootfs/node_modules/shiki': 'directory' });
++  await assert.rejects(read(packed, input), /missing declared file\/symlink target/);
++  assert.deepEqual(rootfsReads(input), []);
++  data.symlinks.delete(directoryTraceLink);
++  data.files.set(directoryTracePath, Buffer.from(JSON.stringify({ files: ['../../../../../../../../node_modules/shiki'] })));
++  await assert.rejects(validate(pack(data.files, data.symlinks)), /missing declared file\/symlink target/);
++});
++test('directory trace support leaves required-server-files references file-only', async () => {
++  for (const file of ['.next/node_modules/shiki-43d062b67f27bbdc', '../../node_modules/shiki']) {
++    const data = directoryTraceFixture();
++    data.files.set('apps/web/.next/required-server-files.json', Buffer.from(JSON.stringify({
++      config: { output: 'standalone' }, files: ['.next/BUILD_ID', file] })));
++    await assert.rejects(validate(pack(data.files, data.symlinks)), /missing declared file\/symlink target/);
++  }
++});
++test('directory trace aliases retain escape, credential, cycle and dangling-target refusal', async () => {
++  for (const [target, message] of [
++    ['../../../../../outside', /escaping/], ['../../../../.aws/credentials', /unsafe/],
++    ['./shiki-43d062b67f27bbdc', /cyclic/], ['../../../../node_modules/absent', /missing declared/],
++  ]) {
++    const data = directoryTraceFixture(); data.symlinks.set(directoryTraceLink, target);
++    const packed = pack(data.files, data.symlinks), input = portsFor(packed);
++    await assert.rejects(read(packed, input), message); assert.deepEqual(rootfsReads(input), []);
++  }
++});
++test('future declared output files remain required; corrupted Newsletter buffers remain refused', async () => {
++  const data = fixture(); data.files.set('apps/web/.next/static/chunks/future.js', Buffer.from('future fixture'));
++  const packed = pack(data.files, data.symlinks); assert.equal((await validate(packed)).regularFiles, 188);
++  packed.files.delete('apps/web/.next/static/chunks/future.js'); await assert.rejects(validate(packed), /missing artifact/);
++  const corrupt = fixture(); corrupt.files.set('apps/web/public/newsletter/capitol.png', Buffer.from('corrupt'));
++  await assert.rejects(validate(pack(corrupt.files, corrupt.symlinks)), /artifact byte/);
++});
++test('injected reader enumerates safe physical entries without following symlinks', async () => {
++  const data = fixture(), input = portsFor(data), receipt = await read(data, input);
++  assert.equal(receipt.regularFiles, data.files.size);
++  assert.equal(rootfsReads(input).length, data.files.size);
++  assert.ok(input.calls.every(([, path]) => !path.includes('/next-alias/')));
++  assert.equal(receipt.actualArtifactBytesVerified, false);
++});
++test('unsafe unlisted inventory refuses before any rootfs content read', async () => {
++  const data = fixture(), input = portsFor(data, { '/provided/release-artifacts/capiro-frontend/rootfs/.env': Buffer.from('inert') });
++  await assert.rejects(read(data, input), /unsafe/); assert.deepEqual(rootfsReads(input), []);
++});
++test('extra/missing physical entries and nonregular nodes fail before any rootfs read', async () => {
++  for (const changes of [
++    { '/provided/release-artifacts/capiro-frontend/rootfs/extra.js': Buffer.from('extra') },
++    { '/provided/release-artifacts/capiro-frontend/rootfs/apps/web/server.js': null },
++    { '/provided/release-artifacts/capiro-frontend/rootfs/apps/web/server.js': 'socket' },
++  ]) {
++    const data = fixture(), input = portsFor(data, changes);
++    await assert.rejects(read(data, input)); assert.deepEqual(rootfsReads(input), []);
++  }
++});
++test('physical ancestor/manifest links and selected realpath escapes refuse', async () => {
++  for (const path of ['/provided', '/provided/release-artifacts/capiro-frontend/manifest.json',
++    '/provided/release-artifacts/capiro-frontend/rootfs/apps']) {
++    const data = fixture(), input = portsFor(data, { [path]: { link: '/outside' } });
++    await assert.rejects(read(data, input)); assert.deepEqual(rootfsReads(input), []);
++  }
++  const data = fixture(), input = portsFor(data);
++  const prior = input.ports.realpath;
++  input.ports.realpath = (path) => path.endsWith('/apps/web/server.js') ? '/outside/server.js' : prior(path);
++  await assert.rejects(read(data, input), /realpath escape/); assert.deepEqual(rootfsReads(input), []);
++});
++test('read failures propagate; duplicate directory inventories are refused', async () => {
++  const data = fixture(), input = portsFor(data), prior = input.ports.readFile;
++  input.ports.readFile = (path) => { if (path.endsWith('/server.js')) throw new Error('injected content read failure'); return prior(path); };
++  await assert.rejects(read(data, input), /injected content read failure/);
++  const duplicate = portsFor(data); duplicate.ports.readdir = () => ['same', 'same'];
++  await assert.rejects(read(data, duplicate), /ambiguous/);
++});
++test('invalid source/target pins and credential artifact roots refuse before filesystem ports', async () => {
++  for (const mutate of [
++    (pins) => { pins.sourceCommit += '\n'; }, (pins) => { pins.sourceRepository += '\n'; },
++    (pins) => { pins.sourceCommit = { toString() { throw new Error('unexpected coercion'); } }; },
++    (pins) => { pins.runtimeTarget = undefined; },
++  ]) {
++    const data = fixture(), input = portsFor(data); mutate(data.pins);
++    await assert.rejects(read(data, input)); assert.deepEqual(input.calls, []);
++  }
++  const data = fixture(), input = portsFor(data);
++  await assert.rejects(readFrontendStandaloneArtifact({ artifactDir: '/provided/.aws', pins: data.pins, ports: input.ports }), /unsafe/);
++  assert.deepEqual(input.calls, []);
++});
++test('symlinked trace manifests refuse instead of silently omitting declared closure', async () => {
++  const data = fixture(); data.symlinks.set('apps/web/.next/alias.nft.json', './server/app/index.js.nft.json');
++  await assert.rejects(validate(pack(data.files, data.symlinks)), /trace manifest must be regular/);
++});
++test('CLI has no target/source defaults; only seven exact flags form a valid invocation', () => {
++  const pins = fixture().pins;
++  const args = ['--artifact-dir', '/provided/release-artifacts/capiro-frontend', '--manifest-sha256', pins.manifestSha256,
++    '--source-repository', pins.sourceRepository, '--source-commit', pins.sourceCommit,
++    '--target-platform', 'linux/amd64', '--target-libc', 'glibc', '--target-node-major', '24'];
++  assert.deepEqual(parseFrontendStandaloneInvocation(args).pins, pins);
++  for (const changed of [[], args.slice(0, 8), [...args, 'extra'], args.map((arg) => arg === '--target-libc' ? '--UNKNOWN' : arg),
++    args.map((arg) => arg === 'linux/amd64' ? 'linux/amd64\n' : arg),
++    args.map((arg) => arg === '24' ? '024' : arg), args.map((arg) => arg === 'glibc' ? 'unknown' : arg)])
++    assert.throws(() => parseFrontendStandaloneInvocation(changed));
++});
+diff --git a/scripts/ci/newsletter-loopback-serving.spec.mjs b/scripts/ci/newsletter-loopback-serving.spec.mjs
+new file mode 100644
+index 000000000..23d0924dc
+--- /dev/null
++++ b/scripts/ci/newsletter-loopback-serving.spec.mjs
+@@ -0,0 +1,376 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import http from 'node:http';
++import net from 'node:net';
++import { gzipSync } from 'node:zlib';
++import {
++  parseNewsletterLoopbackOrigin, requestNewsletterLoopback, verifyNewsletterLoopbackServing,
++  validateNewsletterLoopbackServingReceipt, newsletterLoopbackReceiptSha256,
++  HISTORICAL_NEWSLETTER_STATIC_HEADERS,
++} from '../lib/newsletter-loopback-serving.mjs';
++import { canonicalNewsletterManifest, newsletterByteIdentity, NEWSLETTER_PINS }
++  from '../lib/newsletter-static-release-contract.mjs';
++import { parseNewsletterLoopbackInvocation, runNewsletterLoopbackOperator }
++  from '../verify-newsletter-loopback-serving.mjs';
++
++const manifest = canonicalNewsletterManifest();
++const byPath = new Map(manifest.map(entry => [entry.publicPath, entry]));
++const artifact = { repository: NEWSLETTER_PINS.frontendRepository,
++  commit: NEWSLETTER_PINS.frontendCode, sha256: NEWSLETTER_PINS.frontendManifestSha256 };
++const mime = pathname => pathname.endsWith('.png') ? 'image/png'
++  : pathname.endsWith('.svg') ? 'image/svg+xml' : 'text/plain';
++const syntheticIdentity = (body, pathname) => body.equals(Buffer.from(pathname))
++  ? byPath.get(pathname) : newsletterByteIdentity(body);
++function frame(spec) {
++  const entry = byPath.get(spec.path);
++  return { hostname: spec.hostname, port: spec.port, hostHeader: spec.hostHeader,
++    method: spec.method, path: spec.path, url: new URL(spec.path, spec.origin).href,
++    status: 200, headers: { 'content-type': mime(spec.path), 'x-content-type-options': 'nosniff',
++      ...(spec.method === 'HEAD' ? { 'content-length': String(entry.bytes) } : {}),
++      'cache-control': 'public, max-age=0', etag: '"synthetic-fixed"' },
++    body: spec.method === 'HEAD' ? Buffer.alloc(0) : Buffer.from(spec.path), headWireBodyBytes: 0 };
++}
++const input = extra => ({ origin: 'http://127.0.0.1:43210', expectedArtifact: artifact,
++  artifactPins: artifact, request: spec => frame(spec), identity: syntheticIdentity, ...extra });
++const headHeaders = `HTTP/1.1 200 OK\r\nContent-Type: ${mime(manifest[0].publicPath)}\r\nX-Content-Type-Options: nosniff\r\nContent-Length: ${manifest[0].bytes}\r\nConnection: close\r\n\r\n`;
++const headRequest = (target, extra = {}) => requestNewsletterLoopback({ ...target,
++  path: manifest[0].publicPath, method: 'HEAD', timeoutMs: 500, maxWireBodyBytes: 1024, ...extra });
++async function rawHeadFixture(onRequest, run) {
++  const sockets = new Set(), timers = new Set();
++  const later = (callback, delay = 20) => {
++    const timer = setTimeout(() => { timers.delete(timer); callback(); }, delay);
++    timers.add(timer);
++  };
++  const server = net.createServer({ allowHalfOpen: true }, socket => {
++    sockets.add(socket); socket.on('error', () => {}); socket.on('close', () => sockets.delete(socket));
++    socket.once('data', request => onRequest(socket, request.toString('latin1'), later));
++  });
++  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
++  try { return await run(parseNewsletterLoopbackOrigin(`http://127.0.0.1:${server.address().port}`)); }
++  finally {
++    for (const timer of timers) clearTimeout(timer);
++    for (const socket of sockets) socket.destroy();
++    await new Promise(resolve => server.close(resolve));
++  }
++}
++
++test('literal loopback origin refuses public DNS aliases auth paths normalization and missing/invalid ports', () => {
++  assert.deepEqual(parseNewsletterLoopbackOrigin('http://127.0.0.1:80/'),
++    { input: 'http://127.0.0.1:80/', origin: 'http://127.0.0.1', hostname: '127.0.0.1', port: 80 });
++  for (const value of [undefined, 'https://127.0.0.1:80', 'http://app.capiro.ai:80', 'http://localhost:80',
++    'http://127.1:80', 'http://2130706433:80', 'http://0177.0.0.1:80', 'http://[::1]:80',
++    'http://127.0.0.2:80', 'http://user:password@127.0.0.1:80', 'http://127.0.0.1',
++    'http://127.0.0.1:0', 'http://127.0.0.1:65536', 'http://127.0.0.1:00080',
++    'http://127.0.0.1:80/newsletter', 'http://127.0.0.1:80?x=y', 'http://127.0.0.1:80#hash',
++    'http://127.0.0.1:80\n', 'http://127.0.0.1:80\u2028', { toString() { throw new Error('coercion'); } }]) {
++    assert.throws(() => parseNewsletterLoopbackOrigin(value), /loopback|literal/);
++  }
++});
++
++test('unqualified target artifact/source pins options and limits refuse before any request', async () => {
++  let calls = 0;
++  const request = () => { calls++; throw new Error('unexpected request'); };
++  for (const extra of [
++    { origin: 'https://app.capiro.ai' }, { artifactPins: undefined }, { expectedArtifact: undefined },
++    { artifactPins: { ...artifact, commit: '0'.repeat(40) } }, { artifactPins: { ...artifact, sha256: '0'.repeat(64) } },
++    { expectedArtifact: { ...artifact, commit: artifact.commit + '\n' } },
++    { expectedArtifact: { ...artifact, repository: artifact.repository + '\u2028' } },
++    { expectedArtifact: { ...artifact, headers: { Authorization: 'unsupported' } } },
++    { headers: { Cookie: 'unsupported' } }, { concurrency: 9 }, { timeoutMs: 10001 },
++    { totalTimeoutMs: 120001 }, { maxWireBodyBytes: 1048577 }, { maxDecodedBodyBytes: 0 },
++  ]) await assert.rejects(verifyNewsletterLoopbackServing(input({ request, ...extra })), /Newsletter loopback/);
++  assert.equal(calls, 0);
++});
++
++test('all179 GET+HEAD measurements use canonical paths and exact host with bounded concurrency', async () => {
++  const calls = []; let active = 0, maximum = 0;
++  const receipt = await verifyNewsletterLoopbackServing(input({ concurrency: 3, request: async spec => {
++    calls.push(spec); active++; maximum = Math.max(maximum, active);
++    await new Promise(resolve => setImmediate(resolve)); active--;
++    return frame(spec);
++  } }));
++  assert.equal(receipt.status, 'PASS');
++  assert.equal(calls.length, 358); assert.equal(maximum, 3);
++  assert.deepEqual(receipt.records.map(record => record.method + ' ' + record.publicPath),
++    manifest.flatMap(entry => ['GET ' + entry.publicPath, 'HEAD ' + entry.publicPath]));
++  assert.ok(calls.every(spec => Object.isFrozen(spec) && spec.hostHeader === 'app.capiro.ai'
++    && spec.hostname === '127.0.0.1' && spec.port === 43210 && byPath.has(spec.path)));
++  assert.equal(receipt.evidenceKind, 'synthetic-inert-ports');
++  assert.equal(receipt.localHttpPerformed, false); assert.equal(receipt.localServingVerified, false);
++  assert.equal(receipt.actualAssetBytesVerified, false); assert.equal(receipt.publicDnsTlsVerified, false);
++  assert.equal(receipt.records[0].headers['cache-control'], 'public, max-age=0');
++  assert.equal(receipt.conditionalArchiveOriginVerified, false);
++  assert.equal(receipt.historicalHeadersEquivalent, false);
++});
++
++test('five historical headers are separately measured without changing the required static floor', async () => {
++  const successor = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
++  const run = headers => verifyNewsletterLoopbackServing(input({ request: spec => {
++    const response = frame(spec); Object.assign(response.headers, headers); return response;
++  } }));
++  const different = await run(successor);
++  assert.equal(different.status, 'PASS'); assert.equal(different.historicalHeadersEquivalent, false);
++  assert.deepEqual(different.historicalHeaderComparison['referrer-policy'].observedValues, ['same-origin']);
++  assert.deepEqual(different.historicalHeaderComparison['strict-transport-security'].observedValues, [null]);
++  assert.ok(different.holds.some(hold => hold.includes('five-header')));
++  const equal = await run(HISTORICAL_NEWSLETTER_STATIC_HEADERS);
++  assert.equal(equal.status, 'PASS'); assert.equal(equal.historicalHeadersEquivalent, true);
++  assert.equal(equal.legacyHeaderParityVerified, false);
++});
++
++for (const [name, mutate, message] of [
++  ['wrong Host', response => { response.hostHeader = 'another.example'; }, /host\/path\/address/],
++  ['wrong path', response => { response.path += '/extra'; }, /host\/path\/address/],
++  ['wrong address', response => { response.hostname = '192.0.2.1'; }, /host\/path\/address/],
++  ['missing asset', response => { response.status = 404; }, /status\/redirect/],
++  ['redirect', response => { response.status = 302; response.headers.location = 'https://app.capiro.ai/newsletter/capitol.png'; }, /status\/redirect/],
++  ['HTML auth fallback', response => { response.body = Buffer.from('<html>login</html>'); response.headers['content-type'] = 'text/html'; }, /content-type/],
++  ['corrupt asset', response => { response.body = Buffer.from('corrupt'); }, /byte identity/],
++  ['wrong MIME', response => { response.headers['content-type'] = 'application/octet-stream'; }, /content-type/],
++  ['missing nosniff', response => { delete response.headers['x-content-type-options']; }, /x-content-type-options/],
++  ['cookie fallback', response => { response.headers['set-cookie'] = 'redacted-fixture'; }, /auth\/cookie/],
++  ['auth challenge', response => { response.headers['www-authenticate'] = 'fixture'; }, /auth\/cookie/],
++  ['duplicate header', response => { response.headers['Content-Type'] = response.headers['content-type']; }, /ambiguous/],
++  ['HEAD payload', response => { response.body = Buffer.from('unexpected'); }, /HEAD body/],
++  ['HEAD wire payload', response => { response.headWireBodyBytes = 1; }, /HEAD wire/],
++  ['HEAD wrong length', response => { response.headers['content-length'] = '1'; }, /HEAD length/],
++]) test(`serving preserves failed ${name} measurement and never grants local success`, async () => {
++  const isHead = name.startsWith('HEAD');
++  const receipt = await verifyNewsletterLoopbackServing(input({ request: spec => {
++    const response = frame(spec);
++    if (spec.path === manifest[0].publicPath && spec.method === (isHead ? 'HEAD' : 'GET')) mutate(response);
++    return response;
++  } }));
++  assert.equal(receipt.status, 'FAIL'); assert.equal(receipt.failedRequests, 1);
++  assert.match(receipt.records.find(record => record.status === 'FAIL').error, message);
++  assert.equal(receipt.records.length, 358); assert.equal(receipt.localServingVerified, false);
++});
++
++test('content decoding is bounded and qualifier checks decoded identities rather than compressed buffers', async () => {
++  const compressed = await verifyNewsletterLoopbackServing(input({ request: spec => {
++    const response = frame(spec);
++    if (spec.method === 'GET') { response.body = gzipSync(response.body); response.headers['content-encoding'] = 'gzip'; }
++    return response;
++  } }));
++  assert.equal(compressed.status, 'PASS');
++  for (const [encoding, body, limit, message] of [
++    ['gzip', gzipSync(Buffer.alloc(100000, 1)), 1024, /decode\/decoded body limit/],
++    ['unknown', Buffer.from('unknown'), 65536, /unsupported content encoding/],
++    ['identity', Buffer.alloc(100000), 1024, /decoded body limit/],
++  ]) {
++    const receipt = await verifyNewsletterLoopbackServing(input({ maxDecodedBodyBytes: limit, request: spec => {
++      const response = frame(spec);
++      if (spec.method === 'GET' && spec.path === manifest[0].publicPath) {
++        response.body = body; response.headers['content-encoding'] = encoding;
++      }
++      return response;
++    } }));
++    assert.equal(receipt.status, 'FAIL'); assert.match(receipt.records[0].error, message);
++  }
++});
++
++test('wire limits request timeout and total deadline preserve failure evidence', async () => {
++  const tooLarge = await verifyNewsletterLoopbackServing(input({ maxWireBodyBytes: 1024, request: spec => {
++    const response = frame(spec); if (spec.path === manifest[0].publicPath && spec.method === 'GET') response.body = Buffer.alloc(1025);
++    return response;
++  } }));
++  assert.match(tooLarge.records[0].error, /wire body limit/);
++  const timeout = await verifyNewsletterLoopbackServing(input({ concurrency: 1, timeoutMs: 3, totalTimeoutMs: 8,
++    request: () => new Promise(() => {}) }));
++  assert.equal(timeout.status, 'FAIL'); assert.equal(timeout.failedRequests, 358);
++  assert.ok(timeout.records.some(record => /request timeout/.test(record.error)));
++  assert.ok(timeout.records.some(record => /total deadline/.test(record.error)));
++});
++
++test('receipt validator refuses synthetic booleans and verifies all pinned measurements independently', async () => {
++  const synthetic = await verifyNewsletterLoopbackServing(input());
++  assert.throws(() => validateNewsletterLoopbackServingReceipt(synthetic,
++    { expectedArtifact: artifact, expectedReceiptSha256: newsletterLoopbackReceiptSha256(synthetic) }), /actual successful/);
++  // A pure validator model only: no local-serving attestation is produced here.
++  const model = structuredClone(synthetic);
++  Object.assign(model, { evidenceKind: 'local-loopback-http-serving', synthetic: false,
++    localHttpPerformed: true, localServingVerified: true, actualAssetBytesVerified: true });
++  const validate = receipt => validateNewsletterLoopbackServingReceipt(receipt,
++    { expectedArtifact: artifact, expectedReceiptSha256: newsletterLoopbackReceiptSha256(receipt) });
++  assert.throws(() => validate(model), /wire\/decoded identity/);
++  // Complete logical measurement model, explicitly not an operator receipt.
++  for (const record of model.records) if (record.method === 'GET') record.wireBodyBytes = record.decodedIdentity.bytes;
++  assert.equal(validate(model).localServingReceiptConsistent, true);
++  assert.equal(validate(model).fullReplacementQualified, false);
++  for (const mutate of [
++    receipt => receipt.records.pop(), receipt => { receipt.records[0] = receipt.records[1]; },
++    receipt => { receipt.records[0].decodedIdentity.sha256 = '0'.repeat(64); },
++    receipt => { receipt.records[0].hostHeader = 'another.example'; },
++    receipt => { receipt.records[1].decodedIdentity.bytes = 1; },
++    receipt => { receipt.records[0].headers['x-content-type-options'] = 'wrong'; },
++    receipt => { receipt.expectedArtifact.commit = '0'.repeat(40); },
++    receipt => { receipt.publicDnsTlsVerified = true; },
++    receipt => { receipt.legacyHeaderParityVerified = true; },
++    receipt => { receipt.historicalHeadersEquivalent = true; },
++  ]) { const receipt = structuredClone(model); mutate(receipt); assert.throws(() => validate(receipt)); }
++  assert.throws(() => validateNewsletterLoopbackServingReceipt(model,
++    { expectedArtifact: artifact, expectedReceiptSha256: '0'.repeat(64) }), /receipt pin mismatch/);
++});
++
++test('real ephemeral loopback fixture records Host and every canonical method while marked synthetic', async () => {
++  const requests = [];
++  const server = http.createServer((request, response) => {
++    requests.push([request.method, request.url, request.headers.host, request.headers.authorization,
++      request.headers.cookie, request.headers['accept-encoding']]);
++    const entry = byPath.get(request.url);
++    const body = request.method === 'HEAD' ? undefined : gzipSync(Buffer.from(request.url));
++    response.writeHead(200, { 'Content-Type': mime(request.url), 'X-Content-Type-Options': 'nosniff',
++      ...(request.method === 'HEAD' ? { 'Content-Length': String(entry.bytes) }
++        : { 'Content-Encoding': 'gzip', 'Content-Length': String(body.length) }) });
++    response.end(body);
++  });
++  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
++  try {
++    const receipt = await verifyNewsletterLoopbackServing(input({ origin: `http://127.0.0.1:${server.address().port}`,
++      request: requestNewsletterLoopback, fixtureLabel: 'synthetic ephemeral static fixture' }));
++    assert.equal(receipt.status, 'PASS'); assert.equal(receipt.localHttpPerformed, true);
++    assert.equal(receipt.evidenceKind, 'synthetic-loopback-http'); assert.equal(receipt.localServingVerified, false);
++    assert.equal(requests.length, 358);
++    assert.ok(requests.every(([method, pathname, host, auth, cookie, encoding]) => METHODS.includes(method)
++      && byPath.has(pathname) && host === 'app.capiro.ai' && auth === undefined && cookie === undefined
++      && encoding === (method === 'HEAD' ? 'identity' : 'gzip, deflate, br')));
++  } finally { await new Promise(resolve => server.close(resolve)); }
++});
++const METHODS = ['GET', 'HEAD'];
++
++test('actual HEAD accepts canonical static metadata only after chunked headers and terminal EOF', async () => {
++  let settled = false, settledBeforeEof, requestText;
++  await rawHeadFixture((socket, request, later) => {
++    requestText = request;
++    socket.write(headHeaders.slice(0, -2));
++    later(() => socket.write(headHeaders.slice(-2)), 5);
++    later(() => { settledBeforeEof = settled; socket.end(); });
++  }, async target => {
++    const response = await headRequest(target).then(value => { settled = true; return value; });
++    assert.equal(response.status, 200); assert.equal(response.headWireBodyBytes, 0);
++    assert.equal(response.body.length, 0); assert.equal(response.port, target.port);
++    assert.equal(response.headers['content-length'], String(manifest[0].bytes));
++    assert.equal(response.headers['content-type'], mime(manifest[0].publicPath));
++    assert.equal(response.headers['x-content-type-options'], 'nosniff');
++    assert.equal(settledBeforeEof, false);
++    assert.equal(requestText, `HEAD ${manifest[0].publicPath} HTTP/1.1\r\nHost: app.capiro.ai\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n`);
++  });
++});
++
++for (const [name, send] of [
++  ['same-write body', socket => socket.end(headHeaders + 'x')],
++  ['body after headers', (socket, _request, later) => {
++    socket.write(headHeaders); later(() => socket.end('x'));
++  }],
++  ['body after split headers', (socket, _request, later) => {
++    socket.write(headHeaders.slice(0, -2)); later(() => socket.write(headHeaders.slice(-2)), 5);
++    later(() => socket.end('x'));
++  }],
++  ['chunk framing after headers', (socket, _request, later) => {
++    socket.write(headHeaders.replace(/Content-Length: [0-9]+/, 'Transfer-Encoding: chunked'));
++    later(() => socket.end('1\r\nx\r\n0\r\n\r\n'));
++  }],
++]) test(`actual HEAD rejects ${name} through terminal EOF`, async () => {
++  await rawHeadFixture(send, target => assert.rejects(headRequest(target), /HEAD wire body/));
++});
++
++for (const [name, response, error] of [
++  ['duplicate content-type', headHeaders.replace('Content-Type:', 'Content-Type: image/png\r\nContent-Type:'), /ambiguous/],
++  ['mixed-case duplicate', headHeaders.replace('Content-Type:', 'content-type: image/png\r\nContent-Type:'), /ambiguous/],
++  ['duplicate content-length', headHeaders.replace('Connection:', 'Content-Length: 1\r\nConnection:'), /ambiguous/],
++  ['duplicate special-name header', headHeaders.replace('Connection:', '__proto__: one\r\n__proto__: two\r\nConnection:'), /ambiguous/],
++  ['invalid content-length', headHeaders.replace(/Content-Length: [0-9]+/, 'Content-Length: invalid'), /malformed HEAD framing/],
++  ['conflicting framing headers', headHeaders.replace('Connection:', 'Transfer-Encoding: chunked\r\nConnection:'), /malformed HEAD framing/],
++  ['invalid header name', headHeaders.replace('Content-Type:', 'Content Type:'), /malformed HEAD header/],
++  ['folded header', headHeaders.replace('Connection:', ' continuation\r\nConnection:'), /malformed HEAD header/],
++  ['control character', headHeaders.replace('nosniff', 'no\u0000sniff'), /malformed HEAD header/],
++  ['bare newline', headHeaders.replace('nosniff', 'no\nsniff'), /malformed HEAD header/],
++  ['invalid status', headHeaders.replace('HTTP/1.1 200 OK', 'HTTP/1.1 two hundred'), /malformed HEAD status/],
++  ['oversized header', headHeaders.replace('Connection:', `X-Large: ${'x'.repeat(16384)}\r\nConnection:`), /HEAD header limit/],
++]) test(`actual HEAD rejects ${name} on the raw wire`, async () => {
++  await rawHeadFixture(socket => socket.end(response), target => assert.rejects(headRequest(target), error));
++});
++
++for (const [name, response] of [['empty response', ''], ['truncated status', 'HTTP/1.1 200'],
++  ['truncated headers', headHeaders.slice(0, -2)]]) test(`actual HEAD rejects EOF with ${name}`, async () => {
++  await rawHeadFixture(socket => socket.end(response),
++    target => assert.rejects(headRequest(target), /closed before complete EOF/));
++});
++
++test('actual HEAD rejects connection reset without terminal EOF', async () => {
++  await rawHeadFixture((socket, _request, later) => {
++    socket.write(headHeaders); later(() => socket.resetAndDestroy());
++  }, target => assert.rejects(headRequest(target), /ECONNRESET|closed before complete EOF/));
++});
++
++test('actual HEAD times out complete headers whose peer never sends EOF and closes its socket', async () => {
++  let closed;
++  await rawHeadFixture(socket => {
++    closed = new Promise(resolve => socket.once('close', resolve));
++    socket.on('end', () => socket.end()); socket.write(headHeaders);
++  }, async target => {
++    await assert.rejects(headRequest(target, { timeoutMs: 40 }), /request timeout/);
++    await closed;
++  });
++});
++
++test('actual HEAD aborts after complete headers while waiting for EOF and closes its socket', async () => {
++  const controller = new AbortController(); let closed;
++  await rawHeadFixture((socket, _request, later) => {
++    closed = new Promise(resolve => socket.once('close', resolve));
++    socket.on('end', () => socket.end()); socket.write(headHeaders);
++    later(() => controller.abort());
++  }, async target => {
++    await assert.rejects(headRequest(target, { signal: controller.signal }), /request aborted/);
++    await closed;
++  });
++});
++
++test('actual HEAD refuses an already aborted signal without sending its request', async () => {
++  const controller = new AbortController(); controller.abort(); let calls = 0;
++  await rawHeadFixture(() => { calls++; },
++    target => assert.rejects(headRequest(target, { signal: controller.signal }), /request aborted/));
++  assert.equal(calls, 0);
++});
++
++test('actual transport rejects invalid target path Host limits and abort signal before connecting', async () => {
++  let calls = 0;
++  await rawHeadFixture(() => { calls++; }, target => {
++    for (const extra of [{ path: '/unknown' }, { method: 'POST' }, { hostHeader: 'other.example' },
++      { hostname: 'localhost' }, { port: target.port + 1 }, { timeoutMs: 0 },
++      { maxWireBodyBytes: 1048577 }, { signal: {} }]) assert.throws(() => headRequest(target, extra));
++  });
++  assert.equal(calls, 0);
++});
++
++test('verifier preserves the actual delayed HEAD wire failure among all canonical measurements', async () => {
++  await rawHeadFixture((socket, request, later) => {
++    const [method, pathname] = request.split(' '), entry = byPath.get(pathname);
++    const body = method === 'HEAD' ? '' : pathname;
++    const headers = `HTTP/1.1 200 OK\r\nContent-Type: ${mime(pathname)}\r\nX-Content-Type-Options: nosniff\r\nContent-Length: ${method === 'HEAD' ? entry.bytes : Buffer.byteLength(body)}\r\nConnection: close\r\n\r\n`;
++    if (method === 'HEAD' && pathname === manifest[0].publicPath) {
++      socket.write(headers); later(() => socket.end('x'));
++    } else socket.end(headers + body);
++  }, async target => {
++    const receipt = await verifyNewsletterLoopbackServing(input({ origin: target.input,
++      request: requestNewsletterLoopback, fixtureLabel: 'synthetic delayed HEAD wire fixture' }));
++    assert.equal(receipt.status, 'FAIL'); assert.equal(receipt.failedRequests, 1);
++    assert.equal(receipt.records.length, 358); assert.equal(receipt.localServingVerified, false);
++    assert.equal(receipt.localHttpPerformed, true); assert.equal(receipt.synthetic, true);
++    assert.equal(receipt.records[1].status, 'FAIL'); assert.match(receipt.records[1].error, /HEAD wire body/);
++  });
++});
++
++test('operator accepts only explicit origin/pin JSON and preserves failed receipt exit status', async () => {
++  const args = ['--loopback-origin', 'http://127.0.0.1:43210', '--expected-artifact', JSON.stringify(artifact),
++    '--artifact-pins', JSON.stringify(artifact)];
++  assert.deepEqual(parseNewsletterLoopbackInvocation(args), { origin: 'http://127.0.0.1:43210',
++    expectedArtifact: artifact, artifactPins: artifact });
++  for (const values of [[], args.slice(0, -2), [...args, '--headers', '{}'],
++    ['--loopback-origin', 'one', '--loopback-origin', 'two', '--artifact-pins', '{}']])
++    assert.throws(() => parseNewsletterLoopbackInvocation(values));
++  const output = [];
++  assert.equal(await runNewsletterLoopbackOperator(args, { verify: async () => ({ status: 'FAIL', localServingVerified: false }),
++    output: text => output.push(JSON.parse(text)) }), 1);
++  assert.deepEqual(output, [{ status: 'FAIL', localServingVerified: false }]);
++});
+diff --git a/scripts/lib/frontend-standalone-artifact-contract.mjs b/scripts/lib/frontend-standalone-artifact-contract.mjs
+new file mode 100644
+index 000000000..ac4d7bbd8
+--- /dev/null
++++ b/scripts/lib/frontend-standalone-artifact-contract.mjs
+@@ -0,0 +1,278 @@
++import { createHash } from 'node:crypto';
++import { posix, resolve } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { canonicalNewsletterManifest, qualifyNewsletterArtifact } from './newsletter-static-release-contract.mjs';
++
++// Supplied runtime bytes only. Import never reads files/env or starts a server.
++export const FRONTEND_ARTIFACT_TYPE = 'capiro-frontend-next-standalone';
++export const FRONTEND_SERVER_ENTRYPOINT = 'apps/web/server.js';
++const app = 'apps/web/';
++const fail = (message) => { throw new Error(`Frontend standalone artifact refused: ${message}`); };
++const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
++const exactKeys = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) &&
++  Object.keys(value).sort().join(',') === [...keys].sort().join(',');
++function literal(value) {
++  return typeof value === 'string' && value.length > 0 && value === value.trim() && !/[\u0000-\u001f\u007f\\]/.test(value);
++}
++function sourcePins(pins) {
++  if (!pins || !literal(pins.sourceRepository) || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(pins.sourceRepository) ||
++      !literal(pins.sourceCommit) || pins.sourceCommit.length !== 40 || !/^[a-f0-9]{40}$/.test(pins.sourceCommit) ||
++      !literal(pins.manifestSha256) || pins.manifestSha256.length !== 64 || !/^[a-f0-9]{64}$/.test(pins.manifestSha256))
++    fail('explicit source repository/commit and manifest SHA256 required');
++  runtimeTarget(pins.runtimeTarget);
++}
++function runtimeTarget(target) {
++  if (!exactKeys(target, ['os', 'arch', 'libc', 'nodeMajor']) || target.os !== 'linux' ||
++      !['amd64', 'arm64'].includes(target.arch) || !['glibc', 'musl'].includes(target.libc) || target.nodeMajor !== 24)
++    fail('explicit Linux architecture/libc/Node24 runtime target required');
++}
++function safePath(path) {
++  if (!literal(path) || path.startsWith('/') || /^[A-Za-z]:/.test(path) ||
++      path.split('/').some((part) => !part || part === '.' || part === '..' ||
++        /^\.env(?:[._-]|$)/i.test(part) || /^(?:\.envrc|\.git|\.ssh|\.aws|\.azure|\.gnupg|\.npmrc|\.yarnrc(?:\.yml)?|\.netrc|\.pypirc|credentials(?:\.json)?|service[-_]account(?:\.json)?|id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?|kubeconfig)$/i.test(part) ||
++        /\.(?:pem|key|p12|pfx)$/i.test(part))) fail('unsafe or credential artifact path');
++  return path;
++}
++function internalTarget(path, target) {
++  if (!literal(target) || target.startsWith('/') || /^[A-Za-z]:/.test(target)) fail('unsafe symlink/reference target');
++  // POSIX resolves intermediate symlinks before '..'. Lexical cancellation of
++  // a named component can therefore hide an escape. Permit leading parents
++  // from the indexed, unsymlinked containing directory, then only descendants.
++  let namedComponent = false;
++  for (const part of target.split('/')) {
++    if (part === '..' && namedComponent) fail('parent segment after named symlink/reference component');
++    if (part !== '' && part !== '.' && part !== '..') namedComponent = true;
++  }
++  const resolved = posix.normalize(posix.join(posix.dirname(path), target));
++  if (resolved === '..' || resolved.startsWith('../') || resolved.startsWith('/')) fail('escaping symlink/reference target');
++  if (resolved !== '.') safePath(resolved);
++  return resolved === '.' ? '' : resolved;
++}
++function parseJson(bytes, label) {
++  if (!Buffer.isBuffer(bytes)) fail(`${label} bytes required`);
++  let value;
++  const text = bytes.toString('utf8');
++  try { value = JSON.parse(text); } catch { fail(`malformed ${label}`); }
++  // Refuse duplicate object keys rather than accept JSON.parse's last value.
++  const stack = [];
++  for (let i = 0; i < text.length; i++) {
++    if (text[i] === '{' || text[i] === '[') stack.push(text[i] === '{' ? new Set() : null);
++    else if (text[i] === '}' || text[i] === ']') stack.pop();
++    else if (text[i] === '"') {
++      const start = i++;
++      for (; i < text.length && text[i] !== '"'; i++) if (text[i] === '\\') i++;
++      const key = JSON.parse(text.slice(start, i + 1));
++      if (/^\s*:/.test(text.slice(i + 1)) && stack.at(-1)) {
++        if (stack.at(-1).has(key)) fail(`duplicate ${label} key`);
++        stack.at(-1).add(key);
++      }
++    }
++  }
++  return value;
++}
++function manifestContract(manifestBytes, pins) {
++  sourcePins(pins);
++  if (!Buffer.isBuffer(manifestBytes) || sha(manifestBytes) !== pins.manifestSha256) fail('manifest byte identity');
++  const manifest = parseJson(manifestBytes, 'artifact manifest');
++  if (!exactKeys(manifest, ['schemaVersion', 'artifactType', 'source', 'runtimeTarget', 'serverEntrypoint', 'entries']) ||
++      manifest.schemaVersion !== 1 || manifest.artifactType !== FRONTEND_ARTIFACT_TYPE ||
++      !exactKeys(manifest.source, ['repository', 'commit']) || manifest.source.repository !== pins.sourceRepository ||
++      manifest.source.commit !== pins.sourceCommit || manifest.serverEntrypoint !== FRONTEND_SERVER_ENTRYPOINT ||
++      !Array.isArray(manifest.entries) || manifest.entries.length === 0) fail('manifest layout/source-pin equality');
++  runtimeTarget(manifest.runtimeTarget);
++  if (Object.keys(manifest.runtimeTarget).some((key) => manifest.runtimeTarget[key] !== pins.runtimeTarget[key])) fail('runtime target equality');
++  const index = new Map(), directories = new Set(['']);
++  for (const entry of manifest.entries) {
++    if (!entry || !['file', 'symlink'].includes(entry.type)) fail('artifact entry type');
++    safePath(entry.path);
++    if (index.has(entry.path)) fail('duplicate artifact path');
++    if (entry.type === 'file') {
++      if (!exactKeys(entry, ['path', 'type', 'bytes', 'sha256']) || !Number.isSafeInteger(entry.bytes) || entry.bytes < 0 ||
++          !literal(entry.sha256) || entry.sha256.length !== 64 || !/^[a-f0-9]{64}$/.test(entry.sha256)) fail('malformed file identity');
++    } else {
++      if (!exactKeys(entry, ['path', 'type', 'target'])) fail('malformed symlink');
++      internalTarget(entry.path, entry.target);
++    }
++    index.set(entry.path, entry);
++    for (let directory = posix.dirname(entry.path); directory !== '.'; directory = posix.dirname(directory)) directories.add(directory);
++  }
++  for (const path of index.keys()) {
++    for (let directory = posix.dirname(path); directory !== '.'; directory = posix.dirname(directory))
++      if (index.has(directory)) fail('indexed entry used as ancestor');
++  }
++  const dereference = (path, allowDirectory = false) => {
++    safePath(path);
++    const seen = new Set();
++    for (let depth = 0; depth <= index.size; depth++) {
++      if (seen.has(path)) fail('cyclic internal symlink');
++      seen.add(path);
++      const parts = path.split('/');
++      let redirected = false;
++      for (let i = 1; i <= parts.length; i++) {
++        const prefix = parts.slice(0, i).join('/'), link = index.get(prefix);
++        if (link?.type !== 'symlink') continue;
++        path = posix.join(internalTarget(prefix, link.target), ...parts.slice(i));
++        if (path !== '.') safePath(path);
++        else path = '';
++        redirected = true; break;
++      }
++      if (redirected) continue;
++      if (index.get(path)?.type === 'file' || (allowDirectory && directories.has(path))) return path;
++      fail('missing declared file/symlink target');
++    }
++    fail('internal symlink depth');
++  };
++  for (const entry of index.values()) if (entry.type === 'symlink') {
++    const target = internalTarget(entry.path, entry.target);
++    if (target) dereference(target, true);
++  }
++  for (const path of [FRONTEND_SERVER_ENTRYPOINT, app + '.next/BUILD_ID', app + '.next/required-server-files.json'])
++    if (index.get(path)?.type !== 'file' || index.get(path).bytes === 0) fail(`required regular server file: ${path}`);
++  if (![...index.values()].some((entry) => entry.type === 'file' && entry.path.startsWith(app + '.next/static/') && entry.bytes > 0))
++    fail('required Next static output');
++  for (const entry of canonicalNewsletterManifest())
++    if (index.get(app + 'public' + entry.publicPath)?.type !== 'file') fail('required Newsletter public asset');
++  return { manifest, index, directories, dereference };
++}
++
++/** All regular buffers and all symlinks must be exhaustively provided. A custom
++ * Newsletter identity port is an inert model and can never produce a byte receipt.
++ * Source equality is not proof that this was the tree used by a Next build.
++ */
++export async function validateFrontendStandaloneArtifact({ manifestBytes, files, symlinks = new Map(), pins, newsletterIdentity }) {
++  const { manifest, index, dereference } = manifestContract(manifestBytes, pins);
++  if (!(files instanceof Map) || !(symlinks instanceof Map)) fail('exhaustive file/symlink Maps required');
++  for (const [map, type] of [[files, 'file'], [symlinks, 'symlink']]) {
++    for (const path of map.keys()) { safePath(path); if (index.get(path)?.type !== type) fail('unlisted or wrong-type artifact entry'); }
++  }
++  if (files.size + symlinks.size !== index.size) fail('missing artifact entries');
++  for (const entry of index.values()) {
++    if (entry.type === 'symlink') {
++      if (symlinks.get(entry.path) !== entry.target) fail('symlink identity drift');
++    } else {
++      const bytes = files.get(entry.path);
++      if (!Buffer.isBuffer(bytes) || bytes.length !== entry.bytes || sha(bytes) !== entry.sha256) fail('file byte identity drift');
++    }
++  }
++  const required = parseJson(files.get(app + '.next/required-server-files.json'), 'required-server-files');
++  if (!required || !Array.isArray(required.files) || required.files.length === 0 ||
++      required.config?.output !== 'standalone' ||
++      (required.config.distDir !== undefined && required.config.distDir !== '.next') ||
++      (required.relativeAppDir !== undefined && required.relativeAppDir !== 'apps/web')) fail('required-server-files layout');
++  for (const file of required.files) dereference(internalTarget(app + 'server.js', file));
++  let traceManifestsVerified = 0, traceFileReferencesVerified = 0;
++  for (const entry of index.values()) if (entry.path.endsWith('.nft.json')) {
++    if (entry.type !== 'file') fail('Next trace manifest must be regular');
++    const trace = parseJson(files.get(entry.path), 'Next trace');
++    if (!trace || !Array.isArray(trace.files)) fail('Next trace file list');
++    // Next traces can name directory symlinks. Only directories inferred from
++    // nonempty indexed descendants qualify; exhaustive entry identities above
++    // cover their contents. Required-server-files remains file-only.
++    for (const file of trace.files) { dereference(internalTarget(entry.path, file), true); traceFileReferencesVerified++; }
++    traceManifestsVerified++;
++  }
++  const newsletter = await qualifyNewsletterArtifact({ manifest: canonicalNewsletterManifest(),
++    assets: new Map([...files].filter(([path]) => path.startsWith(app + 'public/newsletter/'))
++      .map(([path, bytes]) => [path.slice((app + 'public').length), bytes])),
++    artifactSource: manifest.source, ...(newsletterIdentity ? { identity: newsletterIdentity } : {}) });
++  return Object.freeze({ schemaVersion: 1, artifactType: FRONTEND_ARTIFACT_TYPE,
++    source: Object.freeze({ ...manifest.source }), manifestSha256: pins.manifestSha256,
++    runtimeTarget: Object.freeze({ ...manifest.runtimeTarget }), runtimeTargetEqualityVerified: true,
++    nativeRuntimeCompatibilityVerified: false,
++    serverEntrypoint: FRONTEND_SERVER_ENTRYPOINT, artifactEntriesSha256: sha(Buffer.from(JSON.stringify(manifest.entries))),
++    regularFiles: files.size, symlinks: symlinks.size, exhaustiveArtifactIndexVerified: true,
++    safeInternalSymlinksVerified: true, requiredServerFileClosureVerified: true,
++    traceManifestsVerified, traceFileReferencesVerified, newsletter,
++    actualArtifactBytesVerified: newsletter.actualArtifactBytesVerified, sourcePinEqualityVerified: true,
++    buildUsedSourceVerified: false, runtimeDependencyClosureVerified: false,
++    localServingVerified: false, deployedServingVerified: false, uiAcceptanceVerified: false });
++}
++
++function artifactDirectory(path) {
++  if (!literal(path) || !path.startsWith('/') || posix.normalize(path) !== path || path === '/') fail('canonical absolute artifact directory');
++  safePath(path.slice(1));
++  return path;
++}
++/** No default filesystem ports. First reject the entire manifest and inventory;
++ * never follow inventory symlinks, and check regular-file realpaths before reads.
++ */
++export async function readFrontendStandaloneArtifact({ artifactDir, pins, ports, newsletterIdentity }) {
++  sourcePins(pins); artifactDirectory(artifactDir);
++  if (!ports || ['lstat', 'readdir', 'readFile', 'readlink', 'realpath'].some((key) => typeof ports[key] !== 'function')) fail('explicit filesystem ports');
++  const directory = async (path) => {
++    const stat = await ports.lstat(path);
++    if (!stat.isDirectory() || stat.isSymbolicLink()) fail('nonregular artifact ancestor');
++  };
++  const parts = artifactDir.split('/').filter(Boolean);
++  await directory('/');
++  for (let i = 1; i <= parts.length; i++) await directory('/' + parts.slice(0, i).join('/'));
++  if (await ports.realpath(artifactDir) !== artifactDir) fail('artifact ancestor realpath');
++  const manifestPath = artifactDir + '/manifest.json', rootfs = artifactDir + '/rootfs';
++  const stat = await ports.lstat(manifestPath);
++  if (!stat.isFile() || stat.isSymbolicLink() || await ports.realpath(manifestPath) !== manifestPath) fail('nonregular manifest file');
++  const manifestBytes = await ports.readFile(manifestPath);
++  const contract = manifestContract(manifestBytes, pins);
++  await directory(rootfs);
++  if (await ports.realpath(rootfs) !== rootfs) fail('rootfs realpath');
++  const observed = new Map();
++  const enumerate = async (directoryPath, prefix = '') => {
++    const names = await ports.readdir(directoryPath);
++    if (!Array.isArray(names) || new Set(names).size !== names.length) fail('ambiguous artifact directory');
++    for (const name of names) {
++      if (typeof name !== 'string' || name.includes('/')) fail('nonliteral directory entry');
++      const path = safePath(prefix + name), absolute = rootfs + '/' + path, entryStat = await ports.lstat(absolute);
++      if (entryStat.isSymbolicLink()) {
++        const target = await ports.readlink(absolute); internalTarget(path, target);
++        observed.set(path, { type: 'symlink', target });
++      } else if (entryStat.isDirectory()) {
++        if (await ports.realpath(absolute) !== absolute) fail('directory realpath escape');
++        await enumerate(absolute, path + '/');
++      } else if (entryStat.isFile()) observed.set(path, { type: 'file' });
++      else fail('nonregular artifact entry');
++    }
++  };
++  await enumerate(rootfs);
++  if (observed.size !== contract.index.size) fail('exhaustive artifact inventory mismatch');
++  for (const [path, observedEntry] of observed) {
++    const expected = contract.index.get(path);
++    if (!expected || observedEntry.type !== expected.type ||
++        (expected.type === 'symlink' && observedEntry.target !== expected.target)) fail('unlisted/type/symlink inventory drift');
++  }
++  const files = new Map(), symlinks = new Map();
++  for (const entry of contract.index.values()) {
++    if (entry.type === 'symlink') symlinks.set(entry.path, entry.target);
++    else {
++      const path = rootfs + '/' + entry.path;
++      if (await ports.realpath(path) !== path) fail('regular file realpath escape');
++      files.set(entry.path, await ports.readFile(path));
++    }
++  }
++  return validateFrontendStandaloneArtifact({ manifestBytes, files, symlinks, pins, newsletterIdentity });
++}
++export function parseFrontendStandaloneInvocation(args) {
++  const flags = ['--artifact-dir', '--manifest-sha256', '--source-repository', '--source-commit',
++    '--target-platform', '--target-libc', '--target-node-major'];
++  if (!Array.isArray(args) || args.length !== 14) fail('seven explicit artifact/source/runtime flags required');
++  const values = new Map();
++  for (let i = 0; i < args.length; i += 2) {
++    if (!flags.includes(args[i]) || values.has(args[i]) || !literal(args[i + 1])) fail('unknown/duplicate/missing artifact flag');
++    values.set(args[i], args[i + 1]);
++  }
++  const platform = values.get('--target-platform');
++  if (!['linux/amd64', 'linux/arm64'].includes(platform) || values.get('--target-node-major') !== '24') fail('runtime target flags');
++  const options = { artifactDir: values.get('--artifact-dir'), pins: {
++    manifestSha256: values.get('--manifest-sha256'), sourceRepository: values.get('--source-repository'), sourceCommit: values.get('--source-commit'),
++    runtimeTarget: { os: 'linux', arch: platform.split('/')[1], libc: values.get('--target-libc'), nodeMajor: 24 } } };
++  sourcePins(options.pins); artifactDirectory(options.artifactDir);
++  return options;
++}
++if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  try {
++    const options = parseFrontendStandaloneInvocation(process.argv.slice(2));
++    const fs = await import('node:fs/promises'), { constants } = await import('node:fs');
++    const receipt = await readFrontendStandaloneArtifact({ ...options, ports: {
++      lstat: fs.lstat, readdir: fs.readdir, realpath: fs.realpath, readlink: fs.readlink,
++      readFile: (path) => fs.readFile(path, { flag: constants.O_RDONLY | constants.O_NOFOLLOW }) } });
++    console.log(JSON.stringify(receipt));
++  } catch (error) { console.error(error.message); process.exitCode = 1; }
++}
+diff --git a/scripts/lib/newsletter-loopback-serving.mjs b/scripts/lib/newsletter-loopback-serving.mjs
+new file mode 100644
+index 000000000..41fde76f3
+--- /dev/null
++++ b/scripts/lib/newsletter-loopback-serving.mjs
+@@ -0,0 +1,370 @@
++/** Explicit loopback HTTP qualification; imports never read files/env or connect. */
++import http from 'node:http';
++import net from 'node:net';
++import { createHash } from 'node:crypto';
++import { gunzipSync, inflateSync, brotliDecompressSync } from 'node:zlib';
++import { performance } from 'node:perf_hooks';
++import {
++  NEWSLETTER_PINS, canonicalNewsletterManifest, validateNewsletterManifest,
++  newsletterByteIdentity, qualifyNewsletterResponse,
++} from './newsletter-static-release-contract.mjs';
++
++const HOST = 'app.capiro.ai';
++const METHODS = ['GET', 'HEAD'];
++const CANONICAL_PATHS = new Set(canonicalNewsletterManifest().map(entry => entry.publicPath));
++export const HISTORICAL_NEWSLETTER_STATIC_HEADERS = Object.freeze({
++  'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin',
++  'x-frame-options': 'SAMEORIGIN',
++  'strict-transport-security': 'max-age=63072000; includeSubDomains; preload',
++  'permissions-policy': 'geolocation=(), microphone=(), camera=()',
++});
++const OBSERVED_HEADERS = ['content-type', 'x-content-type-options', 'cache-control',
++  'content-length', 'content-encoding', 'etag', 'last-modified', 'referrer-policy',
++  'x-frame-options', 'strict-transport-security', 'permissions-policy', 'content-security-policy'];
++const fail = message => { throw new Error('Newsletter loopback: ' + message); };
++const sha256 = text => createHash('sha256').update(text).digest('hex');
++const integer = (value, low, high, label) => {
++  if (!Number.isInteger(value) || value < low || value > high) fail(label);
++  return value;
++};
++function pins(value) {
++  if (!value || typeof value !== 'object' || Array.isArray(value)
++      || Object.keys(value).sort().join(',') !== 'commit,repository,sha256'
++      || ['repository', 'commit', 'sha256'].some(key => typeof value[key] !== 'string' || value[key] !== value[key].trim())
++      || typeof value.repository !== 'string' || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value.repository)
++      || typeof value.commit !== 'string' || !/^[a-f0-9]{40}$/.test(value.commit)
++      || typeof value.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(value.sha256)) fail('explicit exact artifact pins required');
++  return { repository: value.repository, commit: value.commit, sha256: value.sha256 };
++}
++function bindPins(expected, actual) {
++  const expectedPins = pins(expected), actualPins = pins(actual);
++  if (JSON.stringify(expectedPins) !== JSON.stringify(actualPins)) fail('source/artifact pin mismatch');
++  return { expectedArtifact: expectedPins, artifactPins: actualPins };
++}
++export function parseNewsletterLoopbackOrigin(value) {
++  if (typeof value !== 'string') fail('literal http://127.0.0.1:<port> required');
++  if (value !== value.trim() || /[\u0000-\u0020\u007f]/.test(value)) fail('literal http://127.0.0.1:<port> required');
++  const match = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/?$/.exec(value);
++  if (!match) fail('literal http://127.0.0.1:<port> required');
++  const port = integer(Number(match[1]), 1, 65535, 'loopback port');
++  return { input: value, origin: new URL(value).origin, hostname: '127.0.0.1', port };
++}
++function normalizeHeaders(input) {
++  if (!input || typeof input !== 'object' || Array.isArray(input)) fail('response headers');
++  const headers = {};
++  for (const [name, value] of Object.entries(input)) {
++    const lower = name.toLowerCase();
++    if (Object.hasOwn(headers, lower) || typeof value !== 'string') fail('ambiguous response header');
++    headers[lower] = value;
++  }
++  if (['set-cookie', 'www-authenticate', 'proxy-authenticate', 'authentication-info'].some(name => Object.hasOwn(headers, name)))
++    fail('auth/cookie fallback');
++  return headers;
++}
++function observed(headers) {
++  return Object.fromEntries(OBSERVED_HEADERS.filter(name => Object.hasOwn(headers, name))
++    .map(name => [name, headers[name]]));
++}
++function responseIdentity(spec, frame) {
++  if (!frame || frame.hostname !== spec.hostname || frame.port !== spec.port
++      || frame.hostHeader !== HOST || frame.path !== spec.path || frame.method !== spec.method
++      || frame.url !== new URL(spec.path, spec.origin).href) fail('request host/path/address mismatch');
++}
++function decodedBody(body, encoding, method, limit) {
++  if (!Buffer.isBuffer(body)) fail('raw response Buffer required');
++  if (method === 'HEAD') return body;
++  if (!encoding || encoding === 'identity') {
++    if (body.length > limit) fail('decoded body limit');
++    return body;
++  }
++  const decoders = { gzip: gunzipSync, deflate: inflateSync, br: brotliDecompressSync };
++  if (!Object.hasOwn(decoders, encoding)) fail('unsupported content encoding');
++  try { return decoders[encoding](body, { maxOutputLength: limit }); }
++  catch { fail('content decode/decoded body limit'); }
++}
++
++function headHeaders(buffer) {
++  const [statusLine, ...lines] = buffer.toString('latin1').split('\r\n');
++  const status = /^HTTP\/1\.[01] ([1-5][0-9]{2})(?: [\x20-\x7e]*)?$/.exec(statusLine);
++  if (!status) fail('malformed HEAD status');
++  const headers = Object.create(null);
++  for (const line of lines) {
++    const match = /^([!#$%&'*+\-.^_`|~0-9A-Za-z]+):[ \t]*([^\x00-\x08\x0a-\x1f\x7f]*)$/.exec(line);
++    if (!match) fail('malformed HEAD header');
++    const name = match[1].toLowerCase();
++    if (Object.hasOwn(headers, name)) fail('ambiguous response header');
++    headers[name] = match[2].replace(/[ \t]+$/, '');
++  }
++  if (Object.hasOwn(headers, 'content-length') && (!/^[0-9]+$/.test(headers['content-length'])
++      || Object.hasOwn(headers, 'transfer-encoding'))) fail('malformed HEAD framing headers');
++  return { status: Number(status[1]), headers };
++}
++function responseFrame(spec, socket, status, headers, body) {
++  return { hostname: socket.remoteAddress, port: socket.remotePort,
++    hostHeader: HOST, path: spec.path, method: spec.method,
++    url: new URL(spec.path, spec.origin).href, status, headers, body, headWireBodyBytes: 0 };
++}
++function requestHeadLoopback(spec) {
++  return new Promise((resolve, reject) => {
++    let settled = false, eof = false, prefix = Buffer.alloc(0), parsed, peer;
++    const socket = net.createConnection({ host: '127.0.0.1', port: spec.port, family: 4,
++      allowHalfOpen: true });
++    const finish = error => {
++      if (settled) return;
++      settled = true; clearTimeout(timer);
++      spec.signal?.removeEventListener('abort', abort);
++      if (error) { socket.destroy(); reject(error); }
++      else resolve(responseFrame(spec, peer, parsed.status, parsed.headers, Buffer.alloc(0)));
++    };
++    const abort = () => finish(new Error('request aborted'));
++    const timer = setTimeout(() => finish(new Error('request timeout')), spec.timeoutMs);
++    socket.on('error', finish);
++    socket.on('connect', () => {
++      if (settled) return;
++      if (socket.remoteAddress !== '127.0.0.1' || socket.remotePort !== spec.port)
++        return finish(new Error('non-loopback peer refused'));
++      peer = { remoteAddress: socket.remoteAddress, remotePort: socket.remotePort };
++      socket.write(`HEAD ${spec.path} HTTP/1.1\r\nHost: ${HOST}\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n`);
++    });
++    socket.on('data', chunk => {
++      if (settled) return;
++      if (parsed) return finish(new Error('HEAD wire body must be empty'));
++      const received = prefix.length + chunk.length;
++      prefix = Buffer.concat([prefix, chunk.subarray(0, Math.max(0, 16384 - prefix.length))]);
++      const boundary = prefix.indexOf('\r\n\r\n');
++      if (boundary < 0) {
++        if (received >= 16384) finish(new Error('HEAD header limit'));
++        return;
++      }
++      if (received !== boundary + 4) return finish(new Error('HEAD wire body must be empty'));
++      try { parsed = headHeaders(prefix.subarray(0, boundary)); prefix = Buffer.alloc(0); }
++      catch (error) { finish(error); }
++    });
++    // HTTP parsers finish HEAD at headers; only peer EOF proves the wire body empty.
++    socket.on('end', () => { eof = true; socket.end(); });
++    socket.on('close', () => finish(!eof || !parsed ? new Error('HEAD response closed before complete EOF') : null));
++    spec.signal?.addEventListener('abort', abort, { once: true });
++    if (spec.signal?.aborted) abort();
++  });
++}
++function requestGetLoopback(spec) {
++  return new Promise((resolve, reject) => {
++    let settled = false, timer, request;
++    const finish = (error, frame) => {
++      if (settled) return;
++      settled = true;
++      clearTimeout(timer);
++      if (error) { request?.destroy(); reject(error); } else resolve(frame);
++    };
++    request = http.request({ hostname: '127.0.0.1', port: spec.port, path: spec.path,
++      method: spec.method, agent: false, maxHeaderSize: 16384,
++      signal: spec.signal,
++      headers: { Host: HOST, 'Accept-Encoding': 'gzip, deflate, br' },
++      lookup() { finish(new Error('DNS resolution refused')); },
++    });
++    timer = setTimeout(() => finish(new Error('request timeout')), spec.timeoutMs);
++    request.on('error', error => finish(error));
++    request.on('response', response => {
++      response.on('aborted', () => finish(new Error('response aborted')));
++      response.on('error', error => finish(error));
++      const headers = {};
++      for (let index = 0; index < response.rawHeaders.length; index += 2) {
++        const name = response.rawHeaders[index].toLowerCase();
++        if (Object.hasOwn(headers, name)) return finish(new Error('ambiguous response header'));
++        headers[name] = response.rawHeaders[index + 1];
++      }
++      const socket = request.socket;
++      if (socket?.remoteAddress !== '127.0.0.1' || socket.remotePort !== spec.port)
++        return finish(new Error('non-loopback peer refused'));
++      const chunks = [];
++      let bytes = 0;
++      response.on('data', chunk => {
++        bytes += chunk.length;
++        if (bytes > spec.maxWireBodyBytes) return finish(new Error('wire body limit'));
++        chunks.push(chunk);
++      });
++      response.on('end', () => finish(null,
++        responseFrame(spec, socket, response.statusCode, headers, Buffer.concat(chunks))));
++    });
++    request.end();
++  });
++}
++/** Direct literal IPv4 connection: no fetch, proxy environment, DNS or redirects. */
++export function requestNewsletterLoopback(spec) {
++  const target = parseNewsletterLoopbackOrigin(spec?.input ?? spec?.origin);
++  if (spec.hostname !== target.hostname || spec.port !== target.port || spec.origin !== target.origin
++      || !CANONICAL_PATHS.has(spec.path) || !METHODS.includes(spec.method)
++      || (spec.hostHeader !== undefined && spec.hostHeader !== HOST)) fail('transport target/path/Host');
++  integer(spec.timeoutMs, 1, 10000, 'transport timeout limit');
++  integer(spec.maxWireBodyBytes, 1, 1048576, 'transport wire limit');
++  if (spec.signal != null && !(spec.signal instanceof AbortSignal)) fail('transport abort signal');
++  return spec.method === 'HEAD' ? requestHeadLoopback(spec) : requestGetLoopback(spec);
++}
++
++async function boundedRequest(request, spec) {
++  let timer;
++  const controller = new AbortController();
++  const requestSpec = Object.freeze({ ...spec, signal: controller.signal });
++  try {
++    return await Promise.race([Promise.resolve().then(() => request(requestSpec)),
++      new Promise((_, reject) => { timer = setTimeout(() => {
++        controller.abort(); reject(new Error('request timeout'));
++      }, spec.timeoutMs); })]);
++  } finally { clearTimeout(timer); }
++}
++const canonical = value => {
++  if (Array.isArray(value)) return value.map(canonical);
++  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort()
++    .map(name => [name, canonical(value[name])]));
++  return value;
++};
++export function newsletterLoopbackReceiptSha256(receipt) {
++  return sha256(JSON.stringify(canonical(receipt)));
++}
++function historicalHeaders(records) {
++  const headers = Object.fromEntries(Object.entries(HISTORICAL_NEWSLETTER_STATIC_HEADERS)
++    .map(([name, expected]) => [name, { expected,
++      observedValues: [...new Set(records.map(record => record.headers?.[name] ?? null))],
++      equivalent: records.every(record => record.headers?.[name] === expected),
++    }]));
++  return { headers, equivalent: Object.values(headers).every(header => header.equivalent) };
++}
++
++export async function verifyNewsletterLoopbackServing(options = {}) {
++  const allowed = ['origin', 'manifest', 'expectedArtifact', 'artifactPins', 'concurrency',
++    'timeoutMs', 'totalTimeoutMs', 'maxWireBodyBytes', 'maxDecodedBodyBytes', 'request', 'identity', 'fixtureLabel'];
++  if (Object.keys(options).some(name => !allowed.includes(name))) fail('unknown verifier option');
++  const { origin, manifest = canonicalNewsletterManifest(), expectedArtifact, artifactPins,
++    concurrency = 4, timeoutMs = 3000, totalTimeoutMs = 60000,
++    maxWireBodyBytes = 1048576, maxDecodedBodyBytes = 65536,
++    request = requestNewsletterLoopback, identity = newsletterByteIdentity, fixtureLabel } = options;
++  const target = parseNewsletterLoopbackOrigin(origin);
++  const binding = bindPins(expectedArtifact, artifactPins);
++  validateNewsletterManifest(manifest);
++  integer(concurrency, 1, 8, 'concurrency limit'); integer(timeoutMs, 1, 10000, 'request timeout limit');
++  integer(totalTimeoutMs, 1, 120000, 'total timeout limit');
++  integer(maxWireBodyBytes, 1, 1048576, 'wire body limit'); integer(maxDecodedBodyBytes, 1, 1048576, 'decoded body limit');
++  if (typeof request !== 'function' || typeof identity !== 'function') fail('request/identity ports');
++  if (fixtureLabel !== undefined && (typeof fixtureLabel !== 'string' || !/^[A-Za-z0-9 ._-]{1,80}$/.test(fixtureLabel))) fail('fixture label');
++  const realHttp = request === requestNewsletterLoopback;
++  const actualIdentity = identity === newsletterByteIdentity;
++  const synthetic = !realHttp || !actualIdentity || fixtureLabel !== undefined;
++  const started = performance.now(), deadline = started + totalTimeoutMs;
++  const jobs = canonicalNewsletterManifest().flatMap(entry => METHODS.map(method => ({ entry, method })));
++  const records = Array(jobs.length);
++  let cursor = 0;
++  const worker = async () => {
++    while (cursor < jobs.length) {
++      const index = cursor++, { entry, method } = jobs[index];
++      const remaining = deadline - performance.now();
++      const spec = Object.freeze({ ...target, path: entry.publicPath, method, hostHeader: HOST,
++        timeoutMs: Math.max(1, Math.min(timeoutMs, Math.ceil(remaining))), maxWireBodyBytes });
++      const record = { method, publicPath: entry.publicPath, url: new URL(entry.publicPath, target.origin).href,
++        hostname: target.hostname, port: target.port, hostHeader: HOST, status: 'FAIL' };
++      try {
++        if (remaining <= 0) fail('total deadline before request');
++        const frame = await boundedRequest(request, spec);
++        responseIdentity(spec, frame);
++        const headers = normalizeHeaders(frame.headers);
++        record.httpStatus = frame.status; record.headers = observed(headers);
++        record.wireBodyBytes = Buffer.isBuffer(frame.body) ? frame.body.length : null;
++        if (frame.status !== 200 || Object.hasOwn(headers, 'location')) fail('status/redirect fallback: ' + frame.status);
++        if (!Buffer.isBuffer(frame.body) || frame.body.length > maxWireBodyBytes) fail('wire body limit');
++        if (method === 'HEAD' && frame.headWireBodyBytes !== 0) fail('HEAD wire body must be empty');
++        const body = decodedBody(frame.body, headers['content-encoding'], method, Math.min(entry.bytes, maxDecodedBodyBytes));
++        const bodyIdentity = method === 'HEAD' ? newsletterByteIdentity(body) : await identity(body, entry.publicPath);
++        record.decodedIdentity = {
++          bytes: bodyIdentity.bytes, sha256: bodyIdentity.sha256, gitBlob: bodyIdentity.gitBlob,
++        };
++        qualifyNewsletterResponse({ kind: 'static', url: record.url, expectedOrigin: target.origin,
++          method, status: frame.status, headers, body, identity });
++        record.status = 'PASS';
++      } catch (error) {
++        record.error = String(error?.message ?? 'request failed').slice(0, 300);
++      }
++      records[index] = record;
++    }
++  };
++  await Promise.all(Array.from({ length: concurrency }, worker));
++  const failures = records.filter(record => record.status !== 'PASS');
++  const headerComparison = historicalHeaders(records);
++  return {
++    schemaVersion: 1, status: failures.length ? 'FAIL' : 'PASS',
++    evidenceKind: synthetic ? (realHttp ? 'synthetic-loopback-http' : 'synthetic-inert-ports') : 'local-loopback-http-serving',
++    synthetic, fixtureLabel: fixtureLabel ?? null, loopbackInput: target.input, loopbackOrigin: target.origin,
++    hostHeader: HOST, ...binding, sourcePins: { ...NEWSLETTER_PINS },
++    artifactBindingAuthority: 'caller-pinned artifact metadata; server-process source identity not independently attested',
++    plannedRequests: 358, passedRequests: records.length - failures.length, failedRequests: failures.length,
++    localHttpPerformed: realHttp, localServingVerified: !synthetic && failures.length === 0,
++    actualAssetBytesVerified: actualIdentity && failures.length === 0,
++    publicOriginVerified: false, publicDnsTlsVerified: false, deployedServingVerified: false,
++    dynamicUploadsCapabilitiesUiVerified: false, conditionalArchiveOriginVerified: false,
++    legacyHeaderParityVerified: false,
++    historicalHeadersEquivalent: headerComparison.equivalent, historicalHeaderComparison: headerComparison.headers,
++    elapsedMs: Math.ceil(performance.now() - started), limits: { concurrency, timeoutMs, totalTimeoutMs, maxWireBodyBytes, maxDecodedBodyBytes },
++    holds: ['Public DNS/TLS/deployed continuity unqualified', 'Conditional API_PUBLIC_URL archive-origin coverage unqualified',
++      'Dynamic uploads, public capabilities and UI acceptance unqualified',
++      ...(!headerComparison.equivalent ? ['Measured five-header historical equality not established'] : [])], records,
++  };
++}
++
++/** Caller-pinned measurement consistency, not authenticity or deployment proof. */
++export function validateNewsletterLoopbackServingReceipt(receipt, { expectedArtifact, expectedReceiptSha256 } = {}) {
++  if (typeof expectedReceiptSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(expectedReceiptSha256)
++      || newsletterLoopbackReceiptSha256(receipt) !== expectedReceiptSha256) fail('serving receipt pin mismatch');
++  const expected = pins(expectedArtifact);
++  bindPins(expected, receipt?.expectedArtifact); bindPins(expected, receipt?.artifactPins);
++  const target = parseNewsletterLoopbackOrigin(receipt.loopbackInput);
++  if (receipt.schemaVersion !== 1 || receipt.status !== 'PASS' || receipt.synthetic !== false
++      || receipt.evidenceKind !== 'local-loopback-http-serving' || receipt.fixtureLabel !== null
++      || receipt.localHttpPerformed !== true || receipt.localServingVerified !== true
++      || receipt.actualAssetBytesVerified !== true || receipt.hostHeader !== HOST
++      || receipt.loopbackOrigin !== target.origin || receipt.plannedRequests !== 358
++      || receipt.passedRequests !== 358 || receipt.failedRequests !== 0
++      || newsletterLoopbackReceiptSha256(receipt.sourcePins) !== newsletterLoopbackReceiptSha256(NEWSLETTER_PINS)
++      || !Array.isArray(receipt.records) || receipt.records.length !== 358) fail('actual successful local serving receipt required');
++  for (const flag of ['publicOriginVerified', 'publicDnsTlsVerified', 'deployedServingVerified',
++    'dynamicUploadsCapabilitiesUiVerified', 'conditionalArchiveOriginVerified',
++    'legacyHeaderParityVerified']) if (receipt[flag] !== false) fail('unsupported serving scope claim');
++  const byPath = new Map(canonicalNewsletterManifest().map(entry => [entry.publicPath, entry]));
++  const headerComparison = historicalHeaders(receipt.records);
++  if (receipt.historicalHeadersEquivalent !== headerComparison.equivalent
++      || newsletterLoopbackReceiptSha256(receipt.historicalHeaderComparison)
++      !== newsletterLoopbackReceiptSha256(headerComparison.headers)) fail('historical header comparison mismatch');
++  const limits = receipt.limits;
++  if (!limits) fail('serving limits required');
++  integer(limits.concurrency, 1, 8, 'receipt concurrency limit');
++  integer(limits.timeoutMs, 1, 10000, 'receipt request timeout limit');
++  integer(limits.totalTimeoutMs, 1, 120000, 'receipt total timeout limit');
++  integer(limits.maxWireBodyBytes, 1, 1048576, 'receipt wire body limit');
++  integer(limits.maxDecodedBodyBytes, 1, 1048576, 'receipt decoded body limit');
++  const seen = new Set();
++  for (const record of receipt.records) {
++    const entry = byPath.get(record.publicPath), key = record.method + ' ' + record.publicPath;
++    if (!entry || !METHODS.includes(record.method) || seen.has(key) || record.status !== 'PASS'
++        || record.httpStatus !== 200 || record.hostname !== '127.0.0.1' || record.port !== target.port
++        || record.hostHeader !== HOST || record.url !== new URL(entry.publicPath, target.origin).href) fail('serving measurement identity');
++    seen.add(key);
++    const headers = normalizeHeaders(record.headers);
++    const identity = record.decodedIdentity;
++    qualifyNewsletterResponse({ kind: 'static', url: record.url, expectedOrigin: target.origin,
++      method: record.method, status: 200, headers, body: Buffer.alloc(0),
++      identity: () => identity });
++    if (!Number.isInteger(record.wireBodyBytes) || record.wireBodyBytes < 0
++        || record.wireBodyBytes > limits.maxWireBodyBytes || identity?.bytes > limits.maxDecodedBodyBytes) fail('serving wire measurement');
++    if (record.method === 'GET') {
++      const encoding = headers['content-encoding'];
++      if ((!encoding || encoding === 'identity') && record.wireBodyBytes !== identity.bytes) fail('wire/decoded identity mismatch');
++      if (encoding && !['identity', 'gzip', 'deflate', 'br'].includes(encoding)) fail('receipt content encoding');
++      if (headers['content-length'] !== undefined && headers['content-length'] !== String(record.wireBodyBytes)) fail('GET wire length');
++    }
++    const empty = newsletterByteIdentity(Buffer.alloc(0));
++    if (record.method === 'HEAD' && (record.wireBodyBytes !== 0 || identity?.bytes !== empty.bytes
++        || identity?.sha256 !== empty.sha256 || identity?.gitBlob !== empty.gitBlob)) fail('HEAD receipt body identity');
++  }
++  return { localServingReceiptConsistent: true, staticPaths: 179, requests: 358,
++    expectedArtifact: expected, expectedReceiptSha256, publicOriginVerified: false,
++    deployedServingVerified: false, fullReplacementQualified: false,
++    historicalHeadersEquivalent: headerComparison.equivalent,
++    serverProcessSourceBindingIndependentlyAttested: false };
++}
+diff --git a/scripts/verify-newsletter-loopback-serving.mjs b/scripts/verify-newsletter-loopback-serving.mjs
+new file mode 100644
+index 000000000..e1650ba56
+--- /dev/null
++++ b/scripts/verify-newsletter-loopback-serving.mjs
+@@ -0,0 +1,28 @@
++#!/usr/bin/env node
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { verifyNewsletterLoopbackServing } from './lib/newsletter-loopback-serving.mjs';
++
++export function parseNewsletterLoopbackInvocation(args) {
++  const accepted = new Map([['--loopback-origin', 'origin'], ['--expected-artifact', 'expectedArtifact'], ['--artifact-pins', 'artifactPins']]);
++  const result = {};
++  if (!Array.isArray(args) || args.length !== 6) throw new Error('Expected explicit --loopback-origin, --expected-artifact JSON and --artifact-pins JSON');
++  for (let index = 0; index < args.length; index += 2) {
++    const key = accepted.get(args[index]);
++    if (!key || Object.hasOwn(result, key) || typeof args[index + 1] !== 'string') throw new Error('Unknown/duplicate loopback argument');
++    result[key] = key === 'origin' ? args[index + 1] : JSON.parse(args[index + 1]);
++  }
++  return result;
++}
++export async function runNewsletterLoopbackOperator(args, { verify = verifyNewsletterLoopbackServing, output = console.log } = {}) {
++  const receipt = await verify(parseNewsletterLoopbackInvocation(args));
++  output(JSON.stringify(receipt, null, 2));
++  return receipt.status === 'PASS' ? 0 : 1;
++}
++if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  runNewsletterLoopbackOperator(process.argv.slice(2)).then(code => { process.exitCode = code; }, error => {
++    console.error(JSON.stringify({ status: 'FAIL', phase: 'operator-input-or-transport',
++      localServingVerified: false, publicOriginVerified: false, error: String(error.message).slice(0, 300) }));
++    process.exitCode = 1;
++  });
++}

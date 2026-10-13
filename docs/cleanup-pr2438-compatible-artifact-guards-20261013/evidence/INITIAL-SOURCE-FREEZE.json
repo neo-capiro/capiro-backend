@@ -1,0 +1,71 @@
+{
+  "source": "29584732acbb251c87c92125bf5535338df81628",
+  "tree": "fbca874786c2452547358a56c8243f99ac20078c",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "donor": "1090322d9a4067b605e91afef10cef5f86900b61",
+  "branch": "refs/heads/codex/cleanup-pr2438-compatible-artifact-guards-20261013",
+  "paths": [
+    {
+      "path": "apps/web/Dockerfile.frontend-artifact",
+      "gitBlob": "1df389777949a6df4cc5c8f1eb43e2db4beb9265",
+      "mode": "100644",
+      "sha256": "a404599eec496836745a1858833c0d34a310cd43e2e12d5e55f2bd5615bea4ea",
+      "bytes": 1737,
+      "donorExact": true
+    },
+    {
+      "path": "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+      "gitBlob": "d0bc33a2106e64dc226bd9ebcc01d6c35a517e6d",
+      "mode": "100644",
+      "sha256": "07d28786f1fb00cbb932c626bc7b3cbe4d6f29491252dc4ecf2c920215625771",
+      "bytes": 4380,
+      "donorExact": false
+    },
+    {
+      "path": "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+      "gitBlob": "f5b6e4b24c654bcf09a7ae0f4844bb9c6b8dddd3",
+      "mode": "100644",
+      "sha256": "d7baed581ff402f9a86ff9b192848737e62041e0b31f87d3880c38b7ffe54b3a",
+      "bytes": 30348,
+      "donorExact": true
+    },
+    {
+      "path": "scripts/ci/newsletter-loopback-serving.spec.mjs",
+      "gitBlob": "23d0924dc0162328d9ee0b183ba0663011d4373a",
+      "mode": "100644",
+      "sha256": "32e500e57cb3daa93df598512b39f7f25df1c8d7111218756f572e17a98157ab",
+      "bytes": 24329,
+      "donorExact": true
+    },
+    {
+      "path": "scripts/lib/frontend-standalone-artifact-contract.mjs",
+      "gitBlob": "ac4d7bbd80307e55a05a5068c4fcaf483ddbcab3",
+      "mode": "100644",
+      "sha256": "5f7f5d8342184a7118e4ac009afd3732cb63dd20ef8fb78a44ec804ba5949feb",
+      "bytes": 17291,
+      "donorExact": true
+    },
+    {
+      "path": "scripts/lib/newsletter-loopback-serving.mjs",
+      "gitBlob": "41fde76f39821f0f88856b32b31d96ae6bebdbd3",
+      "mode": "100644",
+      "sha256": "eab39962b8ec4553279ba04c0463a4fa4852e9cbc0f79da38202f943215f527e",
+      "bytes": 22504,
+      "donorExact": true
+    },
+    {
+      "path": "scripts/verify-newsletter-loopback-serving.mjs",
+      "gitBlob": "e1650ba562f3562c8d82459263b5195335b74cc5",
+      "mode": "100644",
+      "sha256": "a583be57df864107cc41e8c887f1579e4bd1ad037cbec735926cb257cd78c13e",
+      "bytes": 1639,
+      "donorExact": true
+    }
+  ],
+  "held": [
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+  ]
+}

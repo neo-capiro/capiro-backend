@@ -1,0 +1,438 @@
+✔ literal loopback origin refuses public DNS aliases auth paths normalization and missing/invalid ports (3.004069ms)
+✔ unqualified target artifact/source pins options and limits refuse before any request (6.465943ms)
+✔ all179 GET+HEAD measurements use canonical paths and exact host with bounded concurrency (36.631232ms)
+✔ five historical headers are separately measured without changing the required static floor (31.645629ms)
+✔ serving preserves failed wrong Host measurement and never grants local success (14.124996ms)
+✔ serving preserves failed wrong path measurement and never grants local success (11.478075ms)
+✔ serving preserves failed wrong address measurement and never grants local success (14.028716ms)
+✔ serving preserves failed missing asset measurement and never grants local success (13.487549ms)
+✔ serving preserves failed redirect measurement and never grants local success (11.876165ms)
+✔ serving preserves failed HTML auth fallback measurement and never grants local success (13.73679ms)
+✔ serving preserves failed corrupt asset measurement and never grants local success (27.739542ms)
+✔ serving preserves failed wrong MIME measurement and never grants local success (8.551242ms)
+✔ serving preserves failed missing nosniff measurement and never grants local success (11.001596ms)
+✔ serving preserves failed cookie fallback measurement and never grants local success (26.352568ms)
+✔ serving preserves failed auth challenge measurement and never grants local success (21.400409ms)
+✔ serving preserves failed duplicate header measurement and never grants local success (35.284039ms)
+✔ serving preserves failed HEAD payload measurement and never grants local success (20.765755ms)
+✔ serving preserves failed HEAD wire payload measurement and never grants local success (33.494406ms)
+✔ serving preserves failed HEAD wrong length measurement and never grants local success (10.267855ms)
+✔ content decoding is bounded and qualifier checks decoded identities rather than compressed buffers (78.741947ms)
+✔ wire limits request timeout and total deadline preserve failure evidence (25.148212ms)
+✔ receipt validator refuses synthetic booleans and verifies all pinned measurements independently (139.694668ms)
+✖ real ephemeral loopback fixture records Host and every canonical method while marked synthetic (1.490655ms)
+✖ actual HEAD accepts canonical static metadata only after chunked headers and terminal EOF (0.851046ms)
+✖ actual HEAD rejects same-write body through terminal EOF (0.17065ms)
+✖ actual HEAD rejects body after headers through terminal EOF (0.09107ms)
+✖ actual HEAD rejects body after split headers through terminal EOF (0.533822ms)
+✖ actual HEAD rejects chunk framing after headers through terminal EOF (0.109333ms)
+✖ actual HEAD rejects duplicate content-type on the raw wire (0.132044ms)
+✖ actual HEAD rejects mixed-case duplicate on the raw wire (0.070951ms)
+✖ actual HEAD rejects duplicate content-length on the raw wire (0.347079ms)
+✖ actual HEAD rejects duplicate special-name header on the raw wire (0.263747ms)
+✖ actual HEAD rejects invalid content-length on the raw wire (0.12694ms)
+✖ actual HEAD rejects conflicting framing headers on the raw wire (0.068644ms)
+✖ actual HEAD rejects invalid header name on the raw wire (0.139258ms)
+✖ actual HEAD rejects folded header on the raw wire (0.102615ms)
+✖ actual HEAD rejects control character on the raw wire (0.062091ms)
+✖ actual HEAD rejects bare newline on the raw wire (0.057038ms)
+✖ actual HEAD rejects invalid status on the raw wire (0.054269ms)
+✖ actual HEAD rejects oversized header on the raw wire (0.055697ms)
+✖ actual HEAD rejects EOF with empty response (0.118289ms)
+✖ actual HEAD rejects EOF with truncated status (0.059022ms)
+✖ actual HEAD rejects EOF with truncated headers (0.053589ms)
+✖ actual HEAD rejects connection reset without terminal EOF (0.191631ms)
+✖ actual HEAD times out complete headers whose peer never sends EOF and closes its socket (0.129114ms)
+✖ actual HEAD aborts after complete headers while waiting for EOF and closes its socket (0.120168ms)
+✖ actual HEAD refuses an already aborted signal without sending its request (0.117901ms)
+✖ actual transport rejects invalid target path Host limits and abort signal before connecting (0.103697ms)
+✖ verifier preserves the actual delayed HEAD wire failure among all canonical measurements (0.12267ms)
+✔ operator accepts only explicit origin/pin JSON and preserves failed receipt exit status (0.66158ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 23
+ℹ fail 27
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 680.017956
+
+✖ failing tests:
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:215:1
+✖ real ephemeral loopback fixture records Host and every canonical method while marked synthetic (1.490655ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:227:39
+      at new Promise (<anonymous>)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:227:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:241:1
+✖ actual HEAD accepts canonical static metadata only after chunked headers and terminal EOF (0.851046ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:243:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:273:4
+✖ actual HEAD rejects same-write body through terminal EOF (0.17065ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:274:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:273:4
+✖ actual HEAD rejects body after headers through terminal EOF (0.09107ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:274:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:273:4
+✖ actual HEAD rejects body after split headers through terminal EOF (0.533822ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:274:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:273:4
+✖ actual HEAD rejects chunk framing after headers through terminal EOF (0.109333ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:274:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects duplicate content-type on the raw wire (0.132044ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects mixed-case duplicate on the raw wire (0.070951ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects duplicate content-length on the raw wire (0.347079ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects duplicate special-name header on the raw wire (0.263747ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects invalid content-length on the raw wire (0.12694ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects conflicting framing headers on the raw wire (0.068644ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects invalid header name on the raw wire (0.139258ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects folded header on the raw wire (0.102615ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects control character on the raw wire (0.062091ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects bare newline on the raw wire (0.057038ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects invalid status on the raw wire (0.054269ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:290:4
+✖ actual HEAD rejects oversized header on the raw wire (0.055697ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:291:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:295:53
+✖ actual HEAD rejects EOF with empty response (0.118289ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:296:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:295:53
+✖ actual HEAD rejects EOF with truncated status (0.059022ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:296:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:295:53
+✖ actual HEAD rejects EOF with truncated headers (0.053589ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:296:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:300:1
+✖ actual HEAD rejects connection reset without terminal EOF (0.191631ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:301:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:306:1
+✖ actual HEAD times out complete headers whose peer never sends EOF and closes its socket (0.129114ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:308:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:317:1
+✖ actual HEAD aborts after complete headers while waiting for EOF and closes its socket (0.120168ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:319:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:329:1
+✖ actual HEAD refuses an already aborted signal without sending its request (0.117901ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:331:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:336:1
+✖ actual transport rejects invalid target path Host limits and abort signal before connecting (0.103697ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:338:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+
+test at scripts/ci/newsletter-loopback-serving.spec.mjs:346:1
+✖ verifier preserves the actual delayed HEAD wire failure among all canonical measurements (0.12267ms)
+  Error: Source mock host refused: DNS
+      at refuse (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:8:62)
+      at dns.<computed> [as lookup] (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:46:93)
+      at lookupAndListen (node:net:2438:7)
+      at Server.listen (node:net:2340:7)
+      at net.Server.listen (/workspace/cleanup-pr2438-compatible-artifact-guards-20261013/docs/cleanup-pr2438-compatible-artifact-guards-20261013/evidence/mock-loopback-source-host.cjs:31:17)
+      at file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:39
+      at new Promise (<anonymous>)
+      at rawHeadFixture (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:48:9)
+      at TestContext.<anonymous> (file:///workspace/cleanup-pr2438-compatible-artifact-guards-20261013/scripts/ci/newsletter-loopback-serving.spec.mjs:347:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)

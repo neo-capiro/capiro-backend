@@ -1,0 +1,35 @@
+{
+  "source": "3e8aa44b8793827e74364442d098237f6274d045",
+  "tree": "ef2a21d1d1f8e49dc84e86a27952ef8610406e60",
+  "base": "0a76666dc57aa852586c35167426a540939c9918",
+  "only7SourcePaths": [
+    "apps/web/Dockerfile.frontend-artifact",
+    "scripts/ci/frontend-artifact-docker.contract.spec.mjs",
+    "scripts/ci/frontend-standalone-artifact.contract.spec.mjs",
+    "scripts/ci/newsletter-loopback-serving.spec.mjs",
+    "scripts/lib/frontend-standalone-artifact-contract.mjs",
+    "scripts/lib/newsletter-loopback-serving.mjs",
+    "scripts/verify-newsletter-loopback-serving.mjs"
+  ],
+  "sixDonorBlobsExact": true,
+  "onlyDockerSpecKnownReceivingAdaptation": true,
+  "outside7EntriesExact": 24640,
+  "baselineHadNoneOfNew7Paths": true,
+  "schemaMigrationEntriesExact": 617,
+  "allBaselineDocsEntriesExact": 12718,
+  "allPackageLockWorkspaceWindowsWorkflowAndRichBodiesExact": true,
+  "newerOnboardGuardBlobsExact": {
+    "helper": "3afe06de20d333b9a5a9afac3f67f823bce4672d",
+    "spec": "d95696fec8a48fe53286e119ac6d1604d96f4fb2"
+  },
+  "heldPathsAbsent": [
+    ".github/workflows/backend-cleanup-preservation.yml",
+    "scripts/ci/backend-retirement-source-jobs.contract.spec.py",
+    "scripts/lib/newsletter-artifact-packaging-plan.mjs",
+    "scripts/ci/newsletter-artifact-packaging-plan.spec.mjs"
+  ],
+  "legacyReleaseOperatorAbsentBoth": true,
+  "computeStackDonorAndReceivingExactBlob": "53342a3c988be078f1b081501da939366e332652",
+  "gitDonorNotFalselyClaimedAncestor": true,
+  "scope": "metadata proof; no protected reporting body reads or denied documents"
+}
