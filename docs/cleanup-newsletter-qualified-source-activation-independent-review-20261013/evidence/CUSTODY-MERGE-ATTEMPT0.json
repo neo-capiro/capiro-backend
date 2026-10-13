@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "git",
+    "merge",
+    "--no-ff",
+    "e66704ee8e7a34864d70b6c3b0af8f26ef80236a",
+    "-m",
+    "review: preserve lossless qualification custody correction"
+  ],
+  "exit": 2,
+  "stderrSummary": "Your local changes to the following files would be overwritten by merge; all listed files were this reviewer new staged packet documents. Merge with strategy ort failed.",
+  "classification": "Git index preparation only; no source conflict or ambiguous mutation",
+  "followupReads": [
+    {
+      "path": "author/RAW-DOCUMENT-CUSTODY.json",
+      "exit": 1,
+      "stderr": "No such file or directory"
+    },
+    {
+      "path": "author/evidence/qualified-frontend-evidence/review.md.lossless.json",
+      "exit": 1,
+      "stderr": "No such file or directory"
+    }
+  ],
+  "resolution": "commit reviewer source-acceptance/hygiene-failure checkpoint before actual merge",
+  "sourceEffects": false
+}

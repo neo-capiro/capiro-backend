@@ -1,0 +1,111 @@
+{
+  "rows": [
+    {
+      "name": "exact current singleton source tree and qualification receipt binding",
+      "pass": true
+    },
+    {
+      "name": "reviewed policy and nested evidence are immutable",
+      "pass": true
+    },
+    {
+      "name": "current source admitted for declared amd64 with all proof gates false",
+      "pass": true
+    },
+    {
+      "name": "current source admitted for declared arm64 with all proof gates false",
+      "pass": true
+    },
+    {
+      "name": "current plan declares approval but performs no assembly",
+      "pass": true
+    },
+    {
+      "name": "current run syntax admits exact source without touching artifact filesystem",
+      "pass": true
+    },
+    {
+      "name": "stale arbitrary or noncanonical source refuses 7c87678730538958ace9762f824dc3e588bf445b",
+      "pass": true
+    },
+    {
+      "name": "stale arbitrary or noncanonical source refuses 0000000000000000000000000000000000000000",
+      "pass": true
+    },
+    {
+      "name": "stale arbitrary or noncanonical source refuses C8AA693E884DE86001D2FC04FBB60D48DB09341C",
+      "pass": true
+    },
+    {
+      "name": "runtime mismatch refuses before artifact ports libc",
+      "pass": true
+    },
+    {
+      "name": "runtime mismatch refuses before artifact ports arch",
+      "pass": true
+    },
+    {
+      "name": "runtime mismatch refuses before artifact ports nodeMajor",
+      "pass": true
+    },
+    {
+      "name": "runtime mismatch refuses before artifact ports os",
+      "pass": true
+    },
+    {
+      "name": "foreign repository refuses source admission",
+      "pass": true
+    },
+    {
+      "name": "admission reaches only fake canonical artifact validation port for current source",
+      "pass": true
+    },
+    {
+      "name": "environment cannot activate stale source or promote any proof",
+      "pass": true
+    },
+    {
+      "name": "extra policy CLI operand refuses --source-profile",
+      "pass": true
+    },
+    {
+      "name": "extra policy CLI operand refuses --source-admission-fixture",
+      "pass": true
+    },
+    {
+      "name": "extra policy CLI operand refuses --accepted-source",
+      "pass": true
+    },
+    {
+      "name": "unlabelled caller profile cannot masquerade as reviewed data",
+      "pass": true
+    },
+    {
+      "name": "explicit historical source model remains synthetic with no reviewed approval",
+      "pass": true
+    },
+    {
+      "name": "ignored noncanonical profile option cannot admit historical source",
+      "pass": true
+    },
+    {
+      "name": "ordinary accessor fixture refuses without invoking fixture",
+      "pass": true
+    },
+    {
+      "name": "ordinary accessor fixture refuses without invoking profile",
+      "pass": true
+    },
+    {
+      "name": "strict architecture values remain no-coercion after activation",
+      "pass": true
+    }
+  ],
+  "passed": 25,
+  "failed": 0,
+  "callbacks": 0,
+  "actualArtifactFilesystemCalls": 0,
+  "qualifiedSource": "c8aa693e884de86001d2fc04fbb60d48db09341c",
+  "qualificationEvidence": "46ebdd448ef55e88c7a4083fb4586322757a14f8",
+  "scope": "pure policy and supplied fake ports; no actual application/artifact/native execution"
+}

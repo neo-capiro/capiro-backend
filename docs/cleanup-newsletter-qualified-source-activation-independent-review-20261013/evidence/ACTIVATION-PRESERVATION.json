@@ -1,0 +1,51 @@
+{
+  "source": "0132a1c8ffd0c04d0052c992bd361add4eefc020",
+  "tree": "88f5de19e22b64e5441ea0c06dd15aa908efaf14",
+  "base": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "sourcePaths": [
+    {
+      "path": "scripts/ci/newsletter-accepted-source-profile.spec.mjs",
+      "beforeEntry": "100644 blob 29936c684c107b04405c2a48a3c03c23ff555391",
+      "afterEntry": "100644 blob 1791299834d532bc0020356c127b0ed555b6c010",
+      "sha256": "1a007adde20bf87929ce076ba7902a8e483df30de479005b0d884975f5075214"
+    },
+    {
+      "path": "scripts/lib/newsletter-accepted-source-profile.json",
+      "beforeEntry": "100644 blob b84b4efba2701a377092e73fbf0b8ab06e203437",
+      "afterEntry": "100644 blob cde0de0fe3e2656baf7228030af5689651c8a6f3",
+      "sha256": "1dfde9a004d61e64a292811b06bf0fddd36c799a53b399b227ec5a6fed87e27d"
+    }
+  ],
+  "outsideTwoPathsExactIncludingAllDocuments": 25143,
+  "runtimeProfileUnchanged": true,
+  "qualificationTupleExactReceivedPrimaryEvidence": true,
+  "allProductionHelpersDockerCIManifestsLocksApplicationAndSchemaUnchanged": true,
+  "reviewNonDocSourceExactFrozenActivation": true,
+  "previousB283ReviewIsActualAncestor": true,
+  "original19CaseNamesRetainedWithAllPassAndExplicitHistoricalFixtureLabel": [
+    "current checked-in policy remains pending and immutable with the exact pinned runtime",
+    "production admission refuses 7c87678730538958ace9762f824dc3e588bf445b before artifact callbacks",
+    "production admission refuses c8aa693e884de86001d2fc04fbb60d48db09341c before artifact callbacks",
+    "production admission refuses cccccccccccccccccccccccccccccccccccccccc before artifact callbacks",
+    "plan validates syntax and describes pending approval without promoting a declared source",
+    "only an explicit labelled test profile models the active entry and cannot attest source approval",
+    "invalid fixture policy refuses missing accepted entry before filesystem",
+    "invalid fixture policy refuses duplicate accepted entry before filesystem",
+    "invalid fixture policy refuses missing receipt pin before filesystem",
+    "invalid fixture policy refuses invalid source tree before filesystem",
+    "invalid fixture policy refuses invalid receipt identity before filesystem",
+    "invalid fixture policy refuses foreign receipt owner before filesystem",
+    "invalid fixture policy refuses credential receipt path before filesystem",
+    "invalid fixture policy refuses unreviewed runtime before filesystem",
+    "invalid fixture policy refuses relabelled Node image before filesystem",
+    "unlabelled, accessor and proxy fixture policy inputs refuse without invoking callbacks",
+    "runtime mismatch cannot be rewritten by accepted model source equality",
+    "architecture elements are exact primitive strings and refuse objects, proxies, symbols and numbers without coercion",
+    "shipping CLI keeps all seven flags, refuses pending pins and exposes no profile injection"
+  ],
+  "additionalProductionCases": 3,
+  "actualTotalCases": 22,
+  "inherited83ReviewHashesExact": true,
+  "sourcePolicyActivationNotActualInstallArtifactBuildOrABIProof": true,
+  "protectedReportingBodyOrDeniedReportRead": false
+}

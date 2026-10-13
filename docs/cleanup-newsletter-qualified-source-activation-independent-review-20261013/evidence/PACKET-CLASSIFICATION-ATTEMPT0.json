@@ -1,0 +1,12 @@
+{
+  "sourceHygieneRunExit": 1,
+  "sourceHygieneOutput": "source-hygiene.stdout",
+  "manifestGenerationExit": 1,
+  "manifestGenerationStderr": "AssertionError: sourceHygiene was FAIL, so index was not written",
+  "failureSource": "two exact primary copied author documents have blank lines at EOF",
+  "ownDocsStagedWhitespaceExit": 0,
+  "classification": "publication packet encoding correction; no source admission/test failure",
+  "authorEvidence": "3347ac438117aa9936a5c0c27e0499f7129baf83",
+  "originalBytesMustRemainInImmutableAuthorGitObjects": true,
+  "noExtraRawArchiveException": true
+}
