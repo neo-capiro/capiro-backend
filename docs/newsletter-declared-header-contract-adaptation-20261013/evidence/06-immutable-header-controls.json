@@ -1,0 +1,1007 @@
+{
+  "sourceBase": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "sourceCount": 9,
+  "projectionBeforeAfterByteEqual": true,
+  "corpusRows": 82,
+  "positiveRows": 60,
+  "negativeRows": 22,
+  "before": {
+    "passed": 78,
+    "failed": 4,
+    "rows": [
+      {
+        "name": "duplicate __proto__/__PrOtO__ ordinary selectDeclaredNewsletterTarget",
+        "passed": false,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "duplicate __proto__/__PrOtO__ ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": false,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "duplicate __proto__/__PrOtO__ null selectDeclaredNewsletterTarget",
+        "passed": false,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "duplicate __proto__/__PrOtO__ null matchesDeclaredNewsletterManualPreview",
+        "passed": false,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "single __proto__ ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __proto__ ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __proto__ ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __proto__ ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __proto__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __proto__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single __proto__ null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __proto__ null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __proto__ null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __proto__ null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __proto__ null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __proto__ null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single __PrOtO__ ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __PrOtO__ ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __PrOtO__ ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __PrOtO__ ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __PrOtO__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __PrOtO__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single __PrOtO__ null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __PrOtO__ null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __PrOtO__ null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __PrOtO__ null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __PrOtO__ null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __PrOtO__ null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single constructor ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single constructor ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single constructor ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single constructor ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview constructor ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview constructor ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single constructor null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single constructor null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single constructor null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single constructor null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview constructor null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview constructor null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single toString ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single toString ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single toString ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single toString ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview toString ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview toString ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single toString null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single toString null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single toString null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single toString null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview toString null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview toString null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single hasOwnProperty ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single hasOwnProperty ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single hasOwnProperty ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single hasOwnProperty ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview hasOwnProperty ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview hasOwnProperty ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single hasOwnProperty null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single hasOwnProperty null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single hasOwnProperty null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single hasOwnProperty null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview hasOwnProperty null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview hasOwnProperty null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "ordinary preview duplicate selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "ordinary preview duplicate matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "control value selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "control value matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "invalid name selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "invalid name matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      }
+    ]
+  },
+  "after": {
+    "passed": 82,
+    "failed": 0,
+    "rows": [
+      {
+        "name": "duplicate __proto__/__PrOtO__ ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate __proto__/__PrOtO__ ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate __proto__/__PrOtO__ null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate __proto__/__PrOtO__ null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate constructor/CONSTRUCTOR null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate toString/TOSTRING null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY ordinary selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY ordinary matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY null selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "duplicate hasOwnProperty/HASOWNPROPERTY null matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "single __proto__ ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __proto__ ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __proto__ ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __proto__ ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __proto__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __proto__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single __proto__ null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __proto__ null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __proto__ null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __proto__ null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __proto__ null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __proto__ null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single __PrOtO__ ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __PrOtO__ ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __PrOtO__ ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __PrOtO__ ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __PrOtO__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __PrOtO__ ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single __PrOtO__ null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single __PrOtO__ null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single __PrOtO__ null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single __PrOtO__ null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview __PrOtO__ null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview __PrOtO__ null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single constructor ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single constructor ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single constructor ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single constructor ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview constructor ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview constructor ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single constructor null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single constructor null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single constructor null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single constructor null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview constructor null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview constructor null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single toString ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single toString ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single toString ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single toString ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview toString ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview toString ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single toString null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single toString null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single toString null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single toString null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview toString null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview toString null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single hasOwnProperty ordinary api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single hasOwnProperty ordinary web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single hasOwnProperty ordinary workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single hasOwnProperty ordinary marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview hasOwnProperty ordinary",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview hasOwnProperty ordinary",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "single hasOwnProperty null api",
+        "passed": true,
+        "refused": false,
+        "value": "api"
+      },
+      {
+        "name": "single hasOwnProperty null web",
+        "passed": true,
+        "refused": false,
+        "value": "web"
+      },
+      {
+        "name": "single hasOwnProperty null workspace",
+        "passed": true,
+        "refused": false,
+        "value": "workspace"
+      },
+      {
+        "name": "single hasOwnProperty null marketing",
+        "passed": true,
+        "refused": false,
+        "value": "marketing"
+      },
+      {
+        "name": "single metadata plus exact preview hasOwnProperty null",
+        "passed": true,
+        "refused": false,
+        "value": true
+      },
+      {
+        "name": "metadata alone not preview hasOwnProperty null",
+        "passed": true,
+        "refused": false,
+        "value": false
+      },
+      {
+        "name": "ordinary preview duplicate selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "ordinary preview duplicate matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "control value selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "control value matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "invalid name selectDeclaredNewsletterTarget",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      },
+      {
+        "name": "invalid name matchesDeclaredNewsletterManualPreview",
+        "passed": true,
+        "refused": true,
+        "error": "Newsletter declared edge refused: literal unambiguous headers required"
+      }
+    ]
+  },
+  "allInputRowsFrozen": true,
+  "allLiveFlagsFalse": true,
+  "scriptSourceOrNetworkExecuted": false
+}

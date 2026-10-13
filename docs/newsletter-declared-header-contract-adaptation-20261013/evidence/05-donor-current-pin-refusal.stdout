@@ -1,0 +1,29 @@
+file:///tmp/newsletter-header-donor-stage-20261013/scripts/lib/newsletter-declared-edge-contract.mjs:12
+const refuse = message => { throw new Error(`Newsletter declared edge refused: ${message}`); };
+                                  ^
+
+Error: Newsletter declared edge refused: source pin mismatch: apps/api/src/engagement/newsletter-outreach.service.ts
+    at refuse (file:///tmp/newsletter-header-donor-stage-20261013/scripts/lib/newsletter-declared-edge-contract.mjs:12:35)
+    at verifiedSourceTexts (file:///tmp/newsletter-header-donor-stage-20261013/scripts/lib/newsletter-declared-edge-contract.mjs:90:7)
+    at projectDeclaredNewsletterEdge (file:///tmp/newsletter-header-donor-stage-20261013/scripts/lib/newsletter-declared-edge-contract.mjs:204:23)
+    at file:///tmp/newsletter-header-donor-stage-20261013/scripts/ci/newsletter-declared-edge.contract.spec.mjs:15:18
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0
+✖ scripts/ci/newsletter-declared-edge.contract.spec.mjs (101.807627ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.65459
+
+✖ failing tests:
+
+test at scripts/ci/newsletter-declared-edge.contract.spec.mjs:1:1
+✖ scripts/ci/newsletter-declared-edge.contract.spec.mjs (101.807627ms)
+  'test failed'

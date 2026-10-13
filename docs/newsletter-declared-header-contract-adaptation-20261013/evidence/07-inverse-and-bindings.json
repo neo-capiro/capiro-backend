@@ -1,0 +1,51 @@
+{
+  "sourceHead": "bdcb6b4e02b6394fd24dbb709e17648d77caa88c",
+  "sourceTree": "c26db6c07a817f7bc70870391d58645c8eeb1655",
+  "sourceBase": "523ef9167f05a33efdbdfbbfc08d5fc2e2679012",
+  "candidateInverseDonorExact": true,
+  "donorVsBeforeExactSingleDictionaryLine": true,
+  "specInverseDonorExactExceptExpectedSourceHead": true,
+  "current9SourceBytesUnchangedInCandidate": true,
+  "changedPins": [
+    "apps/api/src/engagement/newsletter-outreach.service.ts"
+  ],
+  "sourcePaths": [
+    "scripts/ci/newsletter-declared-edge.contract.spec.mjs",
+    "scripts/lib/newsletter-declared-edge-contract.mjs"
+  ],
+  "same30CaseNamesBeforeAfter": [
+    "projection verifies nine exact source bytes and exposes the declared listener with provenance",
+    "publication origins reproduce distinct capability and web asset precedence without reading configuration",
+    "ordered API rule beats marketing and web hosts, including arbitrary hosts and ordinary recipient links",
+    "Workspace upload route precedes the web rule and remains distinct from workspace SPA paths",
+    "static assets follow explicit web hosts; unknown and vnext hosts do not silently join the managed listener",
+    "same app/root input suppresses the conditional marketing rule without inventing runtime hosts",
+    "other declared backend paths cannot be misreported as web by the newsletter subset",
+    "manual preview remains a separate exact default gate requiring both path and header",
+    "capability methods query and privacy are source-declared; edge forwarding grants no backend method",
+    "immutable uploads retain their exact declared public headers and current GET contract",
+    "nginx 8080 health and five static security headers remain declarations, separate from successor parity",
+    "source publication, local equivalents and direct Next failures cannot promote live acceptance flags",
+    "missing extra wrong-type and altered source bytes refuse before producing a contract",
+    "pinned source mutation refuses: API wrong path",
+    "pinned source mutation refuses: API priority shadows marketing",
+    "pinned source mutation refuses: Workspace routes to web",
+    "pinned source mutation refuses: preview header broadening",
+    "pinned source mutation refuses: private page cache leakage",
+    "pinned source mutation refuses: unexpected capability method",
+    "pinned source mutation refuses: survey drops exact answer query",
+    "pinned source mutation refuses: upload immutable policy removed",
+    "pinned source mutation refuses: origin precedence reversed",
+    "pinned source mutation refuses: background resolved through publicUrl",
+    "pinned source mutation refuses: health port changed",
+    "hosts must be supplied explicitly and request targets never pass through a URL normalizer",
+    "uppercase configuration hosts refuse instead of changing the source raw marketing comparison",
+    "canonical configuration preserves case-insensitive request Host selection for every newsletter target",
+    "special-name case-variant header duplicates refuse in ordinary and null-prototype inputs",
+    "a single special-name header remains payload metadata without changing routing or preview authorization scope",
+    "header ambiguity and forged projection objects refuse; frozen source contracts cannot be edited"
+  ],
+  "liveVerificationFlagsUnchangedFalse": true,
+  "otherSourceOrOperatorsRead": false,
+  "deniedReportRead": false
+}
