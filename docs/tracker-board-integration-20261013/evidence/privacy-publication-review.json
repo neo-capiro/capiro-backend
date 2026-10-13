@@ -1,0 +1,454 @@
+{
+  "atUTC": "2026-10-13T22:15:02.697185+00:00",
+  "repository": "neo-capiro/capirov2",
+  "repositoryID": 1226930564,
+  "ownerID": 276034435,
+  "private": true,
+  "explicitNonSecretPublicationAuthorized": true,
+  "finiteFilesInspected": 72,
+  "patterns": [
+    "private-key",
+    "AWS-access-key",
+    "GitHub-token",
+    "Clerk-secret-value",
+    "JWT-value",
+    "database-credential-URL"
+  ],
+  "findings": [],
+  "manualContentReview": "Source/test-only donor files, type/build/test command receipts, finite names/sizes/hashes, owned paths/shim targets, GitHub repository/ref/tree/quarantine metadata and public infrastructure settings only; no customer content, keys, token/secret values or generated client/runtime bodies published. Existing protected reporting implementation not inspected.",
+  "checkedFileInventory": [
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-commands.ts",
+      "bytes": 11904,
+      "sha256": "c138e896d05029387ce10b3732ae0b87257e112d45beaddbc7029838d168fc29",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-cursors.ts",
+      "bytes": 1191,
+      "sha256": "e33edd61c25593c25a94968e79ac3988d21bebf0a2b4756a68809d8fb2e755d4",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-presentation.ts",
+      "bytes": 2726,
+      "sha256": "9cdbc075b42ab93983c64a0aa14b5b39e1813a571f8bb34b80746c4a7e231656",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-queries.ts",
+      "bytes": 5968,
+      "sha256": "f6de227ec8596566d1fff2794e6145752174521cdcb82acedda26bb652f10390",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-read.contracts.ts",
+      "bytes": 477,
+      "sha256": "70ccc177cce937c347e7ac22b5c4eff6ce096edd91208d1b1085baa56cb58ecb",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-recommendations.ts",
+      "bytes": 8563,
+      "sha256": "ae749f5804b5c024544010d2d6a31b22591abe7a8d0cca131dadd7e4205352e0",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-state-support.ts",
+      "bytes": 11292,
+      "sha256": "ce29b99b7ae5ce7fb109359ac1cddf0a752010878833f573306610fe3447c7b3",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board-topics.ts",
+      "bytes": 7585,
+      "sha256": "5e389a88e8f15e6f7693f5653f327b568d0f8565f7e2b77bde83f1174284c7ec",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board.contracts.ts",
+      "bytes": 6707,
+      "sha256": "f265e2a813e13be18f7d859de1e99b2f859a19c5bb619d0b4d39e2e0c5560d73",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-board.service.ts",
+      "bytes": 11995,
+      "sha256": "b4d4247ec6118809bf39a4fcd44afb02628e1db2ba57275949cbe51dcddfcc7b",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-client-board-read.ts",
+      "bytes": 9652,
+      "sha256": "18777ee7aa11789ee1a973935ca003eacd60fa82146e8668b0c23ce9bc97e550",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/src/tracker/tracker-tenant-board-read.ts",
+      "bytes": 10867,
+      "sha256": "9130e62c70f03d848b734fcec12d7edd521b9f8fc95b6b06a278eb54162f9d2a",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-board-ownership/harness.ts",
+      "bytes": 3342,
+      "sha256": "3bdacef7e353e6dc8bf8fa8b716f47614dcfb066591961594f529e725593d9f8",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-board-ownership/io.ts",
+      "bytes": 5573,
+      "sha256": "c50b6d24804c8a4b0615f97fd350b7ed774f4334c91569de84d4f391941378f9",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/fixtures/tracker-board-ownership/rows.ts",
+      "bytes": 4293,
+      "sha256": "3680ec803abd5415191df7c2ac2cd7175fda6f532287035e467b571dac7292bc",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-compilation.spec.ts",
+      "bytes": 6841,
+      "sha256": "562037d0a001e4af4943569ced9899f22cd5cc8011be0f08d460ea0416595304",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-curation.spec.ts",
+      "bytes": 7743,
+      "sha256": "06248c8ecf832f5b1f12a9a60bc49422657e469c601b70eb8159125c93bce9bc",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-lookups.spec.ts",
+      "bytes": 8481,
+      "sha256": "b8522c6738f0921d97f7e75a5f2825cd2df3b58f717f14911ce9838be00ba823",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-reads.spec.ts",
+      "bytes": 8797,
+      "sha256": "6aadbb9765bac42d561612e70f0fc32f8d806aed91334b0c18f46da6ff65ce8f",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-recommendations.spec.ts",
+      "bytes": 8889,
+      "sha256": "85f81dead9c47e930e66f525712eee08891c51fd46a7c2e018f88195459b4ffd",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership-worker-receivers.spec.ts",
+      "bytes": 10340,
+      "sha256": "8dee718cf74dc8da27fa87650cc3b0babb8b5ba1edc3b14da68204c8f81a67ed",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/test/tracker-board-ownership.contract.spec.ts",
+      "bytes": 17678,
+      "sha256": "b82d53e47478e5ce11cdc0089b2e32da32021f98df7b47297db726b54ed81ce2",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "apps/intel-api/tsconfig.tracker-board-ownership.json",
+      "bytes": 295,
+      "sha256": "41f392e9f63c3ffebfa2511b7a67b4167c01a041f05b50bb8a90cd21a2458783",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/TRACKER-BOARD-HANDOVER.md",
+      "bytes": 7462,
+      "sha256": "e6a1d6587753b89565eea4a40059467c9f2a83f61ec32f001f81843d7555a065",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/TRACKER-BOARD-QUALIFICATION.json",
+      "bytes": 21068,
+      "sha256": "b070a6e81448cb606731d0a6121e71215e246b0871e7dcedba4858fddfc16650",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/INPUT-PROVENANCE.json",
+      "bytes": 52981,
+      "sha256": "be4ca4b0bfdea3be3d90f314975d5737212763fdc82f536d9d1b18f038dd3c88",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/NEXT-BACKEND-BOUNDARY.json",
+      "bytes": 17587,
+      "sha256": "233b9d672118687468086939a806db96eca55bb32503566c8adfc13b4e7238ab",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/PUBLIC-COPY-MANIFEST.json",
+      "bytes": 11074,
+      "sha256": "59bfde809d312c41a9aa010fd2fc7793a4cf8f218cb0e5fbacd1283a9defddef",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/PUBLIC-SNAPSHOT-ERRATA.md",
+      "bytes": 1962,
+      "sha256": "31257db999bfa130550ddddbda01d5802e97c95e2819b752fa6b48be9c7a0328",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/REQUIREMENTS-RECONCILIATION-v2.json",
+      "bytes": 61826,
+      "sha256": "edf9224a0b8b1ea8e9ce50b2a6c9251b4013f44c3a06dd74bf5d3067ca57e763",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/REQUIREMENTS-RECONCILIATION-v2.md",
+      "bytes": 6722,
+      "sha256": "c8c445383279eb4d1ffeb8cd8175c794887588e72d264f9573dc3e2f9df10867",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/backend-cleanup/20261013/requirements-reconciliation/SOURCE-OBSERVATIONS.json",
+      "bytes": 7531,
+      "sha256": "e379fe94643363c62d125ea639ac4692da2ad61d1c147134a00957d9176485b9",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/HANDOFF.md",
+      "bytes": 10029,
+      "sha256": "7b78ffe6a9da14a5224bdfbdc8edc3869b91a6af668a3d86077a3d043b5b865c",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/INDEPENDENT-REVIEW.md",
+      "bytes": 3414,
+      "sha256": "e0be019ff82a0d01da034681cd8a336c69753fdad29a16cfd72915336e4bce88",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/NO-LOST-WORK.json",
+      "bytes": 2591,
+      "sha256": "f12a94bfc0c14f66c82cfcf8b783e60903823308b8bee27cc7feefec7265330b",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/build-cli-config.json",
+      "bytes": 186,
+      "sha256": "2e0e9cd97ed3f7ea7bfbd40e5495a0ded63180e8530162a83561598f21f5d46a",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/build-config.json",
+      "bytes": 227,
+      "sha256": "5e89e39c641228d2c4fe37a8f268f61a58015b504f771a0a3a20a444fe0e6402",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/actual-emitted-verification.json",
+      "bytes": 4333,
+      "sha256": "1dfba9d9343f6d6e46618ae8b12430c0899b984b65e40821861710198e88cf51",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/attempt0-emitted-DI-expectation.json",
+      "bytes": 575,
+      "sha256": "a79bcd8aef6ac5bd12db1ea3674fb94cb0704a11279a00f011db76eb48ea5e2c",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/attempt0-overlay-retirement-expectation.json",
+      "bytes": 580,
+      "sha256": "fb25ad5804c186c36e2b5727da061f625afa337fc510b5e45213f4159c3977cc",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/attempt0-scope-preparation.json",
+      "bytes": 269,
+      "sha256": "5dac56fe64f5775a8ef3dcf21ed8286c0a32fc15950e3108b113cb5482949ad8",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/attempt1-emitted-map-expectation.json",
+      "bytes": 545,
+      "sha256": "ef9260478488efd0e0f6aacedc2d0606f2429c97374bcc554fae6fb1afadbc26",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/backend-import-publication/backend-import-approved-access-preflight-20261013.json",
+      "bytes": 1042,
+      "sha256": "b617790b8a254d595559b1193348cd54b0fac52ee146fdb99550fef08e1840fc",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/backend-import-publication/backend-import-approved-push-20261013.log",
+      "bytes": 139,
+      "sha256": "700c414d7629c1ef05bb8a81170578f31a48656c19b5cb9d27e38488bc918929",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/backend-import-publication/backend-import-approved-push-receipt-20261013.json",
+      "bytes": 765,
+      "sha256": "f8d17fc97d5ed0f49443c7547b70f8bfd6cee9e7061fcef00dbb6fad91194579",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/backend-import-publication/backend-import-approved-remote-verification-20261013.json",
+      "bytes": 22765,
+      "sha256": "8812fdee8f56bab46912e94f2b63506d19de7598c05110052252a5159eace01d",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/backend-import-publication/backend-import-own-access-after-manual-creation-20261013.json",
+      "bytes": 862,
+      "sha256": "bc17a12553600bdf858c3371838f53282204b834c2d2a05ff18dc93fe8128161",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/build-names-sizes.json.gz",
+      "bytes": 6464,
+      "sha256": "c49d183332ef7da89a51fec56786e34f953be2d32f6a42f8246f0d01cee88c88",
+      "gzipExpandedForInspection": true
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/build-receipt.json",
+      "bytes": 1178,
+      "sha256": "b027fb313f4f1dfd5222f239e2f9ba19a1314061730a2571bc0fea150da9b62b",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/facade-scopes-dossier-published-receipts-20261013.json",
+      "bytes": 1111,
+      "sha256": "ecc986268c2658af9031e9bb9548c825ca76c6edc7ab6f64264e194baf69a6b4",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/frontend-pr21-receiving-metadata-20261013.json",
+      "bytes": 691,
+      "sha256": "08e54f918d8ba92b1de9087bc280f52d2dea0beaf5c75662f9bf38ed8dcdb04b",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/handover-read-filename-correction.json",
+      "bytes": 638,
+      "sha256": "ed11abb6de3eaefa9ffad5cbfd8137eeb40231c579211d46268df4bf60064aa7",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/intelligence-facade-original-materialization-retirement-20261013.json",
+      "bytes": 1150,
+      "sha256": "d2c4e234b7a03becc72a1b9c54c26072628d69423d91f2d7c0936cefb85b02ef",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/jest-receipt.json",
+      "bytes": 1987,
+      "sha256": "8684b8dbb8acab4d61e6bea8547606f437bfb25655863f3cfa55b2ff70727edc",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/jest-results.json",
+      "bytes": 85934,
+      "sha256": "49d2662283bf37f8656879436dd0d843072ee5b65abc3c09496c4ba22393f6ad",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/jest.log",
+      "bytes": 2253,
+      "sha256": "9283414876abecc8bbf15cd0adf5b246baead5772c26096cc40daba9ef75a5d6",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/merge.log",
+      "bytes": 4772,
+      "sha256": "8a316215ebd10faf4dc72b7e6757a7eaf7b315b5a46a5752a4723e4a48a46e48",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/owned-build-cache-retirement.json",
+      "bytes": 585,
+      "sha256": "e1e1abd33dacecab30b51299217142f42b799c0132a229a15825098c5f49b447",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/owned-type-runtime-retirement-inventory.json.gz",
+      "bytes": 56745,
+      "sha256": "718563e5303028508bf3cf33bdef4737423633e4b8b3e48f1a80b3deb7e58120",
+      "gzipExpandedForInspection": true
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/owned-type-runtime-retirement.json",
+      "bytes": 22414,
+      "sha256": "ca5b6c8d7d43f98bf3c3b0b5a656f1561bc19b49fc301633e81e74902d32f370",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/reused-type-runtime-binding.json",
+      "bytes": 3956,
+      "sha256": "80a99e62074050ff3f1f52889d6fd3e6bf417bae0a7d080bee6ff2fcb7848a87",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/source-preservation.json",
+      "bytes": 2759,
+      "sha256": "d7a9e70b73e03c1e2046a074c7880f183435ac2fa1f5cf8c9c0da6284eb5d505",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/test-type-receipt.json",
+      "bytes": 864,
+      "sha256": "122d135ccd6a91746c0cbb915d2ace8ff5fc07cd593a061090be6fb71c897070",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/test-type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/type-receipt.json",
+      "bytes": 924,
+      "sha256": "82189ea96e1a81fae4652a823e269df2c9a9016e1570d087bde03769bc8399a0",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/evidence/type.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/inert-jest.config.cjs",
+      "bytes": 526,
+      "sha256": "782c3ad7bd9e0e16e76506143c4560a053f356e5a658d1fddd51ea00ad26f074",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/jest-transform-config.json",
+      "bytes": 178,
+      "sha256": "ce4febdf942043794666c157d9d1f0981fb49990a27993bf3d2736011f164f9b",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/mapless-transform.cjs",
+      "bytes": 618,
+      "sha256": "052d9daaa80032b41b2127725e49f54bd26cf5014b6224ad10b85df3f48fcd8e",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/network-fence.cjs",
+      "bytes": 489,
+      "sha256": "c0a45bd67d1f5f378fd12a0a9f92802bd57d993f489b1878fe5da8269e328934",
+      "gzipExpandedForInspection": false
+    },
+    {
+      "path": "docs/tracker-board-integration-20261013/test-scope.json",
+      "bytes": 1113,
+      "sha256": "84e68cd0e68a4197d428b8858f1b5c8c71dba4b740ab0d0b510dbcd1e7488a7a",
+      "gzipExpandedForInspection": false
+    }
+  ],
+  "result": "PASS"
+}

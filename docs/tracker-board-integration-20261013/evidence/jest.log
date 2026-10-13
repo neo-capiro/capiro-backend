@@ -1,0 +1,29 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-tracker-board-integration-20261013/docs/tracker-board-integration-20261013/jest-transform-config.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/tracker/tracker-board-state-stage.spec.ts
+PASS test/tracker-board-pagination.spec.ts
+PASS test/tracker-board-ownership.contract.spec.ts
+PASS test/tracker-board-feedback.spec.ts
+PASS test/tracker-board-ownership-worker-receivers.spec.ts
+PASS test/tracker-board-ownership-recommendations.spec.ts
+PASS test/tracker-board-ownership-reads.spec.ts
+PASS test/tracker-board-ownership-lookups.spec.ts
+PASS test/tracker-board-highfit.spec.ts
+PASS test/tracker-board-ownership-curation.spec.ts
+PASS test/tracker-board-ownership-compilation.spec.ts
+PASS test/tracker-board-guards.spec.ts
+PASS test/bill-search-jurisdictions.spec.ts
+PASS src/tracker/tracker-tenant-scoping.spec.ts
+PASS test/new-match-detector.spec.ts
+PASS test/tracker-summary.spec.ts
+PASS test/task-runner.spec.ts
+PASS test/bill-search.spec.ts
+PASS test/tracker-portfolio-counts.spec.ts
+
+Test Suites: 19 passed, 19 total
+Tests:       197 passed, 197 total
+Snapshots:   0 total
+Time:        8.548 s
+Ran all test suites within paths "src/tracker/tracker-board-state-stage.spec.ts", "src/tracker/tracker-tenant-scoping.spec.ts", "test/tracker-board-guards.spec.ts", "test/tracker-board-highfit.spec.ts", "test/tracker-board-pagination.spec.ts", "test/tracker-board-feedback.spec.ts", "test/tracker-summary.spec.ts", "test/tracker-portfolio-counts.spec.ts", "test/bill-search.spec.ts", "test/bill-search-jurisdictions.spec.ts", "test/new-match-detector.spec.ts", "test/tracker-board-ownership-compilation.spec.ts", "test/tracker-board-ownership-curation.spec.ts", "test/tracker-board-ownership-lookups.spec.ts", "test/tracker-board-ownership-reads.spec.ts", "test/tracker-board-ownership-recommendations.spec.ts", "test/tracker-board-ownership-worker-receivers.spec.ts", "test/task-runner.spec.ts", "test/tracker-board-ownership.contract.spec.ts".
+Test results written to: ../../docs/tracker-board-integration-20261013/evidence/jest-results.json

@@ -1,0 +1,34 @@
+{
+  "atUTC": "2026-10-13T22:07:46.838077+00:00",
+  "repository": "neo-capiro/capirov2",
+  "pulls": [
+    {
+      "number": 2486,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2486",
+      "state": "open",
+      "draft": true,
+      "head": "10ce63e7b3d4350070e311f1304297c46986bd87",
+      "tree": "5c9179b7655b5a18358a0982287159b65b6419cf",
+      "base": "codex/preview-minimum-source-20261013"
+    },
+    {
+      "number": 2487,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2487",
+      "state": "open",
+      "draft": true,
+      "head": "2e1b80d25b9d7e6f3c2807fef5c655d90e00e9ff",
+      "tree": "c9f48cfdb5dc0f9491a621659df58763b247f637",
+      "base": "codex/preview-minimum-source-20261013"
+    },
+    {
+      "number": 2488,
+      "url": "https://github.com/neo-capiro/capirov2/pull/2488",
+      "state": "open",
+      "draft": true,
+      "head": "f59a30300341ac1469e34f4c6672227f1c1eaf4a",
+      "tree": "7a43d91adfc7eb2e3c620b1281a1172d22eaa4c5",
+      "base": "codex/intelligence-facade-integration-20261013"
+    }
+  ],
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+}

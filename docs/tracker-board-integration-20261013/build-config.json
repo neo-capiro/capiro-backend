@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "/tmp/tracker-board-intel-build-20261013",
+    "tsBuildInfoFile": "/tmp/tracker-board-intel-build-20261013.tsbuildinfo",
+    "sourceMap": false
+  }
+}
