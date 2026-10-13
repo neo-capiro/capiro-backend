@@ -88,6 +88,7 @@ export function partitionKnowledgeCensusDiff(diff) {
     let hunk;
     let metadata = 0;
     let metadataChange = false;
+    const additions = [];
     const fields = new Map();
     const finishHunk = () => {
       if (hunk && (hunk.old !== hunk.wantOld || hunk.next !== hunk.wantNext)) {
@@ -110,7 +111,7 @@ export function partitionKnowledgeCensusDiff(diff) {
         if (hunk.old === hunk.wantOld && hunk.next === hunk.wantNext) {
           throw new Error('extra content after complete diff hunk');
         }
-        if (line.startsWith('+')) hunk.next += 1;
+        if (line.startsWith('+')) { hunk.next += 1; additions.push(line.slice(1)); }
         else if (line.startsWith('-')) hunk.old += 1;
         else if (line.startsWith(' ')) { hunk.old += 1; hunk.next += 1; }
         else throw new Error('unsupported diff hunk content');
@@ -152,7 +153,7 @@ export function partitionKnowledgeCensusDiff(diff) {
     }
     if (fields.has('new file mode') && fields.has('deleted file mode')) throw new Error('conflicting diff file modes');
     const path = next ?? old ?? to;
-    return { path, scope: knowledgeCensusPathScope(path), text };
+    return { path, scope: knowledgeCensusPathScope(path), text, additions };
   });
 }
 

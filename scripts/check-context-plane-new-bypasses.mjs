@@ -7,7 +7,7 @@ import { join } from 'node:path';
 
 import { architectureGuardBase, guardRef } from './cleanup-gates/lib/cli.mjs';
 import {
-  parseContextPlaneInvocation, projectContextPlaneDiff, assertContextPlaneReadPath,
+  parseContextPlaneInvocation, projectContextPlaneDiff, partitionContextPlaneDiff, assertContextPlaneReadPath,
   contextPlaneIncludesPath, contextPlaneSourceFilesUnder,
 } from './lib/context-plane-scope.mjs';
 
@@ -321,6 +321,7 @@ try {
 }
 
 const violations = [];
+if (scope === 'full') {
 let file = null;
 for (const line of diff.split('\n')) {
   if (line.startsWith('+++ b/')) {
@@ -337,6 +338,18 @@ for (const line of diff.split('\n')) {
 
   const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
   if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
+}
+} else {
+  for (const { path: file, additions } of partitionContextPlaneDiff(diff)) {
+    if (IMPLEMENTATION_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;
+    if (TEST_SUFFIXES.some((suffix) => file.endsWith(suffix))) continue;
+    for (const added of additions) {
+      if (isCommentOnly(added)) continue;
+      if (isApproved(file, added)) continue;
+      const matched = BANNED_ADDITION_PATTERNS.find((pattern) => pattern.test(added));
+      if (matched) violations.push({ file, added: added.trim(), pattern: String(matched) });
+    }
+  }
 }
 
 // Product adoption/neutralization invariants remain backend/full obligations.
