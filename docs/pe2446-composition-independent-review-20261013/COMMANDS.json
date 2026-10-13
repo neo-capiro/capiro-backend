@@ -1,0 +1,60 @@
+{
+  "cwd": "/tmp/capiro-pe2446-composition-review-20261013",
+  "sanitizedPATH": "cached Node:/usr/bin:/bin",
+  "mockTMPDIR": "/tmp/capiro-pe2446-composition-review-20261013/test-tmp",
+  "commands": [
+    {
+      "command": "sanitized cached Node --test apps/api/scripts/lib/pe-phase-9-migration-discovery.spec.mjs apps/api/scripts/lib/pe-phase-9-owned-postgres.spec.mjs",
+      "exitCode": 0,
+      "cases": 49,
+      "skips": 0,
+      "rawLog": "evidence/02-actual-node-tests.log",
+      "actualDocker": false,
+      "SQL": false
+    },
+    {
+      "command": "python3 source-coherence.py",
+      "exitCode": 0,
+      "checks": 11,
+      "rawLog": "evidence/04-source-coherence-matrix.log",
+      "receipt": "evidence/04-source-coherence-matrix.json"
+    },
+    {
+      "command": "sanitized cached Node manifest-dependency-probe.mjs",
+      "exitCode": 0,
+      "currentPositive": true,
+      "newOperandCurrentGuardRefusal": true,
+      "rawLog": "evidence/05-manifest-dependency-probe.log"
+    },
+    {
+      "command": "bash -n two selected shell files",
+      "exitCode": 0,
+      "rawLog": "evidence/06-bash-syntax.log",
+      "shellBodiesExecuted": false
+    },
+    {
+      "command": "sanitized cached Node source-control-probes.mjs",
+      "exitCode": 0,
+      "cases": 10,
+      "rawLog": "evidence/07-source-control-probes.log",
+      "fullDriver": false,
+      "actualDocker": false,
+      "SQL": false
+    },
+    {
+      "command": "Git-source shell function/registry inverse inspection",
+      "exitCode": 0,
+      "functions": 13,
+      "receipt": "evidence/08-owner-source-inverse.json"
+    },
+    {
+      "command": "git diff --check457 e25 -- apps/api docs/runbooks/program-elements-trust-gates.md",
+      "exitCode": 0,
+      "rawLog": "evidence/09-source-whitespace.log"
+    }
+  ],
+  "nativeReplay": false,
+  "fullGate": false,
+  "provider": false,
+  "privateReceiptTransfer": false
+}

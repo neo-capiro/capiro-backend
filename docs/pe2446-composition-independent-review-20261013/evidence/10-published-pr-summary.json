@@ -1,0 +1,82 @@
+{
+  "baseRefName": "codex/backend-pe-phase9-scope-20261013",
+  "body": "Fresh Phase 9 migration replay lacks the restricted worker prerequisite required by the watch-delivery migration. Reuse the existing dedicated-test role SQL on a newly created container, refuse container-name collisions, bind PostgreSQL to loopback, and clean up only the created ID and its anonymous volume. Historical migration SQL and production role provisioning stay unchanged.\n\nCount real migration directories containing regular migration.sql files, excluding README.md and rejecting unsafe names or symlinks. Require known PE migration names only when HEAD introduces them after the explicit main comparator. Install recovery before moving migrations aside, and fail on dump-restore errors. Normalize list arguments through the retained Windows path helper. Register the new Node regressions in the active test:pe-trust gate and document the test capability and acceptance boundary.\n\nValidation on exact source e25b2c9ad93ae8d63ffb5332c41d7af1623d4400: real clean and upgrade replay passed on another new owned PostgreSQL 16 cluster. Clean applied 469 migrations; the byte-verified main-comparator base and restored base each had 458; tip applied the 11 pending migrations and reached the same 469-name set. All 469 historical SQL files are byte-identical. All three newly owned replay clusters and anonymous volumes were removed. The earlier failed replay and native 23-check RLS receipt remain preserved separately.\n\n49 Node regressions and 246 Jest tests in 11 suites passed through test:pe-trust, including Phase K; their unchanged operands were verified for the final shell-only Windows path correction. The corrected shell passed another exact-source real replay. PE script typecheck/lint, Bash syntax, targeted Prettier and diff checks passed. Independent review approved exact source and the final real replay; all 19,418 projected files and all 19,414 original qualification files were rehashed unchanged. Existing frozen dependencies were reused without another installation.\n\nAdditional actual backend qualification: all 16 previously unqualified required commands passed on the same source, including the Phase A\u2013G/I\u2013K chains, 100 API suites / 1,308 tests and the Workspace grounding suite / 10 tests, with zero skips. Transport integrity, migration validation/generation, diff hygiene and the proof-ownership mapping also passed. Independent review accepted the commands, terminal counts and unchanged source. The optional whole PE/shared Prettier check fails on 122 files, all byte-identical to #2444; the execution projection's missing formatting configs were restored from exact source before classification. Unit/static command acceptance does not establish live-provider or native-database integration, and the single 31-step operator remains unrun.\n\nDraft stacked on #2444 at 457e84e7d50f401985355cf22eedc480fd72ad8b. Eight source paths, zero path deletions. The pinned comparator is 4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace; main is not a production attestation. This qualifies disposable migration history, not production ACL/source equivalence or the full backend operator. Stacked PRs do not establish main-only workflow execution. No main merge or deployment; rebuild branches and unpublished reports are preserved.",
+  "commits": [
+    {
+      "authoredDate": "2026-10-13T05:02:57Z",
+      "authors": [
+        {
+          "email": "neo@capiro.ai",
+          "id": "U_kgDOEHPzgw",
+          "login": "neo-capiro",
+          "name": "NEO MARTINEZ"
+        }
+      ],
+      "committedDate": "2026-10-13T05:02:57Z",
+      "messageBody": "",
+      "messageHeadline": "fix: bootstrap owned Phase 9 replay and discover real migrations",
+      "oid": "a3fdbad7a33ed62d13e7c3feaa15dfe11bdfd352"
+    },
+    {
+      "authoredDate": "2026-10-13T05:09:42Z",
+      "authors": [
+        {
+          "email": "neo@capiro.ai",
+          "id": "U_kgDOEHPzgw",
+          "login": "neo-capiro",
+          "name": "NEO MARTINEZ"
+        }
+      ],
+      "committedDate": "2026-10-13T05:09:42Z",
+      "messageBody": "",
+      "messageHeadline": "fix: normalize migration-list paths for Windows Node",
+      "oid": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400"
+    }
+  ],
+  "files": [
+    {
+      "path": "apps/api/package.json",
+      "additions": 2,
+      "deletions": 1
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-migration-discovery.mjs",
+      "additions": 108,
+      "deletions": 0
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-migration-discovery.spec.mjs",
+      "additions": 295,
+      "deletions": 0
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-owned-postgres.sh",
+      "additions": 47,
+      "deletions": 0
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-owned-postgres.spec.mjs",
+      "additions": 192,
+      "deletions": 0
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "additions": 5,
+      "deletions": 1
+    },
+    {
+      "path": "apps/api/scripts/pe-phase-9-migration-replay.sh",
+      "additions": 48,
+      "deletions": 69
+    },
+    {
+      "path": "docs/runbooks/program-elements-trust-gates.md",
+      "additions": 24,
+      "deletions": 10
+    }
+  ],
+  "headRefName": "codex/backend-pe9-replay-prereqs-20261013",
+  "headRefOid": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "number": 2446,
+  "title": "Fix owned Phase 9 migration replay prerequisites and discovery"
+}

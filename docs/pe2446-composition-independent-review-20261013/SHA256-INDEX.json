@@ -1,0 +1,174 @@
+{
+  "reviewedSource": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "sourceTree": "5cc7473db36e1b23a6fc0982f1652a9b20565a95",
+  "destinationPublication": "920c69b9273ea5846cbfcea2aa6d36760c91526a",
+  "sourceBindings": [
+    {
+      "path": "apps/api/package.json",
+      "gitBlob": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a",
+      "sha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a",
+      "bytes": 29061
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-migration-discovery.mjs",
+      "gitBlob": "ff4d7b266d459d4713b4c2863f364934695ca565",
+      "sha256": "7dd3a2ea5fc55079beec194d0317bb90224c2a99fb42545368abf0a61d35c805",
+      "bytes": 3995
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-migration-discovery.spec.mjs",
+      "gitBlob": "06a942f9061bdb7f63419ae35116a3be0dfa11ce",
+      "sha256": "4d94956632283332d3a4cdd989e6af3bb593ad9c513076da6418186757c7361c",
+      "bytes": 11062
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-owned-postgres.sh",
+      "gitBlob": "3320195ced21aa23235a36cf5d887873d71b15c4",
+      "sha256": "3ad42679ba08c71ac06aa95edd0a040201f0f0e09b80d18d38abfbde01b1beda",
+      "bytes": 1573
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-owned-postgres.spec.mjs",
+      "gitBlob": "0d58994e0fd4fde6feb7b76a342de8e563764282",
+      "sha256": "ca02f6d6042b64d29d4e9dd51d9e7f09ae016fee85c13d86c430b5e81e4f563b",
+      "bytes": 8371
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "gitBlob": "632e4bcb1b0bec7b78a283bc28250c80965daa35",
+      "sha256": "d16f6c6a69b0bb3d4b2cd9ed358fadd418f735971031f06195db76c1c39726c6",
+      "bytes": 3355
+    },
+    {
+      "path": "apps/api/scripts/pe-phase-9-migration-replay.sh",
+      "gitBlob": "234a3311f71302a6cc20edaad81424dc8163b07d",
+      "sha256": "a62d7babcbd8d02af35a70749f584e9a98223bfe18db0df957706f3901282000",
+      "bytes": 19969
+    },
+    {
+      "path": "docs/runbooks/program-elements-trust-gates.md",
+      "gitBlob": "70c5f88ca2faba0a8e2cd5b40d8095d301015753",
+      "sha256": "920c63aee9e8fac4d5bcfa3e2e0c3bf4a95ebcc74d3217c19b45db394c7bdc0c",
+      "bytes": 13043
+    }
+  ],
+  "packetFiles": [
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/COMMANDS.json",
+      "sha256": "85fe2bc860c00a316dec0a3e31a3db18f15f291f29ddaf5b4c21f48a98180a61",
+      "bytes": 1906
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/HANDOFF.md",
+      "sha256": "e4af12ddfc343a24cb35c1f1eaba9564b6be1186fc1416d04828e3ca15daba0c",
+      "bytes": 5893
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/00-api-host-field-failure.log",
+      "sha256": "b5ccfd6025a3f36fa2e891bffdb8ebee86d1c41e20358d4e71e2bf8b9ba880f9",
+      "bytes": 165
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/01-published-source-bindings.json",
+      "sha256": "c60a06d762b98e66ff74427b7174beb018e21f8b9a71dc39b56dd9efa2f201f2",
+      "bytes": 2082
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/02-actual-node-tests.log",
+      "sha256": "ae1dd61d001791171594c959f69619bcf75ab6ad403f6f01ba806aef27042623",
+      "bytes": 4572
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/03-coherence-pathspec-red.log",
+      "sha256": "614ca92b521aebe11999540fdbfcdbfcacdefba64ece773899cfe988e9287d96",
+      "bytes": 200
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/04-source-coherence-matrix.json",
+      "sha256": "032934c520f43cf0f2d2f0c8069814f36a9ebecfed8d6f5cfcac9580faf27b1a",
+      "bytes": 103352
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/04-source-coherence-matrix.log",
+      "sha256": "58d40939cf0fce9f6649565ec161f917d9fbfa0d24ea68a03ca1b7924991394b",
+      "bytes": 774
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/05-manifest-dependency-probe.json",
+      "sha256": "5f76e10b10db6ef056b2c10d11a952a7606f12488c2c0abde4069a08533e1376",
+      "bytes": 438
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/05-manifest-dependency-probe.log",
+      "sha256": "0d14d1c0c88f9e4cbc2b1ee76088c8f225a695982e0fcbe90163c9916f84f76a",
+      "bytes": 406
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/06-bash-syntax.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/07-source-control-probes.json",
+      "sha256": "4911fa6562e9ec5b9bf9ecb5d4f717e063d2a565f0ba3a3663d307590ef22fca",
+      "bytes": 1653
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/07-source-control-probes.log",
+      "sha256": "c5141f9c17768911ddce055a27ce06d991f2167c952680fe114bce64df27d2ef",
+      "bytes": 1331
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/08-owner-source-inverse.json",
+      "sha256": "df2ea35eb94dea3297c03afe6c7832f1010d6bbe921701fb8f8499d277be56f2",
+      "bytes": 1892
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/09-source-whitespace.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/10-published-pr-summary.json",
+      "sha256": "2386422361aa425fc59f7e627d370ee939decefb2585622020d6f6c49d93ba3b",
+      "bytes": 5488
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/11-published-comment-locators.json",
+      "sha256": "08e889902e893da3aee8e72e4598c8dedb37604a3a24f30faf6d03f651ca9270",
+      "bytes": 302
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/current-api-package.json",
+      "sha256": "58821f6b9f73558fe481816f5ea761a87024c22caf6623e7630e6035aa322cfa",
+      "bytes": 28856
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/proposed-api-package.json",
+      "sha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a",
+      "bytes": 29061
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/evidence/reviewed-pe-manifest-contract.current.mjs",
+      "sha256": "ad99088a82dcac64257cf5882933601055211a0c9fbaaf64a626858383c0b876",
+      "bytes": 2166
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/manifest-dependency-probe.mjs",
+      "sha256": "fc9ba470d9b48040846592396b12c210741747453d955b4a167dc38e76906f57",
+      "bytes": 1221
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/source-coherence.py",
+      "sha256": "d7e0de45f59569cb8e11f551b3ae4cf9c8e95c1a09babb908615fe796262a319",
+      "bytes": 4636
+    },
+    {
+      "path": "docs/pe2446-composition-independent-review-20261013/source-control-probes.mjs",
+      "sha256": "1b6e237932c8b1a3082ef66e3d49bdd47a712ace52bcf94e71f7fcc6d82cd188",
+      "bytes": 6081
+    }
+  ],
+  "sourceMockAcceptance": "bounded source-compatible; exact manifest-guard reconciliation required",
+  "nativeAcceptance": "owner-reported external receipt unavailable; no independent replay"
+}

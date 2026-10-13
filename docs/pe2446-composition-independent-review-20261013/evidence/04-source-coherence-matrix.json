@@ -1,0 +1,2521 @@
+{
+  "base": "457e84e7d50f401985355cf22eedc480fd72ad8b",
+  "tip": "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400",
+  "tipTree": "5cc7473db36e1b23a6fc0982f1652a9b20565a95",
+  "destinationSource": "e33fe1af359defbe52a9a63089f05bf7a757344f",
+  "destinationPublication": "920c69b9273ea5846cbfcea2aa6d36760c91526a",
+  "checks": {
+    "changedPathsExactlyEight": true,
+    "zeroDeletedPaths": true,
+    "allDestinationOperandsEqualPublishedBase": true,
+    "allGlobalSQLBlobsPreservedInPublishedDelta": true,
+    "destinationProductionSQLBlobsMatchBase": true,
+    "apiMigrationNamesModesBlobsMatchBaseTipDestination": true,
+    "apiMigrationSQLModesRegular": true,
+    "originalPackageObjectInverseExact": true,
+    "originalTrustCommandBytesExactSuffix": true,
+    "canonicalWorkerSQLThreeWayIdentical": true,
+    "publicationDestinationSourceOperandsSame": true
+  },
+  "matrix": [
+    {
+      "path": "apps/api/package.json",
+      "base": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "destination": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "f8ab6fbcdcc14da45045ca163aa2a3e843f3412e"
+      },
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a"
+      },
+      "disposition": "modify exact-current owner",
+      "physicalTipSHA256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-migration-discovery.mjs",
+      "base": null,
+      "destination": null,
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "ff4d7b266d459d4713b4c2863f364934695ca565"
+      },
+      "disposition": "new path absent at current destination",
+      "physicalTipSHA256": "7dd3a2ea5fc55079beec194d0317bb90224c2a99fb42545368abf0a61d35c805"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-migration-discovery.spec.mjs",
+      "base": null,
+      "destination": null,
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "06a942f9061bdb7f63419ae35116a3be0dfa11ce"
+      },
+      "disposition": "new path absent at current destination",
+      "physicalTipSHA256": "4d94956632283332d3a4cdd989e6af3bb593ad9c513076da6418186757c7361c"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-owned-postgres.sh",
+      "base": null,
+      "destination": null,
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "3320195ced21aa23235a36cf5d887873d71b15c4"
+      },
+      "disposition": "new path absent at current destination",
+      "physicalTipSHA256": "3ad42679ba08c71ac06aa95edd0a040201f0f0e09b80d18d38abfbde01b1beda"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-9-owned-postgres.spec.mjs",
+      "base": null,
+      "destination": null,
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "0d58994e0fd4fde6feb7b76a342de8e563764282"
+      },
+      "disposition": "new path absent at current destination",
+      "physicalTipSHA256": "ca02f6d6042b64d29d4e9dd51d9e7f09ae016fee85c13d86c430b5e81e4f563b"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "base": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "b26b8688edca0fd2153f0327307e32dd6a5f5be3"
+      },
+      "destination": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "b26b8688edca0fd2153f0327307e32dd6a5f5be3"
+      },
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "632e4bcb1b0bec7b78a283bc28250c80965daa35"
+      },
+      "disposition": "modify exact-current owner",
+      "physicalTipSHA256": "d16f6c6a69b0bb3d4b2cd9ed358fadd418f735971031f06195db76c1c39726c6"
+    },
+    {
+      "path": "apps/api/scripts/pe-phase-9-migration-replay.sh",
+      "base": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "1ab82cbedb98c3664f3b172889fd225d7a6802f7"
+      },
+      "destination": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "1ab82cbedb98c3664f3b172889fd225d7a6802f7"
+      },
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "234a3311f71302a6cc20edaad81424dc8163b07d"
+      },
+      "disposition": "modify exact-current owner",
+      "physicalTipSHA256": "a62d7babcbd8d02af35a70749f584e9a98223bfe18db0df957706f3901282000"
+    },
+    {
+      "path": "docs/runbooks/program-elements-trust-gates.md",
+      "base": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "61beda4339fd93da79d7e2bf05d8aa28e82999c3"
+      },
+      "destination": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "61beda4339fd93da79d7e2bf05d8aa28e82999c3"
+      },
+      "tip": {
+        "mode": "100644",
+        "kind": "blob",
+        "gitBlob": "70c5f88ca2faba0a8e2cd5b40d8095d301015753"
+      },
+      "disposition": "modify exact-current owner",
+      "physicalTipSHA256": "920c63aee9e8fac4d5bcfa3e2e0c3bf4a95ebcc74d3217c19b45db394c7bdc0c"
+    }
+  ],
+  "globalSQLCount": 619,
+  "productionSQLCount": 614,
+  "apiMigrationCounts": {
+    "457e84e7d50f401985355cf22eedc480fd72ad8b": 469,
+    "e25b2c9ad93ae8d63ffb5332c41d7af1623d4400": 469,
+    "e33fe1af359defbe52a9a63089f05bf7a757344f": 469,
+    "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace": 458
+  },
+  "apiMigrationBindings": {
+    "apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "196a091fe9a561af95a6014eb57ef02c2e05f12e"
+    },
+    "apps/api/prisma/migrations/20260501010000_add_tenants_clerk_org_id/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a85bc3fb2e9b13f04d37684d0d9feda98cf38900"
+    },
+    "apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "50ec4777f512c0c62e1e2570a8f1c30c7117c376"
+    },
+    "apps/api/prisma/migrations/20260502010000_impersonation_sessions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a1b5156b4a5e55277d2d445e00c8c7dca30e3fe5"
+    },
+    "apps/api/prisma/migrations/20260502020000_capiro_app_role/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1a320b44d18e0b6c81957ee40e57552cba16e884"
+    },
+    "apps/api/prisma/migrations/20260503020000_engagement_manager_core/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c63ed7fe8be313bd5f246024d228edeb10a49123"
+    },
+    "apps/api/prisma/migrations/20260503020100_engagement_connection_tokens/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "caeb12551c4574045954add8d090c141dfc01607"
+    },
+    "apps/api/prisma/migrations/20260503170000_directory_contact_notes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e93f390faa71a892a86d57fa685895ef1129378e"
+    },
+    "apps/api/prisma/migrations/20260503190000_client_logos/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8db440fbfdc74796392ee4a7dea3729ed49cc7e2"
+    },
+    "apps/api/prisma/migrations/20260504193000_demo_requests/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b4cd2850d859c2cf51e6325c4d64a00ec3441fd8"
+    },
+    "apps/api/prisma/migrations/20260505002000_meeting_debriefs_and_prep_approval/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c7746aa4bb3eae87860e0486aeaf388d0c65034a"
+    },
+    "apps/api/prisma/migrations/20260505124500_engagement_report_targets/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "53d7ad58d206afbe27ea17daedcd6130e117afa7"
+    },
+    "apps/api/prisma/migrations/20260505203000_engagement_outreach_records/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e225272b92e64cbb5b38bacdd43389de6672701c"
+    },
+    "apps/api/prisma/migrations/20260507020000_soft_delete_outreach_records/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e204f8a0db908057cbdce91c6e91ccd31cfebf02"
+    },
+    "apps/api/prisma/migrations/20260507030000_outbound_campaign_templates/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2bd76e1d8f21ff9bf3d39ff8c94b77a57854d527"
+    },
+    "apps/api/prisma/migrations/20260510010000_clio_nanoclaw_workspace/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "05ccb2165e459df630541358065ef61784f43161"
+    },
+    "apps/api/prisma/migrations/20260510013000_clio_notes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "cfa83ec74d43925a82ff67bc4a8d7093334ad40c"
+    },
+    "apps/api/prisma/migrations/20260515000000_add_workflow_models/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "88043f37e86d679178e9153c6af8fd0116987f68"
+    },
+    "apps/api/prisma/migrations/20260517175724_add_client_capabilities_people/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bd50c52606bc7cdef2b4f97953ce8281ae69bac7"
+    },
+    "apps/api/prisma/migrations/20260518013324_add_strategies/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9ca8f83279b0ab25bc970afb49a8bf57b6a5603e"
+    },
+    "apps/api/prisma/migrations/20260519015221_add_engagement_campaigns/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "570fab4a8ad61d80fea4d9e3712608b3c26d785f"
+    },
+    "apps/api/prisma/migrations/20260519160000_lobby_intel/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "18c04f3a084e4b589d6f180152f632e661371d7e"
+    },
+    "apps/api/prisma/migrations/20260519210000_federal_spending/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "94f4892206a05b65b8694d8ffc7525ca652f02a8"
+    },
+    "apps/api/prisma/migrations/20260520010000_lda_intel/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3a1d82e6144db44144852542d71b68f50b2804de"
+    },
+    "apps/api/prisma/migrations/20260520010000_lda_intel_pipeline/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "17b5cda713d072b6423ae1089f82cb6742acc974"
+    },
+    "apps/api/prisma/migrations/20260521011251_outreach_ai_templates/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4b7e912957f4311dda17e5249d07a02d73e59c9a"
+    },
+    "apps/api/prisma/migrations/20260521030000_intel_optimization/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2a7130a898f398ab0b8bdc0e9ca6d4737c494798"
+    },
+    "apps/api/prisma/migrations/20260521080000_regulatory_docket/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5527529b7a05bef237c65adaa6da01545814913f"
+    },
+    "apps/api/prisma/migrations/20260521100000_regulatory_docket_nullable_docket/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7b9ecb3810cce427f105f041f69379952f50e35a"
+    },
+    "apps/api/prisma/migrations/20260521120000_gin_trigram_indexes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "16d67291e5d431f48db688f78e7cd5e6c3aced0d"
+    },
+    "apps/api/prisma/migrations/20260521130000_synthesis_layer/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b49f5926d3d2abb54bcf28dc8e0ee8075fe3d8e8"
+    },
+    "apps/api/prisma/migrations/20260521150000_add_chat_messages/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "07b57f994810aa2bf3d6529d35c5c88276bff8d2"
+    },
+    "apps/api/prisma/migrations/20260522200000_clio_memory_alerts_versioning/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bb97e90214fa7c55e06f7e5ba81796c21da431a8"
+    },
+    "apps/api/prisma/migrations/20260522210000_lda_derived_lobby_intel/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "91cc7747cc5d853df62f0b6aa01e60a1b70a498e"
+    },
+    "apps/api/prisma/migrations/20260523050000_drop_openlobby_legacy/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "efcd8017998002223c418358c683f16a6867936d"
+    },
+    "apps/api/prisma/migrations/20260523060000_intel_pipeline_tables/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "25c242f96f51f1cef8388eb192dc4a5d217d0d14"
+    },
+    "apps/api/prisma/migrations/20260523070000_portfolio_schema_additions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1e6f0bdeb7b9fcf575ed597dc941d5fc93f7383d"
+    },
+    "apps/api/prisma/migrations/20260523080000_sync_run_table/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "54de0f38f9bb755b4c043a160e787d8b126e969b"
+    },
+    "apps/api/prisma/migrations/20260525103000_clio_memory_scope_hardening/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a69180cde2eb4d24cc7338b717909ad5a023963e"
+    },
+    "apps/api/prisma/migrations/20260525151500_user_title/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "649ce1f3363c99281dd177e5d80f1f0520fc6730"
+    },
+    "apps/api/prisma/migrations/20260525183000_user_title_apply/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "aebdabb088e38fa2d61cd0c5d1524784c6fbabb0"
+    },
+    "apps/api/prisma/migrations/20260525213000_kg_views/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "285480dcbf606d9d8a2997bdc0578d1e22147e38"
+    },
+    "apps/api/prisma/migrations/20260526113000_capability_issue_codes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "96d16993c0b97f48f835d5ea6840b2912e2038d6"
+    },
+    "apps/api/prisma/migrations/20260527021119_context_embeddings_v2/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a13c90c313a6995d5e73f9851f90e50443cd64e9"
+    },
+    "apps/api/prisma/migrations/20260528085651_add_program_element/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fa554cd33d22a2cc81b718e49e0b8fee7917103b"
+    },
+    "apps/api/prisma/migrations/20260528091823_add_program_element_writer_tables/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "849071fd6ab782f1284544f9d671131795dcf46e"
+    },
+    "apps/api/prisma/migrations/20260528112943_add_program_element_watch/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "41a92cda92858285d86a172fc5f99b026811e4d4"
+    },
+    "apps/api/prisma/migrations/20260528173000_add_conference_probability/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "57b048f9377e0329edaa6c10bd235b950ab73fde"
+    },
+    "apps/api/prisma/migrations/20260529091500_add_pe_materialized_views/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b57d71ac242faa95fbe3f3c1dbe6b87a04b535b9"
+    },
+    "apps/api/prisma/migrations/20260529142000_enable_pg_trgm_extension/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "59c53695f7eb95611ac53d3245d143bf2e2036a7"
+    },
+    "apps/api/prisma/migrations/20260529143000_add_acquisition_personnel/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9e77931c57f90ac5b03b732e4f63b71047046562"
+    },
+    "apps/api/prisma/migrations/20260530000000_add_program_element_source/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "495171190cb55cdef945d7c93ebe651c78736685"
+    },
+    "apps/api/prisma/migrations/20260530120000_add_directory_contact_favorites/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bc1d95785ca9faea61b8fb3a8550e18b754ff3e0"
+    },
+    "apps/api/prisma/migrations/20260530150000_add_program_element_project/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2211d47ba7ed1bea9192ec04b708e1928b3739a7"
+    },
+    "apps/api/prisma/migrations/20260530160000_add_clio_research_session/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3b82b0be48af447b2b133a3a2a910c9337a53f67"
+    },
+    "apps/api/prisma/migrations/20260530170000_widen_pe_code_to_16/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7806fe3083f952aea01b96a6ac71b4291e337628"
+    },
+    "apps/api/prisma/migrations/20260530180000_add_pe_person_candidate/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "88f5e1cb917148da7e411cfdd7f12c0ec4858a59"
+    },
+    "apps/api/prisma/migrations/20260531000000_add_govinfo_cache/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2728223b6843fa044d1d4f2ae80302323c7675e2"
+    },
+    "apps/api/prisma/migrations/20260531010000_add_bill_text/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "67cf6c3a8f5a0be6424ce599966fb21529cf6183"
+    },
+    "apps/api/prisma/migrations/20260531020000_add_fec_pac_contribution/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2e639df24b7dd67c0389765ff2422596e78eb52f"
+    },
+    "apps/api/prisma/migrations/20260531030000_add_procurement_line/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8cb65ff8484d73ee6654f0b03a69b26da3fc6d97"
+    },
+    "apps/api/prisma/migrations/20260531040000_add_federal_award/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "35bc05f068ed181a2671f02256e1d16478516537"
+    },
+    "apps/api/prisma/migrations/20260531050000_add_reconciliation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f187dc9db78a2454b6c334532eb2f43b68b291f1"
+    },
+    "apps/api/prisma/migrations/20260531060000_add_federal_award_location/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "487d0e34a1ce1d079070c0534cefebb047e6ca48"
+    },
+    "apps/api/prisma/migrations/20260601120000_add_tracked_bill/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f9dba99da6ef3f8fa02239d00895cfa712f5fc6b"
+    },
+    "apps/api/prisma/migrations/20260602160000_pe_detail_mv_refresh_fn/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9205c5353caaaf5ca87b72b3b2eaf00b86f704e2"
+    },
+    "apps/api/prisma/migrations/20260603120000_add_alert_state_client_brief/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d376415910f05dc25175d0cb9bf15f7a32e74340"
+    },
+    "apps/api/prisma/migrations/20260604120000_add_pe_acquisition_program_linkage/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f9d3bdb816f4bd61ffc39226c1edd5ba46ca1539"
+    },
+    "apps/api/prisma/migrations/20260605130000_add_stale_data_markers/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "6532a22d36edeb882f62dc7afb033c930a8dd803"
+    },
+    "apps/api/prisma/migrations/20260605160000_widen_federal_award_pe_code_to_16/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "866900e56a7e85fce81a1ae821171556fdc709f2"
+    },
+    "apps/api/prisma/migrations/20260606170000_add_client_issue_codes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "46359b7b21b9a9cd0ff6d1883e5be2981ec9a255"
+    },
+    "apps/api/prisma/migrations/20260607000000_add_pe_performer_and_award_tas_crosswalk/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "570e81d4de637dacc3c1ed68dc5cc1134cb8c12a"
+    },
+    "apps/api/prisma/migrations/20260607120000_meeting_is_internal/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "876efa9b308f7f990fcc749d5901d34f35d13d80"
+    },
+    "apps/api/prisma/migrations/20260607130000_add_source_document_registry/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e547d66505ae8815ce9b13f6e0e59f615317f816"
+    },
+    "apps/api/prisma/migrations/20260607140000_add_meeting_prep_email_evidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "494ed4588e06887321d58dd8e9360d0380251344"
+    },
+    "apps/api/prisma/migrations/20260607150000_add_program_graph/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0910a294f28fe5001c0c5067bcc5453573bd3ce8"
+    },
+    "apps/api/prisma/migrations/20260607160000_add_program_element_budget_position/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "85aada8552bac7a514722584b5dbb824cf95c247"
+    },
+    "apps/api/prisma/migrations/20260607170000_add_program_element_delta/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4d06daed05a7700d5efb99dc140183bde64aff81"
+    },
+    "apps/api/prisma/migrations/20260607180000_add_program_office_person_role/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "45ba960260ac8f2eec59123d1ff4852378cf9733"
+    },
+    "apps/api/prisma/migrations/20260607190000_add_client_relevance_inputs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c79fbe4371c74cb74929fde30ebecac3ce578f96"
+    },
+    "apps/api/prisma/migrations/20260607200000_add_action_recommendation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9469604063987df6b5d8cdf73b0c243204b43d57"
+    },
+    "apps/api/prisma/migrations/20260607210000_add_committee_report_provision/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c7cfdbe4edef237603ad6b3fd52b6618bdea9678"
+    },
+    "apps/api/prisma/migrations/20260607220000_add_sam_opportunity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fed686742eabb9c078cb38b75e550f35b06c5830"
+    },
+    "apps/api/prisma/migrations/20260608000000_force_rls_client_capabilities/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a8c3873cec32b54ad893f78377a17a529cebb263"
+    },
+    "apps/api/prisma/migrations/20260608010000_add_tenant_rls_client_intel_mapping/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "80f651538590970517619a386760065400a0dc2e"
+    },
+    "apps/api/prisma/migrations/20260608120000_client_lda_association_phase0/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0e2451d9b3fd15e314b4c64790dc8e1a10356d27"
+    },
+    "apps/api/prisma/migrations/20260609002500_widen_outreach_last_step_check/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5b5d51ce341110ec53be25ab99bc2a4a258bef7c"
+    },
+    "apps/api/prisma/migrations/20260609030000_add_clio_scheduled_task/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "45501ab48d5d9f8f305e744c1e9c37a74a8f1e45"
+    },
+    "apps/api/prisma/migrations/20260610100000_clio_attachments/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e7ed4b90cd196ad16d1c07fb180e836cd19c0a05"
+    },
+    "apps/api/prisma/migrations/20260610110000_clio_conversation_summary/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b38fda3dd06bdd93370df5947f0fe40ef316aa0b"
+    },
+    "apps/api/prisma/migrations/20260610120000_clio_mcp_servers_firm_skills/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ebfab87d5039085945259518785d7132decb5f26"
+    },
+    "apps/api/prisma/migrations/20260611120000_ai_usage_events/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e70d77de65f6f360d5ebceea228b84062577a395"
+    },
+    "apps/api/prisma/migrations/20260611130000_tenant_ai_credentials/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b07ca12ea281788b609f6793a5bab64988eb1b17"
+    },
+    "apps/api/prisma/migrations/20260612090000_outreach_audiences/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f1b6429bf8230bff44d75294c2112bf6001c4a26"
+    },
+    "apps/api/prisma/migrations/20260614120000_billing/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2d8a023d97f5b564c58c0af6b9001326dc62b09e"
+    },
+    "apps/api/prisma/migrations/20260614180000_user_email_signature/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5dcd6ffddc332d156556c9441eef1ab57773b5f5"
+    },
+    "apps/api/prisma/migrations/20260625120000_client_targets/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "afe1cb2145b30a4f9ca4db3a11efbaa39b6533bb"
+    },
+    "apps/api/prisma/migrations/20260625130000_institutional_memory/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c27516dd46980d8bf45b8110ec226f8911cb6b79"
+    },
+    "apps/api/prisma/migrations/20260626120000_client_target_recommendations/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "87af6feecb9e5021102f0592eb97ff26a57f33a7"
+    },
+    "apps/api/prisma/migrations/20260627120000_member_press_item/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c9bffb1a633667910c53860acd602c18e30b6f49"
+    },
+    "apps/api/prisma/migrations/20260627130000_drop_legacy_workflow_strategy_chat/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "cf0efb2db728c9fdc98bdb597d1a51465924b391"
+    },
+    "apps/api/prisma/migrations/20260627140000_add_tracker_tables/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0d9ba9bcdcfb2d106922ca765419222d0166680f"
+    },
+    "apps/api/prisma/migrations/20260628120000_add_program_element_ingest_run/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fa2d3ac5f873777fd44829fd6870ec31fbee2025"
+    },
+    "apps/api/prisma/migrations/20260629120000_clio_mcp_connector_library/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4a7a3cb2b020e09147ab20f12b02142a032397a5"
+    },
+    "apps/api/prisma/migrations/20260630120000_meriv2_claim_evidence_compliance/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1bd80d466b88b1f5178f86117fe259617c4645a5"
+    },
+    "apps/api/prisma/migrations/20260701200000_engagement_attachments_allow_unlinked/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2af937d5af1fb6332dde88875953d537623dc57e"
+    },
+    "apps/api/prisma/migrations/20260703120000_budget_lines_money_graph/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "931251248d2ea3078833a6c3ff276ba1773bd966"
+    },
+    "apps/api/prisma/migrations/20260703210000_bill_budget_line_link/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "167ff986bcc34a8c9e0a1f5c6ef86ee3203d8546"
+    },
+    "apps/api/prisma/migrations/20260704160000_acquisition_personnel_full_email/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a72ce99077d347879524c5c3f44f0bf029014ad0"
+    },
+    "apps/api/prisma/migrations/20260704180000_office_program_link_provenance/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "92257a4c32bebc2289876f5dc8f954ff57813888"
+    },
+    "apps/api/prisma/migrations/20260705120000_clio_memory_firm_dedup_unique/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e3defb1ab275aba26517af7f7a87b69eab08ea3a"
+    },
+    "apps/api/prisma/migrations/20260705120100_clio_memory_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ba5746f01a97fd6d189dd8907b3a28e8f8704799"
+    },
+    "apps/api/prisma/migrations/20260706020000_meri_action_approval/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "dd4e1b725ee3ef813464ad2124b4b008a5af4ba4"
+    },
+    "apps/api/prisma/migrations/20260706180000_official_hearing_transcript/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "db050106639ba36ca97f2854bfef529110e70c22"
+    },
+    "apps/api/prisma/migrations/20260706220000_intelligence_change_dedupe_key/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d124eade0f64204a73413ec7280b06b49c1ac304"
+    },
+    "apps/api/prisma/migrations/20260707003000_onboarding_v1_billing_admin/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d47f65d8d6431dfa3a163c232e2a005e7790271e"
+    },
+    "apps/api/prisma/migrations/20260707010000_cbo_cost_estimate/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5eb3f4323cafa766efe0e712de977fe8209931f9"
+    },
+    "apps/api/prisma/migrations/20260707010000_user_tour_completed/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e3256922f069c27900f9e5eee1ce9250ca138ee6"
+    },
+    "apps/api/prisma/migrations/20260707020000_congress_member/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "623f22346aaa4e43b50da21da597b1fd7091dab6"
+    },
+    "apps/api/prisma/migrations/20260707020000_tenant_locked_at/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fa6cf929737eb4e60460ce438496c8d02c416bce"
+    },
+    "apps/api/prisma/migrations/20260707030000_p61_cosponsors_committees_crosswalk/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1207636576d55806d63e686eceb9ef8fcce83b7f"
+    },
+    "apps/api/prisma/migrations/20260707100000_pe_alert_email_pref/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "997a47acf8b054abf5f2c172f8614bb2dfc7bfe4"
+    },
+    "apps/api/prisma/migrations/20260707120000_meeting_bot_sessions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d394cff0344d59dece43f47958ec6a3ac25f7bec"
+    },
+    "apps/api/prisma/migrations/20260709010000_legiwatch_vote_truth_layer/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e411c11a1f9f9f71849c7f008de6af0b0213dc08"
+    },
+    "apps/api/prisma/migrations/20260709030000_legiwatch_b_hearing_bill_link/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b9267d7251a311fc682a1705c109f0c23a9728a3"
+    },
+    "apps/api/prisma/migrations/20260710000000_state_truth_layer/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "6433f435e8e6e3feb0ea44cb521b8de3c2e9e748"
+    },
+    "apps/api/prisma/migrations/20260710010000_district_impact_facility_geo/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "45e165e1a08f52ce6d139df2f37377e7128026a3"
+    },
+    "apps/api/prisma/migrations/20260710020000_deadline_physics_chokepoint/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "110032be83871c20fac2e9f2f2b899d800fd725f"
+    },
+    "apps/api/prisma/migrations/20260710030000_state_rules/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ee345cfbd4d2316f54d8b6bf1af8302909122812"
+    },
+    "apps/api/prisma/migrations/20260710040000_ai_run/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "63193c258e8ce969b65948f56a78d9595114fa36"
+    },
+    "apps/api/prisma/migrations/20260710060000_state_bill_status_derived_at/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fbc9032f7bf29d5a88f90a0abd57458aa653ba87"
+    },
+    "apps/api/prisma/migrations/20260710120000_add_ndaa_conference/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ab1898c0ab7b1a1c8c5d0603caa2702b3689b348"
+    },
+    "apps/api/prisma/migrations/20260710120000_meetings_v2_visibility/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4a4d0b7c2ad0add9293bf8706c651d8bb4976ea8"
+    },
+    "apps/api/prisma/migrations/20260711000000_outreach_usage_spec_cache/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "228ab9c3d9391e537a449e26c68c14b0e628e816"
+    },
+    "apps/api/prisma/migrations/20260711010000_outreach_async_jobs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a4d9dcaf2136c020e98fd2368c4b498729125ab7"
+    },
+    "apps/api/prisma/migrations/20260711120000_meeting_ical_uid/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e80fe8271fe42ffd83959e99a1e2d47f5dd305a2"
+    },
+    "apps/api/prisma/migrations/20260712000000_meri_audit_ledger/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c9953b0d7e768d430b16225c063c96fd954ee44a"
+    },
+    "apps/api/prisma/migrations/20260712010000_memory_items_governance_fields/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "56dfaeba32315a833eee324b1b47606a00aa6f7f"
+    },
+    "apps/api/prisma/migrations/20260712020000_memory_candidate/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "79ac1f3fe6447ebc98cff1cf981c92bb626d49d1"
+    },
+    "apps/api/prisma/migrations/20260712030000_memory_items_private_scope_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "21f4543315fea38347226ec928ebc99034b420f9"
+    },
+    "apps/api/prisma/migrations/20260713010000_context_packet/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ef0014c9f5148e1946898f62bc5e772f179d5df7"
+    },
+    "apps/api/prisma/migrations/20260713020000_memory_client_scope_ephemeral/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b1ee55159144ffab697295d102e30820cd737e94"
+    },
+    "apps/api/prisma/migrations/20260713030000_memory_items_expiry_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "254280a3027d16344110259cbaa5dd7e13ea118d"
+    },
+    "apps/api/prisma/migrations/20260713040000_outcome_event/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d8b4ebbb20389bed0666f17c5515a60e0dd067f8"
+    },
+    "apps/api/prisma/migrations/20260713050000_review_request/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c18ca6ae57758c276070be8a40a1d68905b593f0"
+    },
+    "apps/api/prisma/migrations/20260715180000_meri_pending_action/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a47d441e2e2417930ace1c69f17575e786aaad12"
+    },
+    "apps/api/prisma/migrations/20260716000000_pe_watch_s3_archive_and_parse_job/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "de7a4760a1c6b980c1a16c11938b494854d6aaf8"
+    },
+    "apps/api/prisma/migrations/20260716220000_proactive_alert_owner_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d1487c0e88a4ae50bae027691963f6c73042e178"
+    },
+    "apps/api/prisma/migrations/20260716221000_intelligence_insight_tenant_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c031970c7914937d9900a1ca598e01fc9b6ca6be"
+    },
+    "apps/api/prisma/migrations/20260717120000_review_request_outreach_surface/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b0aa13aa4f755914c530dfebb81ef631e0a9d98b"
+    },
+    "apps/api/prisma/migrations/20260718000000_audit_append_only/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3af108101d3f8b6573989005d1317f257ca9558d"
+    },
+    "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e8f9b0ab74eb8ee7324e34d00cae3c85ca837d4f"
+    },
+    "apps/api/prisma/migrations/20260719221000_memory_wall_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "993a5fa5555de5757a037a5c7d6f1843e34e9dc2"
+    },
+    "apps/api/prisma/migrations/20260720120000_memory_ingest_provenance/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b0bdda7c1616540f9007b4dca412af4053d16cd9"
+    },
+    "apps/api/prisma/migrations/20260721010000_memory_confidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "71355471419dc3c118925afd11c8f087da4f23ab"
+    },
+    "apps/api/prisma/migrations/20260722010000_kg_edge_cache/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7fbaabc296bd688c1e761b296e9b2e8e3d9b532e"
+    },
+    "apps/api/prisma/migrations/20260722020000_kg_bounded_traversal/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "adb6197e83806682c1d0c0979eccb20914778a20"
+    },
+    "apps/api/prisma/migrations/20260723010000_kg_cache_count_and_comments/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "34a0ad4b2e4bc3dd18184e0ceba87f113efd99f1"
+    },
+    "apps/api/prisma/migrations/20260723020000_kg_edge_cache_revoke_select/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "29fbf2072115ab6f0ef3fe79a10653ec46739f34"
+    },
+    "apps/api/prisma/migrations/20260723030000_kg_edge_cache_fec_employer_kind/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "26a992d8c95daebd6bec4ac12104ff8f626221af"
+    },
+    "apps/api/prisma/migrations/20260724010000_congress_bill_trgm_lower/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0a3bd821eb6b44dc599e70f9ef53ea6e03ecb669"
+    },
+    "apps/api/prisma/migrations/20260725010000_client_target_state_directory/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "65108378f528f382cbdcb710a71d2818bbac0105"
+    },
+    "apps/api/prisma/migrations/20260726010000_client_target_tier/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c61735e16a3477d3af94653a36d72d01105ed8c9"
+    },
+    "apps/api/prisma/migrations/20260727010000_defense_budget_packages/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "223a24805d47e4e6cfb57162925c32200e4389c8"
+    },
+    "apps/api/prisma/migrations/20260727010000_engagement_trust_boundary/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2a378457dc7d5e3cf5e0efb80a127e884c598c0d"
+    },
+    "apps/api/prisma/migrations/20260727010000_legislative_district/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ee5fd4893b9eef3fe277274966aa7968c6dc1052"
+    },
+    "apps/api/prisma/migrations/20260727170000_mail_message_removal_state/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4cffe827d336218e1232de6da574838ab8d4e497"
+    },
+    "apps/api/prisma/migrations/20260728010000_legistorm_trip/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8d4892b812433a99e4038f87ff6b415b1454cb94"
+    },
+    "apps/api/prisma/migrations/20260728010000_meriv2_action_proposals/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ed747a15f7c752dcebf52fbbda13a602b275f755"
+    },
+    "apps/api/prisma/migrations/20260728230000_add_tenant_scoped_pe_watch_key/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3f43cc84290e35fa2c9069084b34c7ad0f01ff18"
+    },
+    "apps/api/prisma/migrations/20260728230100_enable_program_element_watch_rls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "cb69d441ae57170e85c8b6f91ae3e226c8a85e50"
+    },
+    "apps/api/prisma/migrations/20260729010000_committee_membership_watch/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "06e2db97d3e1852385bee323f5b243eb0192f83c"
+    },
+    "apps/api/prisma/migrations/20260729010000_memory_governance_context_v2/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1e9d1401a1965f817d93b4908a37337ed9fc3c27"
+    },
+    "apps/api/prisma/migrations/20260729011000_memory_governance_lineage/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7230c3c9dba7c8925c558b57b65c0c0b77ed3507"
+    },
+    "apps/api/prisma/migrations/20260729035000_legiwatch_recap_provenance_and_intro/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b9743712c83570e2ee63ead16f2059ad0c95ad50"
+    },
+    "apps/api/prisma/migrations/20260729050000_pe_observation_idempotency_and_outbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "14a46b861625beb15539a6854b5758cc289370b4"
+    },
+    "apps/api/prisma/migrations/20260730010000_client_people_import_identity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "368a0beb60dca82c2f652031745901aa8501af1e"
+    },
+    "apps/api/prisma/migrations/20260730010000_district_nexus_grants_v2/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d4b6c68233184b4a2b91a02fe8a475627fdd1ffe"
+    },
+    "apps/api/prisma/migrations/20260731010000_federal_grant_detail_v2/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c853d3a9f7e24fbaee016f270a88761cd163d4a6"
+    },
+    "apps/api/prisma/migrations/20260801010000_faa_recipient_name_btree/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "da08067195a2fee100ab795f2b3230b7a64dad99"
+    },
+    "apps/api/prisma/migrations/20260802010000_identity_outbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "94c69bd5d70c3e0d3b9e52fce5c2434a21aabc38"
+    },
+    "apps/api/prisma/migrations/20260802030000_user_identity_conflict/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7c284a19b4ed84e6726a771e3dbdad2d987ed722"
+    },
+    "apps/api/prisma/migrations/20260802050000_budget_verification_audit/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "48fd879c5275db05f421dff87e4761c982d63f2a"
+    },
+    "apps/api/prisma/migrations/20260802180000_budget_verification_containment/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "673439a37df9a9418a6f7a210ce7b81dc93eb7cc"
+    },
+    "apps/api/prisma/migrations/20260803010000_engagement_generation_gateway/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5747fdcebd9455aa15b63e4043875975c128ffd0"
+    },
+    "apps/api/prisma/migrations/20260803160000_meeting_timezone/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "97f3b6d6b28687c08562bc9ab068c12a43b706db"
+    },
+    "apps/api/prisma/migrations/20260803170000_soft_delete_sparse_untitled_occurrences/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b1c87bc2b8fc8f939d43fe5f67771de7b2f81c0b"
+    },
+    "apps/api/prisma/migrations/20260804010000_engagement_artifact_lifecycle/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "43eb8b7fd69b044412c81af681047c80152d5d76"
+    },
+    "apps/api/prisma/migrations/20260804010000_engagement_attachment_supersede/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "418f67c190a7f6f5db4c55adad9426e2c7c2e232"
+    },
+    "apps/api/prisma/migrations/20260805010000_alert_generation_record/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "61686060598339fa77c11604c704e62162e65981"
+    },
+    "apps/api/prisma/migrations/20260806010000_client_grant_nexus_producer_unique/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a06d9ef2d76d2300690179487aff365970d9e26f"
+    },
+    "apps/api/prisma/migrations/20260807010000_engagement_audit_ledger_subject/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b0789bd10f5a88073dec5dfea0259180911199e1"
+    },
+    "apps/api/prisma/migrations/20260807020000_engagement_send_intent_fingerprint/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d6238f969519460c78f874dbd3e53cb0f334e18a"
+    },
+    "apps/api/prisma/migrations/20260808010000_client_grant_nexus_manual_award_unique/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "64c9dac61c26d655e810786a411b905858e58e2f"
+    },
+    "apps/api/prisma/migrations/20260809010000_client_applicant_types/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "31cd78ee2863ed89a0b1428044b5464ea9351fe1"
+    },
+    "apps/api/prisma/migrations/20260809010000_engagement_audit_finding_redaction/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "27f0662b8477ca9731119077b2978ba7fe5ab3a8"
+    },
+    "apps/api/prisma/migrations/20260810010000_funding_opportunities/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "436d8427a6a5adf95e81148da45ca4fd0684b2bb"
+    },
+    "apps/api/prisma/migrations/20260810020000_funding_opportunities_closeout/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e54f5bfcdb068b923059d34c4a15301f01923c75"
+    },
+    "apps/api/prisma/migrations/20260810030000_committee_hearing_starts_at/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "776534fa4de4aea8ca37eda3d0ca4d657f4e00d6"
+    },
+    "apps/api/prisma/migrations/20260810040000_funding_opportunities_lifecycle_truth/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "31e19a096d54f8fdedae4df169e7e18040abe71f"
+    },
+    "apps/api/prisma/migrations/20260810050000_widen_facility_state_district_columns/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4aedd958f656261090eb414b2415809a0bc150c3"
+    },
+    "apps/api/prisma/migrations/20260811010000_assurance_policy_packs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "245103133d3c705651486f90d15026d07c732b11"
+    },
+    "apps/api/prisma/migrations/20260811010000_program_element_data_issue/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "177466c8acc21de1237ee845d2e70a96be8b8012"
+    },
+    "apps/api/prisma/migrations/20260811020000_assurance_eval_runs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "431cad053cd815f5fda1e3b64d0f5cb1cacd90fe"
+    },
+    "apps/api/prisma/migrations/20260811030000_assurance_feedback_fixtures/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fcb080ab7b847cfe1351e7a887a9c015906d8e07"
+    },
+    "apps/api/prisma/migrations/20260811040000_memory_index_outbox_subject/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e763a5bc182940ceb80fab04d003fb3d7292a48f"
+    },
+    "apps/api/prisma/migrations/20260812010000_memory_immutable_versions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fbf0693032547ee0fc0b13046e9f5cd320414318"
+    },
+    "apps/api/prisma/migrations/20260812020000_memory_cleanup_worker_leases/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "746fe76c362c69dcd5b4b69ea62f9afc07bc4f3f"
+    },
+    "apps/api/prisma/migrations/20260812030000_memory_projection_exact_completion/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fc24e0b8c449fae6ddee960de148312b8efba9dd"
+    },
+    "apps/api/prisma/migrations/20260813010000_policy_pack_action_authority/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bc391618743c56c98058e34a1ae5e6e706869b5b"
+    },
+    "apps/api/prisma/migrations/20260813020000_policy_pack_lifecycle_concurrency/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ed0833eef6f129cc7d9efc25f9b995ac5217be47"
+    },
+    "apps/api/prisma/migrations/20260814010000_memory_governance_backfill_jobs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2a6e1425fc32e479bc75eb9d2a3d5fa490a9bdda"
+    },
+    "apps/api/prisma/migrations/20260814011000_memory_governance_backfill_delete_guards/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "65d78f7753d78e410ef68d1656dc4a39b3b55e37"
+    },
+    "apps/api/prisma/migrations/20260815010000_memory_candidate_withdrawal/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "97de046ed15e150d7ab471842ca3bf778843909b"
+    },
+    "apps/api/prisma/migrations/20260816010000_budget_verification_v1/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3b160fd8b9df9a9cad6a4ea0b4142d4e2f6ac7db"
+    },
+    "apps/api/prisma/migrations/20260816235000_add_client_account_owner/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "dbc08736e2019c53cf533ba0243333ac80ac3a8a"
+    },
+    "apps/api/prisma/migrations/20260817010000_rdte_phase4_projection_schema/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ebac722b4d58c0c166b400148aba19b84df12c0b"
+    },
+    "apps/api/prisma/migrations/20260817233500_context_packet_retrieval_context/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5e9572da511737429280b7317392c3b92f7f156c"
+    },
+    "apps/api/prisma/migrations/20260818010000_memory_phase2_review_workflow_foundation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "307dcab8232542ae0f6916c0b43dd3fd5a100da1"
+    },
+    "apps/api/prisma/migrations/20260818010000_rdte_phase4_closeout_constraints/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "dff488a968c37703160fa78ab79811725f20fae4"
+    },
+    "apps/api/prisma/migrations/20260818020000_memory_phase2_revision_lineage/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d0e1a0b54b1155e257ce4d713889fd836fdb5bd8"
+    },
+    "apps/api/prisma/migrations/20260818020000_rdte_phase4_audit_repairs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "382180e52063d08756b44721ef20b489d233a0f4"
+    },
+    "apps/api/prisma/migrations/20260818030000_non_rdte_phase5_projection_schema/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e0a8f52f3307751364794f8a0f2a8d25fbe2dc2d"
+    },
+    "apps/api/prisma/migrations/20260818030000_widen_memory_candidate_source_kind/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c4512c5e01a81e6af2cb291bd67c431d5ac1bc65"
+    },
+    "apps/api/prisma/migrations/20260818040000_memory_phase2_notification_outbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7447b58c1e08e3141b4af72086fd8fbded495d75"
+    },
+    "apps/api/prisma/migrations/20260818040100_memory_phase2_notification_assignment_classification/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "07397655be4ae41ec4bfea0088f25bae046fa126"
+    },
+    "apps/api/prisma/migrations/20260818040200_memory_phase2_notification_dispatcher/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "683d1043f190400a9acbe71131759151eb128845"
+    },
+    "apps/api/prisma/migrations/20260818050000_memory_admin_self_approval_policy/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "de01820eb1cf60733eafa04d43ac57562fbaa1e0"
+    },
+    "apps/api/prisma/migrations/20260819010000_funding_opportunity_decisions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9262df6ce0b6ad5cd1bb5551dc41b8fd8144cd97"
+    },
+    "apps/api/prisma/migrations/20260820010000_facility_geocode_retry/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a2bc996ca4845bad5e5d76773339d5949e2a88cb"
+    },
+    "apps/api/prisma/migrations/20260820010000_funding_opportunity_generic_source/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7ec9ccf164f5acc0437380b1c0e37863acead138"
+    },
+    "apps/api/prisma/migrations/20260821010000_facility_geocode_candidates/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5eefdea5d6b5c1c93a4ee3576f40f076b6315dde"
+    },
+    "apps/api/prisma/migrations/20260821010000_tango_source_substrate/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "771a5cf5db2169ddb8f4bee603fce2b47eb7e1eb"
+    },
+    "apps/api/prisma/migrations/20260822010000_client_tango_entity_sync_status/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f17ca940d9365131d77267d415cd86311447228f"
+    },
+    "apps/api/prisma/migrations/20260822010000_pe_budget_phase7_canonical_promotion/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "dd4e93d6e77eaf96f53bbc8b8800dfff9f100a8a"
+    },
+    "apps/api/prisma/migrations/20260822020000_pe_budget_phase7_manual_override_queue_link/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "68f5ef02dcfbd017c83d0bb262f7d4ba8dc3706a"
+    },
+    "apps/api/prisma/migrations/20260823010000_client_profile_enrichment_candidates/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ec73d44a9236872cc09e9063a6180cc73f8e8d1b"
+    },
+    "apps/api/prisma/migrations/20260824010000_client_relevant_vehicle/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f021e5ca63cda12f71a3c46b72c0d702ae1f322c"
+    },
+    "apps/api/prisma/migrations/20260825010000_tango_procurement_forecasts/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ed5a6aa1234d4c61fe6f5dc7fce5b24a823c494c"
+    },
+    "apps/api/prisma/migrations/20260826010000_tango_opportunity_crosswalk/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "eb29407a035e36a6703c3e1890e964318985acf1"
+    },
+    "apps/api/prisma/migrations/20260827010000_tango_opportunity_notice_history/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8be0064b1766913bfffafcd65ba9e07a06768ce4"
+    },
+    "apps/api/prisma/migrations/20260828010000_tango_notice_description_hash/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "10a39c298fc0c7ab654e4a2596907d7ef7c43f6a"
+    },
+    "apps/api/prisma/migrations/20260829010000_opportunity_attachments/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "70f7c2399a6a2420ba8f3d0f3d8a751e8bd20a70"
+    },
+    "apps/api/prisma/migrations/20260830010000_opportunity_document_text/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "6c7c967f0b24d7f726bb903074840cd3a17b2962"
+    },
+    "apps/api/prisma/migrations/20260831010000_opportunity_requirement_artifacts/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a6d80c44acd206bca2a19d4bdf507c1f9df38278"
+    },
+    "apps/api/prisma/migrations/20260901010000_funding_opportunity_pipeline_v2/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b78f1d3c921f003802a83df32e3d3605f7d5a8b4"
+    },
+    "apps/api/prisma/migrations/20260902010000_pe_budget_phase7_outbox_drain/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "926f360d6c2c9af9834a9d072d4585c26f0f6a4e"
+    },
+    "apps/api/prisma/migrations/20260902010000_tango_budget_context/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3562ee78d40e86b39333361cacd27c18725bdade"
+    },
+    "apps/api/prisma/migrations/20260903010000_pe_budget_phase7_promotion_eligibility/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8f1ceda383ee586689ce3ed7617fc360e7f6d052"
+    },
+    "apps/api/prisma/migrations/20260903010000_tango_procurement_risk/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ec07ccffbef5cf982bdc15f4eab4af3e85bb01c9"
+    },
+    "apps/api/prisma/migrations/20260903200000_legiwatch_user_prefs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f83a632f5a9fc4fb865715e89d96c415c26ee49c"
+    },
+    "apps/api/prisma/migrations/20260904010000_outcome_event_funding_opportunity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "062be8da32ec0f6baa754ee0aae332bcfdd75b28"
+    },
+    "apps/api/prisma/migrations/20260905010000_tango_webhook_deliveries/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5577c20a44284011a72bcc7c20ad2ac5918471d4"
+    },
+    "apps/api/prisma/migrations/20260905205000_district_nexus_release4_priority_intelligence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8ba32c23f354c336a2ce7d6e17d72ff392ef021a"
+    },
+    "apps/api/prisma/migrations/20260906010000_gsa_frpp_varchar_overflow_fix/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "6e4cae4f95f932ef8faa3ae947f6a1a502f95452"
+    },
+    "apps/api/prisma/migrations/20260906010000_tango_event_outbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "75bf357a41b540a612716ae21eee96e8ab3f1734"
+    },
+    "apps/api/prisma/migrations/20260906020000_district_nexus_change_observation_kind/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "18b512f2a0608b68be9c6b0236ee95cbdf853af7"
+    },
+    "apps/api/prisma/migrations/20260907010000_pe_budget_phase2_candidate_source_metadata/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "66a7972aae3b87f333f602d7a959da7c10d13a1b"
+    },
+    "apps/api/prisma/migrations/20260907010000_tango_event_outbox_per_event/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1515a422f0b1d9e882683d4c5bd5a06dbcb8993c"
+    },
+    "apps/api/prisma/migrations/20260907020000_pe_budget_projection_plan_persistence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "01c28576561adfe09c4d128037ccf99837b86570"
+    },
+    "apps/api/prisma/migrations/20260908010000_outreach_v3_campaign_state/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "82c07b69432b91b31cf58af97ddd05bd4cb3611d"
+    },
+    "apps/api/prisma/migrations/20260908010000_tango_dibbs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0d402639d893ccc74f3596b017e23dcfb39420d6"
+    },
+    "apps/api/prisma/migrations/20260908200000_report_target_annual_overrides/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3bc9f44ea52eea0ed4e4221597adcbd08919d3d3"
+    },
+    "apps/api/prisma/migrations/20260909010000_tango_sbir_sttr/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "aad93b7c62ea10271605799887c089c6131ba7cf"
+    },
+    "apps/api/prisma/migrations/20260909020000_pe_budget_phase7_exact_plan_read_grants/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f95d8121669dfc4caf2f3ce623fdcbf96c5cbfc0"
+    },
+    "apps/api/prisma/migrations/20260909110000_fec_pac_source_identity_and_coverage/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "28ee60d419a8dbee34ddfd4eed6454cd5f16696d"
+    },
+    "apps/api/prisma/migrations/20260910130200_state_bill_source_checks/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "480efb193780c38cf295d9fea61400227572f2ae"
+    },
+    "apps/api/prisma/migrations/20260912000100_meeting_prep_jobs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4d098f42b8ce635aca4662d019e9d988902e709f"
+    },
+    "apps/api/prisma/migrations/20260913120000_meeting_prep_depth_max/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7a191ad2ed48f0c5f2462486a9870e741ebbd52e"
+    },
+    "apps/api/prisma/migrations/20260913130000_meeting_artifacts_auto_approved/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b2db110986b42107212e30f0a0f054cc46245fa0"
+    },
+    "apps/api/prisma/migrations/20260913140000_notetaker_notes_auto_approved/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "37d02e89846779290db3bb4241abbb1b71df6f21"
+    },
+    "apps/api/prisma/migrations/20260914010000_client_notetaker_preferences/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0a82818bbb3607cecd56363193f97eb23977247c"
+    },
+    "apps/api/prisma/migrations/20260914120000_admin_broadcasts/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "73bedcf2bf75c6f769a118a7cc21121b4fe7e3d3"
+    },
+    "apps/api/prisma/migrations/20260916140000_saved_opportunity_searches/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7b2480dc09c93d5c0831e0e8d2a21d8381cf6a72"
+    },
+    "apps/api/prisma/migrations/20260916150000_pipeline_reason_rules/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e275bce9df102197a31114167256fab0108ea7fe"
+    },
+    "apps/api/prisma/migrations/20260916160000_california_grant_opportunity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5dd9c12377136dc9da1609b990e5d84e232841a9"
+    },
+    "apps/api/prisma/migrations/20260916170000_california_workflow_identity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "677697756ba090b8a3c821ef06ae9e65055b024a"
+    },
+    "apps/api/prisma/migrations/20260916171000_california_workflow_identity_check_hardening/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c3b89cd680f1a0a6ea03517a87a11b976e1c8b5a"
+    },
+    "apps/api/prisma/migrations/20260916180000_opportunity_bookmarks/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "24015e5b97870603c24d7f0be3a6874fe6b94ccc"
+    },
+    "apps/api/prisma/migrations/20260919010000_mail_messages_tenant_sent_idx/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "11dd8eed9edc4a53a0e0de7e19c313598026969a"
+    },
+    "apps/api/prisma/migrations/20261001010000_tango_subaward_intelligence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8ba9901268b9c930b4c141f7de28c4e4c88b98ca"
+    },
+    "apps/api/prisma/migrations/20261001011000_tango_subaward_reobservation_freshness/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3c428cf5f70318571c5544b992747136e635df4e"
+    },
+    "apps/api/prisma/migrations/20261001012000_outreach_v3_reasoning_conversations/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "6945c238d8584026c4a672d8cd3edc61f85a304f"
+    },
+    "apps/api/prisma/migrations/20261001012100_outreach_v3_reasoning_turn_claim/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "89141542866893e18956e0b1fbcf137dd02056bf"
+    },
+    "apps/api/prisma/migrations/20261001012200_outreach_v3_reasoning_archive_claim_cleanup/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e215bf004d2ce64a55ffbcd6498d6d73a02530a5"
+    },
+    "apps/api/prisma/migrations/20261005160000_krisp_notetaker/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c382bca2631cae6c7d4ad722f54d62f25f991d41"
+    },
+    "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "13c949e8d93891f773bd106a196ec70cd60d87e7"
+    },
+    "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b"
+    },
+    "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "dc5192bb724734e0b8b70215c22772bb5a4323fc"
+    },
+    "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222"
+    },
+    "apps/api/prisma/migrations/20261015010000_client_profile_fill_with_meri/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9eb13082f415a1aba5a57ce56d2612bf811791e3"
+    },
+    "apps/api/prisma/migrations/20261015020000_fix_client_profile_fill_rls_guc/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "499fdee209e4575e841414f52c39ebf73e94df72"
+    },
+    "apps/api/prisma/migrations/20261120010000_client_person_hierarchy/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3c4e75f56e2ed0f6c52f744af822d9f9722143e5"
+    },
+    "apps/api/prisma/migrations/20261120020000_client_activity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "91f6002cc1daa11307b1968f17a75cee35b4eede"
+    },
+    "apps/api/prisma/migrations/20261120030000_attachment_folder/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4c06aa06cfde170973c02936156d1f4ed4158b0b"
+    },
+    "apps/api/prisma/migrations/20261120040000_x_intelligence_feed/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "52ff187baf9dbe4e6ffd8755278b941e12654b4c"
+    },
+    "apps/api/prisma/migrations/20261120050000_knowledge_events_assertions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d8e87a99d154b88f50f4859dd4fe81afee5bea20"
+    },
+    "apps/api/prisma/migrations/20261120060000_knowledge_evidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "05c0e3e0ef0494dd6d424aa6efedb30e476d4791"
+    },
+    "apps/api/prisma/migrations/20261120070000_mailbox_knowledge_ingestion/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "df2355ed9507f08fa401fa71c99c40da54677054"
+    },
+    "apps/api/prisma/migrations/20261120080000_drop_knowledge_assertions_created_by_fkey/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c48aa9e584c3443d19a6292b99b1172ebcfd4d82"
+    },
+    "apps/api/prisma/migrations/20261120090000_mailbox_knowledge_incremental_only/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8a4ec6c040f57bc245acce051a9679020f48ae3f"
+    },
+    "apps/api/prisma/migrations/20261120100000_universal_entity_resolution/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a0dc607faf0e557be7831890734a314644a2795e"
+    },
+    "apps/api/prisma/migrations/20261120110000_universal_entity_resolution_hardening/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0dafbe87b20f350e63c9867c0f2bb021485eaff6"
+    },
+    "apps/api/prisma/migrations/20261120120000_canonical_entity_merge_ledger/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5cbebcd12fe0fbe633babdd9b9ff3781900477ab"
+    },
+    "apps/api/prisma/migrations/20261120130000_canonical_entity_terminal_lifecycle/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d00865ef790f45456e8fc38b04308dec5d5fdc5e"
+    },
+    "apps/api/prisma/migrations/20261120140000_entity_identity_governance/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e0bb551fafc111cfaec01595d775b9fe5400bcc7"
+    },
+    "apps/api/prisma/migrations/20261120141000_entity_governance_concurrency/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9dcaf80f24c24764bc1f0fc098d4ed588448d563"
+    },
+    "apps/api/prisma/migrations/20261120142000_resolution_governance_projection/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2c3a28b9d3c0608b30faf99798b32265b9a09cb0"
+    },
+    "apps/api/prisma/migrations/20261120143000_canonical_entity_backfill_checkpoints/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "50529cab8825e2109986404fa44322da980bb149"
+    },
+    "apps/api/prisma/migrations/20261120150000_mailbox_knowledge_extraction/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "50528256bda7f2846f18c68c39a08eadeff31e2c"
+    },
+    "apps/api/prisma/migrations/20261120160000_knowledge_episodes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e31a757097f0f4154882a767556bcc53ba974007"
+    },
+    "apps/api/prisma/migrations/20261120170000_temporal_knowledge_graph/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "291cd63d3ee4fda34d1cef83ebbd4e4b6fdc113b"
+    },
+    "apps/api/prisma/migrations/20261120180000_temporal_knowledge_graph_merge_continuity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "defd48763b15483e9dc68b4f04f926aa58694351"
+    },
+    "apps/api/prisma/migrations/20261120181000_temporal_knowledge_graph_canonical_input_continuity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f8b8090492346f3fa27efb0badd7ccdb895ef642"
+    },
+    "apps/api/prisma/migrations/20261120190000_meri_vnext_library/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "458a9a10ded4ee14a140469ffbbb7e7eb3d7eb8b"
+    },
+    "apps/api/prisma/migrations/20261120190000_retrieval_v2_exact_lexical_indexes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "60b91af799b696a2cbf61347d5381661980df832"
+    },
+    "apps/api/prisma/migrations/20261120200000_phase8_defense_runtime_roles/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ca563b73140312cff031429715a55815e28603a0"
+    },
+    "apps/api/prisma/migrations/20261120210000_client_profile_fill_capability_document/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b06cdf2eaf60af485566983e08f791d40ce55762"
+    },
+    "apps/api/prisma/migrations/20261120210000_outreach_records_outreach_v3_type/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a9af953034351c82e3cf98c89d471a12f3419beb"
+    },
+    "apps/api/prisma/migrations/20261120210000_phase8_defense_serve_user_resolver/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1e80f8a6b06bbb16f2d779efe6f439c8ec36812a"
+    },
+    "apps/api/prisma/migrations/20261120210200_phase8_defense_program_admin_boundary/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a70b76f990d3485d05d434be6e6cb6890729ca4b"
+    },
+    "apps/api/prisma/migrations/20261120220000_client_team_members/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "55eaa02afa869946171d6191324bcb82180e8c78"
+    },
+    "apps/api/prisma/migrations/20261120220000_phase8_session6_federal_funding_events/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8a698cc4920bb0932730022e8a5787fec804e0dc"
+    },
+    "apps/api/prisma/migrations/20261120230000_facility_congressional_district_congress/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4441b8a4448d3fd754399a95b8201390e41b686a"
+    },
+    "apps/api/prisma/migrations/20261120230000_legiwatch_live_hearings_foundation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "31cc3c2d834a6457f6d7cd058d9f1f469274947e"
+    },
+    "apps/api/prisma/migrations/20261120230000_phase8_session7_budget_cycle_lifecycle/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "51fc4632bba1d4e24903c43c742fd502841f1bd7"
+    },
+    "apps/api/prisma/migrations/20261120230100_federal_award_identity_indexes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c2d458a4c6ed24929c4cf55099967a3f0b9e481e"
+    },
+    "apps/api/prisma/migrations/20261121000000_district_nexus_release3_economic_footprint/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7e73f04583bdfeada139415cfb9b430885a0aa09"
+    },
+    "apps/api/prisma/migrations/20261121010000_legiwatch_phase4_capture_runtime_fields/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2efc71ec0456290e7c9e8ec28afc2aa38f09f7b8"
+    },
+    "apps/api/prisma/migrations/20261123010000_legiwatch_capture_outcome_queue_closeout/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f0eec211462dd2ad49b17264dc792ddc5c2a9202"
+    },
+    "apps/api/prisma/migrations/20261123020000_legiwatch_phase7_following/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "551bdf9a37807c2ee871c5d3a49548388f839de4"
+    },
+    "apps/api/prisma/migrations/20261123030000_legiwatch_phase8_live_intelligence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c62f445e62664d3dd496bf0a5132a309b79295af"
+    },
+    "apps/api/prisma/migrations/20261123040000_legiwatch_phase9_hardening_cutover/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ce998dbff2e4d8c202f94289fe0b38832e1d4560"
+    },
+    "apps/api/prisma/migrations/20261123041000_legiwatch_phase9_observation_disposition/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1632c7699f0a6eb3fbcb52519ea288ffdb0da457"
+    },
+    "apps/api/prisma/migrations/20261123042000_legiwatch_phase9_observation_disposition_trigger/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "163e3aacd8f64b1e54cf2cd59b7008ca1fdf76be"
+    },
+    "apps/api/prisma/migrations/20261123043000_legiwatch_phase9_runtime_and_evidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f86eff05d0b9f9253e5693195116c2a693cde880"
+    },
+    "apps/api/prisma/migrations/20261123044000_legiwatch_phase9_shadow_schedules/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ee19fbcf46a061ab8b76ef943908d08516321bc9"
+    },
+    "apps/api/prisma/migrations/20261123045000_legiwatch_phase9_audit_scope/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "923f9e676f1bcd354bb569c02599fb851e51ec0d"
+    },
+    "apps/api/prisma/migrations/20261123045100_legiwatch_phase9_audit_scope_trigger/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9e9ee8bb26c56723b29063afa4a5690dff2c72ac"
+    },
+    "apps/api/prisma/migrations/20261123045200_legiwatch_phase9_safe_observation_timestamp/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "24327b114cb4ce80e980e18f9406d705a3cc137d"
+    },
+    "apps/api/prisma/migrations/20261127120000_phase8_session8_live_source_discovery/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d7709a380b98224de13578053a2091f21b3b683a"
+    },
+    "apps/api/prisma/migrations/20261204120000_phase8_session9_provider_invocation_audit/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e1770ff39f1c741e08da8bc159d13b35c9d50d81"
+    },
+    "apps/api/prisma/migrations/20261211120000_phase8_session10_schedule_control_plane/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "10d3a2d35dc5d1fa7c16ed51519fc30604656c82"
+    },
+    "apps/api/prisma/migrations/20261212010000_learning_signal_foundation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4de356ca1367d5ebaa0c176a610f2e3af8ae7c8b"
+    },
+    "apps/api/prisma/migrations/20261213010000_learning_signal_candidate_generation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b6365d06fec223f5b22d0664d6ff1518ca48b27c"
+    },
+    "apps/api/prisma/migrations/20261215120000_client_capability_fit_recommendations/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3b8cccd4b7a0b357927218124d82e414da503cdb"
+    },
+    "apps/api/prisma/migrations/20261218120000_phase8_session11_review_resolution_audit/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3617721001b3942e71b4e13b2f83db62eba1ad30"
+    },
+    "apps/api/prisma/migrations/20261219010000_client_profile_fill_bill_recommendation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d3e2ec4f241ab81834ff3a8bbfbf3d678029ef52"
+    },
+    "apps/api/prisma/migrations/20261219010000_outreach_v3_templates/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ca0bed3df118f272d84258f7027e839b03903357"
+    },
+    "apps/api/prisma/migrations/20261220010000_phase27e_quality_telemetry/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2a19a349684d33d6e5382008814291c57ff96e28"
+    },
+    "apps/api/prisma/migrations/20261222010000_phase27f_evaluation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c18004a7f2584c08ba3da03e5cff3c16356fab81"
+    },
+    "apps/api/prisma/migrations/20261223010000_client_file_viewer_access/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "56fbe4cf19a97ad362a7b51d61b6d6820b446bad"
+    },
+    "apps/api/prisma/migrations/20261223020000_congress_committee_url_provenance/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "aa04eaa81bdc26eb13cc5c1d6b99baacdd6261f7"
+    },
+    "apps/api/prisma/migrations/20261223020001_committee_source_exception/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5395cfb5023f8f1aaf7b94251cb945f12be2f437"
+    },
+    "apps/api/prisma/migrations/20271231010000_client_profile_fill_agentic_workflow/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "41a78d9c52764d05c073788461a81f5997a79cd3"
+    },
+    "apps/api/prisma/migrations/20271231020000_client_profile_fill_relationship_history/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2dd321b8b8c062703c608dce201e7e965d38a0fb"
+    },
+    "apps/api/prisma/migrations/20271231030000_client_profile_fill_completion/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c9256a400eb34769e25c8f631ff5a88540bd63b1"
+    },
+    "apps/api/prisma/migrations/20271231040000_client_advocacy_matter/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0d0f0b2927522656b19936c2b28a53832a1589d6"
+    },
+    "apps/api/prisma/migrations/20271231050000_advocacy_matter_correction_ux/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "00c801739e5c6ea21142a680b8e13f65c66383ac"
+    },
+    "apps/api/prisma/migrations/20271231060000_advocacy_matter_direct_evidence_links/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "71f0db1dbb25eae4cd4841274915540c20250107"
+    },
+    "apps/api/prisma/migrations/20271231070000_advocacy_matter_public_source_links/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "572ddbfa87526a2dcfc574ad2b5cf333bf6748f0"
+    },
+    "apps/api/prisma/migrations/20271231080000_fix_client_profile_fill_finding_source_check/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f81e2bd6091f82f2d0d0208f36609a32c47b9425"
+    },
+    "apps/api/prisma/migrations/20271231090000_regulatory_comment/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f8515f305bdf7c393efade55d2c2d06612b9419f"
+    },
+    "apps/api/prisma/migrations/20280101010000_defense_budget_cycle_manifest_registry/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0192cb03c1952f58721f99565a0056357c32515b"
+    },
+    "apps/api/prisma/migrations/20280101020000_outcome_event_regulatory_correlation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ee835f36a8ff4afaa956497196991f00db38aeef"
+    },
+    "apps/api/prisma/migrations/20280101030000_cpf_cds_canonical_ingestion/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "77895bd75acbf4f6470bd45c085794500c542300"
+    },
+    "apps/api/prisma/migrations/20280101040000_client_profile_fill_advocacy_review_durability/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1560acca1cb81e1a50f316a368eaeb4a2d226fc7"
+    },
+    "apps/api/prisma/migrations/20280102010000_outreach_v3_template_seed_state/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "98b5ef4a00db277eafbf5b424be9e1784bea93d5"
+    },
+    "apps/api/prisma/migrations/20280103010000_phase10b18_source_bundle_members/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0eabf0535c87c9056b097b8d5856d04e73a64063"
+    },
+    "apps/api/prisma/migrations/20280201010000_canonical_provenance_disposition/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "126a40ece1848d33a18a5b1a60ad2ad4bc489589"
+    },
+    "apps/api/prisma/migrations/20280210010000_meri_analytics_ro_role/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "031ab5850158d02db66620c05e3032c2ad45461d"
+    },
+    "apps/api/prisma/migrations/20280211010000_engagement_task_action_source_uniq/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a8905a8b61b60a08a72f25527ef068258362cbcb"
+    },
+    "apps/api/prisma/migrations/20280212010000_legiwatch_v2_wave1/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a994522e451b4105590740465b008bb408029a29"
+    },
+    "apps/api/prisma/migrations/20280213010000_legiwatch_v2_wave2/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b6ce800d523ee2156f2487fcf3c272fcb41ed091"
+    },
+    "apps/api/prisma/migrations/20280214010000_legiwatch_v2_wave3/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c5c39674fb1da4287ef81099789051569621ff03"
+    },
+    "apps/api/prisma/migrations/20280908010000_tango_subaward_checkpoint_pagination/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a3f39a4450b6253d789a57b7d19cab8e1d9f0c4e"
+    },
+    "apps/api/prisma/migrations/20280909010000_client_target_staff_kind/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0cb3462dc5e88cdc6c69c705bbda101e68251a38"
+    },
+    "apps/api/prisma/migrations/20280909010000_phase10b35_scoped_fact_review/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "82bd57e42d5aa213026bcd6d8aee70788280ca68"
+    },
+    "apps/api/prisma/migrations/20280909020000_phase10b35c_candidate_correction/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2982f0de43bfd923131e9e79cba269c230b6c75a"
+    },
+    "apps/api/prisma/migrations/20280910010000_legiwatch_published_records/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e8b6649e5ddd382ba976a2cd89ee3d9dd0429b69"
+    },
+    "apps/api/prisma/migrations/20280911010000_clio_attachments_pptx_kind/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c1a10b95cdc8c1b064487fd3a07a14794d6f54a6"
+    },
+    "apps/api/prisma/migrations/20280911010000_legiwatch_calendar_preparation/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b2ec2767a2c5ca8e2088da743babada1a578ad49"
+    },
+    "apps/api/prisma/migrations/20280911020000_legiwatch_agenda_notifications/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c0bafc30426d07571a35676a520b9c4dbbf2126e"
+    },
+    "apps/api/prisma/migrations/20280911030000_legiwatch_official_state_bodies/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d1ae251f11e123fd05f44115f043cad325181efe"
+    },
+    "apps/api/prisma/migrations/20280911040000_legiwatch_federal_read_boundary/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8ebf32c164481d1f6e8419ed7153d536c95d16bb"
+    },
+    "apps/api/prisma/migrations/20280911050000_legiwatch_notice_identity_index/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d7699677d68ee65dea12cf9c3a55f69f314845b0"
+    },
+    "apps/api/prisma/migrations/20280912180000_legiwatch_hearing_media_runtime/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4786257dbbf98365e1bea8f67d549c122cc6e07a"
+    },
+    "apps/api/prisma/migrations/20280912181000_approved_document_provenance/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "03f54f0144236a8cca807b81cd52d844d8b6584c"
+    },
+    "apps/api/prisma/migrations/20280912182000_hearing_delivery_runtime/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bb6fc2304378c5f335235fd26c9b479d54b10ac8"
+    },
+    "apps/api/prisma/migrations/20280912183000_hearing_publication_inbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "db8b6c28af9096803bb2619e1bfcc15eb909e34a"
+    },
+    "apps/api/prisma/migrations/20280913010000_governed_review_reextraction/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "511926c76f484ad2af318215d8262f826ddb986d"
+    },
+    "apps/api/prisma/migrations/20280913010000_legiwatch_record_revisions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "710d4706296ab5832aeb7603f7241d1985e319cc"
+    },
+    "apps/api/prisma/migrations/20280913011000_legiwatch_record_checks/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c532ffd4cef3661d231b29436a85cd47133b8e38"
+    },
+    "apps/api/prisma/migrations/20280913012000_legiwatch_official_transcript_revisions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bd762c03d33b0cc119beb28c781237379697661a"
+    },
+    "apps/api/prisma/migrations/20280913013000_legiwatch_record_commit_boundary/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3ebd309dfb66a93f3eb668406498d817a926fff6"
+    },
+    "apps/api/prisma/migrations/20280913014000_legiwatch_record_documents/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9ea30987c7cd3cf62201e86700ca53169d4093ec"
+    },
+    "apps/api/prisma/migrations/20280913015000_legiwatch_record_inbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e8edf0e6ab715a15efec863e556cb0c9a9de6b04"
+    },
+    "apps/api/prisma/migrations/20280913016000_legiwatch_record_refresh/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "45ada30dc0937eb55a34fce4646cf40a994ac649"
+    },
+    "apps/api/prisma/migrations/20280913017000_legiwatch_transcript_checks/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "267e8dabfc1c2faed89f23c7495e61cc224b1d0a"
+    },
+    "apps/api/prisma/migrations/20280913018000_legiwatch_govinfo_checkpoints/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c8b93c69377bb909b2f54693698e832fd0a07e4a"
+    },
+    "apps/api/prisma/migrations/20280913019000_legiwatch_source_observations/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "45bd6de7456897f60424982bce3145864f9885f5"
+    },
+    "apps/api/prisma/migrations/20280913020000_legiwatch_keyword_source_projection/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e7623459971491d986327ce153b348851dc1d9eb"
+    },
+    "apps/api/prisma/migrations/20280913021000_legiwatch_workflow_source_projection/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "285a1b20e2f7c627c7130240934e2d9b3e5c3b16"
+    },
+    "apps/api/prisma/migrations/20280913022000_legiwatch_keyword_inbox/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2066f84118aab7636f25e76bcabca3b99a33e4a5"
+    },
+    "apps/api/prisma/migrations/20280913030000_legiwatch_research_evidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c5f88b11c13178a14c31ec4da16e7e7d39da2a5b"
+    },
+    "apps/api/prisma/migrations/20280914030000_legiwatch_news_fiscal/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "594361b0723f118e93a192bda126e35e2fa9775e"
+    },
+    "apps/api/prisma/migrations/20280915010000_hearing_canonical_alias/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5dfcdc88d09ff3931e822a6ffff1f03d6f74fe94"
+    },
+    "apps/api/prisma/migrations/20280916010000_drop_legiwatch_saved_view/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "87037be46b8d95384f5a1bb1bd57bdaaac28835d"
+    },
+    "apps/api/prisma/migrations/20280917010000_drop_legiwatch_watch_presets/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a6ae1f60cb989645f1a541c9597f74f9edae3850"
+    },
+    "apps/api/prisma/migrations/20280918010000_procurement_line_canonical/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e1f29bc1cebf8808d6350fe62d663c2300ed62a4"
+    },
+    "apps/api/prisma/migrations/20280919010000_committee_follow_alerts/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2345c8804a5d31fd0ff7250cefca3fa5b949434e"
+    },
+    "apps/api/prisma/migrations/20280919020000_approval_replacement_commit_guards/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0b254bf3c48a83e5acab925b1fe8696bcd4b0e6c"
+    },
+    "apps/api/prisma/migrations/20280920010000_meri_hermes_durable_runs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f996101d7827a08be9800b0cca8586725bb85dfe"
+    },
+    "apps/api/prisma/migrations/20280920020000_meri_hermes_admission_fencing/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7c6af46aaadde844e09b61550578e5a26646d368"
+    },
+    "apps/api/prisma/migrations/20280920030000_meri_hermes_cross_replica_coordination/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d3dc5f866c5f072632595ca19838b4a62f1c456d"
+    },
+    "apps/api/prisma/migrations/20280920040000_meri_hermes_scaling_controls/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "f53c1aa494eb5e33bf07ac1880d3266a78747389"
+    },
+    "apps/api/prisma/migrations/20280920050000_meri_hermes_profile_state/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4772cdab4c09b15c3fd003227de69ca12dd5ee58"
+    },
+    "apps/api/prisma/migrations/20280920060000_florida_directory_pdf_enrichment/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ded87c2b9a891958eadd47da72845a7f4d1443a1"
+    },
+    "apps/api/prisma/migrations/20280920060000_governed_ingestion_manifest_v1/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "15e735b45ef5e1fd60a0c7cca34efd5b2c457c1b"
+    },
+    "apps/api/prisma/migrations/20280920060100_budget_line_relationship_lineage/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a374fa9b018a5b77623aa562a1057a90a7f3a726"
+    },
+    "apps/api/prisma/migrations/20280920070000_legiwatch_florida_runtime_jobs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "c992935eec26e0f26841e72aa916249732f2aba3"
+    },
+    "apps/api/prisma/migrations/20280921000100_federal_award_date_semantics/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2668fc269b45cb6f486f0cbcd2106ce8261cbb03"
+    },
+    "apps/api/prisma/migrations/20280922100000_legiwatch_capture_all_system_wide/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9aba89196feb41331064ddcbd651cc62bf5b28a2"
+    },
+    "apps/api/prisma/migrations/20280922100100_public_hearing_speaker/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d0db85d6cacaf54786cefb45843cd57b20dffcc6"
+    },
+    "apps/api/prisma/migrations/20280923010000_meri_mobile_device_tokens/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "53907deb7cbd55633fff297085f55e23efe8cc1e"
+    },
+    "apps/api/prisma/migrations/20280924010000_business_development_phase1/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b8850f10738656f253aa9e12143952a34a927ee2"
+    },
+    "apps/api/prisma/migrations/20280924020000_governed_ingestion_manifest_member_guard_v1/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "04f806c4a476c8f28e508ebd8559ff436e722690"
+    },
+    "apps/api/prisma/migrations/20280924030000_federal_legislative_evidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8f447f71f862ab25f7f7dfc084c1e44526ec26f3"
+    },
+    "apps/api/prisma/migrations/20280924040000_district_actions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "b2ff7d021daf5d37a0474da8cd9a9420a1b1f85e"
+    },
+    "apps/api/prisma/migrations/20280924040000_district_nexus_r5_meeting_prep_reviewed/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "59a18d140ceb8d5f4a132c2535f11165fbb1890a"
+    },
+    "apps/api/prisma/migrations/20280924040000_program_identity_continuity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "00619d188d41961b659612048c53e1a01288495a"
+    },
+    "apps/api/prisma/migrations/20280924050000_acquisition_continuity_ledger/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fdf8888a274b27b49ac0ddf464321bb68325c3fb"
+    },
+    "apps/api/prisma/migrations/20280924050000_district_nexus_alert_payload/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "83ae85fad5488e2049c84ed5ffdc7a70cbbf7605"
+    },
+    "apps/api/prisma/migrations/20280924060000_package6_funding_execution_accounting/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "8eda6a6503339272d213c3a59cdaae18f2c2dff1"
+    },
+    "apps/api/prisma/migrations/20280924070000_package7_client_budget_watch/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d4491517b6421d90302cbef755114c12f528e3c7"
+    },
+    "apps/api/prisma/migrations/20280925010000_business_development_phase3_jev/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a9978d7ff9040067f2f01f8fd49540d1a2037d5a"
+    },
+    "apps/api/prisma/migrations/20280925020000_package9_source_bundle_reader_grant/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "ff9b3841f5138492ec94fc2200ef053dd2125d45"
+    },
+    "apps/api/prisma/migrations/20280926010000_business_development_phase3_shadow_null_recovery/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "47a40b0ca3696894825186c83c7c5bcb170dd15a"
+    },
+    "apps/api/prisma/migrations/20280927010000_business_development_phase4_brief/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0efd9fda31496b8f619c6ab9686ba979e40a4697"
+    },
+    "apps/api/prisma/migrations/20280928010000_business_development_phase5_watch_alerts/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "90867caaf30ed57c738dcfa318513e760340f0da"
+    },
+    "apps/api/prisma/migrations/20280929010000_remove_meri_hermes_runtime/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "75ddf236131786ed32c60ab30148cafe87b52d1b"
+    },
+    "apps/api/prisma/migrations/20280929010000_research_portfolios_phase1/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "0c9bd70f997a970896b36efaaed7fbfd78e7227d"
+    },
+    "apps/api/prisma/migrations/20280929020000_research_portfolios_phase2_rules/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "243a64b07091eea3cd901d44d057258a872965c6"
+    },
+    "apps/api/prisma/migrations/20280929040000_defense_context_documents/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "83f9dbff094fe60eb03ce7d22a83a5496ee23fe2"
+    },
+    "apps/api/prisma/migrations/20280930010000_business_development_watch_scan_checkpoint/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "358bcf5625c480cf938494c00e91f33450eef782"
+    },
+    "apps/api/prisma/migrations/20280930010000_research_portfolios_phase7_reviews_imports_continuity/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "5f2c5c3f7d8f6161dafac88ba7c60a00ea6ab6d0"
+    },
+    "apps/api/prisma/migrations/20281001010000_research_portfolios_phase9_analytics_outputs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "874b4798872e406af9ba604ac94ba3eccca990f3"
+    },
+    "apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a4151cdf74f9e4b864f9db930266ab3ec1c390be"
+    },
+    "apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "da44b5d8ac1386d712b92e9a8774ebbaa1f57f28"
+    },
+    "apps/api/prisma/migrations/20281003010000_research_portfolios_phase11_bookmarks_tour_notes/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "dd475ed7bcfad2068ebe4beb270eaedee207bdd9"
+    },
+    "apps/api/prisma/migrations/20281004010000_research_portfolio_tenant_policy_alignment/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "de6c72e1ffc45d44130cbcb07ba83a893f2fa3c3"
+    },
+    "apps/api/prisma/migrations/20281004020000_research_portfolio_fit_versions/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "937a78f7698900750060269df5b6519bb4a237c9"
+    },
+    "apps/api/prisma/migrations/20281004030000_defense_saved_comparisons/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d0038a9bb8d8df0c6f3933c77373a59c0b911d71"
+    },
+    "apps/api/prisma/migrations/20281004040000_research_portfolio_client_filing_jobs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "1d44dca698f0cbf239712a5cdd84e947d18fe375"
+    },
+    "apps/api/prisma/migrations/20281005010000_memory_version_candidate_source_kinds/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "9fa4dbc8273d32b8a73eb1b26011820d995539b0"
+    },
+    "apps/api/prisma/migrations/20281006010000_mail_threads_owned_connection_covering/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "e45cdec8f16092f0f69bdebd68e29b5f20e6fe5f"
+    },
+    "apps/api/prisma/migrations/20281007010000_mail_messages_owned_connection_active/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "11bb2eae1c552e57f7ae3d25b9f02460b5720d93"
+    },
+    "apps/api/prisma/migrations/20281007020000_clio_attachments_xlsx_kind/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3dca4e68a1f3c016f0a1712ec2586a3c2abb343d"
+    },
+    "apps/api/prisma/migrations/20281008010000_clio_research_sessions_jobs/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4814fcb0dc6d4afd99a28db454f8ad4eeeee8bdc"
+    },
+    "apps/api/prisma/migrations/20281008020000_legiwatch_committee_news_update_type/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "d504f255281ebfb2c6e69439b4dd6b7e4921b33e"
+    },
+    "apps/api/prisma/migrations/20281008030000_committee_url_official_review/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "2e856a45fd3fad302cc371d60007b92a4f71abb1"
+    },
+    "apps/api/prisma/migrations/20281008040000_federal_evidence_passage_search/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "cb6131280d6ffaef403812cf5acdb30185238cef"
+    },
+    "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97"
+    },
+    "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "7048874032f7a8ed079ab0aafee4804b1c97943b"
+    },
+    "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "bd6a4ad9b077afb0ef7cf96df30438e4cf49f02f"
+    },
+    "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "4248a97787b6a6546f02b4e183141679338b7638"
+    },
+    "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3"
+    },
+    "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc"
+    },
+    "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql": {
+      "mode": "100644",
+      "kind": "blob",
+      "gitBlob": "a4b2b546398f50938f6f39f5c014ca5bf827c968"
+    }
+  },
+  "mainOnlyNames": [],
+  "tipBeyondMainNames": [
+    "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+    "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+    "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+    "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+    "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+    "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+    "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+    "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+    "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+    "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+    "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql"
+  ],
+  "SQLBodiesRead": false,
+  "nativeReplay": false
+}
