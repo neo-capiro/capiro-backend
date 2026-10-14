@@ -1,0 +1,96 @@
+{
+  "id": "19",
+  "mode": "types",
+  "source": {
+    "head": "e0adf31652f6987593728028d5b8eae4a1b96390",
+    "diffSha256": "b41329bbec92bf44efd7c690b3d9dff76facacc36dab166515914d67c11ad3de",
+    "bindings": [
+      {
+        "path": "apps/api/src/users/portfolio-layout.controller.ts",
+        "sha256": "7af96c53dbd33ead959c07baf6b9bb1a677dbcf014ab73144c3e7a2b9c37e000"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.transaction.ts",
+        "sha256": "22fde9cc8fc53bf54445303ca3dc4f5a64ca1b616cc230fb0cb9059479d79504"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.helpers.ts",
+        "sha256": "0292537c2177ed5d8e3263f4c5c87636a0391bb2356f417d23ed61bb2cb2e1b7"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.controller.spec.ts",
+        "sha256": "ea54d079bdc58378227031f818bad794a1368383209ba9af0d7c7dd780492dbf"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.module.spec.ts",
+        "sha256": "ee22070d82c4244be40d6f2c0baa62a7e6b44051dfc206fe8ba7101ed3212877"
+      },
+      {
+        "path": "apps/api/src/users/portfolio-layout.helpers.spec.ts",
+        "sha256": "fce26c17a4e0ad6f19dae18dbdddf5b63c74ad951d3a3c5109ae3f195dc6350e"
+      },
+      {
+        "path": "apps/api/src/users/users.module.ts",
+        "sha256": "79370567a742460677178f1db358797e1d4f9a958d3e7deaab0582a81deef735"
+      },
+      {
+        "path": "apps/api/src/users/users.controller.ts",
+        "sha256": "d7cc8867f6a11f6ca9fc8e4c3dc6c640ecab2c73ce661e51affed17dc7057a20"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.ts",
+        "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma.service.spec.ts",
+        "sha256": "4af5ff10ad7901b43a202d2300247363a5af63ac1e195f80ac96aaebe848ebf5"
+      },
+      {
+        "path": "apps/api/src/prisma/prisma-tenant-scope.spec.ts",
+        "sha256": "133b7ad8f436fdcea50113c502232ea1b86589cddaf69763c21f112484e39fc4"
+      },
+      {
+        "path": "apps/api/src/memory/memory-wall.helpers.ts",
+        "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e"
+      },
+      {
+        "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+        "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+      },
+      {
+        "path": "apps/api/src/tenant/tenant.module.ts",
+        "sha256": "6858db17104b4f12a91c69a766bb6c93fc0d0d5cad8ebaf2f04503c9f4131616"
+      },
+      {
+        "path": "apps/api/src/auth/application-authority.ts",
+        "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+      },
+      {
+        "path": "apps/api/src/auth/roles.guard.ts",
+        "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+      },
+      {
+        "path": "apps/api/prisma/schema.prisma",
+        "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12"
+      },
+      {
+        "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+        "sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f"
+      }
+    ],
+    "status": " M docs/backend-portfolio-layout-20261014/evidence/focused.jest.cjs\n M docs/backend-portfolio-layout-20261014/evidence/focused.tsconfig.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-controller-spec.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/13-types-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/13-types-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/13-types-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/17-types-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/17-types-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/17-types-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/initial-controller-types.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/native-sanitize.cjs\n?? docs/backend-portfolio-layout-20261014/evidence/run-check.cjs\n?? docs/backend-portfolio-layout-20261014/evidence/typescript-transformer.cjs\n"
+  },
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/node_modules/typescript/bin/tsc",
+    "--project",
+    "/workspace/capiro-backend-portfolio-layout-20261014/docs/backend-portfolio-layout-20261014/evidence/focused.tsconfig.json",
+    "--pretty",
+    "false"
+  ],
+  "exitCode": 0,
+  "signal": null,
+  "sourceDeltaUnchanged": true,
+  "boundSourcesUnchanged": true,
+  "note": "Inert source ports and JavaScript refusal host; no native PostgreSQL, Clerk, migrations, deployed API, or runtime acceptance."
+}

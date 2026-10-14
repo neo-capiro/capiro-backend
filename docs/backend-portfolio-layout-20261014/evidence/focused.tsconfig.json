@@ -8,6 +8,10 @@
     "typeRoots": ["../../../apps/api/node_modules/@types", "../../../node_modules/@types"]
   },
   "files": [
+    "../../../apps/api/src/users/portfolio-layout.controller.ts",
+    "../../../apps/api/src/users/portfolio-layout.controller.spec.ts",
+    "../../../apps/api/src/users/portfolio-layout.module.spec.ts",
+    "../../../apps/api/src/users/portfolio-layout.transaction.ts",
     "../../../apps/api/src/users/portfolio-layout.helpers.ts",
     "../../../apps/api/src/users/portfolio-layout.helpers.spec.ts",
     "../../../apps/api/src/prisma/prisma.service.ts",

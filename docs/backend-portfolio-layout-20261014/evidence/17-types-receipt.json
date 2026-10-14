@@ -1,0 +1,21 @@
+{
+  "id": "17",
+  "mode": "types",
+  "source": {
+    "head": "4c211c9ce921300befca43c1f4aa30d501011f73",
+    "diffSha256": "dc354a405cb8ec6c8ffe926a622a6e5f1d107b64600ac75198d5550835c5defd",
+    "status": " M apps/api/src/users/users.module.ts\n M docs/backend-portfolio-layout-20261014/evidence/focused.jest.cjs\n M docs/backend-portfolio-layout-20261014/evidence/focused.tsconfig.json\n?? apps/api/src/users/portfolio-layout.controller.spec.ts\n?? apps/api/src/users/portfolio-layout.controller.ts\n?? apps/api/src/users/portfolio-layout.module.spec.ts\n?? apps/api/src/users/portfolio-layout.transaction.ts\n?? docs/backend-portfolio-layout-20261014/evidence/12-controller-spec.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/12-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/13-types-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/13-types-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/13-types-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/14-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/15-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-receipt.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-result.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-stderr.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/16-jest-stdout.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/initial-controller-types.raw.lossless.json\n?? docs/backend-portfolio-layout-20261014/evidence/native-sanitize.cjs\n?? docs/backend-portfolio-layout-20261014/evidence/run-check.cjs\n?? docs/backend-portfolio-layout-20261014/evidence/typescript-transformer.cjs\n"
+  },
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-portfolio-layout-20261014/apps/api/node_modules/typescript/bin/tsc",
+    "--project",
+    "/workspace/capiro-backend-portfolio-layout-20261014/docs/backend-portfolio-layout-20261014/evidence/focused.tsconfig.json",
+    "--pretty",
+    "false"
+  ],
+  "exitCode": 0,
+  "signal": null,
+  "sourceDeltaUnchanged": true,
+  "note": "Inert source ports and JavaScript refusal host; no native PostgreSQL, Clerk, migrations, deployed API, or runtime acceptance."
+}

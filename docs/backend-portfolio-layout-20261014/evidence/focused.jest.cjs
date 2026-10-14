@@ -9,9 +9,6 @@ module.exports = {
   setupFiles: [],
   cache: false,
   maxWorkers: 1,
-  transform: { '^.+\\.ts$': [require.resolve('ts-jest', { paths: [api] }), {
-    diagnostics: false, tsconfig: { target: 'ES2022', module: 'CommonJS', esModuleInterop: true,
-      isolatedModules: true, experimentalDecorators: true, emitDecoratorMetadata: true, useDefineForClassFields: false },
-  }] },
-  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
+  transform: { '^.+\\.ts$': path.join(__dirname, 'typescript-transformer.cjs') },
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1', '^sanitize-html$': path.join(__dirname, 'native-sanitize.cjs') },
 };
