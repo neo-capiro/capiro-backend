@@ -7,8 +7,18 @@
     },
     {
       "path": "HANDOFF.md",
-      "bytes": 6440,
-      "sha256": "9ed422fdd51ec7266bfce5af5e2be32b76d430e1ceff8cf87d988e1483aca0b8"
+      "bytes": 7187,
+      "sha256": "b4f7439d836bd67f209c7d109ea8c55a39c0a3bda1a2195d7d83148576406fb7"
+    },
+    {
+      "path": "MEETINGS-FINAL-ACCEPTANCE.md",
+      "bytes": 2674,
+      "sha256": "6b6f0b23f7165745b2cb48cf0fdd88a924d0650df9f84c6450d46638339ba7fe"
+    },
+    {
+      "path": "MEETINGS-FINAL-REVIEW.json",
+      "bytes": 13595,
+      "sha256": "2c5da420d40dc2e2107a8d059251c76c3a80a12bf3eb91344801d1519ce9003f"
     },
     {
       "path": "MEETINGS-SOURCE-ACCEPTANCE.md",
