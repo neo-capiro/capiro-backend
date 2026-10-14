@@ -1,0 +1,99 @@
+{
+  "review": "ACCEPT: finite source-only migration history query and decision packet",
+  "sourceHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+  "sourceTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+  "reviewedInputs": [
+    {
+      "path": "discover-ledger.sql",
+      "blob": "3e62cdcbbf6eee64b75ee6eced83bc6a471e8a2f",
+      "bytes": 1468,
+      "sha256": "8441ad9587936a776e452d9bac8c9ae1f8717c39d46884899beea734122c3179"
+    },
+    {
+      "path": "core12-history.sql",
+      "blob": "7b59903fbe0d8669edf5632e5ab45d46071374ab",
+      "bytes": 8750,
+      "sha256": "9b284a0e60c2c78b84ae509ef5ad48614dc3129bbd7f7c182f5c796e55880ca1"
+    },
+    {
+      "path": "workspace13-history.sql",
+      "blob": "822586ed802c3f29c62cf3252d11459ef2d42799",
+      "bytes": 8959,
+      "sha256": "49cba491a5c9794c1207a918e22908b9141886e74033d7cd6058e4afee84d85b"
+    },
+    {
+      "path": "EXPECTED-HISTORY.json",
+      "blob": "cc2997509329c4422506c675897a02444ffdaf97",
+      "bytes": 24594,
+      "sha256": "c50769065acd9f1e88ea029d9e85c6cf02eb1172d4dc243aa0530e4fdc513b89"
+    },
+    {
+      "path": "HISTORY-RESOLUTION.md",
+      "blob": "afe43bdbb2b756d7192a6b9897d5037dad080b60",
+      "bytes": 8052,
+      "sha256": "ce02a5334e97478457047f0c182be7bc5d1ddd24159c0497baac9f7bb45a52bd"
+    }
+  ],
+  "sqlSourceChecks": {
+    "queries": 3,
+    "transaction": "one explicit REPEATABLE READ, READ ONLY transaction per file; ROLLBACK ending",
+    "bounds": "SET LOCAL statement_timeout 10s, lock_timeout 1s",
+    "access": "migration ledger and PostgreSQL system/transaction metadata only; no business data or raw log output",
+    "noDDL_DML_execute_advisoryLocks_orTemporaryObjects": true,
+    "nativeSQLParseOrExecution": false,
+    "schemaResolution": "quoted placeholder remains unresolved; existing authoritative owner database/schema/ledger mapping required; permissions, RLS filtering, ambiguity or replica-only evidence stay UNKNOWN"
+  },
+  "historyChecks": {
+    "coreExpected": 12,
+    "workspaceExpected": 13,
+    "allQueryNameHashSlugAndVariantLiteralsEqualManifest": true,
+    "selectedAttempts": "LEFT JOIN retains every exact-name, checksum or suffix candidate; no LIMIT/DISTINCT/latest-only reduction",
+    "globalFlags": "active unfinished (finished_at NULL and rolled_back_at NULL), duplicate active completion, inconsistent timestamps, lexical finished frontier",
+    "noMatch": "UNKNOWN, never proof of NEVER_APPLIED",
+    "rollback": "marker does not establish undone SQL effects; no automatic reapplication",
+    "completion": "finished record is not physical schema/RLS proof or evidence manually marked-applied SQL actually ran",
+    "aliases": "Prisma applies by migration name; renamed identical SQL can execute again; mismatches/confirmed aliases hold",
+    "sharedSuffix": "Core/Workspace prospect_resource_origin are known distinct owner/name/checksum records; suffix alone is neither alias proof nor deployment blocker",
+    "rename": "five provisional names are not reserved or implemented; complete authoritative current and historical never-applied/effect evidence required before separately reviewed allocation",
+    "allActualApplicationStates": "UNKNOWN"
+  },
+  "independentlyVerifiedSourceProvenance": {
+    "fourNewsletterExactBlobsAlreadyInC76": true,
+    "layoutAbsentC76AndExactBlobPresentAtPR10Introduction47213": true,
+    "migrationSubtreesEqualAcrossPR16D15_PR17DD02_PR18_91399": {
+      "core": "abc50b38c17a4c55411da2c81729a130c38ad55a",
+      "workspace": "5631e24b6b0ac9f1a7be1e664477252dec974674"
+    },
+    "checksumScope": "Reviewer checked all query literals and per-byte old hex derivations against supplied manifest and stock 5.22 primary algorithm; root retains independent exact25 SQL-byte/hash evidence. No checksum verification disabled.",
+    "firstChat": "existing first-client/bootstrap owner mapping and source pins preserved; no new owner/auth layer"
+  },
+  "primarySources": [
+    "https://raw.githubusercontent.com/prisma/prisma-engines/5.22.0/schema-engine/connectors/schema-connector/src/checksum.rs",
+    "https://raw.githubusercontent.com/prisma/prisma-engines/5.22.0/schema-engine/core/src/commands/apply_migrations.rs",
+    "https://raw.githubusercontent.com/prisma/prisma-engines/5.22.0/schema-engine/connectors/schema-connector/src/migration_persistence.rs"
+  ],
+  "retainedReviewProbes": {
+    "initial": {
+      "exit": 1,
+      "stderr": "Traceback (most recent call last):\n  File \"<stdin>\", line 30, in <module>\nIndexError: list index out of range\n",
+      "reason": "Reviewer initially treated fiveFailures objects as strings; corrected name extraction; not a source/SQL fault"
+    },
+    "corrected": {
+      "exit": 0,
+      "allStaticAndSourceMetadataAssertionsPass": true
+    },
+    "expectedLayoutAbsence": {
+      "exit": 1,
+      "httpStatus": 404,
+      "stderr": "gh: Not Found (HTTP 404)\n"
+    }
+  },
+  "boundaries": {
+    "sql_database_native_engine_migration_executed": false,
+    "dockerOrBuildRerun": false,
+    "migrationNamesOrBytesChanged": false,
+    "source_ref_or_auth_edit": false,
+    "protectedUnpublishedSourceRead": false,
+    "runtime_schema_RLS_historyOrDeploymentAcceptance": false
+  }
+}

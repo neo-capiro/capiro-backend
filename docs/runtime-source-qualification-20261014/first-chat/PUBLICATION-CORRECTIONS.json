@@ -1,0 +1,25 @@
+{
+  "scope": "Docs-only publication clarifications; independent source JOIN remains accepted.",
+  "bootstrap": {
+    "originalBlob": "48cca803b02c3366f1c40aca688ff038d7429073",
+    "currentBlob": "8fac7cbb7b8014de4d0c2d332066a331b1f02ce6",
+    "change": "Clarify that frontend flag name/gate is source-confirmed; no runtime flag value or activation was observed. An earlier parent message confirmed the exact source key, not deployment configuration.",
+    "sourceGate": {
+      "frontendHead": "348c98dfe1962fac962157eb785732281a282d06",
+      "path": "apps/web/src/shared/meri-actions/connection-config.ts",
+      "blob": "289bb035208bc394797b9882a8d8912015894f96",
+      "name": "MERI_CONVERSATION_WORKFLOW_ENABLED"
+    },
+    "originalRetained": "FIRST-CLIENT-BOOTSTRAP-JOIN-initial.md",
+    "receipt": "FIRST-CLIENT-BOOTSTRAP-JOIN.receipt.json retains original review/artifact input fingerprints."
+  },
+  "canonicalHandoff": {
+    "originalBlob": "8321ffcde1014958beaad91a5a6f11fc6565fc7e",
+    "currentBlob": "95cf9370205a8018c96ff8fda469ef4c41817a76",
+    "change": "Implement independent reviewer's exact sentence distinguishing session IDs/revisions from action_session bearer.",
+    "originalRetained": "../HANDOFF-initial.md"
+  },
+  "discoveryLimits": "The independent review records wrong-path404 discovery failures in its source receipt; exact raw404 streams were not provided for this publication. They are not product test failures or evidence of missing source.",
+  "liveFlagsOriginsIdentityChanged": false,
+  "sourceOrAuthLayerChanged": false
+}

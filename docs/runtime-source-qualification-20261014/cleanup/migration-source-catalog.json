@@ -1,0 +1,1110 @@
+{
+  "source_head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "source_tree": "03d6508d021825621f921aa37a5da6d235bb63e0",
+  "backend_import": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+  "old_main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "qualification": "Source comparison and SQL metadata review only; no SQL/database execution; no claimed pending/applied ledger state.",
+  "metadata_correction": "Removed non-SQL word 'stay' captured from a Portfolio layout source comment by the initial REFERENCES extractor. Initial orphan metadata d4cb024a5fa81763e37db1fe00e9a604d99cb28f remains preserved; no source or SQL bytes changed.",
+  "migrations": [
+    {
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "blob": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07",
+      "bytes": 2048,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "ALTER TABLE \"outreach_draft_versions\""
+        },
+        {
+          "n": 5,
+          "s": "ALTER TABLE \"outreach_draft_versions\" ADD CONSTRAINT \"outreach_newsletter_source_required\""
+        },
+        {
+          "n": 10,
+          "s": "CREATE TABLE \"newsletter_recipient_access\" ("
+        },
+        {
+          "n": 17,
+          "s": "CREATE INDEX \"newsletter_recipient_access_tenant_id_user_id_outreach_record_id_idx\""
+        },
+        {
+          "n": 19,
+          "s": "CREATE TABLE \"newsletter_subscriptions\" ("
+        },
+        {
+          "n": 25,
+          "s": "ALTER TABLE newsletter_recipient_access ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 26,
+          "s": "ALTER TABLE newsletter_recipient_access FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 27,
+          "s": "CREATE POLICY newsletter_recipient_access_isolation ON newsletter_recipient_access"
+        },
+        {
+          "n": 30,
+          "s": "ALTER TABLE newsletter_subscriptions ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 31,
+          "s": "ALTER TABLE newsletter_subscriptions FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 32,
+          "s": "CREATE POLICY newsletter_subscriptions_isolation ON newsletter_subscriptions"
+        },
+        {
+          "n": 35,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 37,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_recipient_access, newsletter_subscriptions TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 35,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 37,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_recipient_access, newsletter_subscriptions TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "blob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b",
+      "bytes": 1421,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 3,
+          "s": "CREATE TABLE newsletter_review_email_deliveries ("
+        },
+        {
+          "n": 15,
+          "s": "CREATE INDEX newsletter_review_email_deliveries_tenant_id_created_at_idx ON newsletter_review_email_deliveries(tenant_id, created_at);"
+        },
+        {
+          "n": 16,
+          "s": "CREATE INDEX newsletter_review_email_deliveries_status_updated_at_idx ON newsletter_review_email_deliveries(status, updated_at);"
+        },
+        {
+          "n": 17,
+          "s": "ALTER TABLE newsletter_review_email_deliveries ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 18,
+          "s": "ALTER TABLE newsletter_review_email_deliveries FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 19,
+          "s": "CREATE POLICY newsletter_review_email_delivery_isolation ON newsletter_review_email_deliveries"
+        },
+        {
+          "n": 22,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 24,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_review_email_deliveries TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 22,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 24,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_review_email_deliveries TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "blob": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066",
+      "bytes": 1289,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "CREATE TABLE newsletter_invitation_email_deliveries ("
+        },
+        {
+          "n": 12,
+          "s": "CREATE INDEX newsletter_invitation_email_deliveries_tenant_id_created_at_idx ON newsletter_invitation_email_deliveries(tenant_id, created_at);"
+        },
+        {
+          "n": 13,
+          "s": "CREATE INDEX newsletter_invitation_email_deliveries_status_updated_at_idx ON newsletter_invitation_email_deliveries(status, updated_at);"
+        },
+        {
+          "n": 14,
+          "s": "ALTER TABLE newsletter_invitation_email_deliveries ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 15,
+          "s": "ALTER TABLE newsletter_invitation_email_deliveries FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 16,
+          "s": "CREATE POLICY newsletter_invitation_email_delivery_isolation ON newsletter_invitation_email_deliveries"
+        },
+        {
+          "n": 19,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 21,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_invitation_email_deliveries TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 19,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 21,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_invitation_email_deliveries TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "blob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07",
+      "bytes": 1656,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "CREATE TABLE newsletter_account_invitations ("
+        },
+        {
+          "n": 20,
+          "s": "CREATE INDEX newsletter_account_invitation_email_idx ON newsletter_account_invitations(tenant_id, email, organization_id);"
+        },
+        {
+          "n": 21,
+          "s": "CREATE INDEX newsletter_account_invitation_document_idx ON newsletter_account_invitations(tenant_id, document_id);"
+        },
+        {
+          "n": 22,
+          "s": "ALTER TABLE newsletter_account_invitations ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 23,
+          "s": "ALTER TABLE newsletter_account_invitations FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 24,
+          "s": "CREATE POLICY newsletter_account_invitation_isolation ON newsletter_account_invitations"
+        },
+        {
+          "n": 27,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 29,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_account_invitations TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 27,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 29,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_account_invitations TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261014050000_user_portfolio_layout/migration.sql",
+      "blob": "e3445102a7ff5f06021704cea272bbb559b8f03f",
+      "sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f",
+      "bytes": 2094,
+      "added_since_import": true,
+      "operations": [
+        {
+          "n": 6,
+          "s": "CREATE FUNCTION portfolio_layout_order_valid(order_ids UUID[]) RETURNS BOOLEAN"
+        },
+        {
+          "n": 15,
+          "s": "CREATE TABLE \"user_portfolio_layouts\" ("
+        },
+        {
+          "n": 31,
+          "s": "ALTER TABLE \"user_portfolio_layouts\" ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 32,
+          "s": "ALTER TABLE \"user_portfolio_layouts\" FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 33,
+          "s": "CREATE POLICY \"user_portfolio_layouts_owner_isolation\" ON \"user_portfolio_layouts\""
+        },
+        {
+          "n": 36,
+          "s": "CREATE TRIGGER \"user_portfolio_layouts_set_updated_at\""
+        }
+      ],
+      "foreign_targets": [
+        "tenants",
+        "users"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "blob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+      "bytes": 3398,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "CREATE TABLE client_objectives ("
+        },
+        {
+          "n": 33,
+          "s": "CREATE INDEX client_objectives_list_idx ON client_objectives(tenant_id, client_id, deleted_at, created_at);"
+        },
+        {
+          "n": 35,
+          "s": "CREATE TABLE client_objective_revisions ("
+        },
+        {
+          "n": 50,
+          "s": "ALTER TABLE client_objectives ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 51,
+          "s": "ALTER TABLE client_objectives FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 52,
+          "s": "CREATE POLICY client_objectives_isolation ON client_objectives"
+        },
+        {
+          "n": 55,
+          "s": "ALTER TABLE client_objective_revisions ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 56,
+          "s": "ALTER TABLE client_objective_revisions FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 57,
+          "s": "CREATE POLICY client_objective_revisions_isolation ON client_objective_revisions"
+        },
+        {
+          "n": 61,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 63,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON client_objectives TO capiro_app;"
+        },
+        {
+          "n": 64,
+          "s": "REVOKE UPDATE, DELETE ON client_objective_revisions FROM capiro_app;"
+        },
+        {
+          "n": 65,
+          "s": "GRANT SELECT, INSERT ON client_objective_revisions TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [
+        "client_objectives",
+        "clients",
+        "tenants"
+      ],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 61,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 63,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON client_objectives TO capiro_app;"
+        },
+        {
+          "n": 64,
+          "s": "REVOKE UPDATE, DELETE ON client_objective_revisions FROM capiro_app;"
+        },
+        {
+          "n": 65,
+          "s": "GRANT SELECT, INSERT ON client_objective_revisions TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+      "blob": "7048874032f7a8ed079ab0aafee4804b1c97943b",
+      "sha256": "fc3aeb539b0e75f2c1024346eb9b745ee185474e5ba4ed8ea3ff9a02da932f78",
+      "bytes": 593,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 3,
+          "s": "ALTER TABLE \"business_development_prospects\""
+        },
+        {
+          "n": 4,
+          "s": "DROP CONSTRAINT \"business_development_prospects_stage_check\";"
+        },
+        {
+          "n": 5,
+          "s": "ALTER TABLE \"business_development_prospects\""
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 4,
+          "s": "DROP CONSTRAINT \"business_development_prospects_stage_check\";"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+      "blob": "bd6a4ad9b077afb0ef7cf96df30438e4cf49f02f",
+      "sha256": "473e30271d7f851582a5c74e201ce40b7b7dcb411ca5597fda9088b4c341d20d",
+      "bytes": 1888,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 4,
+          "s": "CREATE TABLE business_development_prospect_contacts ("
+        },
+        {
+          "n": 25,
+          "s": "CREATE INDEX prospect_contacts_active_idx ON business_development_prospect_contacts(tenant_id,prospect_id,id)"
+        },
+        {
+          "n": 27,
+          "s": "ALTER TABLE business_development_prospect_contacts ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 28,
+          "s": "ALTER TABLE business_development_prospect_contacts FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 29,
+          "s": "CREATE POLICY prospect_contacts_isolation ON business_development_prospect_contacts"
+        },
+        {
+          "n": 32,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON business_development_prospect_contacts TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [
+        "business_development_prospects",
+        "tenants"
+      ],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 32,
+          "s": "GRANT SELECT, INSERT, UPDATE, DELETE ON business_development_prospect_contacts TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+      "blob": "4248a97787b6a6546f02b4e183141679338b7638",
+      "sha256": "4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892",
+      "bytes": 2731,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 3,
+          "s": "CREATE TABLE client_activity_commands ("
+        },
+        {
+          "n": 41,
+          "s": "ALTER TABLE client_activity_commands ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 42,
+          "s": "ALTER TABLE client_activity_commands FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 43,
+          "s": "CREATE POLICY client_activity_commands_tenant_isolation ON client_activity_commands"
+        },
+        {
+          "n": 49,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 51,
+          "s": "GRANT SELECT, INSERT, UPDATE ON client_activity_commands TO capiro_app;"
+        }
+      ],
+      "foreign_targets": [
+        "clients",
+        "tenants"
+      ],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 49,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 51,
+          "s": "GRANT SELECT, INSERT, UPDATE ON client_activity_commands TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "blob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3",
+      "sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4",
+      "bytes": 4172,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 3,
+          "s": "ALTER TABLE clients ADD COLUMN account_owner_version integer NOT NULL DEFAULT 0"
+        },
+        {
+          "n": 6,
+          "s": "CREATE TABLE client_ordered_owners ("
+        },
+        {
+          "n": 21,
+          "s": "CREATE INDEX client_ordered_owners_member_idx ON client_ordered_owners(tenant_id,user_id);"
+        },
+        {
+          "n": 25,
+          "s": "INSERT INTO client_ordered_owners(tenant_id,client_id,rank,user_id)"
+        },
+        {
+          "n": 28,
+          "s": "ALTER TABLE client_ordered_owners ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 29,
+          "s": "ALTER TABLE client_ordered_owners FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 30,
+          "s": "CREATE POLICY client_ordered_owners_isolation ON client_ordered_owners"
+        },
+        {
+          "n": 33,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 35,
+          "s": "GRANT SELECT,INSERT,UPDATE,DELETE ON client_ordered_owners TO capiro_app;"
+        },
+        {
+          "n": 42,
+          "s": "CREATE FUNCTION check_client_ordered_owners() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 50,
+          "s": "BEGIN"
+        },
+        {
+          "n": 78,
+          "s": "CREATE CONSTRAINT TRIGGER client_ordered_owners_consistent"
+        },
+        {
+          "n": 81,
+          "s": "CREATE CONSTRAINT TRIGGER clients_ordered_owners_consistent"
+        }
+      ],
+      "foreign_targets": [
+        "clients",
+        "users"
+      ],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 25,
+          "s": "INSERT INTO client_ordered_owners(tenant_id,client_id,rank,user_id)"
+        },
+        {
+          "n": 33,
+          "s": "DO $$ BEGIN"
+        },
+        {
+          "n": 35,
+          "s": "GRANT SELECT,INSERT,UPDATE,DELETE ON client_ordered_owners TO capiro_app;"
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "blob": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc",
+      "sha256": "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052",
+      "bytes": 4017,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 3,
+          "s": "ALTER TABLE engagement_attachments ADD COLUMN prospect_id uuid;"
+        },
+        {
+          "n": 4,
+          "s": "ALTER TABLE engagement_attachments ADD CONSTRAINT engagement_attachments_prospect_fkey"
+        },
+        {
+          "n": 6,
+          "s": "ALTER TABLE engagement_attachments ADD CONSTRAINT engagement_attachments_prospect_parent_check"
+        },
+        {
+          "n": 8,
+          "s": "CREATE INDEX engagement_attachments_prospect_idx ON engagement_attachments(tenant_id,prospect_id,created_at);"
+        },
+        {
+          "n": 10,
+          "s": "CREATE TABLE prospect_attachment_upload_intents ("
+        },
+        {
+          "n": 30,
+          "s": "CREATE INDEX prospect_attachment_upload_intents_prospect_idx ON prospect_attachment_upload_intents(tenant_id,prospect_id);"
+        },
+        {
+          "n": 31,
+          "s": "ALTER TABLE prospect_attachment_upload_intents ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 32,
+          "s": "ALTER TABLE prospect_attachment_upload_intents FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 33,
+          "s": "CREATE POLICY prospect_attachment_upload_intents_isolation ON prospect_attachment_upload_intents"
+        },
+        {
+          "n": 39,
+          "s": "CREATE FUNCTION preserve_prospect_attachment_origin() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 40,
+          "s": "BEGIN"
+        },
+        {
+          "n": 50,
+          "s": "CREATE TRIGGER engagement_attachments_preserve_prospect_origin BEFORE UPDATE ON engagement_attachments"
+        },
+        {
+          "n": 53,
+          "s": "CREATE FUNCTION preserve_prospect_upload_receipt() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 54,
+          "s": "BEGIN"
+        },
+        {
+          "n": 61,
+          "s": "CREATE TRIGGER prospect_attachment_upload_intents_immutable BEFORE UPDATE ON prospect_attachment_upload_intents"
+        }
+      ],
+      "foreign_targets": [
+        "business_development_prospects",
+        "tenants"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "blob": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5",
+      "bytes": 887,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "ALTER TABLE federal_register_document"
+        },
+        {
+          "n": 5,
+          "s": "ALTER TABLE federal_register_document"
+        },
+        {
+          "n": 14,
+          "s": "CREATE INDEX federal_register_document_type_effective_date_idx"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "blob": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15",
+      "bytes": 3625,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "CREATE TABLE \"ws_newsletter_document\" ("
+        },
+        {
+          "n": 18,
+          "s": "CREATE TABLE \"ws_newsletter_library_item\" ("
+        },
+        {
+          "n": 33,
+          "s": "CREATE TABLE \"ws_newsletter_comment\" ("
+        },
+        {
+          "n": 48,
+          "s": "CREATE TABLE \"ws_newsletter_asset\" ("
+        },
+        {
+          "n": 62,
+          "s": "CREATE TABLE \"ws_newsletter_stage\" ("
+        },
+        {
+          "n": 79,
+          "s": "CREATE INDEX \"ws_newsletter_document_tenant_id_owner_id_updated_at_idx\" ON \"ws_newsletter_document\"(\"tenant_id\", \"owner_id\", \"updated_at\");"
+        },
+        {
+          "n": 82,
+          "s": "CREATE INDEX \"ws_newsletter_library_item_tenant_id_owner_id_kind_idx\" ON \"ws_newsletter_library_item\"(\"tenant_id\", \"owner_id\", \"kind\");"
+        },
+        {
+          "n": 85,
+          "s": "CREATE INDEX \"ws_newsletter_comment_tenant_id_document_id_created_at_idx\" ON \"ws_newsletter_comment\"(\"tenant_id\", \"document_id\", \"created_at\");"
+        },
+        {
+          "n": 88,
+          "s": "CREATE UNIQUE INDEX \"ws_newsletter_asset_token_key\" ON \"ws_newsletter_asset\"(\"token\");"
+        },
+        {
+          "n": 91,
+          "s": "CREATE INDEX \"ws_newsletter_asset_tenant_id_owner_id_idx\" ON \"ws_newsletter_asset\"(\"tenant_id\", \"owner_id\");"
+        },
+        {
+          "n": 94,
+          "s": "CREATE INDEX \"ws_newsletter_stage_tenant_id_owner_id_created_at_idx\" ON \"ws_newsletter_stage\"(\"tenant_id\", \"owner_id\", \"created_at\");"
+        },
+        {
+          "n": 97,
+          "s": "CREATE UNIQUE INDEX \"ws_newsletter_stage_document_id_revision_key\" ON \"ws_newsletter_stage\"(\"document_id\", \"revision\");"
+        },
+        {
+          "n": 100,
+          "s": "ALTER TABLE \"ws_newsletter_comment\" ADD CONSTRAINT \"ws_newsletter_comment_document_id_fkey\" FOREIGN KEY (\"document_id\") REFERENCES \"ws_newsletter_document\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;"
+        },
+        {
+          "n": 103,
+          "s": "ALTER TABLE \"ws_newsletter_stage\" ADD CONSTRAINT \"ws_newsletter_stage_document_id_fkey\" FOREIGN KEY (\"document_id\") REFERENCES \"ws_newsletter_document\"(\"id\") ON DELETE RESTRICT ON UPDATE CASCADE;"
+        }
+      ],
+      "foreign_targets": [
+        "ws_newsletter_document"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "blob": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6",
+      "bytes": 1050,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "CREATE TABLE \"ws_newsletter_reviewer\" ("
+        },
+        {
+          "n": 11,
+          "s": "CREATE UNIQUE INDEX \"ws_newsletter_reviewer_document_id_user_id_key\" ON \"ws_newsletter_reviewer\"(\"document_id\", \"user_id\");"
+        },
+        {
+          "n": 12,
+          "s": "CREATE INDEX \"ws_newsletter_reviewer_tenant_id_user_id_idx\" ON \"ws_newsletter_reviewer\"(\"tenant_id\", \"user_id\");"
+        },
+        {
+          "n": 13,
+          "s": "ALTER TYPE \"ws_notification_kind\" ADD VALUE IF NOT EXISTS 'newsletter_review';"
+        },
+        {
+          "n": 14,
+          "s": "ALTER TYPE \"ws_notification_kind\" ADD VALUE IF NOT EXISTS 'newsletter_comment';"
+        },
+        {
+          "n": 15,
+          "s": "ALTER TABLE \"ws_notification\" ADD COLUMN \"newsletter_id\" UUID;"
+        }
+      ],
+      "foreign_targets": [
+        "ws_newsletter_document"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "blob": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c",
+      "bytes": 435,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "CREATE TABLE \"ws_newsletter_brand_kit\" ("
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "blob": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50",
+      "bytes": 235,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 3,
+          "s": "ALTER TABLE \"ws_newsletter_asset\""
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "blob": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134",
+      "bytes": 1135,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "CREATE TABLE \"ws_newsletter_asset_folder\" ("
+        },
+        {
+          "n": 12,
+          "s": "CREATE INDEX \"ws_newsletter_asset_folder_tenant_id_owner_id_idx\""
+        },
+        {
+          "n": 14,
+          "s": "ALTER TABLE \"ws_newsletter_asset\" ADD COLUMN \"folder_id\" UUID;"
+        },
+        {
+          "n": 15,
+          "s": "ALTER TABLE \"ws_newsletter_asset\" ADD CONSTRAINT \"ws_newsletter_asset_folder_scope_fkey\""
+        },
+        {
+          "n": 19,
+          "s": "CREATE INDEX \"ws_newsletter_asset_tenant_id_owner_id_folder_id_idx\""
+        }
+      ],
+      "foreign_targets": [
+        "ws_newsletter_asset_folder"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "blob": "8a132af2d73079082d089c611e450005d6a5e090",
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c",
+      "bytes": 1536,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "ALTER TABLE ws_newsletter_asset"
+        },
+        {
+          "n": 7,
+          "s": "ALTER TABLE ws_newsletter_asset"
+        },
+        {
+          "n": 22,
+          "s": "CREATE INDEX ws_newsletter_asset_tenant_id_owner_id_current_revision_deleted_at_idx"
+        },
+        {
+          "n": 25,
+          "s": "CREATE UNIQUE INDEX ws_newsletter_asset_current_revision_key"
+        }
+      ],
+      "foreign_targets": [
+        "ws_newsletter_asset"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "blob": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45",
+      "bytes": 2074,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "CREATE UNIQUE INDEX \"ws_newsletter_comment_scope_key\" ON \"ws_newsletter_comment\" (\"id\", \"tenant_id\", \"document_id\");"
+        },
+        {
+          "n": 2,
+          "s": "CREATE TABLE \"ws_newsletter_thread_watcher\" ("
+        },
+        {
+          "n": 11,
+          "s": "CREATE UNIQUE INDEX \"ws_newsletter_thread_watcher_root_id_user_id_key\" ON \"ws_newsletter_thread_watcher\" (\"root_id\", \"user_id\");"
+        },
+        {
+          "n": 12,
+          "s": "CREATE INDEX \"ws_newsletter_thread_watcher_tenant_id_document_id_idx\" ON \"ws_newsletter_thread_watcher\" (\"tenant_id\", \"document_id\");"
+        },
+        {
+          "n": 13,
+          "s": "CREATE TABLE \"ws_newsletter_review_email_request\" ("
+        },
+        {
+          "n": 25,
+          "s": "CREATE UNIQUE INDEX \"ws_newsletter_review_email_request_comment_id_recipient_id_key\" ON \"ws_newsletter_review_email_request\" (\"comment_id\", \"recipient_id\");"
+        },
+        {
+          "n": 26,
+          "s": "CREATE INDEX \"ws_newsletter_review_email_request_created_at_idx\" ON \"ws_newsletter_review_email_request\" (\"created_at\");"
+        },
+        {
+          "n": 27,
+          "s": "CREATE INDEX \"ws_newsletter_review_email_request_tenant_id_document_id_idx\" ON \"ws_newsletter_review_email_request\" (\"tenant_id\", \"document_id\");"
+        }
+      ],
+      "foreign_targets": [
+        "ws_newsletter_comment"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "blob": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea",
+      "bytes": 758,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 4,
+          "s": "ALTER TABLE ws_newsletter_reviewer DROP CONSTRAINT ws_newsletter_reviewer_role_check;"
+        },
+        {
+          "n": 5,
+          "s": "ALTER TABLE ws_newsletter_reviewer ADD CONSTRAINT ws_newsletter_reviewer_role_check"
+        },
+        {
+          "n": 10,
+          "s": "DROP INDEX ws_newsletter_stage_document_id_revision_key;"
+        },
+        {
+          "n": 11,
+          "s": "CREATE UNIQUE INDEX ws_newsletter_stage_document_id_revision_owner_id_key"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": [
+        {
+          "n": 10,
+          "s": "DROP INDEX ws_newsletter_stage_document_id_revision_key;"
+        }
+      ]
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "blob": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb",
+      "bytes": 1495,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "CREATE UNIQUE INDEX ws_newsletter_document_tenant_key ON ws_newsletter_document(id, tenant_id);"
+        },
+        {
+          "n": 2,
+          "s": "CREATE TABLE ws_newsletter_invitation ("
+        },
+        {
+          "n": 21,
+          "s": "CREATE UNIQUE INDEX ws_newsletter_invitation_request_key ON ws_newsletter_invitation(tenant_id, author_id, request_key);"
+        },
+        {
+          "n": 22,
+          "s": "CREATE UNIQUE INDEX ws_newsletter_invitation_pending_email_key ON ws_newsletter_invitation(document_id, email)"
+        },
+        {
+          "n": 24,
+          "s": "CREATE INDEX ws_newsletter_invitation_tenant_id_document_id_email_idx ON ws_newsletter_invitation(tenant_id, document_id, email);"
+        },
+        {
+          "n": 25,
+          "s": "CREATE INDEX ws_newsletter_invitation_activated_at_created_at_idx ON ws_newsletter_invitation(activated_at, created_at);"
+        }
+      ],
+      "foreign_targets": [
+        "ws_newsletter_document"
+      ],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "blob": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719",
+      "bytes": 139,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 1,
+          "s": "ALTER TABLE ws_newsletter_invitation ADD COLUMN account_role TEXT NOT NULL DEFAULT 'member'"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "blob": "e2bce04218c67151419d370777b7d22c8611c7b0",
+      "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788",
+      "bytes": 2192,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 4,
+          "s": "ALTER TABLE ws_draft ADD COLUMN prospect_id uuid;"
+        },
+        {
+          "n": 5,
+          "s": "CREATE INDEX ws_draft_prospect_idx ON ws_draft(tenant_id,prospect_id,updated_at);"
+        },
+        {
+          "n": 6,
+          "s": "CREATE TABLE ws_prospect_draft_receipt ("
+        },
+        {
+          "n": 17,
+          "s": "CREATE INDEX ws_prospect_draft_receipt_prospect_idx ON ws_prospect_draft_receipt(tenant_id,prospect_id);"
+        },
+        {
+          "n": 18,
+          "s": "ALTER TABLE ws_prospect_draft_receipt ENABLE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 19,
+          "s": "ALTER TABLE ws_prospect_draft_receipt FORCE ROW LEVEL SECURITY;"
+        },
+        {
+          "n": 20,
+          "s": "CREATE POLICY ws_prospect_draft_receipt_isolation ON ws_prospect_draft_receipt"
+        },
+        {
+          "n": 23,
+          "s": "CREATE FUNCTION ws_preserve_prospect_origin() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 24,
+          "s": "BEGIN"
+        },
+        {
+          "n": 31,
+          "s": "CREATE TRIGGER ws_draft_preserve_prospect_origin BEFORE UPDATE ON ws_draft"
+        },
+        {
+          "n": 33,
+          "s": "CREATE FUNCTION ws_preserve_prospect_receipt() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 34,
+          "s": "BEGIN"
+        },
+        {
+          "n": 37,
+          "s": "CREATE TRIGGER ws_prospect_draft_receipt_immutable BEFORE UPDATE ON ws_prospect_draft_receipt"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "blob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+      "bytes": 533,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "CREATE FUNCTION ws_preserve_saved_version() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 3,
+          "s": "BEGIN"
+        },
+        {
+          "n": 9,
+          "s": "CREATE TRIGGER ws_doc_version_immutable BEFORE UPDATE ON ws_doc_version"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261013090000_prospect_brief_workspace_copy/migration.sql",
+      "blob": "7922e4c7fe6ec2ff75bd9f9e90349c26abf91266",
+      "sha256": "01a8adc4a151fe29da5b68f4e55c9d6b3c37b2b22a5caa79f272020113f45d2a",
+      "bytes": 2453,
+      "added_since_import": false,
+      "operations": [
+        {
+          "n": 2,
+          "s": "ALTER TABLE ws_document ADD COLUMN source_brief_version jsonb;"
+        },
+        {
+          "n": 4,
+          "s": "ALTER TABLE ws_document ADD CONSTRAINT ws_document_brief_source_shape CHECK ("
+        },
+        {
+          "n": 20,
+          "s": "CREATE FUNCTION ws_document_brief_source_immutable() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 21,
+          "s": "BEGIN"
+        },
+        {
+          "n": 30,
+          "s": "CREATE TRIGGER ws_document_brief_source_immutable"
+        },
+        {
+          "n": 33,
+          "s": "CREATE FUNCTION ws_document_brief_source_origin() RETURNS trigger LANGUAGE plpgsql AS $$"
+        },
+        {
+          "n": 34,
+          "s": "BEGIN"
+        },
+        {
+          "n": 44,
+          "s": "CREATE TRIGGER ws_document_brief_source_origin"
+        }
+      ],
+      "foreign_targets": [],
+      "potential_data_or_permission_actions": []
+    }
+  ]
+}

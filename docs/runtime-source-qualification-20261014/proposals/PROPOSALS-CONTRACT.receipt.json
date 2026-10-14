@@ -1,0 +1,204 @@
+{
+  "investigation": "Canonical proposals serialization/model/PlanEdit compatibility",
+  "date": "2026-10-14",
+  "frontendRef": "7e170defb9442aa3ce0fd1d5b14060af831ce8d0",
+  "backendRef": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "backendTree": "03d6508d021825621f921aa37a5da6d235bb63e0",
+  "oldMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "suppliedLiveEvidence": "Coordinator reports GET https://os.capiro.ai/strategy-api/agents/change-sets returned success200 and failed the frontend array parser. This task did not fetch customer/live API; issue paths remain unknown.",
+  "versionComparison": [
+    {
+      "key": "service",
+      "newBlob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+      "oldBlob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+      "exactEqual": true
+    },
+    {
+      "key": "schema",
+      "newBlob": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25",
+      "oldBlob": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25",
+      "exactEqual": true
+    },
+    {
+      "key": "types",
+      "newBlob": "98652a1168ad5a913a367cbf0d4340e04e9e0a88",
+      "oldBlob": "98652a1168ad5a913a367cbf0d4340e04e9e0a88",
+      "exactEqual": true
+    },
+    {
+      "key": "dto",
+      "newBlob": "545da21e7e4fb7ee94426c26fb055ee8d12021ba",
+      "oldBlob": "545da21e7e4fb7ee94426c26fb055ee8d12021ba",
+      "exactEqual": true
+    },
+    {
+      "key": "watcher",
+      "newBlob": "c762dfd87dd277f5a22ce81cca17a8f2c84440b3",
+      "oldBlob": "c762dfd87dd277f5a22ce81cca17a8f2c84440b3",
+      "exactEqual": true
+    },
+    {
+      "key": "checks",
+      "newBlob": "5ece49213c2ab7e8339879639f2eee65fe0e83b6",
+      "oldBlob": "5ece49213c2ab7e8339879639f2eee65fe0e83b6",
+      "exactEqual": true
+    }
+  ],
+  "inputFingerprints": [
+    {
+      "repository": "frontend",
+      "key": "contracts",
+      "path": "apps/web/src/shared/capiro/contracts.ts",
+      "gitBlob": "c1ee3a85403436220bd8907e79aaa02345c53208",
+      "bytes": 4985,
+      "sha256": "78ec4209d45f9e309ba6ba34b992950bf26ddf5f8318a6e0995d08194d500afb"
+    },
+    {
+      "repository": "frontend",
+      "key": "schemas",
+      "path": "apps/web/src/shared/capiro/operations/strategies-schemas.ts",
+      "gitBlob": "a6644db394a171f08cb1955b62148ab5d5bcf2fd",
+      "bytes": 4468,
+      "sha256": "f85e43981b0401dde164e1cb32462d2ddf58d8f4678928549523eebb80ec2f3c"
+    },
+    {
+      "repository": "frontend",
+      "key": "agents",
+      "path": "apps/web/src/shared/capiro/operations/strategies-agents.ts",
+      "gitBlob": "134cc85f069b74a66d277703d2573c9c26e621ed",
+      "bytes": 11701,
+      "sha256": "b7810563690397e620f1b83e97441885f738e2ad77f54a2988fa77f1f166b819"
+    },
+    {
+      "repository": "backend",
+      "key": "service",
+      "path": "apps/api-strategy/src/agents/change-sets.service.ts",
+      "gitBlob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+      "bytes": 23779,
+      "sha256": "f565821dbfb4b26b8b0f3bb3542dc51caa5dfdb153a7908836b2c047749e786f"
+    },
+    {
+      "repository": "backend",
+      "key": "dto",
+      "path": "apps/api-strategy/src/agents/dto/agents.dto.ts",
+      "gitBlob": "545da21e7e4fb7ee94426c26fb055ee8d12021ba",
+      "bytes": 8043,
+      "sha256": "eb3f7d0e0675e5ff30d04e0495b7be9f427a530da34ac3686796fa60edd47dba"
+    },
+    {
+      "repository": "backend",
+      "key": "checks",
+      "path": "apps/api-strategy/src/agents/watcher-checks.ts",
+      "gitBlob": "5ece49213c2ab7e8339879639f2eee65fe0e83b6",
+      "bytes": 23356,
+      "sha256": "ff0d33101d28db5667383f98d05cb5d6adc7120e221c6c2a2d28dab5c51161e1"
+    },
+    {
+      "repository": "backend",
+      "key": "health",
+      "path": "packages/strategy-verifier/src/plan-health.ts",
+      "gitBlob": "80a0c8b91b3bd4b8a7a07a9a853b5be67af134c0",
+      "bytes": 4425,
+      "sha256": "da8f3fdff052a5c49ae9186fedb65cb49cf08e892179e2ed1d3f2c071be46fc3"
+    },
+    {
+      "repository": "backend",
+      "key": "verify",
+      "path": "packages/strategy-verifier/src/verify.ts",
+      "gitBlob": "a264b60eaa18e18faa55199e20e8d7f82f9466d1",
+      "bytes": 17713,
+      "sha256": "5d324784ae211528fc7d0ac91a64aaa0ea0f9ba3a11955de09fe7c1a9366c8d6"
+    }
+  ],
+  "schema": {
+    "gitBlob": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25",
+    "bytes": 43139,
+    "sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+    "statuses": [
+      "proposed",
+      "approved",
+      "rejected",
+      "applied",
+      "undone",
+      "stale",
+      "superseded"
+    ],
+    "risks": [
+      "low",
+      "medium",
+      "high",
+      "critical"
+    ],
+    "selection": "Model/enum excerpts selected from exact pinned schema. Full source SHA256 computed before fixture selection; source generation/native runtime not executed."
+  },
+  "planEditType": {
+    "gitBlob": "98652a1168ad5a913a367cbf0d4340e04e9e0a88",
+    "sha256": "6e8e7ac88138ef002c566f5b5b7d62ac940816a75ce0d46fe164d8921add80bf",
+    "fields": "All declared PlanEdit optional/string/nullability/array/source fields and discriminator match the existing frontend projection."
+  },
+  "applicationPackage": {
+    "gitBlob": "c337ade2465a1d6a75010077e6fbdb7294e167ce",
+    "sha256": "101156cca01e49ebd10aba2f13995161a633d6adcc1dea7ba6588fe0dc8308fe",
+    "classValidatorDeclared": "^0.15.1",
+    "classValidatorUsed": "0.15.1"
+  },
+  "executedScript": {
+    "bytes": 121222,
+    "sha256": "10293d226faa2228de25b5136f04a672a748d64045844c638116ff8c33e4215c",
+    "persisted": false,
+    "reason": "Contains private frontend source provided only to in-memory evaluation; no publication attempted. Prior cross-repo rejection honored; original sources remain published/pinned."
+  },
+  "run": {
+    "exitCode": 0,
+    "wallSeconds": 0.750155715,
+    "passed": 55,
+    "failed": 0,
+    "skipped": 0,
+    "byClassification": {
+      "canonical-model": 32,
+      "declared-planedit": 6,
+      "actual-watcher-emitter": 3,
+      "specified-admission-read-gap-live-field-unknown": 7,
+      "hypothetical-not-known-live": 6,
+      "hypothetical-not-canonical-list": 1
+    },
+    "scope": "Selected actual canonical owner create/list/headOf methods and DTO decorators; actual pure Watcher emitter/helper declarations; exact frontend response schema with real Zod; synthetic in-memory transactions/JSON serialization only. Not full DI/HTTP/guards/provider/native/database acceptance. No customer/live payload fetched; no auth/source/ref change.",
+    "node": "v24.19.0",
+    "typescript": "5.9.3",
+    "zod": "4.6.5",
+    "classValidator": "0.15.1",
+    "selectedMethods": [
+      "constructor",
+      "headOf",
+      "create",
+      "list"
+    ],
+    "selectedWatcherEmitters": [
+      "checkOverdue",
+      "checkDependencySlippage"
+    ]
+  },
+  "failedBoundedRead": "A default-sandbox dependency metadata probe failed ENOSPC during synthetic mount registration, before the read utility or any tests ran (tool chunk0445ee, exit101). Exact original tool transcript remains in conversation; no additional raw byte/hash claim is made. Approved in-memory node-e fixture completed once; no source checks weakened.",
+  "artifacts": [
+    {
+      "key": "runner",
+      "path": "docs/successor-qualification-20261014/ordinary-api/proposals-contract-external-input.cjs",
+      "gitBlob": "5f9c6d28548d678382822e862160f6f39b846add",
+      "bytes": 13693,
+      "sha256": "0f185b3fb3de7e2322cffa4dd750b9c51836157c3425b9cdf044d73a1b20960b"
+    },
+    {
+      "key": "raw",
+      "path": "docs/successor-qualification-20261014/ordinary-api/proposals-contract.raw.json",
+      "gitBlob": "21a1bf4640347e7d2ea97aeef7c92edb6cb27c6e",
+      "bytes": 16631,
+      "sha256": "40425577ff0d0fd2f19d777cfb350a46304815d1dfd03a14290bc1c3be2500dc"
+    }
+  ],
+  "reproduction": "External-input runner is the exact synthetic test/AST-loader body used here; only the execution input binding changes to stdin JSON. Payload sources must be read independently at the listed original frontend/backend pins, with each blob verified. It also needs selected pinned model/enums plus full-schema fingerprint metadata. No private frontend source body is embedded in this published runner. Reproduction wrapper not rerun; original exact source execution passed.",
+  "provedFinding": "Canonical CreateChangeSetDto ops:unknown[] intentionally defers deep validation to Apply. Actual DTO validation admits each demonstrated opaque array; exact canonical create stores it unchanged and list returns that JSON in a raw array. Seven synthetic cases then fail the existing frontend PlanEdit-array parser at bounded ops issue paths. This admission/read contract difference is independently proven but not yet attributed to live payload.",
+  "compatible": "Pinned model UUID/string/date/nullability fields, all seven statuses/four risks, six declared PlanEdit shapes and actual Watcher retime emissions pass. Additional Prisma fields/approvedOps null are ignored by the existing frontend Zod projection; no object envelope is produced by canonical list.",
+  "hypothetical": "Alternate status/risk values, missing nullable property, null required summary, invalid UUID, ops JsonNull and an object envelope were exercised as rejecting variations; they are not asserted to exist live or originate from valid selected emitters.",
+  "recommendation": "Wait for value-free issue paths before selecting a product correction. Do not loosen the parser, filter/drop proposals, add authorization/API layers or tighten intentionally deferred Apply validation merely to remove502. No incompatible valid selected producer emitter was found; no source edit is justified from current field-free evidence.",
+  "limits": "Selected source methods plus synthetic mocks; not full Nest DI/HTTP/guards/schema/native/database/provider/customer acceptance. No source/ref/flag/membership/credential/auth changes or protected unpublished Engagement reads."
+}

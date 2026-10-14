@@ -1,0 +1,49 @@
+{
+  "qualification": "stock timestamp CLI against inert Git source fixture; no SQL or application/database execution",
+  "source_ref": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "candidate_source_head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "frontier_name": "20281012060000_federal_register_effective_evidence",
+  "baseline_fixture_commit": "9ff0ec5b7349f96317ca2d9c771ea9f19116c1bf",
+  "source_inputs": [
+    {
+      "path": "scripts/check-migration-timestamps.mjs",
+      "bytes": 7161,
+      "sha256": "fa75ba582314d5c2ef2d11bcf531cd72533156184e80d6f331af03c0b88bab95",
+      "git_blob": "e1d14d893c384fc1882b920d8a2a2cabed12cdcd"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/cli.mjs",
+      "bytes": 5248,
+      "sha256": "e348d54e831ca9c0644f23b0eedad573027dbfc1b45948ad611b80d5686de830",
+      "git_blob": "1a8b032dd615628c695d5d6b4af9ad5905313cec"
+    },
+    {
+      "path": "scripts/migration-timestamp-offsets.json",
+      "bytes": 1421,
+      "sha256": "44c3ad8e9ebf1f608f8ba5a7cd4c7aad5a0136d5da1e008411619eb259ef392e",
+      "git_blob": "f6586720188fed067136fea8c2e8a7febed660fc"
+    }
+  ],
+  "migration_body": {
+    "bytes": 2094,
+    "sha256": "8058591c5b7e9bc32a215367c73064a74cf8b81da54985f95498e63ab7d3727f",
+    "git_blob": "e3445102a7ff5f06021704cea272bbb559b8f03f"
+  },
+  "original": {
+    "name": "20261014050000_user_portfolio_layout",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "Migration timestamp guard FAILED:\n\n  apps/api/prisma/migrations/20261014050000_user_portfolio_layout\n    dirname timestamp is -731.0 days from the expected\n    value (commit date 2026-10-14 + yearOffset 2), tolerance is 7d.\n    Rename to something near 20281014010000, or, if the frontier genuinely\n    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.\n\nExisting migrations are grandfathered — never rename a directory that has been applied.\nThis check only applies to migrations added by this PR.\n"
+  },
+  "corrected": {
+    "name": "20281014050000_user_portfolio_layout",
+    "exit": 0,
+    "stdout": "Migration timestamp guard passed.\n",
+    "stderr": ""
+  },
+  "limits": [
+    "Fixture proves source guard name/date/order behavior only; actual candidate guard must run against pre-layout base c76 after source correction.",
+    "Existing ledger must confirm oldname absent before renamed source deployment; do not bypass immutable history guard.",
+    "No product files or refs edited; no database/migration/seed execution."
+  ]
+}

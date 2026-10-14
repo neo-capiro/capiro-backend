@@ -1,0 +1,19 @@
+{
+  "owner": "apps/workspace",
+  "exitCode": 0,
+  "seconds": 1.216,
+  "runnerSha256": "67c5bb75e99a40516b0ab4d8808fd36b79514ca66e95d6980b7ab129b83342e2",
+  "raw": {
+    "apps-workspace-di.stdout": {
+      "bytes": 286,
+      "sha256": "43192ea9c19bdc6949c209837e8fcb092e3512ba44adafc47d8fc3fd783bbe88"
+    },
+    "apps-workspace-di.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "databasePortStrictMock": true,
+  "nodeKey": "node22",
+  "applicationInitRequested": false
+}

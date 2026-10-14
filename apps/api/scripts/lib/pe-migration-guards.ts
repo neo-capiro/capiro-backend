@@ -53,7 +53,8 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
 
 /**
  * Approved container recovery interface: f06cdced / PR816, required by the later
- * a966a263 Phase A contract. The complete current envelope is pinned at d70bb972.
+ * a966a263 Phase A contract. The original envelope is pinned at d70bb972;
+ * the successor pins remove only the retired workflow-template seed callers.
  * These are RAW UTF-8 source hashes after CRLF -> LF only, including comments.
  * A caller must not pre-strip comments: text inside multiline shell strings can
  * begin with # without being a shell comment. No runtime/operator authorization
@@ -61,9 +62,9 @@ const FORBIDDEN_MIGRATION_HISTORY_PATTERNS: Array<{ code: string; re: RegExp; la
  * Any source-envelope change needs an explicit review of this protocol.
  */
 const MANUAL_RECOVERY_SOURCE_SHA256 = {
-  'scripts/entrypoint.sh': '14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b',
+  'scripts/entrypoint.sh': 'a16c4ebffbb10da7a18a6a38f2f67bd35f39a875fdf4411b7015c395bb26e98d',
   'scripts/entrypoint-legacy.sh': '4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a',
-  'scripts/entrypoint-dispatcher.inc': '1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf',
+  'scripts/entrypoint-dispatcher.inc': '1651d7fac414eff859be16039fbce6117782a4611d19894f9e32097dda86e420',
 } as const;
 const MANUAL_RECOVERY_MODES = ['rolled-back', 'applied'] as const;
 type ManualRecoveryMode = (typeof MANUAL_RECOVERY_MODES)[number];

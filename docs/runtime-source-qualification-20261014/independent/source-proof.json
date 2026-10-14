@@ -1,0 +1,125 @@
+{
+  "base_head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+  "base_tree": "03d6508d021825621f921aa37a5da6d235bb63e0",
+  "changed_files": [
+    {
+      "path": "apps/api-strategy/package.json",
+      "base_bytes": 1788,
+      "base_sha256": "101156cca01e49ebd10aba2f13995161a633d6adcc1dea7ba6588fe0dc8308fe",
+      "candidate_bytes": 1788,
+      "candidate_sha256": "dbec273c3fb66c5c765a1a959f5509f7c952b56f5e6ac2feec6b7aebb57858fa"
+    },
+    {
+      "path": "apps/api/package.json",
+      "base_bytes": 29061,
+      "base_sha256": "cf3d355d8d8595f52cae8bb6e1ae0142be545f316e74c68f4907bc012515aa9a",
+      "candidate_bytes": 29061,
+      "candidate_sha256": "10a90b3357aad5c52dc04ae2e00d25dadd5a501ee49a9eb8fd25e6904c501c40"
+    },
+    {
+      "path": "apps/api/prisma/seed-workflows.ts",
+      "base_bytes": 49424,
+      "base_sha256": "9ca202895c950782ad05943e53409c6c9a37a8ed4e4161821b7768059f4a6f28",
+      "candidate_bytes": null,
+      "candidate_sha256": null
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "base_bytes": 77254,
+      "base_sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf",
+      "candidate_bytes": 76955,
+      "candidate_sha256": "1651d7fac414eff859be16039fbce6117782a4611d19894f9e32097dda86e420"
+    },
+    {
+      "path": "apps/api/scripts/entrypoint.sh",
+      "base_bytes": 16437,
+      "base_sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b",
+      "candidate_bytes": 16346,
+      "candidate_sha256": "a16c4ebffbb10da7a18a6a38f2f67bd35f39a875fdf4411b7015c395bb26e98d"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "base_bytes": 11419,
+      "base_sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc",
+      "candidate_bytes": 11489,
+      "candidate_sha256": "6adf558fa9419f267f1ce61ec78c6183dac118ca30944e921e803b2177be247d"
+    },
+    {
+      "path": "apps/intel-api/package.json",
+      "base_bytes": 2458,
+      "base_sha256": "b57c1a4e55ecd08a82e4c70c0bdc1b0ed2b3c5fe1830230128200d3176d408c5",
+      "candidate_bytes": 2458,
+      "candidate_sha256": "931da13afdb8c40d678cccdfa7d4918f7b7ae0669a0d659903f74a8a04b72bc5"
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "base_bytes": 1818,
+      "base_sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417",
+      "candidate_bytes": 1818,
+      "candidate_sha256": "4f068fba3e4f1844f5f0dbb034d211c397735c82e4c1e90a5176e887aae329ec"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "base_bytes": 728135,
+      "base_sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+      "candidate_bytes": 728135,
+      "candidate_sha256": "01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c"
+    }
+  ],
+  "source_scope_pass": true,
+  "manifest_relocation_only": true,
+  "whole_lock_equal_except_four_role_moves": true,
+  "packages_snapshots_integrities_unchanged": true,
+  "entrypoint_exact_inverse_pass": true,
+  "dispatcher_exact_inverse_pass": true,
+  "guard_exact_inverse_pass": true,
+  "legacy_entrypoint_unchanged": true,
+  "schemas": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+      "byte_identical": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "sha256": "5b42bad2611ae694120746d8f60902d62752f90bac4c65a50f4dae79e798e094",
+      "byte_identical": true
+    },
+    {
+      "path": "apps/api-strategy/prisma/schema.prisma",
+      "sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2",
+      "byte_identical": true
+    },
+    {
+      "path": "apps/intel-api/prisma/schema.prisma",
+      "sha256": "751cdd4b7cc4f6b59598452327917b6f48639ec104473366b104ef0c2a1c0b74",
+      "byte_identical": true
+    }
+  ],
+  "retired_seed_declared_noop": true,
+  "active_seed_reference_search": {
+    "exit": 0,
+    "stdout": "apps/api/scripts/seed-demo-client.ts:178:    const workflowTemplate =\napps/api/scripts/seed-demo-client.ts:179:      (await prisma.workflowTemplate.findFirst({\napps/api/scripts/seed-demo-client.ts:183:      (await prisma.workflowTemplate.findFirst({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }));\napps/api/scripts/seed-demo-client.ts:197:      workflowTemplate: workflowTemplate ? { id: workflowTemplate.id, slug: workflowTemplate.slug } : null,\napps/api/scripts/seed-demo-client.ts:262:        return seedClient(tx, { tenantId: tenant.id, userId: user.id, ldaClient, trackedBills, workflowTemplateId: workflowTemplate?.id ?? null });\napps/api/scripts/seed-demo-client.ts:604:  workflowTemplateId: string | null;\napps/api/scripts/seed-demo-client.ts:837:  if (refs.workflowTemplateId) {\napps/api/scripts/seed-demo-client.ts:841:        templateId: refs.workflowTemplateId,\n",
+    "stderr": ""
+  },
+  "layout_migration_names": [
+    "20261014050000_user_portfolio_layout"
+  ],
+  "migration_rename_authorized": false,
+  "prior_review_tool_failures": [
+    {
+      "exit": 2,
+      "action": "scoped rg path discovery",
+      "stderr": "rg: apps/api/scripts/tests: No such file or directory (os error 2)\nrg: apps/api/prisma/seed-workflows.ts: No such file or directory (os error 2)\n",
+      "source_or_app_fault": false
+    },
+    {
+      "exit": 1,
+      "action": "source assertion pass followed by fixture path discovery",
+      "stderr": "rg: tests: No such file or directory (os error 2)\nsubprocess.CalledProcessError: rg --files apps/api/scripts apps/api/test tests returned non-zero exit status 2\n",
+      "source_or_app_fault": false
+    }
+  ],
+  "runtime_acceptance": false,
+  "application_or_prisma_execution": false
+}

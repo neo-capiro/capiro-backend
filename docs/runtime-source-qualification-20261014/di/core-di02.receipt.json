@@ -1,0 +1,20 @@
+{
+  "exitCode": 0,
+  "seconds": 4.602,
+  "runnerSha256": "2a04ec3f0db083428ce410d90ad580982fc7e0c7ea652b8e09397e871744767f",
+  "raw": {
+    "core-di02.stdout": {
+      "bytes": 368,
+      "sha256": "0e70ba54f7a8be69bdfd6df696d49f4b68da9261d1ee1d9b615fa4b4dfff0b72"
+    },
+    "core-di02.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "firstProbeLimit": "InitialcredentialpathregexmatchedAWSscopedpackagenamespace; retainedfirstfailureisguardartifact. Literal .aws pathsegment nowenforced.",
+  "sourceOnly": true,
+  "databasePortStrictMock": true,
+  "runtimeNode": "22.23.3",
+  "applicationInitRequested": false
+}

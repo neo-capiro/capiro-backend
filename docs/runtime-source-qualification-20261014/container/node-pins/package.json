@@ -1,0 +1,1 @@
+{"name": "capiro-exact-image-node-pins-probe", "version": "0.0.0", "private": true, "dependencies": {"node22": "npm:node-linux-x64@22.23.3", "node20": "npm:node-linux-x64@20.16.0"}}

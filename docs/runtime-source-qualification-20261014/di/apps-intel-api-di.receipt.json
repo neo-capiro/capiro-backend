@@ -1,0 +1,19 @@
+{
+  "owner": "apps/intel-api",
+  "exitCode": 0,
+  "seconds": 1.075,
+  "runnerSha256": "67c5bb75e99a40516b0ab4d8808fd36b79514ca66e95d6980b7ab129b83342e2",
+  "raw": {
+    "apps-intel-api-di.stdout": {
+      "bytes": 286,
+      "sha256": "de70d28967d8e161210c8871bd97e6fb30892a811ccab1bbfdab0e341c8f6c22"
+    },
+    "apps-intel-api-di.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "databasePortStrictMock": true,
+  "nodeKey": "node20",
+  "applicationInitRequested": false
+}
