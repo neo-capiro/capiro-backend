@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "src/intelligence/alert-memo/memo-sections-characterization.spec.ts",
+    "src/intelligence/alert-memo/memo-sections-ownership.contract.spec.ts",
+    "src/intelligence/alert-memo/fixtures/memo-sections-characterization/**/*.ts",
+    "src/intelligence/alert-memo/fixtures/memo-sections-ownership-guard/**/*.ts"
+  ]
+}
