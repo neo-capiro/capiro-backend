@@ -1,0 +1,98 @@
+{
+  "sourceHead": "53dc10fad8eb9f2bfc77b0ddc28a7c6f29a06fc0",
+  "sourceTree": "cd5ad937d360412952687e39da686528129d5bbe",
+  "baseHead": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "baseTree": "657902eb63067e1d44e02c908552dd7d93c85170",
+  "changed": [
+    {
+      "path": "apps/api/src/clients/client-targets.controller.ts",
+      "blob": "dd2c1dadf8da4ab0dc50136bf756cead61feed93",
+      "mode": "100644",
+      "sha256": "277746da17897fdd2d15b425575596264b2a4839a44188b86d6aa8cba97ebe47"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "blob": "1312dcb7263c4d117339b492d8bcf28919978db7",
+      "mode": "100644",
+      "sha256": "fc891546dc20cfd4b3c9416f49741324175da173de79b4d3e845ae595ba0cf7f"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "blob": "9f7c19ac53c370f9326be7bc6d206c228017e9e1",
+      "mode": "100644",
+      "sha256": "0daa69b9fbd47aadf0435329ab8a8b224733f129fe504e62a3dab20e575152bc"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.service.ts",
+      "blob": "e57a499973bdc99b28d2c713543354d317e9c2f9",
+      "mode": "100644",
+      "sha256": "2132474e72b6d211db92b7daf49e026d1ccbd5c138ebe4903a3d7ff061cbcda3"
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "mode": "100644",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "blob": "f34b141a8101cece76c3765ed5d7d340334c5d98",
+      "mode": "100644",
+      "sha256": "c639d9761e25021321cbf963d0aa87968b4d4cada19c7c62814480a83e62b674",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "blob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+      "mode": "100644",
+      "sha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "blob": "8fe1096621c7caa41bfc84284510e536b9957204",
+      "mode": "100644",
+      "sha256": "98e7f4a62e0bf45fc2c5cb3a816bcde805d0140aa609910169d900db5f6bd2d0",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "blob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "mode": "100644",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "blob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "mode": "100644",
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "blob": "60fbbc8a1de21962a95af60842d25087f58a612d",
+      "mode": "100644",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9",
+      "equalsBase": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "blob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+      "mode": "100644",
+      "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+      "equalsBase": true
+    }
+  ],
+  "preservedSources": [
+    "bdefa6269fef468d802ab324a971273959e6f572",
+    "36ba0b9e236c2fa3162d01803289f52ca375b3ae"
+  ],
+  "preservedPacket": "cd434db1c21695b75de6b65181a9b01bab4c82eb",
+  "nativeAcceptance": false,
+  "providerCalls": false,
+  "newSchemaOrStore": false
+}

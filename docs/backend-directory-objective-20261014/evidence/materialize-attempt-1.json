@@ -1,0 +1,6 @@
+{
+  "command": "node docs/backend-directory-objective-20261014/evidence/materialize-runtime-closure.cjs",
+  "exitCode": 1,
+  "failure": "git sparse-checkout add rejected --no-cone: unknown option; no source edits or checkout completed by this attempt",
+  "correction": "keep the already-selected non-cone worktree mode and use add --stdin"
+}

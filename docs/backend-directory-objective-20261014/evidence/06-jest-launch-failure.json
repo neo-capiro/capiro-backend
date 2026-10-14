@@ -1,0 +1,9 @@
+{
+  "originalObservation": "exec sandbox stderr before runner launch",
+  "sourceHead": "53dc10fad8eb9f2bfc77b0ddc28a7c6f29a06fc0",
+  "command": "node docs/backend-directory-objective-20261014/evidence/run-check.cjs 06 jest",
+  "exitCode": 101,
+  "runnerLaunched": false,
+  "failure": "linux sandbox failed before process launch: failed to register synthetic bubblewrap mount target /workspace/.git: No space left on device (os error 28)",
+  "qualification": "No new Jest test result exists for this failed launch; no cleanup/bypass/permission escalation was performed"
+}

@@ -1,0 +1,66 @@
+{
+  "id": "09",
+  "mode": "jest",
+  "head": "53dc10fad8eb9f2bfc77b0ddc28a7c6f29a06fc0",
+  "boundPaths": [
+    {
+      "path": "apps/api/src/clients/client-targets.controller.ts",
+      "sha256": "277746da17897fdd2d15b425575596264b2a4839a44188b86d6aa8cba97ebe47"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.service.ts",
+      "sha256": "2132474e72b6d211db92b7daf49e026d1ccbd5c138ebe4903a3d7ff061cbcda3"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.service.spec.ts",
+      "sha256": "0c8b8a8ae40019abbb643f52127fcfe2c72bbf1824cc1b2794a9a339f6a64110"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "sha256": "0daa69b9fbd47aadf0435329ab8a8b224733f129fe504e62a3dab20e575152bc"
+    },
+    {
+      "path": "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "sha256": "fc891546dc20cfd4b3c9416f49741324175da173de79b4d3e845ae595ba0cf7f"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "sha256": "98e7f4a62e0bf45fc2c5cb3a816bcde805d0140aa609910169d900db5f6bd2d0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "sha256": "cc18b485740195529a87366b916a8e029eb70bddbdc7658ee504f1c0e20bc142"
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "sha256": "c639d9761e25021321cbf963d0aa87968b4d4cada19c7c62814480a83e62b674"
+    },
+    {
+      "path": "apps/api/src/app.module.ts",
+      "sha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    }
+  ],
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-directory-objective-20261014/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/workspace/capiro-backend-directory-objective-20261014/docs/backend-directory-objective-20261014/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/workspace/capiro-backend-directory-objective-20261014/docs/backend-directory-objective-20261014/evidence/09-jest-result.json"
+  ],
+  "tmpdir": "/workspace/capiro-backend-directory-objective-20261014/.qualification-cache/directory-tmp",
+  "exitCode": 0,
+  "signal": null,
+  "boundSourcesUnchanged": true,
+  "qualification": "Source/synthetic owner/controller/native-middleware IO-port fixture and narrow strict types only; no full ClientsModule/Core boot, native PostgreSQL/RLS, real Clerk/provider, migration or live HTTP acceptance."
+}

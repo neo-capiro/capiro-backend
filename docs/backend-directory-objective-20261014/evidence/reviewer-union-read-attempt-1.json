@@ -1,0 +1,14 @@
+{
+  "head": "d60cdc08a824f94dcdb6336dd2e62a3746a27539",
+  "result": "INCOMPLETE_REVIEW_READ; no source/test failure",
+  "verifiedBeforeFailure": [
+    "Exact ordered ordinary parents and mergebase",
+    "No overlap and exact full mode/type/blob source union",
+    "All59 passing repository inputs unchanged",
+    "All1582 cached declaration hashes unchanged",
+    "Seven specified config/schema tuples unchanged",
+    "Allfour Directory product/test source paths unchanged"
+  ],
+  "failure": "Read-only reviewer assumed source note filename DIRECTORY-ACCEPTANCE.md inside packet; git show failed because author used a different path. No review file/receipt was written by that script. Check actual exact-Git packet note names before follow-up.",
+  "qualification": "No source/ref mutation or test/compiler/runtime/owner/provider execution. This failure provides no product acceptance or rejection."
+}
