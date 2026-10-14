@@ -1,0 +1,20 @@
+{
+  "base": "078c55f805de8599cc413917ef90b7e20f040942",
+  "operatorPath": "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+  "beforeBlob": "134974e9b9a00863bedda7de18e793c69033f193",
+  "afterBlob": "ae45411410c7927a173bf622734091944f190be7",
+  "beforeSha256": "5c3c3f3a9f9a4dd8dcc58d2b2feb9bed0c2f941f3245af7869c8ebd73d42b648",
+  "afterSha256": "9495471d30dada03cc2bf90bc4aedd9afbca666efa219d4598f1ce39d2d61189",
+  "exactCommentReplacementCount": 2,
+  "removedCharacters": 4,
+  "allOtherSourceBytesIdentical": true,
+  "sourceWithoutFullSqlCommentLinesSha256": "e4809a30cabda5eb8506778a07e1bdd46208c480c9a0ec6745f4b1425858b17f",
+  "queryForms": 2,
+  "intendedSqlMinusFullCommentLinesIdentical": true,
+  "queryDigests": [
+    "899940a202cc219fcc324857c9d23e7a300438790599cb8ad81ce6ba2cdde0b1",
+    "fac41a9c585bf156e973a7961fe7917eccc349408957898b52d599aa3fdb150a"
+  ],
+  "operatorExecution": false,
+  "databaseExecution": false
+}
