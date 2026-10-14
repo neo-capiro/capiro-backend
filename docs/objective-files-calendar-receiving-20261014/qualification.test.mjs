@@ -187,6 +187,45 @@ test('late owner and hash errors do not replace the current selection error stat
       openSavedRevision(fileSelection, binding, options)), null);
   }
 });
+test('in-place selection edits cannot alter the occurrence or recorded hash of an in-flight open', async () => {
+  const h = fixture(), options = receiving(h), selected = { ...calendarSelection, occurrence: 'start' };
+  const request = options.request;
+  options.request = async (input) => { selected.occurrence = 'due'; return request(input); };
+  assert.equal((await openPlannerOccurrence(selected, binding, options)).occurrence.dateKind, 'planner_start');
+  const recorded = { ...fileSelection, snapshotHash: 'a'.repeat(64) };
+  const fileOptions = receiving(fixture()); const fileRequest = fileOptions.request;
+  fileOptions.request = async (input) => { delete recorded.snapshotHash; return fileRequest(input); };
+  await assert.rejects(openSavedRevision(recorded, binding, fileOptions), code('SAVED_REVISION_CHANGED'));
+});
+test('outer admission discards microtask-superseded valid, malformed and rejected owner observations', async () => {
+  for (const kind of ['file', 'calendar']) {
+    const h = fixture(); const valid = await (kind === 'file' ? h.file() : h.calendar());
+    for (const result of ['valid', 'malformed', 'rejected']) {
+      let current = true;
+      const options = receiving(h); options.isCurrent = () => current;
+      options.request = () => {
+        queueMicrotask(() => queueMicrotask(() => { current = false; }));
+        return result === 'rejected' ? Promise.reject(new Error('LATE_MICROTASK_ERROR')) :
+          Promise.resolve(result === 'malformed' ? null : valid);
+      };
+      assert.equal(await (kind === 'file' ? openSavedRevision(fileSelection, binding, options) :
+        openPlannerOccurrence(calendarSelection, binding, options)), null);
+      assert.equal(current, false);
+    }
+  }
+});
+test('outer hash admission discards microtask-superseded mismatch and verification error', async () => {
+  for (const reject of [false, true]) {
+    let current = true;
+    const options = receiving(fixture()); options.isCurrent = () => current;
+    options.hashSnapshot = () => {
+      queueMicrotask(() => queueMicrotask(() => { current = false; }));
+      return reject ? Promise.reject(new Error('LATE_HASH_MICROTASK_ERROR')) : Promise.resolve('0'.repeat(64));
+    };
+    assert.equal(await openSavedRevision(fileSelection, binding, options), null);
+    assert.equal(current, false);
+  }
+});
 test('aborted or already superseded selections never issue a request', async () => {
   for (const change of [(o) => { o.signal = AbortSignal.abort(); }, (o) => { o.isCurrent = () => false; }]) {
     const options = receiving(fixture()); change(options);

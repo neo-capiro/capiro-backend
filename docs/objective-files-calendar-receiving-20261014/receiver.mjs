@@ -31,13 +31,11 @@ function active(options) {
   return !options.signal?.aborted && options.isCurrent();
 }
 function query(b) { return new URLSearchParams(b).toString(); }
-async function admit(options, run) {
+async function observe(run) {
   try {
-    const value = await run();
-    return active(options) ? { value } : null;
+    return { value: await run() };
   } catch (error) {
-    if (!active(options)) return null;
-    throw error;
+    return { error };
   }
 }
 
@@ -45,13 +43,19 @@ async function admit(options, run) {
  * hashSnapshot must use the public canonicalWorkspaceSnapshot producer and SHA256.
  * isCurrent is the caller's existing session/client/Objective/request admission. */
 export async function openSavedRevision(selection, objective, options) {
+  options = { request: options.request, isCurrent: options.isCurrent,
+    hashSnapshot: options.hashSnapshot, signal: options.signal };
   const b = binding(objective);
   const draftId = uuid(selection.draftId), versionId = uuid(selection.versionId);
+  const selectedHash = selection.snapshotHash;
+  if (selectedHash !== undefined && (typeof selectedHash !== 'string' || !HASH.test(selectedHash)))
+    fail('INVALID_SELECTION');
   if (!active(options)) return null;
-  const observed = await admit(options, () => options.request({ owner: 'workspace',
+  const observed = await observe(() => options.request({ owner: 'workspace',
     path: `drafts/${draftId}/versions/${versionId}/objective-destination?${query(b)}`,
     signal: options.signal }));
-  if (!observed) return null;
+  if (!active(options)) return null;
+  if (Object.hasOwn(observed, 'error')) throw observed.error;
   const response = record(observed.value);
   const destination = bound(response.destination, b, 'workspace_saved_revision', versionId);
   if (destination.draftId !== draftId || response.draftId !== draftId ||
@@ -59,11 +63,13 @@ export async function openSavedRevision(selection, objective, options) {
       response.hashFormat !== 'workspace-snapshot-canonical-json-v1' ||
       typeof response.snapshotHash !== 'string' || !HASH.test(response.snapshotHash))
     fail('INVALID_RECEIPT');
-  const verified = await admit(options, () => options.hashSnapshot(response.snapshot));
-  if (!verified) return null;
+  const verified = await observe(() => options.hashSnapshot(response.snapshot));
+  if (!active(options)) return null;
+  if (Object.hasOwn(verified, 'error')) throw verified.error;
   if (verified.value !== response.snapshotHash ||
-      (selection.snapshotHash !== undefined && selection.snapshotHash !== response.snapshotHash))
+      (selectedHash !== undefined && selectedHash !== response.snapshotHash))
     fail('SAVED_REVISION_CHANGED');
+  if (!active(options)) return null;
   return { destination, snapshot: response.snapshot, snapshotHash: response.snapshotHash,
     hashFormat: response.hashFormat, savedAt: response.savedAt,
     authorId: response.authorId, authorKind: response.authorKind };
@@ -86,14 +92,17 @@ function zone(value) {
 /** Occurrences are presentation selectors on the returned task, not resources.
  * The source civil date and optional HH:mm/IANA pair stay unconverted here. */
 export async function openPlannerOccurrence(selection, objective, options) {
+  options = { request: options.request, isCurrent: options.isCurrent, signal: options.signal };
   const b = binding(objective), taskId = uuid(selection.taskId);
   const expectedVersion = version(selection.destinationVersion);
-  if (!['start', 'due'].includes(selection.occurrence)) fail('INVALID_SELECTION');
+  const occurrence = selection.occurrence;
+  if (!['start', 'due'].includes(occurrence)) fail('INVALID_SELECTION');
   if (!active(options)) return null;
-  const observed = await admit(options, () => options.request({ owner: 'strategy',
+  const observed = await observe(() => options.request({ owner: 'strategy',
     path: `planner/tasks/${taskId}/objective-destination?${query(b)}`,
     signal: options.signal }));
-  if (!observed) return null;
+  if (!active(options)) return null;
+  if (Object.hasOwn(observed, 'error')) throw observed.error;
   const response = record(observed.value);
   const destination = bound(response.destination, b, 'planner_task', taskId);
   const task = record(response.task);
@@ -102,7 +111,6 @@ export async function openPlannerOccurrence(selection, objective, options) {
       !Number.isInteger(destination.destinationVersion) || destination.destinationVersion < 1 ||
       task.version !== destination.destinationVersion) fail('INVALID_RECEIPT');
   if (destination.destinationVersion !== expectedVersion) fail('DESTINATION_CHANGED');
-  const occurrence = selection.occurrence;
   // Preserve the selected plan's coincident-date collapse to the due occurrence.
   if (occurrence === 'start' && task.startOn !== null && task.startOn === task.dueOn)
     fail('OCCURRENCE_UNAVAILABLE');
@@ -114,6 +122,7 @@ export async function openPlannerOccurrence(selection, objective, options) {
     if (typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) fail('INVALID_RECEIPT');
     zone(timeZone);
   } else if (timeZone !== null) zone(timeZone);
+  if (!active(options)) return null;
   return { destination, task, occurrence: { id: `planner:${taskId}:${occurrence}`,
     taskId, dateKind: occurrence === 'start' ? 'planner_start' : 'planner_due',
     civilDate, time, timeZone, provenance: 'planner_task', destinationVersion: task.version } };
