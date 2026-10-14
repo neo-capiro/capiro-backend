@@ -4,11 +4,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { createRequire } = require('node:module');
-const { execFileSync, spawn } = require('node:child_process');
+const { execFileSync, spawn, spawnSync } = require('node:child_process');
 const http = require('node:http');
 const https = require('node:https');
-const appRequire = createRequire('/app/apps/api/package.json');
 const run = (file, args) => execFileSync(file, args, { encoding: 'utf8', timeout: 30000 });
+function assertDumbInitVersion(file = 'dumb-init', args = ['--version'], { timeout = 30000 } = {}) {
+  const result = spawnSync(file, args, {
+    encoding: 'utf8', timeout, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (result.error) throw result.error;
+  assert.equal(result.status, 0, 'dumb-init version command must exit successfully');
+  assert.match(result.stdout + result.stderr, /dumb-init v?1\.2\.5/);
+}
+module.exports = { assertDumbInitVersion };
 const report = { status: 'STARTED', packages: [], native: [], activeBindings: [] };
 function walk(dir, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -46,14 +54,15 @@ async function signalProbe() {
     child.on('close', code => { clearTimeout(timer); code === 0 && output.includes('TERM_FORWARDED') ? resolve() : reject(new Error('dumb-init did not forward SIGTERM')); });
   });
 }
-(async () => {
+async function main() {
+  const appRequire = createRequire('/app/apps/api/package.json');
   assert.equal(process.platform, 'linux'); assert.equal(process.arch, 'arm64');
   assert.equal(process.version, 'v22.23.3'); assert.equal(process.getuid(), 1001); assert.equal(process.getgid(), 1001);
   assert(fs.existsSync('/lib/ld-musl-aarch64.so.1'), 'musl loader missing');
   assert(!process.report.getReport().header.glibcVersionRuntime, 'glibc runtime detected');
   assert.match(run('openssl', ['version']), /^OpenSSL 3\./);
   assert.match(run('wget', ['--version']), /GNU Wget/, 'GNU wget required');
-  assert.match(run('dumb-init', ['--version']), /dumb-init v?1\.2\.5/);
+  assertDumbInitVersion();
   const blocks = fs.readFileSync('/lib/apk/db/installed', 'utf8').split('\n\n');
   report.packages = blocks.filter(Boolean).map(block => Object.fromEntries(block.split('\n').filter(line => /^[PVo]:/.test(line)).map(line => [line[0], line.slice(2)])));
   assert(!report.packages.some(p => ['perl', 'util-linux'].includes(p.o || p.P)), 'Perl/util-linux origin unexpectedly installed');
@@ -114,4 +123,5 @@ async function signalProbe() {
   } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
   report.status = 'PASS'; report.mode = process.argv.includes('--static') ? 'STATIC_NATIVE' : 'OFFLINE_RUNTIME';
   console.log(JSON.stringify(report, null, 2));
-})().catch(error => { report.status = 'FAIL'; report.error = error.message; console.error(JSON.stringify(report, null, 2)); process.exitCode = 1; });
+}
+if (require.main === module) main().catch(error => { report.status = 'FAIL'; report.error = error.message; console.error(JSON.stringify(report, null, 2)); process.exitCode = 1; });
