@@ -152,4 +152,25 @@ describe('Saved Directory target Objective destination (source/synthetic databas
     await expect(f.run()).rejects.toBe(error);
     expect(f.transactions).toHaveLength(1); expect(f.calls).toHaveLength(1);
   });
+
+  it('does not replace a late target-read infrastructure failure with a deferred stale conflict', async () => {
+    const f = fixture(), error = new Error('synthetic target read abort'); f.state.objectiveVersion = 4;
+    f.state.beforeTarget = () => { throw error; };
+    await expect(f.run()).rejects.toBe(error);
+    expect(f.transactions).toHaveLength(1); expect(f.calls).toHaveLength(4);
+  });
+
+  it('accepts the published read-version and saved member-ID upper bounds without inventing entity grammar', async () => {
+    const f = fixture(); f.state.objectiveVersion = 2147483647;
+    f.state.target = { ...f.state.target, memberId: 'x'.repeat(128) };
+    await expect(f.run({ ...query, objectiveVersion: 2147483647 })).resolves.toMatchObject({
+      destination: { objectiveVersion: 2147483647 }, target: { memberId: 'x'.repeat(128) },
+    });
+  });
+
+  it('rejects a malformed Objective ID before opening any transaction', async () => {
+    const f = fixture();
+    await expect(f.run({ ...query, objectiveId: 'label-not-identity' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(f.transactions).toHaveLength(0);
+  });
 });
