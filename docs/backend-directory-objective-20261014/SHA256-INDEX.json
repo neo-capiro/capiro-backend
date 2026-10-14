@@ -3,8 +3,18 @@
   "files": [
     {
       "path": "HANDOFF.md",
-      "bytes": 11377,
-      "sha256": "97d1e373cc2e02b5d32e5f4bdc641b6b3ecd446d43a15b90d0c58889551f761f"
+      "bytes": 11569,
+      "sha256": "81b329d58ea8ebdd68a2273ad548072c738aa28e5514b6ee578223627c15fbbe"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.json",
+      "bytes": 489268,
+      "sha256": "f4cd5eb7f73d4339b91e6c14c115e0a1a49e125230d13033f5d2a02ef04f5fb9"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "bytes": 4198,
+      "sha256": "9d575612163653d27a6e2f8b3cab1808e9803d9996852c63fa1871c8ebaa0df8"
     },
     {
       "path": "evidence/01-baseline-receipt.json",
