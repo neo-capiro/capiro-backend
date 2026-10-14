@@ -2,14 +2,13 @@
  * Business Development Phase 4 — shared prospect-scope dispatch helpers.
  *
  * Builds the compact server-authored directive + public turn-scope receipt.
- * The existing authorization re-check is owned by Business Development and
- * re-exported here for the legacy loop, MeriV2 full-chat proxy and MeriV3.
+ * The authorization re-check is imported directly from Business Development
+ * by each runtime caller.
  * Business Development never imports Meri.
  * No provider payloads, notes, dossiers or arbitrary metadata ever enter a
  * prompt — only the bounded scope fields below.
  */
 import type { MeriProspectScope } from '../business-development/bizdev-meri-scope.service.js';
-export { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import type { MeriTurnScope } from './meri-turn-scope.js';
 
 /**
