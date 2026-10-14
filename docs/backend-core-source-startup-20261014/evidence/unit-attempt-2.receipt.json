@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "node",
+    "--require",
+    "./docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "docs/backend-core-source-startup-20261014/source-jest.config.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/evidence/unit-attempt-2.results.json"
+  ],
+  "exitCode": 0,
+  "sourceHead": "de6d6e1abeb1c8e4c4ed3bcb30bde3a8ac48975d"
+}

@@ -1,0 +1,72 @@
+{
+  "sourceHead": "de6d6e1abeb1c8e4c4ed3bcb30bde3a8ac48975d",
+  "sourceTree": "8c4df3de086f834a6bfe2113f9eab189b2b89570",
+  "baseHead": "9b9f98d86aebe79721b3655e5a619b27be9a43e9",
+  "baseTree": "8e715d78793b5e2642f67cd7bfa8c0f3c373b336",
+  "sourceRows": [
+    {
+      "path": "apps/api/src/tenant-admin/tenant-admin.module.ts",
+      "blob": "c8c31ccf21d48a55b72221bc0676558f112d7d50",
+      "sha256": "1704239943445d28027efc6c5819fb057b1d2ef78656036a636dd431c8297244"
+    },
+    {
+      "path": "apps/api/src/context/context-plane-gateway.service.ts",
+      "blob": "def956800d182f41ec8e8fb5f03e14a173693188",
+      "sha256": "22eb06fd50f0461c4853c276640d1756d5fbc5dd0cae300838620910137e773e"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "blob": "deb7617b866343c70a0349f681e032f27d1f2acf",
+      "sha256": "bd0ca8e16a8cdb0f4165e5a0cc896cb039c64a28308793cfa3be52c2af437936"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "blob": "7722c72b9c43b300af4105c81b8d27c9f6790f27",
+      "sha256": "13d353f967bd709909a6d679f8101efd46527ae6323f19fe02bd024e3af6a5fc"
+    }
+  ],
+  "retainedOriginalCaseNames": [
+    "prep resolves one governed packet before provider work and injects server-owned scope",
+    "debrief keeps the current transcript as sole commitment/quote authority",
+    "a direct AI call that bypasses a tenant-scoped live caller fails closed",
+    "walled or unauthorized client fails before retrieval/provider work",
+    "partial and zero-record retrieval remains explicitly incomplete"
+  ],
+  "currentCaseRows": [
+    {
+      "name": "uses the canonical token across governed proxy aliases and restores the shared methods",
+      "status": "passed"
+    },
+    {
+      "name": "an unregistered lookalike AI does not install a compatibility runtime",
+      "status": "passed"
+    },
+    {
+      "name": "prep resolves one governed packet before provider work and injects server-owned scope",
+      "status": "passed"
+    },
+    {
+      "name": "debrief keeps the current transcript as sole commitment/quote authority",
+      "status": "passed"
+    },
+    {
+      "name": "a direct AI call that bypasses a tenant-scoped live caller fails closed",
+      "status": "passed"
+    },
+    {
+      "name": "walled or unauthorized client fails before retrieval/provider work",
+      "status": "passed"
+    },
+    {
+      "name": "partial and zero-record retrieval remains explicitly incomplete",
+      "status": "passed"
+    }
+  ],
+  "productFiles": 3,
+  "testFiles": 1,
+  "coreChecks": 28,
+  "coreModules": 89,
+  "coreRoutes": 1168,
+  "coreGitSourceRows": 1612,
+  "originalCaseBodies": "Five original tests retained; shared fixture updated to canonical provider-token registry; two additions cover nested proxy aliases/restore and nonregistered lookalike."
+}

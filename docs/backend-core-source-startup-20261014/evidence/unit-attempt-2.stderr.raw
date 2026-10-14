@@ -1,0 +1,19 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capiro-backend-boundary-successor-20261014/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/context/meetings-context-plane.runtime.spec.ts
+  MeetingsContextPlaneRuntime Phase 24
+    ✓ uses the canonical token across governed proxy aliases and restores the shared methods (14 ms)
+    ✓ an unregistered lookalike AI does not install a compatibility runtime (3 ms)
+    ✓ prep resolves one governed packet before provider work and injects server-owned scope (9 ms)
+    ✓ debrief keeps the current transcript as sole commitment/quote authority (2 ms)
+    ✓ a direct AI call that bypasses a tenant-scoped live caller fails closed (37 ms)
+    ✓ walled or unauthorized client fails before retrieval/provider work (3 ms)
+    ✓ partial and zero-record retrieval remains explicitly incomplete (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        5.039 s
+Ran all test suites.
+Test results written to: docs/backend-core-source-startup-20261014/evidence/unit-attempt-2.results.json
