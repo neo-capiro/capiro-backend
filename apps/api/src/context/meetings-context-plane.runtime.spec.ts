@@ -561,7 +561,7 @@ describe('Meetings runtime composed with actual governed factories and policy', 
   test.each(['prep', 'debrief'] as const)('%s preserves disabled policy refusal on public/guarded providers and raw aliases without scope', async mode => {
     const h = composition({ policyDisabled: true }); h.runtime.install();
     try {
-      const publicCall = () => mode === 'prep' ? h.publicCaller.generateMeetingPrep(ctx, MEETING) : h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current', method: 'manual' });
+      const publicCall: () => Promise<unknown> = () => mode === 'prep' ? h.publicCaller.generateMeetingPrep(ctx, MEETING) : h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current', method: 'manual' });
       await expect(Promise.resolve().then(publicCall)).rejects.toThrow();
       const guardedCall = () => mode === 'prep' ? h.guardedAi.generateMeetingPrep(h.providerInput() as never) : h.guardedAi.generateMeetingDebrief(h.providerInput() as never);
       await expect(runWithMeetingGovernedContext(canonicalBundle(mode), async () => guardedCall())).rejects.toThrow();
