@@ -1,0 +1,27 @@
+{
+  "base": "2875afa0cf65053b5faa2b29e742c81cba446931",
+  "branch": "fix/preview-core-existing-database",
+  "status": "SOURCE_CHECKS_PASS_PENDING_INDEPENDENT_REVIEW",
+  "focusedTests": {"passed": 8, "failed": 0, "skipped": 0, "exitCode": 0},
+  "testLog": "FINAL-TEST-LOG.txt",
+  "typecheck": {
+    "status": "PASS",
+    "mode": "strict targeted TypeScript with noUncheckedIndexedAccess, noEmit and locked CDK dependency versions",
+    "roots": ["infra/cdk/test/preview-core-existing.spec.ts", "infra/cdk/test/preview-backends.spec.ts"]
+  },
+  "dependencies": {"node": "24.19.0", "aws-cdk-lib": "2.271.0", "constructs": "10.8.1", "typescript": "5.9.3", "ts-node": "10.9.2", "@types/node": "20.19.39"},
+  "retainedFailures": [
+    {"attempt": 1, "passed": 6, "failed": 2, "reason": "Inherited POSIX /tmp resolved outside writable Windows roots; directory symlink denied."},
+    {"attempt": 2, "passed": 7, "failed": 1, "reason": "Windows dangling junction creation required an existing target."},
+    {"attempt": 3, "passed": 7, "failed": 1, "reason": "Windows sandbox denied junction creation even after owned target creation.", "rawLog": "ATTEMPT-3-TEST-LOG.txt"}
+  ],
+  "finalExecution": "Approved local tests outside sandbox; original dangling-link rejection exercised, no assertion skipped",
+  "inheritedWarnings": "Two CloudFormation availability-zone warnings in the preserved optional isolated stack; no validation errors",
+  "resourceBoundary": ["AWS::ECS::TaskDefinition", "AWS::ECS::Service", "AWS::ElasticLoadBalancingV2::TargetGroup", "AWS::ElasticLoadBalancingV2::ListenerRule"],
+  "heldDesiredCount": 0,
+  "unchangedAgainstBase": ["apps/api/src", "packages/auth", "all four Prisma schema/migration trees", "pnpm-lock.yaml", "Core Docker recipes"],
+  "awsWrites": 0,
+  "databaseQueriesOrMutationsByThisSourceTask": 0,
+  "credentialsRead": false,
+  "deploymentOrImageDiagnostic": "NOT_RUN"
+}

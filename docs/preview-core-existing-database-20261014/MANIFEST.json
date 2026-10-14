@@ -1,0 +1,90 @@
+{
+  "base": "2875afa0cf65053b5faa2b29e742c81cba446931",
+  "basis": "Git index blobs; manifest excludes itself",
+  "files": [
+    {
+      "path": "docs/preview-core-existing-database-20261014/ATTEMPT-3-TEST-LOG.txt",
+      "gitBlob": "aee8e403d2630dc46a1f4a5377b82d6fbf565439",
+      "bytes": 3573,
+      "sha256": "56fae9eabd98d6e4834c380a08c2b88a1724ae7b0a05a527bb6d5718628a5dfe"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/FINAL-TEST-LOG.txt",
+      "gitBlob": "f5e006d8cdbdaac8b4c6f173dcd3fab50932c4d5",
+      "bytes": 2010,
+      "sha256": "59aaf5ac76b21d8857f0e0ee2ac1b3336622cda89f9814714d5b620b01a2c451"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/HANDOFF.md",
+      "gitBlob": "8818d65bf88d110bc7374ac6057acbe3e5509bce",
+      "bytes": 8985,
+      "sha256": "903f9d7ae57517cdde84716f82d0209dc25bc06231ab46c84ed2128baa499ca6"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/PLAN.md",
+      "gitBlob": "2fa1417dcffb9b555b3d5a41eef488dae25aa4f4",
+      "bytes": 1581,
+      "sha256": "d12f89a3f027f926ee930117edc263a433094b81274762fb0812d9854426a7fb"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/VERIFICATION.json",
+      "gitBlob": "e0d48ee449d9a74741cbfb8cbe96b8daea991b4d",
+      "bytes": 1903,
+      "sha256": "59057fab385a3ea602625a572323fce64d6f135ad0cf9a7fe333e60f97a1ca31"
+    },
+    {
+      "path": "infra/cdk/fixtures/preview-backends.synthetic.json",
+      "gitBlob": "55cca3670422b059783286b9446cef4700e29093",
+      "bytes": 2193,
+      "sha256": "a5ce3db8bedb0acc60b153e46be5252b32fffb8eb94a98284979e19591673d43"
+    },
+    {
+      "path": "infra/cdk/fixtures/preview-core-existing.synthetic.json",
+      "gitBlob": "79d01f6440d2984d9d0ceadfb63a6df54878735a",
+      "bytes": 1624,
+      "sha256": "838cee40ee33e44082e8560d2549df2885a2f003392dca0a171f7c2bd29abf09"
+    },
+    {
+      "path": "infra/cdk/lib/preview/bindings.ts",
+      "gitBlob": "f2055005710b6f1548cdc9480606e05a3ce39ef4",
+      "bytes": 5015,
+      "sha256": "aef17bf9d6ff27e9550cc2a7a1b663109003fa915729d8f1c6ee53ff5401cc22"
+    },
+    {
+      "path": "infra/cdk/lib/preview/core-runtime-environment.ts",
+      "gitBlob": "10be4b7fa8d6a8c8b1399cd9f1f6720cf5ca2c1a",
+      "bytes": 1012,
+      "sha256": "d4fddbbc08249b423bea57dd59eee0d9475cea0858a2ff5466314e235e471b3f"
+    },
+    {
+      "path": "infra/cdk/lib/preview/existing-core-application.ts",
+      "gitBlob": "dc28d9a594270e87192ccefc4d0fd6309f542b81",
+      "bytes": 4132,
+      "sha256": "47ce99ee6c38b8a1a25da0dcb720874c98472e540943fe1cf5843abddee76cc7"
+    },
+    {
+      "path": "infra/cdk/lib/preview/existing-core-bindings.ts",
+      "gitBlob": "08a9b6dac14b81eb5dde36cd53340a294c574dcb",
+      "bytes": 4320,
+      "sha256": "b7ccbdecf9acee8a41ca80c60cc278d167c29ae6fdc142bb8a08ae3bfc6a3bd6"
+    },
+    {
+      "path": "infra/cdk/lib/preview/services-stack.ts",
+      "gitBlob": "8eaade6f7103c2e865ba8062bb6d827d1cebac13",
+      "bytes": 11241,
+      "sha256": "ac9657207cb4a23d2f6f9a8708d311de6f4c5a016ede2f4bcdcb4141e60d5764"
+    },
+    {
+      "path": "infra/cdk/test/preview-backends.spec.ts",
+      "gitBlob": "d330bd120d8fdd020221f75b4ad1ada23df7d236",
+      "bytes": 11876,
+      "sha256": "b1ed5d2867c113c84d3f90ad7463fee2c3931168b85ed527de4f6152523b66a9"
+    },
+    {
+      "path": "infra/cdk/test/preview-core-existing.spec.ts",
+      "gitBlob": "077bba685c4f80069b92c4e54c9f6048ae7213a6",
+      "bytes": 5981,
+      "sha256": "8ccd1a80f2cda2fcf45098f01d658a683335de9691961217954b7a894e3a1ccd"
+    }
+  ]
+}

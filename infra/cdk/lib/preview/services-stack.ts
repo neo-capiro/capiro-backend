@@ -11,6 +11,7 @@ import { AssetsStack } from '../assets-stack';
 import { DataStack } from '../data-stack';
 import { PreviewBindings } from './bindings';
 import { PreviewBackendNetwork } from './network-stack';
+import { previewCoreRuntimeEnvironment } from './core-runtime-environment';
 
 export const PREVIEW_APP_ORIGIN = 'https://portfolio-preview.app.capiro.ai';
 export const PREVIEW_BACKEND_ORIGIN = PREVIEW_APP_ORIGIN;
@@ -50,6 +51,11 @@ export class PreviewBackendServices extends cdk.Stack {
       bindings.clerkSecretArn,
     );
     const encryptionKey = kms.Key.fromKeyArn(this, 'PreviewClerkEncryption', bindings.clerkKeyArn);
+    const clerkWebhookKey = secrets.Secret.fromSecretCompleteArn(
+      this,
+      'PreviewClerkWebhookKey',
+      bindings.clerkWebhookSecretArn,
+    );
     const heldPaths = [['/strategy-api/*', '/onboard-api/*', '/meri-api/*'], ['/api/meri/*']];
     heldPaths.forEach(
       (values, index) =>
@@ -98,7 +104,7 @@ export class PreviewBackendServices extends cdk.Stack {
       (tenantId) => [`tenants/${tenantId}/*`, `tenants/client-logo-uploads/${tenantId}/*`],
     );
     const owners = [
-      { name: 'core' as const, port: 4000, path: '/api/*', health: '/api/health' },
+      { name: 'core' as const, port: 4000, path: '/api/*', health: '/health' },
       { name: 'workspace' as const, port: 4200, path: '/workspace-api/*', health: '/health' },
       { name: 'intelligence' as const, port: 4300, path: '/intel-api/*', health: '/health' },
     ];
@@ -167,7 +173,8 @@ export class PreviewBackendServices extends cdk.Stack {
         taskRole: role,
         executionRole,
         runtimePlatform: {
-          cpuArchitecture: ecs.CpuArchitecture.X86_64,
+          cpuArchitecture:
+            owner.name === 'core' ? ecs.CpuArchitecture.ARM64 : ecs.CpuArchitecture.X86_64,
           operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
         },
       });
@@ -185,8 +192,12 @@ export class PreviewBackendServices extends cdk.Stack {
           DB_USER: ecs.Secret.fromSecretsManager(appCredentials, 'username'),
           DB_PASSWORD: ecs.Secret.fromSecretsManager(appCredentials, 'password'),
           CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkKey),
+          ...(owner.name === 'core'
+            ? { CLERK_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(clerkWebhookKey) }
+            : {}),
         },
         environment: {
+          ...(owner.name === 'core' ? previewCoreRuntimeEnvironment() : {}),
           NODE_ENV: 'production',
           WEB_ORIGIN: PREVIEW_APP_ORIGIN,
           DATABASE_URL: '',

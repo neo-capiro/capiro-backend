@@ -10,6 +10,7 @@
   "clerkIssuer": "https://synthetic-preview.clerk.accounts.dev",
   "clerkApplicationId": "app_SYNTHETICPREVIEW",
   "clerkSecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/secret-key-AbCdEf",
+  "clerkWebhookSecretArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/webhook-signing-secret-AbCdEf",
   "clerkPublishableKeyArn": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/preview/clerk/publishable-key-AbCdEf",
   "clerkKeyArn": "arn:aws:kms:us-east-1:967807252336:key/00000000-0000-4000-8000-000000000001",
   "neoTenantId": "10000000-0000-4000-8000-000000000001",

@@ -1,0 +1,21 @@
+{
+  "clusterArn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev",
+  "vpcId": "vpc-00000000000000001",
+  "subnetIds": ["subnet-00000000000000001", "subnet-00000000000000002"],
+  "serviceSecurityGroupId": "sg-00000000000000001",
+  "executionRoleArn": "arn:aws:iam::967807252336:role/SyntheticExistingCoreExecution",
+  "taskRoleArn": "arn:aws:iam::967807252336:role/SyntheticExistingCoreTask",
+  "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/0000000000000001/0000000000000002",
+  "hostname": "core-preview.app.capiro.ai",
+  "listenerPriority": 4,
+  "imageUri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "sourceHead": "2875afa0cf65053b5faa2b29e742c81cba446931",
+  "databaseName": "capiro",
+  "assetsBucket": "capiro-dev-tenant-assets-967807252336",
+  "dbHostReference": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-AbCdEf:host::",
+  "dbPortReference": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-AbCdEf:port::",
+  "dbUserReference": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-AbCdEf:username::",
+  "dbPasswordReference": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-AbCdEf:password::",
+  "clerkSecretReference": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-AbCdEf",
+  "clerkWebhookReference": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/webhook-signing-secret-AbCdEf"
+}
