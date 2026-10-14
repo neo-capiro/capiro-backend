@@ -1,0 +1,27 @@
+[
+  {
+    "path": "FILES.json",
+    "bytes": 673,
+    "sha256": "6826305fa7ceb1770a73d7611464b7750775b045fcb9e7e8a68d9605b913a465"
+  },
+  {
+    "path": "jest.cjs",
+    "bytes": 447,
+    "sha256": "829f875e61bf00fb4ac5854cf471d554a9ade23806cbc5768a665a09afbdb025"
+  },
+  {
+    "path": "transformer.cjs",
+    "bytes": 427,
+    "sha256": "e840e2517f90e4dc6ad24b34bd927ebdec834aba145cd8d5c1b7c83f409e598e"
+  },
+  {
+    "path": "source-only-fence.cjs",
+    "bytes": 942,
+    "sha256": "facbfc7caad6a9c2180235ce876d815bb24591f0976082c2ebd6b286d20749c5"
+  },
+  {
+    "path": "run.py",
+    "bytes": 2078,
+    "sha256": "379e04389f18f9e007d666bdee83c1baf9405ae51baf72878ded9e38119c5d7c"
+  }
+]

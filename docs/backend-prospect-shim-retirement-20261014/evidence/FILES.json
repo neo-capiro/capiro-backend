@@ -1,0 +1,13 @@
+[
+  "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+  "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+  "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+  "apps/api/src/meri/meri-bizdev-tools.service.spec.ts",
+  "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+  "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+  "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+  "apps/api/src/meri/meri-bizdev-tools.service.ts",
+  "apps/api/src/business-development/bizdev-brief.types.ts",
+  "apps/api/src/common/tenant-flags.ts",
+  "apps/api/src/meri/meri-tool-request-control.ts"
+]

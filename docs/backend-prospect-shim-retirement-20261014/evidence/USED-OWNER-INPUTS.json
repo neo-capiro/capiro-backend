@@ -1,0 +1,70 @@
+{
+  "sourceRef": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "baselineRef": "917fed9be648dc4abfd6770e0e391ce2e3fe3928",
+  "unchangedFrozenOwnerAndConfigInputs": [
+    {
+      "path": "tsconfig.base.json",
+      "baselineBlob": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "correctedBlob": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "baselineEqualsCorrected": true
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "baselineBlob": "cff5b3a8506d1a290987883f0ed773b2118da169",
+      "correctedBlob": "cff5b3a8506d1a290987883f0ed773b2118da169",
+      "baselineEqualsCorrected": true
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "baselineBlob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9",
+      "correctedBlob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9",
+      "baselineEqualsCorrected": true
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "baselineBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "correctedBlob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "baselineEqualsCorrected": true
+    },
+    {
+      "path": "packages/shared/src/tenant-feature.ts",
+      "baselineBlob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "correctedBlob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "baselineEqualsCorrected": true
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "baselineBlob": "b828fd982686cb66bd6e98239066ddc40af3a0cf",
+      "correctedBlob": "b828fd982686cb66bd6e98239066ddc40af3a0cf",
+      "baselineEqualsCorrected": true
+    }
+  ],
+  "barrelBindings": [
+    {
+      "path": "/workspace/capiro-backend-cleanup-receiving-20261014/packages/shared/dist/index.js",
+      "bytes": 253955,
+      "sha256": "77be215d385277589bfc8a386b43eb78ca50b004f91cba47ecf9fae30b704b95",
+      "exportStatement": "__exportStar(require(\"./tenant-feature.js\"), exports);",
+      "exactStatementPresent": true
+    },
+    {
+      "path": "/workspace/capirov2/packages/meriv2-core/dist/index.js",
+      "bytes": 7032,
+      "sha256": "0e76cd022c0926ee1a7762fd4af4d94d2647559b2e9e33cdd97ac9fb59fb7066",
+      "exportStatement": "__exportStar(require(\"./registry/tool-execution-control\"), exports);",
+      "exactStatementPresent": true
+    }
+  ],
+  "typescriptRuntime": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/typescript.js",
+    "sha256": "3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675"
+  },
+  "installedJestScriptTransformer": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/@jest+transform@29.7.0/node_modules/@jest/transform/build/ScriptTransformer.js",
+    "sha256": "e07cd7a88714d6600d2d0cf88071f2df5635ece2bab9428bf5ae5b396d8d36ff",
+    "cacheChecksumAlgorithm": "SHA1(code).hex.substring(0,32) + newline"
+  },
+  "result": "pass",
+  "qualifiedWholeRuntimeClosure": false
+}
