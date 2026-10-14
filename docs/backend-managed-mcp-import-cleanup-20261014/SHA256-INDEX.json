@@ -1,0 +1,80 @@
+{
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": "ATTEMPT-OBSERVATIONS.json",
+      "bytes": 1105,
+      "sha256": "2a625c81ea2cf62980b0bd75df837e1992fe06637bad13c7defa403994c28dfb"
+    },
+    {
+      "path": "EQUIVALENCE.json",
+      "bytes": 2482,
+      "sha256": "53e114ae24b3604e98d6dc50916631731c4361c1954fa9583092ea814fcf5608"
+    },
+    {
+      "path": "HANDOFF.md",
+      "bytes": 8980,
+      "sha256": "1fceda051794a4e25de1693812445e4efd38495416609949b03e1df2d23ba0b4"
+    },
+    {
+      "path": "INDEX-CUSTODY.json",
+      "bytes": 515,
+      "sha256": "1f8a0328e0f2d33d68df5c45c9d294f34d48868a029dd27015d5d6f73383b2aa"
+    },
+    {
+      "path": "PLAN-ACCEPTANCE.md",
+      "bytes": 1341,
+      "sha256": "ba3afafd9a76b3799ae90cd27616bfcc01b1f2bee82764786a4bcb7ea7fe50e2"
+    },
+    {
+      "path": "PLAN-REVIEW.json",
+      "bytes": 3400,
+      "sha256": "d31e67e8301931a3d316d8cf29e8c52bd863911f139226b6d74cd7bfcbe2cdb8"
+    },
+    {
+      "path": "SOURCE-ACCEPTANCE.md",
+      "bytes": 1358,
+      "sha256": "6b767d700feaa270b4841c7aafe684fedd94f0cdc99ec52cd9a86389e944e7d8"
+    },
+    {
+      "path": "SOURCE-REVIEW.json",
+      "bytes": 6275,
+      "sha256": "cc96580c5ccc6e1c4344cc8429cb3502739d76c8df4e7c72239a26dd38150ee6"
+    },
+    {
+      "path": "attempt01-check-equivalence.cjs",
+      "bytes": 4504,
+      "sha256": "bbf7c12c340eb43d90aa0f4550940486cb562c60ee0003265614fa2f6121d3ab"
+    },
+    {
+      "path": "attempt01-empty.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt02-check-equivalence.cjs",
+      "bytes": 4699,
+      "sha256": "f63da063ab68073a81693a68275420da159167141b47507e2d493b1caea29815"
+    },
+    {
+      "path": "attempt02.stderr",
+      "bytes": 1258,
+      "sha256": "9df7e124bbeb1d9b635b2519aaaa10352c222ef11b64c1e68cc22145d7a55930"
+    },
+    {
+      "path": "attempt02.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt03.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "check-equivalence.cjs",
+      "bytes": 4716,
+      "sha256": "e787b7a870500bcd052ec8aaed3d1cea5161c337936478f739dd9125a3b6541e"
+    }
+  ]
+}
