@@ -1,4 +1,5 @@
 import { MeetingsContextPlaneRuntime } from './meetings-context-plane.runtime.js';
+import { EngagementAiService as EngagementAiProvider } from '../engagement/engagement-ai.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -148,15 +149,31 @@ function harness(
   options: {
     authorized?: boolean;
     gatewayResult?: Record<string, unknown>;
+    proxyAliases?: boolean;
+    omitAiOwner?: boolean;
   } = {},
 ) {
-  const ai = new EngagementAiService();
+  const rawAi = new EngagementAiService();
+  const bind = (target: EngagementAiService) => new Proxy(target, {
+    get(value, property, receiver) {
+      const member = Reflect.get(value, property, receiver);
+      return typeof member === 'function' ? member.bind(value) : member;
+    },
+  });
+  const guardedAi = options.proxyAliases ? bind(rawAi) : rawAi;
+  const ai = options.proxyAliases ? bind(guardedAi) : guardedAi;
   const caller = new MeetingCaller(ai);
-  const providers = new Map([
-    ['ai', { instance: ai }],
+  const providers = new Map<unknown, { instance: unknown }>([
+    [options.omitAiOwner ? 'unregistered-ai' : EngagementAiProvider, { instance: ai }],
+    ['raw-ai-alias', { instance: guardedAi }],
     ['caller', { instance: caller }],
   ]);
   const moduleRef = {
+    get: jest.fn((token: unknown, scope: unknown) => {
+      expect(token).toBe(EngagementAiProvider);
+      expect(scope).toEqual({ strict: false });
+      return ai;
+    }),
     container: {
       getModules: () =>
         new Map([
@@ -194,7 +211,7 @@ function harness(
     prisma as never,
     moduleRef as never,
   );
-  return { runtime, ai, caller, gateway, prisma };
+  return { runtime, ai, rawAi, caller, gateway, prisma, moduleRef };
 }
 
 describe('MeetingsContextPlaneRuntime Phase 24', () => {
@@ -209,6 +226,27 @@ describe('MeetingsContextPlaneRuntime Phase 24', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     jest.restoreAllMocks();
+  });
+
+  test('uses the canonical token across governed proxy aliases and restores the shared methods', async () => {
+    const h = harness({ proxyAliases: true });
+    expect(h.ai.constructor.name).not.toBe('EngagementAiService');
+    expect(h.runtime.install()).toEqual({ callersPatched: 2, aiMethodsPatched: 2 });
+    expect(h.moduleRef.get).toHaveBeenCalledTimes(1);
+    expect(Object.hasOwn(h.rawAi, 'generateMeetingPrep')).toBe(true);
+    await h.caller.runPrep(ctx, meeting);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    h.runtime.restoreForTest();
+    expect(Object.hasOwn(h.rawAi, 'generateMeetingPrep')).toBe(false);
+    expect(Object.hasOwn(h.rawAi, 'generateMeetingDebrief')).toBe(false);
+    expect(globalThis.fetch).toBe(fetchMock);
+  });
+
+  test('an unregistered lookalike AI does not install a compatibility runtime', () => {
+    const h = harness({ omitAiOwner: true });
+    expect(h.runtime.install()).toEqual({ callersPatched: 0, aiMethodsPatched: 0 });
+    expect(h.moduleRef.get).not.toHaveBeenCalled();
+    expect(globalThis.fetch).toBe(fetchMock);
   });
 
   test('prep resolves one governed packet before provider work and injects server-owned scope', async () => {

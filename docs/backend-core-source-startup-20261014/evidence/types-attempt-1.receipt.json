@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "node",
+    "docs/backend-core-source-startup-20261014/check-source-types.cjs"
+  ],
+  "exitCode": 1,
+  "head": "de6d6e1abeb1c8e4c4ed3bcb30bde3a8ac48975d"
+}

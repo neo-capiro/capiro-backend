@@ -1,0 +1,39 @@
+{
+  "result": "held",
+  "phase": "import",
+  "sourceHead": "9b9f98d86aebe79721b3655e5a619b27be9a43e9",
+  "sourceTree": "8e715d78793b5e2642f67cd7bfa8c0f3c373b336",
+  "qualification": "Actual source business graph; non-listening synthetic inert I/O fixture. Transpile/runtime only; no full strict types, native database/RLS, provider or image acceptance.",
+  "env": {
+    "NODE_ENV": "development",
+    "DATABASE_URL": "postgresql://fixture:fixture@127.0.0.1:1/fixture",
+    "CLERK_SECRET_KEY": "sk_test_Zml4dHVyZS5pbnZhbGlkJA",
+    "CLERK_WEBHOOK_SIGNING_SECRET": "fixture-unusable",
+    "CLERK_JWT_ISSUER": "https://fixture.invalid",
+    "CAPIRO_SERVICE_NAME": "api",
+    "ENGAGEMENT_PROCESS_MODE": "shadow",
+    "ENGAGEMENT_BACKGROUND_OWNER": "disabled",
+    "ENGAGEMENT_EXTERNAL_ACTIONS": "disabled",
+    "ENGAGEMENT_CALLBACKS_ENABLED": "false",
+    "ENGAGEMENT_RECALL_WEBHOOK_ENABLED": "false",
+    "ENGAGEMENT_AUTO_SYNC": "false",
+    "OUTREACH_ASYNC_GEN": "false",
+    "OUTREACH_ASYNC_SEND": "false",
+    "CLIENT_PROFILE_FILL_WORKER_ENABLED": "false",
+    "CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED": "false",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "DIRECTORY_S3_BUCKET": "fixture-never-read"
+  },
+  "sourceRows": [],
+  "externalModulePaths": [
+    "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/Reflect.js"
+  ],
+  "events": [],
+  "denied": [],
+  "modules": [],
+  "routes": [],
+  "error": {
+    "message": "Cannot find module '/workspace/capiro-backend-boundary-successor-20261014/apps/api/src/meri/meri-policy-pack-runtime.ts'\nRequire stack:\n- /workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs",
+    "stack": "Error: Cannot find module '/workspace/capiro-backend-boundary-successor-20261014/apps/api/src/meri/meri-policy-pack-runtime.ts'\nRequire stack:\n- /workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs\n    at Module.<anonymous> (node:internal/modules/cjs/loader:1517:15)\n    at Module._resolveFilename (/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs:100:36)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)\n    at Module.<anonymous> (node:internal/modules/cjs/loader:1294:5)\n    at Module._load (/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs:106:31)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12)\n    at require (node:internal/modules/helpers:153:16)"
+  }
+}

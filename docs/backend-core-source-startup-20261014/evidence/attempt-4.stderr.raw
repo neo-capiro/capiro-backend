@@ -1,0 +1,6 @@
+[31m[Nest] 1107598  - [39m10/14/2026, 3:40:24 AM [31m  ERROR[39m [38;5;3m[DirectoryService] [39m[31mFailed to load directory snapshot from s3://fixture-never-read/UPDATED DIRECTORY/snapshots/active-current-20260501T024354Z[39m
+Error: SOURCE_ONLY_DIRECTORY_PREWARM_DENIED
+    at value.send (/workspace/capiro-backend-boundary-successor-20261014/docs/backend-core-source-startup-20261014/check-core-startup.cjs:156:15)
+    at DirectoryService.fetchGzipJson (/workspace/capiro-backend-boundary-successor-20261014/apps/api/src/directory/directory.service.ts:1903:35)
+    at DirectoryService.loadSnapshot (/workspace/capiro-backend-boundary-successor-20261014/apps/api/src/directory/directory.service.ts:1285:18)
+    at DirectoryService.getDirectoryData (/workspace/capiro-backend-boundary-successor-20261014/apps/api/src/directory/directory.service.ts:1242:44)
