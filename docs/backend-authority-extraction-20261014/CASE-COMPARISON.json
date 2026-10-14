@@ -1,0 +1,578 @@
+{
+  "schema": "finite-source-case-comparison/v1",
+  "baselineHead": "22d0d043a3efbf22e4b2d8d7f881af66f983873b",
+  "afterHead": "fdb7583d38c34527b50870172ea1d3e29b4aee02",
+  "retainedOriginalPassedCases": 114,
+  "afterPassedCases": 146,
+  "additionalCases": 32,
+  "omittedPassedCases": [],
+  "normalization": "Exactly one clock-derived dynamic title: existing current-session createdAt future timestamp. All other expanded identities and multiplicity retained.",
+  "heldSuite": "research-portfolio-artifact-authority.spec.ts imports entire existing MeriService; sparse graph failure retained, suite unchanged and not claimed passing.",
+  "before": [
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion fails closed on provider failure and consumes timeout late rejection",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session abandonAt=1",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=[original clock-derived future timestamp]",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session expireAt=1",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session expireAt=NaN",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session id=other",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session status=ended",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session status=revoked",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses current session userId=other",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses expired JWT before SDK work",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses late resolution even when a delayed event loop has not fired the timeout callback",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses missing exp before SDK work",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses missing sid before SDK work",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion refuses path-shaped sid before SDK work",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Clerk owner bounded read-only session assertion uses exact verified sid and clips JWT/session/abandon bounds",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Meri and scope-owner source integration canonical resolver rejects a foreign-tenant wall grant and preserves same-tenant/unwalled admission in both consumers",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Meri and scope-owner source integration pins both POST200 no-store routes under existing role guard and provider wiring",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Meri and scope-owner source integration uses canonical wall predicate before/after tenant/client-bounded fact read",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual Meri and scope-owner source integration uses original active conversation and client lookup plus current prospect owner without constructing service",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority excludes activity but includes exact membership version",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority keeps normal pipeline effects but dedicated current checks are read-only and session first",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority rechecks exact selected impersonation and clips original operator expiry",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority refuses member removed changing during session await",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority refuses member role changing during session await",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority refuses org remapped changing during session await",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority refuses tenant slug changing during session await",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority refuses tenant suspended changing during session await",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority refuses user mapping changing during session await",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority shares authentic request provenance across the actual separate middleware/provider instances",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "actual middleware selected-provenance current authority stamps no-store even on missing bearer denial",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts accepts exact empty identity and lowercase nil/v7/v8 context syntax",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts makes revisions deterministic and rejects accessor or unsupported facts",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts projects closed identity output and refuses original expired bounds",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context accessor",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context extra authority",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context missing run field",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context non-string UUID",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context proxy",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context uppercase UUID",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses context uppercase hash",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity absent",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity array",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity extra capability",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity inherited",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity proxy",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses identity symbol",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "application-authority closed wire and minimal receipts refuses proxies before any user-defined reflection trap",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary has closed minimal output, rechecks identity last and echoes unrelated valid hash without granting anything",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary ignores activity/title, but changes revision for wall/security facts",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary preserves clientAuthority refusal",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary preserves clientVisible refusal",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary preserves conversationScope refusal",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses a conversation retarget during the final online identity read",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses conversation archivedAt mismatch before client owners",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses conversation clientId mismatch before client owners",
+      "multiplicity": 2
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses conversation id mismatch before client owners",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses conversation status mismatch before client owners",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses conversation tenantId mismatch before client owners",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses conversation userId mismatch before client owners",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses identity mutation after asynchronous wall lookup",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses local membership drift during final context reads",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "name": "context receipt existing-owner ordering and correlation boundary refuses wall revocation during the final online identity read",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.assertCurrent accepts and returns the re-resolved scope when unchanged",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.assertCurrent keeps the same selected prospect current across ordinary row edits",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.assertCurrent rejects a changed selection (linked client bound) with the typed conflict",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.assertCurrent rejects a missing prospect with the typed not-found conflict",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.assertCurrent rejects malformed/absent persisted scope (typed not-found)",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve authorized resolve returns the bounded typed scope",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve cross-tenant prospect id resolves to nothing (safe 404)",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve default (no flags at all) fails closed with the safe 404",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve flag off (Phase 1 umbrella) fails closed with the safe 404",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve meriProspectTools flag off fails closed with the safe 404",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve missing prospect id fails closed with the safe 404",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve missing tenant context fails closed with the same safe 404",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "BizDevMeriScopeService.resolve tenant settings read error fails closed with the same safe 404",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "computeMeriProspectScopeVersion changes when canonicalOrganizationId changes",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "computeMeriProspectScopeVersion changes when canonicalOrganizationId cleared changes",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "computeMeriProspectScopeVersion changes when linkedClientId changes",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "computeMeriProspectScopeVersion changes when linkedClientId cleared changes",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "computeMeriProspectScopeVersion changes when prospectId changes",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "computeMeriProspectScopeVersion deterministic: identical inputs produce identical digests",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) parses a valid persisted scope",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects empty prospectName with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects missing nullable key with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects missing prospectId with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects missing scope key with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects missing scopeVersion with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects non-UUID prospectId with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects non-hex scopeVersion with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects non-object metadata with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects non-object scope with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects null metadata with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects numeric canonical id with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects short scopeVersion with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.spec.ts",
+      "name": "parsePersistedMeriProspectScope (fail-closed) rejects unexpected key with null",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix absent key (ordinary conversation) \u2192 null, no assertion, unchanged",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix absent key with NO scope service available still returns null (ordinary path needs nothing)",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present but NO scope service available fails closed",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with a malformed value fails closed with the typed conflict, before assertCurrent",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (array value) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (empty object value) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (empty prospectName) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (missing prospectId) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (non-UUID prospectId) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (non-object value) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix key present with invalid value (short scopeVersion) throws MeriProspectScopeConflictError",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix stale scope surfaces assertCurrent typed conflict / safe 404 unchanged",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "authorizeMeriProspectScope \u2014 key-presence fail-closed matrix valid persisted scope delegates to assertCurrent and passes its result through",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "prospectScopeDirective \u2014 bounded server-authored directive a different prospect name never appears in the directive (free-form names cannot retarget)",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "prospectScopeDirective \u2014 bounded server-authored directive names the display name + prospect id only, with the no-retarget rule",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "prospectTurnScopeReceipt \u2014 bounded receipt shape identical scope \u2192 identical receipt (deterministic, not model-derived)",
+      "multiplicity": 1
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "name": "prospectTurnScopeReceipt \u2014 bounded receipt shape receipt carries only the bounded scope fields with prospect kind",
+      "multiplicity": 1
+    }
+  ]
+}
