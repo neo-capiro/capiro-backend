@@ -116,3 +116,25 @@ remaining blocking code/document issue after correcting the read-only probe to
 require EROFS in a UID1001-owned writable directory. The reviewer independently
 reran all three schema-boundary tests successfully. Native runtime, full API
 startup and supported zero-finding scan remain **unverified**.
+
+## Version-probe repair after the PR20 attempt
+
+The terminal failed build `a437cab5-0c53-443a-a20a-ed475973b169`
+reached the final static probe. Its log shows `dumb-init v1.2.5` immediately
+before the version assertion rejected empty stdout. The original command
+captured stdout and inherited stderr, establishing that this version banner
+was written to stderr. Frozen local evidence: `core-pr20-staging/BUILD-LOG.txt`,
+SHA256 `70fffd9213acecc2a5c108401655f47b00300d5ef699d418c015c4517d4757d9`.
+
+Only this version command now captures both streams, with a 30-second deadline,
+a 1 MiB buffer limit, and a required successful exit. Its version assertion is
+unchanged. Other subprocess calls and all native, readiness, scan and security
+gates remain unchanged. The probe exports this check for regression tests;
+requiring it does not execute the image qualification.
+
+Run `node --test apps/api/scripts/qualification/alpine-runtime-probe.test.cjs`
+for real child-process checks of stderr/stdout banners, a wrong version,
+nonzero exit, empty output, timeout, excessive output and a missing executable.
+These local tests do not establish ARM64 image qualification. The failed attempt
+produced no candidate image; this repair authorizes no additional paid attempt
+and leaves `FULL_API_STARTUP_UNVERIFIED` blocking deployment.
