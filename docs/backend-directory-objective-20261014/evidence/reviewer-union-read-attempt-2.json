@@ -1,0 +1,6 @@
+{
+  "head": "74ef5ee9ee37efbbe3894f82421d766457ba4643",
+  "result": "INCOMPLETE_REVIEW_READ; no source/test failure",
+  "failure": "Read-only reviewer looked for evidence/MERGE-RECEIPT.json; git reported that exact path absent. Receipt is at packet root MERGE-RECEIPT.json. Handoff and exact five-path diff were read successfully; follow-up reads the actual receipt without changing source or running checks.",
+  "qualification": "Only a reviewer path assumption failed. Original tool output remains in session; no source/ref/index mutation or test/compiler/owner/provider/runtime execution."
+}

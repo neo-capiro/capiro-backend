@@ -2,9 +2,19 @@
   "algorithm": "sha256",
   "files": [
     {
+      "path": "FINAL-INDEPENDENT-ACCEPTANCE.md",
+      "bytes": 2887,
+      "sha256": "3f437a9bb7bdd69e24fb80bbb60f755e5ba262d4190fa21823b8c784eb8a9463"
+    },
+    {
+      "path": "FINAL-INDEPENDENT-REVIEW.json",
+      "bytes": 29332,
+      "sha256": "96cad8ce30c21bbe8f85a2a318a499e9b5eee026d62c7846989b2150099b997d"
+    },
+    {
       "path": "HANDOFF.md",
-      "bytes": 13525,
-      "sha256": "89a2cc04801fb749ed123b6e5ecfc4236e3a9520d2ac0efad332a028aace6a35"
+      "bytes": 14260,
+      "sha256": "36d3fcdf93a4951c243b58cf0ef41eb7f7a4a30d2adc69acd1f6ac412a482de4"
     },
     {
       "path": "INDEPENDENT-REVIEW.json",
@@ -265,6 +275,16 @@
       "path": "evidence/preparation-observations.json",
       "bytes": 1148,
       "sha256": "552aa87dd4f83550bb59cb2f46f99df3debd3f1a61487e43b893254bf8f06f68"
+    },
+    {
+      "path": "evidence/reviewer-union-read-attempt-1.json",
+      "bytes": 901,
+      "sha256": "af5e50ada73c45b7ca0dd05e250ef211bc8ad7b2203d52c50f57b2a673e2d37a"
+    },
+    {
+      "path": "evidence/reviewer-union-read-attempt-2.json",
+      "bytes": 595,
+      "sha256": "17aaacbd3d1f75d74a53cc3a221cae279407f240fd602ce47fc1719131b7dad3"
     },
     {
       "path": "evidence/run-check.cjs",

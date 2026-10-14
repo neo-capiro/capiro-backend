@@ -1,0 +1,681 @@
+{
+  "decision": "ACCEPTED_FOR_ROOT_AUTHORIZED_DRAFT_PUBLICATION_ON_EXACT_PR12_BASE",
+  "head": "74ef5ee9ee37efbbe3894f82421d766457ba4643",
+  "tree": "c2c0f62dc57a08f1292e3913da5fa180ce1caabb",
+  "sourceHead": "53dc10fad8eb9f2bfc77b0ddc28a7c6f29a06fc0",
+  "sourceTree": "cd5ad937d360412952687e39da686528129d5bbe",
+  "publishingBase": "2090c6afb26795edcfb73c46b9f3add3512ecdd8",
+  "ordinaryUnion": {
+    "state": "EXACT_GIT_UNION_CHECKPOINT; final handoff/seal acceptance pending author pin",
+    "head": "d60cdc08a824f94dcdb6336dd2e62a3746a27539",
+    "tree": "730ad143f26cc64f2f154dc7cfad64d1fae8c7c3",
+    "parents": [
+      "507a789238bf9b594d93401e53a3ad73f45e4160",
+      "2090c6afb26795edcfb73c46b9f3add3512ecdd8"
+    ],
+    "mergeBase": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+    "parent1DeltaPaths": [
+      "apps/api/src/clients/client-targets.controller.ts",
+      "apps/api/src/clients/client-targets.objective-destination.controller.spec.ts",
+      "apps/api/src/clients/client-targets.objective-destination.spec.ts",
+      "apps/api/src/clients/client-targets.service.ts",
+      "docs/backend-directory-objective-20261014/HANDOFF.md",
+      "docs/backend-directory-objective-20261014/INDEPENDENT-REVIEW.json",
+      "docs/backend-directory-objective-20261014/INDEPENDENT-REVIEW.md",
+      "docs/backend-directory-objective-20261014/SHA256-INDEX.json",
+      "docs/backend-directory-objective-20261014/evidence/01-baseline-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/01-baseline-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/01-baseline-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/01-jest-result.json",
+      "docs/backend-directory-objective-20261014/evidence/02-jest-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/02-jest-result.json",
+      "docs/backend-directory-objective-20261014/evidence/02-jest-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/02-jest-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/03-types-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/03-types-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/03-types-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/04-jest-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/04-jest-result.json",
+      "docs/backend-directory-objective-20261014/evidence/04-jest-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/04-jest-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/05-types-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/05-types-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/05-types-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/06-jest-launch-failure.json",
+      "docs/backend-directory-objective-20261014/evidence/07-types-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/07-types-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/07-types-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/08-jest-launch-failure.json",
+      "docs/backend-directory-objective-20261014/evidence/09-jest-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/09-jest-result.json",
+      "docs/backend-directory-objective-20261014/evidence/09-jest-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/09-jest-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/CASE-COMPARISON-FINAL.json",
+      "docs/backend-directory-objective-20261014/evidence/CASE-COMPARISON-UNICODE.json",
+      "docs/backend-directory-objective-20261014/evidence/CASE-COMPARISON.json",
+      "docs/backend-directory-objective-20261014/evidence/SOURCE-RECEIPT-UNICODE.json",
+      "docs/backend-directory-objective-20261014/evidence/SOURCE-RECEIPT.json",
+      "docs/backend-directory-objective-20261014/evidence/STRICT-FINAL-SUMMARY.json",
+      "docs/backend-directory-objective-20261014/evidence/STRICT-SUMMARY.json",
+      "docs/backend-directory-objective-20261014/evidence/STRICT-UNICODE-SUMMARY.json",
+      "docs/backend-directory-objective-20261014/evidence/baseline-client-targets.source.txt",
+      "docs/backend-directory-objective-20261014/evidence/baseline-overlay-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/baseline-refusal-preload.cjs",
+      "docs/backend-directory-objective-20261014/evidence/check-source-types.cjs",
+      "docs/backend-directory-objective-20261014/evidence/focused.jest.cjs",
+      "docs/backend-directory-objective-20261014/evidence/hygiene-attempt-1.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/hygiene-attempt-2-receipt.json",
+      "docs/backend-directory-objective-20261014/evidence/hygiene-attempt-2-stderr.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/hygiene-attempt-2-stdout.raw.lossless.json",
+      "docs/backend-directory-objective-20261014/evidence/materialize-attempt-1.json",
+      "docs/backend-directory-objective-20261014/evidence/materialize-runtime-closure.cjs",
+      "docs/backend-directory-objective-20261014/evidence/native-sanitize.cjs",
+      "docs/backend-directory-objective-20261014/evidence/preparation-observations.json",
+      "docs/backend-directory-objective-20261014/evidence/run-check.cjs",
+      "docs/backend-directory-objective-20261014/evidence/runtime-closure.json",
+      "docs/backend-directory-objective-20261014/evidence/source-refusal-preload.cjs",
+      "docs/backend-directory-objective-20261014/evidence/typescript-transformer.cjs",
+      "docs/backend-directory-objective-20261014/seal-packet.cjs"
+    ],
+    "parent2DeltaPaths": [
+      "apps/api/scripts/prune-stale-assistance-recipient-candidates.ts",
+      "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "docs/backend-meetings-bundle-reuse-20261014/CASE-COMPARISON.json",
+      "docs/backend-meetings-bundle-reuse-20261014/HANDOFF.md",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-FINAL-ACCEPTANCE.md",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-FINAL-REVIEW.json",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-SOURCE-ACCEPTANCE.md",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-SOURCE-CHECKPOINT.json",
+      "docs/backend-meetings-bundle-reuse-20261014/MEETINGS-STRICT-REVIEW.json",
+      "docs/backend-meetings-bundle-reuse-20261014/MERGE-RECEIPT.json",
+      "docs/backend-meetings-bundle-reuse-20261014/SHA256-INDEX.json",
+      "docs/backend-meetings-bundle-reuse-20261014/SOURCE-RECEIPT.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-baseline-hydration.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/01-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-red-hydration.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/02-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-expanded-red-hydration.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/03-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/04-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/05-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/06-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/07-types-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/07-types-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/07-types-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-jest-result.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/08-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/09-unstarted-sandbox-failure.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/10-types-receipt.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/10-types-stderr.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/10-types-stdout.lossless.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/ENVIRONMENT-CAPACITY-CUSTODY.json",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/check-types.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/focused.jest.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/prepare-source.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/run-focused.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/run-types.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/seal.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/source-refusal-preload.cjs",
+      "docs/backend-meetings-bundle-reuse-20261014/evidence/typescript-transformer.cjs",
+      "docs/backend-prune-script-syntax-20261014/DISCOVERY-FAILURES.json",
+      "docs/backend-prune-script-syntax-20261014/DONOR-SOURCE.lossless.json",
+      "docs/backend-prune-script-syntax-20261014/EXPECTED-DELTA.json",
+      "docs/backend-prune-script-syntax-20261014/HANDOFF.md",
+      "docs/backend-prune-script-syntax-20261014/INDEPENDENT-REVIEW.json",
+      "docs/backend-prune-script-syntax-20261014/INDEPENDENT-REVIEW.md",
+      "docs/backend-prune-script-syntax-20261014/MERGE-RECEIPT.json",
+      "docs/backend-prune-script-syntax-20261014/SHA256-INDEX.json",
+      "docs/backend-prune-script-syntax-20261014/SOURCE-RECEIPT.json",
+      "docs/backend-prune-script-syntax-20261014/SQL-BYTE-PROOF.json",
+      "docs/backend-prune-script-syntax-20261014/UNION-INDEPENDENT-REVIEW.json",
+      "docs/backend-prune-script-syntax-20261014/check-strict-operator.cjs",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-regressions-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-regressions-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-strict-compile-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-exact-source-strict-compile-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-original-syntax-regressions-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-original-syntax-regressions-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-published-base-hygiene-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-published-base-hygiene-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-source-hygiene-output.raw.json",
+      "docs/backend-prune-script-syntax-20261014/evidence/prune-source-hygiene-receipt.json",
+      "docs/backend-prune-script-syntax-20261014/run-check.py",
+      "docs/backend-prune-script-syntax-20261014/seal-packet.mjs",
+      "scripts/cleanup-script-smoke/assistance-recipient-prune-syntax.test.mjs"
+    ],
+    "overlapPaths": [],
+    "exactModeTypeBlobUnion": true,
+    "trackedEntries": 27811,
+    "all59PassingRepositoryInputsExact": true,
+    "all1582CachedDeclarationHashesRecheckedUnchanged": true,
+    "configs": [
+      {
+        "path": "package.json",
+        "tuple": "100644 blob 0cd61e5e77e5b7aa6f3c2aba31b52907eb800102"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "tuple": "100644 blob 08d78e3dbca937f82ada2eb344b961477e9dfc58"
+      },
+      {
+        "path": "tsconfig.base.json",
+        "tuple": "100644 blob c88275ccf4b1b0c62627076781ce0022af22f259"
+      },
+      {
+        "path": "apps/api/package.json",
+        "tuple": "100644 blob 75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a"
+      },
+      {
+        "path": "apps/api/tsconfig.json",
+        "tuple": "100644 blob 6c60698125878c4497d68ea8d6d7f32496dd8cae"
+      },
+      {
+        "path": "packages/shared/package.json",
+        "tuple": "100644 blob 1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+      },
+      {
+        "path": "apps/api/prisma/schema.prisma",
+        "tuple": "100644 blob 7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5"
+      }
+    ],
+    "all4DirectoryProductTestPathsExact": true,
+    "allIncomingPr12AndPr11PathsExact": true,
+    "originalTwoReviewNotesByteExact": true,
+    "previousReadFailureRetained": "DIRECTORY-UNION-READ-ATTEMPT-1.json; corrected note-path assumption, not a product/test failure",
+    "qualification": "Read-only exactGit/cachedhash verification only; no tests/compiler/owner/runtime/DB/provider execution, no native/RLS/live acceptance."
+  },
+  "docsOnlyFollowupPaths": [
+    "docs/backend-directory-objective-20261014/HANDOFF.md",
+    "docs/backend-directory-objective-20261014/INDEPENDENT-UNION-CHECKPOINT.json",
+    "docs/backend-directory-objective-20261014/MERGE-RECEIPT.json",
+    "docs/backend-directory-objective-20261014/SHA256-INDEX.json",
+    "docs/backend-directory-objective-20261014/prove-union.cjs"
+  ],
+  "indexedPayloadsVerified": 59,
+  "losslessObservations": [
+    {
+      "path": "evidence/01-baseline-stderr.raw.lossless.json",
+      "bytes": 604,
+      "sha256": "4f7a3cda71fde553fc8bf853b3db50fcd9051388a4094ca79e12c6367d17e02d"
+    },
+    {
+      "path": "evidence/01-baseline-stdout.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-jest-stderr.raw.lossless.json",
+      "bytes": 508,
+      "sha256": "51bac977012597ea2278195253407fea48ac0dd6bbf7349442fb4dfc0e119eec"
+    },
+    {
+      "path": "evidence/02-jest-stdout.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/03-types-stderr.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/03-types-stdout.raw.lossless.json",
+      "bytes": 461058,
+      "sha256": "28d15f2602ab28b36985752ad00b8946040fa0b8be41ac268541a134282eba07"
+    },
+    {
+      "path": "evidence/04-jest-stderr.raw.lossless.json",
+      "bytes": 508,
+      "sha256": "eaf70e9ceeda23de0b01214436b554c492ec5f918cefd9928c26666398293bc6"
+    },
+    {
+      "path": "evidence/04-jest-stdout.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/05-types-stderr.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/05-types-stdout.raw.lossless.json",
+      "bytes": 461058,
+      "sha256": "b12d22afbfb72c5c7b54982514aea28b3651a658d24761726904491d94355f63"
+    },
+    {
+      "path": "evidence/07-types-stderr.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/07-types-stdout.raw.lossless.json",
+      "bytes": 461058,
+      "sha256": "8b639cd589861eecf0cdbed225a4699cc53005868c1e5bccec1d7a44f64d169b"
+    },
+    {
+      "path": "evidence/09-jest-stderr.raw.lossless.json",
+      "bytes": 508,
+      "sha256": "406c7c0a4c743410ff27fdc6230b91615714c998011f62e9f7934f27792259d7"
+    },
+    {
+      "path": "evidence/09-jest-stdout.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/hygiene-attempt-1.raw.lossless.json",
+      "bytes": 131,
+      "sha256": "2297df22fa78657c7e8fe2e00c58ebbae727abfab86f12eaad39f285bbd11f43"
+    },
+    {
+      "path": "evidence/hygiene-attempt-2-stderr.raw.lossless.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/hygiene-attempt-2-stdout.raw.lossless.json",
+      "bytes": 1386,
+      "sha256": "1ec3d3a3951ec210d54b2d7f3db6bf57bc2c3d67a8e09e0d9a779702c1b7180b"
+    }
+  ],
+  "threeIndependentReviewCopiesByteExact": true,
+  "checkedRepositoryInputs": 59,
+  "cachedInputsRechecked": 1582,
+  "configBindingsVerified": [
+    {
+      "path": "apps/api/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "75ed5073ecaaa43f5ecee06ee3cb5e9795a0029a",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.budget-extraction-contract.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "7b887dd92103a68b86c56e7bbcce387c92836c37",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.budget-parser-router.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "d690d409be044534f860566f0fcfa02d7de4c3b2",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.budget-verification-v1.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "28396d8a073bc64ae6631268ac0a08dea204d040",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.build.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "7dd226f439717a3af68152f01118a60b2e8671fd",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.defense-budget-ingestion-manifest-v1.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "579711e9690b55a9baf0d5900a53af808c09a712",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.defense-research-phase8.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "5c1a1514fab78eec6d18f6b3f2668a6f68f5dc2c",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.engagement-phase3-fixtures.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "02193f58caee3ff9e7a50926b4d46278084bfe3e",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.funding-opportunities.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "5aed462bf0736b3ad274391c04babb6cddb68136",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.hearings.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "7fed6e9b5f9d53836bc7f52138d1c9beb85ff70f",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.integration-smoke.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "926614eaf1f28084a1f3c5feb95892f124812bb3",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "6c60698125878c4497d68ea8d6d7f32496dd8cae",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.legiwatch-phase7.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "5f97b2fe94690b108adf2067b40c83cfa26767b2",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.memo-sections.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "52da62aec78fd19f7be9fc90a9e0a7f12be2dde4",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.memory-governance-backfill.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "3c6e1ca38268cebb93e2aa0150170a885459b98b",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.memory-review-phase3.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "044029056a4fc6b3d6a28d3f1d7a01dfa973f488",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.non-rdte-phase-5.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "eb39ea6eea7dcbf747050d58a62ff3f25227a8a3",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-generation.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "7ea177091c3c825a1d08c7be4329869e7eec2877",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase1.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "abf0333d346326e318fdf9409025202c17d8f308",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase2.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "6ae596a38c82dfcb1ff2952ec5a71b0b1ef464f0",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase3.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "a6fa974fe44d206d5bc0813bf2f44c906ec41083",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase4.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "dd449cf61f48675985e988557240c5fbc1775d84",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.outreach-v3-phase5.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "c8778f2c1351d4f744e8d24cd47cbdcd5a6009a5",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.package5.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "677f859f657ce643cbc5e6b4ce9640fe19cce56d",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.package6.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "8aece047fd91e4a3ff70aa5a9bec7b70225b3baf",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-phase-a.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "38c4dac5c58f391d61f59f34e22387a550e766a7",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-phase-f.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "35d782913113a6e6da28391ac472af3a0e9cfcbc",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-phase-g.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "85c917dc53388c1d95c3d1b2fb98414c2a1fdca1",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-scripts-catalog.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "9f8e4e541407bb87ee9ed30759686c24e2bb4dcd",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.pe-scripts.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "61458916512b629a4399cb7cb466b4a5801e1d85",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.phase6.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "8af75a7e76d0aaa1a0d89a249a92381dcba4137b",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.phase7.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "fff43bf0a796d721750c8e5d09ebcd588d1ba36d",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.rdte-phase-4.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "0be6e215c0e6a475314432667f09f28680456f70",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.tracker-action-ownership.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "cc502b1700cb9679c5dab07156373c72c0f63b0a",
+      "unchanged": true
+    },
+    {
+      "path": "apps/api/tsconfig.verification.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "0488ff1b53e5da1a47cd86f08ac6c09695b51711",
+      "unchanged": true
+    },
+    {
+      "path": "packages/auth/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08",
+      "unchanged": true
+    },
+    {
+      "path": "packages/auth/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "7069a40a273757ed9abe4c8eda8d7b9ebd4f6912",
+      "unchanged": true
+    },
+    {
+      "path": "packages/defense-client/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "57a0ce37e11203f6253cee0874aef519886faa43",
+      "unchanged": true
+    },
+    {
+      "path": "packages/defense-client/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "9460ae94af000a6643b92829d299fa54858f7840",
+      "unchanged": true
+    },
+    {
+      "path": "packages/defense-contracts/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "02871c2ccf00d583632bbfbe412582404a55e18c",
+      "unchanged": true
+    },
+    {
+      "path": "packages/defense-contracts/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "9460ae94af000a6643b92829d299fa54858f7840",
+      "unchanged": true
+    },
+    {
+      "path": "packages/defense-domain/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "f35b337f65180b29a7072a41f2a0cff4d03e5b52",
+      "unchanged": true
+    },
+    {
+      "path": "packages/defense-domain/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "9e68edd4fccb5ad9e02952b7d3afa1861fd0d16e",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "b8469e8303f277ccf029180d011174e0a5e63e44",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9",
+      "unchanged": true
+    },
+    {
+      "path": "packages/shared/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6",
+      "unchanged": true
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "cff5b3a8506d1a290987883f0ed773b2118da169",
+      "unchanged": true
+    },
+    {
+      "path": "packages/strategy-verifier/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "7c89dceb805b7bc88802a8cd5f71abdf22328eac",
+      "unchanged": true
+    },
+    {
+      "path": "packages/strategy-verifier/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "2859cba4abd28a12d695cae7e4106d765728e7a7",
+      "unchanged": true
+    },
+    {
+      "path": "tsconfig.base.json",
+      "mode": "100644",
+      "type": "blob",
+      "oid": "c88275ccf4b1b0c62627076781ce0022af22f259",
+      "unchanged": true
+    }
+  ],
+  "allPreservedOriginalSourceAndPublishedHeadsAncestors": true,
+  "matchingChecks": {
+    "jestAttempt": "09",
+    "total": 84,
+    "pass": 84,
+    "suites": 4,
+    "all26BaselineIdentitiesAndMultiplicityRetained": true,
+    "strictAttempt": "07",
+    "totalSources": 1641,
+    "diagnostics": 0
+  },
+  "currentHandoffVerified": [
+    "Exact eligible resource saved same-client ClientTargetUUID, bounded stored kind/member identity and current Objective revision observation",
+    "Existing canonical authority helperfirst, typed stale-only deferral, target404before409, no new auth/store/schema/writer",
+    "No labels/Directory details/provider/cache lookup/durableassociation/Frontenddeepreopen claim",
+    "Published PR12/PR11 ordinaryreceive, exact original heads and failed/pass evidence preserved",
+    "No nativeDB/RLS/wholeCore/liveprovider/authsession/generatedschema/deployedimage acceptance"
+  ],
+  "reviewReadFailuresRetained": [
+    "DIRECTORY-UNION-READ-ATTEMPT-1.json",
+    "DIRECTORY-UNION-READ-ATTEMPT-2.json"
+  ],
+  "qualification": "Read-only exactGit/rawhash inspection and independent note writing only; no reviewer tests/compiler/owner/runtime/provider/DB/migration execution. Native concurrency/RLS/revocation/cascade gates remain explicit. Root authorized draftpublication only, no mainmerge/deploy."
+}
