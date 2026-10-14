@@ -1,0 +1,26 @@
+{
+  "label": "flags-narrow-emit-exact",
+  "cwd": ".",
+  "argv": [
+    "node",
+    "docs/backend-feature-flags-20261014/check-narrow-types.cjs",
+    "--emit"
+  ],
+  "head": "1f2655fe964cb2a01343d3bcb560de60fa5f69be",
+  "tree": "31f1b4992140bca0b2414f912251e9326a601c87",
+  "exitCode": 0,
+  "seconds": 16.954,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-boundary-successor-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-boundary-successor-20261014/.qualification-cache/authority-tmp"
+  },
+  "outputSha256": "b6ed1b9c543d6c7cf0f33a92c6beab1f85eeed671af65e1a7e08cacfb1290947",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": "M  apps/api/src/capiro-admin/capiro-admin.module.ts\nM  apps/api/src/meri/meri.module.ts\nM  apps/api/src/mobile/meri-mobile.module.ts\n?? apps/api/src/common/meri-feature-flags.module.spec.ts\n?? apps/api/src/common/meri-feature-flags.module.ts\n",
+  "sourceStatusAfter": "M  apps/api/src/capiro-admin/capiro-admin.module.ts\nM  apps/api/src/meri/meri.module.ts\nM  apps/api/src/mobile/meri-mobile.module.ts\n?? apps/api/src/common/meri-feature-flags.module.spec.ts\n?? apps/api/src/common/meri-feature-flags.module.ts\n",
+  "exactCommittedSource": false
+}

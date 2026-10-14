@@ -1,0 +1,36 @@
+{
+  "label": "flags-clean-baseline",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "../../docs/backend-feature-flags-20261014/source-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/meri/meri-feature-flags.service.spec.ts",
+    "src/meri/meri-feature-flags.matrix.spec.ts",
+    "src/meri/meri-quick-action-flags.spec.ts",
+    "src/common/meri-mobile-flags.spec.ts",
+    "--json",
+    "--outputFile",
+    "../../docs/backend-feature-flags-20261014/evidence/flags-clean-baseline-results.json"
+  ],
+  "head": "1f2655fe964cb2a01343d3bcb560de60fa5f69be",
+  "tree": "31f1b4992140bca0b2414f912251e9326a601c87",
+  "exitCode": 0,
+  "seconds": 5.158,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-boundary-successor-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-boundary-successor-20261014/.qualification-cache/authority-tmp"
+  },
+  "outputSha256": "3c0d3580ebffe4a0ee6ae5439d02d17e80d66751676430ec63687f131ff49a07",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": "",
+  "sourceStatusAfter": "",
+  "exactCommittedSource": true
+}
