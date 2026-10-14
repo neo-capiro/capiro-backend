@@ -12,6 +12,11 @@
       "sha256": "a36ca855bac4ebbff9c621ac1bac3a3e3bdc719e97ddf6a0a486809abf35e85a"
     },
     {
+      "path": "INITIAL-HYGIENE-FAILURE.json",
+      "bytes": 1396,
+      "sha256": "d1e3610826477f860baf60207d586974d5f905712446a5925c2f4bef722f8b5c"
+    },
+    {
       "path": "PR7-CORE-STARTUP-INVENTORY.md",
       "bytes": 8086,
       "sha256": "bee45aeb5b1fb5b19a039541887645bd5124ba51011fb5250182341094d74ee7"
@@ -182,9 +187,9 @@
       "sha256": "7d17274b2520a3c882c1466583bcd66d97a87af63d30631994e6c287d5d073b1"
     },
     {
-      "path": "evidence/unit-attempt-1.stderr.raw",
-      "bytes": 2040,
-      "sha256": "e14ae5508cca6ac63f9bd777bf52ebe069035536f594cceba29b94fc9f51719e"
+      "path": "evidence/unit-attempt-1.stderr.lossless.json",
+      "bytes": 2976,
+      "sha256": "3b30b58462bfbe5a0018b56ae346f3782527b1ebab21823ceba029902073cea2"
     },
     {
       "path": "evidence/unit-attempt-1.stdout.raw",
@@ -207,9 +212,9 @@
       "sha256": "af118e3178c8b3d738b0900eff63ce6d2ebc63b179239037fe3e64a0635e51b5"
     },
     {
-      "path": "evidence/unit-attempt-2.stderr.raw",
-      "bytes": 1267,
-      "sha256": "5f051e1d7c849e05ea5078432ee172769d20bda309dfbca44e16d89f829ea22a"
+      "path": "evidence/unit-attempt-2.stderr.lossless.json",
+      "bytes": 1948,
+      "sha256": "60aef1cfd91efb1e74c296d45e2c5a932098467d1b6fdf0ce49d47c4feb6e1d0"
     },
     {
       "path": "evidence/unit-attempt-2.stdout.raw",
