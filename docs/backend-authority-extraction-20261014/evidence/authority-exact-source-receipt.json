@@ -1,0 +1,38 @@
+{
+  "label": "authority-exact-source",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "../../docs/backend-authority-extraction-20261014/source-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/auth/application-authority.spec.ts",
+    "src/auth/application-authority.module.spec.ts",
+    "src/auth/application-authority-boundary.spec.ts",
+    "src/context/application-authority-resource.helpers.spec.ts",
+    "src/business-development/bizdev-meri-scope.service.spec.ts",
+    "src/meri/meri-prospect-scope.helpers.spec.ts",
+    "--json",
+    "--outputFile",
+    "../../docs/backend-authority-extraction-20261014/evidence/authority-exact-source-results.json"
+  ],
+  "head": "fdb7583d38c34527b50870172ea1d3e29b4aee02",
+  "tree": "a5d3bc94e643dae2011f513c75872867572c3c44",
+  "exitCode": 0,
+  "seconds": 9.139,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-boundary-successor-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-boundary-successor-20261014/.qualification-cache/authority-tmp"
+  },
+  "outputSha256": "b88a542fc97218524243f8bf67f545350199985d7b7c8db49c5bfc47d4517e14",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": "?? apps/api/node_modules\n",
+  "sourceStatusAfter": "?? apps/api/node_modules\n",
+  "exactCommittedSource": false
+}

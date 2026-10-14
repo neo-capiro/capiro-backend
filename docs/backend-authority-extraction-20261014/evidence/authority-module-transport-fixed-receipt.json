@@ -1,0 +1,30 @@
+{
+  "label": "authority-module-transport-fixed",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "../../docs/backend-authority-extraction-20261014/source-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/auth/application-authority.module.spec.ts",
+    "--json",
+    "--outputFile",
+    "../../docs/backend-authority-extraction-20261014/evidence/authority-module-transport-fixed-results.json"
+  ],
+  "head": "22d0d043a3efbf22e4b2d8d7f881af66f983873b",
+  "tree": "da6ecd25f6fad1cf5f1da67ca0d15b960f805508",
+  "exitCode": 1,
+  "seconds": 7.821,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-boundary-successor-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-boundary-successor-20261014/.qualification-cache/authority-tmp"
+  },
+  "outputSha256": "65353ccb56ddf81351ded95c0092205461cfcb39a8e09cd962168452d1dc0f09",
+  "scope": "source/mocked checks; fence is not an OS sandbox"
+}

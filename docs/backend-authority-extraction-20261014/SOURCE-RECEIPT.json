@@ -1,0 +1,115 @@
+{
+  "schema": "native-authority-extraction-source/v1",
+  "head": "fdb7583d38c34527b50870172ea1d3e29b4aee02",
+  "tree": "a5d3bc94e643dae2011f513c75872867572c3c44",
+  "parent": "22d0d043a3efbf22e4b2d8d7f881af66f983873b",
+  "paths": [
+    {
+      "path": "apps/api/src/app.module.ts",
+      "kind": "production",
+      "blob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+      "sha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3",
+      "bytes": 9254
+    },
+    {
+      "path": "apps/api/src/auth/application-authority-boundary.spec.ts",
+      "kind": "test",
+      "blob": "a50baede1356fb515167eddfd5af3914ee12faeb",
+      "sha256": "d44873dcad7e5b418bbb448859928086a7e62e0d1fc35b08c2e57063bd1e105b",
+      "bytes": 4846
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "kind": "production",
+      "blob": "c8b91d68cd551234eb6500a5daea877f675197c1",
+      "sha256": "8b8b48e5552a1a432609db8bbc176afb43d1751edff0a69cf3bb033bcf12a679",
+      "bytes": 3577
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.module.spec.ts",
+      "kind": "test",
+      "blob": "9f555e0170240887a96f411ea59fd223cd0ecd57",
+      "sha256": "4bc6480666674097c59b9349cb0333fb6d452117c2578497f5832dbc782960c5",
+      "bytes": 11481
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.module.ts",
+      "kind": "production",
+      "blob": "5533892976eea02e3e3409ce615a8ed67b1271d0",
+      "sha256": "a6cdcba8fd85584e86baa6c6b2182240fa557db822173e60241d2a0a39a807ba",
+      "bytes": 687
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.spec.ts",
+      "kind": "test",
+      "blob": "015907ebdd559d3c13945d90b4dc602bda5061c5",
+      "sha256": "8f32b37bf649540c006b0e3662d3466e51a5572b5d4bdcfcc3ac02e52916cdb8",
+      "bytes": 28701
+    },
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.module.ts",
+      "kind": "production",
+      "blob": "b6adf48dd731894ef3ac6358e3de54962ba53124",
+      "sha256": "fee23f962135d90475930c99dbd4e3710dd91e11eb590b9521531759bcd626da",
+      "bytes": 410
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.module.ts",
+      "kind": "production",
+      "blob": "69316e07f4520832dba31bdd6b4da01ba645697e",
+      "sha256": "60c0a0ee627851c4359359a510bee4281bea8b56e89b35e97ae46d5741eca61a",
+      "bytes": 4018
+    },
+    {
+      "path": "apps/api/src/context/application-authority-resource.helpers.spec.ts",
+      "kind": "test",
+      "blob": "672632791ceb5819e13cc9b75544c87e64f61aa5",
+      "sha256": "505cdd558885723ebcbf8b177f637d7d6da4510789ba54f2a260402a30d74420",
+      "bytes": 9464
+    },
+    {
+      "path": "apps/api/src/context/application-authority-resource.helpers.ts",
+      "kind": "production",
+      "blob": "cccd3757395e6260b5b88f1ac115fb54372694e0",
+      "sha256": "2553c76fb9001199703850ce8bcf91ad6a8f90c2a07accdd0590b9b0fb4eb479",
+      "bytes": 1452
+    },
+    {
+      "path": "apps/api/src/context/context-security-scope.module.ts",
+      "kind": "production",
+      "blob": "534cb19e7f2aa6492ff9b1d3844199ffd2107549",
+      "sha256": "fb9978bc0940f79eeb7a410da96037aa73f6cf3fa48ed6e5a2c0d367fbef985b",
+      "bytes": 432
+    },
+    {
+      "path": "apps/api/src/context/context.module.ts",
+      "kind": "production",
+      "blob": "3296da2aed6dadda817091bf9067fd1fcddd66d5",
+      "sha256": "6f877a2d3c9e3b21077d382ac02122cefa5f8e44fbefe79b471e273628e5128a",
+      "bytes": 2619
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "kind": "production",
+      "blob": "598e9146e5568349f213cbd548de0213113dc924",
+      "sha256": "c9562a30e6a67ed75eaf74850d1e4d67c133f040035fb4df8ac80605a3123586",
+      "bytes": 44992
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "kind": "production",
+      "blob": "80963fffa202a11aac8647cc05dd56eb203c8f34",
+      "sha256": "6ae36becde80c04767262a96b589ab5daf9ea4bc2ef6b800fc2549fe754f88fa",
+      "bytes": 293043
+    }
+  ],
+  "unchangedCriticalPaths": [
+    "auth/application-authority.ts",
+    "auth/clerk.service.ts",
+    "tenant/tenant-context.middleware.ts",
+    "context/context-security-scope.service.ts",
+    "business-development/bizdev-meri-scope.service.ts",
+    "research-portfolios/research-portfolio-artifact-authority.ts"
+  ],
+  "scope": "10 production paths and4 tests; no schema/package/config/security/provider/foreign-source change"
+}
