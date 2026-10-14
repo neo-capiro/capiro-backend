@@ -1,0 +1,352 @@
+{
+  "review": "Independent finite source JOIN of first client-only bootstrap to native Core conversation and approved Meri binding",
+  "verdict": "ACCEPT SOURCE JOIN; actual native identity/record/resources remain unqualified inputs",
+  "pins": {
+    "frontend": "348c98dfe1962fac962157eb785732281a282d06",
+    "meri": "5a87ffd7f0a5441919c1b4a869295824f1a32d08",
+    "backend": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "runtimeCheckpoint": "3f747849a1d037806faa819f7c174d8b29675947"
+  },
+  "runtimeCheckpointProof": {
+    "source": "3f747849a1d037806faa819f7c174d8b29675947",
+    "tree": "99cfcbde6c8016747d45740eb7352f456d501125",
+    "parent": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "repository": "neo-capiro/capiro-backend",
+    "verifiedVia": "https://api.github.com/repos/neo-capiro/capiro-backend/git/commits/3f747849a1d037806faa819f7c174d8b29675947",
+    "nineChangedPaths": [
+      "apps/api-strategy/package.json",
+      "apps/api/package.json",
+      "apps/api/prisma/seed-workflows.ts",
+      "apps/api/scripts/entrypoint-dispatcher.inc",
+      "apps/api/scripts/entrypoint.sh",
+      "apps/api/scripts/lib/pe-migration-guards.ts",
+      "apps/intel-api/package.json",
+      "apps/workspace/package.json",
+      "pnpm-lock.yaml"
+    ]
+  },
+  "previousArtifacts": [
+    {
+      "path": "docs/successor-qualification-20261014/ordinary-api/FIRST-CHAT-AUTHORITY-RECONCILIATION.md",
+      "gitBlob": "e7b9ff5f46162a8666991d9342c8828f06f9a5c3",
+      "bytes": 7377,
+      "sha256": "e7db5aa97ac22ce50bc4c70aba6fa0790d6761a8968a52201f696bf63312b527"
+    },
+    {
+      "path": "docs/successor-qualification-20261014/ordinary-api/FIRST-CHAT-AUTHORITY.receipt.json",
+      "gitBlob": "42a4a7e268659f613de912b1713d36d2abca48da",
+      "bytes": 12629,
+      "sha256": "7703aecf0a6fc43634169780364e01ce40ff87392bcf35d2a7a9e5c2bd427804"
+    }
+  ],
+  "originalCoreAuthorityFingerprints": [
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "app",
+      "path": "apps/api/src/app.module.ts",
+      "gitBlob": "6b867553bed4ffd1376279414ce4fa892bb896e7",
+      "bytes": 9254,
+      "sha256": "ea98382d71c8ac0d3bc594d18dbdbacc70f5475a3bd6a10fabd163d36351e8c3"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "middleware",
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "gitBlob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60",
+      "bytes": 30010,
+      "sha256": "250df8d46a94f84239e99f46ce0dec5858cc06082c430ec4551d666491b83c0b"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "wire",
+      "path": "apps/api/src/auth/application-authority.ts",
+      "gitBlob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7",
+      "bytes": 9325,
+      "sha256": "80d7913e68d63cfec1c15f9a76ebe0657baeb107f1880725c4ba3db567aa7309"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "authority_controller",
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "gitBlob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f",
+      "bytes": 3597,
+      "sha256": "34509c16b1c7fdf9fb2bf0c0d8f1e9fabb0990c081084daea645db5f104652d1"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "authority_module",
+      "path": "apps/api/src/auth/application-authority.module.ts",
+      "gitBlob": "5533892976eea02e3e3409ce615a8ed67b1271d0",
+      "bytes": 687,
+      "sha256": "a6cdcba8fd85584e86baa6c6b2182240fa557db822173e60241d2a0a39a807ba"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "resource_helper",
+      "path": "apps/api/src/context/application-authority-resource.helpers.ts",
+      "gitBlob": "cccd3757395e6260b5b88f1ac115fb54372694e0",
+      "bytes": 1452,
+      "sha256": "2553c76fb9001199703850ce8bcf91ad6a8f90c2a07accdd0590b9b0fb4eb479"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "context_security",
+      "path": "apps/api/src/context/context-security-scope.service.ts",
+      "gitBlob": "875b04f94cf5ecb40c22b7a9f2d73ca9cc3ed662",
+      "bytes": 7013,
+      "sha256": "2de05899ac1fd82af13eead5956b8cbe23a237714a4b645839d5a955f7bdab24"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "clerk",
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "gitBlob": "0acf9f955c667df64a8bc4d4b3534b6054abca6c",
+      "bytes": 8258,
+      "sha256": "c49fdba20da5152a5eadb1dca864e6f789c943ad1b1ca560a529edad4f343191"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "legacy_controller",
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "gitBlob": "598e9146e5568349f213cbd548de0213113dc924",
+      "bytes": 44992,
+      "sha256": "c9562a30e6a67ed75eaf74850d1e4d67c133f040035fb4df8ac80605a3123586"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "legacy_service",
+      "path": "apps/api/src/meri/meri.service.ts",
+      "gitBlob": "8878d515849c36ce037a9fc8591e46bbb06e65b2",
+      "bytes": 293118,
+      "sha256": "1de375a7617352f862acc367ee68b34ef783376ddbad5acacaa0c8486a6e04af"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "legacy_module",
+      "path": "apps/api/src/meri/meri.module.ts",
+      "gitBlob": "a17e94efba349979236ed1dbada4be4c17cf8f02",
+      "bytes": 12288,
+      "sha256": "c015614c72266e181c77740cbad366cf56eb9280b91dd5bb21790b8c218f6065"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "schema",
+      "path": "apps/api/prisma/schema.prisma",
+      "gitBlob": "7bc76800e4c0fa9cb4c5aacbb819884e189ceaf5",
+      "bytes": 980470,
+      "sha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "research_acl",
+      "path": "apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts",
+      "gitBlob": "b09e0ed7d15c3d6c3834f4c878ee409bcff86460",
+      "bytes": 4785,
+      "sha256": "d6700f4e06e24b894e7b3d8b7c940faf22b1d595d974ad015d375f0c166f4924"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "prospect_acl",
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "gitBlob": "764c22f72d46587cceba491c30c39fd0c31c1ada",
+      "bytes": 1633,
+      "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "prospect_scope",
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "gitBlob": "2cb7e71ff5929a6a78a97d60d27668409633572d",
+      "bytes": 8411,
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525"
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "key": "selection",
+      "path": "apps/web/src/shared/meri-conversations/query-journal.ts",
+      "gitBlob": "537b3b7821855465910492d349c16c4864dbe9c5",
+      "bytes": 2856,
+      "sha256": "9277a86fea85089e58e63d5a596f2876cc1b7b0032566e87f6b0592ccb14e00f"
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "key": "host",
+      "path": "apps/web/src/shared/meri-conversations/host-controller.ts",
+      "gitBlob": "777f08232791cda480e256c29404ddfff2c41846",
+      "bytes": 2201,
+      "sha256": "39d3057c02b92781ed996b844193cd65b229c54a314b13b64de2f2e3fd027ec4"
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "key": "actions",
+      "path": "apps/web/src/features/meri/conversation/useConversationActions.ts",
+      "gitBlob": "f87c10b9af684e4dfb016ff4a1d097171bd9f9fd",
+      "bytes": 3690,
+      "sha256": "09bb5f9fde3579ae35a3b8722a9931c1e71cc4ae25ce951905f0008f9bb2295e"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "authority_inputs_doc",
+      "path": "docs/coordination/reports/CODEX-CURRENT-CONVERSATION-AUTHORITY-INPUTS-20261014.md",
+      "gitBlob": "4d3e423949ad3fa8b7cb26ecb2712257d5e23277",
+      "bytes": 11460,
+      "sha256": "85b02920a3a0ba342af214925809cb3310fdee0f43dc7f4e4a1991addf542eae"
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "key": "frontend_config",
+      "path": "apps/web/src/shared/capiro/config.ts",
+      "gitBlob": "5327375f16fc3fc74624ffc3a20b3dfb4fdee600",
+      "bytes": 2578,
+      "sha256": "09ce8ba9a869cc0a8efce4540afda473bfad2c5bacd3f9e385131df64880fddb"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "core_main",
+      "path": "apps/api/src/main.ts",
+      "gitBlob": "e8b1a9e47877ba139b1e9c699699c8eadece25c2",
+      "bytes": 1600,
+      "sha256": "58a7473c17e116dfe3c13197f124ed2c5fa1e9bb4ea708aa3092268bb92bbd36"
+    },
+    {
+      "repository": "neo-capiro/capiro-backend",
+      "key": "core_http",
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "gitBlob": "3407e1cc723d0dc117e998e0b8f29436ea0d5551",
+      "bytes": 7342,
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c"
+    }
+  ],
+  "additionalSourceFingerprints": [
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "context_adapter",
+      "path": "apps/control/action-host/application-adapters/context-adapter.mjs",
+      "gitBlob": "7a06ec8c8f1bb32d87214ca25d350bc4c0b91eec",
+      "bytes": 6198,
+      "sha256": "766dfedd4277ec855d8e92c4e8e33c1fc48c2ca8a5be41249499833b43f88afb"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "identity_context",
+      "path": "apps/runtime/native-authority/identity-context.mjs",
+      "gitBlob": "75e8b83d86190673ef67aafc697a3e2f131e148f",
+      "bytes": 1519,
+      "sha256": "df18bd9caaa0d1b4a4dbbe65dddf167c3d0c57874a7bcdcd56fe2e96c12a44ad"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "prepared",
+      "path": "apps/runtime/prepared-candidate.mjs",
+      "gitBlob": "6420d3932b6f2434e66d1c254e744d4fba05f04c",
+      "bytes": 12824,
+      "sha256": "698f9adbb5ebda2e4e964c4c7f6d8425932141dcd803716b43372e26d7625d5a"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "config",
+      "path": "apps/runtime/prepared-candidate-config.mjs",
+      "gitBlob": "e2340e585b5533271db8f8dd13562abe84afa1ea",
+      "bytes": 5018,
+      "sha256": "8cc1bf393f78ee182077c03c313af4b53826f3e8842e6116fd0b42266afbc156"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "session_owner",
+      "path": "apps/control/action-host/session/owner.mjs",
+      "gitBlob": "9ec0c2970949f1c66eb790aa53c2170a00c8a581",
+      "bytes": 9632,
+      "sha256": "7239a73d05784f492d1d7c68a371ab1ca5c94fada71fc74a20b8c3f372769084"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "conversation_service",
+      "path": "apps/control/conversations/service.mjs",
+      "gitBlob": "52b8b9cb9103ba15b9a197e4f13c24b669375e0c",
+      "bytes": 10594,
+      "sha256": "4ba8918c187a0c749f9f199402b2090ef110623ca3af7ab63d47c44bab083170"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "prepared_test",
+      "path": "apps/runtime/test/prepared-candidate.test.mjs",
+      "gitBlob": "d6fc60a3005dd1af01c552d16f7fb7a5ce08f018",
+      "bytes": 9839,
+      "sha256": "f6934e49593a35fa30dd77d76aece7eb0c24e732ac10ad245d6992d25e587cba"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "control",
+      "path": "apps/runtime/control.mjs",
+      "gitBlob": "00de6cce22b2190ab5549e04445942b10dda4694",
+      "bytes": 9319,
+      "sha256": "dc7986870995ff3149630b127e1e9f2249d976a65bcf46b5cda514105c1dd6b7"
+    },
+    {
+      "repository": "neo-capiro/meri-greenfield",
+      "key": "authority_http",
+      "path": "apps/control/action-host/application-adapters/authority-http.mjs",
+      "gitBlob": "7c4a83004884bd32834496ede86af907e18d21d1",
+      "bytes": 4664,
+      "sha256": "ba9af89c706dc6bbb27f55e06c9e6331e5c655edabb3a22d2cc13269750ef993"
+    },
+    {
+      "repository": "neo-capiro/capiro-frontend",
+      "key": "connection_config",
+      "file": "connection-config.ts",
+      "gitBlob": "289bb035208bc394797b9882a8d8912015894f96",
+      "bytes": 1530,
+      "sha256": "55b13454986c355e42d9e206b076a7890b3740e9b5e2c22a38f9ce6cc21db5b1",
+      "pathEvidence": "Exact blob independently read; filename/head supplied by parent. Guessed shared/meri-conversations path was404 and is not asserted."
+    }
+  ],
+  "chain": {
+    "selection": "initial clientId only; reconnect pins observed conversation/run; host matches native actor/tenant",
+    "configuration": "runtime.binding equals identity.commandContext.binding, client/policy/allocation/grants validated canonically",
+    "absentCanonicalRun": "only fixed compiled preapproved tuple, not UUID generation; present mismatch/storage errors refuse",
+    "runtimeMount": "startControl selects prepared native and injects candidate.identityContext into actual action-session assembly",
+    "context": "Core native principal/revision/conversation/client exact plus current-run binding/policy checks before/after; same tuple returned",
+    "session": "fresh identity/context/hints and current-state checks; session-only nonce generation, original expiry bound",
+    "submit": "context.binding retained in stored run/conversation and Temporal args; immutable request replay retains deduplication identity"
+  },
+  "frontendDeployment": {
+    "sourceBlob": "289bb035208bc394797b9882a8d8912015894f96",
+    "requiredFlag": "MERI_CONVERSATION_WORKFLOW_ENABLED=true",
+    "meriBase": "Pathless HTTPS MERI_API_BASE_URL",
+    "coreBase": "CORE_API_BASE_URL includes /api",
+    "meriCoreAuthorityOrigin": "Pathless HTTPS origin reference; no invented environment key",
+    "runtimeFlagEvidence": "Parent-reported confirmation; no runtime env read here"
+  },
+  "focusedTestSource": {
+    "gitBlob": "d6fc60a3005dd1af01c552d16f7fb7a5ce08f018",
+    "read": true,
+    "executedHere": false,
+    "assertions": [
+      "returned/stored/dispatched tuple equals approved binding",
+      "foreign conversation/run/client selector refuses without allocation/dispatch",
+      "revocation after issuance refuses before canonical rows/Temporal start",
+      "immutable request replay preserves canonical workflow identity"
+    ],
+    "positivePublicHints": "{}",
+    "clientOnlyProof": "Source inference from actual frontend {clientId} journal and strict optional matching-hint checks, not a newly run test",
+    "ports": "Backend/SQL/Temporal scripted; no native proof"
+  },
+  "nativeRemaining": [
+    "Current actual Core session/native user/tenant identity and serving origin/image/source",
+    "Exact existing owned active client-bound Core conversation/current wall/domain ACL, or established authorized canonical creation flow",
+    "Real immutable Meri run/allocation/grant/policy/original budget/native session and DB/Temporal/task/proxy/image/private transport references"
+  ],
+  "notFirstChatPrerequisites": [
+    "Later continuation target admission/retirement",
+    "Approval decision/mutation owner"
+  ],
+  "sourceChangesRequired": "None proved at this JOIN; no duplicate Core handler/store/auth layer or new Meri UUID generator",
+  "noExecution": "No new tests/live HTTP/provider/customer/DB/Clerk/AWS/task/credential/permission/flag/source/ref action; protected unpublished Engagement not read",
+  "discoveryFailures": "Wrong apps/control/apps/api directory guesses and one shared frontend connection-config path returned404; exact supplied blobs/paths subsequently read. These are not source-loss/runtime claims.",
+  "findingArtifact": {
+    "path": "docs/successor-qualification-20261014/ordinary-api/FIRST-CLIENT-BOOTSTRAP-JOIN.md",
+    "gitBlob": "48cca803b02c3366f1c40aca688ff038d7429073",
+    "bytes": 6436,
+    "sha256": "946dca3ecb414167dac7e89d70a9886e65333255753edeebc2a8d7685025f4dd"
+  }
+}

@@ -1,0 +1,24 @@
+import pathlib,json,yaml,subprocess,time,hashlib,gzip
+base=pathlib.Path('/dev/shm/capiro-pinned-parser-install-20261014/container-qualification-dd02');sha=lambda b:hashlib.sha256(b).hexdigest();report={'source_ref':'dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca','commands':[],'scope':'Own corrected-classification projection+normal integrity-checked NPM Node pin tools. No source/ref/daemon/DB/migration/provider changes.'}
+def save():
+ with gzip.GzipFile(filename=str(base/'fixed-production-node-pins.json.gz'),mode='wb',mtime=0) as f:f.write(json.dumps(report,indent=2).encode()+b'\n')
+def run(name,command,cwd):
+ start=time.monotonic();p=subprocess.run(command,cwd=cwd,capture_output=True,text=True,timeout=120);r={'name':name,'command':command,'cwd':str(cwd),'exit_code':p.returncode,'seconds':round(time.monotonic()-start,3),'stdout':p.stdout,'stderr':p.stderr,'stdout_sha256':sha(p.stdout.encode()),'stderr_sha256':sha(p.stderr.encode())};report['commands'].append(r);save();print(json.dumps(r),flush=True);return p
+old=base/'production-link-probe';project=yaml.safe_load((old/'pnpm-lock.yaml').read_text());manifest=json.loads((old/'package.json').read_text());manifest['name']='capiro-prisma-prod-link-corrected-probe';manifest['dependencies']['prisma']=manifest['devDependencies'].pop('prisma');project['importers']['.']['dependencies']['prisma']=project['importers']['.']['devDependencies'].pop('prisma');assert not project['importers']['.']['devDependencies'];del project['importers']['.']['devDependencies'];del manifest['devDependencies'];probe=base/'production-link-fixed-probe';probe.mkdir(exist_ok=True);raw=json.dumps(manifest).encode()+b'\n';lockraw=yaml.safe_dump(project,sort_keys=False).encode();(probe/'package.json').write_bytes(raw);(probe/'pnpm-lock.yaml').write_bytes(lockraw);report['corrected_projection']={'package_sha256':sha(raw),'lock_sha256':sha(lockraw),'packages_snapshots_unchanged':all(project[k]==yaml.safe_load((old/'pnpm-lock.yaml').read_text())[k] for k in ['packages','snapshots']),'cli_specifier':manifest['dependencies']['prisma'],'cli_resolution':project['importers']['.']['dependencies']['prisma']['version']};save()
+cli=base/'tools/node_modules/pnpm/bin/pnpm.cjs';p=run('fixed-production-install',['node',str(cli),'install','--frozen-lockfile','--prod','--ignore-scripts','--registry=https://registry.npmjs.org','--store-dir='+str(base/'pnpm9-store'),'--reporter=append-only','--network-concurrency=1','--fetch-retries=0','--fetch-timeout=30000'],probe)
+assert (probe/'pnpm-lock.yaml').read_bytes()==lockraw
+state={'direct_prisma_cli_file':(probe/'node_modules/prisma/build/index.js').is_file(),'client_package_file':(probe/'node_modules/@prisma/client/package.json').is_file()};report['corrected_link_state']=state;save();print(json.dumps(state),flush=True)
+if p.returncode:raise SystemExit(p.returncode)
+nodepins=base/'node-pins';nodepins.mkdir(exist_ok=True);manifest={'name':'capiro-exact-image-node-pins-probe','version':'0.0.0','private':True,'dependencies':{'node22':'npm:node-linux-x64@22.23.3','node20':'npm:node-linux-x64@20.16.0'}};(nodepins/'package.json').write_text(json.dumps(manifest)+'\n')
+p=run('node-pins-lock',['npm','install','--package-lock-only','--ignore-scripts','--prefix',str(nodepins),'--cache',str(base/'npm-cache'),'--registry=https://registry.npmjs.org'],nodepins)
+if p.returncode:raise SystemExit(p.returncode)
+lockbefore=(nodepins/'package-lock.json').read_bytes();p=run('node-pins-frozen-ci',['npm','ci','--ignore-scripts','--prefix',str(nodepins),'--cache',str(base/'npm-cache'),'--registry=https://registry.npmjs.org'],nodepins)
+assert (nodepins/'package-lock.json').read_bytes()==lockbefore
+if p.returncode:raise SystemExit(p.returncode)
+report['node_package_lock']={'sha256':sha(lockbefore),'entries':{k:{x:v.get(x) for x in ['name','version','resolved','integrity']} for k,v in json.loads(lockbefore)['packages'].items() if k.startswith('node_modules/')}};report['node_binaries']=[]
+for name,expected in [('node22','v22.23.3'),('node20','v20.16.0')]:
+ binary=nodepins/'node_modules'/name/'bin/node';raw=binary.read_bytes();p=run(name+'-version',[str(binary),'--version'],nodepins)
+ if p.returncode:raise SystemExit(p.returncode)
+ assert p.stdout.strip()==expected
+ report['node_binaries'].append({'name':name,'path':str(binary),'version':expected,'bytes':len(raw),'sha256':sha(raw),'platform':'linux','arch':'x64','source':'Normal registry.npmjs.org alias package with npm-ci lock integrity; not container/bookworm/arm64 acceptance'});save();print(json.dumps(report['node_binaries'][-1]),flush=True)
+report['complete']=True;save();print(json.dumps({'complete':True,'receipt':str(base/'fixed-production-node-pins.json.gz'),'bytes':(base/'fixed-production-node-pins.json.gz').stat().st_size,'sha256':sha((base/'fixed-production-node-pins.json.gz').read_bytes())}),flush=True)

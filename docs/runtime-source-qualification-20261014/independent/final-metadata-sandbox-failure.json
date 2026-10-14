@@ -1,0 +1,8 @@
+{
+  "operation": "Read-only final acceptance blob digest",
+  "sandbox_exit_code": 101,
+  "application_started": false,
+  "ref_mutation": false,
+  "stderr": "thread 'main' (1281030) panicked at linux-sandbox/src/linux_run_main.rs:994:25:\nfailed to register synthetic bubblewrap mount target /tmp/.aws: No space left on device (os error 28)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+  "resolution": "MCP blob readback equality already passed; narrow read-only digest verification retried after auto-reviewed sandbox escalation. No trust, credentials, native engine or network-policy control changed."
+}

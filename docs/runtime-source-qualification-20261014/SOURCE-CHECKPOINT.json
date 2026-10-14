@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "scope": "Source-only immutable Git metadata; no application execution.",
+  "implementation": {
+    "message": "Retain Prisma CLI in runtime and remove retired workflow seed",
+    "parents": [
+      "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca"
+    ],
+    "sha": "3f747849a1d037806faa819f7c174d8b29675947",
+    "tree": "99cfcbde6c8016747d45740eb7352f456d501125"
+  },
+  "comparison": {
+    "repository_full_name": "neo-capiro/capiro-backend",
+    "base": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "head": "3f747849a1d037806faa819f7c174d8b29675947",
+    "status": "ahead",
+    "ahead_by": 1,
+    "behind_by": 0,
+    "total_commits": 1,
+    "too_large": null,
+    "base_commit": {
+      "sha": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+      "url": "https://api.github.com/repos/neo-capiro/capiro-backend/commits/dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+      "html_url": "https://github.com/neo-capiro/capiro-backend/commit/dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca"
+    },
+    "merge_base_commit": {
+      "sha": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+      "url": "https://api.github.com/repos/neo-capiro/capiro-backend/commits/dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+      "html_url": "https://github.com/neo-capiro/capiro-backend/commit/dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca"
+    },
+    "files": [
+      {
+        "filename": "apps/api-strategy/package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/api/package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/api/prisma/seed-workflows.ts",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 792,
+        "changes": 792,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/api/scripts/entrypoint-dispatcher.inc",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 7,
+        "changes": 8,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/api/scripts/entrypoint.sh",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3,
+        "changes": 4,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/api/scripts/lib/pe-migration-guards.ts",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 3,
+        "changes": 7,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/intel-api/package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "previous_filename": null
+      },
+      {
+        "filename": "apps/workspace/package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "previous_filename": null
+      },
+      {
+        "filename": "pnpm-lock.yaml",
+        "status": "modified",
+        "additions": 12,
+        "deletions": 12,
+        "changes": 24,
+        "previous_filename": null
+      }
+    ]
+  },
+  "baseline": {
+    "head": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
+    "tree": "03d6508d021825621f921aa37a5da6d235bb63e0",
+    "pr": 17,
+    "branch": "codex/backend-successor-qualification-20261014",
+    "draft": true,
+    "open": true,
+    "merged": false
+  },
+  "actualRefRefresh": {
+    "capirov2Main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "backendImport": "c76f5fc0df6688743afeec274211afd2e67fe8f1",
+    "frontendPr39": "348c98dfe1962fac962157eb785732281a282d06",
+    "meriPr82": "5a87ffd7f0a5441919c1b4a869295824f1a32d08"
+  },
+  "meriOwnerCoordination": {
+    "url": "https://github.com/neo-capiro/meri-greenfield/pull/82#issuecomment-6167937332",
+    "newRepliesObserved": 0
+  },
+  "preservedProtectedPublishedEngagementBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+  "protectedUnpublishedReportingRead": false,
+  "databaseOrMigrationExecution": false,
+  "refOrDeploymentMutationAtCheckpoint": false
+}

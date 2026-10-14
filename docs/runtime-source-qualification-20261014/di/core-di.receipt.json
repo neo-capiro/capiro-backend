@@ -1,0 +1,19 @@
+{
+  "exitCode": 1,
+  "seconds": 2.564,
+  "runnerSha256": "8640a904fe6dd8ab228a4cb119fe41186bb20310ed298dcc33f0b65a31862bfe",
+  "raw": {
+    "core-di.stdout": {
+      "bytes": 1216,
+      "sha256": "fca32f4d4a155fe24b0909d60a601aa4e60ec1427794191af05a268349096ce5"
+    },
+    "core-di.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "sourceOnly": true,
+  "databasePortStrictMock": true,
+  "runtimeNode": "22.23.3",
+  "applicationInitRequested": false
+}
