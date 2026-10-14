@@ -12,7 +12,7 @@
     "tree": "99cfcbde6c8016747d45740eb7352f456d501125",
     "sourceDeltaPaths": 9
   },
-  "expectedFinalParent": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
+  "expectedFinalParent": "89d47ca933d168198c322e37b36a70484284b03e",
   "payloadCount": 103,
   "payloads": [
     {
@@ -480,17 +480,17 @@
     },
     {
       "path": "docs/successor-qualification-20261014/HANDOFF.md",
-      "gitBlob": "b00b774000cdd5ad951710e7bf41c718301ee53e",
-      "bytes": 25973,
-      "sha256": "c1447ab87d6f4998c80b8e16585b30611b61e9c7c07f94dda33c941a6bd7ac54",
-      "mode": "100644"
+      "gitBlob": "42588c9d7b93a21fc748595a9640e89b4a65e84f",
+      "mode": "100644",
+      "bytes": 26064,
+      "sha256": "ed6556e5bd132e5885b9a5986f399f9c688d4ecd71a899616df218977b619e04"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/FINAL-RESULT.json",
-      "gitBlob": "c4847bec6a0e0cc92d35b0caf433e85e51056e5a",
+      "gitBlob": "50a645533a15d8ab472f328a237dff9a598cfbad",
+      "mode": "100644",
       "bytes": 12345,
-      "sha256": "0f9eb7ea94cae4dee117777e7e726c6330dc76ff44c56f74104922095d0e8959",
-      "mode": "100644"
+      "sha256": "134ca4fc8be28f1e43a63b7b5a808165b8e661385c3e4f6d3cc227caa207b5e5"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/migration-readiness/discover-ledger.sql",
@@ -702,8 +702,8 @@
   },
   "independentHandoffClaims": "docs/runtime-source-qualification-20261014/independent/HANDOFF-CLAIM-REVIEW.md",
   "priorPublication": {
-    "head": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
-    "tree": "751f79de73c65f6073628c0c98e871273d9494d5",
+    "head": "89d47ca933d168198c322e37b36a70484284b03e",
+    "tree": "d9ad201fcb1a9a1d9690a51c8dd4589b2e5e96ee",
     "preservedAsParent": true
   },
   "followup": {
@@ -754,7 +754,8 @@
       "receiptBlob": "d015918bb48143b0dc089e4af160aa0c3a8431a7",
       "independentReview": "ACCEPT WITH RUNTIME CAVEATS; final wording ACCEPT",
       "sqlChanged": false,
-      "awsOrDbCalls": false
+      "awsOrDbCalls": false,
+      "finalNarrativeCorrection": "Prior no-live-API wording now explicitly distinguishes authenticated/live business tests from the two metadata-only credential-free refusal probes."
     }
   },
   "independentHistoryReadiness": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-INDEPENDENT-REVIEW.json",
@@ -765,6 +766,11 @@
     "preservedAsAncestor": true
   },
   "historicalPublications": [
+    {
+      "head": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
+      "tree": "751f79de73c65f6073628c0c98e871273d9494d5",
+      "preservedAsParent": true
+    },
     {
       "head": "9492c5226ddd3929205da711e35054fcab5cda13",
       "tree": "52a145fc45522da00cce0e4334668a0345c2d800",
