@@ -97,7 +97,7 @@ export function existingCoreBindings(value: unknown): ExistingCoreBindings {
       /^arn:aws:elasticloadbalancing:us-east-1:967807252336:listener\/app\/capiro-prod-alb\/[0-9a-f]{16}\/[0-9a-f]{16}$/,
     ),
     // This is a proposal hostname, not an assertion of DNS/TLS admission.
-    hostname: text(x.hostname, /^core-preview\.app\.capiro\.ai$/),
+    hostname: text(x.hostname, /^core-preview\.capiro\.ai$/),
     listenerPriority: Number(x.listenerPriority),
     imageUri: text(
       x.imageUri,

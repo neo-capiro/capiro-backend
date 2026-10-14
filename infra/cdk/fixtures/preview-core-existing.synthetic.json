@@ -6,7 +6,7 @@
   "executionRoleArn": "arn:aws:iam::967807252336:role/SyntheticExistingCoreExecution",
   "taskRoleArn": "arn:aws:iam::967807252336:role/SyntheticExistingCoreTask",
   "listenerArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:listener/app/capiro-prod-alb/0000000000000001/0000000000000002",
-  "hostname": "core-preview.app.capiro.ai",
+  "hostname": "core-preview.capiro.ai",
   "listenerPriority": 4,
   "imageUri": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1111111111111111111111111111111111111111111111111111111111111111",
   "sourceHead": "2875afa0cf65053b5faa2b29e742c81cba446931",

@@ -3,6 +3,12 @@
   "basis": "Git index blobs; manifest excludes itself",
   "files": [
     {
+      "path": "docs/preview-core-existing-database-20261014/ACTIVATION-APPROVAL-PROPOSAL.md",
+      "gitBlob": "a96cfec886e45e0649f2da820abb56964697c99c",
+      "bytes": 7666,
+      "sha256": "3fd8c850d575d1730b117183c56c40e7ffd1111cdad09102ed6d2732fe134d96"
+    },
+    {
       "path": "docs/preview-core-existing-database-20261014/ATTEMPT-3-TEST-LOG.txt",
       "gitBlob": "aee8e403d2630dc46a1f4a5377b82d6fbf565439",
       "bytes": 3573,
@@ -16,15 +22,21 @@
     },
     {
       "path": "docs/preview-core-existing-database-20261014/HANDOFF.md",
-      "gitBlob": "8818d65bf88d110bc7374ac6057acbe3e5509bce",
-      "bytes": 8985,
-      "sha256": "903f9d7ae57517cdde84716f82d0209dc25bc06231ab46c84ed2128baa499ca6"
+      "gitBlob": "9fdb6eac9a3d358c70be3f9240cefe22661e373c",
+      "bytes": 9261,
+      "sha256": "88c415cbe0cd4a503424f397e5045a70313b00145fe6ff67ff3e33ad2ba559d7"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/HOSTNAME-DELTA-TEST-LOG.txt",
+      "gitBlob": "6711d2c963db8d9fcb7a9b7ddee911fbe190eca2",
+      "bytes": 538,
+      "sha256": "d22b84918f48afe7c4531badb34eac05287959b962d189dec6e75332fcce32e1"
     },
     {
       "path": "docs/preview-core-existing-database-20261014/OBJECTIVES-LAYOUT-READINESS.md",
-      "gitBlob": "4df996950db72aa4fcb9ff520edbde362d10cda5",
-      "bytes": 7161,
-      "sha256": "bb21eb361fe00d8df6c87bdd20295805300d5a0c7237478cbb952ea845f589d8"
+      "gitBlob": "f6101d44acb2ea382910001ff8db3efd0462e659",
+      "bytes": 7157,
+      "sha256": "836725cfe2ecbbbe8fa2245d750d3380d439124b98695e358331e6002e80aa9c"
     },
     {
       "path": "docs/preview-core-existing-database-20261014/PLAN.md",
@@ -40,9 +52,9 @@
     },
     {
       "path": "docs/preview-core-existing-database-20261014/VERIFICATION.json",
-      "gitBlob": "e0d48ee449d9a74741cbfb8cbe96b8daea991b4d",
-      "bytes": 1903,
-      "sha256": "59057fab385a3ea602625a572323fce64d6f135ad0cf9a7fe333e60f97a1ca31"
+      "gitBlob": "2ca13c5159cbb97d748e9c3a2cae8b38f54ff0e2",
+      "bytes": 2740,
+      "sha256": "49c18b7f6cb5550ab6a86f245ab45f3e12764ed066a832c82599faa229dff538"
     },
     {
       "path": "infra/cdk/fixtures/preview-backends.synthetic.json",
@@ -52,9 +64,9 @@
     },
     {
       "path": "infra/cdk/fixtures/preview-core-existing.synthetic.json",
-      "gitBlob": "79d01f6440d2984d9d0ceadfb63a6df54878735a",
-      "bytes": 1624,
-      "sha256": "838cee40ee33e44082e8560d2549df2885a2f003392dca0a171f7c2bd29abf09"
+      "gitBlob": "31995aea8f815d14906bb459cd7d2a6a08a847c2",
+      "bytes": 1620,
+      "sha256": "56d2e9983d1ae02512d48a136232a5d4a8f196c069280c91340f64d337a86a95"
     },
     {
       "path": "infra/cdk/lib/preview/bindings.ts",
@@ -76,9 +88,9 @@
     },
     {
       "path": "infra/cdk/lib/preview/existing-core-bindings.ts",
-      "gitBlob": "08a9b6dac14b81eb5dde36cd53340a294c574dcb",
-      "bytes": 4320,
-      "sha256": "b7ccbdecf9acee8a41ca80c60cc278d167c29ae6fdc142bb8a08ae3bfc6a3bd6"
+      "gitBlob": "a139c38fc9011f005e93a0ec9ea5fb26f681e935",
+      "bytes": 4315,
+      "sha256": "deeebb54917a7f76fbab34f2e5641772a59b26f66b23d6d758f238e375a15037"
     },
     {
       "path": "infra/cdk/lib/preview/services-stack.ts",
@@ -94,9 +106,9 @@
     },
     {
       "path": "infra/cdk/test/preview-core-existing.spec.ts",
-      "gitBlob": "077bba685c4f80069b92c4e54c9f6048ae7213a6",
-      "bytes": 5981,
-      "sha256": "8ccd1a80f2cda2fcf45098f01d658a683335de9691961217954b7a894e3a1ccd"
+      "gitBlob": "ec4655c6370579e59945139daa0e515bcee014da",
+      "bytes": 6055,
+      "sha256": "f170678cd7a613d305a82b064bbabcd55163b087b439e3acac44585ccc459e82"
     }
   ]
 }

@@ -28,6 +28,9 @@ test('existing database proposal rejects values, tag images, production hosts an
       x.hostname = 'os.capiro.ai';
     },
     (x: any) => {
+      x.hostname = 'core-preview.app.capiro.ai';
+    },
+    (x: any) => {
       x.listenerPriority = 10;
     },
     (x: any) => {

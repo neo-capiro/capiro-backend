@@ -37,7 +37,7 @@ If all effects match, no migration is needed for these endpoints. If demonstrate
 2. Review and bind the Core-only existing-database source proposal; refresh the existing role/subnet/security-group/secret metadata, hostname/TLS certificate and free early host-rule priority. Keep Core650 and production routing unchanged.
 3. Complete the read-only schema/history join; separately authorize only demonstrated missing SQL/privilege effects.
 4. Activate the newly named Core service from0to1 after real startup/health/Clerk/role checks with the proposed canonical background controls.
-5. Switch only preview CORE_API_BASE_URL to the approved successor origin with `/api`. Current source proposes `https://core-preview.app.capiro.ai/api`, pending concrete DNS/TLS/routing approval.
+5. Switch only preview CORE_API_BASE_URL to the approved successor origin with `/api`. Current source proposes `https://core-preview.capiro.ai/api`, pending concrete DNS/TLS/routing approval.
 6. Verify actual source provenance, one current owned client's Objective list (including empty), a finite draft/version/readiness flow, layout GET plus versioned save/readback/stale rejection and existing permission denials. Shipping can use the existing ordinary-write approval for a finite owned Planner create/read/subtask acceptance flow; it need not wait for a pre-existing task. Do not confuse first connectivity with Active Objective operational prototype coverage.
 
 No signed-in token/private browser session, schema query, migration, data write, credential change, AWS write or deployment was performed by this review. Remote publication of the local source branch was denied by automatic review pending explicit user approval; no push or workaround occurred.
