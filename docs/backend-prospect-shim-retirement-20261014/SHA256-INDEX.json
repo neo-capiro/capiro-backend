@@ -3,8 +3,28 @@
   "files": [
     {
       "path": "HANDOFF.md",
-      "bytes": 17422,
-      "sha256": "b1ba1f3714b91c5460715f1adfdd879b8fa0a100ff883d0b108006657f3c7455"
+      "bytes": 18215,
+      "sha256": "cc029b7ce377b7435dc330976aefde9e15cf8c98b117d4bf79c1149790cfff75"
+    },
+    {
+      "path": "MERI-PR78-EXISTING-API-REVIEW.json",
+      "bytes": 4010,
+      "sha256": "d5ea9c9158375dd76979f482167e027811a317482b7c8a0600ac4819357b6ce0"
+    },
+    {
+      "path": "MERI-SHIM-BEHAVIOR-PROVENANCE-REVIEW.json",
+      "bytes": 12868,
+      "sha256": "7b65ab6edb38102a0521f23780f6ef5e1e9b60c64aea8f4bdfd2bba1835cb874"
+    },
+    {
+      "path": "MERI-SHIM-FINAL-ACCEPTANCE.md",
+      "bytes": 4560,
+      "sha256": "26c05a1bee1d79c1c690dd30d6ab5679eca583bf09735a6d167dcb4511861284"
+    },
+    {
+      "path": "MERI-SHIM-FINAL-REVIEW.json",
+      "bytes": 7000,
+      "sha256": "40ace72cb151271a75d3ed4462937c01190918b1954179fb479d8fcb31aa3388"
     },
     {
       "path": "MERI-SHIM-ROOT-CHECK-REVIEW.json",
