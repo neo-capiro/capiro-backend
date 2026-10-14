@@ -1,0 +1,656 @@
+{
+  "scope": "Read-only independent exact-Git source and supplied-evidence review; no tests/owners/providers executed",
+  "sourceHead": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+  "sourceTree": "6f5086f584c9915f4fd417b09c7545eb6e0f70a7",
+  "base": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+  "changedPaths": [
+    "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+    "apps/api/src/context/meetings-context-plane.runtime.ts"
+  ],
+  "attempts": [
+    {
+      "attempt": "01",
+      "head": "be12f4a2a2ecec43b5d02ea279d9448763415e24",
+      "tree": "657902eb63067e1d44e02c908552dd7d93c85170",
+      "total": 7,
+      "pass": 7,
+      "fail": 0,
+      "pending": 0,
+      "cases": [
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "attempt": "02",
+      "head": "cdb9e67f955681e720a8675345ccd1ec84c10819",
+      "tree": "fd601f803da9c9b96920703386fc600372281c7e",
+      "total": 11,
+      "pass": 7,
+      "fail": 4,
+      "pending": 0,
+      "cases": [
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps the single canonical stored-client packet at the provider seam",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps the single canonical stored-client packet at the provider seam",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves canonical inferred client when the meeting row has no clientId",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves canonical inferred client when the meeting row has no clientId",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "attempt": "03",
+      "head": "0e2aa3aab8e36c893881b237a5e97871c895ac34",
+      "tree": "44ae748dcbed5926e21d1a212bac3f2b064d3e1d",
+      "total": 0,
+      "pass": 0,
+      "fail": 0,
+      "pending": 0,
+      "cases": []
+    },
+    {
+      "attempt": "04",
+      "head": "3c12fcdb068f6d93d6415d7f684764e0c8efb397",
+      "tree": "d810ce983357d5b5276f9aa52d90d667fc6ba0ab",
+      "total": 28,
+      "pass": 13,
+      "fail": 15,
+      "pending": 0,
+      "cases": [
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps the single canonical stored-client packet at the provider seam",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps the single canonical stored-client packet at the provider seam",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves canonical inferred client when the meeting row has no clientId",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves canonical inferred client when the meeting row has no clientId",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/stored uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/inferred uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/internal uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/manually-cleared uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/stored uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/inferred uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/internal uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/manually-cleared uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy durable prep without a canonical bundle refuses before compatibility resolution or provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy existing durable prep consumes its already resolved canonical bundle once",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep rejects mode or meeting mismatch on the patched raw method",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief rejects mode or meeting mismatch on the patched raw method",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy parallel prep/debrief ALS scopes keep their own canonical packet and clear after a failing request",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "attempt": "05",
+      "head": "bc424b359b7f17c71e43ae5384deb36bc3baec3f",
+      "tree": "2df719c90c3018e77c41e463c138bb74d9cf79f4",
+      "total": 28,
+      "pass": 13,
+      "fail": 15,
+      "pending": 0,
+      "cases": [
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps the single canonical stored-client packet at the provider seam",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps the single canonical stored-client packet at the provider seam",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves canonical inferred client when the meeting row has no clientId",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves canonical inferred client when the meeting row has no clientId",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/stored uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/inferred uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/internal uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/manually-cleared uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/stored uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/inferred uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/internal uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/manually-cleared uses one total shared gateway call",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy durable prep without a canonical bundle refuses before compatibility resolution or provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy existing durable prep consumes its already resolved canonical bundle once",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep rejects mode or meeting mismatch on the patched raw method",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief rejects mode or meeting mismatch on the patched raw method",
+          "status": "failed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy parallel prep/debrief ALS scopes keep their own canonical packet and clear after a failing request",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "attempt": "06",
+      "head": "043e8f19d0af4e96cb755345586eeba3a244ce46",
+      "tree": "dc7002e348b6fd6e82fe631a8503842c77f3c64a",
+      "total": 28,
+      "pass": 28,
+      "fail": 0,
+      "pending": 0,
+      "cases": [
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps the single canonical stored-client packet at the provider seam",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps the single canonical stored-client packet at the provider seam",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves canonical inferred client when the meeting row has no clientId",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves canonical inferred client when the meeting row has no clientId",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/stored uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/inferred uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/internal uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/manually-cleared uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/stored uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/inferred uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/internal uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/manually-cleared uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy durable prep without a canonical bundle refuses before compatibility resolution or provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy existing durable prep consumes its already resolved canonical bundle once",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep rejects mode or meeting mismatch on the patched raw method",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief rejects mode or meeting mismatch on the patched raw method",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy parallel prep/debrief ALS scopes keep their own canonical packet and clear after a failing request",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "attempt": "08",
+      "head": "a6ef0a698ccf3d6bb1c2c07020dfb2f6c79d9aa7",
+      "tree": "6f5086f584c9915f4fd417b09c7545eb6e0f70a7",
+      "total": 28,
+      "pass": 28,
+      "fail": 0,
+      "pending": 0,
+      "cases": [
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps the single canonical stored-client packet at the provider seam",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps the single canonical stored-client packet at the provider seam",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves canonical inferred client when the meeting row has no clientId",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves canonical inferred client when the meeting row has no clientId",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/stored uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/inferred uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/internal uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service prep/manually-cleared uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/stored uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/inferred uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/internal uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy real canonical service debrief/manually-cleared uses one total shared gateway call",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy durable prep without a canonical bundle refuses before compatibility resolution or provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy existing durable prep consumes its already resolved canonical bundle once",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep rejects mode or meeting mismatch on the patched raw method",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief rejects mode or meeting mismatch on the patched raw method",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief keeps canonical public AI client mismatch refusal ahead of raw provider work",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy prep preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy debrief preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+          "status": "passed"
+        },
+        {
+          "fullName": "Meetings runtime composed with actual governed factories and policy parallel prep/debrief ALS scopes keep their own canonical packet and clear after a failing request",
+          "status": "passed"
+        }
+      ]
+    }
+  ],
+  "baselineSevenRetained": true,
+  "expandedRedAndFinal28Identical": true,
+  "allLosslessStreamsVerified": 18,
+  "unchangedOwners": [
+    {
+      "path": "apps/api/src/engagement/governed-engagement.factory.ts",
+      "treeEntry": "100644 blob 0552b3412e91b5849b5811403e0d4d52b010a3c0\tapps/api/src/engagement/governed-engagement.factory.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/governed-meeting-ai.factory.ts",
+      "treeEntry": "100644 blob 13b5e51af0b4702e957ec2309200606fbbf53bf7\tapps/api/src/engagement/governed-meeting-ai.factory.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-runtime.ts",
+      "treeEntry": "100644 blob b0ebf84bc38c8eb0e8d27b4feba250b63b8957ae\tapps/api/src/engagement/meeting-context-runtime.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-context-plane.service.ts",
+      "treeEntry": "100644 blob 5436c5f9b42d0b173cb047da7b6243e153757f51\tapps/api/src/engagement/meeting-context-plane.service.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-job-runtime.ts",
+      "treeEntry": "100644 blob 8fb9843b7c2a259b42ecdc512c41400cbf43044e\tapps/api/src/engagement/meeting-prep-job-runtime.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts",
+      "treeEntry": "100644 blob 78abe25f9c339de5720b738b2d8b790a6607d935\tapps/api/src/engagement/runtime/engagement-ai-runtime.boundary.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.ts",
+      "treeEntry": "100644 blob c8ca62c522c1dd10e9c3876182c79421f4cf9ca4\tapps/api/src/engagement/runtime/engagement-runtime-policy.service.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-ai.service.ts",
+      "treeEntry": "100644 blob 5f1eaf8ba23fe6b133182e5ac9ac9abc07e0b653\tapps/api/src/engagement/engagement-ai.service.ts"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "treeEntry": "100644 blob 6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82\tapps/api/src/engagement/engagement.service.ts"
+    }
+  ],
+  "strictFinal": "PENDING;07 exact043 retained1fixture inference diagnostic;09 unstarted sandboxENOSPC",
+  "limits": [
+    "Synthetic provider capture, database/gateway/association ports only",
+    "No nativePG/RLS/provider/deployed-image acceptance",
+    "Parallel fixture same actor/client/meeting with different modes only",
+    "Client mismatch refusal remains canonical public AI owner; no added raw-token client check"
+  ]
+}

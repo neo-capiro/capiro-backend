@@ -1,0 +1,41 @@
+{
+  "originalCount": 7,
+  "redCount": 28,
+  "finalCount": 28,
+  "preservedOriginal": [
+    "MeetingsContextPlaneRuntime Phase 24 a direct AI call that bypasses a tenant-scoped live caller fails closed",
+    "MeetingsContextPlaneRuntime Phase 24 an unregistered lookalike AI does not install a compatibility runtime",
+    "MeetingsContextPlaneRuntime Phase 24 debrief keeps the current transcript as sole commitment/quote authority",
+    "MeetingsContextPlaneRuntime Phase 24 partial and zero-record retrieval remains explicitly incomplete",
+    "MeetingsContextPlaneRuntime Phase 24 prep resolves one governed packet before provider work and injects server-owned scope",
+    "MeetingsContextPlaneRuntime Phase 24 uses the canonical token across governed proxy aliases and restores the shared methods",
+    "MeetingsContextPlaneRuntime Phase 24 walled or unauthorized client fails before retrieval/provider work"
+  ],
+  "missingOriginal": [],
+  "redFinalIdentitiesMultiplicityExact": true,
+  "added": [
+    "Meetings runtime composed with actual governed factories and policy debrief keeps canonical public AI client mismatch refusal ahead of raw provider work",
+    "Meetings runtime composed with actual governed factories and policy debrief keeps the single canonical stored-client packet at the provider seam",
+    "Meetings runtime composed with actual governed factories and policy debrief preserves canonical inferred client when the meeting row has no clientId",
+    "Meetings runtime composed with actual governed factories and policy debrief preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+    "Meetings runtime composed with actual governed factories and policy debrief rejects mode or meeting mismatch on the patched raw method",
+    "Meetings runtime composed with actual governed factories and policy durable prep without a canonical bundle refuses before compatibility resolution or provider work",
+    "Meetings runtime composed with actual governed factories and policy existing durable prep consumes its already resolved canonical bundle once",
+    "Meetings runtime composed with actual governed factories and policy parallel prep/debrief ALS scopes keep their own canonical packet and clear after a failing request",
+    "Meetings runtime composed with actual governed factories and policy prep keeps canonical public AI client mismatch refusal ahead of raw provider work",
+    "Meetings runtime composed with actual governed factories and policy prep keeps the single canonical stored-client packet at the provider seam",
+    "Meetings runtime composed with actual governed factories and policy prep preserves canonical inferred client when the meeting row has no clientId",
+    "Meetings runtime composed with actual governed factories and policy prep preserves disabled policy refusal on public/guarded providers and raw aliases without scope",
+    "Meetings runtime composed with actual governed factories and policy prep rejects mode or meeting mismatch on the patched raw method",
+    "Meetings runtime composed with actual governed factories and policy real canonical service debrief/inferred uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service debrief/internal uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service debrief/manually-cleared uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service debrief/stored uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service prep/inferred uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service prep/internal uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service prep/manually-cleared uses one total shared gateway call",
+    "Meetings runtime composed with actual governed factories and policy real canonical service prep/stored uses one total shared gateway call"
+  ],
+  "redFailed": 15,
+  "redPassed": 13
+}
