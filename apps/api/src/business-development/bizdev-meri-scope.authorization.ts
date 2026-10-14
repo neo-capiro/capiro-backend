@@ -35,4 +35,3 @@ export async function authorizeMeriProspectScope(
   if (!bizdevScope) throw new MeriProspectScopeConflictError('not_found');
   return bizdevScope.assertCurrent(ctx, conversationMetadata);
 }
-
