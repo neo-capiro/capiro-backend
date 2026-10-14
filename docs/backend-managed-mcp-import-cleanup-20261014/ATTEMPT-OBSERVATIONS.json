@@ -1,0 +1,34 @@
+{
+  "attempt01": {
+    "exitCode": 1,
+    "stdoutFile": "attempt01-empty.stdout",
+    "stdoutBytes": 0,
+    "stderrCapture": "tool transcript; not byte-captured into a file",
+    "observedAssertion": {
+      "actual": 1,
+      "expected": 0,
+      "line": 46
+    },
+    "qualification": "one transpile diagnostic; failed before corrected output or syntax claim"
+  },
+  "attempt02": {
+    "exitCode": 1,
+    "stdoutFile": "attempt02.stdout",
+    "stderrFile": "attempt02.stderr",
+    "observedDiagnostic": 6059,
+    "reason": "relative filename versus absolute actual API rootDir"
+  },
+  "attempt03": {
+    "exitCode": 0,
+    "stdoutFile": "EQUIVALENCE.json",
+    "stderrFile": "attempt03.stderr",
+    "stderrBytes": 0,
+    "scope": "two matching nonempty JavaScript outputs with zero diagnostics and syntax pass"
+  },
+  "indexPreparation": {
+    "sourceUnchanged": true,
+    "allOriginalGitObjectsAndHeadsRetained": true,
+    "plainReadTree": "temporary missing sparse flags; no file loss",
+    "sparseReadTree": "exact materialized files not overwritten; tracked source clean after reconstruction"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "result": "pass",
+  "base": "a6d4ee9d5029994925d20815b3dae0f1e7b410e3",
+  "file": "apps/api/src/meri/meri.module.ts",
+  "references": {
+    "MeriMcpService": 0,
+    "MeriMcpOAuthService": 0,
+    "MeriManagedMcpService": 0
+  },
+  "typescriptVersion": "5.9.3",
+  "configs": [
+    {
+      "path": "apps/api/tsconfig.json",
+      "blob": "6c60698125878c4497d68ea8d6d7f32496dd8cae"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+    }
+  ],
+  "rows": [
+    {
+      "state": "baseline",
+      "sourceSha256": "c3af3f37bfd918998bdd310c7bef1d2baa84fcad10405bab04e98fedf45532e8",
+      "javascriptBytes": 17749,
+      "javascriptSha256": "d29113f97152acc52891327599ece189ef1eab04188a977a160554d34017ad9f",
+      "sourceMapSha256": "cbc130259916b4ea07b91d496a62ad1a7d9b5b09673b3908a7aabf0badd7f955",
+      "diagnostics": 0,
+      "nodeSyntax": "pass"
+    },
+    {
+      "state": "corrected",
+      "sourceSha256": "c015614c72266e181c77740cbad366cf56eb9280b91dd5bb21790b8c218f6065",
+      "javascriptBytes": 17749,
+      "javascriptSha256": "d29113f97152acc52891327599ece189ef1eab04188a977a160554d34017ad9f",
+      "sourceMapSha256": "4897c7f55e088a98d66d695c3ec386ba4e419fac9e4748b0e8b1b8089186cd47",
+      "diagnostics": 0,
+      "nodeSyntax": "pass"
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "apps/api/src/meri/managed-mcp.module.ts",
+      "blob": "fa7dde3d07b34b6fb686e9f420870888174db659"
+    },
+    {
+      "path": "apps/api/src/meri/meri-mcp.service.ts",
+      "blob": "07bdc76428bd7c535e1647f67fc5f022eb9c8092"
+    },
+    {
+      "path": "apps/api/src/meri/meri-mcp-oauth.service.ts",
+      "blob": "1fefb84ae394127601a12160e9427b347b2c8489"
+    },
+    {
+      "path": "apps/api/src/meri/meri-managed-mcp.service.ts",
+      "blob": "b98960bed39d48b537b7102c75b8d80afd845716"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.controller.ts",
+      "blob": "2a062be013a2da9eac28612fe435dc2b72dd5d4f"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "blob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "blob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+    }
+  ],
+  "scope": "Actual API option single-file transpile and exact JavaScript equivalence; source-map changes are source positions. No semantic full graph, service construction, DI/native/database/provider/HTTP execution."
+}
