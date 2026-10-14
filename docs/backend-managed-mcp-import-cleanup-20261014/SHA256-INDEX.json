@@ -12,9 +12,19 @@
       "sha256": "53e114ae24b3604e98d6dc50916631731c4361c1954fa9583092ea814fcf5608"
     },
     {
+      "path": "FINAL-ACCEPTANCE.md",
+      "bytes": 1441,
+      "sha256": "b35543275b60334396503a964a73f9c07020e49f935e4f2e64c7de05c8c86e0f"
+    },
+    {
+      "path": "FINAL-REVIEW.json",
+      "bytes": 1832,
+      "sha256": "7ece095f154f733b64c96aeb5dd60880574c92ffa8cb05efc314fd5e7dcc59ff"
+    },
+    {
       "path": "HANDOFF.md",
-      "bytes": 8980,
-      "sha256": "1fceda051794a4e25de1693812445e4efd38495416609949b03e1df2d23ba0b4"
+      "bytes": 9929,
+      "sha256": "88c67a2aa9ccd7919603c43a25fa765fedfa486e68c1811f2b1bb658be05c42a"
     },
     {
       "path": "INDEX-CUSTODY.json",

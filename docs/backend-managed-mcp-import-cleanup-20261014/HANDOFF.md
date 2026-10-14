@@ -41,3 +41,9 @@ Meri's canonical database journal/admission/grants/fence/budget/Temporal/task tr
 | Native/preview/Meri runtime | Qualification steps only. No actual native/deployment/live/data claim. |
 
 Initial transpile attempts used a relative filename against the actual absolute API rootDir and produced6059; attempt01's empty stdout and attempt02's precise stderr/script remain preserved. Using the actual absolute source filename corrected only the qualification harness, not compiler policy or product source. Attempt03 then passed both outputs/syntax with unchanged source. Limited workspace capacity required small exact Git-tree updates on the isolated private branch; its mutable index was reconstructed. The first plain read-tree temporarily omitted sparse skip flags; corrected sparse reconstruction restored source status. Existing materialized exact files were not overwritten, and all source/evidence/Git objects and original heads remain retained. No other worktree or borrowed dependencies were cleaned.
+
+## Final independent acceptance
+
+The frozen packet `0e35baeb687b24ffc7d261ac259be0da0e1f1637` / tree `eb5a751594a57ad880faa73a276e449928379b05` was independently accepted for authorized draft publication on PR14, with no actionable findings. The exact final acceptance and review records are appended unchanged. This append changes only documentation and the derived hash index; product source and recorded check evidence remain source35ab. Native/live qualification and resource selection remain pending as described above.
+
+To preserve all objects within limited workspace capacity, only this isolated clone's loose object store was relocated intact to `/tmp/capiro-backend-managed-mcp-import-cleanup-20261014-objects`, with every file hash verified before and after and a local symlink preserving ordinary Git access. Its borrowed alternates, original/new candidate heads, source and evidence remain intact. No other worktree/store was removed.
