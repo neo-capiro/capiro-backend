@@ -1,0 +1,59 @@
+{
+  "status": "PUBLISHED_ARTIFACT_BYTES_VERIFIED_NOT_EXECUTED",
+  "package": "quickjs-wasi@2.2.0",
+  "tarball": "https://registry.npmjs.org/quickjs-wasi/-/quickjs-wasi-2.2.0.tgz",
+  "tarballSHA256": "f4dd386c2e705ffb8692a8afdc1e3b8ff09c6b8ef3aee48d0537ff71d8839cd1",
+  "frozenLockIntegrityVerified": true,
+  "artifacts": [
+    {
+      "file": "/app/node_modules/.pnpm/quickjs-wasi@2.2.0/node_modules/quickjs-wasi/extensions/base64/base64.so",
+      "bytes": 12518,
+      "sha256": "f51012d6c63195a53ca9f2daa6c3de6b0995873888c8106979813015b3388adc",
+      "format": "WEBASSEMBLY_V1",
+      "magicHex": "0061736d01000000",
+      "vendorArtifactHashMatchesTarget": true
+    },
+    {
+      "file": "/app/node_modules/.pnpm/quickjs-wasi@2.2.0/node_modules/quickjs-wasi/extensions/crypto/crypto.so",
+      "bytes": 187423,
+      "sha256": "3c0ca1e0ecbca51f88ae22ae5da75ee83e6f87170ec8c7efc2ec9ba52b1bd913",
+      "format": "WEBASSEMBLY_V1",
+      "magicHex": "0061736d01000000",
+      "vendorArtifactHashMatchesTarget": true
+    },
+    {
+      "file": "/app/node_modules/.pnpm/quickjs-wasi@2.2.0/node_modules/quickjs-wasi/extensions/encoding/encoding.so",
+      "bytes": 12780,
+      "sha256": "50af2847297183c0be2f97948cd83473b0888b424b98af51aaf4200160dce77f",
+      "format": "WEBASSEMBLY_V1",
+      "magicHex": "0061736d01000000",
+      "vendorArtifactHashMatchesTarget": true
+    },
+    {
+      "file": "/app/node_modules/.pnpm/quickjs-wasi@2.2.0/node_modules/quickjs-wasi/extensions/headers/headers.so",
+      "bytes": 14232,
+      "sha256": "fcc7d25dfdda38d1d57d0a532540f3baa56a957f76f85548919716a174ac9037",
+      "format": "WEBASSEMBLY_V1",
+      "magicHex": "0061736d01000000",
+      "vendorArtifactHashMatchesTarget": true
+    },
+    {
+      "file": "/app/node_modules/.pnpm/quickjs-wasi@2.2.0/node_modules/quickjs-wasi/extensions/structured-clone/structured-clone.so",
+      "bytes": 9648,
+      "sha256": "76356bc2983ce24b6c503a0cb1fa0308e09c18e60aa38d44ca737454ee769c06",
+      "format": "WEBASSEMBLY_V1",
+      "magicHex": "0061736d01000000",
+      "vendorArtifactHashMatchesTarget": true
+    },
+    {
+      "file": "/app/node_modules/.pnpm/quickjs-wasi@2.2.0/node_modules/quickjs-wasi/extensions/url/url.so",
+      "bytes": 920499,
+      "sha256": "54167390c210290f0703752527000ba44885606c4ed1ae12be30462c147a9215",
+      "format": "WEBASSEMBLY_V1",
+      "magicHex": "0061736d01000000",
+      "vendorArtifactHashMatchesTarget": true
+    }
+  ],
+  "runtimeOperation": "UNRUN",
+  "interpretation": "These six .so files are actual WebAssembly v1 binaries, not ELF libraries. ELF-only inspection HOLD is format-coverage evidence, not demonstrated application runtime failure."
+}
