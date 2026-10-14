@@ -1,5 +1,5 @@
 import type { TenantContext } from '@capiro/shared';
-import { authorizeMeriProspectScope as compatibilityAuthorization } from '../meri/meri-prospect-scope.helpers.js';
+import * as dispatchHelpers from '../meri/meri-prospect-scope.helpers.js';
 import { authorizeMeriProspectScope } from './bizdev-meri-scope.authorization.js';
 import {
   MeriProspectScopeConflictError,
@@ -20,8 +20,12 @@ const scope: MeriProspectScope = {
 };
 
 describe('canonical prospect authorization and compatibility identity', () => {
-  it('reexports the same function object for retained Meri callers', () => {
-    expect(compatibilityAuthorization).toBe(authorizeMeriProspectScope);
+  it('retires the authorization shim while retaining only directive and receipt helpers', () => {
+    expect(Object.keys(dispatchHelpers).sort()).toEqual(['prospectScopeDirective', 'prospectTurnScopeReceipt']);
+    expect(dispatchHelpers.prospectScopeDirective(scope)).toContain(scope.prospectId);
+    expect(dispatchHelpers.prospectTurnScopeReceipt(scope)).toMatchObject({
+      kind: 'prospect', prospectId: scope.prospectId, scopeVersion: scope.scopeVersion,
+    });
   });
 
   it('passes the original actor and metadata to the current owner and preserves result identity', async () => {

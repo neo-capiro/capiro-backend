@@ -5,10 +5,10 @@ import {
   MeriProspectScopeConflictError,
 } from '../business-development/bizdev-meri-scope.service.js';
 import {
-  authorizeMeriProspectScope,
   prospectScopeDirective,
   prospectTurnScopeReceipt,
 } from './meri-prospect-scope.helpers.js';
+import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 
 /**
  * Phase 4 dispatch slice — focused coverage for the shared prospect-scope

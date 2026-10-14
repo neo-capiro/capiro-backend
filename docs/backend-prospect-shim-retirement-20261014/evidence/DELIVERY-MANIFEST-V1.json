@@ -1,0 +1,116 @@
+{
+  "sourceRef": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "captureMode": "stderr-to-stdout",
+  "destination": "docs/backend-prospect-shim-retirement-20261014/evidence",
+  "payloads": [
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/baseline-output.lossless.json",
+      "destinationName": "baseline-output.lossless.json",
+      "bytes": 5414,
+      "sha256": "4f03df86735208cf826c858717e4d5b0b83dff37efff6c1c6c19ce7dca22b509"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/baseline-receipt.json",
+      "destinationName": "baseline-receipt.json",
+      "bytes": 3605,
+      "sha256": "eff7f34886aeec4730f51045f20ca46171f2f2ddd5324c9946687eea5cb90528"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/baseline-jest.json",
+      "destinationName": "baseline-jest.json",
+      "bytes": 54492,
+      "sha256": "06c5aadc383bf366804e7ea255456df11f329d36d4fbf7a0db4a9de5850f981f"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/corrected-output.lossless.json",
+      "destinationName": "corrected-output.lossless.json",
+      "bytes": 5418,
+      "sha256": "ddefe74fb3b1a7373714406d9635e2ccca920beebe5af9bc029903cf037ccce7"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/corrected-receipt.json",
+      "destinationName": "corrected-receipt.json",
+      "bytes": 3650,
+      "sha256": "94c5fdbbd271a19dedd135f32626d9fcb7e16c79a3a752aecc3f1a1c7cd2a89e"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/corrected-jest.json",
+      "destinationName": "corrected-jest.json",
+      "bytes": 54534,
+      "sha256": "3833019329a2055d7e77205c2c089113a5af2da433e2ac844dc52d61f0681592"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/CASE-COMPARISON.json",
+      "destinationName": "CASE-COMPARISON.json",
+      "bytes": 57234,
+      "sha256": "1d9dab6adf232828d43b32ae8cd2dc93788f1dc640fae1c039bef275a77af767"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/HOST-HASHES.json",
+      "destinationName": "HOST-HASHES.json",
+      "bytes": 684,
+      "sha256": "beea0f87000e115aee3de055affe34fa18e7ca5da92af0e1cb53cce8ace87655"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/FILES.json",
+      "destinationName": "FILES.json",
+      "bytes": 673,
+      "sha256": "6826305fa7ceb1770a73d7611464b7750775b045fcb9e7e8a68d9605b913a465"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/jest.cjs",
+      "destinationName": "jest.cjs",
+      "bytes": 447,
+      "sha256": "829f875e61bf00fb4ac5854cf471d554a9ade23806cbc5768a665a09afbdb025"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/transformer.cjs",
+      "destinationName": "transformer.cjs",
+      "bytes": 427,
+      "sha256": "e840e2517f90e4dc6ad24b34bd927ebdec834aba145cd8d5c1b7c83f409e598e"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/source-only-fence.cjs",
+      "destinationName": "source-only-fence.cjs",
+      "bytes": 942,
+      "sha256": "facbfc7caad6a9c2180235ce876d815bb24591f0976082c2ebd6b286d20749c5"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/run.py",
+      "destinationName": "run.py",
+      "bytes": 2078,
+      "sha256": "379e04389f18f9e007d666bdee83c1baf9405ae51baf72878ded9e38119c5d7c"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/BORROWED-RUNTIME.json",
+      "destinationName": "BORROWED-RUNTIME.json",
+      "bytes": 1671,
+      "sha256": "614a26cfee696b92270cb2f3a27bed3a76d900a6cbe3d02c7a1d47337fd38102"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/borrowed-runtime.cjs",
+      "destinationName": "borrowed-runtime.cjs",
+      "bytes": 1957,
+      "sha256": "0cfccfbe133b237e8cd101a3cd4be4db732ffd33323d9a56ab942dfa5182636c"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/CACHE-HASHES.json",
+      "destinationName": "CACHE-HASHES.json",
+      "bytes": 58113,
+      "sha256": "00cc9b42678103743b55c9098173174a50c3c53585ad484d0f9209765488384f"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/CACHE-RETIREMENT.json",
+      "destinationName": "CACHE-RETIREMENT.json",
+      "bytes": 269,
+      "sha256": "788f8ad0be79a80076f6805a51d9812a2c4fa2ed26ac8f31a50bb4edd9584eb2"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/QUALIFICATION-SCOPE.md",
+      "destinationName": "QUALIFICATION-SCOPE.md",
+      "bytes": 1510,
+      "sha256": "2e4170761c0af490c337f45ffb8ba45e968736af5de6b8e53388d476343ad6d2"
+    }
+  ]
+}

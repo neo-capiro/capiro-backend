@@ -1,0 +1,57 @@
+{
+  "sourceRef": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "extendsManifestSha256": "800508f724d6316f8364656973c0b4d1c0337722235f83d1ed8b76eafd0e5850",
+  "destination": "docs/backend-prospect-shim-retirement-20261014/evidence",
+  "captureMode": "separate stdout/stderr for offline corrected proof only; original test captures remain stderr-to-stdout",
+  "payloads": [
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/used-owner-proof.cjs",
+      "destinationName": "used-owner-proof.cjs",
+      "bytes": 3901,
+      "sha256": "b1afa19ee30325f632b652b05db9191bffc1c30b02073a34748b470d684ff5ac"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/USED-OWNER-COMPATIBILITY.json",
+      "destinationName": "USED-OWNER-COMPATIBILITY.json",
+      "bytes": 7306,
+      "sha256": "908ae633e6c4083a9b45402f4e4fafc18c247ee3ae7f4080e87befec43bee4b4"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/used-owner-proof.stdout",
+      "destinationName": "used-owner-proof.stdout",
+      "bytes": 529,
+      "sha256": "d7ad3bb0b6993a21c5661b1f0451032ee37eb32468dd2ee24f7a4d90781bf847"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/used-owner-proof.stderr",
+      "destinationName": "used-owner-proof.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/used-owner-proof-initial.cjs",
+      "destinationName": "used-owner-proof-initial.cjs",
+      "bytes": 3721,
+      "sha256": "6abdc2d458323eb0fcf98d0477e853cca4cfd3016d2d154f27996d784e4e0a28"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/USED-OWNER-COMPATIBILITY-initial.json",
+      "destinationName": "USED-OWNER-COMPATIBILITY-initial.json",
+      "bytes": 7416,
+      "sha256": "5e58fc3ae6f3c35ed277933dca4a3dd236c5b1c73173187f31579367c146b500"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/USED-OWNER-INPUTS.json",
+      "destinationName": "USED-OWNER-INPUTS.json",
+      "bytes": 2955,
+      "sha256": "5f9c80fba2a4101c477685849397ac4bfc6acda229cdec46e497bd8a77411ce4"
+    },
+    {
+      "path": "/workspace/backend-prospect-shim-qualification-20261014/USED-OWNER-SCOPE.md",
+      "destinationName": "USED-OWNER-SCOPE.md",
+      "bytes": 2040,
+      "sha256": "7919031aa5d9132f72b831fe906fd9ef7396dc6ec216424e3fbf8ec6e846a1e6"
+    }
+  ]
+}

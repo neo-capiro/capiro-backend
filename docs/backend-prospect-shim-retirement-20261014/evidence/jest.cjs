@@ -1,0 +1,2 @@
+const path=require('node:path');
+module.exports={rootDir:path.join(__dirname,'overlay/apps/api'),testEnvironment:'node',roots:[path.join(__dirname,'overlay/apps/api/src')],setupFiles:[],setupFilesAfterEnv:[path.join(__dirname,'source-only-fence.cjs')],testMatch:['**/*.spec.ts'],cache:false,cacheDirectory:path.join(__dirname,'cache'),transform:{'^.+\\.ts$':path.join(__dirname,'transformer.cjs')},moduleNameMapper:{'^(\\.{1,2}/.*)\\.js$':'$1'}};

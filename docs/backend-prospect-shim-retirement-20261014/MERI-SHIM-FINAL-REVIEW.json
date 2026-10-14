@@ -1,0 +1,120 @@
+{
+  "decision": "FINAL_PACKET_ACCEPTED_FOR_ROOT_AUTHORIZED_DRAFT; no source/provenance blocker",
+  "head": "f50f76195e55932b4930deb199694aca24f7f653",
+  "tree": "eb521e8813b9e0d41eeee7554899a289e17b7fd8",
+  "sourceHead": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "baseHead": "917fed9be648dc4abfd6770e0e391ce2e3fe3928",
+  "docsOnlyPaths": [
+    "docs/backend-prospect-shim-retirement-20261014/HANDOFF.md",
+    "docs/backend-prospect-shim-retirement-20261014/MERI-SHIM-ROOT-CHECK-REVIEW.json",
+    "docs/backend-prospect-shim-retirement-20261014/MERI-SHIM-SOURCE-ACCEPTANCE.md",
+    "docs/backend-prospect-shim-retirement-20261014/MERI-SHIM-SOURCE-REVIEW.json",
+    "docs/backend-prospect-shim-retirement-20261014/NARROW-TYPES.json",
+    "docs/backend-prospect-shim-retirement-20261014/SHA256-INDEX.json",
+    "docs/backend-prospect-shim-retirement-20261014/SOURCE-PRESERVATION.json",
+    "docs/backend-prospect-shim-retirement-20261014/SYNTAX.json",
+    "docs/backend-prospect-shim-retirement-20261014/check-narrow-types.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/check-syntax.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/BORROWED-RUNTIME.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/CACHE-HASHES.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/CACHE-RETIREMENT.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/CASE-COMPARISON.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/DELIVERY-MANIFEST-V1.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/FILES.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/HOST-HASHES.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/QUALIFICATION-SCOPE.md",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/USED-OWNER-COMPATIBILITY-initial.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/USED-OWNER-COMPATIBILITY.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/USED-OWNER-DELIVERY-MANIFEST.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/USED-OWNER-INPUTS.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/USED-OWNER-SCOPE.md",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/baseline-jest.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/baseline-output.lossless.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/baseline-receipt.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/borrowed-runtime.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/corrected-jest.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/corrected-output.lossless.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/corrected-receipt.json",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/jest.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/run.py",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/source-only-fence.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/transformer.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/used-owner-proof-initial.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/used-owner-proof.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/used-owner-proof.stderr",
+    "docs/backend-prospect-shim-retirement-20261014/evidence/used-owner-proof.stdout",
+    "docs/backend-prospect-shim-retirement-20261014/seal-packet.cjs",
+    "docs/backend-prospect-shim-retirement-20261014/verify-source.cjs"
+  ],
+  "indexedPayloads": 39,
+  "losslessMergedTestOutputs": [
+    {
+      "path": "evidence/baseline-output.lossless.json",
+      "bytes": 3843,
+      "sha256": "b1df6fb8d00fbd1853c9c2e4692afcad22da8bf8b9e50d6b21e5eff4b55368e6"
+    },
+    {
+      "path": "evidence/corrected-output.lossless.json",
+      "bytes": 3844,
+      "sha256": "f464f6e3bdb16706468dae55e78e33e341d0d2001baefb7d3ac86102571a8b0c"
+    }
+  ],
+  "threeIndependentReviewCopiesExact": true,
+  "deliveryManifestsVerified": [
+    {
+      "name": "DELIVERY-MANIFEST-V1.json",
+      "sha256": "800508f724d6316f8364656973c0b4d1c0337722235f83d1ed8b76eafd0e5850",
+      "payloads": 18
+    },
+    {
+      "name": "USED-OWNER-DELIVERY-MANIFEST.json",
+      "sha256": "47a0288a2b7f043fcfd9babe18289d29cb5e07f076f2b233e4c46ed6bad9cf05",
+      "payloads": 8
+    }
+  ],
+  "allHostConfigFixtureFenceHashesVerified": true,
+  "rootQualification": {
+    "strictSources": 609,
+    "repositorySources": 35,
+    "cachedDeclarations": 574,
+    "diagnostics": 0,
+    "scope": "Canonical authorization/helper and2specs only",
+    "syntaxFiles": 6,
+    "scopeOfSyntax": "Supplied parse/transpile+Node check, no execution/fullcaller semantic check"
+  },
+  "behaviorProvenanceRecord": {
+    "path": "MERI-SHIM-BEHAVIOR-PROVENANCE-REVIEW.json",
+    "sha256": "7b65ab6edb38102a0521f23780f6ef5e1e9b60c64aea8f4bdfd2bba1835cb874",
+    "baselineCorrectedPass": 130,
+    "retainedIdentities": 129,
+    "oneIntentionalReplacement": true,
+    "overlayInputs": 11,
+    "boundedPhysicalSourceWholeJsCacheMatches": 3,
+    "broaderExportRuntimeGraphHeld": true,
+    "initialBookkeepingHeldProofPreserved": true
+  },
+  "existingApiRecord": {
+    "path": "MERI-PR78-EXISTING-API-REVIEW.json",
+    "sha256": "d5ea9c9158375dd76979f482167e027811a317482b7c8a0600ac4819357b6ce0",
+    "scope": "Existing private PR6 Core POST identity/context source correspondence only; actual serving origin/image/nativeidentity and Meri durable admission remain unqualified"
+  },
+  "productionPreviewRoutingSpotCheck": {
+    "mainSnapshot": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "findings": [
+      "GETme nesteduser/tenant; nativeprofile records viaexistingCtx",
+      "GETclients rawarray/explicit currenttenant/default nonarchived/3querystrings/createdAtdesc/no generatedrows",
+      "GETclient byexactid+tenant/objector404/archive notexcluded/logo handling",
+      "Portfolio aggregates use separate intelligencefamily; no generic portfolio/catalog envelope established",
+      "Private Layout/Directory source not assumeddeployed; actualtenant DB seed provenance/servingimage/origin notdetermined by source"
+    ],
+    "limits": "Read-only source only, no liveAPI/customerrecords/provider read. Normal existinglogin/roles/tenantpermissions unchanged; no new previewguard/API/store."
+  },
+  "noTestsOrCompilerRerunByReviewer": true,
+  "remaining": [
+    "Only one named authorization shim export retired; active helpers/services/runtimes/modules retained",
+    "FullMeri/V3/Core/DI/wholecaller types/nativeDBRLS/provider/live/deployment unqualified",
+    "Files/Calendar product selections remain root/parent decisions; no guessed resource/writer added",
+    "Meri real identity/origin/image/journal0006/0007/grants/fence/budget/nativeadmission and firstRun remain runtimeOwner work"
+  ]
+}

@@ -1,0 +1,7 @@
+# Four-suite shim qualification
+
+Baseline PR13 `917fed9be648dc4abfd6770e0e391ce2e3fe3928` and corrected source `85d582c35a9971538a709225ebaf0e0a762073c6` each pass130/130 in four existing suites with zero skips. All129 unchanged expanded case identities/multiplicities remain; one obsolete alias identity expectation is intentionally replaced with explicit retired-export and retained directive/receipt coverage. No new tests or reruns were added after matching checks passed.
+
+The eleven files in each receipt are exact Git overlay inputs, not the entire runtime closure. The fixtures use the existing constructor IO ports; CJS compilation omits DI metadata. Cached borrowed Shared/runtime package sources are also resolved. BORROWED-RUNTIME.json gives package resolution/top-level source hashes and any top-level frozen-blob equality; transitive borrowed runtime source qualification remains held. These are observed cases against that cached fixture environment, not an exact frozen whole-runtime, DI, Core, V3, native or database acceptance claim.
+
+Original output capture merged stderr into stdout. Both byte streams are preserved losslessly in their observed merged order; channel identity cannot be reconstructed. No separate empty stderr file is fabricated. Full Jest JSON, original commands, all eleven source blob/SHA bindings and fixture/config/fence hashes are retained. Root owns the independent source proof and narrow strict types. No source/ref, DB/provider/native/AWS operation occurred here.

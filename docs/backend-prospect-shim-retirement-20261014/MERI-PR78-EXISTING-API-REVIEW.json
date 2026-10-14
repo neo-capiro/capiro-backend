@@ -1,0 +1,76 @@
+{
+  "decision": "MINIMUM_EXISTING_CORE_API_FINDING_SOURCE_REVIEWED",
+  "meriCommit": "ab0d7a2ac302f95869063a223d79a991662303a3",
+  "reportBindings": [
+    {
+      "path": "docs/coordination/reports/CODEX-FIRST-RUN-CONVERGENCE-20261014.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6bddb36680bebe92904bfe972f9a718e3be1e69e",
+      "size": 8402,
+      "url": "https://api.github.com/repos/neo-capiro/meri-greenfield/git/blobs/6bddb36680bebe92904bfe972f9a718e3be1e69e"
+    },
+    {
+      "path": "docs/coordination/reports/CODEX-NATIVE-PREPARATION-20261014.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8916e3c67009d7ee9bb9cd33a98aa01254903c9a",
+      "size": 7871,
+      "url": "https://api.github.com/repos/neo-capiro/meri-greenfield/git/blobs/8916e3c67009d7ee9bb9cd33a98aa01254903c9a"
+    }
+  ],
+  "reportBytePins": [
+    {
+      "blob": "6bddb36680bebe92904bfe972f9a718e3be1e69e",
+      "path": "/workspace/backend-layout-prospect-review-20261014/MERI-PR78-6bddb36680bebe92904bfe972f9a718e3be1e69e.md",
+      "sha256": "b9e3eb54ea0db9e5bc135697f1fd78dfcd13f4960e0ccffc200418b9a4bd0a5f"
+    },
+    {
+      "blob": "8916e3c67009d7ee9bb9cd33a98aa01254903c9a",
+      "path": "/workspace/backend-layout-prospect-review-20261014/MERI-PR78-8916e3c67009d7ee9bb9cd33a98aa01254903c9a.md",
+      "sha256": "41eb436ebdf04ce094011f3442f7b6c6ce81aaef457eb230d09f8724bc20d463"
+    }
+  ],
+  "backendSource": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "identity": {
+    "method": "POST",
+    "path": "/api/clio/application-authority/identity",
+    "body": {},
+    "receipt": [
+      "principal.tenantId",
+      "principal.actorId",
+      "identityRevision",
+      "checkedAtMs",
+      "expiresAtMs"
+    ]
+  },
+  "context": {
+    "method": "POST",
+    "path": "/api/clio/application-authority/context",
+    "exactBodyKeys": [
+      "identitySha256",
+      "conversationId",
+      "clientId"
+    ],
+    "receiptAdds": [
+      "identitySha256",
+      "conversationId",
+      "selectedClientId",
+      "contextRevision"
+    ],
+    "identitySha256": "Echoed observation binding, not an authentication capability",
+    "currentScope": "Existing normal bearer/tenant/internal role, current native principal, owned active matching conversation/client, wall/prospect/research checks repeated around awaits and local identity recheck; original expiry minimized across observed bounds"
+  },
+  "mount": "Existing ApplicationAuthorityModule in Core AppModule; normal configureApiHttpApp /api prefix, API_PORT source default4000; no newAPI/store/authlayer introduced",
+  "requiredRuntimeEvidence": [
+    "Actual serving approved HTTPS origin-only matching existing Meri client configuration, no /api suffix",
+    "Serving image digest/build-used source/entrypoint",
+    "Current native identity/session/original expiry and actual authorized owned conversation/client",
+    "Meri owner journal0006/0007, allocation/grants/hashes/fence/policy/budget/task-control admission and transport bindings"
+  ],
+  "limits": "Source API contract correspondence only. Meri reports explicitly keep real authority/first-run/deployed task isolation unexecuted. No native identity/current serving origin/image/product database/migration/admission/liveFirstRun acceptance inferred. No credentials, provider/AWS/customer actions or security/network changes performed.",
+  "readProvenance": "Local Meri clone lacked this immutablecommit object; fetched exact report blobs and commit-tree metadata read-only via existing GitHub authorization. Git blob hashes independently verified; no refs fetched or changed.",
+  "treeEndpointReportedSha": "ab0d7a2ac302f95869063a223d79a991662303a3",
+  "meriCommitTree": "5f487dbef73451a1abcadd14347797a14a2a3ee9",
+  "treeMetadataNote": "Read-only git/commits/ab0 confirms true commit tree5f487d; git/trees/ab0 API response echoed requested commitSHA in its sha field. Exact report blob paths came from the requested immutable snapshot; no claim that echoedSHA is a Git tree object."
+}

@@ -1,0 +1,62 @@
+{
+  "result": "pass",
+  "source": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "sourceTree": "f93cf52145fc9ad34a0fea81d429f61b23d1da7e",
+  "rows": [
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+      "blob": "a82a9e595f15aca29d1ae6641b59eaecb064ff78",
+      "sourceSha256": "edd4d441b39af3e9803ca9252945520562bbc63397602c1b4187a314f66eabfb",
+      "emittedSha256": "93c09867c8385a18b06501112615f1f0dde54b4d9a813654bf78865cd4ddbe46",
+      "parseDiagnostics": 0,
+      "transpileDiagnostics": 0,
+      "nodeSyntax": "pass"
+    },
+    {
+      "path": "apps/api/src/meri/meri-bizdev-tools.service.ts",
+      "blob": "e87c4f22bb0e53741de5ad8f63a5419f589b3d0e",
+      "sourceSha256": "7959dec95e9e323a58a7f9218add0aa432d2ad0368ef15aafe631b9af7134d80",
+      "emittedSha256": "75ce3499ee08c086ba842a08ee2f073db6ebc579b4a74c2db15784073ec59326",
+      "parseDiagnostics": 0,
+      "transpileDiagnostics": 0,
+      "nodeSyntax": "pass"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "blob": "63264170abf3b562676bff372d8ba291490a005a",
+      "sourceSha256": "10a872f4dfc94ac96420c1e1ac0471881f9b5aa7610285980a2943ec4ba0b7d6",
+      "emittedSha256": "44f09898ddc29ea49cef9654c5ba8503af59397edea9aa630839475c8bd6e1df",
+      "parseDiagnostics": 0,
+      "transpileDiagnostics": 0,
+      "nodeSyntax": "pass"
+    },
+    {
+      "path": "apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "blob": "9d63db1b742ab2df74da4dcab7d01050a534547f",
+      "sourceSha256": "6b080e96aa03d724cf3c078203a1859c09ec87ee69e226a0d38238de928614fa",
+      "emittedSha256": "b1fd8db215826e78fdcf65de0b7582d7035bdfcc5dfb289db05d11a9e14e925b",
+      "parseDiagnostics": 0,
+      "transpileDiagnostics": 0,
+      "nodeSyntax": "pass"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "blob": "8878d515849c36ce037a9fc8591e46bbb06e65b2",
+      "sourceSha256": "1de375a7617352f862acc367ee68b34ef783376ddbad5acacaa0c8486a6e04af",
+      "emittedSha256": "ad56013bd5cf43efb793984fab4677a4333113c9fc7a02a4e2048323ab2b59c4",
+      "parseDiagnostics": 0,
+      "transpileDiagnostics": 0,
+      "nodeSyntax": "pass"
+    },
+    {
+      "path": "apps/api/src/meri/meriv3-proxy.service.ts",
+      "blob": "87b8d9b925fd76e48f3acd6970da9dfb22278713",
+      "sourceSha256": "f62f295aef58ecae2966eecf6aa6e8574521526aa796b8a01b1fea80b0393f84",
+      "emittedSha256": "6a51138d59c868b36c60b0483ac77ee044d623105e7cb23a7a972db7292654f1",
+      "parseDiagnostics": 0,
+      "transpileDiagnostics": 0,
+      "nodeSyntax": "pass"
+    }
+  ],
+  "qualification": "All six changed TS files parse/transpile; generated CommonJS syntax checked from stdin. No runtime imports, provider construction, semantic checking of entire caller classes, or Core/native acceptance."
+}

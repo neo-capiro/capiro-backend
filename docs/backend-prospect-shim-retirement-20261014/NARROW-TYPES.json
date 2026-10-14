@@ -1,0 +1,3059 @@
+{
+  "head": "85d582c35a9971538a709225ebaf0e0a762073c6",
+  "result": "pass",
+  "scope": "Strict changed-entry closure with all workspace packages bound to exact source; API strict options, rootDir widened for workspace source and DOM added from Shared owner compiler config; cached third-party/Prisma declarations, no full API/native acceptance",
+  "entries": [
+    "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+    "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+    "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/meri/meri-prospect-scope.helpers.ts",
+    "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/meri/meri-prospect-scope.helpers.spec.ts"
+  ],
+  "sources": [
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es5.d.ts",
+      "blob": null,
+      "sha256": "c430d44666289dae81f30fa7b2edebf186ecc91a2d4c71266ea6ae76388792e1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.d.ts",
+      "blob": null,
+      "sha256": "45b7ab580deca34ae9729e97c13cfd999df04416a79116c3bfb483804f85ded4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2016.d.ts",
+      "blob": null,
+      "sha256": "3facaf05f0c5fc569c5649dd359892c98a85557e3e0c847964caeb67076f4d75"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.d.ts",
+      "blob": null,
+      "sha256": "e44bb8bbac7f10ecc786703fe0a6a4b952189f908707980ba8f3c8975a760962"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.d.ts",
+      "blob": null,
+      "sha256": "5e1c4c362065a6b95ff952c0eab010f04dcd2c3494e813b493ecfd4fcb9fc0d8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2019.d.ts",
+      "blob": null,
+      "sha256": "68d73b4a11549f9c0b7d352d10e91e5dca8faa3322bfb77b661839c42b1ddec7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.d.ts",
+      "blob": null,
+      "sha256": "5efce4fc3c29ea84e8928f97adec086e3dc876365e0982cc8479a07954a3efd4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2021.d.ts",
+      "blob": null,
+      "sha256": "feecb1be483ed332fad555aff858affd90a48ab19ba7272ee084704eb7167569"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.d.ts",
+      "blob": null,
+      "sha256": "ee7bad0c15b58988daa84371e0b89d313b762ab83cb5b31b8a2d1162e8eb41c2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.dom.d.ts",
+      "blob": null,
+      "sha256": "080941d9f9ff9307f7e27a83bcd888b7c8270716c39af943532438932ec1d0b9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.core.d.ts",
+      "blob": null,
+      "sha256": "c57796738e7f83dbc4b8e65132f11a377649c00dd3eee333f672b8f0a6bea671"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.collection.d.ts",
+      "blob": null,
+      "sha256": "dc2df20b1bcdc8c2d34af4926e2c3ab15ffe1160a63e58b7e09833f616efff44"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.generator.d.ts",
+      "blob": null,
+      "sha256": "515d0b7b9bea2e31ea4ec968e9edd2c39d3eebf4a2d5cbd04e88639819ae3b71"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+      "blob": null,
+      "sha256": "0559b1f683ac7505ae451f9a96ce4c3c92bdc71411651ca6ddb0e88baaaad6a3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.promise.d.ts",
+      "blob": null,
+      "sha256": "0dc1e7ceda9b8b9b455c3a2d67b0412feab00bd2f66656cd8850e8831b08b537"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.proxy.d.ts",
+      "blob": null,
+      "sha256": "ce691fb9e5c64efb9547083e4a34091bcbe5bdb41027e310ebba8f7d96a98671"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.reflect.d.ts",
+      "blob": null,
+      "sha256": "8d697a2a929a5fcb38b7a65594020fcef05ec1630804a33748829c5ff53640d0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.symbol.d.ts",
+      "blob": null,
+      "sha256": "4ff2a353abf8a80ee399af572debb8faab2d33ad38c4b4474cff7f26e7653b8d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+      "blob": null,
+      "sha256": "fb0f136d372979348d59b3f5020b4cdb81b5504192b1cacff5d1fbba29378aa1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+      "blob": null,
+      "sha256": "d15bea3d62cbbdb9797079416b8ac375ae99162a7fba5de2c6c505446486ac0a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2016.intl.d.ts",
+      "blob": null,
+      "sha256": "68d18b664c9d32a7336a70235958b8997ebc1c3b8505f4f1ae2b7e7753b87618"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts",
+      "blob": null,
+      "sha256": "eb3d66c8327153d8fa7dd03f9c58d351107fe824c79e9b56b462935176cdf12a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.date.d.ts",
+      "blob": null,
+      "sha256": "38f0219c9e23c915ef9790ab1d680440d95419ad264816fa15009a8851e79119"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.object.d.ts",
+      "blob": null,
+      "sha256": "69ab18c3b76cd9b1be3d188eaf8bba06112ebbe2f47f6c322b5105a6fbc45a2e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.sharedmemory.d.ts",
+      "blob": null,
+      "sha256": "a680117f487a4d2f30ea46f1b4b7f58bef1480456e18ba53ee85c2746eeca012"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.string.d.ts",
+      "blob": null,
+      "sha256": "2f11ff796926e0832f9ae148008138ad583bd181899ab7dd768a2666700b1893"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.intl.d.ts",
+      "blob": null,
+      "sha256": "4de680d5bb41c17f7f68e0419412ca23c98d5749dcaaea1896172f06435891fc"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2017.typedarrays.d.ts",
+      "blob": null,
+      "sha256": "954296b30da6d508a104a3a0b5d96b76495c709785c1d11610908e63481ee667"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.asyncgenerator.d.ts",
+      "blob": null,
+      "sha256": "ac9538681b19688c8eae65811b329d3744af679e0bdfa5d842d0e32524c73e1c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.asynciterable.d.ts",
+      "blob": null,
+      "sha256": "0a969edff4bd52585473d24995c5ef223f6652d6ef46193309b3921d65dd4376"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.intl.d.ts",
+      "blob": null,
+      "sha256": "9e9fbd7030c440b33d021da145d3232984c8bb7916f277e8ffd3dc2e3eae2bdb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.promise.d.ts",
+      "blob": null,
+      "sha256": "811ec78f7fefcabbda4bfa93b3eb67d9ae166ef95f9bff989d964061cbf81a0c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.regexp.d.ts",
+      "blob": null,
+      "sha256": "717937616a17072082152a2ef351cb51f98802fb4b2fdabd32399843875974ca"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2019.array.d.ts",
+      "blob": null,
+      "sha256": "d7e7d9b7b50e5f22c915b525acc5a49a7a6584cf8f62d0569e557c5cfc4b2ac2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2019.object.d.ts",
+      "blob": null,
+      "sha256": "71c37f4c9543f31dfced6c7840e068c5a5aacb7b89111a4364b1d5276b852557"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2019.string.d.ts",
+      "blob": null,
+      "sha256": "576711e016cf4f1804676043e6a0a5414252560eb57de9faceee34d79798c850"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2019.symbol.d.ts",
+      "blob": null,
+      "sha256": "89c1b1281ba7b8a96efc676b11b264de7a8374c5ea1e6617f11880a13fc56dc6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2019.intl.d.ts",
+      "blob": null,
+      "sha256": "74f7fa2d027d5b33eb0471c8e82a6c87216223181ec31247c357a3e8e2fddc5b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.bigint.d.ts",
+      "blob": null,
+      "sha256": "d6d7ae4d1f1f3772e2a3cde568ed08991a8ae34a080ff1151af28b7f798e22ca"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.date.d.ts",
+      "blob": null,
+      "sha256": "063600664504610fe3e99b717a1223f8b1900087fab0b4cad1496a114744f8df"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.promise.d.ts",
+      "blob": null,
+      "sha256": "934019d7e3c81950f9a8426d093458b65d5aff2c7c1511233c0fd5b941e608ab"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.sharedmemory.d.ts",
+      "blob": null,
+      "sha256": "52ada8e0b6e0482b728070b7639ee42e83a9b1c22d205992756fe020fd9f4a47"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.string.d.ts",
+      "blob": null,
+      "sha256": "3bdefe1bfd4d6dee0e26f928f93ccc128f1b64d5d501ff4a8cf3c6371200e5e6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.symbol.wellknown.d.ts",
+      "blob": null,
+      "sha256": "59fb2c069260b4ba00b5643b907ef5d5341b167e7d1dbf58dfd895658bda2867"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.intl.d.ts",
+      "blob": null,
+      "sha256": "639e512c0dfc3fad96a84caad71b8834d66329a1f28dc95e3946c9b58176c73a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2020.number.d.ts",
+      "blob": null,
+      "sha256": "368af93f74c9c932edd84c58883e736c9e3d53cec1fe24c0b0ff451f529ceab1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2021.promise.d.ts",
+      "blob": null,
+      "sha256": "af3dd424cf267428f30ccfc376f47a2c0114546b55c44d8c0f1d57d841e28d74"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2021.string.d.ts",
+      "blob": null,
+      "sha256": "995c005ab91a498455ea8dfb63aa9f83fa2ea793c3d8aa344be4a1678d06d399"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2021.weakref.d.ts",
+      "blob": null,
+      "sha256": "959d36cddf5e7d572a65045b876f2956c973a586da58e5d26cde519184fd9b8a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2021.intl.d.ts",
+      "blob": null,
+      "sha256": "965f36eae237dd74e6cca203a43e9ca801ce38824ead814728a2807b1910117d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.array.d.ts",
+      "blob": null,
+      "sha256": "3925a6c820dcb1a06506c90b1577db1fdbf7705d65b62b99dce4be75c637e26b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.error.d.ts",
+      "blob": null,
+      "sha256": "0a3d63ef2b853447ec4f749d3f368ce642264246e02911fcb1590d8c161b8005"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.intl.d.ts",
+      "blob": null,
+      "sha256": "8cdf8847677ac7d20486e54dd3fcf09eda95812ac8ace44b4418da1bbbab6eb8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.object.d.ts",
+      "blob": null,
+      "sha256": "8444af78980e3b20b49324f4a16ba35024fef3ee069a0eb67616ea6ca821c47a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.string.d.ts",
+      "blob": null,
+      "sha256": "3287d9d085fbd618c3971944b65b4be57859f5415f495b33a6adc994edd2f004"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2022.regexp.d.ts",
+      "blob": null,
+      "sha256": "b4b67b1a91182421f5df999988c690f14d813b9850b40acd06ed44691f6727ad"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.decorators.d.ts",
+      "blob": null,
+      "sha256": "8e7f8264d0fb4c5339605a15daadb037bf238c10b654bb3eee14208f860a32ea"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.decorators.legacy.d.ts",
+      "blob": null,
+      "sha256": "782dec38049b92d4e85c1585fbea5474a219c6984a35b004963b00beb1aab538"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/funding-opportunities-v2-workflow.ts",
+      "blob": "afe21a295344cc4859fc7a790752eec3e746c2c7",
+      "sha256": "34bb6c27b11dfb483f7894b4286fec6de46ac91df0b50bc6e69bef070340e823"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/funding-opportunities-v2.ts",
+      "blob": "5bb5d2a100fe0e312092e0b69c65314abfe8ffa4",
+      "sha256": "37fe8499b219d9eb29e288744ca840149fe35f5f7ac5e328a58a03add2257893"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/funding-opportunities-v2-detail.ts",
+      "blob": "0d2d19bf9696eddb7f9cf612d9c08e20ae51d43c",
+      "sha256": "dd7783ced2d5ca22c98db2c35b456b686516edb75245d1daaf906ff55497114b"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/meri-read-outcome.ts",
+      "blob": "e676a6389711555100e9a458bf0c95a61113f257",
+      "sha256": "66f1cc4fb2bd6226ea56774e70dd981e3f80e12f61ab915d63d10c3646c4731f"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/defense-budget-line.ts",
+      "blob": "a88968b2f2891af495b2248a074990cb64d4728b",
+      "sha256": "8e31070879a32f1b46792630c6f5689483109c98f93521fbb531a32ea0bd51e9"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/pe-source-coverage.ts",
+      "blob": "53dfa8b790afbeef53a6b40f833d373cd50c8133",
+      "sha256": "c4d60bc72ab8ae42e6f69998651eb997cbb38b16039d1799b647cde605e2c42d"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/funding-priorities.ts",
+      "blob": "6882fc4897fe805c2040a245c1022e3a78de9866",
+      "sha256": "82e59918864b70f8ad2dfc0f9d341c651a952e6a24a3b811c5b82a6ffbe041f3"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/legislative-research.ts",
+      "blob": "ce3c93ae310885884a20f0a169062a9378dcdfb0",
+      "sha256": "1ca1772ecb3ac924660f41eb181bf252c4d7989747287af7e238402491295826"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/research-portfolios.ts",
+      "blob": "ed70483bea476eaced8b1ae4e45ccc1f373a1341",
+      "sha256": "8cd82fdc0ac7d6fcb3d61be1b84f6537c50e1bf0d0872043c9e62b46fbb23c90"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/defense-research.ts",
+      "blob": "5e87e803d3231d0fb93b507439b1bc95cff94873",
+      "sha256": "27f03c3a19f5d3426e85d374143b8c89ca10937419126ffd868e61b7130e724d"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/legiwatch-query.ts",
+      "blob": "9eb7ee5feefa95c514d46c87f291c9b2c36190ba",
+      "sha256": "94a5cfcdbbff33132a9a8b0766e6a1f2856e2d395bdba180af5da20fe41a045c"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/legiwatch-phase8.ts",
+      "blob": "fac862c0a96fdc47d92800629b566c0caef78981",
+      "sha256": "11ea686e845a02f022f2bd2fc0687b08a2a0be464ada912e0ae40e94f616f6f0"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/us-states.ts",
+      "blob": "26911d2f758f7ea56347b12efcf596b7119ac574",
+      "sha256": "ad65aa6cd523c745c5fa835abe30b0d4e6bb060bc5c1765af4c707ad1f8e0e8b"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/meri-document-request.ts",
+      "blob": "c3dc6871832ddf2c06dffe14fdb0eff4be034a82",
+      "sha256": "809add572f5162bfab985b5e6ed5dd24aa58f2b291cab69c64fbed383d06d1d1"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/schedule/time-zone.ts",
+      "blob": "eba9e249d3c92d897c062f725f1c137fcc0fe132",
+      "sha256": "4f76a48e72d911780ec149223d49ee3ab1126238132a4dd53d400935e947a378"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/schedule/deadline.ts",
+      "blob": "f16e2aee4f71a5b0bd2b57b881a189e6e64a496f",
+      "sha256": "69aab17c2a329fcfded00e7f3e8ebf3ebffebb1800b37e555efacb6901f08c9e"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/schedule/validate.ts",
+      "blob": "b7e7cdacfb7f3063871a13e7a517f4d5dddfbc94",
+      "sha256": "ff321d0b38f9034ac1c1b30c3511742be75024d6eb6a750926c0da50efa3bae7"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/schedule/synthesis.ts",
+      "blob": "a84ae175d3b4ce5cceca8608a89de3a14b299f4f",
+      "sha256": "515f2d07b367a4fe9190d6468a1c2a6d23ca093a608bbf48656958ab7f1ec9f0"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/tenant-feature.ts",
+      "blob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "sha256": "0256d761d048fc28ad6f0c0753e99ed4a6559b4a001a0688f24e21f1d350fbb6"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/client-memory-wall.ts",
+      "blob": "42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/prospect-resource-scope.ts",
+      "blob": "08a2f40ccb97780dac520d0789b113bc316f8886",
+      "sha256": "0982e0a984cfded64c05cf726eb3d95a67d8700d4671ee651378646cb9d5d2f7"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/prospect-brief-source.ts",
+      "blob": "af21291b58f89da7b8d8472ef6b29fded5f9eeb3",
+      "sha256": "dd80ce7e2a6068bddbd4e203a91487db1b63338deff50d1b645c22749ec916a7"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/workspace-saved-revision.ts",
+      "blob": "cd780f1d3505ce402004befd4266b0608f95a33a",
+      "sha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/client-objective-destination.ts",
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/time.ts",
+      "blob": "9224a10408f143c5192b34332f5de70b492af9c8",
+      "sha256": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/tracker-action-change.ts",
+      "blob": "496f4c061cf812d18977352744c859b24a617cd2",
+      "sha256": "046744bd7341883b20c677f65d87c45756f5bfc3ef878dc489496674ac319e34"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/packages/shared/src/index.ts",
+      "blob": "76265bedded19b7503927a6b3a9b34d9252edb7e",
+      "sha256": "db9243827747d9918d2d175c4843c74da5b84cb800d285469a93f51675f1d887"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/reflect-metadata@0.2.2/node_modules/reflect-metadata/index.d.ts",
+      "blob": null,
+      "sha256": "8d6d51a5118d000ed3bfe6e1dd1335bebfff3fef23cd2af2f84a24d30f90cc90"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/bind.decorator.d.ts",
+      "blob": null,
+      "sha256": "6d8dedbec739bc79642c1e96e9bfc0b83b25b104a0486aebf016fc7b85b39f48"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/abstract.interface.d.ts",
+      "blob": null,
+      "sha256": "e89535c3ec439608bcd0f68af555d0e5ddf121c54abe69343549718bd7506b9c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/controllers/controller-metadata.interface.d.ts",
+      "blob": null,
+      "sha256": "622a984b60c294ffb2f9152cf1d4d12e91d2b733d820eec949cf54d63a3c1025"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/controllers/controller.interface.d.ts",
+      "blob": null,
+      "sha256": "81aae92abdeaccd9c1723cef39232c90c1aed9d9cf199e6e2a523b7d8e058a11"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/arguments-host.interface.d.ts",
+      "blob": null,
+      "sha256": "a63a6c6806a1e519688ef7bd8ca57be912fc0764485119dbd923021eb4e79665"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/exceptions/exception-filter.interface.d.ts",
+      "blob": null,
+      "sha256": "75b57b109d774acca1e151df21cf5cb54c7a1df33a273f0457b9aee4ebd36fb9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Subscription.d.ts",
+      "blob": null,
+      "sha256": "5c7d5b50366ad358850cb764d54517a02e4c6a535ad63339341b919a01d25fae"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Subscriber.d.ts",
+      "blob": null,
+      "sha256": "004f3c14f064b567224f8d0bee55016099f60b286b26f7e45ea2398640425090"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Operator.d.ts",
+      "blob": null,
+      "sha256": "dd8331d0a5190a4735ce6c152e420230188c4966067a756673c36dd7ba72b10e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Observable.d.ts",
+      "blob": null,
+      "sha256": "d87f383e3e2146c5fa07f9db97108695a291049d1758a05d9c474bcca847d119"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/types.d.ts",
+      "blob": null,
+      "sha256": "288182a3032203d20a0cb426b35c2b5e53725e06b2505a0b0b33c56d02560bb4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/audit.d.ts",
+      "blob": null,
+      "sha256": "0f882d4ae58f431454030289154feb0132e1b00ca5c3197c6b749bd098aed73a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/auditTime.d.ts",
+      "blob": null,
+      "sha256": "412a285b5215287476bb954c160ced85718b34958f6d4eabd8a74541be17d8df"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/buffer.d.ts",
+      "blob": null,
+      "sha256": "1e352dc6863536f881c894f17c46b5040db7c9423a18957a8fbc001dfe579b78"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/bufferCount.d.ts",
+      "blob": null,
+      "sha256": "814a65fd55b6f21484b699acb5faa9dd858a7577e304fb05c9155f4a82a4c3d9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/bufferTime.d.ts",
+      "blob": null,
+      "sha256": "4d59c6a10b6c79a0927c79efa89b3c9f71d174ec14ec2792076cfd2330d0cf8e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/bufferToggle.d.ts",
+      "blob": null,
+      "sha256": "a496f51933422872de22729b7a0233589325a1a1707cccd05cd914098944a202"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/bufferWhen.d.ts",
+      "blob": null,
+      "sha256": "c27066bdab263d8ea4799e97296fdc5e62c69b45e9ad908f4b8edefcca20f265"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/catchError.d.ts",
+      "blob": null,
+      "sha256": "06a38095ad4368314366bc08f7cbc0fe274ef7321ec611005d0bdd9c6565e4d5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/combineLatestAll.d.ts",
+      "blob": null,
+      "sha256": "4599793db9aed9b84677f0ca1cf7ef3c69bb91cda4fe4329cbab778ca4d80a58"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/combineAll.d.ts",
+      "blob": null,
+      "sha256": "ad0028f96921778931fb8419d8de33b10908314fa99699de1702020f69235da1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/combineLatest.d.ts",
+      "blob": null,
+      "sha256": "ccd2a35321c0786bd3808042dc43b960cac13f2cc660ac37a0087e12bc97d2fc"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/combineLatestWith.d.ts",
+      "blob": null,
+      "sha256": "df524ed01de4f19efb44bded628dbba9f840148be4b6cfe096e29d4b01589de3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/concat.d.ts",
+      "blob": null,
+      "sha256": "2e3981b9cee48174ff85ae15019fd72933f7023a4ed05094740f7e6f7775623c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/concatAll.d.ts",
+      "blob": null,
+      "sha256": "836ebdc3b9e4c006acc4f405b7e558e56d47830e05c40d991b1e27fe8bc91157"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/concatMap.d.ts",
+      "blob": null,
+      "sha256": "2cc6b617c6120ba64b5778ccd4b74c951adc3a3941bb6b39f47d48701c44af39"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/concatMapTo.d.ts",
+      "blob": null,
+      "sha256": "eca02b99615a8f1652e21399d832618e38bf166c0747c9247349bc901a2f7741"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/concatWith.d.ts",
+      "blob": null,
+      "sha256": "7f7d6d42e5780e86f5b860a6f95179fae06a368b3af28c1c4230397c47021a59"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/connect.d.ts",
+      "blob": null,
+      "sha256": "4740a7d11ab3b381be0f269f1903fb3ff226a2fba55a01756b2997e67cd853f2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/count.d.ts",
+      "blob": null,
+      "sha256": "863dbc4e77f0353e6f9d6bc0e2b4622d5c07ff6f099ff66cafd7924b2ff4dd3f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/debounce.d.ts",
+      "blob": null,
+      "sha256": "bf034a18ed7e2a058f9e48c4c2480a124138fbd3586a80c77736a9ec079d12a8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/debounceTime.d.ts",
+      "blob": null,
+      "sha256": "1c23e5522e794b2cfcb234a09406f44bf988e899a83458d43effa0d896188621"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/defaultIfEmpty.d.ts",
+      "blob": null,
+      "sha256": "c249e9ae33bfcad97deec3c73c9ed2656e112fbdf22deace0b39724be6a5dcf0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/delay.d.ts",
+      "blob": null,
+      "sha256": "5f16a149d633c7354cc6d9828fd6d443eb6090ed3dbfbf5cc72ac2b10447208e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/delayWhen.d.ts",
+      "blob": null,
+      "sha256": "c6f72b9a53b7819f056268c221d7eeb14c26e2582aa1547b0f6922d65bcfde72"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/dematerialize.d.ts",
+      "blob": null,
+      "sha256": "feddabf6ab0eb191e721f0126f3db8688db97c77a1234968bde7a2d70c4ae513"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/distinct.d.ts",
+      "blob": null,
+      "sha256": "a968efe0db090c2ed75ee8c77162534f7ffde3dfa9d9ee9f79c47784c43df96e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/distinctUntilChanged.d.ts",
+      "blob": null,
+      "sha256": "cde0568b836865a24f4ee5859462004a326dfb76d514e6f56c8e78feedebed58"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/distinctUntilKeyChanged.d.ts",
+      "blob": null,
+      "sha256": "7f5cb3a03588ed46d52a6c2138315d930cd6ffb5c2134247cd07bc23cbea0b5a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/elementAt.d.ts",
+      "blob": null,
+      "sha256": "9eb225532dc87924b92933cfd48845558f230df315ba9c0e5254180affd906e4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/endWith.d.ts",
+      "blob": null,
+      "sha256": "f39fb20b83c3f9853c13d4ac95533760979d3023c0a5affe2c0a62d91ab3afd8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/every.d.ts",
+      "blob": null,
+      "sha256": "e4fca08aed8afb32bb8643d7469810bc8681115fe398e56a028df9e73b2d867f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/exhaustAll.d.ts",
+      "blob": null,
+      "sha256": "8a59503e8c995d688174ab27cd32c3ab6afed7c41cb5282aee1e964f7d7b863d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/exhaust.d.ts",
+      "blob": null,
+      "sha256": "078966067552650f44ca96c68eddbb8539f30ee48a9ab3f24abdcf0a4037b535"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/exhaustMap.d.ts",
+      "blob": null,
+      "sha256": "2cd6250c43dba360377481c98d48db6ab1532a7527339edb0deffddc28ba66b1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/expand.d.ts",
+      "blob": null,
+      "sha256": "7a9d600990fbe263a23daebed9ba1bbc5761e45679a7e2b2774a42756ef077a2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/filter.d.ts",
+      "blob": null,
+      "sha256": "66bc155515fbea8c31a4efccbbac44de7c037b01f3aa00b76312cf7252725d30"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/finalize.d.ts",
+      "blob": null,
+      "sha256": "9fdd988a57c29bb94c3fd946457e031415fac3c88b681ae7403cc51efad949dd"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/find.d.ts",
+      "blob": null,
+      "sha256": "0dfd353f0c16dd5107a7e0713dc52d0a2538293b0a0eac6000a017f9c0a60b56"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/findIndex.d.ts",
+      "blob": null,
+      "sha256": "9cd683a4663ef4d9c6486f1b8a34c73bdbc344d69490931bfe2fbcada12ab35b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/first.d.ts",
+      "blob": null,
+      "sha256": "42f6a409bad5259ece69df25d2b8ace2ff2ade45fe6386ee45203bdd9329f971"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Subject.d.ts",
+      "blob": null,
+      "sha256": "fb486aa15606ee3738eccc1f344d895588fc50b9956a8b50cedac7a3ac1d03c4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/groupBy.d.ts",
+      "blob": null,
+      "sha256": "2eb162efd6dba5972b9f8f85141d900d09da4fba23864f287f98f9890a05e95f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/ignoreElements.d.ts",
+      "blob": null,
+      "sha256": "3f878fb5be9ebe8bd0ac5c22515d42b8b72d3745ef7617e73e9b2548ccbdf54b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/isEmpty.d.ts",
+      "blob": null,
+      "sha256": "e9ed562b7599c8c8c01595891480a30f9945a93a46456d22ee67ebf346b7538a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/last.d.ts",
+      "blob": null,
+      "sha256": "e7bf975a98cecefe2e8902fb7da9314675ecdce553aea722aaec97327668e18b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/map.d.ts",
+      "blob": null,
+      "sha256": "3d36f93648518338c875d9f77a8eab52905365483dbb3afe43ed68f1b712b67c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/mapTo.d.ts",
+      "blob": null,
+      "sha256": "4fa54df9184d291bd78b36f5063372042cd995460e906cb14014e40d1442a326"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Notification.d.ts",
+      "blob": null,
+      "sha256": "40c96d03a1fdc7223379b68fc28a885475269f61606258e311176cad8e398cf4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/materialize.d.ts",
+      "blob": null,
+      "sha256": "f6bd1aa152ca2b5064e06282ee3137842ae6825b6b09aa89a2ff063b976a56f3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/max.d.ts",
+      "blob": null,
+      "sha256": "72fff5572fbfd9ba6cc32b135b2df773fbcb062cdbfbf3599b0e4c0c0b9304f8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/merge.d.ts",
+      "blob": null,
+      "sha256": "fbdc8d7cc7daf4101bf567512c67fb990d8fe300e0ba7f213171192177f44aa0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/mergeAll.d.ts",
+      "blob": null,
+      "sha256": "540e6ae4ddea7fc6ce1abf41ecc1351ab5ad0a945f9450a83d5d1cdbd4b32c73"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/mergeMap.d.ts",
+      "blob": null,
+      "sha256": "3b6457fb3866562d279377f923cf3758c80ed7bfcc19414b72a24d0a98188e0c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/flatMap.d.ts",
+      "blob": null,
+      "sha256": "4fb5d7efb3520b92c1b767ce18968057c5e70886d7fb3416c487231df9275af9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/mergeMapTo.d.ts",
+      "blob": null,
+      "sha256": "df2303a61eb57b2717d17123e82bc0f3fd60f6e4673cb5506192dfe23c9480bf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/mergeScan.d.ts",
+      "blob": null,
+      "sha256": "1c03bb7c4a812bff9cf39601c9f1172b4dbbada100970e2402f136a767fa2544"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/mergeWith.d.ts",
+      "blob": null,
+      "sha256": "a35ca245eb852b70b20300546443abb1fcbac6e5066e4baaa092af4ea614d9b5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/min.d.ts",
+      "blob": null,
+      "sha256": "82fe707c2c25376601868e9eb7d3da6ecab4e1ec3919369f6357a79ae4dee6a9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/ConnectableObservable.d.ts",
+      "blob": null,
+      "sha256": "1a39e51e3362aec7d4edec9b317ff83916fe0471f86ddf2d3ef3af5952e87d9e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/multicast.d.ts",
+      "blob": null,
+      "sha256": "4b3f36b96f129a8e125c91d41a05f711e73b3285f80bceb3a1aecb13c97c4502"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/observeOn.d.ts",
+      "blob": null,
+      "sha256": "852779920fc4220bc42ec6d3c9b6164e23ea9371a788531b48b4005fe0cb4392"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/onErrorResumeNextWith.d.ts",
+      "blob": null,
+      "sha256": "6863aa26d38fb3c96d7b04547d677967d83ebe421a093e4dede6fd48ad23890d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/pairwise.d.ts",
+      "blob": null,
+      "sha256": "515b97cede17d91c9669cc1c7fb7a8a5f0a5f2d8999f925a5f70b4ebea93723e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/partition.d.ts",
+      "blob": null,
+      "sha256": "3a873d9c7fff0fc99f7994f8a49c126242a9a52947d8a6c2b9882aee7b476aba"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/pluck.d.ts",
+      "blob": null,
+      "sha256": "944af466f063d4bd090ab9d988c620b90a014e919d5f78963f6074a136ea225e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/publish.d.ts",
+      "blob": null,
+      "sha256": "644addd4811636da491c9546654bc005ba8599f23df6d731d91eba86f3137fc2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/publishBehavior.d.ts",
+      "blob": null,
+      "sha256": "a9249493114b181814728cbfeb7234738193a4169b654ec4705d48d7a4d25222"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/publishLast.d.ts",
+      "blob": null,
+      "sha256": "aad6f20d6eb01192ae02294361faa6e1f320d72447b56f433db853bbe80b15ca"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/publishReplay.d.ts",
+      "blob": null,
+      "sha256": "876fbedec2f494eb6f834ce8636b07d581c657d205d81a3ba894eff0facc6b84"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/race.d.ts",
+      "blob": null,
+      "sha256": "58527aa45f11c9b259a6a9d78b397f35020bfbb104f4d3bb177039b5c18146bd"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/raceWith.d.ts",
+      "blob": null,
+      "sha256": "91b8b61d45b5d22f3458a4ac82e03b464a0926bab795a920fe0eca805ec476eb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/reduce.d.ts",
+      "blob": null,
+      "sha256": "2744532f8fb960eb78497ac660db719f503a10c801f87131d26fd9cbef75dcef"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/repeat.d.ts",
+      "blob": null,
+      "sha256": "6fd4019d704fe42eecd8bbb6e37e19b3dc8fc8e8d74bc62a237539387ca4a710"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/repeatWhen.d.ts",
+      "blob": null,
+      "sha256": "d4733ddb92eccfba6947052161cb2ba04cd158bcb41ded178a3a46d984cf746c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/retry.d.ts",
+      "blob": null,
+      "sha256": "cb46657d3237f80742d5701ebcced8f6e5cf8938442354387d6c77d7048dfae6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/retryWhen.d.ts",
+      "blob": null,
+      "sha256": "5c5e91212eb0c3f301f741b9c4a8c316dfd0641392ef8792909ec5797bf7dc5d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/refCount.d.ts",
+      "blob": null,
+      "sha256": "661f322e45545a554e4ffc38db6c4068a66e1323baf66acb0d8a9fa28195a669"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/sample.d.ts",
+      "blob": null,
+      "sha256": "9d787416f04d0867e8a46c317056f6ad365e328074c73fa3a1612285fa24465d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/sampleTime.d.ts",
+      "blob": null,
+      "sha256": "e9977eb2676f4d622229fb0f21f4e3b849adbb643de91307e5233b301e10411f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/scan.d.ts",
+      "blob": null,
+      "sha256": "f2d3567210ca4d559d8297d6c4402599c93e3bc7485054192d38db5e132fbc0a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/sequenceEqual.d.ts",
+      "blob": null,
+      "sha256": "50d22a2dfdbf2dda7b333edf980566feb3f61813695c8f3b52fc866c8d969404"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/share.d.ts",
+      "blob": null,
+      "sha256": "bdb95f4b6e845ec1c0ae95eb448c55a68a2752473e1d2107348abe40421cc202"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/shareReplay.d.ts",
+      "blob": null,
+      "sha256": "ea546a7ed9eaa71ba78d4d392509dadea4bafed283269dd6c4b09e7d8824e986"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/single.d.ts",
+      "blob": null,
+      "sha256": "4ec0f2a141a9ae7d3557b8efe630ac2021bc3a9ac61238b59293f4cf2f196e82"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/skip.d.ts",
+      "blob": null,
+      "sha256": "e062b1c4e638a95c2e2701973e6613fb848abb1f7673d4b54e6f729a87428606"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/skipLast.d.ts",
+      "blob": null,
+      "sha256": "0863a5876c85fbaffbb8ec8aeda8b5042deb6932616139706d2b82cde9d3f7c7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/skipUntil.d.ts",
+      "blob": null,
+      "sha256": "12f8b72e3c3a333814f4fa87d5b9a7ef1ece703f3b7ec7919ad2ffb58c48c1db"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/skipWhile.d.ts",
+      "blob": null,
+      "sha256": "ba9c46725e2a0bd9df59d3a1e801cc60f90db3ef7817131c53945dce2b8c0c56"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/startWith.d.ts",
+      "blob": null,
+      "sha256": "281d373eeabf80c4851f8de991e6abe4d385c30379d80897bbc3df3dcac99cee"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/subscribeOn.d.ts",
+      "blob": null,
+      "sha256": "624c5dce95672d9dcca40d9d9d82ef855f5f902292f43aa265cc8fd963c6ce84"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/switchAll.d.ts",
+      "blob": null,
+      "sha256": "8a48d9c6184992d1c3ed5daa55f83d708c37582916926a5555a900608f804b60"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/switchMap.d.ts",
+      "blob": null,
+      "sha256": "605dd288c636cf9b5317fe76dec75d3c7fb855fdcd3ee8cb4fea7d7091ca6fb4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/switchMapTo.d.ts",
+      "blob": null,
+      "sha256": "95addea67857d4e568a02e429b15458cec203876b2ea5f5ea18ccfeeb91b8ce0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/switchScan.d.ts",
+      "blob": null,
+      "sha256": "b5a615b0ad865ffa562980a10bda162ac1744fd363b4edc2cfc664222071cbcf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/take.d.ts",
+      "blob": null,
+      "sha256": "bbccd721363897950a55ce09529503f25a69522e5c91a22679b66e941e5f8654"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/takeLast.d.ts",
+      "blob": null,
+      "sha256": "d3a1e70795c38d7851b6e4f3b441c5ffdae171d6e2576a2204b7d79059aeea66"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/takeUntil.d.ts",
+      "blob": null,
+      "sha256": "94c9ac65af8048cd33c05c16d40c0ef3534a12805277b7f998078ef1d431755d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/takeWhile.d.ts",
+      "blob": null,
+      "sha256": "063fe3004728b8516a4d799ee16f9a71801ba24e0443dd98638cef1bd4353a7c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/tap.d.ts",
+      "blob": null,
+      "sha256": "0267341e780d4967cbd069ea57db7aa4e1fdfe74702ab0366a7a4c1da0ca332b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/throttle.d.ts",
+      "blob": null,
+      "sha256": "ec5a0291f1bcbd2662640e7a6ae0a632ce8f0fd55c02236bb43203f38436ca36"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/throttleTime.d.ts",
+      "blob": null,
+      "sha256": "7ffd42ac60bedb9b97e7c35b48af9f71b0a2289f3324f414826eeaea937d144b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/throwIfEmpty.d.ts",
+      "blob": null,
+      "sha256": "b20bc124abd8ee572d0d756713ff987b116cdae908a6fcbc40e80d4b999f56b4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/timeInterval.d.ts",
+      "blob": null,
+      "sha256": "1b42aac0e117a5a04d4314130a44e532253d48e00ec315ab2b75c72c1a23d4ee"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/timeout.d.ts",
+      "blob": null,
+      "sha256": "a9cc62c0a1a6a88bae9ad7adcb40a722a0b197505fa26276aff0e830a29ab04c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/timeoutWith.d.ts",
+      "blob": null,
+      "sha256": "f068ff5b7fb3bdc5380e0c677e21de829bd25cdac63a9b083fdc220fcb225280"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/timestamp.d.ts",
+      "blob": null,
+      "sha256": "09d2fdca6ea6c135897a26976ad3c0db724adaf23ef4e38ad852b1d8efef1ae6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/toArray.d.ts",
+      "blob": null,
+      "sha256": "15de5b7739bf7e40213a200853bf78455ee5958af08eda786605a54a7f25ade6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/window.d.ts",
+      "blob": null,
+      "sha256": "aa31b69fc0094a66e771e189d387ffed138b53b211903f96ca3737792f69abdf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/windowCount.d.ts",
+      "blob": null,
+      "sha256": "975367362aaccf979ac4f35cc402b948981c870b03e8b8d28810db1555837a68"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/windowTime.d.ts",
+      "blob": null,
+      "sha256": "89e253db2c2cc9a510c521f14dd2b1aae4de2556ee5159ad8d118d3587e3a880"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/windowToggle.d.ts",
+      "blob": null,
+      "sha256": "b580028098f87431266599cbd870b472e88715e29885fa97c2d816b38cad9c26"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/windowWhen.d.ts",
+      "blob": null,
+      "sha256": "fa3e9cbc292087a73527497237c523145ab943c435a92dc254fd250a001e8e21"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/withLatestFrom.d.ts",
+      "blob": null,
+      "sha256": "6fdc88b1287c276b55b7f7c4c7b49587813c763eea9751ce0baf0a7e61cd5d89"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/zip.d.ts",
+      "blob": null,
+      "sha256": "6a02443704052768bd021f24783aa104b02ae4444e9b735317bf13c6b857a11e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/zipAll.d.ts",
+      "blob": null,
+      "sha256": "37987b0fe9800cf25473c882ce07bccdab2763c5681c1a2d16816aead46aa8d1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/operators/zipWith.d.ts",
+      "blob": null,
+      "sha256": "c84c03c721154068e1a60d83e9e85819bd3ef70b824ac2edc498aa31c06e5781"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/operators/index.d.ts",
+      "blob": null,
+      "sha256": "f4e5b4def2ccccfe43c0905074695c349230505faf6ae74a28b0c1090acfda7d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/Action.d.ts",
+      "blob": null,
+      "sha256": "94cf36780aadc31958dc2047723e58acf8b20f1b2ddf4cda68ad51d8237b1918"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/Scheduler.d.ts",
+      "blob": null,
+      "sha256": "b54b2b8caa5e36c039d40a2eb9612c28aa033b4aa792f80bb4fbdd6f13b46e25"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/testing/TestMessage.d.ts",
+      "blob": null,
+      "sha256": "06bc0b9cc7bf0b92534f1517fe5adde1f23f60cc6cc5c59f8e1c65db48a40067"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/testing/SubscriptionLog.d.ts",
+      "blob": null,
+      "sha256": "919a753b0cbb12ccc606c62e2d34884d75a48ba19b1dda497c72621b11dac088"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/testing/SubscriptionLoggable.d.ts",
+      "blob": null,
+      "sha256": "2c27e33ee0bf722988da00abd582cc9b806ce3fd9153a864800a339ad13f3fcf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/testing/ColdObservable.d.ts",
+      "blob": null,
+      "sha256": "92d7b3a5aa5dc872e54cbad2a7094b3ea4f72c7901de1d07b4c334ff658297f0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/testing/HotObservable.d.ts",
+      "blob": null,
+      "sha256": "7a52922b38e9686d5bdc6e75774929eec6688d26c1dfe4a03ddec77ede468e87"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/AsyncScheduler.d.ts",
+      "blob": null,
+      "sha256": "aa5efca2833d89b55248f1889a6433dab1b1f41768e9a75f8ce35f9bf56c5ec4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/timerHandle.d.ts",
+      "blob": null,
+      "sha256": "f3cb934699bea498259de69c44a4f93b461f079d72cddb041587afd9312efb6e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/AsyncAction.d.ts",
+      "blob": null,
+      "sha256": "4ade28b8e7ff47d5cbce4d30ebf6e05ced32d6ea23930b897c377d23f9f2f114"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/VirtualTimeScheduler.d.ts",
+      "blob": null,
+      "sha256": "f25ffc20baaea5269b5bcc4f96a4d2628328daa36051fbd031b27c8cf8baa344"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/testing/TestScheduler.d.ts",
+      "blob": null,
+      "sha256": "36927eafdf230172dbf968749804e6186082eb960ed1bb4e36e1536c6c4a5fd3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/testing/index.d.ts",
+      "blob": null,
+      "sha256": "1218398da7c8dc4add10bdb3aa2856aad54b123d847eaf574d1d694ac269bfb5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/symbol/observable.d.ts",
+      "blob": null,
+      "sha256": "07886b8104556bcc9314b90cd2043f2286e54c1f6ba2ebbc953e1e43232e12be"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/dom/animationFrames.d.ts",
+      "blob": null,
+      "sha256": "b637cd92688a6cdf4f8f184ff529dc2bc7f15692828e2c0c66a60e6972f400c7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/BehaviorSubject.d.ts",
+      "blob": null,
+      "sha256": "8131bbadfeef07b067a4fe3fd9bb2b983c2ad631efc15123445324f9cb05e447"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/ReplaySubject.d.ts",
+      "blob": null,
+      "sha256": "e9acc77854461c6072dfe6c0ba7150d304c1e61eabbf00131c921f61a6b04cb1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/AsyncSubject.d.ts",
+      "blob": null,
+      "sha256": "3fc077734e1ff23401f5fdde3de0f372880393b6e253f3c43f576ba11e23393e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/AsapScheduler.d.ts",
+      "blob": null,
+      "sha256": "50614c808e099a1d4413786f3783d9eeaaa74b267f2c87fcf8a893287e91c301"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/asap.d.ts",
+      "blob": null,
+      "sha256": "f4cb6530f248e87cefa74ef623206fec805f6252f885f8e14ef3d1a5872cef2d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/async.d.ts",
+      "blob": null,
+      "sha256": "38c332caadd8391566552395d592076470a5e7423f70964620eabf05c02907cd"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/QueueScheduler.d.ts",
+      "blob": null,
+      "sha256": "eb17b5bf1fc763a644c21d76572c0e41e351c3f6dfcde649428d5d829f7294d2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/queue.d.ts",
+      "blob": null,
+      "sha256": "cb124162c87b29ff5121e3ee5bb29c782f101e0135d6c2644ab1b31d530a435e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/AnimationFrameScheduler.d.ts",
+      "blob": null,
+      "sha256": "406d6f5d3707c488362fb40d1c1f8a7b0a42b70554b427160185d93e430228f5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduler/animationFrame.d.ts",
+      "blob": null,
+      "sha256": "2e9776410c5bc290d9432a9215c67398a273e514a79b9e15f32ecddfde8a03be"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/identity.d.ts",
+      "blob": null,
+      "sha256": "313ff8df074b81d3e4f088ff3a3a06df3d9b0d0c7f55469ccc2ac887ecb6b867"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/pipe.d.ts",
+      "blob": null,
+      "sha256": "c718475bca06806cc243e77777641cb67ba68f2c57321a4773ebb47760a3bcf2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/noop.d.ts",
+      "blob": null,
+      "sha256": "96e6bf811343caab5112b68880905c5d20d9257054afac6c18e718a4c549ed27"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/isObservable.d.ts",
+      "blob": null,
+      "sha256": "a2793bc73ba63ca7d259cb0f0b61d0023820170d08a1f9715006c8042d060165"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/lastValueFrom.d.ts",
+      "blob": null,
+      "sha256": "d5011b38165771fdf75a9a06d6d379a1fc7edd7eb695ebdc52319fb6e3c6d81f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/firstValueFrom.d.ts",
+      "blob": null,
+      "sha256": "88417fb19d339304e9616a38ea513251047c9e300c81f9467fc317df8a582e71"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/ArgumentOutOfRangeError.d.ts",
+      "blob": null,
+      "sha256": "c6411797a81e3f64f8c2b4fb7575e5b49c2e8a9376d31c2361e8c8df73488ddb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/EmptyError.d.ts",
+      "blob": null,
+      "sha256": "88ab362442cd50cfe62e99c81b10c7d2cceecec31f9fe4d75fc6673f9f37e414"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/NotFoundError.d.ts",
+      "blob": null,
+      "sha256": "cb155e69fa97f811e48cbd84cbc1c608a6585ee8ba2a152c0835981b8add7ab7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/ObjectUnsubscribedError.d.ts",
+      "blob": null,
+      "sha256": "019f4f1cbc781cc15c6173f8be5ef907405722194ab297127b3c3426e5368339"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/SequenceError.d.ts",
+      "blob": null,
+      "sha256": "3cd95a72058dbf36275e0ab3cf6ae9711dd2aed11cd0e8a2a6ac8ac3d8b9ebb1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/util/UnsubscriptionError.d.ts",
+      "blob": null,
+      "sha256": "c79f1c8b51d8475dde8d2973f740f43ca34b1f0a95d93649cd76c1ee20abba19"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/bindCallback.d.ts",
+      "blob": null,
+      "sha256": "35f0d2bd2c5c05c0cb19095bf5b7c44365b1c88efe6285370855b90417277a64"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/bindNodeCallback.d.ts",
+      "blob": null,
+      "sha256": "8264b129f4c4eb4799703f8e5ee2223a184d1cdbfc782158b1f40a88a4435a1f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/AnyCatcher.d.ts",
+      "blob": null,
+      "sha256": "527ddda6f8be1279f3294714534c49d6e90f238cea325519882ebf88d7ec5bd2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/combineLatest.d.ts",
+      "blob": null,
+      "sha256": "b23877792e8bd00271d0ec5d401b68e4228540a4316de3d9dfb697b955c161a4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/concat.d.ts",
+      "blob": null,
+      "sha256": "35b2eb1de01633db90d41abe93730b29984856fcc840b4c2801bfd3761a2097b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/connectable.d.ts",
+      "blob": null,
+      "sha256": "95f0c9127b879c2fc7e31f8e09ff45bb4aae302e60f4b9ceaf4d9ee6bc51ec66"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/defer.d.ts",
+      "blob": null,
+      "sha256": "62ad07fac36aa0a7cb5d537c52a902f31a6160ab59cbfe365e4313a9beaceed8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/empty.d.ts",
+      "blob": null,
+      "sha256": "6e3d29fdc96ebbb2ac672d2dae710c689c1ea0d0e9469e0847616f3c38fd085f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/forkJoin.d.ts",
+      "blob": null,
+      "sha256": "d505055b8fadd42da235c85947911d8d198ad70c5f5775991e7821d4f89c90f5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/from.d.ts",
+      "blob": null,
+      "sha256": "8b5a5852099dca7d7e7a7cef6d681dc1586aafacdb963ca180fe5cabbfa3a24b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/fromEvent.d.ts",
+      "blob": null,
+      "sha256": "0d1aa3341d1ad2064adada71c5d01a2f572e4aac09410e5616d90894105a0eb9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/fromEventPattern.d.ts",
+      "blob": null,
+      "sha256": "52494ca5a884da3bf11b8165ab31429715f0970d9c6383240c5666f4bd713e01"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/generate.d.ts",
+      "blob": null,
+      "sha256": "2d1f9fed2116cc79bfc97765bf8f5259f39b9bf213eb2a73608fcef6d400da56"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/iif.d.ts",
+      "blob": null,
+      "sha256": "b4b9b51ee6f6309cda2e539245235a8caeca2b1d6bf12b5e5c162d17333c450f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/interval.d.ts",
+      "blob": null,
+      "sha256": "28d9cd978e05d58f2153924254766cf59fb155639335239949f21066f90937c7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/merge.d.ts",
+      "blob": null,
+      "sha256": "c76053984b39150d00ade365b096a8bc21a4a7f2ee9e0a926711b00f8e7bf701"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/never.d.ts",
+      "blob": null,
+      "sha256": "956b510767e3d6f362ea5800510635197723737af5d19ae07ee987ea4a90bfa5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/of.d.ts",
+      "blob": null,
+      "sha256": "cd1a8ff61f5063d7e6e2094e25d35c90b499961b63911f2f4ae0ff5555c2b4d7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/onErrorResumeNext.d.ts",
+      "blob": null,
+      "sha256": "1cf09b5945779e9bc75c4dcd805fb149c28fc90da3335186ef620647a3c540e1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/pairs.d.ts",
+      "blob": null,
+      "sha256": "9cdc0b9a313090ec45b34ea1eb02fbace433f509e753634b043e9b83038261e6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/partition.d.ts",
+      "blob": null,
+      "sha256": "c93474cff0088351a65d3cad24037874a26a5371a48528563e56efe31cb3d8bb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/race.d.ts",
+      "blob": null,
+      "sha256": "b4580df8ea7f62d7b06588001952bf69426e6b03cf3d2569f5f608e45f29ba08"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/range.d.ts",
+      "blob": null,
+      "sha256": "de27f7bb9be9d8a2b4557ec6503b8a315f74d598ce9a0ab81b5ed5610e1a8e81"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/throwError.d.ts",
+      "blob": null,
+      "sha256": "fe3c378dcefa7ed8b21bd6822f5d7838b1119836da75ae1e1fb485d27b8ffb62"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/timer.d.ts",
+      "blob": null,
+      "sha256": "7365bf3333d4277b6fe374ed055624e5ec080dbb919e2d78f1cb75a3f1a4b4f6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/using.d.ts",
+      "blob": null,
+      "sha256": "339a76a138b3e22a4c4386cc5abdeef64bd778fb0c35dc2fd9cb58c51fa17dc1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/observable/zip.d.ts",
+      "blob": null,
+      "sha256": "0923e4ac8c894ad507bd2daee0df66b699de88467201381ece011ba5a080e1ff"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/scheduled/scheduled.d.ts",
+      "blob": null,
+      "sha256": "e4f6626f827ea509255647e1b6db82145a2eb1a6b46202655e7d9bb19145c33b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/internal/config.d.ts",
+      "blob": null,
+      "sha256": "26e23972c40f378f0301d8d7025ea895557c2865a1a31c8ea9c3fff0dbc27075"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/types/index.d.ts",
+      "blob": null,
+      "sha256": "818469e2f1c49f6cf6f220a81df013daf6e4dc4af7f9c0890ca63ce06d7d7299"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/exceptions/rpc-exception-filter.interface.d.ts",
+      "blob": null,
+      "sha256": "795a08ae4e193f345073b49f68826ab6a9b280400b440906e4ec5c237ae777e6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/exceptions/ws-exception-filter.interface.d.ts",
+      "blob": null,
+      "sha256": "8153df63cf65122809db17128e5918f59d6bb43a371b5218f4430c4585f64085"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/validation-error.interface.d.ts",
+      "blob": null,
+      "sha256": "a8150bc382dd12ce58e00764d2366e1d59a590288ee3123af8a4a2cb4ef7f9df"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/execution-context.interface.d.ts",
+      "blob": null,
+      "sha256": "5adfaf2f9f33957264ad199a186456a4676b2724ed700fc313ff945d03372169"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/can-activate.interface.d.ts",
+      "blob": null,
+      "sha256": "d5c41a741cd408c34cb91f84468f70e9bda3dfeabf33251a61039b3cdb8b22d8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/custom-route-param-factory.interface.d.ts",
+      "blob": null,
+      "sha256": "c91d3f9753a311284e76cdcb348cbb50bca98733336ec726b54d77b7361b34de"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/nest-interceptor.interface.d.ts",
+      "blob": null,
+      "sha256": "cbaf4a4aa8a8c02aa681c5870d5c69127974de29b7e01df570edec391a417959"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/paramtype.interface.d.ts",
+      "blob": null,
+      "sha256": "c7135e329a18b0e712378d5c7bc2faec6f5ab0e955ea0002250f9e232af8b3e4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/type.interface.d.ts",
+      "blob": null,
+      "sha256": "340a45cd77b41d8a6deda248167fa23d3dc67ec798d411bd282f7b3d555b1695"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/features/pipe-transform.interface.d.ts",
+      "blob": null,
+      "sha256": "fae330f86bc10db6841b310f32367aaa6f553036a3afc426e0389ddc5566cd74"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/enums/request-method.enum.d.ts",
+      "blob": null,
+      "sha256": "cf25d45c02d5fd5d7adb16230a0e1d6715441eef5c0a79a21bfeaa9bbc058939"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/enums/http-status.enum.d.ts",
+      "blob": null,
+      "sha256": "54c3822eaf6436f2eddc92dd6e410750465aba218adbf8ce5d488d773919ec01"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/enums/shutdown-signal.enum.d.ts",
+      "blob": null,
+      "sha256": "99d99a765426accf8133737843fb024a154dc6545fc0ffbba968a7c0b848959d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/enums/version-type.enum.d.ts",
+      "blob": null,
+      "sha256": "c782c5fd5fa5491c827ecade05c3af3351201dd1c7e77e06711c8029b7a9ee4d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/enums/index.d.ts",
+      "blob": null,
+      "sha256": "883d2104e448bb351c49dd9689a7e8117b480b614b2622732655cef03021bf6d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/version-options.interface.d.ts",
+      "blob": null,
+      "sha256": "d9b00ee2eca9b149663fdba1c1956331841ae296ee03eaaff6c5becbc0ff1ea8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/middleware/middleware-configuration.interface.d.ts",
+      "blob": null,
+      "sha256": "09a7e04beb0547c43270b327c067c85a4e2154372417390731dfe092c4350998"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/middleware/middleware-consumer.interface.d.ts",
+      "blob": null,
+      "sha256": "eee530aaa93e9ec362e3941ee8355e2d073c7b21d88c2af4713e3d701dab8fef"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/middleware/middleware-config-proxy.interface.d.ts",
+      "blob": null,
+      "sha256": "28d47319b97dbeee9130b78eae03b2061d46dedbf92b0d9de13ed7ab8399ccd0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/middleware/nest-middleware.interface.d.ts",
+      "blob": null,
+      "sha256": "8b8b92781a6bf150f9ee83f3d8ee278b6cdb98b8308c7ab3413684fc5d9078ef"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/middleware/index.d.ts",
+      "blob": null,
+      "sha256": "7a0e4cd92545ad03910fd019ae9838718643bd4dde39881c745f236914901dfa"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/global-prefix-options.interface.d.ts",
+      "blob": null,
+      "sha256": "c99ebd20316217e349004ee1a0bc74d32d041fb6864093f10f31984c737b8cad"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/hooks/before-application-shutdown.interface.d.ts",
+      "blob": null,
+      "sha256": "6f622e7f054f5ab86258362ac0a64a2d6a27f1e88732d6f5f052f422e08a70e7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/hooks/on-application-bootstrap.interface.d.ts",
+      "blob": null,
+      "sha256": "d62d2ef93ceeb41cf9dfab25989a1e5f9ca5160741aac7f1453c69a6c14c69be"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/hooks/on-application-shutdown.interface.d.ts",
+      "blob": null,
+      "sha256": "1491e80d72873fc586605283f2d9056ee59b166333a769e64378240df130d1c9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/hooks/on-destroy.interface.d.ts",
+      "blob": null,
+      "sha256": "c32c073d389cfaa3b3e562423e16c2e6d26b8edebbb7d73ccffff4aa66f2171d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/hooks/on-init.interface.d.ts",
+      "blob": null,
+      "sha256": "eca72bf229eecadb63e758613c62fab13815879053539a22477d83a48a21cd73"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/hooks/index.d.ts",
+      "blob": null,
+      "sha256": "633db46fd1765736409a4767bfc670861468dde60dbb9a501fba4c1b72f8644d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/http/http-exception-body.interface.d.ts",
+      "blob": null,
+      "sha256": "689390db63cb282e6d0e5ce9b8f1ec2ec0912d0e2e6dac7235699a15ad17d339"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/http/http-redirect-response.interface.d.ts",
+      "blob": null,
+      "sha256": "f2ee748883723aa9325e5d7f30fce424f6a786706e1b91a5a55237c78ee89c4a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/cors-options.interface.d.ts",
+      "blob": null,
+      "sha256": "d928324d17146fce30b99a28d1d6b48648feac72bbd23641d3ce5ac34aefdfee"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/https-options.interface.d.ts",
+      "blob": null,
+      "sha256": "142f5190d730259339be1433931c0eb31ae7c7806f4e325f8a470bd9221b6533"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/services/logger.service.d.ts",
+      "blob": null,
+      "sha256": "c33a88f2578e8df2fdf36c6a0482bbee615eb3234c8f084ba31a9a96bd306b7f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/nest-application-context-options.interface.d.ts",
+      "blob": null,
+      "sha256": "22cca068109eb0e6b4f8acc3fe638d1e6ac277e2044246438763319792b546a1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/nest-application-options.interface.d.ts",
+      "blob": null,
+      "sha256": "8776e64e6165838ac152fa949456732755b0976d1867ae5534ce248f0ccd7f41"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/http/http-server.interface.d.ts",
+      "blob": null,
+      "sha256": "66cd33c4151ea27f6e17c6071652eadde9da1b3637dae65fd060212211c695ce"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/http/message-event.interface.d.ts",
+      "blob": null,
+      "sha256": "5c4c5b49bbb01828402bb04af1d71673b18852c11b7e95bfd5cf4c3d80d352c8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/http/raw-body-request.interface.d.ts",
+      "blob": null,
+      "sha256": "7030df3d920343df00324df59dc93a959a33e0f4940af3fefef8c07b7ee329bf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/http/index.d.ts",
+      "blob": null,
+      "sha256": "a96bc00e0c356e29e620eaec24a56d6dd7f4e304feefcc99066a1141c6fe05a7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/injectable.interface.d.ts",
+      "blob": null,
+      "sha256": "d12cc0e5b09943c4cd0848f787eb9d07bf78b60798e4588c50582db9d4decc70"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/microservices/nest-hybrid-application-options.interface.d.ts",
+      "blob": null,
+      "sha256": "53b094f1afe442490555eeeb0384fc1ceb487560c83e31f9c64fb934c2dccd94"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/forward-reference.interface.d.ts",
+      "blob": null,
+      "sha256": "19c3760af3cbc9da99d5b7763b9e33aaf8d018bc2ed843287b7ff4343adf4634"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/scope-options.interface.d.ts",
+      "blob": null,
+      "sha256": "9d1e38aeb76084848d2fcd39b458ec88246de028c0f3f448b304b15d764b23d2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/injection-token.interface.d.ts",
+      "blob": null,
+      "sha256": "d406da1eccf18cec56fd29730c24af69758fe3ff49c4f94335e797119cbc0554"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/optional-factory-dependency.interface.d.ts",
+      "blob": null,
+      "sha256": "4898c93890a136da9156c75acd1a80a941a961b3032a0cf14e1fa09a764448b7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/provider.interface.d.ts",
+      "blob": null,
+      "sha256": "f5d7a845e3e1c6c27351ea5f358073d0b0681537a2da6201fab254aa434121d3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/module-metadata.interface.d.ts",
+      "blob": null,
+      "sha256": "9ddf8e9069327faa75d20135cab675779844f66590249769c3d35dd2a38c2ba9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/dynamic-module.interface.d.ts",
+      "blob": null,
+      "sha256": "d7c30f0abfe9e197e376b016086cf66b2ffb84015139963f37301ed0da9d3d0d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/introspection-result.interface.d.ts",
+      "blob": null,
+      "sha256": "ff75bba0148f07775bcb54bf4823421ed4ebdb751b3bf79cc003bd22e49d7d73"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/nest-module.interface.d.ts",
+      "blob": null,
+      "sha256": "d40d20ac633703a7333770bfd60360126fc3302d5392d237bbb76e8c529a4f95"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/modules/index.d.ts",
+      "blob": null,
+      "sha256": "35a9867207c488061fb4f6fe4715802fbc164b4400018d2fa0149ad02db9a61c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/nest-application-context.interface.d.ts",
+      "blob": null,
+      "sha256": "91bf47a209ad0eae090023c3ebc1165a491cf9758799368ffcbee8dbe7448f33"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/websockets/web-socket-adapter.interface.d.ts",
+      "blob": null,
+      "sha256": "0abe2cd72812bbfc509975860277c7cd6f6e0be95d765a9da77fee98264a7e32"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/nest-application.interface.d.ts",
+      "blob": null,
+      "sha256": "13286c0c8524606b17a8d68650970bab896fb505f348f71601abf0f2296e8913"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/nest-microservice.interface.d.ts",
+      "blob": null,
+      "sha256": "fc2a131847515b3dff2f0e835633d9a00a9d03ed59e690e27eec85b7b0522f92"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/index.d.ts",
+      "blob": null,
+      "sha256": "90433c678bc26751eb7a5d54a2bb0a14be6f5717f69abb5f7a04afc75dce15a4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/catch.decorator.d.ts",
+      "blob": null,
+      "sha256": "cd0565ace87a2d7802bf4c20ea23a997c54e598b9eb89f9c75e69478c1f7a0b4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/controller.decorator.d.ts",
+      "blob": null,
+      "sha256": "738020d2c8fc9df92d5dee4b682d35a776eaedfe2166d12bc8f186e1ea57cc52"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/dependencies.decorator.d.ts",
+      "blob": null,
+      "sha256": "86dd7c5657a0b0bc6bee8002edcfd544458d3d3c60974555746eb9b2583dc35e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/exception-filters.decorator.d.ts",
+      "blob": null,
+      "sha256": "d97b96b6ecd4ee03f9f1170722c825ef778430a6a0d7aab03b8929012bf773cd"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/inject.decorator.d.ts",
+      "blob": null,
+      "sha256": "f61963dc02ef27c48fb0e0016a413b1e00bcb8b97a3f5d4473cedc7b44c8dc77"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/injectable.decorator.d.ts",
+      "blob": null,
+      "sha256": "272dbfe04cfa965d6fff63fdaba415c1b5a515b1881ae265148f8a84ddeb318f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/optional.decorator.d.ts",
+      "blob": null,
+      "sha256": "2035fb009b5fafa9a4f4e3b3fdb06d9225b89f2cbbf17a5b62413bf72cea721a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/set-metadata.decorator.d.ts",
+      "blob": null,
+      "sha256": "eefafec7c059f07b885b79b327d381c9a560e82b439793de597441a4e68d774a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/use-guards.decorator.d.ts",
+      "blob": null,
+      "sha256": "72636f59b635c378dc9ea5246b9b3517b1214e340e468e54cb80126353053b2e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/use-interceptors.decorator.d.ts",
+      "blob": null,
+      "sha256": "ebb79f267a3bf2de5f8edc1995c5d31777b539935fab8b7d863e8efb06c8e9ea"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/use-pipes.decorator.d.ts",
+      "blob": null,
+      "sha256": "ada033e6a4c7f4e147e6d76bb881069dc66750619f8cc2472d65beeec1100145"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/apply-decorators.d.ts",
+      "blob": null,
+      "sha256": "0c04cc14a807a5dc0e3752d18a3b2655a135fefbf76ddcdabd0c5df037530d41"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/version.decorator.d.ts",
+      "blob": null,
+      "sha256": "605d29d619180fbec287d1701e8b1f51f2d16747ec308d20aba3e9a0dac43a0f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/core/index.d.ts",
+      "blob": null,
+      "sha256": "67c19848b442d77c767414084fc571ce118b08301c4ddff904889d318f3a3363"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/modules/global.decorator.d.ts",
+      "blob": null,
+      "sha256": "c704ff0e0cb86d1b791767a88af21dadfee259180720a14c12baee668d0eb8fb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/modules/module.decorator.d.ts",
+      "blob": null,
+      "sha256": "195c50e15d5b3ea034e01fbdca6f8ad4b35ad47463805bb0360bdffd6fce3009"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/modules/index.d.ts",
+      "blob": null,
+      "sha256": "da665f00b6877ae4adb39cd548257f487a76e3d99e006a702a4f38b4b39431cb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/request-mapping.decorator.d.ts",
+      "blob": null,
+      "sha256": "2b82adc9eead34b824a3f4dad315203fbfa56bee0061ccf9b485820606564f70"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/route-params.decorator.d.ts",
+      "blob": null,
+      "sha256": "eb47aaa5e1b0a69388bb48422a991b9364a9c206a97983e0227289a9e1fca178"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/http-code.decorator.d.ts",
+      "blob": null,
+      "sha256": "d7a4309673b06223537bc9544b1a5fe9425628e1c8ab5605f3c5ebc27ecb8074"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/create-route-param-metadata.decorator.d.ts",
+      "blob": null,
+      "sha256": "db2108aea36e7faa83c38f6fe8225b9ad40835c0cba7fa38e969768299b83173"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/render.decorator.d.ts",
+      "blob": null,
+      "sha256": "3eadfd083d40777b403f4f4eecfa40f93876f2a01779157cc114b2565a7afb51"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/header.decorator.d.ts",
+      "blob": null,
+      "sha256": "cb6789ce3eba018d5a7996ccbf50e27541d850e9b4ee97fdcb3cbd8c5093691f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/redirect.decorator.d.ts",
+      "blob": null,
+      "sha256": "a3684ea9719122f9477902acd08cd363a6f3cff6d493df89d4dc12fa58204e27"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/sse.decorator.d.ts",
+      "blob": null,
+      "sha256": "2828dabf17a6507d39ebcc58fef847e111dcf2d51b8e4ff0d32732c72be032b3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/http/index.d.ts",
+      "blob": null,
+      "sha256": "c0c46113b4cd5ec9e7cf56e6dbfb3930ef6cbba914c0883eeced396988ae8320"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/decorators/index.d.ts",
+      "blob": null,
+      "sha256": "118ea3f4e7b9c12e92551be0766706f57a411b4f18a1b4762cfde3cd6d4f0a96"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/http.exception.d.ts",
+      "blob": null,
+      "sha256": "2ad163aaddfa29231a021de6838f59378a210501634f125ed04cfa7d066ffc53"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/bad-request.exception.d.ts",
+      "blob": null,
+      "sha256": "6305acbe492b9882ec940f8f0c8e5d1e1395258852f99328efcb1cf1683ca817"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/unauthorized.exception.d.ts",
+      "blob": null,
+      "sha256": "7619b1f6087a4e9336b2c42bd784b05aa4a2204a364b60171e5a628f817a381e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/method-not-allowed.exception.d.ts",
+      "blob": null,
+      "sha256": "15be9120572c9fbcd3c267bd93b4140354514c9e70734e6fcca65ff4a246f83a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/not-found.exception.d.ts",
+      "blob": null,
+      "sha256": "412482ab85893cec1d6f26231359474d1f59f6339e2743c08da1b05fc1d12767"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/forbidden.exception.d.ts",
+      "blob": null,
+      "sha256": "858e2315e58af0d28fcd7f141a2505aba6a76fd10378ba0ad169b0336fee33fc"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/not-acceptable.exception.d.ts",
+      "blob": null,
+      "sha256": "02da6c1b34f4ae2120d70cf5f9268bf1aedf62e55529d34f5974f5a93655ce38"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/request-timeout.exception.d.ts",
+      "blob": null,
+      "sha256": "3ecf179ef1cc28f7f9b46c8d2e496d50b542c176e94ed0147bab147b4a961cd6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/conflict.exception.d.ts",
+      "blob": null,
+      "sha256": "b145da03ce7e174af5ced2cbbd16e96d3d5c2212f9a90d3657b63a5650a73b7f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/gone.exception.d.ts",
+      "blob": null,
+      "sha256": "c7aadab66a2bc90eeb0ab145ca4daebcbc038e24359263de3b40e7b1c7affba6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/payload-too-large.exception.d.ts",
+      "blob": null,
+      "sha256": "99518dc06286877a7b716e0f22c1a72d3c62be42701324b49f27bcc03573efff"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/unsupported-media-type.exception.d.ts",
+      "blob": null,
+      "sha256": "f4575fd196a7e33c7be9773a71bcc5fbe7182a2152be909f6b8e8e7ba2438f06"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/unprocessable-entity.exception.d.ts",
+      "blob": null,
+      "sha256": "05cba5acd77a4384389b9c62739104b5a1693efd66e6abac6c5ffc53280ae777"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/internal-server-error.exception.d.ts",
+      "blob": null,
+      "sha256": "acacda82ebd929fe2fe9e31a37f193fc8498a7393a1c31dc5ceb656e2b45b708"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/not-implemented.exception.d.ts",
+      "blob": null,
+      "sha256": "1b13e7c5c58ab894fe65b099b6d19bb8afae6d04252db1bf55fe6ba95a0af954"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/http-version-not-supported.exception.d.ts",
+      "blob": null,
+      "sha256": "4355d326c3129e5853b56267903f294ad03e34cc28b75f96b80734882dedac80"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/bad-gateway.exception.d.ts",
+      "blob": null,
+      "sha256": "37139a8d45342c05b6a5aa1698a2e8e882d6dca5fb9a77aa91f05ac04e92e70b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/service-unavailable.exception.d.ts",
+      "blob": null,
+      "sha256": "e37191297f1234d3ae54edbf174489f9a3091a05fe959724db36f8e58d21fb17"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/gateway-timeout.exception.d.ts",
+      "blob": null,
+      "sha256": "3fca8fb3aab1bc7abb9b1420f517e9012fdddcbe18803bea2dd48fad6c45e92e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/im-a-teapot.exception.d.ts",
+      "blob": null,
+      "sha256": "d0b0779e0cac4809a9a3c764ba3bd68314de758765a8e3b9291fe1671bfeb8a1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/precondition-failed.exception.d.ts",
+      "blob": null,
+      "sha256": "d2116b5f989aa68e585ae261b9d6d836be6ed1be0b55b47336d9f3db34674e86"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/misdirected.exception.d.ts",
+      "blob": null,
+      "sha256": "d79a227dd654be16d8006eac8b67212679d1df494dfe6da22ea0bd34a13e010c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/exceptions/index.d.ts",
+      "blob": null,
+      "sha256": "b9c89b4a2435c171e0a9a56668f510a376cb7991eaecef08b619e6d484841735"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/file-stream/interfaces/streamable-options.interface.d.ts",
+      "blob": null,
+      "sha256": "44a298a6c52a7dab8e970e95a6dabe20972a7c31c340842e0dc57f2c822826eb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/file-stream/interfaces/streamable-handler-response.interface.d.ts",
+      "blob": null,
+      "sha256": "6a79b61f57699de0a381c8a13f4c4bcd120556bfab0b4576994b6917cb62948b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/file-stream/interfaces/index.d.ts",
+      "blob": null,
+      "sha256": "c5133d7bdec65f465df12f0b507fbc0d96c78bfa5a012b0eb322cf1ff654e733"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/services/console-logger.service.d.ts",
+      "blob": null,
+      "sha256": "00b9ff040025f6b00e0f4ac8305fea1809975b325af31541bd9d69fa3b5e57b1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/services/index.d.ts",
+      "blob": null,
+      "sha256": "9f96b9fd0362a7bfe6a3aa70baa883c47ae167469c904782c99ccc942f62f0dc"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/file-stream/streamable-file.d.ts",
+      "blob": null,
+      "sha256": "54d91053dc6a2936bfd01a130cc3b524e11aa0349da082e8ac03a8bf44250338"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/file-stream/index.d.ts",
+      "blob": null,
+      "sha256": "89049878a456b5e0870bb50289ea8ece28a2abd0255301a261fa8ab6a3e9a07d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/constants.d.ts",
+      "blob": null,
+      "sha256": "55ae9554811525f24818e19bdc8779fa99df434be7c03e5fc47fa441315f0226"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/interfaces/configurable-module-async-options.interface.d.ts",
+      "blob": null,
+      "sha256": "24abac81e9c60089a126704e936192b2309413b40a53d9da68dadd1dd107684e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/interfaces/configurable-module-cls.interface.d.ts",
+      "blob": null,
+      "sha256": "f13310c360ecffddb3858dcb33a7619665369d465f55e7386c31d45dfc3847bf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/interfaces/configurable-module-host.interface.d.ts",
+      "blob": null,
+      "sha256": "e7bde95a05a0564ee1450bc9a53797b0ac7944bf24d87d6f645baca3aa60df48"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/interfaces/index.d.ts",
+      "blob": null,
+      "sha256": "62e68ce120914431a7d34232d3eca643a7ddd67584387936a5202ae1c4dd9a1b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/configurable-module.builder.d.ts",
+      "blob": null,
+      "sha256": "91d695bba902cc2eda7edc076cd17c5c9340f7bb254597deb6679e343effadbb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/module-utils/index.d.ts",
+      "blob": null,
+      "sha256": "e1cb8168c7e0bd4857a66558fe7fe6c66d08432a0a943c51bacdac83773d5745"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/default-value.pipe.d.ts",
+      "blob": null,
+      "sha256": "a464510505f31a356e9833963d89ce39f37a098715fc2863e533255af4410525"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/class-transform-options.interface.d.ts",
+      "blob": null,
+      "sha256": "ebbe6765a836bfa7f03181bc433c8984ca29626270ca1e240c009851222cb8a7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/transformer-package.interface.d.ts",
+      "blob": null,
+      "sha256": "ac10457b51ee4a3173b7165c87c795eadd094e024f1d9f0b6f0c131126e3d903"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/validator-options.interface.d.ts",
+      "blob": null,
+      "sha256": "468df9d24a6e2bc6b4351417e3b5b4c2ca08264d6d5045fe18eb42e7996e58b4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/interfaces/external/validator-package.interface.d.ts",
+      "blob": null,
+      "sha256": "954523d1f4856180cbf79b35bd754e14d3b2aea06c7efd71b254c745976086e9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/utils/http-error-by-code.util.d.ts",
+      "blob": null,
+      "sha256": "a8af4739274959d70f7da4bfdd64f71cfc08d825c2d5d3561bc7baed760b33ef"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/validation.pipe.d.ts",
+      "blob": null,
+      "sha256": "090fda1107e7d4f8f30a2b341834ed949f01737b5ec6021bb6981f8907330bdb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/parse-array.pipe.d.ts",
+      "blob": null,
+      "sha256": "cc32874a27100c32e3706d347eb4f435d6dd5c0d83e547c157352f977bbc6385"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/parse-bool.pipe.d.ts",
+      "blob": null,
+      "sha256": "e45b069d58c9ac341d371b8bc3db4fa7351b9eee1731bffd651cfc1eb622f844"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/parse-int.pipe.d.ts",
+      "blob": null,
+      "sha256": "7f3c74caad25bfb6dfbf78c6fe194efcf8f79d1703d785fc05cd606fe0270525"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/parse-float.pipe.d.ts",
+      "blob": null,
+      "sha256": "54f3f7ff36384ca5c9e1627118b43df3014b7e0f62c9722619d19cdb7e43d608"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/parse-enum.pipe.d.ts",
+      "blob": null,
+      "sha256": "2f346f1233bae487f1f9a11025fc73a1bf9093ee47980a9f4a75b84ea0bb7021"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/parse-uuid.pipe.d.ts",
+      "blob": null,
+      "sha256": "013444d0b8c1f7b5115462c31573a699fee7458381b0611062a0069d3ef810e8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/interfaces/file.interface.d.ts",
+      "blob": null,
+      "sha256": "0612b149cabbc136cb25de9daf062659f306b67793edc5e39755c51c724e2949"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/interfaces/index.d.ts",
+      "blob": null,
+      "sha256": "2579b150b86b5f644d86a6d58f17e3b801772c78866c34d41f86f3fc9eb523fe"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/file-validator.interface.d.ts",
+      "blob": null,
+      "sha256": "0353e05b0d8475c10ddd88056e0483b191aa5cdea00a25e0505b96e023f1a2d9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/file-type.validator.d.ts",
+      "blob": null,
+      "sha256": "8c4df93dafcf06adc42a63477cc38b352565a3ed0a19dd8ef7dfacc253749327"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/max-file-size.validator.d.ts",
+      "blob": null,
+      "sha256": "22a35275abc67f8aba44efc52b2f4b1abc2c94e183d36647fdab5a5e7c1bdf23"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/parse-file-options.interface.d.ts",
+      "blob": null,
+      "sha256": "99193bafaa9ce112889698de25c4b8c80b1209bb7402189aea1c7ada708a8a54"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/parse-file.pipe.d.ts",
+      "blob": null,
+      "sha256": "70473538c6eb9494d53bf1539fe69df68d87c348743d8f7244dcb02ca3619484"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/parse-file-pipe.builder.d.ts",
+      "blob": null,
+      "sha256": "c48932ab06a4e7531bdca7b0f739ace5fa273f9a1b9009bcd26902f8c0b851f0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/file/index.d.ts",
+      "blob": null,
+      "sha256": "df6c83e574308f6540c19e3409370482a7d8f448d56c65790b4ac0ab6f6fedd8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/pipes/index.d.ts",
+      "blob": null,
+      "sha256": "32f19b665839b1382b21afc41917cda47a56e744cd3df9986b13a72746d1c522"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/serializer/class-serializer.interfaces.d.ts",
+      "blob": null,
+      "sha256": "8db1ed144dd2304b9bd6e41211e22bad5f4ab1d8006e6ac127b29599f4b36083"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/serializer/class-serializer.interceptor.d.ts",
+      "blob": null,
+      "sha256": "843a5e3737f2abbbbd43bf2014b70f1c69a80530814a27ae1f8be213ae9ec222"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/serializer/decorators/serialize-options.decorator.d.ts",
+      "blob": null,
+      "sha256": "6fc1be224ad6b3f3ec11535820def2d21636a47205c2c9de32238ba1ac8d82e6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/serializer/decorators/index.d.ts",
+      "blob": null,
+      "sha256": "5a44788293f9165116c9c183be66cefef0dc5d718782a04847de53bf664f3cc1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/serializer/index.d.ts",
+      "blob": null,
+      "sha256": "afd653ae63ce07075b018ba5ce8f4e977b6055c81cc65998410b904b94003c0a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/utils/forward-ref.util.d.ts",
+      "blob": null,
+      "sha256": "9172155acfeb17b9d75f65b84f36cb3eb0ff3cd763db3f0d1ad5f6d10d55662f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/utils/index.d.ts",
+      "blob": null,
+      "sha256": "71807b208e5f15feffb3ff530bec5b46b1217af0d8cc96dde00d549353bcb864"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.15.1_reflect-metadata@0.2.2_rxjs@7.8.2/node_modules/@nestjs/common/index.d.ts",
+      "blob": null,
+      "sha256": "1a6eca5c2bc446481046c01a54553c3ffb856f81607a074f9f0256c59dd0ab13"
+    },
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.d.ts",
+      "blob": null,
+      "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+    },
+    {
+      "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.d.ts",
+      "blob": null,
+      "sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/prisma/prisma.service.ts",
+      "blob": "d071939ac0f18deccab65794b9be20222c5887e8",
+      "sha256": "ba6b1369d2bd9c2f741b4811c4645e31cb5af18426a071493ca562d824a14283"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/common/tenant-flags.ts",
+      "blob": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d",
+      "sha256": "9a78b70d147496aadd94dfd7e11eb87f4e9300553670297987bead550de337a9"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "blob": "2cb7e71ff5929a6a78a97d60d27668409633572d",
+      "sha256": "570e95f5279cf7e3d8521d9b03920fa4dbafc8f301de5a1def76d2ece78e9525"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/business-development/bizdev-meri-scope.authorization.ts",
+      "blob": "764c22f72d46587cceba491c30c39fd0c31c1ada",
+      "sha256": "e85028a1f648a8332e3dcad9e35bf1d84449529c0212efcb6725d2d8a4f31a94"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/meri/meri-turn-scope.ts",
+      "blob": "1e8bafb0035d64f8a7cc7f0b01c74ea7e26d3b6e",
+      "sha256": "c35868440894a65b19eb58a33ca80615b9ebc4a3701fb6483217ae100423784e"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/meri/meri-prospect-scope.helpers.ts",
+      "blob": "9d63db1b742ab2df74da4dcab7d01050a534547f",
+      "sha256": "6b080e96aa03d724cf3c078203a1859c09ec87ee69e226a0d38238de928614fa"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/business-development/bizdev-meri-scope.authorization.spec.ts",
+      "blob": "a82a9e595f15aca29d1ae6641b59eaecb064ff78",
+      "sha256": "edd4d441b39af3e9803ca9252945520562bbc63397602c1b4187a314f66eabfb"
+    },
+    {
+      "path": "/workspace/capiro-backend-prospect-shim-retirement-20261014/apps/api/src/meri/meri-prospect-scope.helpers.spec.ts",
+      "blob": "63264170abf3b562676bff372d8ba291490a005a",
+      "sha256": "10a872f4dfc94ac96420c1e1ac0471881f9b5aa7610285980a2943ec4ba0b7d6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/compatibility/disposable.d.ts",
+      "blob": null,
+      "sha256": "70521b6ab0dcba37539e5303104f29b721bfb2940b2776da4cc818c07e1fefc1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/compatibility/indexable.d.ts",
+      "blob": null,
+      "sha256": "ab41ef1f2cdafb8df48be20cd969d875602483859dc194e9c97c8a576892c052"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/compatibility/iterators.d.ts",
+      "blob": null,
+      "sha256": "d153a11543fd884b596587ccd97aebbeed950b26933ee000f94009f1ab142848"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/compatibility/index.d.ts",
+      "blob": null,
+      "sha256": "21d819c173c0cf7cc3ce57c3276e77fd9a8a01d35a06ad87158781515c9a438a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/globals.typedarray.d.ts",
+      "blob": null,
+      "sha256": "98cffbf06d6bab333473c70a893770dbe990783904002c4f1a960447b4b53dca"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/buffer.buffer.d.ts",
+      "blob": null,
+      "sha256": "ba481bca06f37d3f2c137ce343c7d5937029b2468f8e26111f3c9d9963d6568d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/globals.d.ts",
+      "blob": null,
+      "sha256": "6d9ef24f9a22a88e3e9b3b3d8c40ab1ddb0853f1bfbd5c843c37800138437b61"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/web-globals/abortcontroller.d.ts",
+      "blob": null,
+      "sha256": "1db0b7dca579049ca4193d034d835f6bfe73096c73663e5ef9a0b5779939f3d0"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/web-globals/domexception.d.ts",
+      "blob": null,
+      "sha256": "9798340ffb0d067d69b1ae5b32faa17ab31b82466a3fc00d8f2f2df0c8554aaa"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/web-globals/events.d.ts",
+      "blob": null,
+      "sha256": "f26b11d8d8e4b8028f1c7d618b22274c892e4b0ef5b3678a8ccbad85419aef43"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/buffer@5.7.1/node_modules/buffer/index.d.ts",
+      "blob": null,
+      "sha256": "8e9c23ba78aabc2e0a27033f18737a6df754067731e69dc5f52823957d60a4b6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/header.d.ts",
+      "blob": null,
+      "sha256": "5929864ce17fba74232584d90cb721a89b7ad277220627cc97054ba15a98ea8f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/readable.d.ts",
+      "blob": null,
+      "sha256": "763fe0f42b3d79b440a9b6e51e9ba3f3f91352469c1e4b3b67bfa4ff6352f3f4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/file.d.ts",
+      "blob": null,
+      "sha256": "25c8056edf4314820382a5fdb4bb7816999acdcb929c8f75e3f39473b87e85bc"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/fetch.d.ts",
+      "blob": null,
+      "sha256": "c464d66b20788266e5353b48dc4aa6bc0dc4a707276df1e7152ab0c9ae21fad8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/formdata.d.ts",
+      "blob": null,
+      "sha256": "78d0d27c130d35c60b5e5566c9f1e5be77caf39804636bc1a40133919a949f21"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/connector.d.ts",
+      "blob": null,
+      "sha256": "c6fd2c5a395f2432786c9cb8deb870b9b0e8ff7e22c029954fabdd692bff6195"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/client.d.ts",
+      "blob": null,
+      "sha256": "1d6e127068ea8e104a912e42fc0a110e2aa5a66a356a917a163e8cf9a65e4a75"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/errors.d.ts",
+      "blob": null,
+      "sha256": "5ded6427296cdf3b9542de4471d2aa8d3983671d4cac0f4bf9c637208d1ced43"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/dispatcher.d.ts",
+      "blob": null,
+      "sha256": "7f182617db458e98fc18dfb272d40aa2fff3a353c44a89b2c0ccb3937709bfb5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/global-dispatcher.d.ts",
+      "blob": null,
+      "sha256": "cadc8aced301244057c4e7e73fbcae534b0f5b12a37b150d80e5a45aa4bebcbd"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/global-origin.d.ts",
+      "blob": null,
+      "sha256": "385aab901643aa54e1c36f5ef3107913b10d1b5bb8cbcd933d4263b80a0d7f20"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/pool-stats.d.ts",
+      "blob": null,
+      "sha256": "9670d44354bab9d9982eca21945686b5c24a3f893db73c0dae0fd74217a4c219"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/pool.d.ts",
+      "blob": null,
+      "sha256": "0b8a9268adaf4da35e7fa830c8981cfa22adbbe5b3f6f5ab91f6658899e657a7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/handlers.d.ts",
+      "blob": null,
+      "sha256": "11396ed8a44c02ab9798b7dca436009f866e8dae3c9c25e8c1fbc396880bf1bb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/balanced-pool.d.ts",
+      "blob": null,
+      "sha256": "ba7bc87d01492633cb5a0e5da8a4a42a1c86270e7b3d2dea5d156828a84e4882"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/agent.d.ts",
+      "blob": null,
+      "sha256": "4893a895ea92c85345017a04ed427cbd6a1710453338df26881a6019432febdd"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/mock-interceptor.d.ts",
+      "blob": null,
+      "sha256": "c21dc52e277bcfc75fac0436ccb75c204f9e1b3fa5e12729670910639f27343e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/mock-agent.d.ts",
+      "blob": null,
+      "sha256": "13f6f39e12b1518c6650bbb220c8985999020fe0f21d818e28f512b7771d00f9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/mock-client.d.ts",
+      "blob": null,
+      "sha256": "9b5369969f6e7175740bf51223112ff209f94ba43ecd3bb09eefff9fd675624a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/mock-pool.d.ts",
+      "blob": null,
+      "sha256": "4fe9e626e7164748e8769bbf74b538e09607f07ed17c2f20af8d680ee49fc1da"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/mock-errors.d.ts",
+      "blob": null,
+      "sha256": "24515859bc0b836719105bb6cc3d68255042a9f02a6022b3187948b204946bd2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/proxy-agent.d.ts",
+      "blob": null,
+      "sha256": "ea0148f897b45a76544ae179784c95af1bd6721b8610af9ffa467a518a086a43"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/env-http-proxy-agent.d.ts",
+      "blob": null,
+      "sha256": "24c6a117721e606c9984335f71711877293a9651e44f59f3d21c1ea0856f9cc9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/retry-handler.d.ts",
+      "blob": null,
+      "sha256": "dd3273ead9fbde62a72949c97dbec2247ea08e0c6952e701a483d74ef92d6a17"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/retry-agent.d.ts",
+      "blob": null,
+      "sha256": "405822be75ad3e4d162e07439bac80c6bcc6dbae1929e179cf467ec0b9ee4e2e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/api.d.ts",
+      "blob": null,
+      "sha256": "0db18c6e78ea846316c012478888f33c11ffadab9efd1cc8bcc12daded7a60b6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/interceptors.d.ts",
+      "blob": null,
+      "sha256": "e61be3f894b41b7baa1fbd6a66893f2579bfad01d208b4ff61daef21493ef0a8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/util.d.ts",
+      "blob": null,
+      "sha256": "bd0532fd6556073727d28da0edfd1736417a3f9f394877b6d5ef6ad88fba1d1a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/cookies.d.ts",
+      "blob": null,
+      "sha256": "89167d696a849fce5ca508032aabfe901c0868f833a8625d5a9c6e861ef935d2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/patch.d.ts",
+      "blob": null,
+      "sha256": "615ba88d0128ed16bf83ef8ccbb6aff05c3ee2db1cc0f89ab50a4939bfc1943f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/websocket.d.ts",
+      "blob": null,
+      "sha256": "a4d551dbf8746780194d550c88f26cf937caf8d56f102969a110cfaed4b06656"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/eventsource.d.ts",
+      "blob": null,
+      "sha256": "8bd86b8e8f6a6aa6c49b71e14c4ffe1211a0e97c80f08d2c8cc98838006e4b88"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/filereader.d.ts",
+      "blob": null,
+      "sha256": "317e63deeb21ac07f3992f5b50cdca8338f10acd4fbb7257ebf56735bf52ab00"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/diagnostics-channel.d.ts",
+      "blob": null,
+      "sha256": "4732aec92b20fb28c5fe9ad99521fb59974289ed1e45aecb282616202184064f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/content-type.d.ts",
+      "blob": null,
+      "sha256": "2e85db9e6fd73cfa3d7f28e0ab6b55417ea18931423bd47b409a96e4a169e8e6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/cache.d.ts",
+      "blob": null,
+      "sha256": "c46e079fe54c76f95c67fb89081b3e399da2c7d109e7dca8e4b58d83e332e605"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/undici-types@6.21.0/node_modules/undici-types/index.d.ts",
+      "blob": null,
+      "sha256": "bf67d53d168abc1298888693338cb82854bdb2e69ef83f8a0092093c2d562107"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/web-globals/fetch.d.ts",
+      "blob": null,
+      "sha256": "b52476feb4a0cbcb25e5931b930fc73cb6643fb1a5060bf8a3dda0eeae5b4b68"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/assert.d.ts",
+      "blob": null,
+      "sha256": "e2677634fe27e87348825bb041651e22d50a613e2fdf6a4a3ade971d71bac37e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/assert/strict.d.ts",
+      "blob": null,
+      "sha256": "7394959e5a741b185456e1ef5d64599c36c60a323207450991e7a42e08911419"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/async_hooks.d.ts",
+      "blob": null,
+      "sha256": "8c0bcd6c6b67b4b503c11e91a1fb91522ed585900eab2ab1f61bba7d7caa9d6f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/buffer.d.ts",
+      "blob": null,
+      "sha256": "8cd19276b6590b3ebbeeb030ac271871b9ed0afc3074ac88a94ed2449174b776"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/child_process.d.ts",
+      "blob": null,
+      "sha256": "696eb8d28f5949b87d894b26dc97318ef944c794a9a4e4f62360cd1d1958014b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/cluster.d.ts",
+      "blob": null,
+      "sha256": "3f8fa3061bd7402970b399300880d55257953ee6d3cd408722cb9ac20126460c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/console.d.ts",
+      "blob": null,
+      "sha256": "35ec8b6760fd7138bbf5809b84551e31028fb2ba7b6dc91d95d098bf212ca8b4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/constants.d.ts",
+      "blob": null,
+      "sha256": "5524481e56c48ff486f42926778c0a3cce1cc85dc46683b92b1271865bcf015a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/crypto.d.ts",
+      "blob": null,
+      "sha256": "68bd56c92c2bd7d2339457eb84d63e7de3bd56a69b25f3576e1568d21a162398"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/dgram.d.ts",
+      "blob": null,
+      "sha256": "3e93b123f7c2944969d291b35fed2af79a6e9e27fdd5faa99748a51c07c02d28"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/diagnostics_channel.d.ts",
+      "blob": null,
+      "sha256": "9d19808c8c291a9010a6c788e8532a2da70f811adb431c97520803e0ec649991"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/dns.d.ts",
+      "blob": null,
+      "sha256": "87aad3dd9752067dc875cfaa466fc44246451c0c560b820796bdd528e29bef40"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/dns/promises.d.ts",
+      "blob": null,
+      "sha256": "4aacb0dd020eeaef65426153686cc639a78ec2885dc72ad220be1d25f1a439df"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/domain.d.ts",
+      "blob": null,
+      "sha256": "f0bd7e6d931657b59605c44112eaf8b980ba7f957a5051ed21cb93d978cf2f45"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/events.d.ts",
+      "blob": null,
+      "sha256": "8db0ae9cb14d9955b14c214f34dae1b9ef2baee2fe4ce794a4cd3ac2531e3255"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/fs.d.ts",
+      "blob": null,
+      "sha256": "15fc6f7512c86810273af28f224251a5a879e4261b4d4c7e532abfbfc3983134"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/fs/promises.d.ts",
+      "blob": null,
+      "sha256": "58adba1a8ab2d10b54dc1dced4e41f4e7c9772cbbac40939c0dc8ce2cdb1d442"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/http.d.ts",
+      "blob": null,
+      "sha256": "641942a78f9063caa5d6b777c99304b7d1dc7328076038c6d94d8a0b81fc95c1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/http2.d.ts",
+      "blob": null,
+      "sha256": "714435130b9015fae551788df2a88038471a5a11eb471f27c4ede86552842bc9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/https.d.ts",
+      "blob": null,
+      "sha256": "855cd5f7eb396f5f1ab1bc0f8580339bff77b68a770f84c6b254e319bbfd1ac7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/inspector.generated.d.ts",
+      "blob": null,
+      "sha256": "5650cf3dace09e7c25d384e3e6b818b938f68f4e8de96f52d9c5a1b3db068e86"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/module.d.ts",
+      "blob": null,
+      "sha256": "1354ca5c38bd3fd3836a68e0f7c9f91f172582ba30ab15bb8c075891b91502b7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/net.d.ts",
+      "blob": null,
+      "sha256": "7e20d899c28ca26a2a7afc98beaa69e63ff7fba0a8bc47b4e3bf3ede5e09e424"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/os.d.ts",
+      "blob": null,
+      "sha256": "2d2fcaab481b31a5882065c7951255703ddbe1c0e507af56ea42d79ac3911201"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/path.d.ts",
+      "blob": null,
+      "sha256": "a192fe8ec33f75edbc8d8f3ed79f768dfae11ff5735e7fe52bfa69956e46d78d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/perf_hooks.d.ts",
+      "blob": null,
+      "sha256": "ca867399f7db82df981d6915bcbb2d81131d7d1ef683bc782b59f71dda59bc85"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/process.d.ts",
+      "blob": null,
+      "sha256": "372413016d17d804e1d139418aca0c68e47a83fb6669490857f4b318de8cccb3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/punycode.d.ts",
+      "blob": null,
+      "sha256": "9e043a1bc8fbf2a255bccf9bf27e0f1caf916c3b0518ea34aa72357c0afd42ec"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/querystring.d.ts",
+      "blob": null,
+      "sha256": "b4f70ec656a11d570e1a9edce07d118cd58d9760239e2ece99306ee9dfe61d02"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/readline.d.ts",
+      "blob": null,
+      "sha256": "3bc2f1e2c95c04048212c569ed38e338873f6a8593930cf5a7ef24ffb38fc3b6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/readline/promises.d.ts",
+      "blob": null,
+      "sha256": "6e70e9570e98aae2b825b533aa6292b6abd542e8d9f6e9475e88e1d7ba17c866"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/repl.d.ts",
+      "blob": null,
+      "sha256": "f9d9d753d430ed050dc1bf2667a1bab711ccbb1c1507183d794cc195a5b085cc"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/sea.d.ts",
+      "blob": null,
+      "sha256": "9eece5e586312581ccd106d4853e861aaaa1a39f8e3ea672b8c3847eedd12f6e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/stream.d.ts",
+      "blob": null,
+      "sha256": "085f552d005479e2e6a7311cdbbe5d8c55c497b4d19274285df161ee9684cd9c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/stream/promises.d.ts",
+      "blob": null,
+      "sha256": "37ba7b45141a45ce6e80e66f2a96c8a5ab1bcef0fc2d0f56bb58df96ec67e972"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/stream/consumers.d.ts",
+      "blob": null,
+      "sha256": "45650f47bfb376c8a8ed39d4bcda5902ab899a3150029684ee4c10676d9fbaee"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/stream/web.d.ts",
+      "blob": null,
+      "sha256": "007faacc9268357caa21d24169f3f3f2497af3e9241308df2d89f6e6d9bb3f2e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/string_decoder.d.ts",
+      "blob": null,
+      "sha256": "74cf591a0f63db318651e0e04cb55f8791385f86e987a67fd4d2eaab8191f730"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/test.d.ts",
+      "blob": null,
+      "sha256": "5eab9b3dc9b34f185417342436ec3f106898da5f4801992d8ff38ab3aff346b5"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/timers.d.ts",
+      "blob": null,
+      "sha256": "12ed4559eba17cd977aa0db658d25c4047067444b51acfdcbf38470630642b23"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/timers/promises.d.ts",
+      "blob": null,
+      "sha256": "f3ffabc95802521e1e4bcba4c88d8615176dc6e09111d920c7a213bdda6e1d65"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/tls.d.ts",
+      "blob": null,
+      "sha256": "809821b8a065e3234a55b3a9d7846231ed18d66dd749f2494c66288d890daf7f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/trace_events.d.ts",
+      "blob": null,
+      "sha256": "ae56f65caf3be91108707bd8dfbccc2a57a91feb5daabf7165a06a945545ed26"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/tty.d.ts",
+      "blob": null,
+      "sha256": "a136d5de521da20f31631a0a96bf712370779d1c05b7015d7019a9b2a0446ca9"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/url.d.ts",
+      "blob": null,
+      "sha256": "c3b41e74b9a84b88b1dca61ec39eee25c0dbc8e7d519ba11bb070918cfacf656"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/util.d.ts",
+      "blob": null,
+      "sha256": "4737a9dc24d0e68b734e6cfbcea0c15a2cfafeb493485e27905f7856988c6b29"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/v8.d.ts",
+      "blob": null,
+      "sha256": "36d8d3e7506b631c9582c251a2c0b8a28855af3f76719b12b534c6edf952748d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/vm.d.ts",
+      "blob": null,
+      "sha256": "1ca69210cc42729e7ca97d3a9ad48f2e9cb0042bada4075b588ae5387debd318"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/wasi.d.ts",
+      "blob": null,
+      "sha256": "f5ebe66baaf7c552cfa59d75f2bfba679f329204847db3cec385acda245e574e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/worker_threads.d.ts",
+      "blob": null,
+      "sha256": "ed59add13139f84da271cafd32e2171876b0a0af2f798d0c663e8eeb867732cf"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/zlib.d.ts",
+      "blob": null,
+      "sha256": "b7c5e2ea4a9749097c347454805e933844ed207b6eefec6b7cfd418b5f5f7b28"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+node@20.19.39/node_modules/@types/node/index.d.ts",
+      "blob": null,
+      "sha256": "b1810689b76fd473bd12cc9ee219f8e62f54a7d08019a235d07424afbf074d25"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+send@1.2.1/node_modules/@types/send/index.d.ts",
+      "blob": null,
+      "sha256": "d34aa8df2d0b18fb56b1d772ff9b3c7aea7256cf0d692f969be6e1d27b74d660"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+qs@6.15.0/node_modules/@types/qs/index.d.ts",
+      "blob": null,
+      "sha256": "f4db16820c99b6db923ab18af5fecb02331d785c4c2a8a88373a0cfc08256589"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+range-parser@1.2.7/node_modules/@types/range-parser/index.d.ts",
+      "blob": null,
+      "sha256": "2f5747b1508ccf83fad0c251ba1e5da2f5a30b78b09ffa1cfaf633045160afed"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+express-serve-static-core@4.19.8/node_modules/@types/express-serve-static-core/index.d.ts",
+      "blob": null,
+      "sha256": "90407bbaa24977b8a6a90861148ac98d8652afe69992a90d823f29e9807fe2d7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+http-errors@2.0.5/node_modules/@types/http-errors/index.d.ts",
+      "blob": null,
+      "sha256": "b71c603a539078a5e3a039b20f2b0a0d1708967530cf97dec8850a9ca45baa2b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+mime@1.3.5/node_modules/@types/mime/index.d.ts",
+      "blob": null,
+      "sha256": "d3f2d715f57df3f04bf7b16dde01dec10366f64fce44503c92b8f78f614c1769"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+send@0.17.6/node_modules/@types/send/index.d.ts",
+      "blob": null,
+      "sha256": "cb90077223cc1365fa21ef0911a1f9b8f2f878943523d97350dc557973ca3823"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+serve-static@1.15.10/node_modules/@types/serve-static/index.d.ts",
+      "blob": null,
+      "sha256": "18f1541b81b80d806120a3489af683edfb811deb91aeca19735d9bb2613e6311"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+connect@3.4.38/node_modules/@types/connect/index.d.ts",
+      "blob": null,
+      "sha256": "104c67f0da1bdf0d94865419247e20eded83ce7f9911a1aa75fc675c077ca66e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+body-parser@1.19.6/node_modules/@types/body-parser/index.d.ts",
+      "blob": null,
+      "sha256": "cc0d0b339f31ce0ab3b7a5b714d8e578ce698f1e13d7f8c60bfb766baeb1d35c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+express@4.17.25/node_modules/@types/express/index.d.ts",
+      "blob": null,
+      "sha256": "232f118ae64ab84dcd26ddb60eaed5a6e44302d36249abf05e9e3fc2cbb701a2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@jest+expect-utils@29.7.0/node_modules/@jest/expect-utils/build/index.d.ts",
+      "blob": null,
+      "sha256": "cdcc132f207d097d7d3aa75615ab9a2e71d6a478162dde8b67f88ea19f3e54de"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/chalk@4.1.2/node_modules/chalk/index.d.ts",
+      "blob": null,
+      "sha256": "0d14fa22c41fdc7277e6f71473b20ebc07f40f00e38875142335d5b63cdfc9d2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@sinclair+typebox@0.27.10/node_modules/@sinclair/typebox/typebox.d.ts",
+      "blob": null,
+      "sha256": "e1028394c1cf96d5d057ecc647e31e457b919092f882ed0c7092152b077fed9d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@jest+schemas@29.6.3/node_modules/@jest/schemas/build/index.d.ts",
+      "blob": null,
+      "sha256": "f315e1e65a1f80992f0509e84e4ae2df15ecd9ef73df975f7c98813b71e4c8da"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/pretty-format@29.7.0/node_modules/pretty-format/build/index.d.ts",
+      "blob": null,
+      "sha256": "5b9586e9b0b6322e5bfbd2c29bd3b8e21ab9d871f82346cb71020e3d84bae73e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/jest-diff@29.7.0/node_modules/jest-diff/build/index.d.ts",
+      "blob": null,
+      "sha256": "3e70a7e67c2cb16f8cd49097360c0309fe9d1e3210ff9222e9dac1f8df9d4fb6"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/jest-matcher-utils@29.7.0/node_modules/jest-matcher-utils/build/index.d.ts",
+      "blob": null,
+      "sha256": "ab68d2a3e3e8767c3fba8f80de099a1cfc18c0de79e42cb02ae66e22dfe14a66"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.d.ts",
+      "blob": null,
+      "sha256": "d96cc6598148bf1a98fb2e8dcf01c63a4b3558bdaec6ef35e087fd0562eb40ec"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+jest@29.5.14/node_modules/@types/jest/index.d.ts",
+      "blob": null,
+      "sha256": "f8db4fea512ab759b2223b90ecbbe7dae919c02f8ce95ec03f7fb1cf757cfbeb"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/pg-types@2.2.0/node_modules/pg-types/index.d.ts",
+      "blob": null,
+      "sha256": "f60e3e3060207ac982da13363181fd7ee4beecc19a7c569f0d6bb034331066c2"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/dist/messages.d.ts",
+      "blob": null,
+      "sha256": "4a20a0a39aca8738cc5088f9dea2969bf2af3ca1341c56071f513059b122d150"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/dist/serializer.d.ts",
+      "blob": null,
+      "sha256": "a33c98f95c099c2a9a383b156c8f2a16605843d29455a954c1431bcbbc1ce35a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/dist/parser.d.ts",
+      "blob": null,
+      "sha256": "effa1fd4980f6dff4e81ed67009b847d34449087504319f9a0dd081e8cf23a31"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/dist/index.d.ts",
+      "blob": null,
+      "sha256": "c2c9f431f788b434e6ae327844ef6712bb6a6a88ad08acf20bf6cfeb41d154ba"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+pg@8.23.1/node_modules/@types/pg/lib/type-overrides.d.ts",
+      "blob": null,
+      "sha256": "798367363a3274220cbed839b883fe2f52ba7197b25e8cb2ac59c1e1fd8af6b7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+pg@8.23.1/node_modules/@types/pg/index.d.ts",
+      "blob": null,
+      "sha256": "67f3d03f61a43f045851624e52ec438803ecf5d2247660f208bd9bcadb6ff298"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@10.1.0/node_modules/htmlparser2/dist/commonjs/Tokenizer.d.ts",
+      "blob": null,
+      "sha256": "18017921e3a80099580daf88f30f55af505237adef07b6f7d9422a95febad8e4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@10.1.0/node_modules/htmlparser2/dist/commonjs/Parser.d.ts",
+      "blob": null,
+      "sha256": "ad67491ce47992922304d0384c35682f3b62c2be9d9b4d53e88c3477ca2e9b9d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domelementtype@2.3.0/node_modules/domelementtype/lib/index.d.ts",
+      "blob": null,
+      "sha256": "cbe4c1c3102db917851a77fe8fce9f00365da63876e4f0822f4bb4bd954f5ef8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domhandler@5.0.3/node_modules/domhandler/lib/node.d.ts",
+      "blob": null,
+      "sha256": "622fa89fbaee1b771e58517dbbb3ed8bf60aa4bd501a81b129032c981e825df4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domhandler@5.0.3/node_modules/domhandler/lib/index.d.ts",
+      "blob": null,
+      "sha256": "261bd352b27231e30932efafb4e163919c64aad439b7bd19c819c1b2b033885f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/dom-serializer@2.0.0/node_modules/dom-serializer/lib/index.d.ts",
+      "blob": null,
+      "sha256": "1c12378cf61ec63760cf5dacea71d7f3372ffce3be36fa06f40b2cd6ce580b76"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/stringify.d.ts",
+      "blob": null,
+      "sha256": "300089d670fb821ab229218307330be2f71cc6917b550b4f6d915b3f13ee5b45"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/traversal.d.ts",
+      "blob": null,
+      "sha256": "7d27c68bf0ffa6e7906eb99540ac506dbe25454ea60f705b561b91c9e5449864"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/manipulation.d.ts",
+      "blob": null,
+      "sha256": "648a19f8cd734a9448d9a70c968c793d00cb573d2b4258269db1a4e67d9cf84c"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/querying.d.ts",
+      "blob": null,
+      "sha256": "4a5e40074df78992b655b9deee028153285d9d44bdcf9ca817fbf3abdd86686f"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/legacy.d.ts",
+      "blob": null,
+      "sha256": "adcd1d7cc225bfee330f3d99179309e6d3674edceefb2f052bacb4beb39eb7a3"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/helpers.d.ts",
+      "blob": null,
+      "sha256": "aecfe4c19ff5bd1d3e3735a007e96dacfe71e22605ce10d782d1e001d11d071a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/feeds.d.ts",
+      "blob": null,
+      "sha256": "6132270ffd0016d6c16cdaaf2aeae132982ec2e4d2b655b4cf1bb4107148c6aa"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils/lib/index.d.ts",
+      "blob": null,
+      "sha256": "50cf61a7d6c89a070a90bd8a86c19157a7e66ba44362c1b00264e3644498bd87"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@10.1.0/node_modules/htmlparser2/dist/commonjs/index.d.ts",
+      "blob": null,
+      "sha256": "7ea413bba57e8ce213d1341b9b8f2ac48b5a6e411e322b94e586677577c71025"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+sanitize-html@2.16.1/node_modules/@types/sanitize-html/index.d.ts",
+      "blob": null,
+      "sha256": "a82f5ba70d26e6ad9d432ab7556506d807c49f35a44af99fb8054004220aaaa1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+geojson@7946.0.16/node_modules/@types/geojson/index.d.ts",
+      "blob": null,
+      "sha256": "d30e67059f5c545c5f8f0cc328a36d2e03b8c4a091b4301bc1d6afb2b1491a3a"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+shpjs@3.4.7/node_modules/@types/shpjs/index.d.ts",
+      "blob": null,
+      "sha256": "6d9e0e5616ac5c9251060f2493421ab676c5164b894add1e06db8d36c859f9a4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/form-data@4.0.6/node_modules/form-data/index.d.ts",
+      "blob": null,
+      "sha256": "736097ddbb2903bef918bb3b5811ef1c9c5656f2a73bd39b22a91b9cc2525e50"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/lib/node/response.d.ts",
+      "blob": null,
+      "sha256": "464e45d1a56dae066d7e1a2f32e55b8de4bfb072610c3483a4091d73c9924908"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/types.d.ts",
+      "blob": null,
+      "sha256": "da318e126ac39362c899829547cc8ee24fa3e8328b52cdd27e34173cf19c7941"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/lib/node/http2wrapper.d.ts",
+      "blob": null,
+      "sha256": "dbec715e9e82df297e49e3ed0029f6151aa40517ebfd6fcdba277a8a2e1d3a1b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+methods@1.1.4/node_modules/@types/methods/index.d.ts",
+      "blob": null,
+      "sha256": "b0f9ef6423d6b29dde29fd60d83d215796b2c1b76bfca28ac374ae18702cfb8e"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+cookiejar@2.1.5/node_modules/@types/cookiejar/index.d.ts",
+      "blob": null,
+      "sha256": "0dc6940ff35d845686a118ee7384713a84024d60ef26f25a2f87992ec7ddbd64"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/lib/agent-base.d.ts",
+      "blob": null,
+      "sha256": "e7bb49fac2aa46a13011b5eb5e4a8648f70a28aea1853fab2444dd4fcb4d4ec7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/lib/node/agent.d.ts",
+      "blob": null,
+      "sha256": "24bd01a91f187b22456c7171c07dbf44f3ad57ebd50735aab5c13fa23d7114b4"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/lib/request-base.d.ts",
+      "blob": null,
+      "sha256": "4738eefeaaba4d4288a08c1c226a76086095a4d5bcc7826d2564e7c29da47671"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/lib/node/index.d.ts",
+      "blob": null,
+      "sha256": "27389868b82d1b6f79d57fa3d31356c5c146ba655bf8b1671f4851e553891a8d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+superagent@8.1.11/node_modules/@types/superagent/index.d.ts",
+      "blob": null,
+      "sha256": "8f75e211a2e83ff216eb66330790fb6412dcda2feb60c4f165c903cf375633ee"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest/types.d.ts",
+      "blob": null,
+      "sha256": "c3fb0d969970b37d91f0dbf493c014497fe457a2280ac42ae24567015963dbf7"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest/lib/agent.d.ts",
+      "blob": null,
+      "sha256": "a9155c6deffc2f6a69e69dc12f0950ba1b4db03b3d26ab7a523efc89149ce979"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest/lib/test.d.ts",
+      "blob": null,
+      "sha256": "04f01dbd928a18180dfdd7a5b3f219a599dd4738836bcb942efcd58535aeb7f1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest/lib/cookies.d.ts",
+      "blob": null,
+      "sha256": "8e770f88d5f5b92aa94251b2d223d18e85dc0ff8ffba5b0d82164a78e8ac5663"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+supertest@7.2.1/node_modules/@types/supertest/index.d.ts",
+      "blob": null,
+      "sha256": "3134a6c11d0beb89fcb57ee0720c68fbd47d6c796e219ec188c459553e46505b"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+estree@1.0.8/node_modules/@types/estree/index.d.ts",
+      "blob": null,
+      "sha256": "151ff381ef9ff8da2da9b9663ebf657eac35c4c9a19183420c05728f31a6761d"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+json-schema@7.0.15/node_modules/@types/json-schema/index.d.ts",
+      "blob": null,
+      "sha256": "f3d8c757e148ad968f0d98697987db363070abada5f503da3c06aefd9d4248c1"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+eslint@9.6.1/node_modules/@types/eslint/use-at-your-own-risk.d.ts",
+      "blob": null,
+      "sha256": "a4a39b5714adfcadd3bbea6698ca2e942606d833bde62ad5fb6ec55f5e438ff8"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+eslint@9.6.1/node_modules/@types/eslint/index.d.ts",
+      "blob": null,
+      "sha256": "bbc1d029093135d7d9bfa4b38cbf8761db505026cc458b5e9c8b74f4000e5e75"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@types+eslint-scope@3.7.7/node_modules/@types/eslint-scope/index.d.ts",
+      "blob": null,
+      "sha256": "1f68ab0e055994eb337b67aa87d2a15e0200951e9664959b3866ee6f6b11a0fe"
+    }
+  ],
+  "diagnostics": []
+}

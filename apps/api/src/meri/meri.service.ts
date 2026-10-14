@@ -51,10 +51,10 @@ import {
   type MeriProspectScope,
 } from '../business-development/bizdev-meri-scope.service.js';
 import {
-  authorizeMeriProspectScope,
   prospectScopeDirective,
   prospectTurnScopeReceipt,
 } from './meri-prospect-scope.helpers.js';
+import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import {
   authorizeMeriResearchPortfolioScope,
   MERI_RESEARCH_PORTFOLIO_SCOPE_METADATA_KEY,
