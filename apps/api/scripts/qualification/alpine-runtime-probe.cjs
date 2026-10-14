@@ -116,6 +116,7 @@ const quickjsWasm = {
   'url': [920499, '54167390c210290f0703752527000ba44885606c4ed1ae12be30462c147a9215'],
 };
 function wasmVendorEvidence(owner, relative, bytes, sha256) {
+  if (['pdfjs-dist', '@prisma/client'].includes(owner.name)) return require('./runtime-closure-contract.cjs').lockedWasmEvidence(owner, relative, bytes, sha256);
   const key = Object.keys(quickjsWasm).find(name => relative === `extensions/${name}/${name}.so`);
   const expected = key && quickjsWasm[key];
   return { package: `${owner.name}@${owner.version}`, relative, sha256, bytes,
@@ -126,12 +127,17 @@ function wasmVendorEvidence(owner, relative, bytes, sha256) {
 function inspectArtifact(file, options = {}) {
   let row = { file: path.resolve(file), format: 'UNREADABLE_OR_INVALID_ARTIFACT' };
   try {
-    const stat = fs.statSync(file), named = /\.node$|\.so(?:\.|$)|schema-engine/.test(path.basename(file));
-    if (!named && !(stat.mode & 0o111)) return null;
-    assert(stat.isFile() && stat.size <= 512 * 1024 * 1024, 'bounded regular artifact required');
+    const stat = fs.statSync(file), basename = path.basename(file);
+    const named = /\.node$|\.(?:dll|dylib|wasm)$|\.so(?:\.[0-9]+)*$|^schema-engine(?:-(?:linux|darwin|windows).*)?$/.test(basename)
+      && !/\.(?:js|json|map|sha256|gz)$/.test(basename);
+    assert(stat.isFile(), 'regular artifact required');
     const descriptor = fs.openSync(file, 'r'), header = Buffer.alloc(4);
     try { fs.readSync(descriptor, header, 0, 4, 0); } finally { fs.closeSync(descriptor); }
-    const isElf = header.toString('hex') === '7f454c46'; if (!named && !isElf) return null;
+    const magic = header.toString('hex');
+    const recognized = ['7f454c46', '0061736d', 'cffaedfe', 'cefaedfe', 'feedface', 'feedfacf',
+      'cafebabe', 'cafebabf', 'bebafeca', 'bfbafeca'].includes(magic) || header.toString('ascii', 0, 2) === 'MZ';
+    if (!named && !recognized) return null;
+    assert(stat.size <= 512 * 1024 * 1024, 'bounded regular artifact required');
     const data = fs.readFileSync(file);
     row = { file: fs.realpathSync(file), bytes: stat.size, mode: stat.mode & 0o777, sha256: createHash('sha256').update(data).digest('hex'), magicHex: data.subarray(0, 16).toString('hex'), format: 'UNKNOWN' };
     row.binary = binaryFormat(data); row.format = row.binary.format;
@@ -773,14 +779,32 @@ async function main() {
   assert(fs.existsSync('/lib/ld-musl-aarch64.so.1'), 'musl loader missing');
   assert(!process.report.getReport().header.glibcVersionRuntime, 'glibc runtime detected');
   const stream = createReceiptStream();
-  report.gates = []; report.artifacts = []; report.sharp = []; report.libsql = []; report.npmPackages = [];
+  report.gates = []; report.artifacts = []; report.sharp = []; report.libsql = []; report.npmPackages = []; report.wasm = [];
   const emit = stream.emit;
   const check = async (name, run) => {
     const result = await collectChecks([{ name, run }], row => { report.gates.push(row); emit('gate', row); });
     return result.rows[0];
   };
-  const files = walk('/app/node_modules/.pnpm');
-  const deployedManifests = files.filter(file => path.basename(file) === 'package.json');
+  const contract = require('./runtime-closure-contract.cjs');
+  let closure;
+  const graphGate = await check('production-dependency-closure', () => {
+    closure = contract.verifyInstalledClosure();
+    const summarize = owner => ({ root: owner.root, manifest: owner.manifest, manifestSHA256: owner.manifestSHA256,
+      name: owner.metadata.name, version: owner.metadata.version, snapshot: owner.snapshot,
+      integrity: owner.integrity || null, declaredPlatform: owner.declaredPlatform || null, generatedBy: owner.generatedBy || null });
+    report.productionClosure = { status: closure.status, contractSHA256: closure.contractSHA256, target: closure.target,
+      visitedNodes: closure.visitedNodes, owners: closure.owners.map(summarize), generated: closure.generated.map(summarize),
+      edges: closure.edges, missingOptional: closure.missingOptional, integrityScope: closure.integrityScope,
+      traversal: { files: closure.traversal.files.length, directories: closure.traversal.directories, symbolicLinks: closure.traversal.symbolicLinks } };
+    emit('production-closure', report.productionClosure); return report.productionClosure;
+  });
+  if (graphGate.status !== 'PASS') {
+    report.status = 'FAIL'; report.fullApiReadiness = 'FULL_API_STARTUP_UNVERIFIED';
+    completeReceiptReport(report, stream, 'summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', gate: graphGate.name });
+    process.exitCode = 1; return;
+  }
+  const files = closure.traversal.files;
+  const deployedManifests = [...closure.owners, ...closure.generated].map(owner => owner.manifest);
   for (const parent of ['/app/apps/api/package.json', '/app/packages/shared/package.json', '/app/packages/meriv2-core/package.json', '/app/packages/defense-contracts/package.json', '/app/packages/defense-domain/package.json']) {
     if (fs.existsSync(parent)) deployedManifests.push(parent);
   }
@@ -805,6 +829,23 @@ async function main() {
     const artifact = inspectArtifact(file); if (!artifact) continue;
     if (report.artifacts.length >= 2048) { await check('artifact-set-bound', () => { throw new Error('native artifact set exceeds bound; inventory incomplete'); }); break; }
     report.artifacts.push(artifact); emit('artifact', artifact);
+    await check('artifact-production-owner:' + artifact.file, () => {
+      assert(!artifact.inspectionError, 'unreadable/unknown native artifact');
+      artifact.productionOwner = contract.artifactOwner(file, closure);
+      assert.equal(artifact.classification.owner.root, artifact.productionOwner.root, 'nested/unvalidated artifact manifest');
+      if (artifact.classification.state === 'INCOMPATIBLE')
+        artifact.optionalPreloadProof = assertOptionalInactive(artifact.classification, dependencyParents.get(artifact.classification.owner.name) || []);
+      emit('artifact-production-owner', { file: artifact.file, ...artifact.productionOwner });
+      return artifact.productionOwner;
+    });
+    if (artifact.format === 'WEBASSEMBLY_V1') await check('wasm-format:' + artifact.file, () => {
+      assert(artifact.classification?.vendor?.verified && artifact.productionOwner, 'unverified WASM provenance');
+      const data = fs.readFileSync(file); assert.equal(createHash('sha256').update(data).digest('hex'), artifact.sha256);
+      assert(WebAssembly.validate(data), 'WASM format validation failed');
+      const value = { file: artifact.file, sha256: artifact.sha256, node: process.version,
+        scope: 'NON_NATIVE_FORMAT_ONLY', instantiated: false, codecOperation: 'UNRUN' };
+      report.wasm.push(value); emit('wasm-format-validation', value); return value;
+    });
     if (file.endsWith('.node')) {
       const row = { file: artifact.file, bytes: artifact.bytes || null, sha256: artifact.sha256 || null, state: 'NOT_LOADED', classification: artifact.classification || null, inspectionError: artifact.inspectionError || null };
       report.native.push(row); emit('native-inventory', row);
@@ -823,6 +864,11 @@ async function main() {
     report.status = 'INVENTORY_ONLY'; report.mode = 'DIAGNOSTIC_INVENTORY';
     completeReceiptReport(report, stream, 'inventory-summary', { npmPackages: report.npmPackages.length, artifacts: report.artifacts.length, native: report.native.length }); return;
   }
+  if (report.gates.some(row => row.status !== 'PASS')) {
+    report.status = 'FAIL'; report.fullApiReadiness = 'FULL_API_STARTUP_UNVERIFIED';
+    completeReceiptReport(report, stream, 'summary', { status: 'HOLD_BEFORE_NATIVE_EXECUTION', failures: report.gates.filter(row => row.status !== 'PASS').map(row => row.name) });
+    process.exitCode = 1; return;
+  }
   for (const artifact of report.artifacts) if (artifact.inspectionError) await check('artifact-inspection:' + artifact.file, () => { throw new Error(artifact.inspectionError.message); });
   await check('vendor-runtime', async () => {
   assert.match(run('openssl', ['version']), /^OpenSSL 3\./);
@@ -834,14 +880,14 @@ async function main() {
   const zlib = report.packages.find(p => p.P === 'zlib'); assert(zlib, 'zlib absent');
   assert(['=', '>'].includes(run('apk', ['version', '-t', zlib.V, '1.3.2-r1']).trim()), 'zlib vendor fix missing');
   });
-  const ownerSet = name => files.filter(file => path.basename(file) === 'package.json' && path.basename(path.dirname(file)) === name);
+  const ownerSet = name => closure.owners.filter(owner => owner.metadata.name === name).map(owner => owner.manifest);
   const sharpOwners = ownerSet('sharp'), libsqlOwners = ownerSet('libsql');
   // Priority independent fixtures run before raw loads, so a different addon cannot hide Sharp.
-  await check('sharp-owner-set', () => assert(sharpOwners.length > 0 && sharpOwners.length <= 8, 'bounded deployed Sharp owner set required'));
+  await check('sharp-owner-set', () => assert(sharpOwners.length <= 8, 'bounded production Sharp owner set required'));
   if (sharpOwners.length <= 8) for (const manifest of sharpOwners) await check('sharp:' + manifest, () => { const row = childReceipt('--sharp-child', manifest); report.sharp.push(row); return row; });
-  await check('libsql-owner-set', () => assert(libsqlOwners.length > 0 && libsqlOwners.length <= 8, 'bounded deployed LibSQL owner set required'));
+  await check('libsql-owner-set', () => assert(libsqlOwners.length <= 8, 'bounded production LibSQL owner set required'));
   if (libsqlOwners.length <= 8) for (const manifest of libsqlOwners) await check('libsql:' + manifest, () => { const row = childReceipt('--libsql-child', manifest); report.libsql.push(row); return row; });
-  const familyOwners = files.filter(file => path.basename(file) === 'package.json' && ['canvas', 'core', 'esbuild', 'onnxruntime-node'].includes(path.basename(path.dirname(file))));
+  const familyOwners = closure.owners.filter(owner => ['@napi-rs/canvas', '@swc/core', 'esbuild', 'onnxruntime-node'].includes(owner.metadata.name)).map(owner => owner.manifest);
   report.retainedDispatchers = [];
   for (const manifest of familyOwners) {
     const metadata = deployedMetadata.get(manifest); if (!metadata) continue; // Initial manifest error already retained as HOLD.

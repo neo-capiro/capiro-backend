@@ -157,6 +157,10 @@ RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh \
  && chmod 0755 /usr/local/bin/entrypoint.sh
 
 COPY apps/api/scripts/qualification/alpine-runtime-probe.cjs /qualification/alpine-runtime-probe.cjs
+COPY apps/api/scripts/qualification/runtime-closure-contract.cjs /qualification/runtime-closure-contract.cjs
+COPY docs/runtime-production-closure-20261014/RUNTIME-CLOSURE-CONTRACT.json /qualification/RUNTIME-CLOSURE-CONTRACT.json
+COPY pnpm-lock.yaml /qualification/pnpm-lock.yaml
+COPY package.json /qualification/root-package.json
 COPY apps/api/scripts/qualification/dispatch-fixture-node.sh /qualification/dispatch-fixture/node
 RUN chmod 0755 /qualification/dispatch-fixture/node
 USER capiro

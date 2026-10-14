@@ -1,0 +1,76 @@
+{
+  "status": "SOURCE_ONLY_ARCHIVE_INTEGRITY_AND_COMPLETE_MEMBER_MAGIC_AND_NAME_SCAN",
+  "packages": [
+    {
+      "package": "pdfjs-dist",
+      "version": "5.4.296",
+      "url": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.296.tgz",
+      "archiveBytes": 9727551,
+      "archiveSHA256": "01f7da2d0983256b7d9f8dde9d99e94479f075e30bc571b69cafc92bf419cee2",
+      "archiveIntegrity": "sha512-DlOzet0HO7OEnmUmB6wWGJrrdvbyJKftI1bhMitK7O2N8W2gc757yyYBbINy9IDafXAV9wmKr9t7xsTaNKRG5Q==",
+      "regularFiles": 387,
+      "unpackedBytes": 36624782,
+      "nativeCandidates": [
+        {
+          "path": "package/wasm/openjpeg.wasm",
+          "bytes": 250009,
+          "sha256": "67b8e2b162da472e98cb48d3d32e3e38fff481b9b32ff4818e78bb248af88ab2",
+          "format": "WASM_V1",
+          "headerHex": "0061736d01000000"
+        },
+        {
+          "path": "package/wasm/qcms_bg.wasm",
+          "bytes": 94519,
+          "sha256": "6017eca5939cde1836e88e6d8cd27ae039246f206515ea4487bdfd0e3fb16e26",
+          "format": "WASM_V1",
+          "headerHex": "0061736d01000000"
+        }
+      ],
+      "generatorSourceIdentity": null
+    },
+    {
+      "package": "@prisma/client",
+      "version": "5.22.0",
+      "url": "https://registry.npmjs.org/@prisma/client/-/client-5.22.0.tgz",
+      "archiveBytes": 3080279,
+      "archiveSHA256": "04eb08d2aa67d73f209cb007ef2020fe51bd923ae9ec2ea9dc49177d1c926fe5",
+      "archiveIntegrity": "sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==",
+      "regularFiles": 43,
+      "unpackedBytes": 8382279,
+      "nativeCandidates": [
+        {
+          "path": "package/runtime/query_engine_bg.mysql.wasm",
+          "bytes": 2091810,
+          "sha256": "10c3f1282a79ee74dc15e3746fe717a9e7a91ed642d7f694b32097fd4107d7f3",
+          "format": "WASM_V1",
+          "headerHex": "0061736d01000000"
+        },
+        {
+          "path": "package/runtime/query_engine_bg.postgresql.wasm",
+          "bytes": 2130325,
+          "sha256": "b8c2cab13e50491cec4ca2d16a20cd549f09449736ab2361ad53c0254a08bf91",
+          "format": "WASM_V1",
+          "headerHex": "0061736d01000000"
+        },
+        {
+          "path": "package/runtime/query_engine_bg.sqlite.wasm",
+          "bytes": 1986352,
+          "sha256": "40800054ecc6145eb5228015c8c12e8781203e24702520657f0ccc3b90a05f25",
+          "format": "WASM_V1",
+          "headerHex": "0061736d01000000"
+        }
+      ],
+      "generatorSourceIdentity": {
+        "path": "package/generator-build/index.js",
+        "bytes": 349605,
+        "sha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee"
+      }
+    }
+  ],
+  "rawArchivesRetained": "Root task core-production-vendor-format-review; not included in source context",
+  "nativeCodeExecuted": false,
+  "wasmInstantiated": false,
+  "codecOperations": "UNRUN",
+  "targetNode22Validation": "UNRUN",
+  "generatedPrismaWasm": "generator-build/index.js lines10040-10047 copy query_engine_bg.wasm only with driverAdapters preview feature; frozen source schema has only postgresqlExtensions, so generated extra WASM remains unexpected/HOLD"
+}
