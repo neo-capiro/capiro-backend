@@ -91,7 +91,7 @@ export function parsePortfolioLayoutInput(body: unknown): PortfolioLayoutInput {
 
 /** This accepts native catalog UUIDs, not a caller-provided authority list. */
 export function normalizePortfolioLayoutCatalog(ids: unknown): string[] {
-  if (Array.isArray(ids) && !nodeTypes.isProxy(ids) && ids.length > PORTFOLIO_LAYOUT_MAX_CLIENTS)
+  if (!nodeTypes.isProxy(ids) && Array.isArray(ids) && ids.length > PORTFOLIO_LAYOUT_MAX_CLIENTS)
     unavailable('PORTFOLIO_LAYOUT_CATALOG_CAPACITY');
   return uuidArray(ids, () => unavailable('PORTFOLIO_LAYOUT_CATALOG_INVALID')).sort();
 }

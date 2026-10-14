@@ -147,6 +147,15 @@ describe('Portfolio layout durable row and six-key receipt', () => {
       .toThrow(ServiceUnavailableException);
     expect(normalizePortfolioLayoutCatalog(Array.from({ length: 2000 }, (_, index) => id(index))).length).toBe(2000);
   });
+
+  it('refuses revoked and ordinary catalog proxies before traps or native Array inspection', () => {
+    let traps = 0;
+    const proxy = new Proxy([A], { get() { traps += 1; throw new Error('trap'); } });
+    const revoked = Proxy.revocable([A], {}); revoked.revoke();
+    for (const catalog of [proxy, revoked.proxy])
+      expect(() => normalizePortfolioLayoutCatalog(catalog)).toThrow(ServiceUnavailableException);
+    expect(traps).toBe(0);
+  });
 });
 
 describe('Portfolio layout reconciliation and write plans', () => {
