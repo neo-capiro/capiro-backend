@@ -1,5 +1,9 @@
 # Core runtime OS-package remediation
 
+The completed official repository/runtime comparison and exact constraint
+tradeoff are in [SUPPORTED-RUNTIME-CANDIDATE-DECISION.md](SUPPORTED-RUNTIME-CANDIDATE-DECISION.md).
+No Wolfi or Alpine runtime switch is selected under the existing requirements.
+
 This is a partial remediation, not image admission. The zero HIGH/CRITICAL gate
 is unchanged. No new image build or deployment is authorized by this document.
 
