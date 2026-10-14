@@ -13,9 +13,29 @@
       "sha256": "74861c565b1f4dee250d66d69f90f2b741cfd8701007d18016c22b70cf15fa54"
     },
     {
+      "path": "FINITE-RETIREMENT-SOURCE-PINS.json",
+      "bytes": 21996,
+      "sha256": "dede357daf0309aac0ef45f4c9ba34cf7c5a40e716f9ddb4309ef70010f92905"
+    },
+    {
+      "path": "FINITE-RETIREMENT.md",
+      "bytes": 2487,
+      "sha256": "b9574d7fd96167bfcfa64dbef5a377ef679f22423c3349ca2f75b8a4ef443cd2"
+    },
+    {
       "path": "HANDOFF.md",
       "bytes": 5586,
       "sha256": "b1d2083e1ac663acc3467937aa67796df2ed9c77d33f7edc536b0dccedb8d8c7"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "bytes": 2709,
+      "sha256": "1c10aae8f807bad46ce3a8e7ede3404ec6c64acd588fdc98cc79b735db3c13cf"
+    },
+    {
+      "path": "PROSPECT-REVIEW.json",
+      "bytes": 3051,
+      "sha256": "a5eed202d0f86ec4e09171b062a816987ef0f124c467554e22249275b550d8b9"
     },
     {
       "path": "SOURCE-RECEIPT.json",

@@ -1,0 +1,77 @@
+{
+  "result": "source_review_accept",
+  "base": "afff08b0342985e3a8050a5fb4cd843741a720a5",
+  "sourceHead": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+  "sourceTree": "baf1fc9349a0823add4873bc1840b745bf62e920",
+  "functionTextExactSha256": "cdca7a13e3a86c5eb86107fbb51959e5ce3a0c48914ab54bfa6b1fdb2627d6e6",
+  "retainedDirectiveAndTurnReceiptExact": true,
+  "controllerOnlyOneImportSubstitution": true,
+  "unchanged": [
+    {
+      "path": "apps/api/src/business-development/bizdev-meri-scope.service.ts",
+      "blob": "2cb7e71ff5929a6a78a97d60d27668409633572d"
+    },
+    {
+      "path": "apps/api/src/auth/application-authority.ts",
+      "blob": "4803d6199d83b1dc8b2ca0674fa52f097c2a04c7"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "blob": "4fdd892d3cd4cf4ad7cab0912d6eff19c2375c60"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "blob": "60fbbc8a1de21962a95af60842d25087f58a612d"
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "blob": "80963fffa202a11aac8647cc05dd56eb203c8f34"
+    }
+  ],
+  "cases": {
+    "before": 146,
+    "after": 150,
+    "allOriginalIdentitiesMultiplicityRetained": true,
+    "onlyNormalizedTitles": [
+      {
+        "suite": "application-authority.spec.ts",
+        "raw": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=1791953404138",
+        "normalized": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=<FUTURE_MS>"
+      },
+      {
+        "suite": "application-authority.spec.ts",
+        "raw": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=1791953806277",
+        "normalized": "actual Clerk owner bounded read-only session assertion refuses current session createdAt=<FUTURE_MS>"
+      }
+    ],
+    "newCaseCount": 4
+  },
+  "exactPassingReceipts": [
+    {
+      "file": "prospect-final-source-receipt.json",
+      "sha256": "c00ced560ef33b761f1a507c7b6100edcdaf1861986088f284a34e935fd0989c",
+      "exitCode": 0,
+      "exactCommittedSource": true
+    },
+    {
+      "file": "prospect-final-narrow-emit-receipt.json",
+      "sha256": "f2eb0fe8e1b3529d624b43f84865dd40efe0a0438a665521b87325f948723614",
+      "exitCode": 0,
+      "exactCommittedSource": true
+    },
+    {
+      "file": "prospect-final-source-comparison-receipt.json",
+      "sha256": "f3e74be49a111fedbd875e5c89dc8d748122f0cdde8abe0692c09ae3c24a64f8",
+      "exitCode": 0,
+      "exactCommittedSource": true
+    },
+    {
+      "file": "prospect-final-source-hygiene-receipt.json",
+      "sha256": "449ff48b944ae6220dd53295f5fdeeb5ad80fb7c95867d1e30e44bf4a58b7dfb",
+      "exitCode": 0,
+      "exactCommittedSource": true
+    }
+  ],
+  "scope": "Read-only review of actual source and supplied finite check evidence; no reviewer test rerun, native/live/full Core/image acceptance or runtime retirement",
+  "remaining": "Evidence follow-up/index/seal publication head is still being finalized; source review binds the freeze above."
+}
