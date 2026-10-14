@@ -1,5 +1,10 @@
 import { MeetingsContextPlaneRuntime } from './meetings-context-plane.runtime.js';
 import { EngagementAiService as EngagementAiProvider } from '../engagement/engagement-ai.service.js';
+import { createGovernedMeetingAiService } from '../engagement/governed-meeting-ai.factory.js';
+import { createGovernedEngagementService } from '../engagement/governed-engagement.factory.js';
+import { guardEngagementAiService } from '../engagement/runtime/engagement-ai-runtime.boundary.js';
+import { EngagementRuntimePolicyService } from '../engagement/runtime/engagement-runtime-policy.service.js';
+import { currentMeetingGovernedContext, type MeetingGovernedContext } from '../engagement/meeting-context-runtime.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -368,5 +373,93 @@ describe('MeetingsContextPlaneRuntime Phase 24', () => {
     expect(body.input).toContain('stopReason=source_partial');
     expect(body.input).toContain('recordsReturned=0');
     h.runtime.restoreForTest();
+  });
+});
+
+function canonicalBundle(mode: 'prep' | 'debrief', clientId: string | null = CLIENT, meetingId = MEETING): MeetingGovernedContext {
+  return { kind: 'governed_packet', mode, meetingId, clientId, packetId: 'first-packet', traceHash: 'first-trace',
+    modelContextBlock: `FIRST-CANONICAL-PACKET:${mode}:${meetingId}:${clientId ?? 'none'}`,
+    coverage: { complete: false, requestedDomains: [], searchedDomains: [], missingDomains: [], partialDomains: [],
+      recordsReturned: 0, paginationComplete: true, truncated: false, stopReason: 'synthetic_source_only' } };
+}
+
+function composition(options: { inferred?: boolean; policyDisabled?: boolean; clientId?: string | null;
+  canonical?: { resolve: (actor: unknown, input: { meetingId: string; mode: 'prep' | 'debrief' }) => Promise<MeetingGovernedContext> } } = {}) {
+  const clientId = options.clientId === undefined ? CLIENT : options.clientId;
+  const row = { ...meeting, clientId: options.inferred ? null : clientId };
+  const rawAi = new EngagementAiService();
+  const policy = new EngagementRuntimePolicyService({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api',
+    externalActions: options.policyDisabled ? 'disabled' : 'enabled', callbacksEnabled: false, recallWebhookEnabled: false });
+  const guardedAi = guardEngagementAiService(rawAi as never, policy);
+  const publicAi = createGovernedMeetingAiService(guardedAi);
+  const providerInput = (text?: string) => ({ meeting: row, client: clientId ? { id: clientId } : null, attendees: [],
+    congressionalDirectoryMatches: [], recentMeetings: [], recentThreads: [], tasks: [],
+    transcript: text ?? 'Current transcript evidence', notes: ['Current visible note'], clientContext: 'OLD-PRIVATE-HISTORY' });
+  const rawCaller = {
+    // Both original factory bindings are required even though this fixture never invokes Outreach.
+    async generateOutreachDraft() { throw new Error('unused_outreach_fixture'); },
+    async generateBatchEmails() { throw new Error('unused_batch_fixture'); },
+    async generateMeetingPrep(actor: unknown, _meetingId: string) { return publicAi.generateMeetingPrep(providerInput() as never, actor as never); },
+    async generateMeetingDebriefDraft(actor: unknown, _meetingId: string, input: { sourceText: string }) {
+      return publicAi.generateMeetingDebrief(providerInput(input.sourceText) as never, actor as never);
+    },
+  };
+  const canonical = options.canonical ?? { resolve: jest.fn(async (_actor: unknown, input: { meetingId: string; mode: 'prep' | 'debrief' }) => canonicalBundle(input.mode, clientId, input.meetingId)) };
+  const publicCaller = createGovernedEngagementService(rawCaller as never, { guard: (fn: () => unknown) => fn() } as never,
+    canonical as never, policy);
+  const providers = new Map<unknown, { instance: unknown }>([
+    [EngagementAiProvider, { instance: publicAi }], ['guarded-ai', { instance: guardedAi }],
+    ['raw-ai', { instance: rawAi }], ['raw-caller', { instance: rawCaller }], ['public-caller', { instance: publicCaller }],
+  ]);
+  const moduleRef = { get: (token: unknown) => { expect(token).toBe(EngagementAiProvider); return publicAi; },
+    container: { getModules: () => new Map([['actual-factory-composition', { providers, controllers: new Map() }]]) } };
+  const tx = { client: { findFirst: jest.fn(async () => ({ id: CLIENT, name: 'Acme' })), findMany: jest.fn(async () => [{ id: CLIENT }]) },
+    integrationConnection: { findMany: jest.fn(async () => []) } };
+  const prisma = { withTenantUser: jest.fn(async (tenant: string, actor: string, fn: (value: typeof tx) => unknown) => {
+    expect([tenant, actor]).toEqual([TENANT, USER]); return fn(tx);
+  }) };
+  const gateway = { requestContext: jest.fn(async (input: { contextRequest: { clientId?: string } }) => {
+    const result = gatewayResult();
+    (result.packet as any).clientId = input.contextRequest.clientId ?? null;
+    (result.packet as any).rendered = [{ body: 'SECOND-COMPATIBILITY-PACKET' }];
+    return result;
+  }) };
+  const runtime = new MeetingsContextPlaneRuntime(gateway as never, prisma as never, moduleRef as never);
+  return { runtime, rawAi, guardedAi, publicAi, rawCaller, publicCaller, canonical, gateway, row, providerInput };
+}
+
+describe('Meetings runtime composed with actual governed factories and policy', () => {
+  const originalFetch = globalThis.fetch;
+  let fetchMock: jest.Mock;
+  beforeEach(() => { fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }); globalThis.fetch = fetchMock as unknown as typeof fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; jest.restoreAllMocks(); });
+
+  test.each(['prep', 'debrief'] as const)('%s keeps the single canonical stored-client packet at the provider seam', async mode => {
+    const h = composition(); const before = Object.getOwnPropertyDescriptors(h.rawAi); h.runtime.install();
+    try {
+      if (mode === 'prep') await h.publicCaller.generateMeetingPrep(ctx, MEETING);
+      else await h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current transcript', method: 'manual' });
+      expect(h.canonical.resolve).toHaveBeenCalledTimes(1);
+      expect(h.gateway.requestContext).not.toHaveBeenCalled(); expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.stringify(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)));
+      expect(body).toContain(`FIRST-CANONICAL-PACKET:${mode}:${MEETING}:${CLIENT}`);
+      expect(body).not.toContain('SECOND-COMPATIBILITY-PACKET');
+      expect(body.match(/FIRST-CANONICAL-PACKET/g)).toHaveLength(1);
+      expect(currentMeetingGovernedContext()).toBeNull();
+    } finally { h.runtime.restoreForTest(); expect(globalThis.fetch).toBe(fetchMock); expect(Object.getOwnPropertyDescriptors(h.rawAi)).toEqual(before); }
+  });
+
+  test.each(['prep', 'debrief'] as const)('%s preserves canonical inferred client when the meeting row has no clientId', async mode => {
+    const h = composition({ inferred: true }); h.runtime.install();
+    try {
+      if (mode === 'prep') await h.publicCaller.generateMeetingPrep(ctx, MEETING);
+      else await h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current notes', method: 'manual' });
+      expect(h.canonical.resolve).toHaveBeenCalledTimes(1); expect(h.gateway.requestContext).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.stringify(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)));
+      expect(body).toContain(`FIRST-CANONICAL-PACKET:${mode}:${MEETING}:${CLIENT}`);
+      expect(body).not.toContain('SECOND-COMPATIBILITY-PACKET');
+      expect(currentMeetingGovernedContext()).toBeNull();
+    } finally { h.runtime.restoreForTest(); }
   });
 });
