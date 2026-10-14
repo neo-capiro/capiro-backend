@@ -1,0 +1,196 @@
+{
+  "events": [
+    {
+      "client": "reader",
+      "query": "SELECT current_database() AS database, inet_server_addr()::text AS address, inet_server_port() AS port, current_setting('server_version') AS version"
+    },
+    {
+      "client": "reader",
+      "query": "BEGIN"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION READ ONLY"
+    },
+    {
+      "client": "reader",
+      "query": "\n        SELECT (\n          NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole AND NOT r.rolcreatedb\n          AND current_setting('default_transaction_read_only') = 'on'\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%'\n              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')\n                OR has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))\n          )\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind = 'S'\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_sequence_privilege(current_user, c.oid, 'USAGE,UPDATE'))\n          )\n        ) AS safe FROM pg_roles r WHERE r.rolname = current_user\n      "
+    },
+    {
+      "client": "reader",
+      "query": "ROLLBACK"
+    },
+    {
+      "client": "reader",
+      "query": "SET default_transaction_read_only = on"
+    },
+    {
+      "client": "owner",
+      "query": "SET default_transaction_read_only = on"
+    },
+    {
+      "client": "owner",
+      "query": "BEGIN"
+    },
+    {
+      "client": "owner",
+      "query": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    },
+    {
+      "client": "owner",
+      "query": "SET TRANSACTION READ ONLY"
+    },
+    {
+      "client": "owner",
+      "query": "\n        SELECT (\n          NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole AND NOT r.rolcreatedb\n          AND current_setting('default_transaction_read_only') = 'on'\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%'\n              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')\n                OR has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))\n          )\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind = 'S'\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_sequence_privilege(current_user, c.oid, 'USAGE,UPDATE'))\n          )\n        ) AS safe FROM pg_roles r WHERE r.rolname = current_user\n      "
+    },
+    {
+      "client": "owner",
+      "query": "ROLLBACK"
+    },
+    {
+      "client": "reader",
+      "query": "BEGIN"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION READ ONLY"
+    },
+    {
+      "client": "reader",
+      "query": "\n        SELECT (\n          NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole AND NOT r.rolcreatedb\n          AND current_setting('default_transaction_read_only') = 'on'\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%'\n              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')\n                OR has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))\n          )\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind = 'S'\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_sequence_privilege(current_user, c.oid, 'USAGE,UPDATE'))\n          )\n        ) AS safe FROM pg_roles r WHERE r.rolname = current_user\n      "
+    },
+    {
+      "client": "reader",
+      "query": "SELECT set_config('app.bypass_rls', 'off', true)"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT set_config('app.current_tenant', $1, true)"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT current_user AS role, current_setting('transaction_read_only') AS transaction_read_only, current_setting('default_transaction_read_only') AS default_read_only, current_setting('app.current_tenant') AS tenant, current_setting('app.bypass_rls') AS bypass, pg_backend_pid() AS pid"
+    },
+    {
+      "client": "reader",
+      "query": "COMMIT"
+    },
+    {
+      "client": "reader",
+      "query": "BEGIN"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION READ ONLY"
+    },
+    {
+      "client": "reader",
+      "query": "\n        SELECT (\n          NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole AND NOT r.rolcreatedb\n          AND current_setting('default_transaction_read_only') = 'on'\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%'\n              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')\n                OR has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))\n          )\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind = 'S'\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_sequence_privilege(current_user, c.oid, 'USAGE,UPDATE'))\n          )\n        ) AS safe FROM pg_roles r WHERE r.rolname = current_user\n      "
+    },
+    {
+      "client": "reader",
+      "query": "SELECT set_config('app.bypass_rls', 'off', true)"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT set_config('app.current_tenant', $1, true)"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT pg_backend_pid() AS pid, txid_current_if_assigned() AS xid"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT pg_backend_pid() AS pid, txid_current_if_assigned() AS xid"
+    },
+    {
+      "client": "reader",
+      "query": "COMMIT"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT nullif(current_setting('app.current_tenant',true),'') AS tenant, nullif(current_setting('app.bypass_rls',true),'') AS bypass"
+    },
+    {
+      "client": "reader",
+      "query": "BEGIN"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    },
+    {
+      "client": "reader",
+      "query": "SET TRANSACTION READ ONLY"
+    },
+    {
+      "client": "reader",
+      "query": "\n        SELECT (\n          NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolcreaterole AND NOT r.rolcreatedb\n          AND current_setting('default_transaction_read_only') = 'on'\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%'\n              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_table_privilege(current_user, c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')\n                OR has_any_column_privilege(current_user, c.oid, 'INSERT,UPDATE,REFERENCES'))\n          )\n          AND NOT EXISTS (\n            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')\n              AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind = 'S'\n              AND (pg_has_role(current_user, c.relowner, 'MEMBER')\n                OR has_sequence_privilege(current_user, c.oid, 'USAGE,UPDATE'))\n          )\n        ) AS safe FROM pg_roles r WHERE r.rolname = current_user\n      "
+    },
+    {
+      "client": "reader",
+      "query": "SELECT set_config('app.bypass_rls', 'off', true)"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT set_config('app.current_tenant', $1, true)"
+    },
+    {
+      "client": "reader",
+      "query": "ROLLBACK"
+    },
+    {
+      "client": "reader",
+      "query": "SELECT nullif(current_setting('app.current_tenant',true),'') AS tenant"
+    },
+    {
+      "client": "reader",
+      "query": "SET default_transaction_read_only = off"
+    },
+    {
+      "client": "owner",
+      "query": "SET default_transaction_read_only = off"
+    }
+  ],
+  "transactions": [
+    {
+      "client": "reader",
+      "firstUserStatement": "SET TRANSACTION READ ONLY",
+      "completion": "ROLLBACK"
+    },
+    {
+      "client": "owner",
+      "firstUserStatement": "SET TRANSACTION READ ONLY",
+      "completion": "ROLLBACK"
+    },
+    {
+      "client": "reader",
+      "firstUserStatement": "SET TRANSACTION READ ONLY",
+      "completion": "COMMIT"
+    },
+    {
+      "client": "reader",
+      "firstUserStatement": "SET TRANSACTION READ ONLY",
+      "completion": "COMMIT"
+    },
+    {
+      "client": "reader",
+      "firstUserStatement": "SET TRANSACTION READ ONLY",
+      "completion": "ROLLBACK"
+    }
+  ],
+  "parameters_not_recorded": true
+}

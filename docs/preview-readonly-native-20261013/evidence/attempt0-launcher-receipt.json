@@ -1,0 +1,7 @@
+{
+  "wrapper_exit_code": 1,
+  "cause": "final optional cat of absent failure file returned 1",
+  "native_process_stdout": "PASS, six controls",
+  "native_process_strace_exit": "0",
+  "retry_reason": "capture explicit process exit and actual native statement events; preserve initial outputs and trace"
+}

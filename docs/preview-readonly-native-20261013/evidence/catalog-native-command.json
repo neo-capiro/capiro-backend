@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "strace",
+    "-f",
+    "-e",
+    "trace=connect",
+    "-o",
+    "evidence/catalog-native-connect.strace",
+    "node",
+    "evidence/catalog-native-probe.cjs"
+  ],
+  "exit_code": 0,
+  "new_roles_grants_or_db_objects": false
+}

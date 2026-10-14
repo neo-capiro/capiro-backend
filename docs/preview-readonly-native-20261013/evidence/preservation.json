@@ -1,0 +1,8 @@
+{
+  "unrelated_database_role_and_membership_catalogs_equal": true,
+  "container_configuration_equal": true,
+  "planned_owned_database_never_created": true,
+  "consumer_pools_disconnected": true,
+  "no_object_or_role_cleanup_needed": true,
+  "source_head": "111f269d749cae0249c2141779bd6d7deb93f45c"
+}

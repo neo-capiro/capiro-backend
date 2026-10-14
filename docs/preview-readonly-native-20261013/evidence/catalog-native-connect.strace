@@ -1,0 +1,24 @@
+1027538 +++ exited with 0 +++
+1027531 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1027538, si_uid=1000, si_status=0, si_utime=0, si_stime=2 /* 0.02 s */} ---
+1027568 +++ exited with 0 +++
+1027567 connect(23, {sa_family=AF_INET, sin_port=htons(5432), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+1027563 connect(24, {sa_family=AF_INET, sin_port=htons(5432), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+1027570 +++ exited with 0 +++
+1027567 +++ exited with 0 +++
+1027566 +++ exited with 0 +++
+1027565 +++ exited with 0 +++
+1027564 +++ exited with 0 +++
+1027563 +++ exited with 0 +++
+1027536 +++ exited with 0 +++
+1027533 +++ exited with 0 +++
+1027535 +++ exited with 0 +++
+1027534 +++ exited with 0 +++
+1027532 +++ exited with 0 +++
+1027562 +++ exited with 0 +++
+1027561 +++ exited with 0 +++
+1027560 +++ exited with 0 +++
+1027559 +++ exited with 0 +++
+1027571 +++ exited with 0 +++
+1027537 +++ exited with 0 +++
+1027569 +++ exited with 0 +++
+1027531 +++ exited with 0 +++

@@ -1,0 +1,159 @@
+{
+  "finite_exclusions": [
+    "docs/preview-readonly-native-20261013/evidence/SHA256-INDEX.json",
+    "docs/preview-readonly-native-20261013/evidence/privacy-review.json"
+  ],
+  "reason": "index cannot hash itself and privacy report is derived",
+  "rows": [
+    {
+      "path": "docs/preview-readonly-native-20261013/HANDOFF.md",
+      "bytes": 6458,
+      "sha256": "3cc972154e0f3a8d469d2aa734915f645948c80b3b1c1dacda5b5e156748464e"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/INDEPENDENT-REVIEW.md",
+      "bytes": 2625,
+      "sha256": "273fc47c2defb3c89cbc148a240a87cda6a17e8eaa0d125872cc8a2d0d497bde"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/RUNTIME-PERMISSIONS-CORRECTION.md",
+      "bytes": 2053,
+      "sha256": "1399decd9159659bdabb9c8c4228b60ce918c8e9cd177f6a1ffffbea46ecacd7"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/OWNED-TARGET-PLAN.json",
+      "bytes": 970,
+      "sha256": "2580a3af430a090a8d26d941ea3749ccfd7230121b66391f282662a713ee6ca0"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/attempt0-catalog-native-connect.strace",
+      "bytes": 1062,
+      "sha256": "1d4e7597f3a146bda734a6de9afc3d9293630987c6709056a1db77b885fbb20c"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/attempt0-catalog-native-results.json",
+      "bytes": 1443,
+      "sha256": "b3c4e9d72ccea53d85770648d52dac4d5a8b049f198b2374bf2e6fcef901de21"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/attempt0-catalog-native.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/attempt0-catalog-native.stdout",
+      "bytes": 83,
+      "sha256": "2d2386b2d18a5c4b638236e25c176b4f91f4e41dcbc2edb6d383746c0e039a44"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/attempt0-launcher-receipt.json",
+      "bytes": 304,
+      "sha256": "b424fa022e741a4bf9deb3fd851df3738f32578fdabd2addb8899f810f0ef6e6"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-after.json",
+      "bytes": 6789,
+      "sha256": "591e83a937a17e2b0caf06ede9c5f9664157aa9f8a54a70ae25ba89466864ce0"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-after.raw.txt",
+      "bytes": 4700,
+      "sha256": "406a60fcaa652af34dceeae5266c4b7ab5038f5891df5c7b1a2dd5b5e2b71a14"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-before.json",
+      "bytes": 6789,
+      "sha256": "591e83a937a17e2b0caf06ede9c5f9664157aa9f8a54a70ae25ba89466864ce0"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-before.raw.txt",
+      "bytes": 4700,
+      "sha256": "406a60fcaa652af34dceeae5266c4b7ab5038f5891df5c7b1a2dd5b5e2b71a14"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native-command.json",
+      "bytes": 244,
+      "sha256": "51ef661ee2befde012352a0961d0bec446c63cc1ccaeb90beb569a2371afb9e0"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native-connect.strace",
+      "bytes": 1062,
+      "sha256": "5af30268daa5ff81ea487a165d731a77a493d986dc68a92803a35d8d388f3f68"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native-probe.cjs",
+      "bytes": 8812,
+      "sha256": "cf48df7dad6bc26a53d49e0732b86799aef10e1024756148c5aef23aeaabd12f"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native-query-events.json",
+      "bytes": 10949,
+      "sha256": "85bd21332135f8912395c58177364d4fe75ecfee2815434b4e533b2feeceaf53"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native-results.json",
+      "bytes": 1443,
+      "sha256": "b3c4e9d72ccea53d85770648d52dac4d5a8b049f198b2374bf2e6fcef901de21"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/catalog-native.stdout",
+      "bytes": 83,
+      "sha256": "2d2386b2d18a5c4b638236e25c176b4f91f4e41dcbc2edb6d383746c0e039a44"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/container-capacity.txt",
+      "bytes": 144,
+      "sha256": "30ebc5eb64175575141caf98405ce7696ce0aafe429f1119a4b64ee361292856"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/fixture-projection.json",
+      "bytes": 4701,
+      "sha256": "28766635c2b58db0a6cd80ec8761507e2ca78360aba872cd3cb49d5caf417061"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/fixture-schema.sql",
+      "bytes": 6110,
+      "sha256": "1c8183e27fba0a48672e00d767d1413fa9716d81b744423f425089f0167930a9"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/fixture-seed.sql",
+      "bytes": 3135,
+      "sha256": "4945f5668677a2a689abf095f6ba83409cd42297ff0f6329043e198ee83158f0"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/owned-runtime-retirement.json",
+      "bytes": 179,
+      "sha256": "43667eb299d452807ad2d0af1703340139883ab7119e4689273cd550d82f7d85"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/prepare-fixture.cjs",
+      "bytes": 7396,
+      "sha256": "a9fb646d6985e6ab0a845e655713009df4b3ff65cb4ee9bb0f9a4d4f8ea79c5d"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/preservation.json",
+      "bytes": 301,
+      "sha256": "73ec279027a51a5d12a534ec51b5de89dda094507b368e10d9f926c34ae06f74"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/shared-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/source-and-network-preservation.json",
+      "bytes": 727,
+      "sha256": "965f796e05fb99902e0c3f30a8421733c99bf4ae6e921d43cbdde996537493cd"
+    },
+    {
+      "path": "docs/preview-readonly-native-20261013/evidence/source-hygiene.json",
+      "bytes": 1386,
+      "sha256": "93bb65ee4a5e38888794a73a022634cc9f7c411ccd5327cac4244bfa39b93c78"
+    }
+  ]
+}
