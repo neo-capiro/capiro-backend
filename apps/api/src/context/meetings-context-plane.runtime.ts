@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentMeetingPrepExecution } from '../engagement/meeting-prep-job-runtime.js';
 import { requireMeetingGovernedContext } from '../engagement/meeting-context-runtime.js';
+import { EngagementAiService } from '../engagement/engagement-ai.service.js';
 import type { ModuleRef } from '@nestjs/core';
 import type { TenantContext } from '@capiro/shared';
 import type { ContextRequest } from '@capiro/meriv2-core';
@@ -116,7 +117,13 @@ export class MeetingsContextPlaneRuntime {
   install(): { callersPatched: number; aiMethodsPatched: number } {
     if (this.installed) return { callersPatched: 0, aiMethodsPatched: 0 };
     const instances = providerInstances(this.moduleRef);
-    const ai = instances.find((instance) => instance?.constructor?.name === 'EngagementAiService');
+    const modules = (this.moduleRef as unknown as { container?: any }).container?.getModules?.();
+    const hasAiOwner = modules?.values && [...modules.values()].some(
+      (module) => module.providers?.has?.(EngagementAiService),
+    );
+    const ai = hasAiOwner
+      ? this.moduleRef.get(EngagementAiService, { strict: false }) as unknown as ProviderInstance
+      : null;
     if (!ai) {
       // ContextModule is shared by processes that may not load EngagementModule.
       return { callersPatched: 0, aiMethodsPatched: 0 };
@@ -151,7 +158,7 @@ export class MeetingsContextPlaneRuntime {
   private patchDirectCallers(instances: ProviderInstance[], ai: ProviderInstance): number {
     let patched = 0;
     for (const instance of instances) {
-      if (!instance || instance === ai) continue;
+      if (!instance || instance === ai || Object.getPrototypeOf(instance) === Object.getPrototypeOf(ai)) continue;
       // The durable worker reconstructs and reauthorizes an actor before calling
       // the canonical governed Engagement provider. Its job row is not a ctx.
       if (instance.constructor?.name === 'MeetingPrepJobService') continue;
