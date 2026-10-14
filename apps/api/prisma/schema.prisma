@@ -238,6 +238,7 @@ model Tenant {
   meriSavedPrompts                   MeriSavedPrompt[]
   meriWorkspaces                     MeriWorkspace[]
   meriVnextPreferences               MeriVnextPreference[]
+  userPortfolioLayouts               UserPortfolioLayout[]
   clioMessages                       ClioMessage[]
   clioArtifacts                      ClioArtifact[]
   clioNotes                          ClioNote[]
@@ -622,6 +623,7 @@ model User {
   meriSavedPrompts                 MeriSavedPrompt[]
   meriWorkspaces                   MeriWorkspace[]
   meriVnextPreferences             MeriVnextPreference[]
+  userPortfolioLayouts             UserPortfolioLayout[]
   clioMessages                     ClioMessage[]                  @relation("ClioMessageUser")
   clioArtifacts                    ClioArtifact[]                 @relation("ClioArtifactUser")
   clioNotes                        ClioNote[]                     @relation("ClioNoteUser")
@@ -650,6 +652,23 @@ model User {
 
   @@map("users")
   researchPortfolioClientFilingJobs ResearchPortfolioClientFilingJob[]
+}
+
+/// User-owned Portfolio presentation only; catalog IDs confer no resource authority.
+/// Absence is virtual version zero. SQL owns bounded/unique UUID-array checks.
+model UserPortfolioLayout {
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  clientOrder String[] @map("client_order") @db.Uuid
+  version     Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId], map: "user_portfolio_layouts_pkey")
+  @@map("user_portfolio_layouts")
 }
 
 model TenantMembership {

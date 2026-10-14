@@ -1,0 +1,126 @@
+{
+  "sourceHead": "078c55f805de8599cc413917ef90b7e20f040942",
+  "sourceTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "result": "pass",
+  "derivation": "Parse-only observation correction: original wrapper compared uppercase GET/PUT to existing lowercase Object.keys(route.methods). No runtime/check rerun or original report mutation.",
+  "inputs": [
+    {
+      "file": "combined-core-stdout.lossless.json",
+      "bytes": 2090641,
+      "sha256": "71757207f0d96ae93366c27481800e7affd8889504fc6f2c321de6b747401720",
+      "originalBytes": 1567874,
+      "originalSha256": "5e07a3b34260ce36c2c1c95f5e07404d158d3ddd7d67ee956bdbd8f925993903"
+    },
+    {
+      "file": "combined-core-stderr.lossless.json",
+      "bytes": 1293,
+      "sha256": "ba9f956356599688345dcf8c49f5ac9ad5608105178beda358b003cb77efd5ff",
+      "originalBytes": 865,
+      "originalSha256": "ee93907517c9867a93cd02b91c58dac4035c7ad8b8fa53b0d3555e4b17240413"
+    },
+    {
+      "file": "combined-core-receipt.json",
+      "bytes": 2202,
+      "sha256": "a24d669c600d0879104a43d5dadfc83f157afdba2510126c5168657dea636623"
+    },
+    {
+      "file": "run-combined-core.cjs",
+      "bytes": 4026,
+      "sha256": "acd1dd553a753f69ca30474a213dbef3c3e7c553915456059589e5da76410b6b"
+    },
+    {
+      "file": "derive-core-admission.cjs",
+      "bytes": 6128,
+      "sha256": "bc9e4576367cf1dbda0f026a615bcf8d07fa596f10ddfa39c0ca5a0cc1db5b3f"
+    }
+  ],
+  "harness": {
+    "path": "docs/backend-core-source-startup-20261014/check-core-startup.cjs",
+    "blob": "826d2a669e5863c3e7cc12f8e51f3d2df2d50f79",
+    "sha256": "f88bf444101f64d83633ec4c2465b47ef10740544ba0758bf5673786b3814a34"
+  },
+  "loadedBindings": [
+    {
+      "path": "apps/api/src/users/portfolio-layout.controller.ts",
+      "blob": "0290478a7e6fca55ea9b9109601a6c1e6289deeb",
+      "sourceSha256": "7af96c53dbd33ead959c07baf6b9bb1a677dbcf014ab73144c3e7a2b9c37e000",
+      "loadedExact": true
+    },
+    {
+      "path": "apps/api/src/users/users.module.ts",
+      "blob": "fd13f1c65d16a97b75f2b55ce6b9686ff65cb264",
+      "sourceSha256": "79370567a742460677178f1db358797e1d4f9a958d3e7deaab0582a81deef735",
+      "loadedExact": true
+    }
+  ],
+  "sourceSchemaSha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+  "cachedPrismaSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "schemaQualification": "The authored schema is intentionally newer than the unchanged cached Prisma namespace. No generation, migration, database or RLS execution. Layout uses raw SQL; graph initialization proves source/DI registration only.",
+  "checks": [
+    {
+      "name": "exact combined source head/tree and original exit0",
+      "passed": true
+    },
+    {
+      "name": "original wrapper HELD retained with its two case-mismatch refusals",
+      "passed": true
+    },
+    {
+      "name": "raw Core report pass with all28 original checks",
+      "passed": true
+    },
+    {
+      "name": "original harness blob/hash exact at combined source",
+      "passed": true
+    },
+    {
+      "name": "registered get /api/me/portfolio-layout from actual lowercase method keys",
+      "passed": true
+    },
+    {
+      "name": "registered put /api/me/portfolio-layout from actual lowercase method keys",
+      "passed": true
+    },
+    {
+      "name": "real source loaded apps/api/src/users/portfolio-layout.controller.ts",
+      "passed": true
+    },
+    {
+      "name": "real source loaded apps/api/src/users/users.module.ts",
+      "passed": true
+    },
+    {
+      "name": "no unexpected denied I/O, async errors or remaining timers",
+      "passed": true
+    },
+    {
+      "name": "authored/cache schema hashes exact and explicitly different",
+      "passed": true
+    }
+  ],
+  "routes": [
+    {
+      "method": "get",
+      "path": "/api/me/portfolio-layout",
+      "passed": true
+    },
+    {
+      "method": "put",
+      "path": "/api/me/portfolio-layout",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "loadedSources": 1616,
+    "modules": 89,
+    "routes": 1170,
+    "coreChecks": 28,
+    "expectedSdkPrewarmDenials": 4
+  },
+  "qualification": "Actual source business graph; non-listening synthetic inert I/O fixture. Transpile/runtime only; no full strict types, native database/RLS, provider or image acceptance.",
+  "limits": [
+    "Actual source Core init/close and registered-route metadata only; no native PostgreSQL/RLS/SSI/row-lock/pool acceptance",
+    "Cached generated Prisma namespace intentionally predates authored layout model; no generation or migration executed",
+    "No provider/live-session/customer write/process restart/deployed image acceptance or runtime retirement"
+  ]
+}

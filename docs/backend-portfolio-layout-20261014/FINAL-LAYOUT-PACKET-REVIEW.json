@@ -1,0 +1,37 @@
+{
+  "result": "final_packet_and_derived_core_source_admission_accept",
+  "candidateHead": "c570bd0465f2ee12bc4736c18ce8e6811854ed6a",
+  "candidateTree": "de9be442e2870f77ea86925897c6fd65b0fab5b7",
+  "acceptedMergedSource": "078c55f805de8599cc413917ef90b7e20f040942",
+  "acceptedMergedTree": "e7dfea58d4044cd0b26bc1c13b5fda8c17e1522a",
+  "docsOnlyFollowupPaths": 24,
+  "indexedFilesAllHashLengthVerified": 97,
+  "losslessPayloadsDecodedVerified": 49,
+  "originalWrapperHeldPreserved": [
+    "registered GET /api/me/portfolio-layout",
+    "registered PUT /api/me/portfolio-layout"
+  ],
+  "derivedMethodMetadataCorrectionOnly": true,
+  "rawActualCore": {
+    "exitCode": 0,
+    "result": "pass",
+    "checks": 28,
+    "sourcesAllModesBlobsShaVerified": 1616,
+    "modules": 89,
+    "routes": 1170,
+    "expectedDirectorySdkDenials": 4,
+    "unexpectedDeniedIo": 0,
+    "asyncErrors": 0,
+    "remainingTimers": 0
+  },
+  "externalCachedDependencyFilesCurrentHashesVerified": 3100,
+  "harness": {
+    "path": "docs/backend-core-source-startup-20261014/check-core-startup.cjs",
+    "blob": "826d2a669e5863c3e7cc12f8e51f3d2df2d50f79",
+    "sha256": "f88bf444101f64d83633ec4c2465b47ef10740544ba0758bf5673786b3814a34"
+  },
+  "sourceLockBlob": "08d78e3dbca937f82ada2eb344b961477e9dfc58",
+  "authoredSchemaSha256": "a61586db5cf24ad97e6e9a0e3baf0c11aa80263a2e367bfbc95920f41c54cc12",
+  "cachedSchemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "qualification": "Exact published source actual Core init/close and route metadata under inert/denying I/O; transpile/runtime plus separately scoped strict110 checks; parse-only derivation preserves original HELD. No reviewer tests/runtime rerun, generated/native Prisma, SQL/database/RLS/SSI/pool/provider/live-session/customer write/restart/image/deployment or retirement acceptance."
+}
