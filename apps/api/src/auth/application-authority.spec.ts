@@ -326,7 +326,7 @@ describe('actual Meri and scope-owner source integration', () => {
     const cls = load(sources('auth/application-authority.controller.ts'), {
       '@nestjs/common': nest, './application-authority.js': contract,
       '../context/application-authority-resource.helpers.js': resources,
-      '../meri/meri-prospect-scope.helpers.js': scopes,
+      '../business-development/bizdev-meri-scope.authorization.js': scopes,
       './roles.decorator.js': { Roles: decorator }, './roles.guard.js': {},
       '../tenant/current-tenant.decorator.js': { CurrentTenant: decorator },
     }).ApplicationAuthorityController;

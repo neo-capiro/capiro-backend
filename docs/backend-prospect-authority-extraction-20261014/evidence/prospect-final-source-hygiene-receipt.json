@@ -1,0 +1,28 @@
+{
+  "label": "prospect-final-source-hygiene",
+  "cwd": ".",
+  "argv": [
+    "node",
+    "scripts/lib/reviewed-source-hygiene.mjs",
+    "--run",
+    "--base",
+    "afff08b0342985e3a8050a5fb4cd843741a720a5"
+  ],
+  "head": "eeb71e6e45024afd32dbbd3e8158d1184241da68",
+  "tree": "baf1fc9349a0823add4873bc1840b745bf62e920",
+  "exitCode": 0,
+  "seconds": 0.739,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-prospect-authority-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-prospect-authority-20261014/.qualification-cache/prospect-authority-tmp"
+  },
+  "outputSha256": "dc4cd3ca40ed5e42bf34141e01d00a92929645f77b900a63ea3d4f050db41f0d",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": "",
+  "sourceStatusAfter": "",
+  "exactCommittedSource": true
+}

@@ -1,53 +1,16 @@
 /**
  * Business Development Phase 4 — shared prospect-scope dispatch helpers.
  *
- * One place builds (a) the authorization re-check every prospect-scoped
- * dispatch must pass BEFORE any user-message write or model/runtime call, and
- * (b) the compact server-authored directive + public turn-scope receipt, so
- * the legacy loop, the MeriV2 full-chat proxy and MeriV3 cannot drift apart.
- *
- * Import direction is the existing one-way MeriModule → BusinessDevelopmentModule
- * edge: this file (in meri/) imports the BD scope service; BD never imports meri.
+ * Builds the compact server-authored directive + public turn-scope receipt.
+ * The existing authorization re-check is owned by Business Development and
+ * re-exported here for the legacy loop, MeriV2 full-chat proxy and MeriV3.
+ * Business Development never imports Meri.
  * No provider payloads, notes, dossiers or arbitrary metadata ever enter a
  * prompt — only the bounded scope fields below.
  */
-import type { TenantContext } from '@capiro/shared';
-import {
-  MeriProspectScopeConflictError,
-  parsePersistedMeriProspectScope,
-  type BizDevMeriScopeService,
-  type MeriProspectScope,
-} from '../business-development/bizdev-meri-scope.service.js';
+import type { MeriProspectScope } from '../business-development/bizdev-meri-scope.service.js';
+export { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import type { MeriTurnScope } from './meri-turn-scope.js';
-
-/**
- * Authorization re-check for prospect-scoped conversations. Returns null for
- * ordinary unscoped conversations (caller proceeds unchanged). For a
- * conversation whose metadata carries a prospect scope, re-resolves it through
- * `BizDevMeriScopeService.assertCurrent` and fails closed — typed conflict /
- * safe 404 — on missing/malformed/stale scope or an unavailable scope service,
- * BEFORE the caller persists a user message or dispatches a model/runtime.
- */
-export async function authorizeMeriProspectScope(
-  bizdevScope: BizDevMeriScopeService | undefined,
-  ctx: TenantContext,
-  conversationMetadata: unknown,
-): Promise<MeriProspectScope | null> {
-  const metadata =
-    conversationMetadata &&
-    typeof conversationMetadata === 'object' &&
-    !Array.isArray(conversationMetadata)
-      ? (conversationMetadata as Record<string, unknown>)
-      : null;
-  const hasPersistedScope = Boolean(
-    metadata && Object.prototype.hasOwnProperty.call(metadata, 'bizdevProspectScope'),
-  );
-  const persisted = parsePersistedMeriProspectScope(conversationMetadata);
-  if (!hasPersistedScope) return null;
-  if (!persisted) throw new MeriProspectScopeConflictError('not_found');
-  if (!bizdevScope) throw new MeriProspectScopeConflictError('not_found');
-  return bizdevScope.assertCurrent(ctx, conversationMetadata);
-}
 
 /**
  * The compact server-authored directive binding the selected prospect into

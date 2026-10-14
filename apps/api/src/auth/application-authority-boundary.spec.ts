@@ -8,7 +8,7 @@ const entry = 'apps/api/src/auth/application-authority.module.ts';
 function assertDependency(path: string) {
   if (/^(apps\/(meriv2-orchestrator|clio-sandbox)\/|packages\/meriv2-core\/)/.test(path)
     || /apps\/api\/src\/engagement\//.test(path)
-    || (path.startsWith('apps/api/src/meri/') && path !== 'apps/api/src/meri/meri-prospect-scope.helpers.ts')
+    || path.startsWith('apps/api/src/meri/')
     || /\/(?:context|business-development)\.module\.ts$/.test(path)) {
     throw new Error(`Retired/heavy runtime dependency: ${path}`);
   }
@@ -51,13 +51,15 @@ describe('authority runtime import boundary and current reexports', () => {
   it('follows emitted runtime imports through the actual auth/domain closure without legacy owner', () => {
     const closure = graph();
     expect(closure.paths).toContain('apps/api/src/auth/application-authority.controller.ts');
+    expect(closure.paths).toContain('apps/api/src/business-development/bizdev-meri-scope.authorization.ts');
+    expect(closure.paths.some((path) => path.startsWith('apps/api/src/meri/'))).toBe(false);
     expect(closure.paths).toContain('apps/api/src/research-portfolios/research-portfolio-artifact-authority.ts');
     expect(closure.paths).toContain('apps/api/src/tenant/tenant-context.middleware.ts');
     expect(closure.paths).toContain('apps/api/src/context/context-security-scope.service.ts');
     expect(closure.external).not.toContain('@capiro/meriv2-core');
   });
 
-  it.each(['../meri/meri.module.js', '../meri/meri.service.js', '../engagement/engagement.service.js', '../context/context.module.js'])
+  it.each(['../meri/meri-prospect-scope.helpers.js', '../meri/meri.module.js', '../meri/meri.service.js', '../engagement/engagement.service.js', '../context/context.module.js'])
   ('refuses an introduced runtime dependency before reading it: %s', (dependency) => {
     const source = readFileSync(resolve(root, entry), 'utf8');
     expect(() => graph({ [entry]: `import '${dependency}';\n${source}` })).toThrow('Retired/heavy runtime dependency');
