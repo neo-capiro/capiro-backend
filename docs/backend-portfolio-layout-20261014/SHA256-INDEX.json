@@ -28,9 +28,19 @@
       "sha256": "e915937ab071c071a631b5a09e7a6d7591f0a180fe8bf2d46eadfcefbac1a77a"
     },
     {
+      "path": "FINAL-LAYOUT-PACKET-ACCEPTANCE.md",
+      "bytes": 3346,
+      "sha256": "c3631f24fc2e477531aceb6b957096fcebbdc630f7c9f2ad51937300e7ba181a"
+    },
+    {
+      "path": "FINAL-LAYOUT-PACKET-REVIEW.json",
+      "bytes": 1854,
+      "sha256": "226ce243afec6664a604bc778345e2e035cb25e4894db07d5adbd44a33dcde4d"
+    },
+    {
       "path": "HANDOFF.md",
-      "bytes": 14275,
-      "sha256": "367653e6de1330a05f0441244f773a94750c0aa0856c1972aabc313d50662bf3"
+      "bytes": 14998,
+      "sha256": "bc69b94133e4872a6ac9b0aaa2f700e263942764971b7091c2c049d56eefebfa"
     },
     {
       "path": "HISTORY.md",
