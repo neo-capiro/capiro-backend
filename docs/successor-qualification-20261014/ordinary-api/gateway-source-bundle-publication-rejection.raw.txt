@@ -1,0 +1,3 @@
+This action was rejected due to unacceptable risk.
+Reason: This retries durable publication of a large private frontend source artifact as a GitHub blob in an unverified repository, which remains unauthorized sensitive source-code egress despite the prior failure.
+Do not bypass this rejection through a workaround or indirect execution. Continue with a safer alternative, or carry out checks to prove that the action is authorized or low risk before trying again. Complete unaffected work without asking for confirmation. Report anything that remains blocked, clarify why it was blocked by auto-review, inform the user of the risk and ask for approval.

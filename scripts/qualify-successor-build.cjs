@@ -91,6 +91,18 @@ const explicitCachedModules = new Map([
   ['sanitize-html', path.join(root, sanitizerTypes.location, 'index.d.ts')],
   ['sharp', path.join(root, sharp.location, sharp.manifest.exports['.'].require.types)],
 ]);
+// Optional normal frozen-registry installation of the exact missing parser.
+// Its manifest must match the application's unchanged literal dependency pin.
+const parserRoot = process.env.CAPIRO_SUCCESSOR_PARSER_ROOT;
+if (parserRoot) {
+  const directory = path.resolve(parserRoot, 'htmlparser2');
+  const manifestText = read(path.join(directory, 'package.json'));
+  if (manifestText === undefined) throw new Error('Installed parser input is unreadable: ' + directory);
+  const manifest = JSON.parse(manifestText);
+  if (manifest.name !== 'htmlparser2' || manifest.version !== workspacePackage.dependencies.htmlparser2)
+    throw new Error('Installed parser differs from the source dependency pin');
+  explicitCachedModules.set('htmlparser2', path.join(directory, manifest.types));
+}
 const receipts = [];
 for (const owner of owners.filter((item) => !process.env.CAPIRO_SUCCESSOR_OWNER ||
     item.startsWith('packages/') || item === process.env.CAPIRO_SUCCESSOR_OWNER)) {

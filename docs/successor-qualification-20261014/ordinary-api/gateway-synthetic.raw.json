@@ -1,0 +1,276 @@
+{
+  "frontendRef": "7e170defb9442aa3ce0fd1d5b14060af831ce8d0",
+  "backendRef": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "node": "v24.19.0",
+  "typescript": "5.9.3",
+  "zod": "4.6.5",
+  "scope": "Exact published frontend runtime source and complete runtime import closure, real Zod schemas, synthetic trusted token and fetch only. No live HTTP/provider/customer writes, app startup, backend DI/guards/native/database execution, source/ref edits or auth-layer changes.",
+  "cases": [
+    {
+      "name": "empty owner array 200 accepted",
+      "pass": true,
+      "elapsedMs": 44
+    },
+    {
+      "name": "valid owner row 200 with exact trusted bearer prefix and query",
+      "pass": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "owner 401 status and message preserved",
+      "pass": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "owner 403 status and message preserved",
+      "pass": true,
+      "elapsedMs": 1
+    },
+    {
+      "name": "owner 404 status and message preserved",
+      "pass": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "owner 500 status and message preserved",
+      "pass": true,
+      "elapsedMs": 1
+    },
+    {
+      "name": "owner 502 status and message preserved",
+      "pass": true,
+      "elapsedMs": 1
+    },
+    {
+      "name": "schema-invalid 200 classified unexpected response 502",
+      "pass": true,
+      "elapsedMs": 0
+    },
+    {
+      "name": "row-invalid 200 classified unexpected response 502",
+      "pass": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "JSON-invalid 200 classified reachability 502",
+      "pass": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "fetch rejection classified reachability 502",
+      "pass": true,
+      "elapsedMs": 0
+    },
+    {
+      "name": "body read rejection classified reachability 502",
+      "pass": true,
+      "elapsedMs": 2
+    },
+    {
+      "name": "missing token remains ordinary 401 without dispatch",
+      "pass": true,
+      "elapsedMs": 1
+    },
+    {
+      "name": "rejected token remains ordinary 401 without dispatch",
+      "pass": true,
+      "elapsedMs": 0
+    },
+    {
+      "name": "missing Strategy configuration remains 503 without token or dispatch",
+      "pass": true,
+      "elapsedMs": 1
+    },
+    {
+      "name": "missing strategy-api prefix is not inserted and owner 404 preserved",
+      "pass": true,
+      "elapsedMs": 1
+    },
+    {
+      "name": "unrecognized tenant query rejected without dispatch",
+      "pass": true,
+      "elapsedMs": 1
+    }
+  ],
+  "passed": 17,
+  "failed": 0,
+  "skipped": 0,
+  "loadedSources": [
+    "apps/web/src/shared/capiro/gateway.ts",
+    "apps/web/src/shared/capiro/gateway-input.ts",
+    "apps/web/src/shared/capiro/binary.ts",
+    "apps/web/src/shared/capiro/multipart.ts",
+    "apps/web/src/shared/capiro/operations/planner-public-forms.ts",
+    "apps/web/src/shared/capiro/contracts.ts",
+    "apps/web/src/shared/capiro/operations/planner-attachments.ts",
+    "apps/web/src/shared/capiro/operations/planner-schemas.ts",
+    "apps/web/src/shared/capiro/operations/planner-core-schemas.ts",
+    "apps/web/src/shared/capiro/operations/planner-resource-data.ts",
+    "apps/web/src/shared/capiro/operations/onboard-public.ts",
+    "apps/web/src/shared/capiro/operations/onboard-funnel-schemas.ts",
+    "apps/web/src/shared/capiro/operations/onboard-setup-schemas.ts",
+    "apps/web/src/shared/capiro/gateway-errors.ts",
+    "apps/web/src/shared/capiro/workspace-brief-copy-errors.ts",
+    "apps/web/src/shared/capiro/operations/workspace-brief-copy.ts",
+    "apps/web/src/shared/capiro/operations/workspace-brief-copy-schemas.ts",
+    "apps/web/src/shared/capiro/operations/workspace-brief-copy-body.ts",
+    "apps/web/src/shared/capiro/operations/strategies-agents.ts",
+    "apps/web/src/shared/capiro/operations/strategies-schemas.ts",
+    "apps/web/src/shared/capiro/config.ts"
+  ],
+  "sourceFingerprints": [
+    {
+      "key": "gateway",
+      "path": "apps/web/src/shared/capiro/gateway.ts",
+      "gitBlob": "c7568c3954480eca4084d0e47de8379b974d596f",
+      "bytes": 10346,
+      "sha256": "d944fed37ef14c1c65cf479cc08a58da7d2227a59ab485de614f7b96a48bc1d3"
+    },
+    {
+      "key": "errors",
+      "path": "apps/web/src/shared/capiro/gateway-errors.ts",
+      "gitBlob": "038cb4db6ae7cbe96856108b8b196dd76261c7d7",
+      "bytes": 2147,
+      "sha256": "84642458a4b94d502cbe437a5d2bbcd1c7b1671af46f84058a99dadba0f0c9cb"
+    },
+    {
+      "key": "contracts",
+      "path": "apps/web/src/shared/capiro/contracts.ts",
+      "gitBlob": "c1ee3a85403436220bd8907e79aaa02345c53208",
+      "bytes": 4985,
+      "sha256": "78ec4209d45f9e309ba6ba34b992950bf26ddf5f8318a6e0995d08194d500afb"
+    },
+    {
+      "key": "schemas",
+      "path": "apps/web/src/shared/capiro/operations/strategies-schemas.ts",
+      "gitBlob": "a6644db394a171f08cb1955b62148ab5d5bcf2fd",
+      "bytes": 4468,
+      "sha256": "f85e43981b0401dde164e1cb32462d2ddf58d8f4678928549523eebb80ec2f3c"
+    },
+    {
+      "key": "agents",
+      "path": "apps/web/src/shared/capiro/operations/strategies-agents.ts",
+      "gitBlob": "134cc85f069b74a66d277703d2573c9c26e621ed",
+      "bytes": 11701,
+      "sha256": "b7810563690397e620f1b83e97441885f738e2ad77f54a2988fa77f1f166b819"
+    },
+    {
+      "key": "input",
+      "path": "apps/web/src/shared/capiro/gateway-input.ts",
+      "gitBlob": "8235085b1fc152a254e22b81e3154e8dba4f8dc9",
+      "bytes": 3383,
+      "sha256": "a4add3adf8b8ad8480ad177bfc8fafcf3c19453a46e17e16b271c13afbf2a634"
+    },
+    {
+      "key": "config",
+      "path": "apps/web/src/shared/capiro/config.ts",
+      "gitBlob": "5327375f16fc3fc74624ffc3a20b3dfb4fdee600",
+      "bytes": 2578,
+      "sha256": "09ce8ba9a869cc0a8efce4540afda473bfad2c5bacd3f9e385131df64880fddb"
+    },
+    {
+      "key": "brief_errors",
+      "path": "apps/web/src/shared/capiro/workspace-brief-copy-errors.ts",
+      "gitBlob": "c59b005fb73c83c874cc68d9b50c44b6b60f1787",
+      "bytes": 1318,
+      "sha256": "6145b061a308d4274df0a80d7ad405f2b7017d5e4a527136e4f4ef366e00fc53"
+    },
+    {
+      "key": "binary",
+      "path": "apps/web/src/shared/capiro/binary.ts",
+      "gitBlob": "62896da1d97a339f3f327780149e52cfac926694",
+      "bytes": 1741,
+      "sha256": "385fcf2d46e0ffe5f99bbbb7ecb3e19e8b5c470a1378946a308fc15fbaa6765d"
+    },
+    {
+      "key": "multipart",
+      "path": "apps/web/src/shared/capiro/multipart.ts",
+      "gitBlob": "3459e692ee2f3826b928e4cd96216c5f542a88aa",
+      "bytes": 4581,
+      "sha256": "d9bec79020ba3fff7a4d84f3e290fc8e9b8217f8637f370195845fdfc5a89570"
+    },
+    {
+      "key": "public_planner",
+      "path": "apps/web/src/shared/capiro/operations/planner-public-forms.ts",
+      "gitBlob": "f0c2eb1e6ca8f169c510a22a6f8c897f5fda3b6a",
+      "bytes": 2467,
+      "sha256": "cfd8b4adf3611925156f7166cf5d296d7e9ea759aa97ac94d43ee07819a44249"
+    },
+    {
+      "key": "public_onboard",
+      "path": "apps/web/src/shared/capiro/operations/onboard-public.ts",
+      "gitBlob": "ed55563d2ad7ff57a2fbdce68348942103452f83",
+      "bytes": 1736,
+      "sha256": "bd4fa314aa19a1db87cb6abe919eb676057ebb645134169df4744d62d92fa01f"
+    },
+    {
+      "key": "brief_copy",
+      "path": "apps/web/src/shared/capiro/operations/workspace-brief-copy.ts",
+      "gitBlob": "513e4dd3d7624bc1b2005ff8fe8264d6f60eb5c9",
+      "bytes": 2255,
+      "sha256": "dac320c2c52f8502221509c90f2f646b78ed8c6c58c85f379a8b2b8e877d6c29"
+    },
+    {
+      "key": "planner_attach",
+      "path": "apps/web/src/shared/capiro/operations/planner-attachments.ts",
+      "gitBlob": "8f3eca17cccdc87f519f8cef44b5c33c68055834",
+      "bytes": 3219,
+      "sha256": "ab7d063329f1e349320bb8bb6355f08d0758fd0fca823bc94f95adf9eb77320a"
+    },
+    {
+      "key": "onboard_funnel",
+      "path": "apps/web/src/shared/capiro/operations/onboard-funnel-schemas.ts",
+      "gitBlob": "791efd6e7264b4978934fcaa1ef3a7c9148d1175",
+      "bytes": 4186,
+      "sha256": "f182447c2c0f18313c25c02308c8e619b57321a473d368058ad9587168847079"
+    },
+    {
+      "key": "onboard_setup",
+      "path": "apps/web/src/shared/capiro/operations/onboard-setup-schemas.ts",
+      "gitBlob": "cd7c6e1bd9dd9482c787e713b588af28f32426fe",
+      "bytes": 2286,
+      "sha256": "b6913b8acb8d67dab4d11b868555d861ed81d976ea30b59db331ecfc126f2af1"
+    },
+    {
+      "key": "brief_copy_schemas",
+      "path": "apps/web/src/shared/capiro/operations/workspace-brief-copy-schemas.ts",
+      "gitBlob": "23b7b14b5e3f40d36f777f5ccc3f5fe55f703c85",
+      "bytes": 4058,
+      "sha256": "31b9fa3b5578af7e7e13c5449b6eec5386980e478c0897614506699018f42168"
+    },
+    {
+      "key": "brief_copy_body",
+      "path": "apps/web/src/shared/capiro/operations/workspace-brief-copy-body.ts",
+      "gitBlob": "5d1a36e6b1e4434870b8ac5e2614e5a146583720",
+      "bytes": 3228,
+      "sha256": "a0a4d79f430fed79413c167297716d421db095f5cc14a5b1fb9605822fa1a5b6"
+    },
+    {
+      "key": "planner_schemas",
+      "path": "apps/web/src/shared/capiro/operations/planner-schemas.ts",
+      "gitBlob": "230b45a6ed859a48d6640e7b8b0610e2aa716da8",
+      "bytes": 1808,
+      "sha256": "849dceaf8b650fe531e093563bb7fcb61b509159e04d2f34956beaaa0d3e1871"
+    },
+    {
+      "key": "planner_core",
+      "path": "apps/web/src/shared/capiro/operations/planner-core-schemas.ts",
+      "gitBlob": "f1af60402ab351bc732d5aa328cce44fca10597f",
+      "bytes": 4689,
+      "sha256": "7a84d5e93cd3671b7f26d12562cba7e36c31ef82eeb98d6a542cc06ecefec3cb"
+    },
+    {
+      "key": "planner_resource",
+      "path": "apps/web/src/shared/capiro/operations/planner-resource-data.ts",
+      "gitBlob": "32785a64ed6f31187e152db37f99787aa341129f",
+      "bytes": 9789,
+      "sha256": "9ee958ec65a66bc58f3a06e4d8f89701c1284ed874447c2fb6d9cb1ab0ef87ea"
+    }
+  ],
+  "observedSuccessPath": "https://synthetic-owner.invalid/strategy-api/agents/change-sets?strategyId=10000000-0000-4000-8000-000000000001&status=proposed",
+  "messages": {
+    "schemaMismatch": "The service returned an unexpected response.",
+    "thrownFetchOrJsonOrBody": "The service could not be reached. Please retry.",
+    "owner502": "The service is unavailable. Please retry."
+  }
+}

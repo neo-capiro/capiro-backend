@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "pnpm",
+    "install",
+    "--frozen-lockfile",
+    "--ignore-scripts",
+    "--ignore-workspace",
+    "--registry=https://registry.npmjs.org",
+    "--store-dir=/dev/shm/capiro-pinned-parser-install-20261014/full-receiving/store",
+    "--reporter=append-only",
+    "--network-concurrency=1",
+    "--fetch-retries=0",
+    "--fetch-timeout=30000"
+  ],
+  "cwd": "/dev/shm/capiro-pinned-parser-install-20261014/full-receiving",
+  "exitCode": 0,
+  "elapsedSeconds": 2.096,
+  "source": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "lockSha256": "33dd57a7b1eda756f4d4c7a5a30bb8c82de0d7611e080ba2a5b81c10d178b5b8",
+  "stdoutBytes": 1401,
+  "stderrBytes": 0,
+  "stdoutSha256": "d46b9444e596ff8595fd33fb206ba3b31d83a1a0a9e57a56921e275ada0b4bb9",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sourcePinsIntegrityUnchanged": true,
+  "applicationDatabaseProviderNativeOperation": false
+}
