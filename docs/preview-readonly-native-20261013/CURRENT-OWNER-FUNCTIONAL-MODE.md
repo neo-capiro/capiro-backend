@@ -1,0 +1,11 @@
+# Current owner direction supersedes launch prerequisites
+
+Neo now explicitly wants the existing preview live for real reads and writes in his own existing account/tenant, using normal existing login and tenant permissions unchanged. He explicitly said not to add preview-specific tenant guards or extra authorization layers. This supersedes the original three-GET/zero-write requirement. No existing protection is disabled, and no new tenant/auth guard has been added.
+
+PR2 and this PR3 remain preserved optional source/native evidence. The separate read-only API, database reader role, native fixture and cross-VPC work are not prerequisites for the ordinary frontend mode. Historical denied-path liveness and read-only entrypoint corrections apply only if that optional service is used; they must not replace the normal existing API invocation or hold the frontend rollout.
+
+The actual ordinary Core API source finding is in [FINDING.md](../preview-existing-api-compatibility-20261014/FINDING.md). It establishes the existing Clerk/Bearer/API-prefix/tenant/role protocol and ordinary client handlers from current main `4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace`, with source/runtime boundaries explicit. It adds no product or auth source change.
+
+Local capacity was restored by deleting only three completed owner-confirmed reproducible API dist outputs. Exact reclaimed allocated file bytes: 135,962,624. Approximately 131 MiB is now available on the PostgreSQL data filesystem. No PostgreSQL file, source, evidence, handover, schema, generated qualification client, dependency cache or Git object was removed. The optional native fixture remains prepared and unexecuted; zero writable space is a historical observation, not the current launch blocker.
+
+The ordinary frontend and shipping flow must establish the effective existing identity/tenant and exact owned test flow before any assistant-run live write. The decision does not authorize new memberships, identity rebinding, privilege expansion, other-tenant operations, existing-business-record overwrite/deletion, provider sends or paid calls. This is test-action scope, not a newly coded preview protection. No live API/database write or deployment was performed by this backend review.

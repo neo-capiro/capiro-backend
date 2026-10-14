@@ -6,9 +6,14 @@
   "reason": "index cannot hash itself and privacy report is derived",
   "rows": [
     {
+      "path": "docs/preview-readonly-native-20261013/CURRENT-OWNER-FUNCTIONAL-MODE.md",
+      "bytes": 2248,
+      "sha256": "95bd30b870ff7d5e41e0173c86e0f849fd405bf9ca96bf06b61cdbcea16ac874"
+    },
+    {
       "path": "docs/preview-readonly-native-20261013/HANDOFF.md",
-      "bytes": 6878,
-      "sha256": "8bd589a956aa5d6f0acc59e51feb3192cef02ec71623f5bc272069c012e049f1"
+      "bytes": 7278,
+      "sha256": "54a4b91bf163cb5fe50689c32080f6b6bb68e548bdc544a01004d7c8d8cfcd49"
     },
     {
       "path": "docs/preview-readonly-native-20261013/INDEPENDENT-REVIEW.md",

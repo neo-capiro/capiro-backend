@@ -1,0 +1,81 @@
+{
+  "actual_remote_main_verified": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "deployed_release_not_claimed_from_source_alone": true,
+  "selected_owner_sources": [
+    {
+      "path": "apps/api/src/main.ts",
+      "tree_entry": "100644 blob e8b1a9e47877ba139b1e9c699699c8eadece25c2\tapps/api/src/main.ts",
+      "bytes": 1600,
+      "sha256": "58a7473c17e116dfe3c13197f124ed2c5fa1e9bb4ea708aa3092268bb92bbd36"
+    },
+    {
+      "path": "apps/api/src/bootstrap/configure-api-http-app.ts",
+      "tree_entry": "100644 blob 3407e1cc723d0dc117e998e0b8f29436ea0d5551\tapps/api/src/bootstrap/configure-api-http-app.ts",
+      "bytes": 7342,
+      "sha256": "ec2e02dff274b150d1594783249628927ca0e854916e8577c01b5503b2ba041c"
+    },
+    {
+      "path": "apps/api/src/auth/clerk.service.ts",
+      "tree_entry": "100644 blob ce5c4d9bf49e6df098e796b366c3a9f3f59e8d96\tapps/api/src/auth/clerk.service.ts",
+      "bytes": 5848,
+      "sha256": "89b76502f62155fcf05544a78e19f554a1c89635b62c2b8757ce862ab9ed0daf"
+    },
+    {
+      "path": "apps/api/src/auth/clerk-role.util.ts",
+      "tree_entry": "100644 blob 1577461f5d7cdf2d7f3867ad18e4fc4198d23a4a\tapps/api/src/auth/clerk-role.util.ts",
+      "bytes": 1991,
+      "sha256": "01ef5660e55db04465edbfc553318a50e2cd47414a6ca50e37874c2dbcb8ca6d"
+    },
+    {
+      "path": "apps/api/src/auth/roles.guard.ts",
+      "tree_entry": "100644 blob 60fbbc8a1de21962a95af60842d25087f58a612d\tapps/api/src/auth/roles.guard.ts",
+      "bytes": 2703,
+      "sha256": "18e23d68f96a565b1994131b9affe7e4463e47e4979f22d897c7beaf450e6aa9"
+    },
+    {
+      "path": "apps/api/src/tenant/tenant-context.middleware.ts",
+      "tree_entry": "100644 blob fece0915d869778984cd9987840e1bd41c203e01\tapps/api/src/tenant/tenant-context.middleware.ts",
+      "bytes": 22931,
+      "sha256": "dabb24d3ab31777aeee64cd2b943ca8d256a89cd2f3e7196b90b06bc3945b346"
+    },
+    {
+      "path": "apps/api/src/users/users.controller.ts",
+      "tree_entry": "100644 blob 1bd5eb81436f3857761f4aec4af05ee7742f5ed6\tapps/api/src/users/users.controller.ts",
+      "bytes": 16950,
+      "sha256": "d7cc8867f6a11f6ca9fc8e4c3dc6c640ecab2c73ce661e51affed17dc7057a20"
+    },
+    {
+      "path": "apps/api/src/clients/clients.controller.ts",
+      "tree_entry": "100644 blob 54be4e4148352309522eb1632ca2e3750940dcb9\tapps/api/src/clients/clients.controller.ts",
+      "bytes": 11409,
+      "sha256": "f96cbd5660200686a96ce3e456c6f77ec55d2e9a51208197fdfe3f516f5d52f9"
+    },
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "tree_entry": "100644 blob c2bc995104db4762be078f42b00232ea1790029c\tapps/api/src/clients/clients.service.ts",
+      "bytes": 69882,
+      "sha256": "0b04f5e819b86c68993627520cf41dd03524b7f66c3c4dd3751f537c630f352b"
+    },
+    {
+      "path": "apps/api/src/intelligence/sam-entity.service.ts",
+      "tree_entry": "100644 blob 1b8ca8165962dd5fde4516d832fd6c2f090c811d\tapps/api/src/intelligence/sam-entity.service.ts",
+      "bytes": 14331,
+      "sha256": "b863bf265f58140a0f6a16ca51328d7dd82c246c8207ccb6f4e13aa3ec0b02a3"
+    },
+    {
+      "path": "apps/api/src/intelligence/entity-resolution.service.ts",
+      "tree_entry": "100644 blob 79ab9bbdb80db097685c056f4dc7cfd0bea11d1b\tapps/api/src/intelligence/entity-resolution.service.ts",
+      "bytes": 46192,
+      "sha256": "24c950289f283a57b87240d2819852b92960b65db01b41b3da0bc07c26060cfb"
+    },
+    {
+      "path": "apps/api/src/intelligence/client-prepopulation.service.ts",
+      "tree_entry": "100644 blob cbcc6ca6f8848d15df828ac4d17863d856c8880d\tapps/api/src/intelligence/client-prepopulation.service.ts",
+      "bytes": 6215,
+      "sha256": "c8434de9fd3eaaab3fe69e063d3f23d3c76a3269baaf92eb7259ba03caef46c4"
+    }
+  ],
+  "protected_engagement_service_body_or_branch_read": false,
+  "source_changes": 0,
+  "live_api_or_database_calls": 0
+}
