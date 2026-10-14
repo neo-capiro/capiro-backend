@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { maxLength } from 'class-validator';
 import { ClientTargetsService } from './client-targets.service.js';
 
 const T = '11111111-1111-4111-8111-111111111111';
@@ -172,5 +173,12 @@ describe('Saved Directory target Objective destination (source/synthetic databas
     const f = fixture();
     await expect(f.run({ ...query, objectiveId: 'label-not-identity' })).rejects.toBeInstanceOf(BadRequestException);
     expect(f.transactions).toHaveLength(0);
+  });
+
+  it('retains the existing target DTO Unicode character budget instead of imposing a UTF16 unit limit', async () => {
+    const f = fixture(), memberId = '😀'.repeat(100);
+    expect(maxLength(memberId, 128)).toBe(true); expect(memberId.length).toBe(200);
+    f.state.target = { ...f.state.target, memberId };
+    await expect(f.run()).resolves.toMatchObject({ target: { memberId } });
   });
 });

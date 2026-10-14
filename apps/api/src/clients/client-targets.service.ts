@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { isUUID } from 'class-validator';
+import { isUUID, maxLength } from 'class-validator';
 import {
   ClientObjectiveDestinationError,
   requireClientObjectiveDestinationRevision,
@@ -144,7 +144,7 @@ export class ClientTargetsService {
         if (
           rows.length !== 1 || !target || target.id !== resourceId || target.clientId !== binding.clientId ||
           !['congress', 'state', 'staff'].includes(target.sourceDirectory) ||
-          typeof target.memberId !== 'string' || !target.memberId.trim() || target.memberId.length > 128
+          typeof target.memberId !== 'string' || !target.memberId.trim() || !maxLength(target.memberId, 128)
         ) {
           throw new NotFoundException('Objective destination not found');
         }
