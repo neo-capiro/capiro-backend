@@ -7,7 +7,7 @@ import { TenantContextMiddleware } from '../tenant/tenant-context.middleware.js'
 import { ContextSecurityScopeService } from '../context/context-security-scope.service.js';
 import { assertCurrentClientVisible, loadOwnedActiveClioConversation } from '../context/application-authority-resource.helpers.js';
 import { BizDevMeriScopeService } from '../business-development/bizdev-meri-scope.service.js';
-import { authorizeMeriProspectScope } from '../meri/meri-prospect-scope.helpers.js';
+import { authorizeMeriProspectScope } from '../business-development/bizdev-meri-scope.authorization.js';
 import { Roles } from './roles.decorator.js';
 import { RolesGuard } from './roles.guard.js';
 import {
