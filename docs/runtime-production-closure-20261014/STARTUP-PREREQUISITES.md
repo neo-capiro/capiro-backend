@@ -1,0 +1,13 @@
+# Actual Core startup prerequisites: source facts, not readiness
+
+The ordinary entrypoint requires DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME before dispatch, URL-encodes the password, and composes DATABASE_URL with sslmode=require. serve executes node dist/main.js. No actual environment or credential values were inspected.
+
+main.ts imports reflect-metadata and AppModule, validates Engagement runtime controls before Nest provider construction, creates the full Nest application, installs HTTP middleware/shutdown hooks, and listens on API_PORT default4000 / API_BIND_HOST default0.0.0.0. Config validation requires a valid DATABASE_URL and nonempty Clerk secret/webhook signing strings; issuer is optional. Synthetic offline strings are not authentication qualification.
+
+PrismaService.onModuleInit awaits $connect. GET /health executes Prisma SELECT1. Therefore a no-database import test cannot establish full application startup or healthy serving. Generated Prisma models/engines and real schema-aware behavior must remain unmodified in the tested image.
+
+DirectoryService.onModuleInit starts best-effort directory/S3 prewarm, which can make external reads even with background workers disabled. AI credential startup advisory skips when Engagement runtime policy disables background ownership; other background hooks must be checked under the full held runtime configuration. ContextPlaneGateway.onApplicationBootstrap installs the meetings runtime graph and requires its Nest/Prisma dependencies. Capability catalog registration is an in-process startup hook. Import success alone does not exercise these hooks.
+
+A separately reviewed offline startup plan needs an isolated synthetic PostgreSQL fixture with compatible TLS for the ordinary entrypoint, synthetic schema/data and configuration, disabled canonical background/external-action controls, and network enforcement blocking live database/Clerk/provider/S3/model endpoints. If it instead runs a fixture entry path with a local DATABASE_URL, document that narrower entrypoint coverage; do not call it ordinary dispatcher qualification. Stubbed Prisma/$connect is also narrower than full image/native/database startup and must be labeled separately.
+
+Do not invoke paid providers, download models, inspect existing secrets, mutate live schema/accounts, or relax canonical authority for a startup probe. Record exact image/source/platform/fixture provenance, whether ordinary entrypoint was used, successful listener+health+shutdown, and every blocked/unexpected connection. Real current-account authentication/authority remains a separate admission step after infrastructure approval.

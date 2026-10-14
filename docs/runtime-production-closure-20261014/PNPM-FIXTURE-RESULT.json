@@ -1,0 +1,30 @@
+{
+  "pnpmVersion": "9.12.0",
+  "scope": "OFFLINE_SYNTHETIC_NO_REAL_BACKEND_PACKAGES",
+  "before": {
+    "storeDirectories": [
+      "node_modules",
+      "unused-dev-payload@file+..+unused-dev-payload.tgz",
+      "used-prod-payload@file+..+used-prod-payload.tgz"
+    ],
+    "rootDevLink": true,
+    "apiProdLink": true
+  },
+  "afterInPlaceProd": {
+    "storeDirectories": [
+      "node_modules",
+      "unused-dev-payload@file+..+unused-dev-payload.tgz",
+      "used-prod-payload@file+..+used-prod-payload.tgz"
+    ],
+    "rootDevLink": true,
+    "apiProdLink": true
+  },
+  "freshProd": {
+    "storeDirectories": [
+      "node_modules",
+      "used-prod-payload@file+..+used-prod-payload.tgz"
+    ],
+    "rootDevLink": false,
+    "apiProdLink": true
+  }
+}

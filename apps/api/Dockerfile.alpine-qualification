@@ -7,12 +7,13 @@
 #
 # Multi-stage:
 #   1. base    pnpm + corepack on slim node
-#   2. build   install + compile, then `pnpm prune --prod` in place
-#   3. runtime minimal node slim, non-root user, copies the pruned workspace
+#   2. build   install + compile with development tooling
+#   3. production-deps install a fresh frozen production workspace and generate Prisma
+#   4. runtime minimal node, non-root user, copies only production dependencies
 #
 # Why we DON'T use `pnpm deploy`: it doesn't carry generated Prisma client
 # files (which live under pnpm's symlinked store at .pnpm/@prisma+client@*/.prisma).
-# Instead, we prune dev deps in place and copy the whole workspace.
+# Instead, generate Prisma in the fresh production workspace and copy its links.
 
 # sanitize-html in the frozen lockfile requires Node >=22.12.0. Keep build and
 # runtime on the same supported release so CommonJS can load its ESM parser.
@@ -73,10 +74,23 @@ RUN pnpm --filter @capiro/api exec prisma generate
 # this codebase's current size. Pin an explicit ceiling for this step only.
 RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
 
-# Prune dev dependencies in place (keeps the .pnpm store with the generated
-# Prisma client intact).
+# A filtered in-place --prod install does not remove root development packages
+# installed during the build. Never copy that build store into runtime. Use the
+# same frozen manifests in an empty workspace; preserve generated Prisma here.
+FROM base AS production-deps
+RUN apk add --no-cache openssl ca-certificates python3 make g++
+ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-arm64-openssl-3.0.x
+COPY --from=build /workspace/pnpm-workspace.yaml /workspace/package.json /workspace/pnpm-lock.yaml /workspace/tsconfig.base.json ./
+COPY --from=build /workspace/apps/api/package.json apps/api/package.json
+COPY --from=build /workspace/packages/shared/package.json packages/shared/package.json
+COPY --from=build /workspace/packages/meriv2-core/package.json packages/meriv2-core/package.json
+COPY --from=build /workspace/packages/defense-contracts/package.json packages/defense-contracts/package.json
+COPY --from=build /workspace/packages/defense-domain/package.json packages/defense-domain/package.json
+# The build stage changed only the image-local Prisma generator's musl target.
+COPY --from=build /workspace/apps/api/prisma apps/api/prisma
 RUN --mount=type=cache,id=pnpm-alpine324-arm64,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-contracts... --filter=@capiro/defense-domain...
+RUN pnpm --filter @capiro/api exec prisma generate
 
 # -------- runtime -------------------------------------------------------------
 FROM docker.io/library/node:22.23.3-alpine3.24@sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22 AS runtime-base
@@ -96,9 +110,9 @@ RUN mkdir -p /app/tmp /tmp \
 ENV TMPDIR=/dev/shm
 WORKDIR /app
 
-# Copy the entire workspace, pnpm's symlinked node_modules + the generated
-# Prisma client + the compiled API. Larger image (~250MB) but reliable.
-COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
+# Copy the fresh production store + workspace links + generated Prisma client;
+# compiled application and source/script roots remain identical to the build.
+COPY --chown=capiro:capiro --from=production-deps /workspace/node_modules /app/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
@@ -108,16 +122,16 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.
 # links that (+ zod) under packages/meriv2-core/node_modules (relative symlinks
 # to /app/packages/shared and /app/node_modules/.pnpm), NOT hoisted to root. Copy
 # it or the API crashloops at boot with MODULE_NOT_FOUND '@capiro/shared'.
-COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+COPY --chown=capiro:capiro --from=production-deps /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json
 # defense-domain, like meriv2-core, has a workspace dep of its own (@capiro/shared)
 # that pnpm links under its own node_modules rather than hoisting to root.
-COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
+COPY --chown=capiro:capiro --from=production-deps /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
-COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
+COPY --chown=capiro:capiro --from=production-deps /workspace/apps/api/node_modules /app/apps/api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json
