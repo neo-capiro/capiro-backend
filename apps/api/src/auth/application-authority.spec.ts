@@ -12,7 +12,8 @@ const root = resolve(__dirname, '../../../..');
 const sources = (path: string) => readFileSync(resolve(root, 'apps/api/src', path), 'utf8');
 class Refusal extends Error { constructor(public readonly response?: unknown) { super(String(response)); } }
 const decorator = () => () => undefined;
-const nest = { Injectable: decorator, Optional: decorator, Logger: class { log() {} warn() {} error() {} },
+const nest = { Injectable: decorator, Optional: decorator, Controller: decorator, UseGuards: decorator,
+  Post: decorator, HttpCode: decorator, Header: decorator, Body: decorator, Req: decorator, Logger: class { log() {} warn() {} error() {} },
   UnauthorizedException: Refusal, ForbiddenException: Refusal, BadRequestException: Refusal,
   NotFoundException: Refusal };
 function load(source: string, ports: Record<string, unknown>, timers = { setTimeout, clearTimeout }, clock: Pick<typeof Date, 'now'> = Date) {
@@ -314,25 +315,29 @@ describe('context receipt existing-owner ordering and correlation boundary', () 
 
 describe('actual Meri and scope-owner source integration', () => {
   it('uses original active conversation and client lookup plus current prospect owner without constructing service', async () => {
-    const file = ts.createSourceFile('meri.service.ts', sources('meri/meri.service.ts'), ts.ScriptTarget.Latest, true);
-    const clazz = file.statements.find((node): node is ts.ClassDeclaration => ts.isClassDeclaration(node) && node.name?.text === 'MeriService')!;
-    const names = ['applicationAuthorityIdentity', 'applicationAuthorityContext', 'ensureConversation', 'ensureClientVisible'];
-    const methods = clazz.members.filter((node) => ts.isMethodDeclaration(node) && names.includes(node.name.getText(file))).map((node) => node.getText(file));
-    expect(methods).toHaveLength(4);
     const events: string[] = [];
-    const cls = load(`import { ForbiddenException, NotFoundException } from '@nestjs/common';\nimport { assertApplicationAuthorityIdentityBody, parseApplicationAuthorityContextBody, applicationAuthorityIdentityReceipt, readApplicationAuthorityContext } from './contract';\nimport { authorizeMeriProspectScope, authorizeResearchPortfolioConversation } from './scopes';\nexport class MethodOwner { ${methods.join('\n')} }`, {
-      '@nestjs/common': nest, './contract': contract, './scopes': {
-        authorizeResearchPortfolioConversation: async (_tx: unknown, _ctx: unknown, row: any) => { events.push('portfolio'); if (row.metadata.portfolio) throw new Refusal('portfolio'); },
-        authorizeMeriProspectScope: async (_owner: unknown, _ctx: unknown, metadata: any) => { events.push('prospect'); return metadata.prospect ?? null; },
-      },
-    }).MethodOwner;
-    const owner = new cls(); const row = conversation();
-    owner.applicationAuthorityTenant = { readApplicationAuthority: async () => { events.push('identity'); return identity(); } };
-    owner.applicationAuthorityScope = { resolveApplicationAuthorityClient: async (...args: any[]) => { expect(args).toEqual([tenantId, actorId, clientId]); events.push('wall'); return ['client', false]; } };
-    owner.prisma = { withTenant: async (id: string, fn: any) => { expect(id).toBe(tenantId); return fn({
+    const scopes = {
+      authorizeResearchPortfolioConversation: async (_tx: unknown, _ctx: unknown, row: any) => { events.push('portfolio'); if (row.metadata.portfolio) throw new Refusal('portfolio'); },
+      authorizeMeriProspectScope: async (_owner: unknown, _ctx: unknown, metadata: any) => { events.push('prospect'); return metadata.prospect ?? null; },
+    };
+    const resources = load(sources('context/application-authority-resource.helpers.ts'), {
+      '@nestjs/common': nest, '../research-portfolios/research-portfolio-artifact-authority.js': scopes,
+    });
+    const cls = load(sources('auth/application-authority.controller.ts'), {
+      '@nestjs/common': nest, './application-authority.js': contract,
+      '../context/application-authority-resource.helpers.js': resources,
+      '../meri/meri-prospect-scope.helpers.js': scopes,
+      './roles.decorator.js': { Roles: decorator }, './roles.guard.js': {},
+      '../tenant/current-tenant.decorator.js': { CurrentTenant: decorator },
+    }).ApplicationAuthorityController;
+    const row = conversation();
+    const tenant = { readApplicationAuthority: async () => { events.push('identity'); return identity(); } };
+    const scope = { resolveApplicationAuthorityClient: async (...args: any[]) => { expect(args).toEqual([tenantId, actorId, clientId]); events.push('wall'); return ['client', false]; } };
+    const prisma = { withTenant: async (id: string, fn: any) => { expect(id).toBe(tenantId); return fn({
       clioConversation: { findFirst: async (args: any) => { expect(args.where).toEqual({ id: conversationId, tenantId, userId: actorId, archivedAt: null }); return row; } },
       client: { findFirst: async (args: any) => { expect(args.where).toEqual({ id: clientId, tenantId, status: { not: 'archived' } }); events.push('visible'); return { id: clientId }; } },
     }); } };
+    const owner = new cls(prisma, tenant, scope, {});
     await owner.applicationAuthorityContext(ctx, {}, input);
     expect(events).toEqual(['identity', 'portfolio', 'prospect', 'visible', 'wall', 'identity', 'portfolio', 'prospect', 'visible', 'wall']);
     events.length = 0;
@@ -357,11 +362,15 @@ describe('actual Meri and scope-owner source integration', () => {
     await expect(owner.resolveApplicationAuthorityClient(tenantId, actorId, clientId)).rejects.toThrow(); expect(events).toEqual(['canonicalWall']);
   });
   it('pins both POST200 no-store routes under existing role guard and provider wiring', () => {
-    const controller = sources('meri/meri.controller.ts');
-    for (const route of ['identity', 'context']) expect(controller).toContain(`@Post('application-authority/${route}')\n  @HttpCode(200)\n  @Header('Cache-Control', 'no-store')`);
+    const controller = sources('auth/application-authority.controller.ts');
+    expect(controller).toContain("@Controller('clio/application-authority')");
+    for (const route of ['identity', 'context']) expect(controller).toContain(`@Post('${route}')\n  @HttpCode(200)\n  @Header('Cache-Control', 'no-store')`);
+    expect(sources('meri/meri.controller.ts')).not.toContain("@Post('application-authority/");
     expect(controller).toContain("@Roles('standard_user')");
     const module = sources('context/context.module.ts');
-    expect(module.match(/^    ContextSecurityScopeService,$/gm)).toHaveLength(2);
+    expect(module).toContain('    ContextSecurityScopeModule,');
+    expect(module).not.toContain('    ContextSecurityScopeService,');
+    expect(sources('context/context-security-scope.module.ts')).toContain('providers: [ContextSecurityScopeService]');
   });
   it('canonical resolver rejects a foreign-tenant wall grant and preserves same-tenant/unwalled admission in both consumers', async () => {
     const exports = load(sources('context/context-security-scope.service.ts'), {

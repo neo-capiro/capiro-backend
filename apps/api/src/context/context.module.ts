@@ -12,7 +12,7 @@ import { ContextPlaneAuditService } from './context-plane-audit.service.js';
 import { ContextStageTimerService, contextStageTimer } from './context-stage-timer.service.js';
 import { ContextPlaneGatewayService } from './context-plane-gateway.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
-import { ContextSecurityScopeService } from './context-security-scope.service.js';
+import { ContextSecurityScopeModule } from './context-security-scope.module.js';
 import { InternalStrategyContextController } from './internal-strategy-context.controller.js';
 import { StrategyContextPlaneService } from './strategy-context-plane.service.js';
 
@@ -24,10 +24,9 @@ import { StrategyContextPlaneService } from './strategy-context-plane.service.js
  * backend-only and lets isolated api-strategy consume this same boundary.
  */
 @Module({
-  imports: [PrismaModule, KnowledgeModule, RetrievalModule],
+  imports: [PrismaModule, KnowledgeModule, RetrievalModule, ContextSecurityScopeModule],
   controllers: [InternalStrategyContextController],
   providers: [
-    ContextSecurityScopeService,
     ContextPersistenceBoundaryService,
     ContextCompilerService,
     ContextResolverService,
@@ -43,7 +42,7 @@ import { StrategyContextPlaneService } from './strategy-context-plane.service.js
     },
   ],
   exports: [
-    ContextSecurityScopeService,
+    ContextSecurityScopeModule,
     ContextCompilerService,
     ContextPersistenceBoundaryService,
     ContextResolverService,
