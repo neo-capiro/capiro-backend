@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "node",
+    "--max-old-space-size=4096",
+    "scripts/qualify-successor-build.cjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 185.907,
+  "source": "afee9c4251c4c21417916bc4a02007283b67543b",
+  "tree": "37e0e1c9c8b7986593ff677dbac15d21d3384ac8",
+  "runnerSha256": "31adc221093cc803bece3ca68e87fb2a708de04e640664f1a9e2f41a8311b89a",
+  "environmentNames": [
+    "CAPIRO_SUCCESSOR_PARSER_ROOT",
+    "CAPIRO_SUCCESSOR_REF",
+    "PATH"
+  ],
+  "parserRoot": "/dev/shm/capiro-pinned-parser-install-20261014/full-receiving/node_modules",
+  "stdoutBytes": 4095,
+  "stderrBytes": 1066,
+  "stdoutSha256": "b0748bf5c22d730d9f2ecb612b3e76e03d8b74810ebd08d662b69b09b19df459",
+  "stderrSha256": "55abd5e4ca6124043d44efb1c7c07bb7eedc6f0b721f4db1fca16a733cfe87a6",
+  "applicationDatabaseProviderNativeOperation": false,
+  "sameInvocationAsSuccessfulFrozenInstallation": true
+}

@@ -1,0 +1,1 @@
+/bin/bash: line 1: cannot create temp file for here-document: No space left on device

@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "--max-old-space-size=4096",
+    "scripts/qualify-successor-build.cjs"
+  ],
+  "exitCode": 1,
+  "elapsedSeconds": 288.521,
+  "stdoutBytes": 354815,
+  "stderrBytes": 1075,
+  "stdoutSha256": "8095e2b53f2980de5cadb18b6ae9e372d8d994833f95a98800a6f91f39710736",
+  "stderrSha256": "c4404258c97659640857338a439832c9e16d27643079d582274346c901b6be64",
+  "runnerSha256": "9bf8c92e08ff03c7c39ea9af43aef3ec4d0e49194d14364c3b1a1d52423f6d63",
+  "correction": "Preserve virtual module identity and ambient type directories; explicitly pin cached Core/Workspace generated declarations. No schema/generator/native/database execution."
+}

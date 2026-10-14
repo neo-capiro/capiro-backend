@@ -16,7 +16,8 @@
 # Phase 1: no Prisma yet. openssl is installed so Phase 2 can drop in
 # `prisma generate` without touching the runtime stage.
 
-ARG NODE_VERSION=20.16.0
+# Match Core: frozen sanitize-html2.17.7 requires Node >=22.12.0.
+ARG NODE_VERSION=22.23.3
 
 # -------- base ----------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS base
@@ -118,6 +119,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 USER capiro
 WORKDIR /app/apps/workspace
+# Exercise the actual pruned import graph without constructing providers or DB pools.
+RUN --network=none node -e "const assert=require('node:assert/strict'); const sanitize=require('sanitize-html'); assert.equal(sanitize('<strong>safe</strong><script>unsafe</script>'), '<strong>safe</strong>'); require('./dist/versions/versions.service.js');"
 EXPOSE 4200
 ENTRYPOINT ["/bin/sh", "/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]
