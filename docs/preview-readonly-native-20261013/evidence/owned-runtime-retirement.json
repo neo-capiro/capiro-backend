@@ -1,0 +1,6 @@
+{
+  "owned_outputs_and_symlink_overlays_retired": true,
+  "borrowed_targets_unchanged": true,
+  "native_pools_already_disconnected": true,
+  "git_objects_heads_preserved": true
+}

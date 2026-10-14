@@ -1,0 +1,20 @@
+{
+  "result": "PASS",
+  "finite_files_scanned": 55,
+  "decoded_raw_observations": 1,
+  "method": "finite plaintext and exact lossless raw observation scan, plus independent source review",
+  "patterns": [
+    "private-key",
+    "aws-access-key",
+    "clerk-key",
+    "openai-key",
+    "github-token",
+    "bearer-token",
+    "db-connection"
+  ],
+  "findings": [],
+  "actual_connection_inputs_not_recorded": true,
+  "known_connection_literal_exception": "postgresql://synthetic:synthetic@ in the synthetic liveness fixture only",
+  "noncredential_source_constructor": "one exact variable-only local URL constructor in catalog-native-probe.cjs",
+  "scope": "selected source hashes, source review, local metadata and synthetic fixture evidence; no live user records"
+}

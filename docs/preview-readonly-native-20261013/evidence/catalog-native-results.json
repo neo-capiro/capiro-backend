@@ -1,0 +1,42 @@
+{
+  "source": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "engine_sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+  "schema_sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+  "target": "existing authorized local capiro-postgres catalog only",
+  "database": "postgres",
+  "control_count": 6,
+  "controls": [
+    {
+      "name": "existing reader with default writable session is refused before callback",
+      "result": "PASS"
+    },
+    {
+      "name": "existing owner/superuser remains refused even with default read-only",
+      "result": "PASS"
+    },
+    {
+      "name": "actual PostgreSQL read-only transaction admits catalog-only reader",
+      "result": "PASS"
+    },
+    {
+      "name": "canonical withTenant uses the same native backend transaction",
+      "result": "PASS"
+    },
+    {
+      "name": "commit removes tenant and bypass transaction GUCs",
+      "result": "PASS"
+    },
+    {
+      "name": "callback failure rolls back and clears transaction GUCs",
+      "result": "PASS"
+    }
+  ],
+  "objects_created": 0,
+  "fixture_or_business_data_read": false,
+  "roles_grants_credentials_or_persistent_settings_changed": false,
+  "limits": [
+    "data volume zero writable bytes blocks owned fixture database",
+    "native client RLS and identity positive proof remain blocked",
+    "catalog-only read role proof does not qualify dedicated production reader grants"
+  ]
+}

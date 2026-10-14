@@ -1,0 +1,17 @@
+{
+  "product_schema_migration_source_diff": [],
+  "source_head": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "quarantines_exact": 74,
+  "native_network_connects": [
+    "1027567 connect(23, {sa_family=AF_INET, sin_port=htons(5432), sin_addr=inet_addr(\"127.0.0.1\")}, 16) = -1 EINPROGRESS (Operation now in progress)",
+    "1027563 connect(24, {sa_family=AF_INET, sin_port=htons(5432), sin_addr=inet_addr(\"127.0.0.1\")}, 16) = -1 EINPROGRESS (Operation now in progress)"
+  ],
+  "first_user_statements": [
+    "SET TRANSACTION READ ONLY",
+    "SET TRANSACTION READ ONLY",
+    "SET TRANSACTION READ ONLY",
+    "SET TRANSACTION READ ONLY",
+    "SET TRANSACTION READ ONLY"
+  ],
+  "no_native_download_or_checksum_bypass": true
+}

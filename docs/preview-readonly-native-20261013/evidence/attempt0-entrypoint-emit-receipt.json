@@ -1,0 +1,6 @@
+{
+  "result": "FAIL",
+  "reason": "scoped checkout omitted canonical engagement-runtime.types.ts needed by config schema",
+  "resolution": "materialized exact frozen dependency; no source/assertion/config repair",
+  "native_or_image_execution": false
+}

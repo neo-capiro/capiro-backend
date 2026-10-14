@@ -1,0 +1,36 @@
+{
+  "result": "FAIL",
+  "phase": "initial docs staging and privacy seal",
+  "actions_performed": [
+    "new docs written",
+    "existing handoff/current direction staged",
+    "hygiene run",
+    "privacy scan"
+  ],
+  "staging_blocker": "new compatibility directory outside finite sparse pattern; Git refused new paths",
+  "privacy_finding": {
+    "path": "docs/preview-readonly-native-20261013/evidence/catalog-native-probe.cjs",
+    "kind": "db-connection",
+    "actual_credential": false,
+    "reason": "existing source constructor contains variable interpolation only; no credential values"
+  },
+  "correction": "extend exact docs sparse pattern and recognize only that exact variable-only source constructor; rerun finite checks",
+  "source_auth_runtime_changed": false,
+  "failed_assertion": "Credential-shaped finding; contents intentionally not printed",
+  "sparse_pattern_retry": {
+    "failed_command": "git sparse-checkout add --no-cone /docs/preview-existing-api-compatibility-20261014/",
+    "exit_code": 129,
+    "error": "unknown option no-cone",
+    "successful_command": "git sparse-checkout add /docs/preview-existing-api-compatibility-20261014/",
+    "exit_code_after": 0,
+    "existing_sparse_mode": "non-cone"
+  },
+  "finite_coverage_retry": {
+    "result": "FAIL",
+    "error": "Finite filesystem coverage mismatch",
+    "unexpected_file": "docs/preview-existing-api-compatibility-20261014/evidence/__pycache__/seal-packets.cpython-312.pyc",
+    "cause": "own Python review import produced reproducible bytecode",
+    "correction": "removed only that bytecode and empty parent; run with -B",
+    "source_changed": false
+  }
+}

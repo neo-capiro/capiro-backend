@@ -1,0 +1,20 @@
+{
+  "source_head": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "source_tree": "719c8292fc0c9cf4e8242b8d58efb2d004ad0a1f",
+  "container": "capiro-postgres",
+  "container_id": "3dee5d43de72a973ce75866d936064df2c747f3d02f5010050bff2587c837183",
+  "configuration_sha256": "e1dce3d2228165ff7af7429f91219b5f01ea8d3e9d0e2e04064420ab6cd100c5",
+  "cluster_system_identifier": "7695590366852821031",
+  "database": "capiro_preview_native_20261013_b3bfee0cb95648e5",
+  "database_comment": "owned /root preview native b3bfee0cb95648e59fa523b99c639786 111f269d749cae0249c2141779bd6d7deb93f45c",
+  "ownership_token": "b3bfee0cb95648e59fa523b99c639786",
+  "existing_roles": [
+    "capiro",
+    "capiro_app"
+  ],
+  "new_roles_credentials_or_global_role_changes": false,
+  "grants_scope": "only freshly owned fixture database/tables; removed with owned target",
+  "production_or_unrelated_database_changes": false,
+  "must_not_preexist": true,
+  "cleanup_no_forced_termination": true
+}

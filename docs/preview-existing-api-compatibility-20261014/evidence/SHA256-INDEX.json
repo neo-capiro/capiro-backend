@@ -1,0 +1,44 @@
+{
+  "finite_exclusions": [
+    "docs/preview-existing-api-compatibility-20261014/evidence/SHA256-INDEX.json",
+    "docs/preview-existing-api-compatibility-20261014/evidence/privacy-review.json"
+  ],
+  "reason": "index cannot hash itself and privacy report is derived",
+  "rows": [
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/FINDING.md",
+      "bytes": 6523,
+      "sha256": "bf0b5b733bd649a9edcda8882254263557cffd98217be5d74edc602386d1caca"
+    },
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/INDEPENDENT-REVIEW.md",
+      "bytes": 4216,
+      "sha256": "15f94b7e5d0df07b9fe6c0cd3dae4465d2ef904f1779aa7d433111e49c259a3f"
+    },
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/evidence/attempt0-seal-receipt.json",
+      "bytes": 1647,
+      "sha256": "c98f03c9654b1a5309d36faa5a287d5f7fbb6f60a08b1f8d4fb486e3fb9e5f69"
+    },
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/evidence/owned-capacity-recovery.json",
+      "bytes": 2413900,
+      "sha256": "7917a44b2916c0337e362562cb1e2fd50cd0d46acb8a46423aa3b9cd48cfb5fb"
+    },
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/evidence/seal-packets.py",
+      "bytes": 9826,
+      "sha256": "71519a754f05c7f1849a9d6698b3a684e1d4a4ec1a4ab23123b8a6412dbbf7ad"
+    },
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/evidence/source-bindings.json",
+      "bytes": 3843,
+      "sha256": "7a84ed186abffa449879b3c29e23e27d92f9c1d433bf774e44cb52345f6615e5"
+    },
+    {
+      "path": "docs/preview-existing-api-compatibility-20261014/evidence/source-hygiene.json",
+      "bytes": 1386,
+      "sha256": "f9543986bd7192d22e0cc6eb7434aa4268f19f9abfbc9ddfe66bbfd898693a02"
+    }
+  ]
+}

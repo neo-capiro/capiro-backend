@@ -1,0 +1,21 @@
+{
+  "entryPoint": [
+    "/usr/bin/dumb-init",
+    "--",
+    "node"
+  ],
+  "command": [
+    "/app/apps/api/dist/preview-readonly/preview-main.js"
+  ],
+  "workingDirectory": "/app/apps/api",
+  "targetGroupLiveness": {
+    "path": "/api/__preview_liveness",
+    "method": "GET",
+    "successCodes": "403",
+    "meaning": "listening only; no auth or database access on the probe",
+    "nativeReadiness": false
+  },
+  "ordinaryImageCommandNotUsed": "serve",
+  "sourceHead": "111f269d749cae0249c2141779bd6d7deb93f45c",
+  "notExecutedOrRegistered": true
+}

@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "node",
+    "evidence/entrypoint-emit.cjs"
+  ],
+  "exit_code": 0,
+  "production_config": "apps/api/tsconfig.build.json",
+  "scope": "exact preview entrypoint and resolved dependencies"
+}

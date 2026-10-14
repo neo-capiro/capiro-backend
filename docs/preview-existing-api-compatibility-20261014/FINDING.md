@@ -1,0 +1,32 @@
+# Ordinary existing API compatibility
+
+Neo's latest instruction permits preview reads and writes through his own existing account/tenant, using normal existing login and tenant permissions unchanged. He explicitly excluded new preview-specific tenant guards or extra authorization layers. That decision supersedes the historical three-GET/zero-write preview requirement. No guard, auth override, Core API source change, reader role, separate API or new VPC prerequisite has been added for the ordinary frontend mode. PR2/PR3 and all their evidence remain preserved as optional work.
+
+The minimum source finding is positive: existing Core API source supports the normal authenticated frontend protocol and its client read/write handlers. Current remote capirov2 main is `4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace`; the selected source owners are mode/blob/hash-bound in evidence/source-bindings.json. This is source compatibility, not an assertion that an unobserved live image has this exact release.
+
+Use the current Core/backend origins and the same existing Clerk configuration. Core application routes have global prefix `/api`, once. Forward the ordinary Bearer session JWT and the selected tenant's ordinary `X-Capiro-Tenant` hint when used by the existing application. Clerk v1 flat organization claims and default v2 compact organization claims are already normalized; custom capiro tenant claims are optional and are cross-checked when present. No new JWT template or auth bridge is required by this source. Existing JWT signature verification, the existing issuer check when CLERK_JWT_ISSUER is configured, and normal RolesGuard stay in force.
+
+| Ordinary Core route | Existing source behavior |
+| --- | --- |
+| GET /api/me | returns effective user.id, clerkUserId, tenant.id/slug, role, billingAdmin, entitlements/features |
+| GET /api/clients and GET /api/clients/:id | standard_user minimum; explicit tenant predicates; normal signed logo URLs |
+| POST /api/clients | standard_user minimum; canonical validation and billing limits; downstream resolution/prepopulation and configured SAM enrichment |
+| PUT /api/clients/:id, profile-notes and memory-access | existing user_admin minimum, including normally authorized capiro_admin |
+| DELETE /api/clients/:id | existing standard_user minimum; ordinary archive semantics; no such live test was performed |
+| PATCH /api/me | existing per-user metadata DTO and update; no live test was performed |
+
+Ordinary authentication first looks up user by exact verified Clerk sub and selects an existing active membership from the normal claims/header/host hints. If both exist and the claims agree, the create/rebind/self-heal branches do not run; lastSeen still updates. If the user row is absent, the ordinary code can create a user or rebind an email match; if a selected membership is missing, the ordinary code can create a mirrored membership. Those remain existing behavior and have not been disabled or expanded. Neo's permission to use his existing account is not permission to provision/rebind another one or change privileges. Do not use a new signup, another org or impersonation as a testing workaround. Before any assistant-run live write, the normal effective identity/tenant and the exact owned flow still need to be established, as the coordinator already requires. No production DB inspection, guard or additional authorization layer was performed to force that outcome.
+
+Transport compatibility uses the existing same-origin server proxy. Core's existing CORS code permits requests without Origin and its configured/standard browser origins; it does not automatically admit every new preview browser origin. A normal server-to-server Bearer proxy request does not need the browser Origin header forwarded. If the current frontend instead sends direct cross-origin requests or forwards an unlisted Origin, CORS rejection is a real transport issue to verify; do not change existing CORS/login/tenant protections here. Strict whitelist DTO validation remains normal: methods and payloads must match the current owner endpoints, and `/api` must not be duplicated.
+
+Actual source gaps, where relevant to the rebuilt UI: current main has no Core client-objective/ordered-owner/newsletter-staging/effective-date feature files from the unmerged candidate lanes. Do not infer those newer candidate endpoints are deployed merely because their draft source is reviewed. Basic ordinary Core reads/writes can be tested independently; a new UI action requiring an absent endpoint needs its actual owner deployment/compatibility check, not the PR2 reader service.
+
+Client creation is not a neutral fixture-only write: the ordinary owner invokes entity resolution/prepopulation and SAM enrichment when configured. Resolution/prepopulation source is DB-based; SAM source can fetch the provider. Establish the exact owned flow and its side effects before an automated live test. No provider send, paid-model call, upload, membership creation, identity rebind, privilege expansion, other-tenant operation, or overwrite/delete of existing business records is authorized by this compatibility finding. No live write was executed.
+
+## Capacity and optional native lane
+
+Removed only three completed, owner-confirmed reproducible API dist outputs: effective-calendar, newsletter-staging and objective-destinations. Their 3,703/3,707/3,711 files were solely JS/JS-map/build-state, with zero tracked files/symlinks and no open consumer. Allocated file bytes reclaimed: 135,962,624. Source heads/status, evidence, handovers, schemas/native clients, dependency caches, Git objects and all PostgreSQL files stayed exact. Both `/workspace` and the existing PostgreSQL data filesystem now have approximately 131 MiB available. The full finite inventory and before/after receipt are preserved.
+
+Capacity no longer blocks a small optional native fixture. The separate PR2/PR3 fixture has not been run as a condition for ordinary UI launch; no database object/grant was created. It stays outside the frontend's critical path under the latest owner decision.
+
+Remaining live checks belong to the normal frontend/shipping flow: correct existing API origin/prefix and reachable HTTPS path, compatible existing Clerk login, normal /me resolving Neo's existing effective identity/tenant, and a chosen owned test flow. This review requires no new backend grant or auth-layer approval. Frontend ECS deployment remains the shipping owner's authorized action; this backend review performed none.

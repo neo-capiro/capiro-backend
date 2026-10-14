@@ -1,0 +1,9 @@
+{
+  "format": "lossless-raw-observation-v1",
+  "original_path": "docs/preview-readonly-native-20261013/evidence/attempt0-entrypoint-emit.stderr",
+  "bytes": 324,
+  "sha256": "aae463d7ff753fcf9f82a366c66874605c5748aeb241178fa2ba53930fbb5737",
+  "git_blob": "158d2e878f94f3920a1dd9d60d74b457e676539a",
+  "encoding": "base64",
+  "data": "G1s5Nm1hcHBzL2FwaS9zcmMvZW5nYWdlbWVudC9ydW50aW1lL2VuZ2FnZW1lbnQtcnVudGltZS1lbnYudHMbWzBtOhtbOTNtNhtbMG06G1s5M204G1swbSAtIBtbOTFtZXJyb3IbWzBtG1s5MG0gVFMyMzA3OiAbWzBtQ2Fubm90IGZpbmQgbW9kdWxlICcuL2VuZ2FnZW1lbnQtcnVudGltZS50eXBlcy5qcycgb3IgaXRzIGNvcnJlc3BvbmRpbmcgdHlwZSBkZWNsYXJhdGlvbnMuCgobWzdtNhtbMG0gfSBmcm9tICcuL2VuZ2FnZW1lbnQtcnVudGltZS50eXBlcy5qcyc7ChtbN20gG1swbSAbWzkxbSAgICAgICB+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+G1swbQoK"
+}

@@ -1,0 +1,24 @@
+1027073 +++ exited with 0 +++
+1027066 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=1027073, si_uid=1000, si_status=0, si_utime=0, si_stime=1 /* 0.01 s */} ---
+1027082 connect(23, {sa_family=AF_INET, sin_port=htons(5432), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+1027083 +++ exited with 0 +++
+1027078 connect(24, {sa_family=AF_INET, sin_port=htons(5432), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+1027082 +++ exited with 0 +++
+1027084 +++ exited with 0 +++
+1027081 +++ exited with 0 +++
+1027078 +++ exited with 0 +++
+1027079 +++ exited with 0 +++
+1027080 +++ exited with 0 +++
+1027069 +++ exited with 0 +++
+1027070 +++ exited with 0 +++
+1027071 +++ exited with 0 +++
+1027068 +++ exited with 0 +++
+1027067 +++ exited with 0 +++
+1027077 +++ exited with 0 +++
+1027076 +++ exited with 0 +++
+1027075 +++ exited with 0 +++
+1027074 +++ exited with 0 +++
+1027072 +++ exited with 0 +++
+1027085 +++ exited with 0 +++
+1027087 +++ exited with 0 +++
+1027066 +++ exited with 0 +++
