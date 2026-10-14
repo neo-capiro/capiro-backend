@@ -1,0 +1,17 @@
+{
+  "reviewedHead": "db3dfc9e732e230be7129d6c702e55a13963bda4",
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "docs/objective-files-calendar-receiving-20261014/qualification.test.mjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.122,
+  "stdoutBytes": 11340,
+  "stdoutSha256": "bc08fe2bcb9fd3f41bdd6fd17cdd5cfa95aca75eeab5575714435dd964ed50c3",
+  "stderrBytes": 0,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "receiverSha256": "e23394264afd4e17d74d6790d9edefeb760f2554c7af66decfe51a84dd1f85cd",
+  "scope": "Authorized single consolidated inert source/synthetic rerun; full stdout/stderr preserved in tool transcript. No native/database/provider/HTTP/AWS."
+}

@@ -1,0 +1,28 @@
+{
+  "receiverSha256": "82cc491bffa0092adcfcbc1f7664df694c8a132503dae29e7263e192b29195bc",
+  "scope": "One inert receiver-only command; fabricated wire values, no canonical/native/database/HTTP/provider calls.",
+  "findings": [
+    {
+      "case": "in-place Planner occurrence mutation",
+      "requestedOccurrence": "start",
+      "admittedOccurrence": "planner_due"
+    },
+    {
+      "case": "in-place saved selection hash mutation",
+      "originalHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "admittedHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "case": "supersession between admit and caller continuation",
+      "malformed": false,
+      "currentAtSettlement": false,
+      "admitted": true
+    },
+    {
+      "case": "supersession between admit and caller continuation",
+      "malformed": true,
+      "currentAtSettlement": false,
+      "thrownCode": "INVALID_RECEIPT"
+    }
+  ]
+}

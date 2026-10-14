@@ -1,0 +1,36 @@
+{
+  "verdict": "ACCEPT_AUTHORIZED_DRAFT_PR16_ON_PR15",
+  "head": "db3dfc9e732e230be7129d6c702e55a13963bda4",
+  "tree": "992c24c87475668062436cfc9cd0d165581e928a",
+  "basePR15": "65c4918042df0930d4ff46abd6994fbdd27538c5",
+  "receiverSha256": "e23394264afd4e17d74d6790d9edefeb760f2554c7af66decfe51a84dd1f85cd",
+  "findings": [],
+  "closedFindings": [
+    "R1: selected hash/occurrence and callback/signal references captured before await.",
+    "R2: observe boxes fulfilled values and rejected errors; outer continuation gates before parsing or throwing at owner/hash awaits and gates final return."
+  ],
+  "packet": {
+    "payloads": 23,
+    "bytes": 165693,
+    "closedManifest": true,
+    "gitWorktreeHashBytesMatch": true,
+    "sha256Index": "e7ff9ae58c5ede3e8a029df7f361d01cbf46345a95d964729306cefd183d3a40",
+    "blockingFindingAndReproCopiesExact": true,
+    "original37CaseIdentitiesRetained": true,
+    "originalFailureAndPassingRawBytesVerified": true,
+    "productionDiff": "None; all 24 new paths lie in the allocated receiving-docs directory.",
+    "publishedEngagementBlobMetadata": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82"
+  },
+  "independentSyntheticRun": {
+    "record": "INDEPENDENT-RUN.json",
+    "sha256": "531067b7cad318851073615fbf5082cbc9383e51ef4d8f5fb3fda8bb64b98deb",
+    "passed": 40,
+    "failed": 0,
+    "skipped": 0,
+    "consumedExactCanonicalSources": 9
+  },
+  "handoff": "Matches selected eligible saved Workspace revision and current Planner occurrence contracts, their IDs/hash/version/date-kind/provenance and fresh owner resolution; frontend composition/deployment are not claimed.",
+  "limits": "AST-selected owner/shared-helper and inert transaction/store qualification only; no full semantic graph, DTO/guards/DI/HTTP/browser/native Prisma/Postgres/RLS/concurrency/deployment qualification. No protected unpublished reporting read/hydration or source/ref edits.",
+  "followup": "Exact final acceptance/run records, truthful handoff summary and derived manifest may be appended without rerun; receiver/harness/spec or canonical source changes require new review.",
+  "reviewDiscovery": "One copy-name lookup used the unprefixed filename and failed; corrected to actual INDEPENDENT- prefix. This was metadata discovery, not a test failure; transcript retains both."
+}

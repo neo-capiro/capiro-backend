@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "docs/objective-files-calendar-receiving-20261014/qualification.test.mjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.185,
+  "stdoutBytes": 10592,
+  "stderrBytes": 0,
+  "sources": {
+    "receiver.mjs": "82cc491bffa0092adcfcbc1f7664df694c8a132503dae29e7263e192b29195bc",
+    "canonical-harness.cjs": "4f2531e7766f3263ece40411e2fe18e81d05b90b0b1f03d951ea8ed7d362fe66",
+    "qualification.test.mjs": "4a353ea0a7e91d3180270cffcfa380b3baa4e09096f2eb1baaf4a4408497832d"
+  },
+  "change": "UI admission now discards late asynchronous owner/hash errors as well as responses; added one adversarial case. No product owner change."
+}

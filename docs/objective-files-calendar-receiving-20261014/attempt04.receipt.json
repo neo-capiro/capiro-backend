@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "docs/objective-files-calendar-receiving-20261014/qualification.test.mjs"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.392,
+  "stdoutBytes": 11335,
+  "stderrBytes": 0,
+  "sources": {
+    "receiver.mjs": "e23394264afd4e17d74d6790d9edefeb760f2554c7af66decfe51a84dd1f85cd",
+    "canonical-harness.cjs": "4f2531e7766f3263ece40411e2fe18e81d05b90b0b1f03d951ea8ed7d362fe66",
+    "qualification.test.mjs": "143b0c97030b4eed4c84c06347f9b9b7c22938386bce60c7528734412a889fb5"
+  },
+  "change": "Independent adversarial review defects corrected: selected scalars/callbacks captured before await; outer admission checks after each observation/hash await before values and errors. Three regression tests include microtask-superseded rejections."
+}
