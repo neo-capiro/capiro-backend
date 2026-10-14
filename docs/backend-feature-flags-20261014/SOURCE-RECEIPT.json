@@ -1,0 +1,42 @@
+{
+  "head": "1ed34585cfcfeea034a6a6c720fe042e2e98c6f2",
+  "tree": "85ec110458648bf3bd70e9edd66c231dec03f737",
+  "parent": "1f2655fe964cb2a01343d3bcb560de60fa5f69be",
+  "paths": [
+    {
+      "path": "apps/api/src/capiro-admin/capiro-admin.module.ts",
+      "kind": "production",
+      "bytes": 1170,
+      "sha256": "7c702be31db75080a0f1cadb2fc22c1516d823bdd412a240be1400eee4e74af2",
+      "blob": "9f8d23b6fc12c8e54e3d7ec89529f93ec310cd3c"
+    },
+    {
+      "path": "apps/api/src/common/meri-feature-flags.module.spec.ts",
+      "kind": "test",
+      "bytes": 9019,
+      "sha256": "67ffa4c2d863cf2a8bc7119b4b8d4e59f7cb6a066d4e0aaa76df8df0c8cefa6e",
+      "blob": "bb07f4520c06e6419f1abbbc36ec09da1d78c936"
+    },
+    {
+      "path": "apps/api/src/common/meri-feature-flags.module.ts",
+      "kind": "production",
+      "bytes": 425,
+      "sha256": "ba27607696e04e3f0c849c8b9f6fd20a593ca037767c21c22092fe9e76fbef22",
+      "blob": "fee01465b77faf35fa6ca69ea2f8b3e1e8b429c4"
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "kind": "production",
+      "bytes": 12482,
+      "sha256": "c3af3f37bfd918998bdd310c7bef1d2baa84fcad10405bab04e98fedf45532e8",
+      "blob": "7442633d11bf53191f25cf36faa32c3798e1186b"
+    },
+    {
+      "path": "apps/api/src/mobile/meri-mobile.module.ts",
+      "kind": "production",
+      "bytes": 571,
+      "sha256": "7d0a7f8c45bfb1f1f570ae29addef0379ab81c8b25b03b032e76a158029b3de9",
+      "blob": "c194f6b4cfe77e796cbbf7227c61a676be5d58f3"
+    }
+  ]
+}

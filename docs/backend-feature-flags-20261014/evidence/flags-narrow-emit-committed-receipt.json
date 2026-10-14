@@ -1,0 +1,26 @@
+{
+  "label": "flags-narrow-emit-committed",
+  "cwd": ".",
+  "argv": [
+    "node",
+    "docs/backend-feature-flags-20261014/check-narrow-types.cjs",
+    "--emit"
+  ],
+  "head": "1ed34585cfcfeea034a6a6c720fe042e2e98c6f2",
+  "tree": "85ec110458648bf3bd70e9edd66c231dec03f737",
+  "exitCode": 0,
+  "seconds": 12.007,
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-boundary-successor-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-boundary-successor-20261014/.qualification-cache/authority-tmp"
+  },
+  "outputSha256": "faeff77b8b86b3026aba189f24eadedc83e5ddc61ba1ee6952208be0064da828",
+  "scope": "source/mocked checks; fence is not an OS sandbox",
+  "sourceStatusBefore": "",
+  "sourceStatusAfter": "",
+  "exactCommittedSource": true
+}
