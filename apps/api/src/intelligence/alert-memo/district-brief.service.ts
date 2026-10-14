@@ -27,6 +27,7 @@ import {
 import { renderMemoDocx, type MemoDocInput } from './alert-memo-docx.js';
 import type { AlertMemoAlertInput } from './alert-memo.types.js';
 import type { DistrictBriefResult } from './district-brief.types.js';
+import { parseSections, type GenSection } from './memo-sections.js';
 
 /**
  * District-impact one-pager (Phase 1 M1.5, PD6). A sibling of `AlertMemoService`
@@ -34,11 +35,9 @@ import type { DistrictBriefResult } from './district-brief.types.js';
  * sheet adds the facility's footprint and its resolved federal + state
  * representation (M1.3's `RepresentationResolverService` — the SAME
  * deterministic join the M5 targeting-brief validator will use, so a claim
- * here means the same thing everywhere). Kept self-contained (not sharing
- * `AlertMemoService`'s private helpers) — this codebase's convention for
- * grounded-generation services is a local copy of the claims/prompt/grounding
- * logic per site rather than a shared abstraction (see alert-memo.service.ts's
- * own "borrowed from the artifact generator" comment).
+ * here means the same thing everywhere). Response-section parsing is shared
+ * with `AlertMemoService` through `memo-sections.ts`; claims, prompts,
+ * grounding, governance, and filing remain owned by each service.
  */
 const BRIEF_TIMEOUT_MS = 60_000;
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -65,11 +64,6 @@ interface Claim {
   id: string;
   text: string;
   url?: string | null;
-}
-
-interface GenSection {
-  heading: string;
-  paragraphs: Array<{ text: string; claimIds: string[] }>;
 }
 
 interface BriefFacility {
@@ -687,43 +681,6 @@ function buildUserPrompt(
     '',
     'Return JSON: {"sections":[{"heading":"Facility & footprint","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]}',
   ].join('\n');
-}
-
-function parseSections(text: string): GenSection[] {
-  const trimmed = (text ?? '').trim();
-  if (!trimmed) return [];
-  let parsed: { sections?: unknown };
-  try {
-    parsed = JSON.parse(trimmed) as { sections?: unknown };
-  } catch {
-    const m = trimmed.match(/\{[\s\S]*\}/);
-    if (!m) return [];
-    try {
-      parsed = JSON.parse(m[0]) as { sections?: unknown };
-    } catch {
-      return [];
-    }
-  }
-  if (!Array.isArray(parsed.sections)) return [];
-  const out: GenSection[] = [];
-  for (const raw of parsed.sections) {
-    if (!raw || typeof raw !== 'object') continue;
-    const s = raw as Record<string, unknown>;
-    if (typeof s.heading !== 'string') continue;
-    const paras = Array.isArray(s.paragraphs) ? s.paragraphs : [];
-    const paragraphs = paras
-      .map((p) => {
-        const r = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
-        const t = typeof r.text === 'string' ? r.text.trim() : '';
-        const ids = Array.isArray(r.claimIds)
-          ? r.claimIds.filter((x): x is string => typeof x === 'string')
-          : [];
-        return { text: t, claimIds: ids };
-      })
-      .filter((p) => p.text);
-    out.push({ heading: s.heading.trim(), paragraphs });
-  }
-  return out;
 }
 
 /**
