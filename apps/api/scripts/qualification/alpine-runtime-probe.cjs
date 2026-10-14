@@ -153,6 +153,115 @@ function parseLoaderMappings(output) {
     return match ? [{ dependency: match[1], file: match[2] }] : [];
   });
 }
+const unwindSymbols = ['_Unwind_Resume', '_Unwind_GetIP', '_Unwind_GetCFA', '_Unwind_FindEnclosingFunction', '_Unwind_Backtrace',
+  '_Unwind_GetLanguageSpecificData', '_Unwind_GetIPInfo', '_Unwind_GetRegionStart', '_Unwind_SetGR', '_Unwind_SetIP',
+  '_Unwind_GetTextRelBase', '_Unwind_GetDataRelBase', '__deregister_frame', '__register_frame', '_Unwind_Resume_or_Rethrow', '_Unwind_RaiseException'];
+// Inspection only: definitions and calculated addresses never establish actual process symbol lookup.
+function elfSymbolFacts(data, names = unwindSymbols) {
+  const elf = elfMetadata(data); assert.equal(elf.machine, 183, 'provider must be ARM64');
+  assert(names.length <= 64 && names.every(name => /^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(name)), 'bounded symbol names required');
+  const wanted = new Set(names), number = offset => { assert(offset >= 0 && offset + 8 <= data.length); const n = data.readBigUInt64LE(offset); assert(n <= BigInt(Number.MAX_SAFE_INTEGER)); return Number(n); };
+  const range = (offset, size) => assert(Number.isSafeInteger(offset + size) && offset >= 0 && size >= 0 && offset + size <= data.length, 'ELF table outside bytes');
+  const sectionOffset = number(40), sectionSize = data.readUInt16LE(58), count = data.readUInt16LE(60);
+  const sections = Array.from({ length: count }, (_, index) => {
+    const at = sectionOffset + index * sectionSize;
+    const row = { index, type: data.readUInt32LE(at + 4), offset: number(at + 24), size: number(at + 32), link: data.readUInt32LE(at + 40), entrySize: number(at + 56) };
+    if (row.type !== 8) range(row.offset, row.size); return row;
+  });
+  const strings = (table, offset) => {
+    assert(table?.type === 3 && offset >= 0 && offset < table.size, 'invalid symbol string table');
+    const end = data.indexOf(0, table.offset + offset); assert(end >= 0 && end < table.offset + table.size && end - table.offset - offset <= 4096, 'bounded terminated ELF string required');
+    return data.toString('utf8', table.offset + offset, end);
+  };
+  const versions = new Map(); let versionRows = 0;
+  for (const s of sections.filter(row => [0x6ffffffd, 0x6ffffffe].includes(row.type))) {
+    const table = sections[s.link]; let relative = 0;
+    while (relative < s.size) {
+      assert(++versionRows <= 4096, 'ELF version table bound');
+      const at = s.offset + relative, definition = s.type === 0x6ffffffd, header = definition ? 20 : 16;
+      assert(relative + header <= s.size && data.readUInt16LE(at) === 1, 'invalid/truncated ELF version header');
+      const auxCount = data.readUInt16LE(at + (definition ? 6 : 2)); assert(auxCount > 0 && auxCount <= 4096, 'ELF version auxiliary bound');
+      let aux = relative + data.readUInt32LE(at + (definition ? 12 : 8));
+      for (let index = 0; index < auxCount; index++) {
+        const size = definition ? 8 : 16; assert(aux >= relative + header && aux + size <= s.size, 'ELF version auxiliary outside table');
+        const pos = s.offset + aux, id = definition ? data.readUInt16LE(at + 4) : data.readUInt16LE(pos + 6);
+        const name = strings(table, data.readUInt32LE(pos + (definition ? 0 : 8)));
+        if (!definition || index === 0) {
+          const key = id & 0x7fff, value = { name, kind: definition ? 'DEFINITION' : 'REQUIREMENT', flags: definition ? data.readUInt16LE(at + 2) : data.readUInt16LE(pos + 4) };
+          assert(!versions.has(key) || JSON.stringify(versions.get(key)) === JSON.stringify(value), 'ambiguous ELF version index'); versions.set(key, value);
+        }
+        const next = data.readUInt32LE(pos + (definition ? 4 : 12));
+        if (index + 1 < auxCount) { assert(next >= size, 'invalid ELF version auxiliary chain'); aux += next; }
+      }
+      const next = data.readUInt32LE(at + (definition ? 16 : 12)); if (!next) break;
+      assert(next >= header && relative + next > relative && relative + next < s.size, 'invalid ELF version chain'); relative += next;
+    }
+  }
+  const tables = sections.filter(row => row.type === 11); assert(tables.length > 0 && tables.length <= 4, 'dynamic symbol table unavailable/bounded');
+  const symbols = []; let inspected = 0;
+  for (const s of tables) {
+    assert(s.entrySize === 24 && s.size % 24 === 0 && s.size / 24 <= 262144, 'bounded ELF64 dynamic symbols required');
+    const versym = sections.filter(row => row.type === 0x6fffffff && row.link === s.index); assert(versym.length <= 1, 'ambiguous symbol versions');
+    if (versym.length) assert(versym[0].size === (s.size / 24) * 2, 'truncated symbol versions');
+    for (let index = 0; index < s.size / 24; index++) {
+      assert(++inspected <= 262144, 'total dynamic symbol bound'); const at = s.offset + index * 24;
+      const name = strings(sections[s.link], data.readUInt32LE(at)); if (!wanted.has(name)) continue;
+      assert(symbols.length < 256, 'matching symbol bound');
+      const info = data[at + 4], sectionIndex = data.readUInt16LE(at + 6), version = versym.length ? data.readUInt16LE(versym[0].offset + index * 2) : null;
+      assert(sectionIndex < count || [0xfff1, 0xfff2].includes(sectionIndex), 'unsupported/invalid extended symbol section index');
+      const id = version === null ? null : version & 0x7fff;
+      symbols.push({ name, index, tableSection: s.index, defined: sectionIndex !== 0, sectionIndex,
+        value: '0x' + data.readBigUInt64LE(at + 8).toString(16), bytes: '0x' + data.readBigUInt64LE(at + 16).toString(16),
+        binding: info >> 4, type: info & 15, visibility: data[at + 5] & 3,
+        version: { index: id, hidden: version !== null && !!(version & 0x8000), descriptor: id !== null && id > 1 ? versions.get(id) || { status: 'UNKNOWN_VERSION_INDEX' } : null } });
+    }
+  }
+  const programOffset = number(32), programSize = data.readUInt16LE(54), programCount = data.readUInt16LE(56);
+  assert(programCount > 0 && programCount <= 128 && programSize >= 56, 'bounded program headers required'); range(programOffset, programCount * programSize);
+  const loads = [];
+  for (let index = 0; index < programCount; index++) {
+    const at = programOffset + index * programSize; if (data.readUInt32LE(at) !== 1) continue;
+    const offset = number(at + 8), fileSize = number(at + 32), memorySize = number(at + 40); range(offset, fileSize); assert(fileSize <= memorySize, 'invalid PT_LOAD sizes');
+    loads.push({ offset, fileSize, memorySize, virtualAddress: '0x' + data.readBigUInt64LE(at + 16).toString(16), alignment: '0x' + data.readBigUInt64LE(at + 48).toString(16), flags: data.readUInt32LE(at + 4) });
+  }
+  assert(loads.length > 0, 'PT_LOAD unavailable');
+  return { elf, symbols, loads, inspectedDynamicSymbols: inspected, missingNames: [...wanted].filter(name => !symbols.some(row => row.name === name)), actualProcessLookup: 'UNOBSERVED' };
+}
+function mappedSymbolFacts(data, maps, file, names = unwindSymbols) {
+  assert(Buffer.byteLength(maps) <= 256 * 1024, 'map text bound'); const facts = elfSymbolFacts(data, names), ranges = [];
+  for (const line of maps.split('\n')) {
+    const match = /^([0-9a-f]+)-([0-9a-f]+)\s+(\S+)\s+([0-9a-f]+)\s+\S+\s+\S+\s+(\/.*)$/.exec(line);
+    if (match?.[5] !== file) continue; assert(ranges.length < 128, 'per-provider map range bound');
+    const start = BigInt('0x' + match[1]), end = BigInt('0x' + match[2]); assert(end > start, 'invalid map range');
+    ranges.push({ start: '0x' + match[1], end: '0x' + match[2], permissions: match[3], offset: '0x' + match[4] });
+  }
+  const biases = new Set();
+  for (const m of ranges) for (const segment of facts.loads) {
+    const delta = BigInt(segment.offset) - BigInt(m.offset), alignment = BigInt(segment.alignment);
+    if (delta < 0n || alignment < 1n || delta >= alignment || BigInt(segment.virtualAddress) < delta) continue;
+    const bias = BigInt(m.start) - (BigInt(segment.virtualAddress) - delta); if (bias >= 0n) biases.add('0x' + bias.toString(16));
+  }
+  const candidates = facts.symbols.filter(s => s.defined && s.sectionIndex < 0xff00 && [0, 1, 2].includes(s.type)).map(s => ({ name: s.name, symbolIndex: s.index,
+    addresses: [...biases].map(bias => { const address = BigInt(bias) + BigInt(s.value); return { address: '0x' + address.toString(16), inMappedRange: ranges.some(m => BigInt(m.start) <= address && address < BigInt(m.end)) }; }) }));
+  return { ...facts, mapRanges: ranges, loadBiasCandidates: [...biases], calculatedSymbolAddresses: candidates, addressScope: 'CALCULATED_CANDIDATES_NOT_OBSERVED_LOOKUP; TLS/IFUNC/absolute/common symbols have no ordinary calculated address', status: ranges.length && biases.size === 1 ? 'STATIC_PROVIDER_FACTS_ONLY' : 'MAPPING_BIAS_UNPROVEN' };
+}
+function collectSymbolProviders(mapped, maps, addon, names = unwindSymbols, { read = file => fs.readFileSync(file) } = {}) {
+  const rows = [], allowed = ['/app/node_modules/.pnpm', '/lib', '/usr/lib', '/usr/local/bin', '/usr/local/lib'];
+  for (const identity of [addon, ...mapped.filter(row => row.file !== addon.file)].slice(0, 16)) {
+    let row = { file: identity.file, sha256: identity.sha256, bytes: identity.bytes, actualProcessLookup: 'UNOBSERVED' };
+    try {
+      assert(allowed.some(root => contained(root, identity.file)), 'provider escapes observed roots');
+      const data = read(identity.file); assert(data.length <= 512 * 1024 * 1024 && data.length === identity.bytes, 'provider size changed/bound');
+      assert.equal(createHash('sha256').update(data).digest('hex'), identity.sha256, 'provider hash changed');
+      row.facts = mappedSymbolFacts(data, maps, identity.file, names);
+      assert.equal(createHash('sha256').update(read(identity.file)).digest('hex'), identity.sha256, 'provider changed after inspection');
+      row.status = row.facts.status;
+    } catch (error) { row.status = 'PROVIDER_FACTS_UNVERIFIED'; row.error = { code: error.code || error.name, message: String(error.message).slice(0, 2048) }; }
+    rows.push(row);
+  }
+  return { requestedSymbols: names, providers: rows, providerSetTruncated: mapped.length + (mapped.some(row => row.file === addon.file) ? 0 : 1) > 16,
+    actualProcessLookup: 'UNOBSERVED', policy: 'NO_NEW_SYMBOL_EXEMPTION; static exports/maps are not accepted runtime lookup proof' };
+}
 function assertRuntimeLibc(receipt, evidence) {
   try {
     assert.equal(evidence.inspectionErrors?.length || 0, 0, 'incomplete mapping/loader evidence');
@@ -215,9 +324,10 @@ async function observeNativeLoad(file, operation = () => require(file)) {
   const mappings = parseLoaderMappings(list.stdout);
   if (mappings.length > 256) inspectionErrors.push({ source: 'loader stdout', message: 'resolved object count exceeds bound' });
   const resolved = mappings.slice(0, 256).map(row => ({ dependency: row.dependency, ...inspect(row.file) }));
+  const symbolProviders = unexplained.length ? collectSymbolProviders(mapped, maps, addon) : null;
   const evidence = { addon, expectedLoader, musl: inspect('/lib/ld-musl-aarch64.so.1'), banner, bannerResult,
     runtime: { platform: process.platform, arch: process.arch, glibc: process.report.getReport().header.glibcVersionRuntime || null },
-    mapped, mappedPaths: paths.slice(0, 256), resolved, dlopen, inspectionErrors,
+    mapped, mappedPaths: paths.slice(0, 256), resolved, dlopen, inspectionErrors, symbolProviders,
     operationCompleted: !operationError, addonAfter: inspect(addon.file),
     searchPolicy: 'FIXED_CREDENTIAL_FREE_ENV_NO_LD_OVERRIDES; ELF RPATH/RUNPATH retained',
     loader: { ...list, nodeSymbols, unexplained } };
@@ -309,6 +419,109 @@ function readDeployedPackage(manifest, { imageRoot = '/app' } = {}) {
     name: typeof metadata.name === 'string' ? metadata.name : null, version: typeof metadata.version === 'string' ? metadata.version : null,
     os: metadata.os || null, cpu: metadata.cpu || null, libc: metadata.libc || null,
     format: typeof metadata.name === 'string' && typeof metadata.version === 'string' ? 'NAMED_PACKAGE_MANIFEST' : 'PACKAGE_SCOPE_METADATA' } };
+}
+function sourceIdentity(file, { imageRoot = '/app', maximumBytes = 65536, content = true } = {}) {
+  assert(Number.isInteger(maximumBytes) && maximumBytes > 0 && maximumBytes <= 65536, 'source prefix byte bound');
+  const real = fs.realpathSync(file); assert(contained(fs.realpathSync(imageRoot), real), 'source escapes deployed root');
+  assert(/\.(?:[cm]?js|json)$/.test(real), 'source type outside fixed JS/JSON contract');
+  const stat = fs.statSync(real); assert(stat.isFile() && stat.size <= 8 * 1024 * 1024, 'bounded regular vendor source required');
+  const data = fs.readFileSync(real), hash = createHash('sha256').update(data).digest('hex');
+  assert(data.length === stat.size && hash === createHash('sha256').update(fs.readFileSync(real)).digest('hex'), 'source changed during inspection');
+  const prefix = data.subarray(0, maximumBytes);
+  // Base64 preserves exact source bytes without evaluating code or interpreting terminal escapes.
+  return { file: real, sha256: hash, bytes: data.length, contentBase64: content ? prefix.toString('base64') : null,
+    capturedBytes: content ? prefix.length : 0, sourceComplete: data.length <= maximumBytes, scope: 'STATIC_SOURCE_BYTES_NOT_EXECUTED' };
+}
+function vendorSelectorSources(manifest, { imageRoot = '/app' } = {}) {
+  const result = { manifest, status: 'UNPROVEN', selectedPayload: 'UNOBSERVED', sources: [], errors: [], packageRelationIsNotPayloadSelection: true };
+  try {
+    manifest = fs.realpathSync(manifest); const owner = fs.realpathSync(path.dirname(manifest));
+    const pkg = readDeployedPackage(manifest, { imageRoot });
+    assert(['@openai/codex-security', 'onnxruntime-node'].includes(pkg.metadata.name), 'unapproved selector owner');
+    result.owner = pkg.row; result.ownerRoot = owner;
+    try { result.entry = fs.realpathSync(createRequire(manifest).resolve('./')); assert(contained(owner, result.entry), 'vendor entry escapes owner'); }
+    catch (error) { result.errors.push({ source: 'owner-entry-resolution', message: String(error.message).slice(0, 2048) }); }
+    const pending = [owner], files = []; let visited = 0;
+    while (pending.length) {
+      const dir = pending.shift(); assert(++visited <= 256 && path.relative(owner, dir).split(path.sep).length <= 12, 'vendor directory traversal bound');
+      const entries = fs.readdirSync(dir, { withFileTypes: true }); assert(entries.length <= 2048, 'vendor directory entry bound');
+      for (const item of entries) {
+        const file = path.join(dir, item.name);
+        if (item.isDirectory() && item.name !== 'node_modules' && item.name !== '.git') pending.push(file);
+        else if (item.isFile() && /\.[cm]?js$/.test(item.name)) { assert(files.length < 128, 'vendor JS file set bound'); files.push(file); }
+        else if (item.isSymbolicLink() && /\.[cm]?js$/.test(item.name)) result.errors.push({ file, message: 'Unfollowed vendor JS symlink; source inventory incomplete' });
+      }
+    }
+    if (result.entry && !files.includes(result.entry)) files.unshift(result.entry);
+    files.sort((a, b) => (a === result.entry ? -1 : b === result.entry ? 1 : a.localeCompare(b)));
+    let total = 0;
+    for (const file of files) {
+      try {
+        assert(total < 256 * 1024, 'owner source capture budget exhausted');
+        const row = sourceIdentity(file, { imageRoot, maximumBytes: Math.min(65536, 256 * 1024 - total) });
+        assert(contained(owner, row.file), 'vendor source escapes physical owner');
+        row.relation = row.file === result.entry ? 'OWNER_RESOLVED_ENTRY' : 'OWNER_SOURCE_SELECTION_UNVERIFIED';
+        result.sources.push(row); total += row.capturedBytes;
+        if (!row.sourceComplete) result.errors.push({ file, message: 'Vendor source prefix only; selector interpretation incomplete' });
+      } catch (error) { result.errors.push({ file, message: String(error.message).slice(0, 2048) }); }
+    }
+    result.discoveredSourceFiles = files.length; result.capturedSourceBytes = total;
+  } catch (error) { result.errors.push({ source: manifest, message: String(error.message).slice(0, 2048) }); }
+  return result;
+}
+function staticImportCandidates(source) {
+  assert(Buffer.byteLength(source) <= 65536, 'static scan source bound');
+  const edges = []; // Lexical candidates only: strings/comments/transforms can create false positives; never proof of graph completeness.
+  const pattern = /\b(?:require\s*\(\s*|import\s*\(\s*|from\s*|import\s*)(['"])([^'"\r\n]{1,256})\1/g;
+  for (const match of source.matchAll(pattern)) { assert(edges.length < 128, 'source import candidate bound'); edges.push({ specifier: match[2], offset: match.index }); }
+  return edges;
+}
+function apiReachabilityEvidence(entry = '/app/apps/api/dist/main.js', { imageRoot = '/app', maximumNodes = 64 } = {}) {
+  const result = { entry, status: 'UNPROVEN', scope: 'BOUNDED_LEXICAL_IMPORT_CANDIDATES_NOT_COMPLETE_GRAPH', nodes: [], edges: [], errors: [],
+    vendorReachability: { '@openai/codex-security': 'UNPROVEN', 'onnxruntime-node': 'UNPROVEN' }, applicationExecuted: false };
+  const pending = [entry], seen = new Set(); let bytes = 0;
+  while (pending.length) {
+    const file = pending.shift(); if (seen.has(file)) continue;
+    if (result.nodes.length >= maximumNodes || bytes >= 512 * 1024) { result.errors.push({ source: file, message: 'API candidate graph budget exhausted' }); break; }
+    seen.add(file);
+    try {
+      const row = sourceIdentity(file, { imageRoot, maximumBytes: Math.min(65536, 512 * 1024 - bytes), content: false });
+      result.nodes.push(row); bytes += Math.min(row.bytes, 65536);
+      if (!row.sourceComplete) { result.errors.push({ source: file, message: 'API source exceeds scan bound; edges incomplete' }); continue; }
+      const source = fs.readFileSync(row.file, 'utf8'); assert.equal(createHash('sha256').update(source).digest('hex'), row.sha256, 'graph source changed');
+      const candidates = staticImportCandidates(source);
+      for (const candidate of candidates) {
+        if (result.edges.length >= 256) { result.errors.push({ source: file, message: 'API edge budget exhausted' }); break; }
+        const edge = { source: row.file, sourceSha256: row.sha256, ...candidate, status: 'UNRESOLVED' };
+        try {
+          const resolved = createRequire(row.file).resolve(candidate.specifier);
+          if (!path.isAbsolute(resolved)) edge.status = 'BUILTIN_OR_NONFILE';
+          else {
+            edge.resolved = fs.realpathSync(resolved); assert(contained(fs.realpathSync(imageRoot), edge.resolved), 'graph resolution escapes image');
+            edge.status = 'OWNER_RESOLVED_LEXICAL_CANDIDATE';
+            if (/\.[cm]?js$/.test(edge.resolved) && !seen.has(edge.resolved)) pending.push(edge.resolved);
+          }
+        } catch (error) { edge.error = String(error.message).slice(0, 2048); }
+        result.edges.push(edge);
+      }
+    } catch (error) { result.errors.push({ source: file, message: String(error.message).slice(0, 2048) }); }
+  }
+  result.reason = 'No AST/control-flow/config/plugin proof: dynamic edges, comments/string matches and conditional imports are not resolved by this lexical inventory. No unused/active-package conclusion is authorized.';
+  return result;
+}
+function qualificationInputBindings() {
+  const result = { scope: 'FIXED_OPTIONAL_READ_ONLY_PROVENANCE_MOUNTS', status: 'UNPROVEN', inputs: [] };
+  for (const file of ['/qualification/source-commit.txt', '/qualification/pnpm-lock.yaml']) {
+    try {
+      const real = fs.realpathSync(file); assert(contained('/qualification', real), 'qualification input escapes mount root');
+      const stat = fs.statSync(real); assert(stat.isFile() && stat.size <= 8 * 1024 * 1024, 'qualification input byte bound');
+      const data = fs.readFileSync(real);
+      result.inputs.push({ file: real, sha256: createHash('sha256').update(data).digest('hex'), bytes: data.length,
+        source: file.endsWith('.txt') && /^[a-f0-9]{40}\n$/.test(data.toString()) ? data.toString().trim() : null });
+    } catch (error) { result.inputs.push({ file, status: 'UNAVAILABLE_OR_UNVERIFIED', error: String(error.message).slice(0, 2048) }); }
+  }
+  result.limit = 'Actual mount identity must be joined to the separately reviewed frozen Git source/lock manifest by the coordinator. Existence or a copied hash alone does not prove source/installed-lock equivalence.';
+  return result;
 }
 async function retainedDispatcher(manifest) {
   const root = fs.realpathSync('/app/node_modules/.pnpm'); manifest = fs.realpathSync(manifest);
@@ -514,7 +727,7 @@ async function sharpDispatcherProbe(manifest, { root = '/app/node_modules/.pnpm'
   assert.equal(binding.owner.version, metadata.version);
   return { relation: 'RETAINED_STORE_SHARP_OWNER', manifest, entry, version: metadata.version, bindingManifest, pixel: [...pixels.data], binding };
 }
-module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence };
+module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence, elfSymbolFacts, mappedSymbolFacts, collectSymbolProviders, sourceIdentity, vendorSelectorSources, staticImportCandidates, apiReachabilityEvidence };
 const report = { status: 'STARTED', packages: [], native: [], activeBindings: [] };
 function walk(dir, files = [], depth = 0) {
   assert(depth <= 32 && files.length < 200000, 'bounded native directory traversal required');
@@ -597,6 +810,15 @@ async function main() {
       report.native.push(row); emit('native-inventory', row);
     }
   }
+  // Collect every known bundled owner's static source contract BEFORE loads or selector policy gates.
+  report.vendorSelectors = [];
+  const selectorOwners = [...deployedMetadata].filter(([, metadata]) => ['@openai/codex-security', 'onnxruntime-node'].includes(metadata.name));
+  for (const [manifest] of selectorOwners.slice(0, 4)) {
+    const row = vendorSelectorSources(manifest); report.vendorSelectors.push(row); emit('vendor-selector-sources', row);
+  }
+  if (selectorOwners.length > 4) { const row = { status: 'UNPROVEN', error: 'Bundled selector owner bound exceeded', observedOwners: selectorOwners.length }; report.vendorSelectors.push(row); emit('vendor-selector-sources', row); }
+  report.apiReachability = apiReachabilityEvidence(); emit('api-reachability-candidates', report.apiReachability);
+  report.qualificationInputs = qualificationInputBindings(); emit('qualification-input-bindings', report.qualificationInputs);
   if (process.argv.includes('--inventory-only')) {
     report.status = 'INVENTORY_ONLY'; report.mode = 'DIAGNOSTIC_INVENTORY';
     completeReceiptReport(report, stream, 'inventory-summary', { npmPackages: report.npmPackages.length, artifacts: report.artifacts.length, native: report.native.length }); return;
