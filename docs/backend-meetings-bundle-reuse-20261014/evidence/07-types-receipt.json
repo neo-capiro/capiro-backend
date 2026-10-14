@@ -1,0 +1,33 @@
+{
+  "head": "043e8f19d0af4e96cb755345586eeba3a244ce46",
+  "tree": "dc7002e348b6fd6e82fe631a8503842c77f3c64a",
+  "bindings": [
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.ts",
+      "blob": "7593c2b82dc4b4645d8287fbf80399c5e28f7258",
+      "sha256": "2f2552ad4720a1a92c3cdc7f3531b214da580b6fe85b4f92f49908662e8139c6"
+    },
+    {
+      "path": "apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "blob": "2a7e61bb8cd4a277185980d5f66dd36fab774307",
+      "sha256": "cec51c9c8e27c5da946b89a4a1e96a200bb7596af17588d3bade5aa0c691c728"
+    }
+  ],
+  "boundSourcesUnchanged": true,
+  "exitCode": 1,
+  "signal": null,
+  "sourceFiles": 2082,
+  "diagnostics": [
+    {
+      "code": 2345,
+      "path": "/workspace/capiro-backend-meetings-bundle-20261014/apps/api/src/context/meetings-context-plane.runtime.spec.ts",
+      "line": 565,
+      "message": "Argument of type '() => Promise<MeetingDebriefDraftResult> | Promise<{ model: string | null; clientId: string | null; tenantId: string; id: string; status: $Enums.MeetingPrepStatus; ... 14 more ...; editedByUserId: string | null; }>' is not assignable to parameter of type '(value: void) => MeetingDebriefDraftResult | PromiseLike<MeetingDebriefDraftResult>'.\n  Type 'Promise<MeetingDebriefDraftResult> | Promise<{ model: string | null; clientId: string | null; tenantId: string; id: string; status: MeetingPrepStatus; ... 14 more ...; editedByUserId: string | null; }>' is not assignable to type 'MeetingDebriefDraftResult | PromiseLike<MeetingDebriefDraftResult>'.\n    Type 'Promise<{ model: string | null; clientId: string | null; tenantId: string; id: string; status: MeetingPrepStatus; createdAt: Date; summary: string | null; updatedAt: Date; ... 11 more ...; editedByUserId: string | null; }>' is not assignable to type 'MeetingDebriefDraftResult | PromiseLike<MeetingDebriefDraftResult>'.\n      Type 'Promise<{ model: string | null; clientId: string | null; tenantId: string; id: string; status: MeetingPrepStatus; createdAt: Date; summary: string | null; updatedAt: Date; ... 11 more ...; editedByUserId: string | null; }>' is not assignable to type 'PromiseLike<MeetingDebriefDraftResult>'.\n        Types of property 'then' are incompatible.\n          Type '<TResult1 = { model: string | null; clientId: string | null; tenantId: string; id: string; status: MeetingPrepStatus; createdAt: Date; summary: string | null; updatedAt: Date; ... 11 more ...; editedByUserId: string | null; }, TResult2 = never>(onfulfilled?: ((value: { ...; }) => TResult1 | PromiseLike<...>) | ... 1...' is not assignable to type '<TResult1 = MeetingDebriefDraftResult, TResult2 = never>(onfulfilled?: ((value: MeetingDebriefDraftResult) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | ... 1 more ... | undefined) => PromiseLike<...>'.\n            Types of parameters 'onfulfilled' and 'onfulfilled' are incompatible.\n              Types of parameters 'value' and 'value' are incompatible.\n                Type '{ model: string | null; clientId: string | null; tenantId: string; id: string; status: MeetingPrepStatus; createdAt: Date; summary: string | null; updatedAt: Date; ... 11 more ...; editedByUserId: string | null; }' is missing the following properties from type 'MeetingDebriefDraftResult': recap, actionItems, notes, raw"
+    }
+  ],
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capiro-backend-meetings-bundle-20261014/docs/backend-meetings-bundle-reuse-20261014/evidence/check-types.cjs"
+  ],
+  "qualification": "Actual strict/noUnchecked/noEmit changed-entry closure; workspace packages pinned to this Git source; published Engagement body read only for type compilation; cached third-party/Prisma declarations, no generator/DB/provider/native execution."
+}

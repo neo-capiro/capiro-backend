@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentMeetingPrepExecution } from '../engagement/meeting-prep-job-runtime.js';
-import { requireMeetingGovernedContext } from '../engagement/meeting-context-runtime.js';
+import { currentMeetingGovernedContext, requireMeetingGovernedContext } from '../engagement/meeting-context-runtime.js';
 import { EngagementAiService } from '../engagement/engagement-ai.service.js';
 import type { ModuleRef } from '@nestjs/core';
 import type { TenantContext } from '@capiro/shared';
@@ -194,13 +194,13 @@ export class MeetingsContextPlaneRuntime {
       if (!entry) continue;
       const runtime = this;
       const wrapped = async function (this: unknown, ...aiArgs: unknown[]) {
-        if (mode === 'prep' && currentMeetingPrepExecution()) {
-          const governed = requireMeetingGovernedContext('prep');
+        if (currentMeetingGovernedContext() || (mode === 'prep' && currentMeetingPrepExecution())) {
+          const governed = requireMeetingGovernedContext(mode);
           const input = aiArgs[0] as { meeting?: { id?: string } } | undefined;
           if (input?.meeting?.id !== governed.meetingId)
             throw new Error('phase24_meeting_context_object_mismatch');
-          // The canonical source registry is already supplied to every bounded
-          // ledger/draft/review call. Do not resolve and inject a second packet.
+          // The canonical public factory has already supplied and scoped this
+          // bundle, including inferred clients. Reuse it at either provider seam.
           return entry.fn.apply(this, aiArgs);
         }
         const invocation = runtime.invocation.getStore();

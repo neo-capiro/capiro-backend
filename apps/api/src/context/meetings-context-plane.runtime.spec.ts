@@ -1,5 +1,12 @@
 import { MeetingsContextPlaneRuntime } from './meetings-context-plane.runtime.js';
 import { EngagementAiService as EngagementAiProvider } from '../engagement/engagement-ai.service.js';
+import { createGovernedMeetingAiService } from '../engagement/governed-meeting-ai.factory.js';
+import { createGovernedEngagementService } from '../engagement/governed-engagement.factory.js';
+import { guardEngagementAiService } from '../engagement/runtime/engagement-ai-runtime.boundary.js';
+import { EngagementRuntimePolicyService } from '../engagement/runtime/engagement-runtime-policy.service.js';
+import { currentMeetingGovernedContext, runWithMeetingGovernedContext, type MeetingGovernedContext } from '../engagement/meeting-context-runtime.js';
+import { withMeetingPrepExecution, type MeetingPrepExecution } from '../engagement/meeting-prep-job-runtime.js';
+import { MeetingContextPlaneService } from '../engagement/meeting-context-plane.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -368,5 +375,214 @@ describe('MeetingsContextPlaneRuntime Phase 24', () => {
     expect(body.input).toContain('stopReason=source_partial');
     expect(body.input).toContain('recordsReturned=0');
     h.runtime.restoreForTest();
+  });
+});
+
+function canonicalBundle(mode: 'prep' | 'debrief', clientId: string | null = CLIENT, meetingId = MEETING): MeetingGovernedContext {
+  return { kind: 'governed_packet', mode, meetingId, clientId, packetId: 'first-packet', traceHash: 'first-trace',
+    modelContextBlock: `FIRST-CANONICAL-PACKET:${mode}:${meetingId}:${clientId ?? 'none'}`,
+    coverage: { complete: false, requestedDomains: [], searchedDomains: [], missingDomains: [], partialDomains: [],
+      recordsReturned: 0, paginationComplete: true, truncated: false, stopReason: 'synthetic_source_only' } };
+}
+
+function composition(options: { inferred?: boolean; policyDisabled?: boolean; clientId?: string | null; internal?: boolean; manuallyCleared?: boolean;
+  canonical?: { resolve: (actor: unknown, input: { meetingId: string; mode: 'prep' | 'debrief' }) => Promise<MeetingGovernedContext> } } = {}) {
+  const clientId = options.clientId === undefined ? CLIENT : options.clientId;
+  const row = { ...meeting, clientId: options.internal ? CLIENT : options.inferred ? null : clientId,
+    isInternal: options.internal ?? false, associationSignals: options.manuallyCleared ? { manual: true } : null };
+  const rawAi = new EngagementAiService();
+  const policy = new EngagementRuntimePolicyService({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api',
+    externalActions: options.policyDisabled ? 'disabled' : 'enabled', callbacksEnabled: false, recallWebhookEnabled: false });
+  const guardedAi = guardEngagementAiService(rawAi as never, policy);
+  const publicAi = createGovernedMeetingAiService(guardedAi);
+  const providerInput = (text?: string) => ({ meeting: row, client: clientId ? { id: clientId } : null, attendees: [],
+    congressionalDirectoryMatches: [], recentMeetings: [], recentThreads: [], tasks: [],
+    transcript: text ?? 'Current transcript evidence', notes: ['Current visible note'], clientContext: 'OLD-PRIVATE-HISTORY' });
+  const rawCaller = {
+    // Both original factory bindings are required even though this fixture never invokes Outreach.
+    async generateOutreachDraft() { throw new Error('unused_outreach_fixture'); },
+    async generateBatchEmails() { throw new Error('unused_batch_fixture'); },
+    async generateMeetingPrep(actor: unknown, _meetingId: string) { return publicAi.generateMeetingPrep(providerInput() as never, actor as never); },
+    async generateMeetingDebriefDraft(actor: unknown, _meetingId: string, input: { sourceText: string }) {
+      return publicAi.generateMeetingDebrief(providerInput(input.sourceText) as never, actor as never);
+    },
+  };
+  const canonical = options.canonical ?? { resolve: jest.fn(async (_actor: unknown, input: { meetingId: string; mode: 'prep' | 'debrief' }) => canonicalBundle(input.mode, clientId, input.meetingId)) };
+  const publicCaller = createGovernedEngagementService(rawCaller as never, { guard: (fn: () => unknown) => fn() } as never,
+    canonical as never, policy);
+  const providers = new Map<unknown, { instance: unknown }>([
+    [EngagementAiProvider, { instance: publicAi }], ['guarded-ai', { instance: guardedAi }],
+    ['raw-ai', { instance: rawAi }], ['raw-caller', { instance: rawCaller }], ['public-caller', { instance: publicCaller }],
+  ]);
+  const moduleRef = { get: (token: unknown) => { expect(token).toBe(EngagementAiProvider); return publicAi; },
+    container: { getModules: () => new Map([['actual-factory-composition', { providers, controllers: new Map() }]]) } };
+  const tx = { client: { findFirst: jest.fn(async () => ({ id: CLIENT, name: 'Acme' })), findMany: jest.fn(async () => [{ id: CLIENT }]) },
+    integrationConnection: { findMany: jest.fn(async () => []) } };
+  const prisma = { withTenantUser: jest.fn(async (tenant: string, actor: string, fn: (value: typeof tx) => unknown) => {
+    expect([tenant, actor]).toEqual([TENANT, USER]); return fn(tx);
+  }) };
+  const gateway = { requestContext: jest.fn(async (input: { contextRequest: { clientId?: string } }) => {
+    const result = gatewayResult();
+    (result.packet as any).clientId = input.contextRequest.clientId ?? null;
+    (result.packet as any).rendered = [{ body: 'SECOND-COMPATIBILITY-PACKET' }];
+    return result;
+  }) };
+  const runtime = new MeetingsContextPlaneRuntime(gateway as never, prisma as never, moduleRef as never);
+  return { runtime, rawAi, guardedAi, publicAi, rawCaller, publicCaller, canonical, gateway, row, providerInput, policy };
+}
+
+function realServiceComposition(kind: 'stored' | 'inferred' | 'internal' | 'manually-cleared') {
+  const noClient = kind === 'internal' || kind === 'manually-cleared';
+  const record = { id: MEETING, clientId: kind === 'stored' || kind === 'internal' ? CLIENT : null,
+    isInternal: kind === 'internal', associationSignals: kind === 'manually-cleared' ? { manual: true } : null,
+    subject: 'Current meeting', description: 'Current calendar description', startsAt: new Date(10), endsAt: new Date(20),
+    organizerEmail: 'staff@firm.test', organizerName: 'Staff', attendees: [{ name: 'Contact', email: 'contact@client.test' }] };
+  const tx = { meeting: { findFirst: jest.fn(async () => record) },
+    client: { findMany: jest.fn(async () => [{ id: CLIENT }]), findFirst: jest.fn(async () => ({ id: CLIENT, name: 'Acme' })) },
+    integrationConnection: { findMany: jest.fn(async () => []) },
+    tenantMembership: { findFirst: jest.fn(async () => ({ user: { email: 'staff@firm.test' } })) } };
+  const prisma = { withTenantUser: jest.fn(async (tenant: string, actor: string, fn: (value: typeof tx) => unknown) => {
+    expect([tenant, actor]).toEqual([TENANT, USER]); return fn(tx);
+  }) };
+  const sharedGateway = { requestContext: jest.fn(async (input: { contextRequest: { clientId?: string } }) => {
+    const result = gatewayResult(); (result.packet as any).clientId = input.contextRequest.clientId ?? null;
+    (result.context as any).resolution.uiContext = { currentObject: { type: 'meeting', id: MEETING } };
+    (result.context as any).resolution.subjectScope = input.contextRequest.clientId
+      ? { kind: 'client', source: 'explicit', clientIds: [input.contextRequest.clientId] }
+      : { kind: 'general', source: 'explicit', clientIds: [] };
+    (result.packet as any).rendered = [{ body: 'FIRST-CANONICAL-PACKET' }]; return result;
+  }) };
+  const associations = { associate: jest.fn(async () => ({ clientId: CLIENT })) };
+  const canonical = new MeetingContextPlaneService(prisma as never, sharedGateway as never, associations as never);
+  const h = composition({ inferred: kind === 'inferred', internal: kind === 'internal', manuallyCleared: kind === 'manually-cleared',
+    clientId: noClient ? null : CLIENT, canonical: canonical as never });
+  // Both real owners use exactly this one gateway port, so a second resolution cannot hide in another spy.
+  const providers = new Map<unknown, { instance: unknown }>([[EngagementAiProvider, { instance: h.publicAi }],
+    ['guarded-ai', { instance: h.guardedAi }], ['raw-ai', { instance: h.rawAi }], ['raw-caller', { instance: h.rawCaller }], ['public-caller', { instance: h.publicCaller }]]);
+  const moduleRef = { get: () => h.publicAi, container: { getModules: () => new Map([['shared-gateway', { providers, controllers: new Map() }]]) } };
+  const runtime = new MeetingsContextPlaneRuntime(sharedGateway as never, prisma as never, moduleRef as never);
+  return { ...h, runtime, sharedGateway, associations, tx, canonical };
+}
+
+function durableExecution(): MeetingPrepExecution {
+  return { jobId: 'synthetic-job', depth: 'standard', deadlineAt: Date.now() + 60000, signal: new AbortController().signal,
+    checkpoint: async () => {}, loadCheckpoint: () => undefined, commit: async () => {} };
+}
+
+describe('Meetings runtime composed with actual governed factories and policy', () => {
+  const originalFetch = globalThis.fetch;
+  let fetchMock: jest.Mock;
+  beforeEach(() => { fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }); globalThis.fetch = fetchMock as unknown as typeof fetch; });
+  afterEach(() => { globalThis.fetch = originalFetch; jest.restoreAllMocks(); });
+
+  test.each(['prep', 'debrief'] as const)('%s keeps the single canonical stored-client packet at the provider seam', async mode => {
+    const h = composition(); const before = Object.getOwnPropertyDescriptors(h.rawAi); h.runtime.install();
+    try {
+      if (mode === 'prep') await h.publicCaller.generateMeetingPrep(ctx, MEETING);
+      else await h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current transcript', method: 'manual' });
+      expect(h.canonical.resolve).toHaveBeenCalledTimes(1);
+      expect(h.gateway.requestContext).not.toHaveBeenCalled(); expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.stringify(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)));
+      expect(body).toContain(`FIRST-CANONICAL-PACKET:${mode}:${MEETING}:${CLIENT}`);
+      expect(body).not.toContain('SECOND-COMPATIBILITY-PACKET');
+      expect(body.match(/FIRST-CANONICAL-PACKET/g)).toHaveLength(1);
+      expect(currentMeetingGovernedContext()).toBeNull();
+    } finally { h.runtime.restoreForTest(); expect(globalThis.fetch).toBe(fetchMock); expect(Object.getOwnPropertyDescriptors(h.rawAi)).toEqual(before); }
+  });
+
+  test.each(['prep', 'debrief'] as const)('%s preserves canonical inferred client when the meeting row has no clientId', async mode => {
+    const h = composition({ inferred: true }); h.runtime.install();
+    try {
+      if (mode === 'prep') await h.publicCaller.generateMeetingPrep(ctx, MEETING);
+      else await h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current notes', method: 'manual' });
+      expect(h.canonical.resolve).toHaveBeenCalledTimes(1); expect(h.gateway.requestContext).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.stringify(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)));
+      expect(body).toContain(`FIRST-CANONICAL-PACKET:${mode}:${MEETING}:${CLIENT}`);
+      expect(body).not.toContain('SECOND-COMPATIBILITY-PACKET');
+      expect(currentMeetingGovernedContext()).toBeNull();
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test.each((['prep', 'debrief'] as const).flatMap(mode => (['stored', 'inferred', 'internal', 'manually-cleared'] as const).map(kind => [mode, kind] as const)))
+  ('real canonical service %s/%s uses one total shared gateway call', async (mode, kind) => {
+    const h = realServiceComposition(kind); h.runtime.install();
+    try {
+      if (mode === 'prep') await h.publicCaller.generateMeetingPrep(ctx, MEETING);
+      else await h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current transcript only', method: 'manual' });
+      expect(h.sharedGateway.requestContext).toHaveBeenCalledTimes(1); expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(h.associations.associate).toHaveBeenCalledTimes(kind === 'inferred' ? 1 : 0);
+      const request = h.sharedGateway.requestContext.mock.calls[0]?.[0];
+      expect(request?.contextRequest.clientId ?? null).toBe(kind === 'internal' || kind === 'manually-cleared' ? null : CLIENT);
+      const body = JSON.stringify(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)));
+      expect(body.match(/FIRST-CANONICAL-PACKET/g)).toHaveLength(1); expect(body).not.toContain('SECOND-COMPATIBILITY-PACKET');
+      expect(currentMeetingGovernedContext()).toBeNull();
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test('durable prep without a canonical bundle refuses before compatibility resolution or provider work', async () => {
+    const h = composition(); h.runtime.install();
+    try {
+      await expect(withMeetingPrepExecution(durableExecution(), () => h.rawAi.generateMeetingPrep(h.providerInput()))).rejects.toThrow('phase24_meeting_context_plane_bundle_required');
+      expect(h.gateway.requestContext).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled();
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test('existing durable prep consumes its already resolved canonical bundle once', async () => {
+    const h = composition(); h.runtime.install();
+    try {
+      await withMeetingPrepExecution(durableExecution(), () => h.publicCaller.generateMeetingPrep(ctx, MEETING));
+      expect(h.canonical.resolve).toHaveBeenCalledTimes(1); expect(h.gateway.requestContext).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test.each(['prep', 'debrief'] as const)('%s rejects mode or meeting mismatch on the patched raw method', async mode => {
+    const h = composition(); h.runtime.install();
+    try {
+      const call = () => mode === 'prep' ? h.rawAi.generateMeetingPrep(h.providerInput()) : h.rawAi.generateMeetingDebrief(h.providerInput());
+      await expect(runWithMeetingGovernedContext(canonicalBundle(mode === 'prep' ? 'debrief' : 'prep'), call)).rejects.toThrow('phase24_meeting_context_plane_mode_mismatch');
+      await expect(runWithMeetingGovernedContext(canonicalBundle(mode, CLIENT, '99999999-9999-4999-8999-999999999999'), call)).rejects.toThrow('phase24_meeting_context_object_mismatch');
+      expect(h.gateway.requestContext).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled();
+      expect(currentMeetingGovernedContext()).toBeNull();
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test.each(['prep', 'debrief'] as const)('%s keeps canonical public AI client mismatch refusal ahead of raw provider work', async mode => {
+    const h = composition(); h.runtime.install();
+    try {
+      const input = { ...h.providerInput(), client: { id: '99999999-9999-4999-8999-999999999999' } };
+      const call = () => mode === 'prep' ? h.publicAi.generateMeetingPrep(input as never) : h.publicAi.generateMeetingDebrief(input as never);
+      await expect(runWithMeetingGovernedContext(canonicalBundle(mode), call)).rejects.toThrow('phase24_meeting_ai_client_mismatch');
+      expect(h.gateway.requestContext).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled();
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test.each(['prep', 'debrief'] as const)('%s preserves disabled policy refusal on public/guarded providers and raw aliases without scope', async mode => {
+    const h = composition({ policyDisabled: true }); h.runtime.install();
+    try {
+      const publicCall: () => Promise<unknown> = () => mode === 'prep' ? h.publicCaller.generateMeetingPrep(ctx, MEETING) : h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current', method: 'manual' });
+      await expect(Promise.resolve().then(publicCall)).rejects.toThrow();
+      const guardedCall = () => mode === 'prep' ? h.guardedAi.generateMeetingPrep(h.providerInput() as never) : h.guardedAi.generateMeetingDebrief(h.providerInput() as never);
+      await expect(runWithMeetingGovernedContext(canonicalBundle(mode), async () => guardedCall())).rejects.toThrow();
+      const rawCall = () => mode === 'prep' ? h.rawAi.generateMeetingPrep(h.providerInput()) : h.rawAi.generateMeetingDebrief(h.providerInput());
+      await expect(rawCall()).rejects.toThrow(`phase24_meetings_governed_invocation_required:${mode}`);
+      expect(h.gateway.requestContext).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled();
+    } finally { h.runtime.restoreForTest(); }
+  });
+
+  test('parallel prep/debrief ALS scopes keep their own canonical packet and clear after a failing request', async () => {
+    const h = composition(); h.runtime.install();
+    try {
+      await Promise.all([h.publicCaller.generateMeetingPrep(ctx, MEETING), h.publicCaller.generateMeetingDebriefDraft(ctx, MEETING, { sourceText: 'Current', method: 'manual' })]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const bodies = fetchMock.mock.calls.map(call => JSON.stringify(JSON.parse(String(call[1]?.body))));
+      expect(bodies.filter(body => body.includes('FIRST-CANONICAL-PACKET:prep:'))).toHaveLength(1);
+      expect(bodies.filter(body => body.includes('FIRST-CANONICAL-PACKET:debrief:'))).toHaveLength(1);
+      expect(bodies.every(body => !body.includes('SECOND-COMPATIBILITY-PACKET'))).toBe(true);
+      fetchMock.mockRejectedValueOnce(new Error('synthetic provider failure'));
+      await expect(h.publicCaller.generateMeetingPrep(ctx, MEETING)).rejects.toThrow('synthetic provider failure');
+      expect(currentMeetingGovernedContext()).toBeNull(); expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    } finally { h.runtime.restoreForTest(); }
   });
 });
