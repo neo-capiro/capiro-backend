@@ -56,7 +56,7 @@ function elfMetadata(data) {
   assert(!(glibc && musl), 'conflicting ELF libc dependencies');
   return { class: 64, machine: data.readUInt16LE(18), needed, soname, search, libc: glibc ? 'glibc' : musl ? 'musl' : null };
 }
-function boundedChild(file, args, { timeout = 30000, maxBuffer = 256 * 1024 } = {}) {
+function boundedChild(file, args, { timeout = 30000, maxBuffer = 1024 * 1024 } = {}) {
   const result = spawnSync(file, args, { encoding: 'utf8', timeout, maxBuffer, killSignal: 'SIGKILL',
     stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: '/usr/local/bin:/usr/bin:/bin', NODE_ENV: 'production', TMPDIR: '/dev/shm', HOME: '/nonexistent' } });
   return { status: result.status, signal: result.signal, error: result.error ? { code: result.error.code || 'CHILD_ERROR' } : null,
@@ -67,7 +67,7 @@ async function collectChecks(checks, emit = () => {}) {
   for (const check of checks) {
     let row;
     try { row = { name: check.name, status: 'PASS', value: await check.run() }; }
-    catch (error) { row = { name: check.name, status: 'HOLD', error: { code: error.code || error.name || 'ERROR', message: String(error.message).slice(0, 4096) }, ...(error.child ? { child: error.child } : {}) }; }
+    catch (error) { row = { name: check.name, status: 'HOLD', error: { code: error.code || error.name || 'ERROR', message: String(error.message).slice(0, 4096) }, ...(error.child ? { child: error.child } : {}), ...(error.evidence ? { evidence: error.evidence } : {}) }; }
     rows.push(row); emit(row);
   }
   return { status: rows.every(row => row.status === 'PASS') ? 'PASS' : 'HOLD', rows };
@@ -80,6 +80,49 @@ function completeReceiptReport(report, stream, kind, summary) {
   stream.emit(kind, summary); report.receiptCount = stream.count;
   stream.write(JSON.stringify(report, null, 2));
 }
+function binaryFormat(data) {
+  const magicHex = data.subarray(0, 16).toString('hex');
+  if (data.subarray(0, 4).toString('hex') === '7f454c46') return { format: 'ELF', magicHex, elf: elfMetadata(data) };
+  if (data.length >= 8 && data.subarray(0, 8).toString('hex') === '0061736d01000000') return { format: 'WEBASSEMBLY_V1', magicHex, native: false };
+  if (data.length >= 64 && data.toString('ascii', 0, 2) === 'MZ') {
+    const offset = data.readUInt32LE(60);
+    assert(offset >= 64 && offset + 24 <= data.length && data.toString('hex', offset, offset + 4) === '50450000', 'invalid/truncated PE signature');
+    const machine = data.readUInt16LE(offset + 4), count = data.readUInt16LE(offset + 6), optional = data.readUInt16LE(offset + 20);
+    assert(count > 0 && count <= 96 && optional >= 2 && offset + 24 + optional + count * 40 <= data.length, 'bounded PE headers required');
+    const kind = data.readUInt16LE(offset + 24);
+    assert([0x10b, 0x20b].includes(kind) && optional >= (kind === 0x20b ? 112 : 96), 'unsupported/truncated PE optional header');
+    if ([0xaa64, 0x8664].includes(machine)) assert.equal(kind, 0x20b, 'PE machine/header contradiction');
+    if (machine === 0x14c) assert.equal(kind, 0x10b, 'PE machine/header contradiction');
+    return { format: 'PE', magicHex, os: 'win32', cpu: ({ 0xaa64: 'arm64', 0x8664: 'x64', 0x14c: 'ia32' })[machine] || null, machine, validation: 'BOUNDED_HEADER_ONLY' };
+  }
+  if (data.length >= 32 && data.readUInt32LE(0) === 0xfeedfacf) {
+    const cpuType = data.readUInt32LE(4), commands = data.readUInt32LE(16), size = data.readUInt32LE(20);
+    assert([2, 6, 8].includes(data.readUInt32LE(12)), 'unsupported Mach-O file type');
+    assert(commands > 0 && commands <= 4096 && 32 + size <= data.length, 'bounded Mach-O load commands required');
+    let offset = 32;
+    for (let i = 0; i < commands; i++) { assert(offset + 8 <= 32 + size, 'truncated Mach-O command'); const length = data.readUInt32LE(offset + 4); assert(length >= 8 && offset + length <= 32 + size, 'invalid Mach-O command size'); offset += length; }
+    assert.equal(offset, 32 + size, 'Mach-O command table size mismatch');
+    return { format: 'MACH_O_64_LE', magicHex, os: 'darwin', cpu: ({ 0x100000c: 'arm64', 0x1000007: 'x64' })[cpuType] || null, cpuType, validation: 'BOUNDED_HEADER_ONLY' };
+  }
+  return { format: 'UNKNOWN', magicHex, native: null };
+}
+// Exact published quickjs-wasi@2.2.0 bytes; source-only format provenance, never native or runtime acceptance.
+const quickjsWasm = {
+  'base64': [12518, 'f51012d6c63195a53ca9f2daa6c3de6b0995873888c8106979813015b3388adc'],
+  'crypto': [187423, '3c0ca1e0ecbca51f88ae22ae5da75ee83e6f87170ec8c7efc2ec9ba52b1bd913'],
+  'encoding': [12780, '50af2847297183c0be2f97948cd83473b0888b424b98af51aaf4200160dce77f'],
+  'headers': [14232, 'fcc7d25dfdda38d1d57d0a532540f3baa56a957f76f85548919716a174ac9037'],
+  'structured-clone': [9648, '76356bc2983ce24b6c503a0cb1fa0308e09c18e60aa38d44ca737454ee769c06'],
+  'url': [920499, '54167390c210290f0703752527000ba44885606c4ed1ae12be30462c147a9215'],
+};
+function wasmVendorEvidence(owner, relative, bytes, sha256) {
+  const key = Object.keys(quickjsWasm).find(name => relative === `extensions/${name}/${name}.so`);
+  const expected = key && quickjsWasm[key];
+  return { package: `${owner.name}@${owner.version}`, relative, sha256, bytes,
+    verified: owner.name === 'quickjs-wasi' && owner.version === '2.2.0' && !!expected && expected[0] === bytes && expected[1] === sha256,
+    tarballSHA256: 'f4dd386c2e705ffb8692a8afdc1e3b8ff09c6b8ef3aee48d0537ff71d8839cd1',
+    scope: 'VENDOR_BYTE_IDENTITY_AND_WASM_V1_HEADER_ONLY', nativeLoad: 'NOT_APPLICABLE', providerOperation: 'UNRUN' };
+}
 function inspectArtifact(file, options = {}) {
   let row = { file: path.resolve(file), format: 'UNREADABLE_OR_INVALID_ARTIFACT' };
   try {
@@ -90,8 +133,11 @@ function inspectArtifact(file, options = {}) {
     try { fs.readSync(descriptor, header, 0, 4, 0); } finally { fs.closeSync(descriptor); }
     const isElf = header.toString('hex') === '7f454c46'; if (!named && !isElf) return null;
     const data = fs.readFileSync(file);
-    row = { file: fs.realpathSync(file), bytes: stat.size, mode: stat.mode & 0o777, sha256: createHash('sha256').update(data).digest('hex'), format: isElf ? 'ELF' : 'FOREIGN_OR_UNKNOWN' };
+    row = { file: fs.realpathSync(file), bytes: stat.size, mode: stat.mode & 0o777, sha256: createHash('sha256').update(data).digest('hex'), magicHex: data.subarray(0, 16).toString('hex'), format: 'UNKNOWN' };
+    row.binary = binaryFormat(data); row.format = row.binary.format;
     row.classification = classifyNativeArtifact(file, options);
+    assert(row.format !== 'UNKNOWN', 'unknown artifact format; no native operation or exemption justified');
+    if (row.format === 'WEBASSEMBLY_V1') assert(row.classification.vendor?.verified, 'WASM header identified; vendor provenance unknown');
   } catch (error) { row.inspectionError = { code: error.code || error.name, message: String(error.message).slice(0, 2048) }; }
   return row;
 }
@@ -108,6 +154,12 @@ function parseLoaderMappings(output) {
   });
 }
 function assertRuntimeLibc(receipt, evidence) {
+  try {
+    assert.equal(evidence.inspectionErrors?.length || 0, 0, 'incomplete mapping/loader evidence');
+    return verifyRuntimeLibc(receipt, evidence);
+  } catch (error) { error.evidence = { receipt, runtimeEvidence: evidence }; throw error; }
+}
+function verifyRuntimeLibc(receipt, evidence) {
   assert.equal(receipt.elf.machine, 183); assert.notEqual(receipt.state, 'INCOMPATIBLE');
   assert.equal(evidence.addon.file, receipt.file); assert.equal(evidence.addon.sha256, receipt.sha256);
   assert(evidence.dlopen.some(row => row.file === receipt.file && row.sha256 === receipt.sha256), 'exact addon dlopen identity missing');
@@ -134,11 +186,9 @@ function assertRuntimeLibc(receipt, evidence) {
 }
 async function observeNativeLoad(file, operation = () => require(file)) {
   const addon = fileIdentity(file), expectedLoader = fileIdentity('/lib/ld-musl-aarch64.so.1');
-  const bannerResult = boundedChild('/lib/ld-musl-aarch64.so.1', ['--version']);
+  const bannerResult = boundedChild('/lib/ld-musl-aarch64.so.1', ['--version'], { maxBuffer: 128 * 1024 });
   const banner = (bannerResult.stdout + bannerResult.stderr).trim();
-  assert(!bannerResult.error && !bannerResult.signal, 'musl identity query failed');
-  const list = boundedChild('/lib/ld-musl-aarch64.so.1', ['--list', addon.file]);
-  assert(!list.error && !list.signal, 'loader observation unavailable');
+  const list = boundedChild('/lib/ld-musl-aarch64.so.1', ['--list', addon.file], { maxBuffer: 256 * 1024 });
   const nodeSymbols = [], unexplained = [];
   for (const line of list.stderr.split('\n').filter(Boolean)) {
     const prefix = `Error relocating ${addon.file}: `;
@@ -147,23 +197,43 @@ async function observeNativeLoad(file, operation = () => require(file)) {
   }
   const dlopen = [], original = process.dlopen;
   process.dlopen = function(module, filename, ...args) { const identity = fileIdentity(filename); dlopen.push({ file: identity.file, sha256: identity.sha256 }); return original.call(this, module, filename, ...args); };
-  let value;
-  try { value = await operation(); } finally { process.dlopen = original; }
-  assert.equal(fileIdentity(addon.file).sha256, addon.sha256, 'addon bytes changed during load');
-  const paths = [...new Set(fs.readFileSync('/proc/self/maps', 'utf8').split('\n').flatMap(line => {
+  let value, operationError;
+  try { value = await operation(); } catch (error) { operationError = error; } finally { process.dlopen = original; }
+  const inspectionErrors = [];
+  const inspect = file => { try { return fileIdentity(file); } catch (error) {
+    inspectionErrors.push({ file, code: error.code || error.name, message: String(error.message).slice(0, 2048) }); return null;
+  } };
+  let maps = '';
+  try { maps = fs.readFileSync('/proc/self/maps', 'utf8'); assert(Buffer.byteLength(maps) <= 256 * 1024, 'mapped text exceeds bound'); }
+  catch (error) { inspectionErrors.push({ source: '/proc/self/maps', message: String(error.message).slice(0, 2048) }); maps = maps.slice(0, 256 * 1024); }
+  const paths = [...new Set(maps.split('\n').flatMap(line => {
     const match = /^[0-9a-f]+-[0-9a-f]+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\/.*)$/.exec(line);
     return match ? [match[1]] : [];
   }))];
-  assert(paths.length <= 256, 'bounded mapped object set required');
-  const mapped = paths.filter(pathname => fs.existsSync(pathname)).map(fileIdentity);
-  const resolved = parseLoaderMappings(list.stdout).map(row => ({ dependency: row.dependency, ...fileIdentity(row.file) }));
-  return { value, evidence: { addon, expectedLoader, musl: fileIdentity('/lib/ld-musl-aarch64.so.1'), banner,
+  if (paths.length > 256) inspectionErrors.push({ source: '/proc/self/maps', message: 'mapped object count exceeds bound' });
+  const mapped = paths.slice(0, 256).map(inspect).filter(Boolean);
+  const mappings = parseLoaderMappings(list.stdout);
+  if (mappings.length > 256) inspectionErrors.push({ source: 'loader stdout', message: 'resolved object count exceeds bound' });
+  const resolved = mappings.slice(0, 256).map(row => ({ dependency: row.dependency, ...inspect(row.file) }));
+  const evidence = { addon, expectedLoader, musl: inspect('/lib/ld-musl-aarch64.so.1'), banner, bannerResult,
     runtime: { platform: process.platform, arch: process.arch, glibc: process.report.getReport().header.glibcVersionRuntime || null },
-    mapped, resolved, dlopen, searchPolicy: 'FIXED_CREDENTIAL_FREE_ENV_NO_LD_OVERRIDES; ELF RPATH/RUNPATH retained',
-    loader: { status: list.status, nodeSymbols, unexplained, stderr: list.stderr.slice(0, 4096) } } };
+    mapped, mappedPaths: paths.slice(0, 256), resolved, dlopen, inspectionErrors,
+    operationCompleted: !operationError, addonAfter: inspect(addon.file),
+    searchPolicy: 'FIXED_CREDENTIAL_FREE_ENV_NO_LD_OVERRIDES; ELF RPATH/RUNPATH retained',
+    loader: { ...list, nodeSymbols, unexplained } };
+  // Evidence is emitted BEFORE policy assertions and is retained even on an operation failure.
+  if (require.main === module) { (report.nativeObservations ||= []).push(evidence); console.log('CORE_NATIVE_EVIDENCE ' + JSON.stringify(evidence)); }
+  if (operationError) { operationError.evidence = { runtimeEvidence: evidence }; throw operationError; }
+  try {
+    assert(!bannerResult.error && !bannerResult.signal, 'musl identity query failed');
+    assert(!list.error && !list.signal, 'loader observation unavailable');
+    assert.equal(evidence.addonAfter?.sha256, addon.sha256, 'addon bytes changed during load');
+  } catch (error) { error.evidence = { runtimeEvidence: evidence }; throw error; }
+  return { value, evidence };
 }
 async function nativeChild(file) {
   const receipt = classifyNativeArtifact(file);
+  assert.equal(receipt.format, 'ELF', 'only inspected ELF addons may enter native Linux load');
   assert.notEqual(receipt.state, 'INCOMPATIBLE', 'incompatible raw load forbidden');
   const observed = await observeNativeLoad(receipt.file);
   return { receipt: assertRuntimeLibc(receipt, observed.evidence) };
@@ -198,7 +268,11 @@ async function libsqlChild(manifest) {
 }
 function parseChildProof(result) {
   if (result.error || result.signal || result.status !== 0) {
-    const error = new Error('Bounded child failed; captured output retained in child receipt'); error.child = result; throw error;
+    const error = new Error('Bounded child failed; captured output retained in child receipt'); error.child = result;
+    const records = result.stdout.split('\n').filter(line => line.startsWith('CORE_NATIVE_EVIDENCE '));
+    try { error.evidence = { observations: records.map(line => JSON.parse(line.slice('CORE_NATIVE_EVIDENCE '.length))) }; }
+    catch { error.evidence = { status: 'TRUNCATED_OR_INVALID_CHILD_EVIDENCE', rawChildRetained: true }; }
+    throw error;
   }
   const records = result.stdout.split('\n').filter(line => line.startsWith('CORE_NATIVE_CHILD '));
   assert.equal(records.length, 1, 'exactly one child proof required');
@@ -290,12 +364,24 @@ function classifyNativeArtifact(file, { root = '/app/node_modules/.pnpm' } = {})
   }
   assert(metadata && typeof metadata.name === 'string' && typeof metadata.version === 'string', 'native package identity missing');
   for (const key of ['os', 'cpu', 'libc']) assert(metadata[key] === undefined || (Array.isArray(metadata[key]) && metadata[key].length > 0 && metadata[key].every(value => typeof value === 'string')), `invalid package ${key}`);
-  const data = fs.readFileSync(file), elf = elfMetadata(data);
+  const data = fs.readFileSync(file), binary = binaryFormat(data), elf = binary.elf;
   const owner = { root: ownerRoot, name: metadata.name, version: metadata.version, os: metadata.os || null, cpu: metadata.cpu || null, libc: metadata.libc || null };
+  const sha256 = createHash('sha256').update(data).digest('hex');
+  const allows = (list, target) => !list || (!list.includes(`!${target}`) && (!list.some(value => !value.startsWith('!')) || list.includes(target)));
+  if (binary.format !== 'ELF') {
+    const relative = path.relative(ownerRoot, file).split(path.sep).join('/');
+    if (!bundledPayloadRelative({ file, owner })) {
+      if (binary.os) assert(allows(owner.os, binary.os), 'package/format OS constraint disagreement');
+      if (binary.cpu) assert(allows(owner.cpu, binary.cpu), 'package/format CPU constraint disagreement');
+    }
+    const vendor = binary.format === 'WEBASSEMBLY_V1' ? wasmVendorEvidence(owner, relative, data.length, sha256) : null;
+    return { file, sha256, bytes: data.length, owner, format: binary.format, binary, vendor, libc: null,
+      state: binary.os && binary.cpu ? 'INCOMPATIBLE' : 'UNKNOWN',
+      reasons: binary.os ? ['positive-foreign-format-os'] : ['NON_NATIVE_OR_UNKNOWN_FORMAT'], nativeQualification: 'NOT_ESTABLISHED' };
+  }
   const declaredCpu = owner.cpu && owner.cpu.filter(value => !value.startsWith('!'));
   const machineByCpu = { arm64: 183, x64: 62, arm: 40, ia32: 3, ppc64: 21, s390x: 22, riscv64: 243 };
   if (declaredCpu?.length === 1 && machineByCpu[declaredCpu[0]]) assert.equal(elf.machine, machineByCpu[declaredCpu[0]], 'package/ELF cpu disagreement');
-  const allows = (list, target) => !list || (!list.includes(`!${target}`) && (!list.some(value => !value.startsWith('!')) || list.includes(target)));
   const observedCpu = Object.keys(machineByCpu).find(cpu => machineByCpu[cpu] === elf.machine);
   if (observedCpu) assert(allows(owner.cpu, observedCpu), 'package/ELF cpu constraint disagreement');
   if (elf.libc) assert(allows(owner.libc, elf.libc), 'package/ELF libc constraint disagreement');
@@ -308,7 +394,7 @@ function classifyNativeArtifact(file, { root = '/app/node_modules/.pnpm' } = {})
   const libc = declaredLibc || elf.libc;
   if (!allows(owner.libc, 'musl') || libc === 'glibc') reasons.push('package-or-elf-libc');
   const state = reasons.length ? 'INCOMPATIBLE' : libc === 'musl' ? 'COMPATIBLE' : 'UNKNOWN';
-  return { file, sha256: createHash('sha256').update(data).digest('hex'), bytes: data.length, owner, elf, libc, state, reasons };
+  return { file, sha256, bytes: data.length, owner, format: 'ELF', binary, elf, libc, state, reasons };
 }
 function assertActiveBinding(file, options) {
   const receipt = classifyNativeArtifact(file, options);
@@ -329,7 +415,46 @@ function resolveInstalledManifest(parentManifest, dependencyName, root) {
   }
   return null;
 }
+function bundledPayloadRelative(receipt) {
+  const relative = path.relative(receipt.owner.root, receipt.file).split(path.sep).join('/');
+  const bundled = (receipt.owner.name === '@openai/codex-security' && relative.startsWith('_bundled_plugin/mcp/native/')) ||
+    (receipt.owner.name === 'onnxruntime-node' && relative.startsWith('bin/napi-v6/'));
+  return bundled ? relative : null;
+}
 function assertOptionalInactive(receipt, parentManifests, { root = '/app/node_modules/.pnpm', imageRoot = '/app' } = {}) {
+  const evidence = packageDependencyEvidence(receipt, parentManifests, { root, imageRoot });
+  const relative = bundledPayloadRelative(receipt);
+  if (relative) {
+    const error = new Error('Bundled payload format/owner observed; payload dispatcher selection remains UNVERIFIED');
+    error.code = 'BUNDLED_PAYLOAD_SELECTION_UNVERIFIED';
+    error.evidence = { payload: receipt, relative, payloadRelation: 'BUNDLED_PAYLOAD_OF_PACKAGE', packageRelations: evidence,
+      interpretation: 'Package required/optional and semver admission do not establish payload activation or inactivity' };
+    throw error;
+  }
+  assert(evidence.every(row => row.relation === 'optionalDependencies'), 'incompatible artifact has a required deployed dependency owner');
+  return evidence;
+}
+function installedVersionAdmission(range, version, root) {
+  assert(typeof range === 'string' && range.length <= 256 && typeof version === 'string' && version.length <= 128, 'bounded package version declaration required');
+  if (range === version) return { admitted: true, basis: 'EXACT_INSTALLED_VERSION' };
+  // Use the existing locked deployed node-semver library, never a handwritten range evaluator or network install.
+  for (const entry of fs.readdirSync(root, { withFileTypes: true }).filter(row => row.isDirectory() && row.name.startsWith('semver@')).sort((a, b) => a.name.localeCompare(b.name))) {
+    const manifest = path.join(root, entry.name, 'node_modules/semver/package.json');
+    if (!fs.existsSync(manifest)) continue;
+    const packageRoot = fs.realpathSync(path.dirname(manifest));
+    assert(contained(root, packageRoot), 'semver library escapes deployed store');
+    const observed = readDeployedPackage(manifest, { imageRoot: root }), metadata = observed.metadata;
+    if (metadata.name !== 'semver' || !/^7\.\d+\.\d+$/.test(metadata.version)) continue;
+    const ownerRequire = createRequire(manifest), main = fs.realpathSync(ownerRequire.resolve('./'));
+    assert(contained(packageRoot, main), 'semver entry escapes owner');
+    const semver = ownerRequire(main);
+    assert(semver.valid(version) && semver.validRange(range), 'invalid installed semantic version or range');
+    return { admitted: semver.satisfies(version, range), basis: 'DEPLOYED_NODE_SEMVER', range,
+      version, manifest, manifestSHA256: observed.row.sha256, engineVersion: metadata.version, entry: main, entrySHA256: createHash('sha256').update(fs.readFileSync(main)).digest('hex') };
+  }
+  throw new Error('Installed semver range engine unavailable; version admission UNVERIFIED');
+}
+function packageDependencyEvidence(receipt, parentManifests, { root = '/app/node_modules/.pnpm', imageRoot = '/app' } = {}) {
   root = fs.realpathSync(root);
   imageRoot = fs.realpathSync(imageRoot);
   assert.equal(receipt.state, 'INCOMPATIBLE', 'only incompatible artifacts may request an inactive exemption');
@@ -347,10 +472,12 @@ function assertOptionalInactive(receipt, parentManifests, { root = '/app/node_mo
     if (!resolvedManifest || path.dirname(resolvedManifest) !== receipt.owner.root) continue;
     const child = JSON.parse(fs.readFileSync(resolvedManifest, 'utf8'));
     assert.equal(child.name, dependencyName); assert.equal(child.version, receipt.owner.version);
-    assert(required === undefined, 'incompatible artifact has a required deployed dependency owner');
-    assert.equal(optional, child.version, 'inactive optional dependency must have an exact installed version pin');
+    const relation = optional !== undefined ? 'optionalDependencies' : 'dependencies';
+    const declaredVersion = optional !== undefined ? optional : required;
+    const versionAdmission = installedVersionAdmission(declaredVersion, child.version, root);
+    assert(versionAdmission.admitted, 'installed dependency version not admitted by owner declaration');
     evidence.push({ parentManifest: parent, parentName: metadata.name, parentVersion: metadata.version,
-      dependencyName, declaredVersion: optional, resolvedManifest, resolvedOwnerRoot: receipt.owner.root, relation: 'optionalDependencies' });
+      dependencyName, declaredVersion, resolvedManifest, resolvedOwnerRoot: receipt.owner.root, relation, versionAdmission });
   }
   assert(evidence.length > 0, 'incompatible artifact lacks verified optional dependency ownership');
   return evidence;
@@ -387,7 +514,7 @@ async function sharpDispatcherProbe(manifest, { root = '/app/node_modules/.pnpm'
   assert.equal(binding.owner.version, metadata.version);
   return { relation: 'RETAINED_STORE_SHARP_OWNER', manifest, entry, version: metadata.version, bindingManifest, pixel: [...pixels.data], binding };
 }
-module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, inspectArtifact };
+module.exports = { assertDumbInitVersion, classifyNativeArtifact, assertActiveBinding, assertOptionalInactive, boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof, resolvedNativeBinding, readDeployedPackage, createReceiptStream, completeReceiptReport, inspectArtifact, binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence };
 const report = { status: 'STARTED', packages: [], native: [], activeBindings: [] };
 function walk(dir, files = [], depth = 0) {
   assert(depth <= 32 && files.length < 200000, 'bounded native directory traversal required');
@@ -596,5 +723,5 @@ async function main() {
 
 if (require.main === module && ['--native-child', '--libsql-child', '--sharp-child', '--dispatcher-child'].includes(process.argv[2])) {
   (async () => { const result = await (process.argv[2] === '--native-child' ? nativeChild(process.argv[3]) : process.argv[2] === '--sharp-child' ? sharpDispatcherProbe(process.argv[3]) : process.argv[2] === '--dispatcher-child' ? retainedDispatcher(process.argv[3]) : libsqlChild(process.argv[3])); console.log('CORE_NATIVE_CHILD ' + JSON.stringify(result)); })()
-    .catch(error => { console.error(JSON.stringify({ status: 'HOLD', code: error.code || error.name, message: String(error.message).slice(0, 4096) })); process.exitCode = 1; });
+    .catch(error => { console.error(JSON.stringify({ status: 'HOLD', code: error.code || error.name, message: String(error.message).slice(0, 4096), ...(error.evidence ? { evidence: error.evidence } : {}) })); process.exitCode = 1; });
 } else if (require.main === module) main().catch(error => { report.status = 'FAIL'; report.error = error.message; console.error(JSON.stringify(report, null, 2)); process.exitCode = 1; });

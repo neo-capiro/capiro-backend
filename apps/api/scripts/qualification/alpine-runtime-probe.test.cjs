@@ -5,6 +5,7 @@ const { classifyNativeArtifact, assertActiveBinding, assertOptionalInactive } = 
 const { boundedChild, collectChecks, parseLoaderMappings, assertRuntimeLibc, parseChildProof } = require('./alpine-runtime-probe.cjs');
 const { resolvedNativeBinding, readDeployedPackage } = require('./alpine-runtime-probe.cjs');
 const { createReceiptStream, completeReceiptReport, inspectArtifact } = require('./alpine-runtime-probe.cjs');
+const { binaryFormat, wasmVendorEvidence, installedVersionAdmission, packageDependencyEvidence } = require('./alpine-runtime-probe.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -74,7 +75,8 @@ test('malformed ELF, metadata and escaped root are rejected', t => {
   assert.throws(() => classifyNativeArtifact(file, options), /invalid package libc/);
   fs.writeFileSync(path.join(path.dirname(file), 'package.json'), '{"name":"fixture","version":"1"}');
   fs.writeFileSync(file, Buffer.from('not ELF'));
-  assert.throws(() => classifyNativeArtifact(file, options), /must be ELF/);
+  assert.equal(classifyNativeArtifact(file, options).format, 'UNKNOWN');
+  assert(inspectArtifact(file, options).inspectionError);
   const otherRoot = path.join(options.root, 'unrelated'); fs.mkdirSync(otherRoot);
   assert.throws(() => classifyNativeArtifact(file, { root: otherRoot }), /escapes inventory root/);
 });
@@ -113,14 +115,101 @@ test('required incompatible addon holds even when another owner declares it opti
   const required = parentManifest(path.join(options.root, 'store', 'node_modules', 'required-parent'), 'required-parent', { dependencies: { fixture: '1.0.0' } });
   assert.throws(() => assertOptionalInactive(receipt, [optional, required], opt), /required deployed dependency/);
 });
-test('same name in another physical owner and non-exact optional version cannot authorize skip', t => {
+test('same name in another physical owner and an unverified range engine cannot authorize skip', t => {
   const { file, options } = artifact(t, { libc: ['glibc'] }, elf(['libc.so.6']));
   const receipt = classifyNativeArtifact(file, options), opt = { ...options, imageRoot: options.root };
   const parent = parentManifest(path.join(options.root, 'elsewhere'), 'different-parent', { optionalDependencies: { fixture: '1.0.0' } });
   parentManifest(path.join(options.root, 'elsewhere', 'node_modules', 'fixture'), 'fixture', {});
   assert.throws(() => assertOptionalInactive(receipt, [parent], opt), /lacks verified optional/);
   const wrongPin = parentManifest(path.join(options.root, 'store'), 'parent', { optionalDependencies: { fixture: '^1.0.0' } });
-  assert.throws(() => assertOptionalInactive(receipt, [wrongPin], opt), /exact installed version pin/);
+  assert.throws(() => assertOptionalInactive(receipt, [wrongPin], opt), /range engine unavailable/);
+});
+
+function semverFixture(root) {
+  const candidates = [path.join(path.dirname(process.execPath), 'node_modules/npm/node_modules/semver'),
+    path.join(path.dirname(process.execPath), '../lib/node_modules/npm/node_modules/semver')];
+  try { candidates.unshift(path.dirname(require.resolve('semver/package.json'))); } catch {}
+  const source = candidates.find(dir => fs.existsSync(path.join(dir, 'package.json')));
+  assert(source, 'Tests require the existing Node/npm node-semver library, never a download');
+  const metadata = JSON.parse(fs.readFileSync(path.join(source, 'package.json')));
+  const target = path.join(root, `semver@${metadata.version}`, 'node_modules/semver');
+  fs.mkdirSync(path.dirname(target), { recursive: true }); fs.cpSync(source, target, { recursive: true });
+}
+
+test('canonical deployed semver admits ^0.1.18 to0.1.31 and rejects nonmatching/prerelease versions', t => {
+  const { options } = artifact(t, {}); semverFixture(options.root);
+  const accepted = installedVersionAdmission('^0.1.18', '0.1.31', options.root);
+  assert(accepted.admitted); assert.equal(accepted.basis, 'DEPLOYED_NODE_SEMVER');
+  assert(!installedVersionAdmission('^0.1.18', '0.2.0', options.root).admitted);
+  assert(!installedVersionAdmission('^0.1.18', '0.1.31-beta.1', options.root).admitted);
+  assert.throws(() => installedVersionAdmission('not a range', '0.1.31', options.root), /invalid installed/);
+});
+
+test('bundled payload owner relation is distinct from required/optional package and remains unverified', t => {
+  const { file, options } = artifact(t, { name: '@openai/codex-security', version: '0.1.31' }, elf(['libc.so.6']));
+  const bundled = path.join(path.dirname(file), '_bundled_plugin/mcp/native/linux-arm64-gnu/unix.node');
+  fs.mkdirSync(path.dirname(bundled), { recursive: true }); fs.writeFileSync(bundled, fs.readFileSync(file)); semverFixture(options.root);
+  const parent = parentManifest(path.join(options.root, 'store'), 'parent', { optionalDependencies: { '@openai/codex-security': '^0.1.18' } });
+  const receipt = classifyNativeArtifact(bundled, options), settings = { ...options, imageRoot: options.root };
+  const relations = packageDependencyEvidence(receipt, [parent], settings);
+  assert.equal(relations[0].relation, 'optionalDependencies'); assert(relations[0].versionAdmission.admitted);
+  assert.throws(() => assertOptionalInactive(receipt, [parent], settings), error => {
+    assert.equal(error.code, 'BUNDLED_PAYLOAD_SELECTION_UNVERIFIED');
+    assert.equal(error.evidence.payloadRelation, 'BUNDLED_PAYLOAD_OF_PACKAGE'); return true;
+  });
+  fs.writeFileSync(parent, JSON.stringify({ name: 'parent', version: '1.0.0', dependencies: { '@openai/codex-security': '^0.1.18' } }));
+  assert.equal(packageDependencyEvidence(receipt, [parent], settings)[0].relation, 'dependencies');
+});
+
+test('failure policy retains all16 exact unexplained loader lines, mappings and successful operation evidence', async () => {
+  const { receipt, evidence } = runtimeProof();
+  evidence.operationCompleted = true;
+  evidence.loader.unexplained = Array.from({ length: 16 }, (_, i) => `synthetic-unexplained-loader-line-${i}`);
+  evidence.loader.stderr = evidence.loader.unexplained.join('\n');
+  const result = await collectChecks([{ name: 'swc-policy', run: () => assertRuntimeLibc(receipt, evidence) }]);
+  assert.equal(result.status, 'HOLD'); const retained = result.rows[0].evidence.runtimeEvidence;
+  assert.deepEqual(retained, evidence); assert.equal(retained.loader.unexplained.length, 16);
+  assert.equal(retained.loader.stderr, evidence.loader.stderr); assert(retained.operationCompleted);
+  const failed = { status: 1, signal: null, error: null, stdout: 'CORE_NATIVE_EVIDENCE ' + JSON.stringify(evidence), stderr: 'policy HOLD' };
+  assert.throws(() => parseChildProof(failed), error => { assert.deepEqual(error.evidence.observations, [evidence]); assert.equal(error.child, failed); return true; });
+});
+
+test('positive WASM header has separate vendor scope and cannot pass the active native binding gate', t => {
+  const wasm = Buffer.from('0061736d01000000', 'hex'), format = binaryFormat(wasm);
+  assert.equal(format.format, 'WEBASSEMBLY_V1'); assert.equal(format.native, false);
+  const { file, options } = artifact(t, { name: 'quickjs-wasi', version: '2.2.0' }, wasm);
+  assert.equal(classifyNativeArtifact(file, options).state, 'UNKNOWN');
+  assert.throws(() => assertActiveBinding(file, options), /not proven/);
+  const identity = wasmVendorEvidence({ name: 'quickjs-wasi', version: '2.2.0' }, 'extensions/base64/base64.so', 12518, 'f51012d6c63195a53ca9f2daa6c3de6b0995873888c8106979813015b3388adc');
+  assert(identity.verified); assert.equal(identity.providerOperation, 'UNRUN'); assert.equal(identity.nativeLoad, 'NOT_APPLICABLE');
+  assert(!wasmVendorEvidence({ name: 'quickjs-wasi', version: '2.2.0' }, 'extensions/base64/base64.so', 12518, '0'.repeat(64)).verified);
+  assert.equal(binaryFormat(Buffer.from('0061736d02000000', 'hex')).format, 'UNKNOWN');
+});
+
+test('all six actual QuickJS vendor identities match the preserved integrity-verified provenance', () => {
+  const source = path.resolve(__dirname, '../../../../docs/runtime-source-qualification-20261014/container/QUICKJS-FORMAT-PROVENANCE.json');
+  const provenance = JSON.parse(fs.readFileSync(source, 'utf8'));
+  assert.equal(provenance.artifacts.length, 6); assert(provenance.frozenLockIntegrityVerified);
+  for (const row of provenance.artifacts) {
+    const relative = 'extensions/' + row.file.split('/extensions/')[1];
+    assert.equal(row.magicHex, '0061736d01000000'); assert(row.vendorArtifactHashMatchesTarget);
+    const identity = wasmVendorEvidence({ name: 'quickjs-wasi', version: '2.2.0' }, relative, row.bytes, row.sha256);
+    assert(identity.verified); assert.equal(identity.tarballSHA256, provenance.tarballSHA256);
+  }
+});
+
+test('PE and Mach-O require positive bounded headers; names never decide their format', t => {
+  const pe = Buffer.alloc(240); pe.write('MZ'); pe.writeUInt32LE(64, 60); pe.write('50450000', 64, 'hex');
+  pe.writeUInt16LE(0xaa64, 68); pe.writeUInt16LE(1, 70); pe.writeUInt16LE(112, 84); pe.writeUInt16LE(0x20b, 88);
+  assert.equal(binaryFormat(pe).format, 'PE'); assert.equal(binaryFormat(pe).cpu, 'arm64');
+  const contradiction = artifact(t, { os: ['linux'], cpu: ['arm64'] }, pe);
+  assert.throws(() => classifyNativeArtifact(contradiction.file, contradiction.options), /OS constraint disagreement/);
+  const macho = Buffer.alloc(40); macho.writeUInt32LE(0xfeedfacf); macho.writeUInt32LE(0x1000007, 4); macho.writeUInt32LE(8, 12);
+  macho.writeUInt32LE(1, 16); macho.writeUInt32LE(8, 20); macho.writeUInt32LE(8, 36);
+  assert.equal(binaryFormat(macho).format, 'MACH_O_64_LE'); assert.equal(binaryFormat(macho).cpu, 'x64');
+  assert.equal(binaryFormat(Buffer.from('foreign darwin-arm64.so')).format, 'UNKNOWN');
+  pe.writeUInt32LE(100000, 60); assert.throws(() => binaryFormat(pe), /PE signature/);
+  macho.writeUInt32LE(100000, 36); assert.throws(() => binaryFormat(macho), /Mach-O command/);
 });
 function runtimeProof() {
   const receipt = { file: '/app/node_modules/.pnpm/fixture/index.node', sha256: 'a'.repeat(64), state: 'UNKNOWN', elf: { machine: 183, needed: ['libc.so'], libc: null } };
