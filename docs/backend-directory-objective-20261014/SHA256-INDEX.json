@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "HANDOFF.md",
-      "bytes": 11569,
-      "sha256": "81b329d58ea8ebdd68a2273ad548072c738aa28e5514b6ee578223627c15fbbe"
+      "bytes": 13525,
+      "sha256": "89a2cc04801fb749ed123b6e5ecfc4236e3a9520d2ac0efad332a028aace6a35"
     },
     {
       "path": "INDEPENDENT-REVIEW.json",
@@ -15,6 +15,16 @@
       "path": "INDEPENDENT-REVIEW.md",
       "bytes": 4198,
       "sha256": "9d575612163653d27a6e2f8b3cab1808e9803d9996852c63fa1871c8ebaa0df8"
+    },
+    {
+      "path": "INDEPENDENT-UNION-CHECKPOINT.json",
+      "bytes": 13872,
+      "sha256": "9f914e24913e61dce8b325d94eb6e62e0bd728d6f8d0abc851821a549637cdbe"
+    },
+    {
+      "path": "MERGE-RECEIPT.json",
+      "bytes": 527532,
+      "sha256": "d94292726a758f3f571a53337cb30d5ff0b76e95f4a14fed96db5714c28c1064"
     },
     {
       "path": "evidence/01-baseline-receipt.json",
@@ -275,6 +285,11 @@
       "path": "evidence/typescript-transformer.cjs",
       "bytes": 470,
       "sha256": "e745a36d044928b977e15a487a5c0f7fe0ed4f63e49e24596b2866e615ec41b4"
+    },
+    {
+      "path": "prove-union.cjs",
+      "bytes": 4031,
+      "sha256": "ac0648e3bd137f452b46c7a9f8b649fcd3b9044ee55631d2060b7e7e60acf415"
     },
     {
       "path": "seal-packet.cjs",
