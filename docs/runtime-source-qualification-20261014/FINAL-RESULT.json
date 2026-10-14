@@ -210,5 +210,30 @@
     "source-only layout and old-main five timestamp refusal results",
     "prior PR17 failed builds/install/namespace/raw-output preservation and archival rejection"
   ],
-  "toolFailureNotes": "docs/runtime-source-qualification-20261014/TOOL-READ-FAILURES.md"
+  "toolFailureNotes": "docs/runtime-source-qualification-20261014/TOOL-READ-FAILURES.md",
+  "migrationReadiness": {
+    "kind": "source-only read-only history query/decision packet",
+    "sourceHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+    "sourceTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+    "fourNewsletterFailuresPreexistBackendImport": true,
+    "layoutAddedByPr10": true,
+    "pr17Pr18ChangedMigrationSources": false,
+    "expectedSourceSqlFiles": 25,
+    "expectedSourceGitBlobsAndSha256Verified": true,
+    "coreExpected": 12,
+    "workspaceExpected": 13,
+    "discoveryQuery": "docs/runtime-source-qualification-20261014/migration-readiness/discover-ledger.sql",
+    "coreQuery": "docs/runtime-source-qualification-20261014/migration-readiness/core12-history.sql",
+    "workspaceQuery": "docs/runtime-source-qualification-20261014/migration-readiness/workspace13-history.sql",
+    "resolution": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-RESOLUTION.md",
+    "default": "HOLD: actual complete authoritative histories not supplied",
+    "sameSqlRenamedIsNotMarkedAppliedByChecksum": true,
+    "noMatchIsNotNeverApplied": true,
+    "rolledBackIsNotProofOfUndoneSql": true,
+    "nativeQueriesExecuted": false,
+    "provisionalRenamesReservedOrImplemented": false,
+    "sqlOrSchemaChanged": false,
+    "dockerCycles": false,
+    "firstChatSourceAndPinsUnchanged": true
+  }
 }
