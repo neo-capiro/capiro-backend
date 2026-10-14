@@ -12,7 +12,7 @@
     "tree": "99cfcbde6c8016747d45740eb7352f456d501125",
     "sourceDeltaPaths": 9
   },
-  "expectedFinalParent": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+  "expectedFinalParent": "01205088a4da1536349feb41844c0f585b5732e9",
   "payloadCount": 89,
   "payloads": [
     {
@@ -486,9 +486,9 @@
     },
     {
       "path": "docs/runtime-source-qualification-20261014/FINAL-RESULT.json",
-      "gitBlob": "d51fd0d490c3c098e87bc68297292c1619bde04c",
-      "bytes": 10068,
-      "sha256": "65c62f2a8658cadc9edce47b70732915b9ab4d42b560cc317e7f4104ba12db7c"
+      "gitBlob": "ca53b0afeb22a501901d6532946746e74cd31301",
+      "bytes": 10346,
+      "sha256": "938dd9c2d94c720edae893b141897a6de00ef607464d78dd70687b99c3d00f72"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/migration-readiness/discover-ledger.sql",
@@ -607,7 +607,8 @@
   "priorPublication": {
     "head": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
     "tree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
-    "preservedAsParent": true
+    "preservedAsParent": false,
+    "preservedAsAncestor": true
   },
   "followup": {
     "scope": "Docs-only independently accepted history-aware migration readiness",
@@ -620,7 +621,12 @@
     "defaultHistoryDecision": "UNKNOWN/HOLD until complete authoritative owner evidence",
     "independentReceipt": "aae732bfc35e3bec07542e864e8e4cb057e2e004",
     "dockerCalls": false,
-    "firstChatOwnerSourceAndPinsChanged": false
+    "firstChatOwnerSourceAndPinsChanged": false,
+    "initialReviewedDocsCheckpoint": {
+      "head": "01205088a4da1536349feb41844c0f585b5732e9",
+      "tree": "40c50852241e7812088c2653e1c89a0e784a9f64",
+      "preservedAsParent": true
+    }
   },
   "independentHistoryReadiness": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-INDEPENDENT-REVIEW.json"
 }

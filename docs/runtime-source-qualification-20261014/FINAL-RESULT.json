@@ -173,11 +173,15 @@
     "branch": "codex/backend-runtime-candidate-20261014",
     "baseBranch": "codex/backend-successor-qualification-20261014",
     "baseHead": "dd02f3ba0b4ab77e3725e83e4b9af27aecdc8eca",
-    "expectedFinalParent": "3f747849a1d037806faa819f7c174d8b29675947",
     "draft": true,
     "mainMergeDeployment": false,
     "canonicalHandoff": "docs/successor-qualification-20261014/HANDOFF.md",
-    "headAndTree": "Read the final draft PR publication; this record excludes its own future commit identity."
+    "headAndTree": "Read the final draft PR publication; this record excludes its own future commit identity.",
+    "initialPr18PublicationParent": "3f747849a1d037806faa819f7c174d8b29675947",
+    "initialPr18PublicationHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+    "initialPr18PublicationTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+    "currentDocsFollowupParent": "01205088a4da1536349feb41844c0f585b5732e9",
+    "followupChangesSource": false
   },
   "proposals": {
     "observedBy": "Shipping coordinator; no live request by source task",
