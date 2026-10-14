@@ -20,7 +20,7 @@ Sharp, LibSQL and SWC also fall outside this declared production closure. Shippi
 
 ## Vendor selector evidence and classification limits
 
-Exact public npm archives were SHA512 verified against the pinned versions. Only JS/TS/manifests and compressed JavaScript chunks were retained; native binaries were not extracted or executed, and no models were downloaded. Source hashes/archive provenance are in vendor-source/PROVENANCE.json.
+Exact public npm archives were SHA512 verified against the pinned versions and their integrity values matched both exact pnpm-lock package records. Only JS/TS/manifests and compressed JavaScript chunks were retained; native binaries were not extracted or executed, and no models were downloaded. Source hashes/archive provenance are in vendor-source/PROVENANCE.json.
 
 Codex Security helpers.mjs decompresses JavaScript chunks and compiles that runtime. The decoded selector reads platform/arch and Linux process.report.header.glibcVersionRuntime. On Linux ARM64 musl it selects native/linux-arm64-musl/unix.node, which IS present in the eight published payloads. The other seven platform variants are unselected by this exact branch under that platform input. An initial absence inference from the seven HOLD rows was incorrect and corrected by the verified archive index. Selection tests execute only that pure branch with a mocked require; they do not run the vendor plugin or load an addon.
 
@@ -31,5 +31,7 @@ For the old retained diagnostic image, classification is DEV_ONLY_OUTSIDE_DECLAR
 ## Required next review/admission
 
 Shipping's graph gate must verify input hashes, actual API/workspace dependency resolution, exact peer/integrity/platform identities, all required edges and justified optional absence, then reject every retained store owner outside the graph before ANY native execution. This candidate must COPY its reviewed helper, stable contract, frozen lock and root manifest to fixed /qualification paths in coordination with shipping. That binding delta is pending the helper's exact source pin.
+
+Byte custody: the initial Windows checkout/PowerShell export used CRLF bytes and is superseded. The generator now binds all seven contract input hashes to immutable Git blobs after proving the checkout differs only by permitted line endings; semantic drift fails. Programmatic --out writes actual LF bytes. Canonical lock SHA256 is01f689e46dc06cdd1d9e8a0c96e5b6e70ac6f462fe2ab9c05813317a053c643c. Runtime must verify exact source-archive bytes at the fixed paths, without normalizing image inputs to rescue a mismatch.
 
 Only after the combined Docker/audit/collector slices have exact head/tree review should an independently approved bounded native/startup/scan plan execute. Installed ARM64/musl dependency tree, generated Prisma, runtime CLI links, complete native inventory, AppModule startup and COMPLETE zero-High/Critical scan remain UNRUN here.

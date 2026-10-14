@@ -68,7 +68,18 @@ function sourceAudit(root) {
 }
 function audit(root, yaml) {
   const inputSHA256 = {};
-  const read = file => { const bytes = fs.readFileSync(path.join(root, file)); inputSHA256[file] = digest(bytes); return bytes.toString('utf8'); };
+  const contractInputs = ['package.json', 'pnpm-lock.yaml', ...roots.map(root => `${root}/package.json`)];
+  const read = file => {
+    let bytes = fs.readFileSync(path.join(root, file));
+    if (contractInputs.includes(file)) {
+      // Bind every contract input to immutable Git archive bytes. Windows
+      // checkout EOL differences are permitted only after a byte-equivalent
+      // text proof; semantic source changes require a new committed source pin.
+      const canonical = execFileSync('git', ['show', `HEAD:${file}`], { cwd: root });
+      bytes = canonicalInputBytes(bytes, canonical);
+    }
+    inputSHA256[file] = digest(bytes); return bytes.toString('utf8');
+  };
   const lock = yaml.parse(read('pnpm-lock.yaml'));
   read('scripts/qualification/runtime-production-closure.cjs');
   assert.equal(Number(lock.lockfileVersion), 9);
@@ -117,7 +128,6 @@ function audit(root, yaml) {
     result.targets[name] = { snapshotKeys: keys, productionReachable: keys.some(key => production.nodes.has(key)), incomingEdges,
       rootDevelopmentPathProofs: keys.filter(key => development.nodes.has(key)).map(key => ({ key, pathProof: development.nodes.get(key) })) };
   }
-  const contractInputs = ['package.json', 'pnpm-lock.yaml', ...roots.map(root => `${root}/package.json`)];
   result.runtimeClosureContract = {
     schemaVersion: 1,
     inputSHA256: Object.fromEntries(contractInputs.map(file => [file, inputSHA256[file]])),
@@ -139,12 +149,31 @@ function audit(root, yaml) {
   function rootPath(importer) { return path.join(root, importer); }
   return result;
 }
-module.exports = { resolveEdge, closure, audit };
+function canonicalInputBytes(checkout, canonical) {
+  assert(Buffer.isBuffer(checkout) && Buffer.isBuffer(canonical));
+  if (checkout.equals(canonical)) return canonical;
+  const normalized = [];
+  for (let i = 0; i < checkout.length; i++) {
+    if (checkout[i] === 13 && checkout[i + 1] === 10) continue;
+    normalized.push(checkout[i]);
+  }
+  assert(Buffer.from(normalized).equals(canonical), 'Contract input checkout/source drift');
+  return canonical;
+}
+function serializeAudit(result, contractOnly = false) {
+  return JSON.stringify(contractOnly ? result.runtimeClosureContract : result, null, 2) + '\n';
+}
+module.exports = { resolveEdge, closure, audit, canonicalInputBytes, serializeAudit };
 if (require.main === module) {
   const args = process.argv.slice(2);
+  const outIndex = args.indexOf('--out');
+  let outputPath;
+  if (outIndex >= 0) { assert(outIndex + 1 < args.length); outputPath = args[outIndex + 1]; args.splice(outIndex, 2); }
   assert(args.length === 2 || (args.length === 3 && args[2] === '--contract'), 'Usage: node runtime-production-closure.cjs --yaml-module <local-yaml-path> [--contract]');
   assert.equal(args[0], '--yaml-module');
   const root = path.resolve(__dirname, '../..');
   const result = audit(root, require(path.resolve(args[1])));
-  console.log(JSON.stringify(args[2] === '--contract' ? result.runtimeClosureContract : result, null, 2));
+  const text = serializeAudit(result, args[2] === '--contract');
+  if (outputPath) fs.writeFileSync(path.resolve(outputPath), text);
+  else process.stdout.write(text);
 }
