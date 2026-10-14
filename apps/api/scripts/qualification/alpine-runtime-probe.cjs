@@ -85,6 +85,7 @@ async function signalProbe() {
   const tsxRequire = createRequire(appRequire.resolve('tsx'));
   assert(tsxRequire('esbuild').transformSync('const value: number = 1', { loader: 'ts' }).code);
   appRequire('sanitize-html'); appRequire('./dist/meri/meri-tools.service.js'); appRequire('./dist/memory/memory-candidate.service.js');
+  run(process.execPath, ['--no-enable-source-maps', '--check', '/app/apps/api/dist/main.js']);
   report.activeBindings = Object.keys(require.cache).filter(file => file.endsWith('.node'));
   assert(report.activeBindings.every(file => !/-gnu(?:@|\/|_)/.test(file)), 'dispatcher selected GNU binding');
   const scratch = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'core-alpine-probe-'));

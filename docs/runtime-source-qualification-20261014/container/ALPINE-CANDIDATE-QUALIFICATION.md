@@ -84,7 +84,8 @@ scratch. It verifies:
   ELF headers and load in isolated processes;
 - actual pdf-parse canvas and tsx/esbuild dispatch. GNU optional platform bindings
   are explicitly inventoried inactive; active dispatch must never select them;
-- original application module imports and writable scratch;
+- original application module imports, syntax-only main check with source maps
+  disabled for that child process only, and writable scratch;
 - unchanged entrypoint `serve` dispatch using a diagnostic PATH shim that
   intercepts `node dist/main.js`; it does not launch the API or touch a database;
 - GNU wget reads a local HTTP health fixture and validates a local TLS fixture
