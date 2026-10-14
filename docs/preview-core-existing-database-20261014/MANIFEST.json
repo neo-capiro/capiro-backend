@@ -21,10 +21,22 @@
       "sha256": "903f9d7ae57517cdde84716f82d0209dc25bc06231ab46c84ed2128baa499ca6"
     },
     {
+      "path": "docs/preview-core-existing-database-20261014/OBJECTIVES-LAYOUT-READINESS.md",
+      "gitBlob": "4df996950db72aa4fcb9ff520edbde362d10cda5",
+      "bytes": 7161,
+      "sha256": "bb21eb361fe00d8df6c87bdd20295805300d5a0c7237478cbb952ea845f589d8"
+    },
+    {
       "path": "docs/preview-core-existing-database-20261014/PLAN.md",
       "gitBlob": "2fa1417dcffb9b555b3d5a41eef488dae25aa4f4",
       "bytes": 1581,
       "sha256": "d12f89a3f027f926ee930117edc263a433094b81274762fb0812d9854426a7fb"
+    },
+    {
+      "path": "docs/preview-core-existing-database-20261014/SCHEMA-EFFECT-READ.sql",
+      "gitBlob": "abb94720b28f28f626f4c7ab99e28412bc16849a",
+      "bytes": 3110,
+      "sha256": "bb9cd9b3769fc16f0732b32636c4ba5225f4ddcf5089a8a276f5ec9647bd0e36"
     },
     {
       "path": "docs/preview-core-existing-database-20261014/VERIFICATION.json",
