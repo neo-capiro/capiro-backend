@@ -12,8 +12,8 @@
     "tree": "99cfcbde6c8016747d45740eb7352f456d501125",
     "sourceDeltaPaths": 9
   },
-  "expectedFinalParent": "9492c5226ddd3929205da711e35054fcab5cda13",
-  "payloadCount": 99,
+  "expectedFinalParent": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
+  "payloadCount": 103,
   "payloads": [
     {
       "path": "apps/api-strategy/package.json",
@@ -480,16 +480,16 @@
     },
     {
       "path": "docs/successor-qualification-20261014/HANDOFF.md",
-      "gitBlob": "bca0ca66e113188a914edfe633c4ff1190efdd28",
-      "bytes": 23607,
-      "sha256": "717f23146e6a82e6b5626526de82017da2300506769d20ea90e0ab564842a84e",
+      "gitBlob": "b00b774000cdd5ad951710e7bf41c718301ee53e",
+      "bytes": 25973,
+      "sha256": "c1447ab87d6f4998c80b8e16585b30611b61e9c7c07f94dda33c941a6bd7ac54",
       "mode": "100644"
     },
     {
       "path": "docs/runtime-source-qualification-20261014/FINAL-RESULT.json",
-      "gitBlob": "bea322aeda75ce65899bf892fa6acf94467a2d72",
-      "bytes": 11530,
-      "sha256": "7a62b55393a6d468949aa65cf893a1fe4599030ea42c1bc7bd1fd32f853aba35",
+      "gitBlob": "c4847bec6a0e0cc92d35b0caf433e85e51056e5a",
+      "bytes": 12345,
+      "sha256": "0f9eb7ea94cae4dee117777e7e726c6330dc76ff44c56f74104922095d0e8959",
       "mode": "100644"
     },
     {
@@ -624,6 +624,34 @@
       "gitBlob": "1c9bf6637b8f24c0589976dc075a07a17cf79210",
       "bytes": 29753,
       "sha256": "66bbff58703f13d4ccfa108808607e40a8e09d446a71f992b72aeb010ec3b7bf"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/FUNCTIONAL-API-COMPATIBILITY.json",
+      "gitBlob": "d015918bb48143b0dc089e4af160aa0c3a8431a7",
+      "bytes": 8429,
+      "sha256": "8c6956f5102d86b7075b3b3e3ab16213dc3e6a28f42b10edc3450072f10d3a3b",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/successor-qualification-20261014/HANDOFF-pr18-a2aebe.md",
+      "gitBlob": "bca0ca66e113188a914edfe633c4ff1190efdd28",
+      "bytes": 23607,
+      "sha256": "717f23146e6a82e6b5626526de82017da2300506769d20ea90e0ab564842a84e",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/FINAL-RESULT-pr18-a2aebe.json",
+      "gitBlob": "bea322aeda75ce65899bf892fa6acf94467a2d72",
+      "bytes": 11530,
+      "sha256": "7a62b55393a6d468949aa65cf893a1fe4599030ea42c1bc7bd1fd32f853aba35",
+      "mode": "100644"
+    },
+    {
+      "path": "docs/runtime-source-qualification-20261014/PAYLOAD-MANIFEST-pr18-a2aebe.json",
+      "gitBlob": "9b56ecabd0ade1453de12def00b766d7e0d122fe",
+      "bytes": 33654,
+      "sha256": "9db0b9d1d18dffcde144e59a09cfe6799766b55506f26211f1bf4ad0becbd4df",
+      "mode": "100644"
     }
   ],
   "excludedSelf": "docs/runtime-source-qualification-20261014/PAYLOAD-MANIFEST.json",
@@ -674,8 +702,8 @@
   },
   "independentHandoffClaims": "docs/runtime-source-qualification-20261014/independent/HANDOFF-CLAIM-REVIEW.md",
   "priorPublication": {
-    "head": "9492c5226ddd3929205da711e35054fcab5cda13",
-    "tree": "52a145fc45522da00cce0e4334668a0345c2d800",
+    "head": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
+    "tree": "751f79de73c65f6073628c0c98e871273d9494d5",
     "preservedAsParent": true
   },
   "followup": {
@@ -693,7 +721,8 @@
     "initialReviewedDocsCheckpoint": {
       "head": "01205088a4da1536349feb41844c0f585b5732e9",
       "tree": "40c50852241e7812088c2653e1c89a0e784a9f64",
-      "preservedAsParent": true
+      "preservedAsParent": false,
+      "preservedAsAncestor": true
     },
     "sharedLedgerMapping": {
       "scope": "Docs-only source ownership mapping and observed-ledger collection correction",
@@ -711,6 +740,21 @@
         "7b59903fbe0d8669edf5632e5ab45d46071374ab",
         "822586ed802c3f29c62cf3252d11459ef2d42799"
       ]
+    },
+    "functionalApiCompatibility": {
+      "scope": "Docs-only finite independently accepted existing-API/token source comparison and two credential-free GET metadata observations",
+      "productSourceChanged": false,
+      "authenticationOrTenantPermissionsChanged": false,
+      "newApiOrAuthLayer": false,
+      "separatePreviewApiRoleFixtureVpcPrerequisite": false,
+      "nativeSignedInAcceptance": false,
+      "noLiveWrites": true,
+      "coreAdvertisedRelease": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+      "receipt": "docs/runtime-source-qualification-20261014/FUNCTIONAL-API-COMPATIBILITY.json",
+      "receiptBlob": "d015918bb48143b0dc089e4af160aa0c3a8431a7",
+      "independentReview": "ACCEPT WITH RUNTIME CAVEATS; final wording ACCEPT",
+      "sqlChanged": false,
+      "awsOrDbCalls": false
     }
   },
   "independentHistoryReadiness": "docs/runtime-source-qualification-20261014/migration-readiness/HISTORY-INDEPENDENT-REVIEW.json",
@@ -719,5 +763,18 @@
     "tree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
     "preservedAsParent": false,
     "preservedAsAncestor": true
-  }
+  },
+  "historicalPublications": [
+    {
+      "head": "9492c5226ddd3929205da711e35054fcab5cda13",
+      "tree": "52a145fc45522da00cce0e4334668a0345c2d800",
+      "preservedAsParent": true
+    },
+    {
+      "head": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
+      "tree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
+      "preservedAsParent": false,
+      "preservedAsAncestor": true
+    }
+  ]
 }

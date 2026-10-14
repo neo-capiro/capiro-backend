@@ -180,7 +180,7 @@
     "initialPr18PublicationParent": "3f747849a1d037806faa819f7c174d8b29675947",
     "initialPr18PublicationHead": "91399fe1a205e37073cbeed2d7eb66a1fafd7fa2",
     "initialPr18PublicationTree": "b600ec81b333a41338bc94db0680bf5cb239c73a",
-    "currentDocsFollowupParent": "9492c5226ddd3929205da711e35054fcab5cda13",
+    "currentDocsFollowupParent": "a2aebe1f56622df4db8cb8c6ee2c6c744b971f15",
     "followupChangesSource": false
   },
   "proposals": {
@@ -262,5 +262,24 @@
     "nativeOrAwsOrSecretOrDockerOperation": false,
     "firstChatProofAndSourcePinsChanged": false,
     "independentReceipt": "c76377b3ab3dd6e9b49a8a8f79efc4af623e713b"
+  },
+  "functionalApiCompatibility": {
+    "receipt": "docs/runtime-source-qualification-20261014/FUNCTIONAL-API-COMPATIBILITY.json",
+    "frontendSource": "ee9d872743f44f927fa924eebd764da8e093888c",
+    "independentVerdict": "ACCEPT WITH RUNTIME CAVEATS",
+    "unauthenticatedGetStatuses": [
+      401,
+      401
+    ],
+    "coreAdvertisedRelease": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "sourceGap": "Advertised source lacks Layout/Objectives registrations; rebuilt candidate includes canonical owners.",
+    "ordinaryModeUsesExistingAuthAndTenantPermissions": true,
+    "universalSidRequirement": false,
+    "signedInTemplateSidCoverage": "UNKNOWN",
+    "signedInAcceptance": false,
+    "liveWrites": false,
+    "noNewApiOrAuthLayer": true,
+    "sourceChanges": false,
+    "firstChatPinsChanged": false
   }
 }
