@@ -1,0 +1,41 @@
+{
+  "source_head": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "compiler": "5.9.3",
+  "canonical_config": "apps/api/tsconfig.build.json",
+  "canonical_options_sha256": "d8581a5ff8c50e3624b7cc56469b58ba7a0bd9e4e3ddcda190b9061b8bb513fe",
+  "syntax_checks": 3,
+  "artifacts": [
+    {
+      "source": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "source_sha256": "030c52989302cbda55e24b4182e649eaa95105ec60eb5fe5d9a3f285e6c5b6bc",
+      "emitted_bytes": 67579,
+      "emitted_sha256": "72d72c60e6d4beaac766a57828e8091cf869261ffbe2b6ed392a558268156b3f"
+    },
+    {
+      "source": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "source_sha256": "ebaf97ed75f67338c57d03d10b4c31a02f21395b9c2789717782b2fb314c95eb",
+      "emitted_bytes": 37603,
+      "emitted_sha256": "6a61dbc0cd4628b982a7852777073ffd5663cda16205a56f5e4f9353d2acb93f"
+    },
+    {
+      "source": "apps/api/src/intelligence/alert-memo/memo-sections.ts",
+      "source_sha256": "017c11283f46fd8777edb440c846bd15317e4413bba1086921063a80da143385",
+      "emitted_bytes": 1406,
+      "emitted_sha256": "bd0113323d91cbae961ace8b07b8013ecc5bd894daf31b0afcb51d6599d43d4e"
+    }
+  ],
+  "classProof": [
+    {
+      "path": "apps/api/src/intelligence/alert-memo/alert-memo.service.ts",
+      "class_sha256": "aa5e109535f504990de304ec13378042bbc4b7bfef061d13f191f0fc3cef949b",
+      "original_class_byte_exact": true
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/district-brief.service.ts",
+      "class_sha256": "d5ae0d93f84e2eae41a92980e96eaba3e71aa219c8d0511ebea7ef85e813d395",
+      "original_class_byte_exact": true
+    }
+  ],
+  "transpile_only": true,
+  "full_api_type_nest_build_or_bootstrap_qualified": false
+}

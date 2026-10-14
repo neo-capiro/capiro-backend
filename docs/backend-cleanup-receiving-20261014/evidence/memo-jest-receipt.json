@@ -1,0 +1,42 @@
+{
+  "label": "memo-jest",
+  "cwd": "apps/api",
+  "argv": [
+    "node",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/workspace/capiro-backend-cleanup-receiving-20261014/docs/backend-cleanup-receiving-20261014/api-jest.config.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/intelligence/alert-memo/alert-memo-citations.spec.ts",
+    "src/intelligence/alert-memo/alert-memo-held-gate.spec.ts",
+    "src/intelligence/alert-memo/alert-memo-program-element.spec.ts",
+    "src/intelligence/alert-memo/alert-memo-templates.spec.ts",
+    "src/intelligence/alert-memo/alert-memo.service.spec.ts",
+    "src/intelligence/alert-memo/district-brief.service.spec.ts",
+    "src/intelligence/alert-memo/entailment-gate.spec.ts",
+    "src/intelligence/alert-memo/governed-alert-deliverables.factory.spec.ts",
+    "src/intelligence/alert-memo/governed-alert-deliverables.phase22.spec.ts",
+    "src/intelligence/alert-memo/legiwatch-context-plane-architecture.contract.spec.ts",
+    "src/intelligence/alert-memo/memo-sections-characterization.spec.ts",
+    "src/intelligence/alert-memo/memo-sections-ownership.contract.spec.ts",
+    "src/reviews/reviews-di-cycle.spec.ts",
+    "--json",
+    "--outputFile=/workspace/capiro-backend-cleanup-receiving-20261014/docs/backend-cleanup-receiving-20261014/evidence/memo-jest-results.json"
+  ],
+  "source_head": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "source_tree": "e0592f4137c67740c0b519f9a88f5d15840b0b8f",
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-cleanup-receiving-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-cleanup-receiving-20261014/.qualification-cache/tmp"
+  },
+  "exit_code": 1,
+  "duration_seconds": 9.326,
+  "output_sha256": "59a792d499386d4dcc33e2f118470498865937044e5b5c56de103ce4bfe6d636",
+  "source_only": true,
+  "live_db_provider_or_customer_operation": false
+}

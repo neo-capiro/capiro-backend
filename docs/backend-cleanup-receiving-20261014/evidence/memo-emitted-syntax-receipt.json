@@ -1,0 +1,23 @@
+{
+  "label": "memo-emitted-syntax",
+  "cwd": ".",
+  "argv": [
+    "node",
+    "docs/backend-cleanup-receiving-20261014/check-memo-emission.cjs"
+  ],
+  "source_head": "b36cee83008830a59e304afca4aa6ae1b1c5e0d3",
+  "source_tree": "e0592f4137c67740c0b519f9a88f5d15840b0b8f",
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "NODE_ENV": "test",
+    "CI": "true",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "NODE_OPTIONS": "--require=/workspace/capiro-backend-cleanup-receiving-20261014/docs/backend-cleanup-receiving-20261014/source-only-fence.cjs",
+    "TMPDIR": "/workspace/capiro-backend-cleanup-receiving-20261014/.qualification-cache/tmp"
+  },
+  "exit_code": 1,
+  "duration_seconds": 0.665,
+  "output_sha256": "4f79e92f75e61f23086792757ccfee12e31bed9b597920580b8442ee92fd9929",
+  "source_only": true,
+  "live_db_provider_or_customer_operation": false
+}

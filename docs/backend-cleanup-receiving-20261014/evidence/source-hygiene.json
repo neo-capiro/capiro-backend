@@ -1,7 +1,7 @@
 {
   "sourceHygiene": "PASS",
   "base": "6efe59f24b4a711b7991bae4b2a255c667cbbf00",
-  "checkedPaths": 67,
+  "checkedPaths": 101,
   "checkedStates": [
     "index",
     "working-tree"

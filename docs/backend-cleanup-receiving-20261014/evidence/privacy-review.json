@@ -1,7 +1,7 @@
 {
   "result": "PASS",
-  "finite_files_scanned": 35,
-  "decoded_raw_observations": 10,
+  "finite_files_scanned": 57,
+  "decoded_raw_observations": 15,
   "patterns": [
     "private-key",
     "aws-key",
